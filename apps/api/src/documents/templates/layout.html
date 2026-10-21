@@ -3,7 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <!--
-      Nothing is fetched: inline styles, and images or fonts only as data
+      Nothing is fetched (the tenant's logo is a data: URL, its colour a
+      checked #rrggbb): inline styles, and images or fonts only as data
       URLs. Gotenberg's Chromium may also load nothing but this page (its
       own temporary file), on a network without egress (docs/documents.md).
     -->
@@ -84,6 +85,19 @@
     </style>
   </head>
   <body>
+    <div style="border-top: 4pt solid {{ brand.color }}; padding-top: 8pt">
+      {{#if brand.logo}}
+      <img
+        src="{{ brand.logo }}"
+        alt=""
+        style="display: block; max-height: 14mm; max-width: 60mm; margin-bottom: 6pt"
+      />
+      {{/if}} {{#if brand.name}}
+      <p style="margin: 0 0 8pt; font-weight: 600; color: {{ brand.color }}">
+        {{ brand.name }}
+      </p>
+      {{/if}}
+    </div>
     {{{ body }}}
   </body>
 </html>

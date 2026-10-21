@@ -370,6 +370,51 @@ at 5 sign-ins/s (the load test); every sign-in queued on it failed. So:
   `/metrics`; the `PasswordHashingSaturated` alert fires after 10 minutes of
   refusals. `AppRestarting` catches a process still killed at its limit.
 
+### Container hardening
+
+Every service of compose.prod.yaml runs with `read_only: true`,
+`cap_drop: [ALL]` and `no-new-privileges`, and a `tmpfs` for what it writes
+(Gotenberg's were the first). A compromised process then can't change the
+image, plant a binary, or gain privileges. What each one may write, and the
+capabilities it gets back:
+
+| Service | Writable (besides the image: none) | Capabilities added back |
+| --- | --- | --- |
+| `api`, `worker`, `migrate` | `/tmp` (64m tmpfs); `api` and `worker` also the `app_storage` volume | none |
+| `postgres` | the `postgres_data` volume, `/tmp` (64m) and `/run/postgresql` (the socket) in memory | `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, `SETUID`: the image's entrypoint starts as root, fixes the data directory and drops to `postgres` |
+| `redis` | the `redis_data` volume, `/tmp` (16m) | `DAC_OVERRIDE`: the command is `sh redis.sh`, not `redis-server`, so the image's entrypoint never drops to `redis`; the server runs as root on a volume that is `redis`'s, which root can't write without it |
+| `caddy` | the `caddy_data` and `caddy_config` volumes, `/tmp` (16m) | `NET_BIND_SERVICE`: ports 80 and 443 |
+| `backup` | the `backups` volume, `/tmp` (16m); `app_storage` stays read only | none (a files restore adds three: [Restoring](#restoring), step 4) |
+| `gotenberg` | `/tmp` and its home, in memory (see above) | none |
+
+- **The tmpfs counts against the container's memory limit** once used, so
+  `/tmp` is small. Raise it in the service's `tmpfs:` line if a feature
+  writes large temporary files (nothing in the app does today: exports and
+  attachments go through the storage driver).
+- **Adding a service or a write path:** give the service the same keys, mount
+  a volume or tmpfs on every path it writes, and start it with the stack up
+  (`docker compose logs <service>`): a `Read-only file system` error names
+  the path to add. Add a capability only when the service fails without it,
+  and say why in a comment.
+- **Not covered:** the optional `compose.monitoring.yaml` services, and
+  `compose.yaml` / `compose.dev.yaml` alone (development), which keep the
+  images' defaults.
+- **Swarm** ([deploy-swarm.md](deploy-swarm.md)) renders these files, so it
+  inherits `read_only` and the capabilities. `docker stack deploy` ignores a
+  service's `tmpfs:` list, so `tools/deploy/render.mjs` turns each entry into
+  a `type: tmpfs` volume (the size only: Gotenberg's `uid` and `gid` have no
+  Swarm equivalent, the mount is writable by anyone). `security_opt` is
+  dropped there.
+- **CI** (`.github/workflows/ci.yml`): `compose-secrets` fails when a service
+  of `compose.yaml` + `compose.prod.yaml` lacks the keys, whichever service
+  it is; `hardened-stack` starts the stack on new volumes and fails when a
+  container exits, restarts, is unhealthy or logs `Read-only file system`.
+  Not started there: the production Caddy (its certificate needs a public
+  name; the job runs the stock Caddy image on plain HTTP, with the
+  `caddy_data` and `caddy_config` volumes `compose.loadtest.yaml` names: the
+  stock image has no `VOLUME` there, so under `read_only` they would be
+  read-only) and Gotenberg.
+
 ## Staging
 
 The same stack and image, with its own `.env`: its domain, secrets, database,
@@ -1448,9 +1493,16 @@ BACKUP_S3_ACCESS_KEY_ID=… -e BACKUP_S3_SECRET_ACCESS_KEY=…`).
    files keep the app's owner):
 
    ```bash
-   docker compose run --rm --user root -v app_storage:/restore \
-     -e BACKUP_STORAGE_DIR=/restore backup restore files-<time>.tar.gz
+   docker compose run --rm --user root \
+     --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER \
+     -v app_storage:/restore -e BACKUP_STORAGE_DIR=/restore \
+     backup restore files-<time>.tar.gz
    ```
+
+   The `--cap-add`s: the service drops every capability, and root without
+   them can't write into a directory the app owns, nor read a backup that is
+   mode 600 and the `postgres` user's (`DAC_OVERRIDE`), keep the files'
+   owner (`CHOWN`) or set their modes and times (`FOWNER`).
 
    They are extracted over what the volume holds; files no row points to
    are removed later by the orphan sweep.

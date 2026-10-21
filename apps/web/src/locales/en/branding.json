@@ -1,0 +1,32 @@
+{
+  "nav": "Branding",
+  "title": "Branding",
+  "description": "Your colour, logo and sender name: the web app, the mail you send and your PDF documents show them.",
+  "locked": "The operators locked the branding of this tenant. It can't be changed here.",
+  "saved": "Branding saved.",
+  "save": "Save",
+  "color": {
+    "label": "Brand colour",
+    "hint": "The accent of buttons and links in the web app, mail and documents.",
+    "set": "Choose a colour",
+    "remove": "Use the default colour"
+  },
+  "mailName": {
+    "label": "Mail sender name",
+    "hint": "The name mail is sent under and signed with. The address stays the deployment's."
+  },
+  "logo": {
+    "label": "Logo",
+    "hint": "A PNG, JPEG or WebP image. It shows in the menu, in mail and on documents.",
+    "alt": "The current logo",
+    "drop": "Drop the logo here",
+    "limit": "PNG, JPEG or WebP, up to 512 KB",
+    "choose": "Choose a file",
+    "saved": "Logo saved.",
+    "remove": "Remove the logo",
+    "removed": "Logo removed.",
+    "rejected": "{{name}}: {{reason}}",
+    "tooLarge": "The file is over {{max}} KB.",
+    "typeRefused": "Use a PNG, JPEG or WebP image."
+  }
+}

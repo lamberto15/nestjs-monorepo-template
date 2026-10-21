@@ -153,6 +153,29 @@ jobs:
           test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_NAME' env.json)" = 'postgresql://app_monitor:mon-ci@postgres:5432/app?sslmode=disable'
           test "$(jq -r '.services["postgres-exporter"].secrets | map(.source) | join(",")' env.json)" = postgres_monitor_password
           test "$(jq -r '.services["redis-exporter"].environment.REDIS_PASSWORD' env.json)" = redis-ci
+      - name: Every service is hardened
+        # docs/deployment.md, "Container hardening": every service of the
+        # rendered config is checked, so a new one without these keys fails
+        # here. Only compose.yaml + compose.prod.yaml are rendered: the job's
+        # COMPOSE_FILE adds the monitoring stack, which is not hardened.
+        env:
+          COMPOSE_FILE: compose.yaml:compose.prod.yaml
+        run: |
+          export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
+          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci
+          docker compose --profile '*' config --format json > hardened.json
+          test "$(jq '.services | length' hardened.json)" -gt 0
+          problems=$(jq -r '
+            .services | to_entries[] | .key as $service | .value |
+            (if .read_only != true then "\($service) is not read_only" else empty end),
+            (if ((.cap_drop // []) | index("ALL")) == null then "\($service) does not drop ALL capabilities" else empty end),
+            (if ((.security_opt // []) | index("no-new-privileges:true")) == null then "\($service) lacks no-new-privileges" else empty end),
+            (if ((.tmpfs // []) | map(select(startswith("/tmp"))) | length) != 1 then "\($service) has no /tmp tmpfs" else empty end)
+          ' hardened.json)
+          if [ -n "$problems" ]; then
+            while IFS= read -r problem; do echo "::error::$problem"; done <<< "$problems"
+            exit 1
+          fi
       # The containers get the variables compose.prod.yaml lists (no env_file):
       # APP_MODE (docs/settings.md, "Maintenance and read-only mode") must be one.
       - name: APP_MODE reaches the api and the worker
@@ -1030,6 +1053,101 @@ jobs:
           exit-code: '1'
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
+
+  # The hardened production stack starts (docs/deployment.md, "Container
+  # hardening"). compose-secrets sees the keys; only a start shows whether the
+  # containers run under them: a missing tmpfs or capability is a container
+  # that exits, restarts or never becomes healthy. It is the load test's
+  # stack (loadtest/run.sh: PostgreSQL, Redis, migrate, api ×2, worker, the
+  # stock Caddy on plain HTTP) with the backup service, on new volumes as a
+  # first deployment has them. Not started: the production Caddy (its
+  # certificate needs a public name) and Gotenberg.
+  hardened-stack:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      # loadtest/run.sh's names only: its `down` removes the project's volumes.
+      LOADTEST_PROJECT: loadtest-hardened
+      # run.sh's default; ignored by git.
+      LOADTEST_OUT: loadtest/results
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build the production image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          load: true
+          tags: app:hardened
+          build-args: GIT_SHA=${{ github.sha }}
+          cache-from: type=gha
+      # Returns once the API answers behind Caddy; otherwise prints the logs
+      # and fails.
+      - name: Start the stack
+        env:
+          APP_IMAGE: app:hardened
+        run: loadtest/run.sh up
+      - name: Every container runs, healthy and never restarted
+        run: |
+          # The files and the environment run.sh starts the stack with.
+          compose() {
+            API_REPLICAS=2 LOADTEST_CAPTCHA=off docker compose \
+              --project-name "$LOADTEST_PROJECT" --env-file "$LOADTEST_OUT/stack.env" \
+              -f compose.yaml -f compose.prod.yaml -f compose.loadtest.yaml \
+              --profile backup "$@"
+          }
+          # The backup service writes /backups as `postgres`: its first run
+          # (the scheduler takes one at once on an empty volume) proves it can.
+          compose up -d --build --no-deps backup
+          for _ in $(seq 1 45); do
+            compose exec -T backup test -s /backups/.last-success && break
+            sleep 2
+          done
+          compose exec -T backup test -s /backups/.last-success || { echo "::error::the backup service made no backup"; exit 1; }
+          # Redis writes /data as root: a save must work (MISCONF otherwise).
+          compose exec -T redis sh -c 'export REDISCLI_AUTH="$REDIS_PASSWORD"; redis-cli bgsave | grep -q "Background saving"; sleep 3; redis-cli info persistence | tr -d "\r" | grep -qx rdb_last_bgsave_status:ok' \
+            || { echo "::error::redis can't save its data"; exit 1; }
+          state() {
+            for id in $(compose ps -aq); do
+              docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}} {{.State.Status}} exit={{.State.ExitCode}} restarts={{.RestartCount}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$id"
+            done | sort
+          }
+          # migrate ran once and exited 0; the others run, healthy or without
+          # a healthcheck, and none was restarted.
+          settled() {
+            state | awk '
+              { seen[$1] = 1 }
+              $1 == "migrate" { if ($2 != "exited" || $3 != "exit=0") bad = 1; next }
+              $2 != "running" || $4 != "restarts=0" || ($5 != "health=healthy" && $5 != "health=none") { bad = 1 }
+              END {
+                n = split("postgres redis migrate api worker caddy backup", want, " ")
+                for (i = 1; i <= n; i++) if (!(want[i] in seen)) bad = 1
+                exit bad + 0
+              }'
+          }
+          for _ in $(seq 1 30); do
+            settled && break
+            sleep 2
+          done
+          state
+          settled || { echo "::error::a container exited, was restarted or is unhealthy"; exit 1; }
+          # A missing tmpfs or volume is named in the logs.
+          if compose logs --no-color 2>&1 | grep -i 'read-only file system'; then
+            echo "::error::a container wrote to the read-only filesystem"
+            exit 1
+          fi
+      - name: The containers' logs
+        if: failure()
+        run: |
+          for id in $(docker ps -aq --filter "label=com.docker.compose.project=$LOADTEST_PROJECT"); do
+            echo "::group::$(docker inspect -f '{{.Name}} {{.State.Status}} {{.State.Error}}' "$id")"
+            docker logs --tail 80 "$id" 2>&1 || true
+            echo "::endgroup::"
+          done
+      - name: Remove the stack and its volumes
+        if: always()
+        run: loadtest/run.sh down
 
   # Caddy's image (caddy/Dockerfile, built from the repository root as
   # compose.prod.yaml does; caddy/Dockerfile.dockerignore picks what goes

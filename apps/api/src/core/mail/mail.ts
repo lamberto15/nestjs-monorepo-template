@@ -13,6 +13,7 @@ import {
   SesTransport,
   SmtpTransport,
 } from '@nestjs/mail';
+import { BrandedTemplateEngine } from './mail-branding.js';
 import {
   awsCredentials,
   type Config,
@@ -70,12 +71,15 @@ export const mail = () =>
     inject: [ConfigService],
     useFactory: (config: Config<CoreEnv>) => ({
       transport: mailTransport(config),
-      templates: new FileTemplateEngine({
-        dir: join(import.meta.dirname, '../../mail/templates'),
-        layout: 'layout',
-        // Development reads the files for every mail, so edits show without a restart.
-        cache: config.get('NODE_ENV', { infer: true }) === 'production',
-      }),
+      // Branded: every template gets the tenant's `brand` (mail-branding.ts).
+      templates: new BrandedTemplateEngine(
+        new FileTemplateEngine({
+          dir: join(import.meta.dirname, '../../mail/templates'),
+          layout: 'layout',
+          // Development reads the files for every mail, so edits show without a restart.
+          cache: config.get('NODE_ENV', { infer: true }) === 'production',
+        }),
+      ),
       from: config.get('MAIL_FROM', { infer: true }),
     }),
   });
