@@ -37,7 +37,7 @@ services:
   # AWS on http://localhost:4566 (S3 for files, SES for mail), so development
   # runs the production paths without an account. SES mail is relayed to Mailpit.
   floci:
-    image: floci/floci:2.2.0-compat # compat: the AWS CLI for the init hook
+    image: floci/floci:2.3.0-compat # compat: the AWS CLI for the init hook
     restart: unless-stopped
     logging: *logging
     environment:
