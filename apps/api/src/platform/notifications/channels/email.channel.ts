@@ -6,6 +6,8 @@ import type { Transaction } from '../../../core/database/drizzle.js';
 import { MailQueue } from '../../../core/mail/mail-queue.js';
 import type { PlatformEnv } from '../../platform.env.js';
 import { nextDigestTime } from '../digest-time.js';
+import { NotificationCatalog } from '../notification-catalog.js';
+import { NotificationUnsubscribeLinks } from '../notification-unsubscribe.js';
 import { NotificationChannelRegistry } from '../notification-channel.registry.js';
 import { NotificationMail } from '../notification.mails.js';
 import { emailSettingSchema } from '../notification.schemas.js';
@@ -33,6 +35,8 @@ export class EmailChannel implements NotificationChannel<EmailMode | false> {
   constructor(
     private readonly mailQueue: MailQueue,
     private readonly config: ConfigService<CoreEnv & PlatformEnv, true>,
+    private readonly catalog: NotificationCatalog,
+    private readonly unsubscribeLinks: NotificationUnsubscribeLinks,
     registry: NotificationChannelRegistry,
   ) {
     registry.register(this);
@@ -60,6 +64,10 @@ export class EmailChannel implements NotificationChannel<EmailMode | false> {
             title: rendered.title,
             body: rendered.body,
             link: notification.link,
+            // A mandatory type can't be switched off: no unsubscribe offered.
+            unsubscribe: this.catalog.declaration(notification.type)?.mandatory
+              ? null
+              : this.unsubscribeLinks.signType(recipient.id, notification.type),
           },
           locale: rendered.locale,
         },

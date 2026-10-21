@@ -155,6 +155,11 @@
       "cancel": "Batal",
       "none": "Log masuk tunggal tidak tersedia untuk alamat itu. Log masuk dengan cara lain, atau tanya pentadbir anda.",
       "failed": "Kami tidak dapat menyemak alamat itu. Cuba lagi sebentar lagi."
+    },
+    "idle": {
+      "title": "Sesi anda hampir tamat",
+      "description": "Anda tidak aktif. Anda akan dilog keluar dalam {{time}}.",
+      "stay": "Kekal log masuk"
     }
   },
   "account": {
@@ -167,6 +172,16 @@
       "emailHint": "Alamat log masuk anda.",
       "timezone": "Zon waktu",
       "saved": "Profil disimpan."
+    },
+    "avatar": {
+      "title": "Gambar",
+      "choose": "Pilih gambar",
+      "change": "Tukar gambar",
+      "remove": "Alih keluar",
+      "hint": "PNG, JPEG, WebP atau GIF. Dipaparkan kepada ahli organisasi anda.",
+      "saved": "Gambar disimpan.",
+      "removed": "Gambar dialih keluar.",
+      "rejected": "{{name}} tidak digunakan: {{reason}}"
     },
     "security": {
       "title": "Keselamatan"

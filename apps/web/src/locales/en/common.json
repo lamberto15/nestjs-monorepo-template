@@ -155,6 +155,11 @@
       "cancel": "Cancel",
       "none": "Single sign-on isn’t available for that address. Sign in another way, or ask your administrator.",
       "failed": "We couldn’t check that address. Try again in a moment."
+    },
+    "idle": {
+      "title": "Your session is about to end",
+      "description": "You have been inactive. You will be signed out in {{time}}.",
+      "stay": "Stay signed in"
     }
   },
   "account": {
@@ -167,6 +172,16 @@
       "emailHint": "Your sign-in address.",
       "timezone": "Time zone",
       "saved": "Profile saved."
+    },
+    "avatar": {
+      "title": "Picture",
+      "choose": "Choose a picture",
+      "change": "Change picture",
+      "remove": "Remove",
+      "hint": "PNG, JPEG, WebP or GIF. Shown to the members of your organizations.",
+      "saved": "Picture saved.",
+      "removed": "Picture removed.",
+      "rejected": "{{name}} was not used: {{reason}}"
     },
     "security": {
       "title": "Security"

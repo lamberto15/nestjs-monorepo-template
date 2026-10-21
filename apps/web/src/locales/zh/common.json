@@ -155,6 +155,11 @@
       "cancel": "取消",
       "none": "该地址无法使用单点登录。请使用其他方式登录，或咨询管理员。",
       "failed": "无法检查该地址，请稍后重试。"
+    },
+    "idle": {
+      "title": "您的会话即将结束",
+      "description": "您已长时间未操作。将在 {{time}} 后退出登录。",
+      "stay": "保持登录"
     }
   },
   "account": {
@@ -167,6 +172,16 @@
       "emailHint": "您的登录地址。",
       "timezone": "时区",
       "saved": "个人资料已保存。"
+    },
+    "avatar": {
+      "title": "头像",
+      "choose": "选择头像",
+      "change": "更换头像",
+      "remove": "移除",
+      "hint": "PNG、JPEG、WebP 或 GIF。您所在组织的成员可以看到。",
+      "saved": "头像已保存。",
+      "removed": "头像已移除。",
+      "rejected": "未使用 {{name}}：{{reason}}"
     },
     "security": {
       "title": "安全"

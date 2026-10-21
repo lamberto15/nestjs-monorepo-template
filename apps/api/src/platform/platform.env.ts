@@ -56,6 +56,13 @@ export const platformEnv = z.object({
 
   /** The hour (0–23, in each user's time zone) daily notification digests are mailed. */
   NOTIFICATIONS_DIGEST_HOUR: z.coerce.number().int().min(0).max(23).default(8),
+  /**
+   * A mailbox for `List-Unsubscribe` (`mailto:`), added to notification mail
+   * beside the https link (RFC 8058). Empty: no mailto; the https one-click
+   * link is what Gmail and Yahoo require. Nothing in the app reads this
+   * mailbox: set it only when your mail setup does.
+   */
+  MAIL_UNSUBSCRIBE_MAILTO: optional(),
   /** Read notifications older than this many days are deleted every night. */
   NOTIFICATIONS_RETENTION_DAYS: z.coerce.number().int().min(1).default(90),
   /** Any notification older than this many days is deleted, read or not. */
@@ -191,6 +198,9 @@ export const platformEnv = z.object({
   ATTACHMENT_ALLOWED_TYPES: list().transform((types) =>
     types.length > 0 ? types : DEFAULT_ATTACHMENT_TYPES,
   ),
+
+  /** Users' pictures (PUT /v1/account/avatar): the largest, in MB. */
+  AVATAR_MAX_MB: z.coerce.number().int().min(1).max(50).default(2),
 
   /**
    * PDF documents (platform/documents): Gotenberg's URL, `http://gotenberg:3000`

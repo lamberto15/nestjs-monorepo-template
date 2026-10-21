@@ -32,6 +32,13 @@ export const userSchema = z.object({
   emailVerified: z.boolean(),
   locale: z.string().nullable(),
   timezone: z.string().nullable(),
+  avatarUrl: z
+    .string()
+    .nullable()
+    .optional()
+    .describe(
+      'Their picture (PUT /v1/account/avatar): a path on this API to put in an `<img>` (sign-in required, the same session or token); null: none. A new picture is a new address.',
+    ),
   tenantId: z
     .string()
     .nullable()
