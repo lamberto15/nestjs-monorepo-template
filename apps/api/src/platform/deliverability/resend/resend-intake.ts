@@ -36,10 +36,10 @@ const resendSchema = z.object({
 
 /**
  * The first address of `"Name <a@b.c>"` as Resend reports recipients, or the
- * string as it is: what is between the first `<` with something before the
- * next `>`, and that `>`. Searched with indexOf, not `/<([^>]+)>/`: that
- * regex scans to the end again from every `<` of a value without a `>`,
- * quadratic on a crafted one (SonarCloud S8786).
+ * string as it is: the text from the first `<` that isn't an empty `<>` to
+ * the next `>`. Searched with indexOf, not `/<([^>]+)>/`: that regex scans
+ * to the end again from every `<` of a value without a `>`, quadratic on a
+ * crafted one (SonarCloud S8786).
  */
 function address(value: string): string {
   let open = value.indexOf('<');

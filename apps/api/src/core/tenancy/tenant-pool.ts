@@ -65,8 +65,8 @@ let maintenanceInProcess = false;
 export const maintenanceAvailable = () => maintenanceInProcess;
 
 const BEGIN = /^\s*(?:begin|start\s+transaction)\b/i;
-// The spaces after the `;` belong to the optional group: with `\s*;?\s*`, the
-// two runs of spaces could split a run between them, quadratic (SonarCloud S8786).
+// The spaces after the `;` belong to the optional group: in `\s*;?\s*` both
+// runs could take the same spaces, quadratic on a long run (SonarCloud S8786).
 const END = /^\s*(?:commit|rollback|end|abort)\s*(?:;\s*)?$/i;
 
 type Callback = (error: Error | null, result?: unknown) => void;

@@ -50,8 +50,7 @@ function checkMinorUnit(
   if (!isCurrency(value.currency) || !DECIMAL_PATTERN.test(value.amount)) {
     return; // their own issues
   }
-  const fraction = value.amount.split('.')[1];
-  const decimals = fraction === undefined ? 0 : trimEnd(fraction, '0').length;
+  const decimals = trimEnd(value.amount.split('.')[1] ?? '', '0').length;
   const exponent = currencyExponent(value.currency);
   if (decimals > exponent) {
     ctx.addIssue({
