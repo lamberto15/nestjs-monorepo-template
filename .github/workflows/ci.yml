@@ -107,7 +107,7 @@ jobs:
       - name: Secrets as variables, as an existing .env has them
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
-          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci
+          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci BACKUP_ENCRYPTION_KEY=age1ci
           docker compose config --format json > env.json
           # The app role for api and worker; the owner on migrate only (docs/deployment.md, "Database roles").
           test "$(jq -r .services.api.environment.DATABASE_URL env.json)" = 'postgres://app_runtime:app-ci@postgres:5432/app'
@@ -146,6 +146,9 @@ jobs:
           done
           test "$(jq -r .services.postgres.environment.POSTGRES_PASSWORD env.json)" = pg-ci
           test "$(jq -r .services.backup.environment.PGPASSWORD env.json)" = pg-ci
+          # The backup's encryption recipients: the variable reaches the backup, the file variable stays empty.
+          test "$(jq -r .services.backup.environment.BACKUP_ENCRYPTION_KEY env.json)" = age1ci
+          test "$(jq -r .services.backup.environment.BACKUP_ENCRYPTION_KEY_FILE env.json)" = ''
           test "$(jq -r .services.caddy.environment.CLOUDFLARE_API_TOKEN env.json)" = ci
           test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_NAME' env.json)" = 'postgresql://app_monitor:mon-ci@postgres:5432/app?sslmode=disable'
           test "$(jq -r '.services["postgres-exporter"].secrets | map(.source) | join(",")' env.json)" = postgres_monitor_password
@@ -154,7 +157,7 @@ jobs:
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
           dir=$(mktemp -d)
-          for name in POSTGRES_PASSWORD DATABASE_URL DATABASE_OWNER_URL POSTGRES_MONITOR_PASSWORD POSTGRES_REPORTING_PASSWORD REDIS_PASSWORD CLOUDFLARE_API_TOKEN JWT_SECRET SMTP_URL ANTHROPIC_API_KEY; do
+          for name in POSTGRES_PASSWORD DATABASE_URL DATABASE_OWNER_URL POSTGRES_MONITOR_PASSWORD POSTGRES_REPORTING_PASSWORD REDIS_PASSWORD CLOUDFLARE_API_TOKEN JWT_SECRET SMTP_URL ANTHROPIC_API_KEY BACKUP_ENCRYPTION_KEY; do
             echo ci > "$dir/$name"
             export "${name}_FILE=$dir/$name"
           done
@@ -188,6 +191,11 @@ jobs:
           test "$(jq -r .services.postgres.environment.POSTGRES_PASSWORD files.json)" = ''
           test "$(jq -r .services.postgres.environment.POSTGRES_PASSWORD_FILE files.json)" = /run/secrets/postgres_password
           test "$(jq -r .services.backup.environment.PGPASSWORD_FILE files.json)" = /run/secrets/postgres_password
+          # The backup's encryption recipients from a file (BACKUP_ENCRYPTION_KEY_FILE).
+          test "$(jq -r .services.backup.environment.BACKUP_ENCRYPTION_KEY files.json)" = ''
+          test "$(jq -r .services.backup.environment.BACKUP_ENCRYPTION_KEY_FILE files.json)" = /run/secrets/backup_encryption_key
+          test "$(jq -r '.services.backup.secrets | map(.source) | index("backup_encryption_key") != null' files.json)" = true
+          test "$(jq -r .secrets.backup_encryption_key.file files.json)" = "$dir/BACKUP_ENCRYPTION_KEY"
           test "$(jq -r .services.redis.environment.REDIS_PASSWORD_FILE files.json)" = /run/secrets/redis_password
           test "$(jq -r .services.caddy.environment.CLOUDFLARE_API_TOKEN_FILE files.json)" = /run/secrets/cloudflare_api_token
           test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_NAME' files.json)" = ''
@@ -816,6 +824,10 @@ jobs:
           tags: backup:ci
           cache-from: type=gha,scope=backup
           cache-to: type=gha,scope=backup,mode=max
+      # Encryption (age) and point-in-time recovery, end to end in the image,
+      # on a throwaway PostgreSQL (backup/test-pitr.sh).
+      - name: Encryption and point-in-time recovery work
+        run: scripts/test-backup-pitr.sh backup:ci
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
