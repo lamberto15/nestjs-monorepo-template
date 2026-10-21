@@ -1,0 +1,38 @@
+{
+  "title": "Dashboard",
+  "description": "What needs you, and what changed lately.",
+  "viewAll": "View all",
+  "approvals": {
+    "title": "Waiting for your approval",
+    "stat": "Pending approvals",
+    "statHint": "Requests assigned to you",
+    "empty": "Nothing is waiting for you."
+  },
+  "notifications": {
+    "title": "Unread notifications",
+    "stat": "Unread notifications",
+    "statHint": "In your inbox",
+    "empty": "You are all caught up."
+  },
+  "activity": {
+    "title": "Recent activity",
+    "empty": "No activity yet."
+  },
+  "records": {
+    "title": "Recently changed notes",
+    "empty": "No notes yet."
+  },
+  "chart": {
+    "title": "Notes per week",
+    "description": "Notes created in the last 8 weeks (weeks start on Monday, UTC).",
+    "series": "Notes",
+    "empty": "No notes were created in the last 8 weeks."
+  },
+  "quick": {
+    "title": "Quick actions",
+    "newNote": "New note",
+    "approvals": "Approvals",
+    "notifications": "Notifications",
+    "audit": "Audit log"
+  }
+}

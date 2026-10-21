@@ -1,0 +1,38 @@
+{
+  "title": "Papan pemuka",
+  "description": "Apa yang menanti anda dan apa yang berubah baru-baru ini.",
+  "viewAll": "Lihat semua",
+  "approvals": {
+    "title": "Menunggu kelulusan anda",
+    "stat": "Kelulusan tertunggak",
+    "statHint": "Permintaan yang ditugaskan kepada anda",
+    "empty": "Tiada apa-apa yang menunggu anda."
+  },
+  "notifications": {
+    "title": "Pemberitahuan belum dibaca",
+    "stat": "Pemberitahuan belum dibaca",
+    "statHint": "Dalam peti masuk anda",
+    "empty": "Semuanya sudah dibaca."
+  },
+  "activity": {
+    "title": "Aktiviti terkini",
+    "empty": "Belum ada aktiviti."
+  },
+  "records": {
+    "title": "Nota yang baru diubah",
+    "empty": "Belum ada nota."
+  },
+  "chart": {
+    "title": "Nota seminggu",
+    "description": "Nota yang dicipta dalam 8 minggu lepas (minggu bermula Isnin, UTC).",
+    "series": "Nota",
+    "empty": "Tiada nota dicipta dalam 8 minggu lepas."
+  },
+  "quick": {
+    "title": "Tindakan pantas",
+    "newNote": "Nota baharu",
+    "approvals": "Kelulusan",
+    "notifications": "Pemberitahuan",
+    "audit": "Log audit"
+  }
+}

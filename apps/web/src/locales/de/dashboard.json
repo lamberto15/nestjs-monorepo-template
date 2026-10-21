@@ -1,0 +1,38 @@
+{
+  "title": "Übersicht",
+  "description": "Was auf dich wartet und was sich zuletzt geändert hat.",
+  "viewAll": "Alle anzeigen",
+  "approvals": {
+    "title": "Wartet auf deine Freigabe",
+    "stat": "Offene Freigaben",
+    "statHint": "Dir zugewiesene Anfragen",
+    "empty": "Nichts wartet auf dich."
+  },
+  "notifications": {
+    "title": "Ungelesene Benachrichtigungen",
+    "stat": "Ungelesene Benachrichtigungen",
+    "statHint": "In deinem Posteingang",
+    "empty": "Alles gelesen."
+  },
+  "activity": {
+    "title": "Letzte Aktivität",
+    "empty": "Noch keine Aktivität."
+  },
+  "records": {
+    "title": "Zuletzt geänderte Notizen",
+    "empty": "Noch keine Notizen."
+  },
+  "chart": {
+    "title": "Notizen pro Woche",
+    "description": "In den letzten 8 Wochen erstellte Notizen (Wochen beginnen montags, UTC).",
+    "series": "Notizen",
+    "empty": "In den letzten 8 Wochen wurden keine Notizen erstellt."
+  },
+  "quick": {
+    "title": "Schnellzugriff",
+    "newNote": "Neue Notiz",
+    "approvals": "Freigaben",
+    "notifications": "Benachrichtigungen",
+    "audit": "Audit-Protokoll"
+  }
+}
