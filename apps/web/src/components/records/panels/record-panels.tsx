@@ -80,8 +80,9 @@ export function RecordPanels(props: {
     }
   });
   // An upload the malware scan flagged is deleted, not marked (docs/attachments.md):
-  // the list loses it on the event above, and its uploader is told here why
-  // (the API's notification, in their language) wherever the file was.
+  // the list loses it on the event above, and its uploader is told why here
+  // (the API's notification, in their language) while a record of the subject
+  // is open; the bell has it anywhere else.
   useRealtimeEvent('notification', (event) => {
     if (
       event.type === 'attachment.rejected' &&
