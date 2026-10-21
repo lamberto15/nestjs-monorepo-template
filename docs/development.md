@@ -236,6 +236,7 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 | `pnpm db:studio` | Drizzle Studio on the development database |
 | `pnpm migrate` | apply migrations as `DATABASE_OWNER_URL`, then make or check the app role of `DATABASE_URL` (what a deploy runs) |
 | `pnpm db:seed:demo` | demo users, teams and each feature's demo data on a development database ("Demo data") |
+| `pnpm ops <command>` | the operator CLI: a one-time password, remove two-factor, unlock, delete a setting, create an administrator ([deployment](deployment.md), "Operator CLI"); on a deployment: `docker compose run --rm api node dist/cli <command>` |
 | `pnpm feature:add <plural> --fields "…" [--with …]` | a new feature from its declaration ([adding a feature](adding-a-feature.md)) |
 | `pnpm feature:sync [<plural>]` | after editing a feature's `<item>.record.ts` (fields, capabilities, options): updates what the platform derives from it |
 | `pnpm feature:remove <plural>` | a feature, its tests and texts, e.g. the example `notes` |

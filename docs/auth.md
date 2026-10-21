@@ -956,6 +956,20 @@ and `PATCH /v1/sso/connections/{id}`):
 - Each change is audited (`sso.roles-synced`: `added`, `removed`), with the
   connection; a role deleted takes its mappings with it.
 
+### Locked out
+
+Nobody can sign in, or the only administrator can't act: `pnpm ops`, the
+operator CLI ([deployment](deployment.md), "Operator CLI"), runs on the
+server and needs no SQL. A policy that locks everyone out
+(`auth.requireMfa` on, [policies](#policies)): `setting:delete
+auth.requireMfa --tenant <slug>`. A lost password: `user:reset-password
+<email>` (a one-time password, every session ended). A lost authenticator
+and recovery codes: `user:remove-mfa <email>`. Failed second-factor codes
+locking the account for 15 minutes: `user:unlock <email>`. No administrator
+left: `admin:create <email> --tenant <slug>`. Each is confirmed first,
+audited as `system:ops` with the operator's OS user and host, and tells the
+account's owner.
+
 ### SSO required
 
 `PUT /v1/sso/policy { "requireSso": true }` (`Access.manageSso`, recent

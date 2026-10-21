@@ -461,6 +461,58 @@ own log, kept until the erase: retention rules are roadmap item 5.
 `test/tenant-lifecycle.e2e-spec.ts` runs both; `security.e2e-spec.ts` the
 refusals (operators only, step-up, never through `/v1/data/exports`).
 
+## Quotas
+
+A tenant's size is capped so one customer can't fill the disk or the
+database. Four limits, each a whole number, unlimited until set: `maxMembers`
+(active memberships), `maxApiClients`, `maxStorageBytes` (attachments and the
+documents issued as attachments; the transfer files that expire after days
+are not counted) and `maxRecords` per feature, by its subject (`Note`; the
+recycle bin is not counted). Code: `core/tenancy/tenant-quotas.ts` (the
+enforcement), `platform/quotas/` (the defaults, the routes, the metrics).
+
+| Route                                                                                                       | What                                                                                                                                                                                                                                                                                 |
+| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PUT /v1/tenants/{id}/quotas { maxMembers?, maxApiClients?, maxStorageBytes?, maxRecords?: { Note: 100 } }` | Operators only (`Access.manageTenants`, `@OperatorOnly()`). A number sets a limit, `null` removes the tenant's own (the default holds again), an absent key stays. Answers the usage. Audited `tenant.quotas-changed` (each limit from to) in the operator's tenant and in that one. |
+| `GET /v1/tenants/{id}/usage`                                                                                | Operators only: `{ members, apiClients, storageBytes: { used, limit }, records: { Note: { used, limit } }, limits }`; `limit` null is unlimited.                                                                                                                                     |
+| `GET /v1/tenant/usage`                                                                                      | The same for the caller's own tenant, to those with `Access.manageSettings`.                                                                                                                                                                                                         |
+
+**Defaults** are the platform settings `quotas.maxMembers`,
+`quotas.maxApiClients`, `quotas.maxStorageBytes` and `quotas.maxRecords`
+(per feature), set by the operators for every tenant at once
+(`PUT /v1/settings/quotas.maxMembers/platform { value: 50 }`,
+[settings](settings.md)). They have no tenant scope: a tenant's administrators
+can't raise their own. A tenant's own limit wins over the default, and
+removing the own limit brings the default back (there is no way to exempt a
+tenant from a default but a number high enough).
+
+**Enforcement.** The service that makes the thing calls
+`TenantQuotas.assertRoom(tx, tenantId, resource, adding)` inside its
+transaction, before the insert: a member joining (`UsersRepository.joinTenant()`,
+`addMembership()`, `setMembershipActive(true)`: an invitation's acceptance, SCIM,
+SSO and the single-tenant sign-in all pass there; an invitation is sent
+freely, the seat is taken when it is accepted), a new API client, an upload
+or an issued document (`AttachmentsService`, by the file's size), a new record
+(`RecordStore.owner()`, which every generated service calls on create; the
+hand-written notes call it themselves). Past the limit: **422** `quota_exceeded`
+with `quota: { resource, limit, used }`; an upload's file is deleted again.
+Lowering a limit under the current use deletes nothing; it refuses what is
+made next. The groups that own a resource say how it is counted
+(`quotas.count('apiClients', …)`), so core knows none of their tables; a new
+tenant-scoped feature gets `records:<Subject>` from `recordParts()` for free.
+
+**Race safety.** `assertRoom()` first reads the limit (no limit: no work),
+then takes a transaction-level advisory lock on the tenant and the resource,
+counts and compares. Parallel creates of one tenant and resource run one
+after the other between the check and the commit, so they never pass the last
+place; other tenants and resources don't wait.
+
+**Metrics and alert.** The workers' `/metrics` shows `tenant_storage_bytes{tenant}`
+and `tenant_storage_limit_bytes{tenant}` (tenants with a limit); the alert
+`TenantStorageNearLimit` fires above 90 % for 15 minutes
+([deployment](deployment.md), "Alerting"). The web's usage card on the tenant
+page is a frontend follow-up.
+
 ## Break-glass
 
 An operator reads a tenant that never invited them (an incident, a support

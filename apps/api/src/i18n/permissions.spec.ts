@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { opsPermissions } from '../cli/ops.jobs.js';
 import { demoPermissions } from '../demo/demo.jobs.js';
 import { FEATURES } from '../features/index.js';
 import {
@@ -112,6 +113,7 @@ describe('the permissions catalog (i18n)', () => {
     PLATFORM_PERMISSIONS,
     ...FEATURES.map((feature) => feature.permissions),
     demoPermissions(FEATURES),
+    opsPermissions,
   ]);
   const english = flatten(
     JSON.parse(
