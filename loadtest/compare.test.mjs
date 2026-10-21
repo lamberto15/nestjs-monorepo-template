@@ -1,7 +1,7 @@
 // node --test loadtest/compare.test.mjs
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -131,6 +131,37 @@ test('the command exits 1 on a regression, 0 with --report-only or without a ref
   writeFileSync(previous, '{ not json');
   assert.equal(run('--previous', previous), 2);
   assert.equal(run('--unknown-flag'), 2);
+});
+
+// Claude runs it too: a path never reads or appends to a file outside the
+// checkout and the temp directories (#471).
+test('the command refuses files outside the checkout and the temp directories', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'loadtest-compare-'));
+  const script = fileURLToPath(new URL('./compare.mjs', import.meta.url));
+  const current = join(dir, 'current.json');
+  writeFileSync(current, JSON.stringify(baseline({ list: scenario(40, 90) })));
+  const run = (...args) => {
+    try {
+      execFileSync(process.execPath, [script, ...args], { stdio: 'pipe', env: { ...process.env, RUNNER_TEMP: '' } });
+      return { status: 0, stderr: '' };
+    } catch (error) {
+      return { status: error.status, stderr: String(error.stderr) };
+    }
+  };
+  for (const args of [
+    ['--current', '/etc/hosts'],
+    ['--current', current, '--previous', '/etc/hosts'],
+    ['--current', current, '--anchor', '/etc/passwd'],
+    ['--current', current, '--summary', '/etc/load-test-summary.md'],
+  ]) {
+    const result = run(...args);
+    assert.equal(result.status, 2, args.join(' '));
+    assert.match(result.stderr, /not under/);
+  }
+  // The checkout and the temp directory are fine.
+  const summary = join(dir, 'summary.md');
+  assert.equal(run('--current', current, '--summary', summary).status, 0);
+  assert.match(readFileSync(summary, 'utf8'), /## Load test/);
 });
 
 test('holds an export to the same bar for its time to a ready file', () => {
