@@ -11,6 +11,7 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppSidebar } from '@/components/app-sidebar';
 import { BreachedPasswordBanner } from '@/components/breached-password-banner';
+import { OfflineBanner } from '@/components/offline-banner';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
 import { UnverifiedBanner } from '@/components/unverified-banner';
 import { SearchPalette } from '@/features/search/palette';
@@ -47,6 +48,7 @@ function AppLayout() {
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
+            <OfflineBanner />
             <ImpersonationBanner />
             <UnverifiedBanner />
             <BreachedPasswordBanner />

@@ -28,6 +28,7 @@ import {
 import { useTheme } from '@nestjs-monorepo-template/ui/components/theme-provider';
 import {
   BellIcon,
+  DownloadIcon,
   ChevronsUpDownIcon,
   EyeIcon,
   LanguagesIcon,
@@ -42,6 +43,7 @@ import { useTranslation } from 'react-i18next';
 import { languages, type Language } from '@/i18n';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/features';
+import { useInstallPrompt } from '@/lib/pwa';
 import { meQuery, saveLanguageKey } from '@/lib/session';
 import { useSignOut } from '@/lib/sign-out';
 
@@ -63,6 +65,8 @@ export function NavUser() {
   const { t, i18n } = useTranslation();
   const { t: tn } = useTranslation('notifications');
   const { t: tw } = useTranslation('watching');
+  const { t: tp } = useTranslation('pwa');
+  const install = useInstallPrompt();
   const { theme, setTheme } = useTheme();
   const me = useMe();
   const queryClient = useQueryClient();
@@ -192,6 +196,12 @@ export function NavUser() {
               </DropdownMenuSub>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
+            {install && (
+              <DropdownMenuItem onClick={() => void install()}>
+                <DownloadIcon />
+                {tp('install')}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               disabled={signOut.isPending}
               onClick={() => signOut.mutate()}
