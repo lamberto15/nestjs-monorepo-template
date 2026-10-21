@@ -70,6 +70,8 @@ export interface MailJobResult {
  */
 @Injectable()
 export class MailQueue {
+  private readonly logger = new Logger('MailQueue');
+
   constructor(
     @InjectQueue(MAIL_QUEUE) private readonly queue: Queue<QueuedMail>,
     private readonly mailer: Mailer,
@@ -86,7 +88,9 @@ export class MailQueue {
   ) {
     // The tenant's logo and colour in the templates, its name on the sender
     // (unless the mail class sets its own `from`: options.from).
-    const brand = (await this.branding?.current()) ?? DEFAULT_MAIL_BRAND;
+    // Cosmetic: a failed lookup (the settings, the object store) never keeps
+    // a mail back, a sign-in link's or a reset's included.
+    const brand = await this.brand();
     const message = await withMailBrand(brand, () =>
       this.mailer.render(mail, options),
     );
@@ -119,6 +123,18 @@ export class MailQueue {
         backoff: { type: 'exponential', delay: 30_000 },
       },
     );
+  }
+
+  /** The tenant's brand, or the default when there is none or it can't be read (logged). */
+  private async brand() {
+    try {
+      return (await this.branding?.current()) ?? DEFAULT_MAIL_BRAND;
+    } catch (error) {
+      this.logger.warn('Mail sent unbranded: the brand could not be read', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return DEFAULT_MAIL_BRAND;
+    }
   }
 }
 

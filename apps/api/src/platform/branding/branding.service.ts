@@ -6,7 +6,11 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { Readable } from 'node:stream';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { detectContentType, StorageDisk } from '@nestjs/storage';
+import {
+  detectContentType,
+  StorageDisk,
+  StorageFileNotFoundError,
+} from '@nestjs/storage';
 import { and, eq } from 'drizzle-orm';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import {
@@ -19,7 +23,10 @@ import {
   type DrizzleTransactions,
 } from '../../core/database/transactions.js';
 import { tenants } from '../../core/tenancy/tenancy.tables.js';
-import { currentTenantId } from '../../core/tenancy/tenant-scope.js';
+import {
+  currentTenantId,
+  requireTenantId,
+} from '../../core/tenancy/tenant-scope.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { SettingsService } from '../settings/settings.service.js';
@@ -117,7 +124,20 @@ export class BrandingService implements MailBranding {
 
   /** What the caller sees: the tenant's branding, and whether they may change it. */
   async view(principal: Principal): Promise<Branding> {
-    const tenantId = this.tenantId();
+    const tenantId = currentTenantId();
+    if (!tenantId) {
+      // A signed-in caller with no tenant (no membership, a session whose
+      // tenant was left) is still routed into the web app, which asks for
+      // the theme: nothing is branded, and nothing is theirs to change
+      // (the settings read the same: defaults).
+      return {
+        primaryColor: null,
+        mailFromName: null,
+        logoUrl: null,
+        locked: false,
+        canEdit: false,
+      };
+    }
     const [primaryColor, mailFromName, locked, logo] = await Promise.all([
       this.settings.get(BRANDING_PRIMARY_COLOR),
       this.settings.get(BRANDING_MAIL_FROM_NAME),
@@ -244,8 +264,21 @@ export class BrandingService implements MailBranding {
     if (!tenant || !logo) {
       return null;
     }
-    const file = await this.disk.get(BrandingService.logoKey(tenant.id));
-    return { contentType: logo.contentType, size: file.size, body: file.body };
+    try {
+      const file = await this.disk.get(BrandingService.logoKey(tenant.id));
+      return {
+        contentType: logo.contentType,
+        size: file.size,
+        body: file.body,
+      };
+    } catch (error) {
+      // Removed through another instance, which cleared its own cache only.
+      if (error instanceof StorageFileNotFoundError) {
+        this.logos.delete(tenant.id);
+        return null;
+      }
+      throw error;
+    }
   }
 
   /** The current tenant's brand for mail (the core's port). */
@@ -286,14 +319,23 @@ export class BrandingService implements MailBranding {
     ]);
     let data: string | null = null;
     if (logo) {
-      const bytes = await this.disk.getBuffer(
-        BrandingService.logoKey(tenantId),
-      );
-      // The type the bytes say (again: the file may have changed since it
-      // was cached), from the allowlist, never the stored metadata.
-      const type = detectContentType(bytes);
-      if (type && (LOGO_TYPES as readonly string[]).includes(type)) {
-        data = `data:${type};base64,${bytes.toString('base64')}`;
+      try {
+        const bytes = await this.disk.getBuffer(
+          BrandingService.logoKey(tenantId),
+        );
+        // The type the bytes say (again: the file may have changed since it
+        // was cached), from the allowlist, never the stored metadata.
+        const type = detectContentType(bytes);
+        if (type && (LOGO_TYPES as readonly string[]).includes(type)) {
+          data = `data:${type};base64,${bytes.toString('base64')}`;
+        }
+      } catch (error) {
+        // Removed through another instance, which cleared its own cache
+        // only: a document without the logo, not a failed job.
+        if (!(error instanceof StorageFileNotFoundError)) {
+          throw error;
+        }
+        this.logos.delete(tenantId);
       }
     }
     return {
@@ -307,12 +349,9 @@ export class BrandingService implements MailBranding {
     return `/v1/branding/${tenantId}/logo`;
   }
 
+  /** The current tenant, or a TenantScopeMissingError (403 `tenant_required`). */
   private tenantId() {
-    const id = currentTenantId();
-    if (!id) {
-      throw new Error('Branding needs a tenant.');
-    }
-    return id;
+    return requireTenantId('Branding');
   }
 
   private async logo(
@@ -325,20 +364,29 @@ export class BrandingService implements MailBranding {
     }
     const key = BrandingService.logoKey(tenantId);
     let info: LogoInfo | null = null;
-    if (await this.disk.exists(key)) {
-      const { size } = await this.disk.stat(key);
-      // What the first bytes say, not what the file was stored as: only
-      // the allowlist's images are served as the tenant's logo.
-      const head = await this.disk.get(key, { range: { start: 0, end: 15 } });
-      const chunks: Buffer[] = [];
-      for await (const chunk of head.body) {
-        chunks.push(Buffer.from(chunk as Uint8Array));
+    try {
+      if (await this.disk.exists(key)) {
+        const { size } = await this.disk.stat(key);
+        // What the first bytes say, not what the file was stored as: only
+        // the allowlist's images are served as the tenant's logo.
+        const head = await this.disk.get(key, {
+          range: { start: 0, end: 15 },
+        });
+        const chunks: Buffer[] = [];
+        for await (const chunk of head.body) {
+          chunks.push(Buffer.from(chunk as Uint8Array));
+        }
+        const contentType = detectContentType(Buffer.concat(chunks));
+        info =
+          contentType && (LOGO_TYPES as readonly string[]).includes(contentType)
+            ? { contentType, size }
+            : null;
       }
-      const contentType = detectContentType(Buffer.concat(chunks));
-      info =
-        contentType && (LOGO_TYPES as readonly string[]).includes(contentType)
-          ? { contentType, size }
-          : null;
+    } catch (error) {
+      // Removed between the check and the read: no logo.
+      if (!(error instanceof StorageFileNotFoundError)) {
+        throw error;
+      }
     }
     this.logos.set(tenantId, { at: Date.now(), info });
     return info;

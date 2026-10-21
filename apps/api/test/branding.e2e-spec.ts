@@ -136,6 +136,28 @@ describe('tenant branding (e2e)', () => {
     await node.http().get('/v1/branding').expect(401);
   });
 
+  it('shows a signed-in caller with no tenant the defaults, not a 500', async () => {
+    // The web app routes such a caller into its layout, which asks for the theme.
+    const tenant = await node.otherTenant();
+    await node
+      .admin()
+      .patch(`/v1/tenants/${tenant.id}`)
+      .send({ active: false })
+      .expect(200);
+    // Their only tenant is off: a new sign-in acts in none.
+    const lonely = await node.signIn(tenant.email, tenant.password);
+    expect(
+      (await lonely.get('/v1/auth/me').expect(200)).body.tenant,
+    ).toBeNull();
+    expect((await lonely.get('/v1/branding').expect(200)).body).toEqual({
+      primaryColor: null,
+      mailFromName: null,
+      logoUrl: null,
+      locked: false,
+      canEdit: false,
+    });
+  });
+
   describe('the logo', () => {
     it('is recognized by its bytes, served publicly, and replaced or removed', async () => {
       const tenant = await node.otherTenant();
