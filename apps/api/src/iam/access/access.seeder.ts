@@ -14,6 +14,7 @@ import { normalizeEmail } from '../auth/users.repository.js';
 import { AuditService } from '../audit/audit.service.js';
 import { BreachedPasswordsService } from '../account/breached-passwords.service.js';
 import { tenants } from '../../core/tenancy/tenancy.tables.js';
+import { trim } from '../../core/text/trim.js';
 import { memberships, roles, userRoles, users } from '../iam.tables.js';
 import { SEED_JOB } from '../iam.jobs.js';
 import { PermissionCatalog } from './permission-catalog.js';
@@ -244,9 +245,10 @@ class SeededAlready extends Error {}
 
 /** A tenant's handle from its name: `Acme Corp` → `acme-corp`. */
 export const slugOf = (name: string) =>
-  name
-    .normalize('NFKD')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48) || 'tenant';
+  trim(
+    name
+      .normalize('NFKD')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-'),
+    '-',
+  ).slice(0, 48) || 'tenant';

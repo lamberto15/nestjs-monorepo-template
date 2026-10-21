@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { trimEnd } from '../text/trim.js';
 
 /**
  * Where a browser may be sent back to after a sign-in (`redirectTo`): a path
@@ -69,7 +70,7 @@ export function isSafeRedirectPath(value: unknown): value is string {
  * landing page.
  */
 export function webAppUrl(value: unknown, webUrl: string): URL {
-  const web = new URL(`${webUrl.replace(/\/+$/, '')}/`);
+  const web = new URL(`${trimEnd(webUrl, '/')}/`);
   const root = new URL('/', web);
   let path = value;
   if (typeof value === 'string' && !value.startsWith('/')) {

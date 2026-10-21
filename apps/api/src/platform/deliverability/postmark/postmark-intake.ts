@@ -106,7 +106,9 @@ export class PostmarkIntake implements MailEventIntake {
       });
     }
     const header = headers['x-postmark-webhook-secret'];
-    const basic = /^Basic\s+(.+)$/i.exec(headers.authorization ?? '')?.[1];
+    // The credentials start at the first character after the spaces: the two
+    // quantifiers share none, so the match is linear (SonarCloud S8786).
+    const basic = /^Basic\s+(\S.*)$/i.exec(headers.authorization ?? '')?.[1];
     // user:password; the user name is whatever the URL carries.
     const password = basic
       ? Buffer.from(basic, 'base64')

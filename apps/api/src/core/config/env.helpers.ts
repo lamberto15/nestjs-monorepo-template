@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { appPath } from '../../app-dir.js';
+import { trimEnd } from '../text/trim.js';
 import { secretRegistry } from './secret-files.js';
 
 /**
@@ -65,7 +66,7 @@ export const baseUrl = (fallback?: string) =>
       unsetIfEmpty,
       fallback === undefined ? z.url().optional() : z.url().default(fallback),
     )
-    .transform((value) => value?.replace(/\/+$/, ''));
+    .transform((value) => (value === undefined ? value : trimEnd(value, '/')));
 
 /** Whether `zone` is an IANA time zone this runtime knows (`Europe/Berlin`, `UTC`). */
 export function isTimeZone(zone: string) {

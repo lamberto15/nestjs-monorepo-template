@@ -34,9 +34,21 @@ const resendSchema = z.object({
   }),
 });
 
-/** The first address of `"Name <a@b.c>"` as Resend reports recipients, or the string as it is. */
+/**
+ * The first address of `"Name <a@b.c>"` as Resend reports recipients, or the
+ * string as it is: what is between the first `<` with something before the
+ * next `>`, and that `>`. Searched with indexOf, not `/<([^>]+)>/`: that
+ * regex scans to the end again from every `<` of a value without a `>`,
+ * quadratic on a crafted one (SonarCloud S8786).
+ */
 function address(value: string): string {
-  return /<([^>]+)>/.exec(value)?.[1] ?? value;
+  let open = value.indexOf('<');
+  // `<>` holds nothing: the next `<` then.
+  while (open !== -1 && value.charAt(open + 1) === '>') {
+    open = value.indexOf('<', open + 2);
+  }
+  const close = open === -1 ? -1 : value.indexOf('>', open + 1);
+  return close === -1 ? value : value.slice(open + 1, close);
 }
 
 /**

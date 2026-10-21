@@ -279,6 +279,34 @@ describe('redactValue', () => {
     expect(cut.endsWith('…')).toBe(true);
   });
 
+  it('finds the frames after blank lines and tabs, and only a line that starts with "at "', () => {
+    const cases: [text: string, kept: string][] = [
+      ['Boom\n\n\tat run (/app/x.js:1:1)', 'Boom'],
+      ['Boom\r\n    at run (/app/x.js:1:1)', 'Boom\r'],
+      ['Boom\n \n    at run', 'Boom'],
+      // No whitespace before "at", nothing after it, or no frame at all.
+      ['Boom\nat run', 'Boom\nat run'],
+      ['Boom\n    at ', 'Boom\n    at '],
+      ['Boom\n    attic', 'Boom\n    attic'],
+      ['Boom\n\n', 'Boom\n\n'],
+      ['Boom\n    atlas\n    at run', 'Boom\n    atlas'],
+    ];
+    for (const [text, kept] of cases) {
+      expect(logRedaction.redactString(text, 5000), text).toBe(kept);
+    }
+  });
+
+  it('drops the frames in linear time, on a text of many line breaks too', () => {
+    // A regex for the frames, /\n\s+at \S/, takes about a second here
+    // (quadratic); the loop, well under a millisecond.
+    const text = `Boom${'\n'.repeat(50_000)}x`;
+    const started = performance.now();
+    const result = logRedaction.redactString(text);
+    expect(performance.now() - started).toBeLessThan(250);
+    expect(result.startsWith('Boom\n')).toBe(true);
+    expect(result.endsWith('…')).toBe(true);
+  });
+
   it('masks a secret that sits at the cut', () => {
     // 90 characters, then "Bearer " and a 40-character token: the cut (100)
     // falls inside the token.

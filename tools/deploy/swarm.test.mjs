@@ -2,7 +2,7 @@
 // deploy flow runs against a fake that answers like `docker` would.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { main, parseArgs, UsageError } from './swarm.mjs';
+import { main, parseArgs, preflight, UsageError } from './swarm.mjs';
 import { shortHash, toStack } from './render.mjs';
 
 const secretFile = '/repo/secret.empty';
@@ -407,4 +407,41 @@ test('usage errors exit 2', async () => {
   const { deps } = baseDeps(fakeDocker());
   assert.equal(await main(['nonsense'], deps), 2);
   assert.equal(await main(['deploy', '--stack', 'Bad Name'], deps), 2);
+});
+
+test('preflight reads node.labels constraints with or without spaces, in linear time', async () => {
+  const ok = (value) => ({
+    code: 0,
+    stdout: JSON.stringify(value),
+    stderr: '',
+  });
+  const ctx = {
+    env: {},
+    root: '.',
+    run: async (command, args) => {
+      if (args[0] === 'info')
+        return ok({ LocalNodeState: 'active', ControlAvailable: true });
+      if (args[1] === 'ls') return { code: 0, stdout: 'n1\n', stderr: '' };
+      return ok({ stateful: 'true', zone: 'eu west' });
+    },
+  };
+  const placed = (...constraints) => ({
+    services: { db: { deploy: { placement: { constraints } } } },
+  });
+  await preflight(
+    ctx,
+    placed('node.labels.stateful==true', ' node.labels.zone ==  eu west '),
+  );
+  await assert.rejects(
+    preflight(ctx, placed('node.labels.zone == eu')),
+    /no node matches node\.labels\.zone == eu/,
+  );
+  // Not a constraint it reads (the value is not on one line): left alone,
+  // quickly. The pattern it replaced took about a second on this one.
+  const started = performance.now();
+  await preflight(
+    ctx,
+    placed(`node.labels.zone ==${'\t'.repeat(50_000)}\nx\ny`),
+  );
+  assert.ok(performance.now() - started < 250);
 });

@@ -253,14 +253,18 @@ export function useCreateTenant() {
 
 /** A handle from a name: lowercase words joined by dashes, 48 characters at most. */
 export function slugify(name: string): string {
-  return name
+  // The words split out, not dashes trimmed with /^-+|-+$/: that regex is
+  // quadratic on a long run of dashes (SonarCloud S8786).
+  const slug = name
     .normalize('NFKD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48)
-    .replace(/-+$/, '');
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .join('-')
+    .slice(0, 48);
+  // Words are joined by one dash: the cut leaves at most one at the end.
+  return slug.endsWith('-') ? slug.slice(0, -1) : slug;
 }
 
 /** The API's slug rule: lowercase letters and digits, single dashes between. */

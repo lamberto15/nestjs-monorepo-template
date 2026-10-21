@@ -129,7 +129,7 @@ describe('OpenAPI document (e2e)', () => {
     const listed = new Set(
       [
         ...readFileSync(fileURLToPath(import.meta.url), 'utf8').matchAll(
-          /^\s+'(\/v1\/[^']*)',$/gm,
+          /^[ \t]+'(\/v1\/[^'\n]*)',$/gm,
         ),
       ].map((match) => match[1]),
     );

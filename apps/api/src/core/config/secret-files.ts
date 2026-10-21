@@ -38,8 +38,19 @@ export type ReadSecretFile = (path: string) => string;
 const readSecretFile: ReadSecretFile = (path) =>
   readFileSync(appPath(path), 'utf8');
 
-/** Line breaks at the end (`echo`, editors, Windows' CRLF) aren't part of the value. */
-const TRAILING_LINE_BREAKS = /(?:\r?\n)+$/;
+/**
+ * `contents` without its line breaks at the end (`echo`, editors, Windows'
+ * CRLF): they aren't part of the value. Each is `\n` or `\r\n`; a lone `\r`
+ * stays. A loop, not `/(?:\r?\n)+$/`: that regex is quadratic on a file of
+ * many line breaks followed by anything else (SonarCloud S8786).
+ */
+function withoutTrailingLineBreaks(contents: string) {
+  let end = contents.length;
+  while (contents.charAt(end - 1) === '\n') {
+    end -= contents.charAt(end - 2) === '\r' ? 2 : 1;
+  }
+  return contents.slice(0, end);
+}
 
 const isSet = (value: unknown): value is string =>
   typeof value === 'string' && value.trim() !== '';
@@ -84,7 +95,7 @@ export function readSecretFiles(
       });
       continue;
     }
-    const value = contents.replace(TRAILING_LINE_BREAKS, '');
+    const value = withoutTrailingLineBreaks(contents);
     if (value.trim() === '') {
       problems.push({ variable, message: `${path.trim()} is empty` });
       continue;

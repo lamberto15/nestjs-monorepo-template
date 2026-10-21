@@ -1139,5 +1139,15 @@ describe('slugify', () => {
     expect(slugify('  Über  Café -- 24 ')).toBe('uber-cafe-24');
     expect(slugify('x'.repeat(60))).toHaveLength(48);
     expect(slugify('日本')).toBe('');
+    expect(slugify('--a--')).toBe('a');
+    // The cut at 48 falls right after a dash: it goes too.
+    expect(slugify(`${'a'.repeat(47)} b`)).toBe('a'.repeat(47));
+  });
+
+  it('slugs a long name of separators in linear time', () => {
+    const name = `${' -'.repeat(25_000)}x${'- '.repeat(25_000)}`;
+    const started = performance.now();
+    expect(slugify(name)).toBe('x');
+    expect(performance.now() - started).toBeLessThan(250);
   });
 });
