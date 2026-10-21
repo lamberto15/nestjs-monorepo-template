@@ -203,7 +203,8 @@
       "copied": "Copied.",
       "saved": "I've saved them",
       "requiredTitle": "Two-factor is required",
-      "required": "Your organization asks for two-factor authentication: set it up to continue."
+      "required": "Your organization asks for two-factor authentication: set it up to continue.",
+      "redirected": "You need to set up two-factor authentication before you can continue."
     },
     "passkeys": {
       "title": "Passkeys",

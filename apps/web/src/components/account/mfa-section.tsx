@@ -20,7 +20,7 @@ import {
 } from '@nestjs-monorepo-template/ui/components/qr-code';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import { ShieldAlertIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from '@/lib/zod';
@@ -28,7 +28,7 @@ import { Section } from '@/components/account/section';
 import { ConfirmButton } from '@/components/confirm-button';
 import { api } from '@/lib/api';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
-import { useFeature, useMe } from '@/lib/features';
+import { useFeatures, useMe } from '@/lib/features';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { meQuery } from '@/lib/session';
 
@@ -47,8 +47,18 @@ export function MfaSection() {
   const { t } = useTranslation();
   const me = useMe();
   const queryClient = useQueryClient();
-  const enrollAllowed = useFeature('mfa');
+  const features = useFeatures();
   const status = useQuery(mfaQuery);
+  // `required` is what `GET /v1/auth/mfa` says; `me` carries the same fact.
+  // Either leads to enrolment, whatever the features call said (it answers
+  // 403 `mfa_enrollment_required` for a user who has not enrolled yet).
+  const required =
+    me?.mfaEnrollmentRequired === true ||
+    (status.data as { required?: boolean } | undefined)?.required === true;
+  // Off only when the deployment said so: while the features are unknown
+  // (loading, failed) enrolment is offered; the API refuses it with 404
+  // `feature_off` when it is off.
+  const enrollAllowed = required || features === undefined || features.mfa;
   const [enrollment, setEnrollment] = useState<{
     secret: string;
     uri: string;
@@ -64,6 +74,15 @@ export function MfaSection() {
     mutationFn: () => unwrap(api.POST('/v1/auth/mfa/enroll')),
     onSuccess: setEnrollment,
   });
+  // Required and not yet enrolled: go straight to the QR code, once.
+  const autoEnrolled = useRef(false);
+  const { mutate: startEnrollment } = enroll;
+  useEffect(() => {
+    if (required && status.data?.enabled === false && !autoEnrolled.current) {
+      autoEnrolled.current = true;
+      startEnrollment();
+    }
+  }, [required, status.data?.enabled, startEnrollment]);
   const newCodes = useMutation({
     mutationFn: () => unwrap(api.POST('/v1/auth/mfa/recovery-codes')),
     onSuccess: async (result) => {
@@ -95,7 +114,7 @@ export function MfaSection() {
       }
       description={t('account.mfa.description')}
     >
-      {me?.mfaEnrollmentRequired && (
+      {required && (
         <Alert variant="destructive">
           <ShieldAlertIcon />
           <AlertTitle>{t('account.mfa.requiredTitle')}</AlertTitle>

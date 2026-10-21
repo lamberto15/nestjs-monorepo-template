@@ -203,7 +203,8 @@
       "copied": "Disalin.",
       "saved": "Saya telah menyimpannya",
       "requiredTitle": "Dua faktor diperlukan",
-      "required": "Organisasi anda meminta pengesahan dua faktor: sediakannya untuk meneruskan."
+      "required": "Organisasi anda meminta pengesahan dua faktor: sediakannya untuk meneruskan.",
+      "redirected": "Sediakan pengesahan dua faktor sebelum anda boleh meneruskan."
     },
     "passkeys": {
       "title": "Kunci laluan",
