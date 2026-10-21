@@ -1080,5 +1080,3 @@ export class SettingsService {
     return entry;
   }
 }
-
-export type { SettingOverride };

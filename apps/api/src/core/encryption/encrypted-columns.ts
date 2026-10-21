@@ -154,7 +154,7 @@ export const encryptedColumnNamed = (name: string) =>
   );
 
 /** Whether `column` is declared encrypted. */
-export const isEncrypted = (column: PgColumn) => registry.has(column);
+const isEncrypted = (column: PgColumn) => registry.has(column);
 
 /** Every declared encrypted column, in declaration order. */
 export const encryptedColumns = (): readonly EncryptedColumn[] => [
@@ -176,7 +176,7 @@ export const encryptedProperties = (): ReadonlySet<string> =>
   );
 
 /** What replaces an encrypted value where a reader may not (or need not) see it. */
-export const ENCRYPTED_PLACEHOLDER = '[encrypted]';
+const ENCRYPTED_PLACEHOLDER = '[encrypted]';
 
 /**
  * `value` without the encrypted properties, at any depth (objects and

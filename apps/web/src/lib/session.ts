@@ -9,7 +9,6 @@ import { api } from '@/lib/api';
 export type Me = GetResponse<'/v1/auth/me'>;
 export type Methods = GetResponse<'/v1/auth/methods'>;
 export type Features = GetResponse<'/v1/features'>;
-export type Tenant = GetResponse<'/v1/auth/tenants'>['items'][number];
 
 /**
  * Who is signed in: null when nobody is (401). The browser's session is the

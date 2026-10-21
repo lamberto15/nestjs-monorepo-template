@@ -53,7 +53,7 @@ export interface ApiClientView {
 }
 
 /** The role grants of a change: ids, and when each one ends (none: never). */
-export interface RoleGrants {
+interface RoleGrants {
   roleIds: string[];
   roleExpiresAt?: Record<string, string>;
 }

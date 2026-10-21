@@ -71,7 +71,7 @@ export const approvalListItemSchema = approvalSchema.extend({
     )
     .meta({ example: '"mZ1k…"' }),
 });
-export type ApprovalListItem = z.infer<typeof approvalListItemSchema>;
+type ApprovalListItem = z.infer<typeof approvalListItemSchema>;
 
 export const assignmentSchema = z.object({
   id: z.uuid(),

@@ -11,6 +11,21 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // Coverage runs only with --coverage (CI's unit shards). The thresholds
+    // sit at the measured levels (docs/development.md, "Coverage").
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/test/**',
+        'src/**/test/**',
+        'src/**/*.d.ts',
+        'src/routeTree.gen.ts',
+      ],
+      reporter: ['text-summary', 'json-summary'],
+      thresholds: { statements: 0, branches: 0, functions: 0, lines: 0 },
+    },
     // Vitest 5 persists transformed modules on disk but skips a module only
     // when it contains the text `import.meta.glob(`. Ours are typed
     // (`glob<T>(`), so a glob result went stale when files were added or

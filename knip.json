@@ -1,0 +1,32 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreExportsUsedInFile": true,
+  "workspaces": {
+    ".": {
+      "entry": ["tools/**/*.mjs", "loadtest/*.{mjs,cjs,js}"],
+      "project": ["tools/**/*.mjs", "loadtest/*.{mjs,cjs,js}"],
+      "ignoreUnresolved": [],
+      "ignoreDependencies": ["k6"]
+    },
+    "apps/api": {
+      "entry": [
+        "src/{worker,migrate,seed-demo,openapi-dump}.ts",
+        "src/demo/run-demo-seed.ts",
+        "drizzle*.config.ts",
+        "src/cli.ts"
+      ],
+      "ignoreDependencies": ["@types/multer"],
+      "ignoreBinaries": ["redis-server"]
+    },
+    "apps/web": {
+      "ignore": ["src/components/data-table/**", "src/lib/data-table-*.ts"],
+      "ignoreDependencies": ["react-day-picker", "tailwindcss"]
+    },
+    "apps/web-e2e": {
+      "entry": ["test/**/*.ts", "scripts/*.mjs"]
+    },
+    "packages/api-client": {
+      "ignore": ["src/schema.ts"]
+    }
+  }
+}

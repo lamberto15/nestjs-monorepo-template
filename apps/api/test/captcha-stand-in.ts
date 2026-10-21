@@ -70,4 +70,4 @@ export async function startSiteverify() {
   };
 }
 
-export type Siteverify = Awaited<ReturnType<typeof startSiteverify>>;
+type Siteverify = Awaited<ReturnType<typeof startSiteverify>>;

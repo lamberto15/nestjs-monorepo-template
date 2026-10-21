@@ -106,7 +106,7 @@ export const policySchema = z
 export type ApprovalPolicy = z.output<typeof policySchema>;
 /** A policy as code declares it (defaults may be left out). */
 export type ApprovalPolicyInput = z.input<typeof policySchema>;
-export type ApprovalStage = ApprovalPolicy['stages'][number];
+type ApprovalStage = ApprovalPolicy['stages'][number];
 
 /** Milliseconds of a validated duration. */
 export const millis = (duration: string) => parseDuration(duration as never);

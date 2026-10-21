@@ -12,8 +12,6 @@ import { api } from '@/lib/api';
 import type { Me } from '@/lib/session';
 
 // The API's answers, as the generated client types them (never by hand).
-export type OpsOutbox = GetResponse<'/v1/ops/outbox'>;
-export type DeadLetter = OpsOutbox['deadLetters'][number];
 export type QueueOverview = GetResponse<'/v1/ops/queues'>['items'][number];
 export type QueueCounts = QueueOverview['counts'];
 /** One message of the live log: a union by `source` (the engine), then `type`. */

@@ -12,17 +12,6 @@ export const accountQuery = queryOptions({
   queryFn: () => unwrap(api.GET('/v1/account')),
 });
 
-/**
- * `GET /v1/account/consent-kinds` (public): the kinds of consent the API asks
- * for, each with its current `version`, whether it is `required` (it cannot
- * be withdrawn) and a `label` and `description` in the request's language
- * (docs/auth.md). The app keeps no list of its own: publishing a new version
- * of a text is the API's change, and everyone sees they agreed to an older
- * one. The language is in the key because the texts follow it.
- */
-export type ConsentKind =
-  GetResponse<'/v1/account/consent-kinds'>['items'][number];
-
 export const consentKindsQuery = (language: string) =>
   queryOptions({
     queryKey: ['consent-kinds', language],

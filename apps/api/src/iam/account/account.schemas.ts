@@ -78,4 +78,4 @@ export function notWhileImpersonating(user: Principal) {
   }
 }
 
-export type User = UserPrincipal;
+type User = UserPrincipal;

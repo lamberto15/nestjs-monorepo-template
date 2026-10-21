@@ -1,7 +1,6 @@
 import {
   etagOf,
   unwrap,
-  type GetResponse,
   type paths,
 } from '@nestjs-monorepo-template/api-client';
 import { api } from '@/lib/api';
@@ -91,8 +90,6 @@ const call = <T>(
 /** Pages of 100, at most 10: far past what a thread or a list can use. */
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
-
-export type IssuedDocument = GetResponse<'/v1/documents/{id}'>;
 
 export const panelKeys = {
   all: (base: string, id: string) => ['panels', base, id] as const,
