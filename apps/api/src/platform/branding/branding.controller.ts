@@ -12,7 +12,7 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
-  Res,
+  Header,
   StreamableFile,
   UploadedFile,
   UseInterceptors,
@@ -36,7 +36,6 @@ import {
   ApiUnsupportedMediaTypeResponse,
 } from '@nestjs/swagger';
 import type { StoredUpload } from '@nestjs/storage';
-import type { Response } from 'express';
 import { z } from 'zod';
 import { AccessPolicy } from '../../iam/access/policies.js';
 import type { Principal } from '../../iam/auth/principal.js';
@@ -174,19 +173,16 @@ export class PublicBrandingController {
   @ApiProduces(...LOGO_TYPES)
   @ApiOkResponse({ description: 'The image.' })
   @ApiNotFoundResponse({ description: 'The tenant has no logo.' })
-  async logo(
-    @Param('tenantId', ParseUUIDPipe) tenantId: string,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  // An image is never a page: nothing loads, nothing runs, whatever the
+  // bytes hold; the policy replaces the API's own (Swagger UI's).
+  @Header('Content-Security-Policy', FILE_CSP)
+  @Header('Cross-Origin-Resource-Policy', 'cross-origin')
+  @Header('Cache-Control', 'public, max-age=300')
+  async logo(@Param('tenantId', ParseUUIDPipe) tenantId: string) {
     const file = await this.branding.logoFile(tenantId);
     if (!file) {
       throw new NotFoundException('There is no logo.');
     }
-    // An image is never a page: nothing loads, nothing runs, whatever the
-    // bytes hold; the replaced policy is the API's own (Swagger UI's).
-    res.setHeader('Content-Security-Policy', FILE_CSP);
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.setHeader('Cache-Control', 'public, max-age=300');
     return new StreamableFile(file.body, {
       type: file.contentType,
       length: file.size,

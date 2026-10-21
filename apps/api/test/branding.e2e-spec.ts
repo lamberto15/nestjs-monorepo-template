@@ -3,19 +3,17 @@ import { randomUUID } from 'node:crypto';
 import { BrandingService } from '../src/platform/branding/branding.service.js';
 import { bootApp, type TestApp } from './support.js';
 
-/** A 1x1 PNG, a JPEG and a WebP header: what the logo's bytes must start with. */
+/** A PNG and a JPEG: what the logo's bytes must start with (the signature, then filler). */
 const PNG = Buffer.concat([
   Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-  Buffer.from('0000000d49484452000000010000000108060000001f15c489', 'hex'),
+  Buffer.alloc(32, 1),
 ]);
 const JPEG = Buffer.concat([
   Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]),
   Buffer.from('JFIF\0\x01\x01\0\0\x01\0\x01\0\0', 'latin1'),
   Buffer.from([0xff, 0xd9]),
 ]);
-const SVG = Buffer.from(
-  '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
-);
+const SVG = Buffer.from('<svg><script>alert(1)</script></svg>');
 const HTML = Buffer.from('<html><script>alert(1)</script></html>');
 
 /** The bytes of a response, whatever its type. */
