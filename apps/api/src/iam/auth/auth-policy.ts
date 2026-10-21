@@ -26,6 +26,8 @@ export interface AuthPolicySource {
   requireMfa(user: UserPrincipal): Promise<boolean>;
   /** The tenant's minimum password length, if it chose one. */
   passwordMinLength(tenantId: string): Promise<number | undefined>;
+  /** How many of an account's last passwords the tenant forbids reusing, if it chose. */
+  passwordHistory(tenantId: string): Promise<number | undefined>;
   /**
    * Whether the tenant lets the deployment's operators open it with a
    * break-glass grant (docs/tenancy.md, "Break-glass"); false: it opted
@@ -42,6 +44,9 @@ export interface AuthPolicySource {
 export const PASSWORD_MIN_LENGTH = 12;
 /** The highest minimum a tenant may ask for: a passphrase, still typeable. */
 export const PASSWORD_MIN_LENGTH_LIMIT = 64;
+
+/** The most passwords a tenant may forbid reusing (and so the history kept per account). */
+export const PASSWORD_HISTORY_LIMIT = 24;
 
 /** The part of the environment that caps the policies. */
 export interface AuthPolicyCeiling {
@@ -115,6 +120,25 @@ export function sessionCeilingRefusal(
   }
   return undefined;
 }
+
+/**
+ * How many of the last passwords an account may not reuse (the current one
+ * included): the strictest of the tenants it belongs to, 0 (off) when none
+ * chose, never over the limit.
+ */
+export const effectivePasswordHistory = (
+  chosen: readonly (number | undefined)[],
+) =>
+  Math.min(
+    PASSWORD_HISTORY_LIMIT,
+    Math.max(
+      0,
+      ...chosen.filter(
+        (value): value is number =>
+          typeof value === 'number' && Number.isFinite(value),
+      ),
+    ),
+  );
 
 /**
  * Why a value can't be set in this deployment (the ceiling), or undefined.

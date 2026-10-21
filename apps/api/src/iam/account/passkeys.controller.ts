@@ -1,3 +1,4 @@
+import { DuringOnboarding } from '../auth/onboarding.js';
 import {
   Body,
   Controller,
@@ -141,6 +142,7 @@ export class PasskeysController {
     };
   }
 
+  @DuringOnboarding()
   @UserOnly()
   @Can.Anyone()
   @Get()
@@ -163,6 +165,7 @@ export class PasskeysController {
   }
 
   // A stolen session must not add its own passkey to the account.
+  @DuringOnboarding()
   @UserOnly()
   @Can.Anyone()
   @RecentAuthentication()
@@ -190,6 +193,7 @@ export class PasskeysController {
     );
   }
 
+  @DuringOnboarding()
   @UserOnly()
   @Can.Anyone()
   @RecentAuthentication()

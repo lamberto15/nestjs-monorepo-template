@@ -1,6 +1,8 @@
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
 import {
   BadRequestException,
+  HttpException,
+  HttpStatus,
   Inject,
   Injectable,
   Logger,
@@ -31,6 +33,7 @@ import {
 } from '../account/personal-data.registry.js';
 import { MESSAGING_INBOUND_JOB } from '../platform.jobs.js';
 import type { PlatformEnv } from '../platform.env.js';
+import { MessagingLimits } from './messaging-limits.service.js';
 import { allowedPrefix, maskPhone } from './messaging.policy.js';
 import { MESSAGING } from './messaging.queue.js';
 import type { DeviceView, PhoneView } from './messaging.schemas.js';
@@ -74,6 +77,7 @@ export class MessagingService implements PersonalDataSource {
     private readonly audit: AuditService,
     private readonly config: ConfigService<PlatformEnv, true>,
     private readonly system: SystemContext,
+    private readonly limits: MessagingLimits,
     @InjectQueue(MESSAGING) private readonly queue: Queue,
     @Inject(REDIS) private readonly redis: Redis,
     personalData: PersonalDataRegistry,
@@ -247,6 +251,17 @@ export class MessagingService implements PersonalDataSource {
         message: 'SMS is not available to that country.',
         errors: [{ path: 'phone', message: 'Country not supported.' }],
       });
+    }
+    // Per client IP, a day's codes are capped on top of the route's throttle.
+    if (ip && !(await this.limits.reserveIp(ip))) {
+      throw new HttpException(
+        {
+          code: 'sms_ip_limit',
+          message:
+            'Too many verification codes were requested from your network today.',
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
     await inTransaction(this.txHost, async (tx) => {
       const [existing] = await tx

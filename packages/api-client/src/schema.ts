@@ -886,6 +886,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notifications/quiet-hours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your quiet hours
+         * @description While the clock of your time zone is inside the window, push and SMS wait for it to end (types marked `urgent` do not). In-app, realtime and email are unaffected.
+         */
+        get: operations["NotificationsController_quietHours_v1"];
+        /**
+         * Set your quiet hours
+         * @description A window on the clock of your time zone (`PATCH /auth/me { timezone }`, else the deployment’s), as `HH:MM`; one past midnight (`22:00` to `07:00`) is fine. Push and SMS of a non-urgent notification arriving inside it are sent when it ends. Audited.
+         */
+        put: operations["NotificationsController_setQuietHours_v1"];
+        post?: never;
+        /** Remove your quiet hours */
+        delete: operations["NotificationsController_clearQuietHours_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/notifications/{id}/read": {
         parameters: {
             query?: never;
@@ -927,7 +952,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Which mail an unsubscribe link stops
+         * @description No sign-in, and read-only: it changes and records nothing, so a mail scanner that follows the link does no harm. Answers what the token of the mail's unsubscribe link stops: a notification type (`kind: type`, its `label` in the request's language) or a digest (`kind: digest`, its `modes`). Never the person's email or id. A forged, expired or foreign token, or a gone account, is the same 400 the POST gives.
+         */
+        get: operations["NotificationUnsubscribeController_describe_v1"];
         put?: never;
         /**
          * One-click unsubscribe from notification mail
@@ -2713,6 +2742,26 @@ export interface paths {
         put?: never;
         /** Send the verification link again */
         post: operations["EmailController_resend_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/email/change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replace the first administrator's placeholder email
+         * @description Only while onboarding asks for it (`GET /auth/me` `onboardingRequired.email`): 409 otherwise. Wants the current password. The address changes at once and is unproved until its link (WEB_URL/verify-email?token=…) is opened; signing in stays possible meanwhile, so a typo can be corrected by calling this again.
+         */
+        post: operations["EmailController_change_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9366,6 +9415,8 @@ export interface operations {
                             label: string;
                             /** @description Its channels cannot be switched off (their frequency may change). */
                             mandatory: boolean;
+                            /** @description Push and SMS go through quiet hours at once. */
+                            urgent: boolean;
                             /** @description The defaults of the channels you may set (in-app and realtime are always on). */
                             channels: {
                                 /** @description Users only: `false` (no mail), `immediate`, or bundled into an `hourly` or `daily` digest. */
@@ -9527,6 +9578,142 @@ export interface operations {
             };
         };
     };
+    NotificationsController_quietHours_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        quietHours: {
+                            start: string;
+                            end: string;
+                            /** @description The time zone whose clock the window follows: yours, else the deployment’s. */
+                            timezone: string;
+                        } | null;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An API client has no quiet hours. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotificationsController_setQuietHours_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example 22:00 */
+                    start: string;
+                    /** @example 07:00 */
+                    end: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        quietHours: {
+                            start: string;
+                            end: string;
+                            /** @description The time zone whose clock the window follows: yours, else the deployment’s. */
+                            timezone: string;
+                        } | null;
+                    };
+                };
+            };
+            /** @description validation_failed. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotificationsController_clearQuietHours_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        quietHours: {
+                            start: string;
+                            end: string;
+                            /** @description The time zone whose clock the window follows: yours, else the deployment’s. */
+                            timezone: string;
+                        } | null;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     NotificationsController_markRead_v1: {
         parameters: {
             query?: never;
@@ -9626,6 +9813,44 @@ export interface operations {
             };
             /** @description Not yours, or gone. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotificationUnsubscribeController_describe_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        kind: "type";
+                        /** @description What the notification type is called, in the request's language. Null when the link would change nothing (the type is gone, or mandatory): the client then speaks generally. */
+                        label: string | null;
+                    } | {
+                        /** @enum {string} */
+                        kind: "digest";
+                        /** @description The digests the link stands for: every type the person gets in these modes. */
+                        modes: ("hourly" | "daily")[];
+                    };
+                };
+            };
+            /** @description The link is invalid or expired, or the account is gone: the link errors share one answer, the POST included. */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -18102,6 +18327,11 @@ export interface operations {
                         hasPassword: boolean;
                         /** @description true: this tenant requires two-factor (auth.requireMfa) and you have none: set it up (POST /auth/mfa/enroll, then /confirm); until then other routes answer 403 `mfa_enrollment_required`. */
                         mfaEnrollmentRequired: boolean;
+                        /** @description Not null: the first administrator still has to replace the placeholder email (POST /auth/email/change, then the link mailed to it) and/or the generated password (POST /auth/password/change); until then other routes answer 403 `onboarding_required`. Null: nothing to do. */
+                        onboardingRequired: {
+                            email: boolean;
+                            password: boolean;
+                        } | null;
                         authentication: {
                             /** @enum {string} */
                             via: "session" | "token";
@@ -18311,6 +18541,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description `password_reused`: one of the account's last passwords (`auth.passwordHistory`); the link still works. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     PasswordController_change_v1: {
@@ -18349,6 +18586,13 @@ export interface operations {
              *     `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user.
              */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `password_reused`: the current password or one of the last ones (`auth.passwordHistory`). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -18413,6 +18657,50 @@ export interface operations {
                         accepted: true;
                     };
                 };
+            };
+        };
+    };
+    EmailController_change_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example ada@example.com */
+                    email: string;
+                    currentPassword: string;
+                };
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        accepted: true;
+                    };
+                };
+            };
+            /** @description `placeholder_email`: the address is a placeholder. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No email onboarding pending, or the address is taken. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -71,7 +71,9 @@ env_file="$out/stack.env"
 
 # The stack's settings, made once per output directory (a started stack
 # keeps its generated secrets). PASSWORD_BREACH_CHECK=off: the seeded
-# administrator's password isn't sent to Pwned Passwords.
+# administrator's password isn't sent to Pwned Passwords. ADMIN_ONBOARDING=off:
+# the administrator keeps its placeholder address, and the scenarios call admin
+# routes with its token at once (onboarding would answer 403 onboarding_required).
 if [ ! -f "$env_file" ]; then
   (
     umask 077
@@ -81,6 +83,7 @@ if [ ! -f "$env_file" ]; then
       echo CLOUDFLARE_API_TOKEN=unused
       echo ADMIN_EMAIL=load-test-admin@example.com
       echo PASSWORD_BREACH_CHECK=off
+      echo ADMIN_ONBOARDING=off
       echo "APP_IMAGE=${APP_IMAGE:-}"
       for name in POSTGRES_PASSWORD POSTGRES_APP_PASSWORD POSTGRES_MAINTENANCE_PASSWORD REDIS_PASSWORD ADMIN_PASSWORD; do
         echo "$name=$(openssl rand -hex 24)"

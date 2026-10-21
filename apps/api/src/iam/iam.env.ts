@@ -21,6 +21,15 @@ export const iamEnv = z.object({
   /** Unset: a password is generated and logged once. */
   ADMIN_PASSWORD: secret(optional()),
   /**
+   * `on`: the first administrator must replace a placeholder ADMIN_EMAIL
+   * (`admin@example.com`) with a real, verified address and a generated
+   * password with their own before anything else (docs/auth.md,
+   * "Administrator onboarding"). `off` (tests, scripted installs): never.
+   * Read when the administrator is seeded, and at every start for one still
+   * on the placeholder address (flagged for the email step).
+   */
+  ADMIN_ONBOARDING: flag('on'),
+  /**
    * The first tenant, made with the first administrator: the deployment's
    * operator tenant (docs/tenancy.md). Its handle (`slug`) comes from the name.
    */

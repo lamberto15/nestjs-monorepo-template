@@ -196,6 +196,29 @@ groups:
           summary: The exchange rates are stale
           description: "The newest stored ECB reference rates are {{ $value | humanizeDuration }} old (+Inf: none was ever fetched). The worker's ExchangeRatesJob logs why each hourly fetch fails; conversions use the last rates meanwhile (docs/money.md)."
 
+      # sms_blocked_today (the workers' /metrics, every tenant, reset at 00:00 UTC) counts the
+      # SMS the toll-fraud caps, the country allowlist or the spend cap refused today, by
+      # reason. A refusal is the system working, so it is a warning to look at: a rising
+      # tenant_limit/prefix_limit/ip_limit is how toll fraud shows; budget_exceeded means the
+      # month's SMS_MONTHLY_BUDGET_MINOR is spent. (docs/notifications.md, "Push and SMS")
+      - alert: SmsBlocked
+        expr: max by (reason) (sms_blocked_today) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'SMS refused today: {{ $labels.reason }}'
+          description: '{{ $value | humanize }} SMS were refused today (UTC) for "{{ $labels.reason }}": a toll-fraud cap, the country allowlist (prefix_not_allowed) or the monthly spend cap (budget_exceeded). The worker logs each as an error ("SMS blocked by the toll-fraud caps"); check who asked for them before raising a limit.'
+
+      - alert: SmsBudgetNearCap
+        expr: max(sms_budget_used_ratio) >= 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: A tenant has used {{ $value | humanizePercentage }} of its monthly SMS budget
+          description: At 100% (SMS_MONTHLY_BUDGET_MINOR) the tenant's SMS stop until next month (sms_blocked_today{reason="budget_exceeded"}). Check the spend is real (a pumping attack looks like this), then raise the budget or wait for the month to end.
+
       - alert: WebhookDeliveriesFailing
         expr: delta(state:webhook_deliveries:max{state="failed"}[1h]) > 0
         labels:
@@ -203,6 +226,19 @@ groups:
         annotations:
           summary: Webhook deliveries fail for good
           description: "About {{ $value | humanize }} deliveries failed for good in the last hour (after about two days of retries, or a blocked destination). Usually the receiver's endpoint; GET /v1/webhook-deliveries?status=failed shows them, and they can be retried."
+
+      # A hosted collector that turns the uploads away (401 a revoked key, 403,
+      # 429 out of credits) leaves the app running and blind: nothing else
+      # notices. Counted from the OTLP exporters' answers and from NestJS
+      # Observe's refusal log lines (core/observability/telemetry-health.ts).
+      - alert: TelemetryRejected
+        expr: sum by (job, target, status) (increase(telemetry_rejected_total[10m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Telemetry is rejected by {{ $labels.target }} ({{ $labels.status }})'
+          description: 'The {{ $labels.job }} uploads to {{ $labels.target }} were refused with HTTP {{ $labels.status }} for 5 minutes: 401/403 a wrong or revoked key, 429 the plan is out of credits. Traces, metrics and errors are being dropped. Check OBSERVE_APP_KEY, OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_EXPORTER_OTLP_HEADERS, and the collector''s quota (docs/deployment.md, "Telemetry").'
 
       - alert: TenantStorageNearLimit
         expr: max by (tenant) (tenant_storage_bytes) / max by (tenant) (tenant_storage_limit_bytes) > 0.9

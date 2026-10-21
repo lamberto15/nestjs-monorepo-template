@@ -3,9 +3,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { Outbox, type NewOutboxMessage } from '@nestjs/outbox';
 import { and, eq, isNotNull, isNull, lt, sql } from 'drizzle-orm';
+import type { CoreEnv } from '../../core/config/core.env.js';
 import type { Transaction } from '../../core/database/drizzle.js';
 import { currentTenantId } from '../../core/tenancy/tenant-scope.js';
 import {
@@ -22,7 +24,11 @@ import {
   toPage,
 } from '../../core/http/pagination.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
-import { type Principal, principalKey } from '../../iam/auth/principal.js';
+import {
+  type Principal,
+  principalKey,
+  type UserPrincipal,
+} from '../../iam/auth/principal.js';
 import { Realtime } from '../realtime/realtime.service.js';
 import { NotificationCatalog } from './notification-catalog.js';
 import { NOTIFICATION_LIST } from './notification.list.js';
@@ -39,6 +45,7 @@ import {
   notificationPreferences,
   notifications,
 } from './notifications.tables.js';
+import type { QuietHours } from './quiet-hours.js';
 
 /** At most this many recipients per `notify()`: a broadcast is chunked through a queue job. */
 export const MAX_RECIPIENTS = 500;
@@ -82,6 +89,7 @@ export class NotificationsService {
     private readonly outbox: Outbox<Transaction>,
     private readonly audit: AuditService,
     private readonly realtime: Realtime,
+    private readonly config: ConfigService<CoreEnv, true>,
   ) {}
 
   /**
@@ -383,6 +391,7 @@ export class NotificationsService {
       type: declaration.type,
       label: this.catalog.label(declaration.type, locale),
       mandatory: declaration.mandatory === true,
+      urgent: declaration.urgent === true,
       channels: Object.fromEntries(
         settable.map((name) => [
           name,
@@ -401,6 +410,61 @@ export class NotificationsService {
       .from(notificationPreferences)
       .where(eq(notificationPreferences.recipient, recipient));
     return row?.settings ?? {};
+  }
+
+  /** A recipient's quiet hours, or null. */
+  async quietHoursOf(recipient: string): Promise<QuietHours | null> {
+    const [row] = await this.db
+      .select({ quietHours: notificationPreferences.quietHours })
+      .from(notificationPreferences)
+      .where(eq(notificationPreferences.recipient, recipient));
+    return row?.quietHours ?? null;
+  }
+
+  /** The caller's quiet hours with the time zone their clock follows (theirs, else the deployment's). */
+  async quietHours(principal: UserPrincipal) {
+    const quiet = await this.quietHoursOf(principalKey(principal));
+    return {
+      quietHours: quiet
+        ? {
+            ...quiet,
+            timezone:
+              principal.timezone ??
+              this.config.get('APP_TIMEZONE', { infer: true }),
+          }
+        : null,
+    };
+  }
+
+  /** Sets (or, with null, clears) the caller's quiet hours. Audited. */
+  async setQuietHours(
+    principal: UserPrincipal,
+    quiet: QuietHours | null,
+    ip?: string,
+  ) {
+    const recipient = principalKey(principal);
+    await inTransaction(this.txHost, async (tx) => {
+      const from = await this.quietHoursOf(recipient);
+      await tx
+        .insert(notificationPreferences)
+        .values({ recipient, quietHours: quiet })
+        .onConflictDoUpdate({
+          target: notificationPreferences.recipient,
+          set: { quietHours: quiet },
+        });
+      await this.audit.record(
+        principal,
+        {
+          action: 'notificationQuietHours.updated',
+          targetType: 'notificationPreferences',
+          targetId: recipient,
+          details: { from, to: quiet },
+          ip,
+        },
+        tx,
+      );
+    });
+    return this.quietHours(principal);
   }
 
   /** The caller's effective settings, per type, for the channels they may set. */

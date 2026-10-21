@@ -26,6 +26,8 @@ export type ErrorHandlerTarget = {
   toSignIn(redirect: string): void;
   /** To the two-factor setup page (a no-op when already there). */
   toMfaSetup(): void;
+  /** The first administrator's onboarding page. */
+  toOnboarding(): void;
 };
 
 /**
@@ -55,6 +57,8 @@ export function endSession(
  *   the re-authenticate dialog (lib/api.ts retries after it): nothing to say.
  * - 403 `mfa_enrollment_required` (the tenant requires two-factor and the user
  *   has none): to the setup page with one explanatory toast, not the raw error.
+ * - 403 `onboarding_required` (the first administrator still has the
+ *   placeholder email or generated password): to the onboarding page, explained.
  * - Anything else: a toast with the problem's `detail` (in the request's
  *   language), unless the caller shows it (`meta: { errorToast: false }`).
  */
@@ -81,6 +85,15 @@ export function handleApiError(
           id: 'mfa-enrollment-required',
         });
         target.toMfaSetup();
+      }
+      return;
+    }
+    if (error.code === 'onboarding_required') {
+      if (target?.inApp()) {
+        toast.info(i18n.t('onboarding.redirected'), {
+          id: 'onboarding-required',
+        });
+        target.toOnboarding();
       }
       return;
     }

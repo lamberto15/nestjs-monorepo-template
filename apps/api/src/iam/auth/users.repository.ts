@@ -24,11 +24,13 @@ import {
   mfaFailures,
   mfaRecoveryCodes,
   passkeys,
+  passwordHistory,
   refreshTokens,
   sessions,
   userIdentities,
   users,
 } from '../iam.tables.js';
+import { isPlaceholderEmail } from './onboarding.js';
 import { avatarUrl } from '../account/avatar-url.js';
 import type { UserPrincipal } from './principal.js';
 
@@ -171,8 +173,10 @@ export class UsersRepository {
    * a placeholder address and name, no password, no sign-in methods
    * (providers, passkeys), sessions, tokens, roles or teams; deactivated. Their audit entries keep
    * the actor key (`user:<id>`), labelled "Deleted user" instead of the
-   * address. The row stays: what references it (records they created)
-   * keeps pointing at an account that is nobody's.
+   * address. The password history (earlier hashes) goes too: the row
+   * stays, so its foreign key's cascade never fires. The row stays: what
+   * references it (records they created) keeps pointing at an account that
+   * is nobody's.
    */
   async anonymize(tx: Transaction, id: string) {
     await this.lockAccount(tx, id);
@@ -193,6 +197,7 @@ export class UsersRepository {
       .where(eq(users.id, id));
     await tx.delete(userIdentities).where(eq(userIdentities.userId, id));
     await tx.delete(passkeys).where(eq(passkeys.userId, id));
+    await tx.delete(passwordHistory).where(eq(passwordHistory.userId, id));
     // Its roles and teams in every tenant go with the memberships (cascade).
     await tx.delete(memberships).where(eq(memberships.userId, id));
     await tx.delete(mfaAuthenticators).where(eq(mfaAuthenticators.userId, id));
@@ -532,8 +537,24 @@ export class UsersRepository {
     return { previous };
   }
 
+  /**
+   * The same password, hashed anew (the sign-in's rehash after the cost
+   * settings changed): the hash only. A new password is `replacePassword`.
+   */
   async updatePasswordHash(id: string, passwordHash: string, db: Db = this.db) {
     await db.update(users).set({ passwordHash }).where(eq(users.id, id));
+  }
+
+  /**
+   * A new password (a change, a reset link, the ops CLI's one-time password).
+   * It also ends the first administrator's password onboarding: the generated
+   * password is replaced. Not for a rehash of the same one (`updatePasswordHash`).
+   */
+  async replacePassword(id: string, passwordHash: string, db: Db = this.db) {
+    await db
+      .update(users)
+      .set({ passwordHash, onboardingPassword: false })
+      .where(eq(users.id, id));
   }
 
   /**
@@ -608,7 +629,11 @@ export class UsersRepository {
   ): Promise<boolean> {
     const rows = await db
       .update(users)
-      .set({ emailVerified: true })
+      // A real address proved ends the first administrator's email onboarding.
+      .set({
+        emailVerified: true,
+        ...(!isPlaceholderEmail(email) && { onboardingEmail: false }),
+      })
       .where(and(eq(users.id, id), eq(users.email, normalizeEmail(email))))
       .returning({ id: users.id });
     return rows.length === 1;
@@ -631,6 +656,14 @@ const toPrincipal = (row: Row): UserPrincipal => ({
   timezone: row.timezone,
   avatarUrl: avatarUrl(row.id, row.avatarKey),
   tenantId: null,
+  ...(row.onboardingEmail || row.onboardingPassword
+    ? {
+        onboarding: {
+          email: row.onboardingEmail,
+          password: row.onboardingPassword,
+        },
+      }
+    : {}),
 });
 
 /** Users who are members of `tenantId` (the `memberships` join's condition and the filter). */

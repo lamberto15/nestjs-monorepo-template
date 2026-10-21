@@ -9,6 +9,7 @@ import {
   ApiAcceptedResponse,
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiCookieAuth,
   ApiOkResponse,
   ApiOperation,
@@ -16,10 +17,17 @@ import {
 } from '@nestjs/swagger';
 import { Throttle, minutes } from '@nestjs/throttler';
 import { z } from 'zod';
+import { DuringMfaEnrollment } from '../auth/mfa-enrollment.guard.js';
+import { DuringOnboarding } from '../auth/onboarding.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
 import { Captcha } from '../captcha/captcha.guard.js';
-import { acceptedSchema, email, token } from './account.schemas.js';
+import {
+  acceptedSchema,
+  email,
+  notWhileImpersonating,
+  token,
+} from './account.schemas.js';
 import { AccountService } from './account.service.js';
 import { VerificationRequests } from './verification-requests.service.js';
 
@@ -33,6 +41,10 @@ const verifySchema = z.object({
     .describe(
       "The account's password, when it was chosen before the address was proved (a sign-up): required then.",
     ),
+});
+const changeEmailSchema = z.object({
+  email,
+  currentPassword: z.string().min(1).max(256),
 });
 const resendSchema = z.object({ email });
 const verifiedSchema = z.object({
@@ -55,6 +67,8 @@ export class EmailController {
   ) {}
 
   @Public()
+  @DuringOnboarding()
+  @DuringMfaEnrollment()
   @Throttle({ default: { limit: 10, ttl: minutes(15) } })
   @Post('verify')
   @HttpCode(200)
@@ -73,6 +87,8 @@ export class EmailController {
 
   @UserOnly()
   @Can.Anyone()
+  @DuringOnboarding()
+  @DuringMfaEnrollment()
   @Throttle({ default: { limit: 3, ttl: minutes(15) } })
   @Post('verification')
   @HttpCode(202)
@@ -84,6 +100,37 @@ export class EmailController {
     if (!user.emailVerified) {
       await this.emailVerification.send(user);
     }
+    return { accepted: true as const };
+  }
+
+  @UserOnly()
+  @Can.Anyone()
+  @DuringOnboarding()
+  @DuringMfaEnrollment()
+  @Throttle({ default: { limit: 5, ttl: minutes(15) } })
+  @Post('change')
+  @HttpCode(202)
+  @ApiCookieAuth('user-session')
+  @ApiBearerAuth('user-token')
+  @ApiOperation({
+    summary: "Replace the first administrator's placeholder email",
+    description:
+      'Only while onboarding asks for it (`GET /auth/me` `onboardingRequired.email`): 409 otherwise. Wants the current password. The address changes at once and is unproved until its link (WEB_URL/verify-email?token=…) is opened; signing in stays possible meanwhile, so a typo can be corrected by calling this again.',
+  })
+  @ApiAcceptedResponse({ standardSchema: acceptedSchema })
+  @ApiBadRequestResponse({
+    description: '`placeholder_email`: the address is a placeholder.',
+  })
+  @ApiConflictResponse({
+    description: 'No email onboarding pending, or the address is taken.',
+  })
+  async change(
+    @CurrentUser() user: UserPrincipal,
+    @Body({ schema: changeEmailSchema })
+    body: z.infer<typeof changeEmailSchema>,
+  ) {
+    notWhileImpersonating(user);
+    await this.account.changeOnboardingEmail(user, body);
     return { accepted: true as const };
   }
 

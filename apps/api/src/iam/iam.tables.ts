@@ -108,6 +108,15 @@ export const users = pgTable('users', {
   timezone: text('timezone'),
   active: boolean('active').notNull().default(true),
   /**
+   * First administrator's onboarding (docs/auth.md, "Administrator
+   * onboarding"): the seeded address is a placeholder (or unproved) and must
+   * be replaced by a real, verified one. Cleared once it is. False for
+   * everyone else.
+   */
+  onboardingEmail: boolean('onboarding_email').notNull().default(false),
+  /** Likewise: the seeded password was generated and must be changed. */
+  onboardingPassword: boolean('onboarding_password').notNull().default(false),
+  /**
    * The picture's file on the private disk (`accounts/<id>/avatar/<uuid>.<ext>`,
    * PUT /v1/account/avatar); null: none. Read as `avatarUrl`, never as a key.
    */
@@ -121,6 +130,30 @@ export const users = pgTable('users', {
   deprovisionedAt: at('deprovisioned_at'),
   ...timestamps(),
 });
+
+/**
+ * The hashes of an account's previous passwords (`auth.passwordHistory`,
+ * docs/auth.md, "Passwords"): kept only while a tenant of the account asks
+ * for a history, pruned to the count it needs, so a new password can be
+ * refused when it repeats one. Hashes only, from the account's hasher;
+ * never exported. The current password's hash is `users.password_hash`.
+ * Global, like the account.
+ */
+export const passwordHistory = pgTable(
+  'password_history',
+  {
+    id: uuidPk(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    passwordHash: text('password_hash').notNull(),
+    /** When the password was replaced. */
+    createdAt: at('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('password_history_user_id_idx').on(table.userId, table.createdAt),
+  ],
+);
 
 /**
  * Which tenants a user belongs to, and whether the membership is active:
