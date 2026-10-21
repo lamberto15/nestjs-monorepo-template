@@ -1513,7 +1513,7 @@ export interface paths {
         };
         /**
          * A person's picture
-         * @description Redirects to a signed link to the picture (5 minutes, needs no credentials: an `<img>` follows it); what `avatarUrl` of a person points at. For a member (or former member) of your tenant, or yourself. 404 when they have none, or are no one of your tenant: the two are not told apart.
+         * @description The picture itself (what `avatarUrl` of a person points at), streamed by this API rather than redirected to the disk's signed link: an `<img>` then loads it from the page's own origin, whatever the storage (a redirect to another origin, the bucket with S3, is refused by the browser's cross-origin and Content-Security-Policy rules). `Content-Disposition: inline`, `Cache-Control: private` (the address changes with the picture), `nosniff`. For a member (or former member) of your tenant, or yourself. 404 when they have none, or are no one of your tenant: the two are not told apart.
          */
         get: operations["PeopleController_avatar_v1"];
         put?: never;
@@ -12075,12 +12075,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description To the picture (a signed link). */
-            302: {
+            /** @description The picture: a PNG, JPEG, WebP or GIF. */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                    "image/webp": string;
+                    "image/gif": string;
+                };
             };
             /** @description No valid session or user token. */
             401: {

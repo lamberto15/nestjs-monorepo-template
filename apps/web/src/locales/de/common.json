@@ -173,7 +173,7 @@
       "choose": "Bild auswählen",
       "change": "Bild ändern",
       "remove": "Entfernen",
-      "hint": "PNG, JPEG, WebP oder GIF, bis zu 2 MB. Sichtbar für die Mitglieder Ihrer Organisationen.",
+      "hint": "PNG, JPEG, WebP oder GIF. Sichtbar für die Mitglieder Ihrer Organisationen.",
       "saved": "Bild gespeichert.",
       "removed": "Bild entfernt.",
       "rejected": "{{name}} wurde nicht verwendet: {{reason}}"

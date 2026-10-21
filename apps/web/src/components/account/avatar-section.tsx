@@ -14,16 +14,16 @@ import { meQuery, type Me } from '@/lib/session';
 import { postMultipart } from '@/lib/upload';
 import { unwrap } from '@nestjs-monorepo-template/api-client';
 
-/** The types the API takes (from the bytes; it decides) and its default largest size (AVATAR_MAX_MB). */
+/** The types the API takes (from the bytes; it decides). */
 const TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
-const MAX_BYTES = 2 * 1024 * 1024;
 
 /**
  * The account's picture: choose a file (`PUT /v1/account/avatar`) or remove
  * it (`DELETE`). The nav, comments and member lists show it from the
  * `avatarUrl` of `GET /v1/auth/me` and `/v1/people`; both are refreshed after
- * a change. The browser checks the type it guesses and the default size; the
- * API decides (415, 413) and its message is shown.
+ * a change. The browser checks only the type it guesses; the API decides the
+ * type and the size (AVATAR_MAX_MB, an operator's setting the page does not
+ * know: 415, 413) and its message is shown.
  */
 export function AvatarSection({ me }: { me: Me }) {
   const { t } = useTranslation();
@@ -55,7 +55,6 @@ export function AvatarSection({ me }: { me: Me }) {
         <div className="flex flex-wrap gap-2">
           <FileUpload
             accept={TYPES.join(',')}
-            maxSize={MAX_BYTES}
             maxFiles={1}
             disabled={impersonating || busy}
             onFileReject={(file, message) =>

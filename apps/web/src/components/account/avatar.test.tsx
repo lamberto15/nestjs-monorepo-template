@@ -85,4 +85,55 @@ describe('the account picture', () => {
     await user.upload(input, new File(['x'], 'me.png', { type: 'image/png' }));
     await findToast(/application\/pdf/);
   });
+
+  it("leaves the size to the API: AVATAR_MAX_MB is an operator's setting, so a file over the 2 MB default is sent", async () => {
+    useAccount({ avatarUrl: null, puts: [] });
+    let sent = 0;
+    server.use(
+      http.put('/v1/account/avatar', async ({ request }) => {
+        sent = (await request.arrayBuffer()).byteLength;
+        return HttpResponse.json({
+          avatarUrl: `/v1/people/${signedInUser.user.id}/avatar?v=big`,
+        });
+      }),
+    );
+    await renderApp('/account/profile');
+    const user = userEvent.setup();
+    await screen.findByText('Choose a picture');
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    await user.upload(
+      input,
+      new File([new Uint8Array(3 * 1024 * 1024)], 'big.png', {
+        type: 'image/png',
+      }),
+    );
+    await findToast('Picture saved.');
+    expect(sent).toBeGreaterThan(3 * 1024 * 1024);
+  });
+
+  it("shows the API's refusal of a file that is too large", async () => {
+    useAccount({ avatarUrl: null, puts: [] });
+    server.use(
+      http.put('/v1/account/avatar', () =>
+        problem(413, 'payload_too_large', {
+          detail: 'The file is larger than 1 MB.',
+        }),
+      ),
+    );
+    await renderApp('/account/profile');
+    const user = userEvent.setup();
+    await screen.findByText('Choose a picture');
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    await user.upload(
+      input,
+      new File([new Uint8Array(2 * 1024 * 1024)], 'big.png', {
+        type: 'image/png',
+      }),
+    );
+    await findToast(/larger than 1 MB/);
+  });
 });

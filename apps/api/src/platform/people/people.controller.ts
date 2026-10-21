@@ -4,22 +4,25 @@ import {
   Param,
   ParseUUIDPipe,
   Query,
-  Redirect,
+  Req,
+  Res,
 } from '@nestjs/common';
 import { CurrentUser } from '@nestjs/authentication';
 import { Can } from '@nestjs/authorization';
+import { serveFile, StorageDisk } from '@nestjs/storage';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiCookieAuth,
-  ApiFoundResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiProduces,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import type { Request, Response } from 'express';
 import {
   DEFAULT_LIMIT,
   listSchema,
@@ -28,7 +31,9 @@ import {
 } from '../../core/http/pagination.js';
 import type { UserPrincipal } from '../../iam/auth/principal.js';
 import { UserOnly } from '../../iam/auth/user-only.decorator.js';
+import { AVATAR_TYPES } from '../account/avatar.js';
 import { AvatarService } from '../account/avatar.service.js';
+import { FILE_CSP } from '../storage/files.controller.js';
 import {
   type AvatarQuery,
   avatarQuerySchema,
@@ -58,6 +63,7 @@ export class PeopleController {
   constructor(
     private readonly people: PeopleService,
     private readonly avatars: AvatarService,
+    private readonly disk: StorageDisk,
   ) {}
 
   @Get()
@@ -85,24 +91,44 @@ export class PeopleController {
   }
 
   @Get(':id/avatar')
-  @Redirect()
   @Can.Anyone() // Any member of the tenant, for a member of it (or yourself); checked by the service.
   @ApiOperation({
     summary: "A person's picture",
     description:
-      'Redirects to a signed link to the picture (5 minutes, needs no credentials: an `<img>` follows it); what `avatarUrl` of a person points at. For a member (or former member) of your tenant, or yourself. 404 when they have none, or are no one of your tenant: the two are not told apart.',
+      "The picture itself (what `avatarUrl` of a person points at), streamed by this API rather than redirected to the disk's signed link: an `<img>` then loads it from the page's own origin, whatever the storage (a redirect to another origin, the bucket with S3, is refused by the browser's cross-origin and Content-Security-Policy rules). `Content-Disposition: inline`, `Cache-Control: private` (the address changes with the picture), `nosniff`. For a member (or former member) of your tenant, or yourself. 404 when they have none, or are no one of your tenant: the two are not told apart.",
   })
-  @ApiFoundResponse({ description: 'To the picture (a signed link).' })
+  @ApiProduces(...AVATAR_TYPES)
+  @ApiOkResponse({
+    description: 'The picture: a PNG, JPEG, WebP or GIF.',
+    content: Object.fromEntries(
+      AVATAR_TYPES.map((type) => [
+        type,
+        { schema: { type: 'string', format: 'binary' } },
+      ]),
+    ),
+  })
   @ApiNotFoundResponse()
   @ApiForbiddenResponse({
     description: 'Your session acts in no tenant (tenant_required).',
   })
-  avatar(
+  async avatar(
     @CurrentUser() user: UserPrincipal,
     @Param('id', ParseUUIDPipe) id: string,
     @Query({ schema: avatarQuerySchema }) _query: AvatarQuery,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.avatars.link(user, id);
+    const key = await this.avatars.keyOf(user, id);
+    // Like any served file: it loads nothing and no page frames it.
+    res.setHeader('Content-Security-Policy', FILE_CSP);
+    return serveFile(this.disk, key, {
+      req,
+      res,
+      disposition: 'inline',
+      // The address carries the version (`?v=`), so a new picture is a new
+      // address; `private` keeps a shared cache from holding it.
+      cacheControl: 'private, max-age=300',
+    });
   }
 }
 

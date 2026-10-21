@@ -20,17 +20,15 @@ import type { UserPrincipal } from '../../iam/auth/principal.js';
 import { UsersRepository } from '../../iam/auth/users.repository.js';
 import { memberships, users } from '../../iam/iam.tables.js';
 
-/** How long a link to a picture works: it is followed at once (the redirect of GET /v1/people/{id}/avatar). */
-const AVATAR_LINK_TTL = '5m';
-
 /**
  * The picture of a user's account (`PUT`, `DELETE /v1/account/avatar`). The
  * file is on the private disk under the account (`accounts/<id>/avatar/…`),
  * its key in `users.avatar_key`; the row change and its audit entry
  * (`account.avatar-changed`, `account.avatar-removed`) commit together, and
  * the file it replaces goes after the commit. Seen by the members of a
- * tenant the person belongs to (`GET /v1/people/{id}/avatar`), through the
- * `avatarUrl` the people lookup and the signed-in user carry.
+ * tenant the person belongs to (`GET /v1/people/{id}/avatar`, which streams
+ * the file from the API's own origin), through the `avatarUrl` the people
+ * lookup and the signed-in user carry.
  *
  * Stored as uploaded (type and size checked): there is no image library in
  * the template yet to resize it or strip its metadata (EXIF), see
@@ -74,11 +72,11 @@ export class AvatarService {
   }
 
   /**
-   * A signed link to the user's picture, for a member of a tenant the
-   * viewer acts in (or the user themselves): 404 for anyone else or when
-   * there is no picture, so it never tells those apart.
+   * The disk key of the user's picture, for a member of a tenant the viewer
+   * acts in (or the user themselves): 404 for anyone else or when there is
+   * no picture, so it never tells those apart.
    */
-  async link(viewer: UserPrincipal, userId: string) {
+  async keyOf(viewer: UserPrincipal, userId: string) {
     const tenantId = requireTenantId('A picture');
     const [row] =
       viewer.id === userId
@@ -100,9 +98,7 @@ export class AvatarService {
     if (!row?.key) {
       throw new NotFoundException('No picture.');
     }
-    return {
-      url: await this.disk.signedUrl(row.key, { expiresIn: AVATAR_LINK_TTL }),
-    };
+    return row.key;
   }
 
   /** The key change and its audit entry in one account-level transaction; the key it replaced. */

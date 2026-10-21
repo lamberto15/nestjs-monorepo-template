@@ -173,7 +173,7 @@
       "choose": "Pilih gambar",
       "change": "Tukar gambar",
       "remove": "Alih keluar",
-      "hint": "PNG, JPEG, WebP atau GIF, sehingga 2 MB. Dipaparkan kepada ahli organisasi anda.",
+      "hint": "PNG, JPEG, WebP atau GIF. Dipaparkan kepada ahli organisasi anda.",
       "saved": "Gambar disimpan.",
       "removed": "Gambar dialih keluar.",
       "rejected": "{{name}} tidak digunakan: {{reason}}"

@@ -28,6 +28,7 @@ import {
 } from '../notifications/notifications.tables.js';
 import { ACCOUNT_DELETION_JOB } from '../platform.jobs.js';
 import { settingOverrides } from '../settings/settings.tables.js';
+import { accountFileKey } from '../storage/storage.config.js';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service.js';
 import { accountDeletions } from './account.tables.js';
 import { PersonalDataRegistry } from './personal-data.registry.js';
@@ -212,8 +213,6 @@ export class AccountDeletionJob {
         continue; // anonymized only once every tenant erased it
       }
       try {
-        // The picture's file, read before the anonymization clears its key.
-        const avatarKey = await this.users.avatarKey(user.id);
         await inTransaction(this.txHost, async (tx) => {
           // The account's own (no tenant): its security notifications, its
           // preferences, its sign-in and sign-up entries.
@@ -244,15 +243,7 @@ export class AccountDeletionJob {
           );
         });
         deleted++;
-        // After the commit: a failed delete leaves a file nothing points at.
-        if (avatarKey) {
-          await this.disk.delete(avatarKey).catch((error: unknown) =>
-            this.logger.warn("A deleted account's picture was not deleted", {
-              userId: user.id,
-              error: String(error),
-            }),
-          );
-        }
+        await this.removePictures(user.id);
       } catch (error) {
         failures.push({ userId: user.id, tenantId: null, error });
         this.logger.error('Account not anonymized', {
@@ -274,6 +265,33 @@ export class AccountDeletionJob {
       );
     }
     return deleted;
+  }
+
+  /**
+   * Every file under `accounts/<id>/avatar/`, not only the one
+   * `users.avatar_key` named: a replaced picture whose delete failed
+   * (AvatarService.dispose() only logs it) is an orphan nothing points at,
+   * and would outlive the erased person. Listed first, then deleted (as
+   * TenantCleanup.removeFiles does for a tenant). After the commit: a
+   * failure leaves files nothing points at, it never fails the erasure.
+   */
+  private async removePictures(userId: string) {
+    try {
+      const keys: string[] = [];
+      for await (const entry of this.disk.listAll({
+        prefix: accountFileKey(userId, 'avatar/'),
+      })) {
+        keys.push(entry.key);
+      }
+      if (keys.length > 0) {
+        await this.disk.delete(keys);
+      }
+    } catch (error) {
+      this.logger.warn("A deleted account's pictures were not deleted", {
+        userId,
+        error: String(error),
+      });
+    }
   }
 }
 

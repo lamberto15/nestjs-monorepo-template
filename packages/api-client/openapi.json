@@ -16117,7 +16117,7 @@
     },
     "/v1/people/{id}/avatar": {
       "get": {
-        "description": "Redirects to a signed link to the picture (5 minutes, needs no credentials: an `<img>` follows it); what `avatarUrl` of a person points at. For a member (or former member) of your tenant, or yourself. 404 when they have none, or are no one of your tenant: the two are not told apart.",
+        "description": "The picture itself (what `avatarUrl` of a person points at), streamed by this API rather than redirected to the disk's signed link: an `<img>` then loads it from the page's own origin, whatever the storage (a redirect to another origin, the bucket with S3, is refused by the browser's cross-origin and Content-Security-Policy rules). `Content-Disposition: inline`, `Cache-Control: private` (the address changes with the picture), `nosniff`. For a member (or former member) of your tenant, or yourself. 404 when they have none, or are no one of your tenant: the two are not told apart.",
         "operationId": "PeopleController_avatar_v1",
         "parameters": [
           {
@@ -16141,8 +16141,34 @@
           }
         ],
         "responses": {
-          "302": {
-            "description": "To the picture (a signed link)."
+          "200": {
+            "description": "The picture: a PNG, JPEG, WebP or GIF.",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/gif": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
           },
           "401": {
             "description": "No valid session or user token."

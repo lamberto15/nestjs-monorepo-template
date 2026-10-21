@@ -102,11 +102,11 @@ check `assertDeclaredType`), on a path of its own so changes to attachments
 (malware scanning, thumbnails) do not reach it:
 `apps/api/src/platform/account/avatar*.ts`.
 
-| Route                                              | Does                                                                             |
-| -------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `PUT /v1/account/avatar` (multipart, field `file`) | 200 `{ avatarUrl }`; replaces the picture; users only, never while impersonating |
-| `DELETE /v1/account/avatar`                        | 204; the file goes too; nothing to do without one                                |
-| `GET /v1/people/{id}/avatar`                       | 302 to a signed link (5 minutes); a member of your tenant, or you; else 404      |
+| Route                                              | Does                                                                                 |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `PUT /v1/account/avatar` (multipart, field `file`) | 200 `{ avatarUrl }`; replaces the picture; users only, never while impersonating     |
+| `DELETE /v1/account/avatar`                        | 204; the file goes too; nothing to do without one                                    |
+| `GET /v1/people/{id}/avatar`                       | 200 the picture (inline, `private` cache); a member of your tenant, or you; else 404 |
 
 - **Stored** at `accounts/<user id>/avatar/<random>.<ext>` (the picture is the
   person's, not a tenant's: one account, many tenants), its key in
@@ -123,10 +123,21 @@ check `assertDeclaredType`), on a path of its own so changes to attachments
   API clients. A new picture is a new `v`, so a browser's cached one is not
   shown again. The web app puts it in an `<img>` (the session cookie
   authenticates it); a client with a token fetches it with its header.
+- **Served by the API, not redirected** to the disk's signed link (as an
+  attachment's download is): an `<img>` follows a redirect only to an origin
+  the page may load from. `pnpm dev` proxies `/v1` but not `/files`, the
+  browser refuses a cross-origin image under the API's
+  `Cross-Origin-Resource-Policy: same-origin`, and with `STORAGE_DRIVER=s3`
+  the signed link is the bucket's host, which Caddy's `img-src 'self' data:`
+  blocks. So the route streams the bytes (`serveFile()`, `inline`,
+  `Cache-Control: private, max-age=300`) from the origin the page is on.
 - **Personal data:** the account export's `profile` row holds `avatarKey` (the
   file's name, not the bytes). When the account is deleted the file is
   deleted and the key cleared (`AccountDeletionJob`, after the anonymization
-  commits).
+  commits). Every file under `accounts/<id>/avatar/` goes, not only the
+  current key's: a replaced picture whose delete failed (`dispose()` only
+  logs it) is an orphan nothing points at, and would otherwise outlive the
+  person.
 - **Not done (yet):** the picture is stored as uploaded. The template has no
   image library, so it is neither resized (a 2 MB cap and the browser's
   `object-cover` stand in) nor stripped of its metadata (EXIF, GPS). When

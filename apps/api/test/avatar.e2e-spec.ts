@@ -2,6 +2,7 @@ import { StorageDisk } from '@nestjs/storage';
 import { eq } from 'drizzle-orm';
 import { users } from '../src/iam/iam.tables.js';
 import { AccountDeletionJob } from '../src/platform/account/account-deletion.job.js';
+import { accountFileKey } from '../src/platform/storage/storage.config.js';
 import { bootApp, type TestApp } from './support.js';
 
 // A small limit, so the test of it sends 1 MB (read when AppModule loads).
@@ -36,20 +37,6 @@ describe('user avatars (e2e)', () => {
     await node.close();
   });
 
-  const body = async (url: string) =>
-    (
-      await node
-        .http()
-        .get(local(url))
-        .buffer(true)
-        .parse((res, done) => {
-          const chunks: Buffer[] = [];
-          res.on('data', (chunk: Buffer) => chunks.push(chunk));
-          res.on('end', () => done(null, Buffer.concat(chunks)));
-        })
-        .expect(200)
-    ).body as Buffer;
-
   it('sets, shows, replaces and removes the picture; members see it by avatarUrl', async () => {
     const ada = await node.user([]);
     const bob = await node.user([]);
@@ -67,13 +54,30 @@ describe('user avatars (e2e)', () => {
     const me = await ada.agent.get('/v1/auth/me').expect(200);
     expect(me.body.user.avatarUrl).toBe(set.body.avatarUrl);
 
-    // Another member of the tenant sees it: in the directory, by key, and by the redirect.
+    // Another member of the tenant sees it: in the directory, by key, and by
+    // its address, which answers with the image itself (an <img> follows no
+    // redirect to another origin: not in `pnpm dev`, not to a bucket under
+    // the shipped Content-Security-Policy).
     const found = await bob.agent
       .get(`/v1/people?key=user:${ada.id}`)
       .expect(200);
     expect(found.body.items[0].avatarUrl).toBe(set.body.avatarUrl);
-    const redirect = await bob.agent.get(set.body.avatarUrl).expect(302);
-    expect(Buffer.compare(await body(redirect.headers.location!), PNG)).toBe(0);
+    const shown = await bob.agent
+      .get(set.body.avatarUrl)
+      .buffer(true)
+      // supertest parses only text and JSON: read the image's bytes.
+      .parse((res, done) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => done(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+    expect(shown.headers.location).toBeUndefined();
+    expect(shown.headers['content-type']).toMatch(/^image\/png/);
+    expect(shown.headers['content-disposition']).toMatch(/^inline/);
+    expect(shown.headers['cache-control']).toMatch(/^private/);
+    expect(shown.headers['x-content-type-options']).toBe('nosniff');
+    expect(Buffer.compare(shown.body as Buffer, PNG)).toBe(0);
     // Anyone not signed in gets nothing.
     await node.http().get(set.body.avatarUrl).expect(401);
 
@@ -103,6 +107,25 @@ describe('user avatars (e2e)', () => {
       (await ada.agent.get('/v1/auth/me').expect(200)).body.user.avatarUrl,
     ).toBeNull();
     await bob.agent.get(replaced.body.avatarUrl).expect(404);
+  });
+
+  it("is for the tenant's members: a user of another tenant gets the 404 of a person with no picture", async () => {
+    const ada = await node.user([]);
+    const bare = await node.user([]);
+    const set = await ada.agent
+      .put('/v1/account/avatar')
+      .attach('file', PNG, { filename: 'me.png', contentType: 'image/png' })
+      .expect(200);
+    const outsider = await (await node.otherTenant()).user([]);
+
+    // Ours see it; theirs get a 404, the same one as for a member who has none.
+    await ada.agent.get(set.body.avatarUrl).expect(200);
+    const refused = await outsider.agent.get(set.body.avatarUrl).expect(404);
+    const none = await ada.agent
+      .get(`/v1/people/${bare.id}/avatar`)
+      .expect(404);
+    expect(refused.body.code).toBe(none.body.code);
+    expect(refused.body.detail).toBe(none.body.detail);
   });
 
   it('reads the type from the bytes and caps the size', async () => {
@@ -183,6 +206,10 @@ describe('user avatars (e2e)', () => {
       .where(eq(users.id, ada.id));
     const disk = node.app.get(StorageDisk);
     expect(await disk.exists(avatarKey!)).toBe(true);
+    // An earlier picture whose delete failed (dispose() only logs it): an
+    // orphan under the account's prefix, which no key points at.
+    const orphan = accountFileKey(ada.id, 'avatar/orphan.png');
+    await disk.put(orphan, PNG, { contentType: 'image/png' });
 
     const started = await ada.agent
       .post('/v1/account/export')
@@ -211,6 +238,7 @@ describe('user avatars (e2e)', () => {
       .get(AccountDeletionJob)
       .run(new Date(Date.now() + 15 * 86_400_000));
     expect(await disk.exists(avatarKey!)).toBe(false);
+    expect(await disk.exists(orphan)).toBe(false);
     const [row] = await node.db
       .select({ avatarKey: users.avatarKey })
       .from(users)
