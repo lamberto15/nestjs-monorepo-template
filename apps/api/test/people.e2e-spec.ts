@@ -4,6 +4,7 @@ import { bootApp, type TestApp } from './support.js';
 interface Person {
   key: string;
   name: string;
+  avatarUrl: string | null;
 }
 
 /** GET /v1/people: the tenant's people, as every member sees them (docs/permissions.md, "The people directory"). */
@@ -47,11 +48,11 @@ describe('GET /v1/people (e2e)', () => {
     );
     // By name; only a key and a name (no address, no role).
     expect(ours).toEqual([
-      { key: mark.key, name: `Mark ${t} Mayall` },
-      { key: maya.key, name: `Maya ${t} Patel` },
+      { key: mark.key, name: `Mark ${t} Mayall`, avatarUrl: null },
+      { key: maya.key, name: `Maya ${t} Patel`, avatarUrl: null },
     ]);
     for (const person of found.body.items as object[]) {
-      expect(Object.keys(person).sort()).toEqual(['key', 'name']);
+      expect(Object.keys(person).sort()).toEqual(['avatarUrl', 'key', 'name']);
     }
 
     // `%` and `_` are themselves, not wildcards.
@@ -141,9 +142,9 @@ describe('GET /v1/people (e2e)', () => {
       // A deactivated member keeps their name (they still own records);
       // another tenant's user or client, or no one, is simply absent.
       expect(res.body.items).toEqual([
-        { key: gone.key, name: `Gone ${t}` },
-        { key: `client:${client.id}`, name: `Robot ${t}` },
-        { key: maya.key, name: `Maya ${t}` },
+        { key: gone.key, name: `Gone ${t}`, avatarUrl: null },
+        { key: `client:${client.id}`, name: `Robot ${t}`, avatarUrl: null },
+        { key: maya.key, name: `Maya ${t}`, avatarUrl: null },
       ]);
 
       // And the other tenant can't name ours.

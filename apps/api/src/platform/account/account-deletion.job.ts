@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { OnOneInstance, WithoutOverlapping } from '@nestjs/locks';
+import { StorageDisk } from '@nestjs/storage';
 import { Cron } from '@nestjs/schedule';
 import { and, eq, isNull, lte, sql } from 'drizzle-orm';
 import {
@@ -66,6 +67,7 @@ export class AccountDeletionJob {
     private readonly subscriptions: SubscriptionsService,
     private readonly system: SystemContext,
     private readonly holds: LegalHoldsService,
+    private readonly disk: StorageDisk,
   ) {}
 
   @Cron('50 3 * * *', {
@@ -210,6 +212,8 @@ export class AccountDeletionJob {
         continue; // anonymized only once every tenant erased it
       }
       try {
+        // The picture's file, read before the anonymization clears its key.
+        const avatarKey = await this.users.avatarKey(user.id);
         await inTransaction(this.txHost, async (tx) => {
           // The account's own (no tenant): its security notifications, its
           // preferences, its sign-in and sign-up entries.
@@ -240,6 +244,15 @@ export class AccountDeletionJob {
           );
         });
         deleted++;
+        // After the commit: a failed delete leaves a file nothing points at.
+        if (avatarKey) {
+          await this.disk.delete(avatarKey).catch((error: unknown) =>
+            this.logger.warn("A deleted account's picture was not deleted", {
+              userId: user.id,
+              error: String(error),
+            }),
+          );
+        }
       } catch (error) {
         failures.push({ userId: user.id, tenantId: null, error });
         this.logger.error('Account not anonymized', {

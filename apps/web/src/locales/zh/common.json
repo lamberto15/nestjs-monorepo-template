@@ -168,6 +168,16 @@
       "timezone": "时区",
       "saved": "个人资料已保存。"
     },
+    "avatar": {
+      "title": "头像",
+      "choose": "选择头像",
+      "change": "更换头像",
+      "remove": "移除",
+      "hint": "PNG、JPEG、WebP 或 GIF，最大 2 MB。您所在组织的成员可以看到。",
+      "saved": "头像已保存。",
+      "removed": "头像已移除。",
+      "rejected": "未使用 {{name}}：{{reason}}"
+    },
     "security": {
       "title": "安全"
     },

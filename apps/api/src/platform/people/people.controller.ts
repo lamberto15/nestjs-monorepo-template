@@ -1,10 +1,20 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Query,
+  Redirect,
+} from '@nestjs/common';
+import { CurrentUser } from '@nestjs/authentication';
 import { Can } from '@nestjs/authorization';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiCookieAuth,
+  ApiFoundResponse,
   ApiForbiddenResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -16,8 +26,12 @@ import {
   MAX_LIMIT,
   pageSchema,
 } from '../../core/http/pagination.js';
+import type { UserPrincipal } from '../../iam/auth/principal.js';
 import { UserOnly } from '../../iam/auth/user-only.decorator.js';
+import { AvatarService } from '../account/avatar.service.js';
 import {
+  type AvatarQuery,
+  avatarQuerySchema,
   type PeopleQuery,
   peopleQuerySchema,
   personSchema,
@@ -41,7 +55,10 @@ import { PeopleService } from './people.service.js';
 @UserOnly()
 @Controller('people')
 export class PeopleController {
-  constructor(private readonly people: PeopleService) {}
+  constructor(
+    private readonly people: PeopleService,
+    private readonly avatars: AvatarService,
+  ) {}
 
   @Get()
   @Can.Anyone() // Any member of the tenant: only names and keys, of its members and former members.
@@ -65,6 +82,27 @@ export class PeopleController {
         ? await this.people.named(query.key)
         : await this.people.directory(query.q, query.limit),
     };
+  }
+
+  @Get(':id/avatar')
+  @Redirect()
+  @Can.Anyone() // Any member of the tenant, for a member of it (or yourself); checked by the service.
+  @ApiOperation({
+    summary: "A person's picture",
+    description:
+      'Redirects to a signed link to the picture (5 minutes, needs no credentials: an `<img>` follows it); what `avatarUrl` of a person points at. For a member (or former member) of your tenant, or yourself. 404 when they have none, or are no one of your tenant: the two are not told apart.',
+  })
+  @ApiFoundResponse({ description: 'To the picture (a signed link).' })
+  @ApiNotFoundResponse()
+  @ApiForbiddenResponse({
+    description: 'Your session acts in no tenant (tenant_required).',
+  })
+  avatar(
+    @CurrentUser() user: UserPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query({ schema: avatarQuerySchema }) _query: AvatarQuery,
+  ) {
+    return this.avatars.link(user, id);
   }
 }
 

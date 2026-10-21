@@ -168,6 +168,16 @@
       "timezone": "Time zone",
       "saved": "Profile saved."
     },
+    "avatar": {
+      "title": "Picture",
+      "choose": "Choose a picture",
+      "change": "Change picture",
+      "remove": "Remove",
+      "hint": "PNG, JPEG, WebP or GIF, up to 2 MB. Shown to the members of your organizations.",
+      "saved": "Picture saved.",
+      "removed": "Picture removed.",
+      "rejected": "{{name}} was not used: {{reason}}"
+    },
     "security": {
       "title": "Security"
     },

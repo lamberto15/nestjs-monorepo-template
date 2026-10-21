@@ -134,6 +134,8 @@ import { ConsentKinds } from './account/consent-kinds.js';
 import { AccountDeletionJob } from './account/account-deletion.job.js';
 import { AccountDeletionMail } from './account/account.mails.js';
 import { AccountLifecycleService } from './account/account.service.js';
+import { AvatarController } from './account/avatar.controller.js';
+import { AvatarService } from './account/avatar.service.js';
 import { deletionCancelLinksProvider } from './account/deletion-cancel-links.js';
 import { AccountTransfer } from './account/account.transfer.js';
 import { TenantCleanup } from './tenants/tenant-cleanup.js';
@@ -402,6 +404,8 @@ export class PlatformModule {
         ...inDevelopment<Type>(NotificationTestController),
         SettingsController,
         AccountController,
+        // The user's picture (PUT, DELETE /v1/account/avatar).
+        AvatarController,
         AccountDeletionLinkController,
         ConsentKindsController,
         // The operators' export of a tenant (POST /v1/tenants/{id}/export).
@@ -560,6 +564,7 @@ export class PlatformModule {
         // A person's own account: their data (features register PersonalDataSources), its deletion, consents.
         PersonalDataRegistry,
         AccountLifecycleService,
+        AvatarService,
         ConsentKinds,
         deletionCancelLinksProvider,
         AccountTransfer,
