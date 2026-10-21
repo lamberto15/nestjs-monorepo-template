@@ -74,7 +74,7 @@ function useAiApi(
     }),
   );
   if (options.aiEnabled !== undefined) {
-    // An administrator's GET /v1/settings lists the non-public ai.enabled.
+    // GET /v1/settings lists the public ai.enabled to every signed-in user.
     server.use(
       http.get('/v1/settings', () =>
         HttpResponse.json({
@@ -85,7 +85,7 @@ function useAiApi(
               description: null,
               flag: false,
               scopes: ['tenant'],
-              public: false,
+              public: true,
               value: options.aiEnabled,
               source: 'default',
               default: false,
@@ -245,5 +245,19 @@ describe('AI helper on the note page', () => {
     expect(
       await screen.findByRole('button', { name: 'Summarize' }),
     ).toBeVisible();
+  });
+
+  it('is hidden when the server has no AI provider (features.ai off)', async () => {
+    useAiApi({ aiEnabled: true });
+    server.use(
+      http.get('/v1/features', () =>
+        HttpResponse.json({ ...allFeatures, realtime: false, ai: false }),
+      ),
+    );
+    await renderApp(`/notes/${NOTE_ID}`);
+    await screen.findByRole('heading', { name: 'Q3 targets' });
+    await waitFor(() =>
+      expect(screen.queryByText('AI helper')).not.toBeInTheDocument(),
+    );
   });
 });

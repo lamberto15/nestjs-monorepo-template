@@ -57,6 +57,7 @@ export const allFeatures: Features = {
   signUp: false,
   magicLink: true,
   documents: true,
+  ai: true,
   tenancy: 'multi',
   locales: ['en', 'de', 'ar', 'zh', 'ms'],
 };

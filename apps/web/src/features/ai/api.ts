@@ -9,7 +9,7 @@ export type AiTask = (typeof AI_TASKS)[number];
 
 export type AiRun = GetResponse<'/v1/ai/runs/{id}'>;
 
-/** The setting that opts a tenant in; only those who manage settings can read it. */
+/** The setting that opts a tenant in; public, so every signed-in user reads it. */
 export const AI_ENABLED_KEY = 'ai.enabled';
 
 export const aiKeys = {
@@ -76,10 +76,10 @@ export function asClassification(
 }
 
 /**
- * Whether the tenant has turned the helper off, as far as this user can tell:
- * `ai.enabled` is not a public setting, so `GET /v1/settings` lists it only to
- * those who manage settings. Others see nothing here and learn from the
- * API's 403 `ai_disabled` (the panel then says so).
+ * Whether the tenant has turned the helper off: `ai.enabled` is a public
+ * setting, so `GET /v1/settings` lists it to every signed-in user. (Whether
+ * the server has a provider at all is `GET /v1/features`' `ai`.) A 403
+ * `ai_disabled` on a click is still handled, for a change since this was read.
  */
 export const aiOffQuery = queryOptions({
   ...settingsQuery,

@@ -5,6 +5,10 @@ a structured answer. Off unless `ANTHROPIC_API_KEY` is set, and then off for a
 tenant until an administrator sets `ai.enabled`. The real API is never called
 in tests: they use a fake provider.
 
+A client learns whether it is on without clicking: `GET /v1/features` `ai` is
+true with a provider, and `ai.enabled` is a public setting, so every signed-in
+user reads it in `GET /v1/settings`. The web app hides its panel on either.
+
 ## How it works
 
 | Route                                           | What                                                                                                                                                                                 |
