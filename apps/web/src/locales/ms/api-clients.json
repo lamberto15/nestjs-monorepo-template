@@ -60,6 +60,17 @@
       "remove": "Buang kuota",
       "none": "Tiada kuota."
     },
+    "allowlist": {
+      "title": "Senarai benarkan IP",
+      "description": "Alamat yang boleh digunakan oleh kunci klien ini: satu alamat IPv4 atau IPv6 atau julat CIDR setiap baris (203.0.113.0/24, 2001:db8::/32). Permintaan dari tempat lain ditolak dengan 403 client_ip_not_allowed. Biarkan kosong untuk membenarkan mana-mana alamat.",
+      "label": "Alamat dibenarkan",
+      "placeholder": "203.0.113.9\n198.51.100.0/24",
+      "save": "Simpan senarai",
+      "saved": "Senarai disimpan.",
+      "none": "Mana-mana alamat dibenarkan.",
+      "invalid": "Baris {{line}}: “{{value}}” bukan alamat IPv4 atau IPv6 atau julat CIDR.",
+      "prefix": "Baris {{line}}: “{{value}}” mempunyai panjang awalan di luar 0-{{max}}."
+    },
     "state": {
       "title": "Akses",
       "activeDescription": "Semasa dibatalkan, setiap kunci klien ini ditolak.",
