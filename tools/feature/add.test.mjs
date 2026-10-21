@@ -38,6 +38,26 @@ const REPO = path.resolve(
   '../..',
 );
 
+/** A scratch checkout with the files the generator reads and appends to, as the repository has them. */
+function scratchCheckout(prefix) {
+  const root = mkdtempSync(path.join(tmpdir(), prefix));
+  copyFileSync(path.join(REPO, '.prettierrc'), path.join(root, '.prettierrc'));
+  for (const file of [
+    'src/features/index.ts',
+    'src/features/tables.ts',
+    'test/openapi.e2e-spec.ts',
+    ...['ar', 'de', 'en', 'ms', 'zh'].flatMap((locale) => [
+      `src/i18n/${locale}/notifications.json`,
+      `src/i18n/${locale}/documents.json`,
+    ]),
+  ]) {
+    const to = path.join(root, 'apps/api', file);
+    mkdirSync(path.dirname(to), { recursive: true });
+    copyFileSync(path.join(REPO, 'apps/api', file), to);
+  }
+  return root;
+}
+
 describe('names', () => {
   it('derives every form from a plural kebab-case name', () => {
     const t = names('invoice-lines');
@@ -176,24 +196,7 @@ describe('addFeature', () => {
   const api = (...parts) => path.join(root, 'apps/api', ...parts);
 
   before(() => {
-    // The files the generator reads and appends to, as the repository has them.
-    root = mkdtempSync(path.join(tmpdir(), 'feature-add-'));
-    copyFileSync(
-      path.join(REPO, '.prettierrc'),
-      path.join(root, '.prettierrc'),
-    );
-    for (const file of [
-      'src/features/index.ts',
-      'src/features/tables.ts',
-      'test/openapi.e2e-spec.ts',
-      ...['ar', 'de', 'en', 'ms', 'zh'].flatMap((locale) => [
-        `src/i18n/${locale}/notifications.json`,
-        `src/i18n/${locale}/documents.json`,
-      ]),
-    ]) {
-      mkdirSync(path.dirname(api(file)), { recursive: true });
-      copyFileSync(path.join(REPO, 'apps/api', file), api(file));
-    }
+    root = scratchCheckout('feature-add-');
     // A table the generator may not reference: no `referenced: true`.
     mkdirSync(api('src/features/ledgers'), { recursive: true });
     writeFileSync(
@@ -566,23 +569,7 @@ describe('feature:sync', () => {
   };
 
   before(async () => {
-    root = mkdtempSync(path.join(tmpdir(), 'feature-sync-'));
-    copyFileSync(
-      path.join(REPO, '.prettierrc'),
-      path.join(root, '.prettierrc'),
-    );
-    for (const file of [
-      'src/features/index.ts',
-      'src/features/tables.ts',
-      'test/openapi.e2e-spec.ts',
-      ...['ar', 'de', 'en', 'ms', 'zh'].flatMap((locale) => [
-        `src/i18n/${locale}/notifications.json`,
-        `src/i18n/${locale}/documents.json`,
-      ]),
-    ]) {
-      mkdirSync(path.dirname(api(file)), { recursive: true });
-      copyFileSync(path.join(REPO, 'apps/api', file), api(file));
-    }
+    root = scratchCheckout('feature-sync-');
     await addFeature(root, {
       name: 'orders',
       fields: 'title:string,total:money',
@@ -944,24 +931,8 @@ describe('where the tools write', () => {
     );
 
   before(async () => {
-    root = mkdtempSync(path.join(tmpdir(), 'feature-paths-'));
+    root = scratchCheckout('feature-paths-');
     empty = mkdtempSync(path.join(tmpdir(), 'feature-paths-empty-'));
-    copyFileSync(
-      path.join(REPO, '.prettierrc'),
-      path.join(root, '.prettierrc'),
-    );
-    for (const file of [
-      'src/features/index.ts',
-      'src/features/tables.ts',
-      'test/openapi.e2e-spec.ts',
-      ...['ar', 'de', 'en', 'ms', 'zh'].flatMap((locale) => [
-        `src/i18n/${locale}/notifications.json`,
-        `src/i18n/${locale}/documents.json`,
-      ]),
-    ]) {
-      mkdirSync(path.dirname(api(file)), { recursive: true });
-      copyFileSync(path.join(REPO, 'apps/api', file), api(file));
-    }
     await addFeature(root, { name: 'orders', fields: 'title:string' });
   });
   after(() => {

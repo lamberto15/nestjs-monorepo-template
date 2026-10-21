@@ -242,29 +242,30 @@ function readRecordText(text, file) {
   };
 }
 
+/** A record declaration's file name: `<item>.record.ts`. */
+const RECORD_FILE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*\.record\.ts$/;
+
 /**
  * A change to who may use the feature (clientAccess, grants) against the
  * committed declaration: the code takes effect on deploy for API clients
  * (clientPermissions are read from the code), but the seed roles are written
  * when a tenant is made, so existing tenants keep their stored roles.
  */
-export function permissionWarnings(file, record) {
+export function permissionWarnings(dir, name, record) {
+  // The declaration's file name, in the feature's folder: never a path, never
+  // an option of git (#471).
+  if (!RECORD_FILE.test(name)) return [];
   let committed;
   try {
-    const full = path.resolve(file);
     committed = execFileSync(
       'git',
-      ['show', '--end-of-options', `HEAD:./${path.basename(full)}`],
-      {
-        cwd: path.dirname(full),
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      },
+      ['show', '--end-of-options', `HEAD:./${name}`],
+      { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
     );
   } catch {
     return []; // new, or not in git: nothing to compare
   }
-  const before = readRecordText(committed, file);
+  const before = readRecordText(committed, path.join(dir, name));
   const warnings = [];
   if (before.clientAccess !== record.clientAccess) {
     warnings.push(
@@ -434,19 +435,17 @@ function syncTexts(api, record, check) {
 
 /** The table as the latest drizzle snapshot has it: column name → its NOT NULL and default. */
 function snapshotTable(api, table) {
-  const meta = inside(api, 'drizzle/meta');
-  if (!existsSync(inside(meta, '_journal.json'))) return null; // nothing migrated yet
-  const journal = JSON.parse(
-    readFileSync(inside(meta, '_journal.json'), 'utf8'),
-  );
+  const journalFile = inside(api, 'drizzle/meta/_journal.json');
+  if (!existsSync(journalFile)) return null; // nothing migrated yet
+  const journal = JSON.parse(readFileSync(journalFile, 'utf8'));
   const last = journal.entries[journal.entries.length - 1];
-  if (!last) return null;
-  const snapshot = JSON.parse(
-    readFileSync(
-      inside(meta, `${String(last.idx).padStart(4, '0')}_snapshot.json`),
-      'utf8',
-    ),
+  if (!last || !Number.isInteger(last.idx)) return null;
+  const snapshotFile = inside(
+    api,
+    'drizzle/meta',
+    `${String(last.idx).padStart(4, '0')}_snapshot.json`,
   );
+  const snapshot = JSON.parse(readFileSync(snapshotFile, 'utf8'));
   const found = snapshot.tables?.[`public.${table}`];
   return found ? found.columns : null;
 }
@@ -688,7 +687,7 @@ export async function syncFeature(api, plural, { check = false } = {}) {
   const paths = await syncPaths(api, record, check);
   const approvals = await syncApprovals(api, record, check);
   const { errors, warnings, generate } = guard(api, record);
-  warnings.push(...permissionWarnings(inside(dir, file), record));
+  warnings.push(...permissionWarnings(dir, file, record));
   return {
     plural,
     changes: [...texts.changes, ...paths, ...approvals.changes],

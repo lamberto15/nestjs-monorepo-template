@@ -21,12 +21,6 @@ import { execFileSync, spawn } from 'node:child_process';
  */
 const CONTAINER = /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/;
 
-const container = process.argv[2];
-if (!container || !CONTAINER.test(container)) {
-  console.error('usage: drain-check.mjs <container name or id>');
-  process.exit(2);
-}
-
 // Runs inside the container (its Node, no dependency).
 const probe = `
 const http = require('node:http');
@@ -54,60 +48,71 @@ setTimeout(() => slow.end(body.slice(5)), 9000);
 setTimeout(() => { clearInterval(timer); console.log(JSON.stringify(out)); process.exit(0); }, 12000);
 `;
 
-// The probe is node's -e argument: no file to write, here or in the
-// container's shared /tmp.
-const child = spawn('docker', ['exec', '--', container, 'node', '-e', probe]);
-let stdout = '';
-child.stdout.on('data', (d) => {
-  stdout += d;
-  if (stdout.includes('READY') && !child.killed && !globalThis.sent) {
-    globalThis.sent = true;
-    setTimeout(
-      () =>
-        execFileSync('docker', ['kill', '--signal', 'TERM', '--', container]),
-      1500,
-    );
-  }
-});
-await new Promise((resolve) => child.on('close', resolve));
-const result = JSON.parse(
-  stdout
-    .trim()
-    .split('\n')
-    .filter((l) => l.startsWith('{'))
-    .at(-1),
-);
-let exit = '';
-for (let i = 0; i < 20; i++) {
-  exit = execFileSync('docker', [
-    'inspect',
-    '--format',
-    '{{.State.Status}} {{.State.ExitCode}}',
-    '--',
-    container,
-  ])
-    .toString()
-    .trim();
-  if (exit.startsWith('exited')) break;
-  await new Promise((r) => setTimeout(r, 500));
-}
-console.log(JSON.stringify({ ...result, container: exit }));
-
-const failures = [];
-if (!result.health.includes(503))
-  failures.push('/health never answered 503 while draining');
-if (!result.health.includes('ECONNREFUSED'))
-  failures.push('new connections were never refused');
-if (result.slow?.status !== 401)
-  failures.push(
-    `the request in flight did not complete: ${JSON.stringify(result.slow)}`,
+/** The check, on a container already known to be a name or an ID. */
+async function drain(container) {
+  // The probe is node's -e argument: no file to write, here or in the
+  // container's shared /tmp.
+  const child = spawn('docker', ['exec', '--', container, 'node', '-e', probe]);
+  let stdout = '';
+  child.stdout.on('data', (d) => {
+    stdout += d;
+    if (stdout.includes('READY') && !child.killed && !globalThis.sent) {
+      globalThis.sent = true;
+      setTimeout(
+        () =>
+          execFileSync('docker', ['kill', '--signal', 'TERM', '--', container]),
+        1500,
+      );
+    }
+  });
+  await new Promise((resolve) => child.on('close', resolve));
+  const result = JSON.parse(
+    stdout
+      .trim()
+      .split('\n')
+      .filter((l) => l.startsWith('{'))
+      .at(-1),
   );
-if (exit !== 'exited 0')
-  failures.push(`the container ended as "${exit}", not "exited 0"`);
-if (failures.length > 0) {
-  console.error('FAILED:\n- ' + failures.join('\n- '));
-  process.exit(1);
+  let exit = '';
+  for (let i = 0; i < 20; i++) {
+    exit = execFileSync('docker', [
+      'inspect',
+      '--format',
+      '{{.State.Status}} {{.State.ExitCode}}',
+      '--',
+      container,
+    ])
+      .toString()
+      .trim();
+    if (exit.startsWith('exited')) break;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  console.log(JSON.stringify({ ...result, container: exit }));
+
+  const failures = [];
+  if (!result.health.includes(503))
+    failures.push('/health never answered 503 while draining');
+  if (!result.health.includes('ECONNREFUSED'))
+    failures.push('new connections were never refused');
+  if (result.slow?.status !== 401)
+    failures.push(
+      `the request in flight did not complete: ${JSON.stringify(result.slow)}`,
+    );
+  if (exit !== 'exited 0')
+    failures.push(`the container ended as "${exit}", not "exited 0"`);
+  if (failures.length > 0) {
+    console.error('FAILED:\n- ' + failures.join('\n- '));
+    process.exit(1);
+  }
+  console.log(
+    'OK: 503 on /health, new connections refused, the request in flight completed, clean exit.',
+  );
 }
-console.log(
-  'OK: 503 on /health, new connections refused, the request in flight completed, clean exit.',
-);
+
+const container = process.argv[2] ?? '';
+if (CONTAINER.test(container)) {
+  await drain(container);
+} else {
+  console.error('usage: drain-check.mjs <container name or id>');
+  process.exitCode = 2;
+}

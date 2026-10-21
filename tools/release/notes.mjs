@@ -505,16 +505,6 @@ async function main() {
   // The tags reach git, the files the file system: both are checked first.
   const tag = values.tag ?? '';
   if (!TAG.test(tag)) return usage();
-  if (
-    values.previous !== undefined &&
-    values.previous !== 'none' &&
-    !TAG.test(values.previous)
-  ) {
-    console.error(
-      `--previous ${values.previous}: a release tag (vX.Y.Z) or none.`,
-    );
-    return 2;
-  }
   // CI asks for the previous release first, for GitHub's generated notes.
   if (values['print-previous']) {
     process.stdout.write(`${previousTag(tag) ?? ''}\n`);
@@ -531,8 +521,13 @@ async function main() {
     );
     return 2;
   }
+  // Given or found by git, the release before is a tag too, or none.
   const previous =
     values.previous === 'none' ? null : (values.previous ?? previousTag(tag));
+  if (previous !== null && !TAG.test(previous)) {
+    console.error(`--previous ${previous}: a release tag (vX.Y.Z) or none.`);
+    return 2;
+  }
   const migrations = migrationChanges(previous, tag);
   // The first release has no previous one to break: nothing to lint.
   const findings = values['no-lint']
