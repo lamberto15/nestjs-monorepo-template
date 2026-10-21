@@ -71,3 +71,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Load test runs (loadtest/run.sh): the baseline and the stack's env file
 /loadtest/results
+
+*storybook.log
+storybook-static
+.lighthouseci
