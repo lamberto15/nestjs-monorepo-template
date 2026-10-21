@@ -395,7 +395,7 @@ What each one may write, and the capabilities it gets back:
 | `backup-metrics` | `/www` (the metrics file) and `/tmp` (1m) in memory; `backups` is read only | none |
 | `loki` | the `loki_data` volume, `/tmp` (64m) in memory, unused | none |
 | `alloy` | the `alloy_data` volume (the read positions), `/tmp` (16m) in memory, unused | `DAC_OVERRIDE`: the process is root (it reads the Docker socket) and the volume's directory belongs to the image's `alloy` user, mode 770; root without it is neither owner nor in the group |
-| `grafana` | the `grafana_data` volume (the database, the plugins it downloads), `/tmp` (64m) in memory | none |
+| `grafana` | the `grafana_data` volume (the database, the plugins it downloads), `/tmp` (64m) in memory | none (`GF_PLUGINS_PREINSTALL_AUTO_UPDATE=false`, below) |
 
 - **The tmpfs counts against the container's memory limit** once used, so
   `/tmp` is small. Raise it in the service's `tmpfs:` line if a feature
@@ -427,7 +427,19 @@ What each one may write, and the capabilities it gets back:
   `compose.clamav.yaml` work as before. clamd writes every stream it scans to
   `/tmp` first (and unpacks archives there): size `CLAMAV_TMP_SIZE` for the
   largest attachment (`ATTACHMENT_MAX_MB`), with `CLAMAV_MEMORY` to match, as
-  a tmpfs counts against the memory limit once used.
+  a tmpfs counts against the memory limit once used. Its `/var/log/clamav`
+  tmpfs names the owner (`uid=100,gid=101`, the image's `clamav`): a tmpfs
+  belongs to root otherwise, and clamd cannot open its log.
+- **Grafana** installs a set of plugins when it starts (Explore Logs and
+  the like, into the `grafana_data` volume) and, by default, also replaces
+  the ones its image bundles (OpenTSDB, Elasticsearch, Cloud Monitoring)
+  with newer builds: it stops each, then fails to delete its directory from
+  the read-only image (`Failed to install plugin ... read-only file
+  system`). `GF_PLUGINS_PREINSTALL_AUTO_UPDATE=false` skips plugins that are
+  already there, so the image's version of a bundled plugin stays (the image
+  is the unit of update), and the ones in the volume stay at the version
+  first downloaded: remove `/var/lib/grafana/plugins` from the volume to get
+  newer ones.
 - **Not covered:** `compose.pgbouncer.yaml` and `compose.pitr.yaml` (their
   services keep the images' defaults, and CI doesn't render them), and
   `compose.yaml` / `compose.dev.yaml` alone (development).

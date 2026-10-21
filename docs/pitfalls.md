@@ -201,10 +201,18 @@
   container, which Compose refuses for a read-only service (Docker would
   too: `docker cp` into a read-only root filesystem fails): `docker compose
   up` stops with "cannot create secret … in read-only service …: `file` is
-  the sole supported option", and `docker compose config` doesn't show it. That is why Prometheus (its token comes from `METRICS_TOKEN`) is
-  the one hardened service that is not read-only
+  the sole supported option", and `docker compose config` doesn't show it.
+  That is why Prometheus (its token comes from `METRICS_TOKEN`) is the one
+  hardened service that is not read-only
   ([deployment.md](deployment.md#container-hardening)). A new hardened
   service takes its secrets as files, or its settings from a mounted file.
+
+- **A tmpfs over an image directory belongs to root.** The mode of the
+  directory is kept (runc copies it), the owner is not: a service that runs
+  as another user and writes there gets "Permission denied" (ClamAV's
+  `/var/log/clamav`, which the image gives to `clamav`). Name the owner in
+  the `tmpfs:` line: `/var/log/clamav:size=8m,uid=100,gid=101`, as
+  Gotenberg's `/home/gotenberg` does. `/tmp` is world-writable already.
 
 - **`/metrics` behind the rate limiter went dark with Redis.** The limiter
   counts in Redis, and ioredis queues commands while Redis is away, so every

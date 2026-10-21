@@ -48,8 +48,10 @@ services:
       # and unpacks archives here: at least the largest attachment
       # (ATTACHMENT_MAX_MB), and it counts against CLAMAV_MEMORY once used.
       - /tmp:size=${CLAMAV_TMP_SIZE:-512m}
-      # Both logs stop growing at 1 MB (LogFileMaxSize).
-      - /var/log/clamav:size=8m
+      # Both logs stop growing at 1 MB (LogFileMaxSize). A tmpfs belongs to
+      # root, whatever owned the directory in the image: uid/gid are the
+      # image's clamav user (an unowned one is "Permission denied" for clamd).
+      - /var/log/clamav:size=8m,uid=100,gid=101
     cap_drop: [ALL]
     security_opt: ['no-new-privileges:true']
     environment:

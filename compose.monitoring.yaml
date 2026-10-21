@@ -410,6 +410,13 @@ services:
       GF_ANALYTICS_REPORTING_ENABLED: 'false'
       GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
       GF_SERVER_ROOT_URL: http://localhost:${GRAFANA_PORT:-3001}
+      # Grafana installs a set of plugins at start (Explore Logs and the like,
+      # into the volume) and, by default, also replaces the ones the image
+      # bundles (OpenTSDB, Elasticsearch, Cloud Monitoring) with newer
+      # builds: it stops each, then fails to delete its directory from the
+      # read-only image. The image is the unit of update here, so it keeps
+      # what it ships and what is already installed.
+      GF_PLUGINS_PREINSTALL_AUTO_UPDATE: 'false'
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana_data:/var/lib/grafana
