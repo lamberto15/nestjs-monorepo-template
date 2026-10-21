@@ -39,7 +39,6 @@ function useMfaApi(
       HttpResponse.json({
         enabled: false,
         remainingRecoveryCodes: 0,
-        ...(options.required && { required: true }),
       }),
     ),
     http.post('/v1/auth/mfa/enroll', () => {

@@ -49,12 +49,10 @@ export function MfaSection() {
   const queryClient = useQueryClient();
   const features = useFeatures();
   const status = useQuery(mfaQuery);
-  // `required` is what `GET /v1/auth/mfa` says; `me` carries the same fact.
-  // Either leads to enrolment, whatever the features call said (it answers
-  // 403 `mfa_enrollment_required` for a user who has not enrolled yet).
-  const required =
-    me?.mfaEnrollmentRequired === true ||
-    (status.data as { required?: boolean } | undefined)?.required === true;
+  // Required (`me.mfaEnrollmentRequired`) leads to enrolment, whatever the
+  // features call said (it answers 403 `mfa_enrollment_required` for a user
+  // who has not enrolled yet).
+  const required = me?.mfaEnrollmentRequired === true;
   // Off only when the deployment said so: while the features are unknown
   // (loading, failed) enrolment is offered; the API refuses it with 404
   // `feature_off` when it is off.
