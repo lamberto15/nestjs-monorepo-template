@@ -136,7 +136,7 @@ describe('password history (e2e)', () => {
       .http()
       .post('/v1/auth/password/reset')
       .send({ token, password: fresh })
-      .expect((r) => console.log('RESET', r.status, JSON.stringify(r.body)));
+      .expect(204);
     await node.signIn(user.email, fresh);
     // The reset replaced p2: it is in the history now (fresh signs in again).
     const again = await node.signIn(user.email, fresh);
