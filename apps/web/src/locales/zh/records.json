@@ -42,6 +42,7 @@
     "rejected": "{{name}}：{{reason}}",
     "tooLarge": "文件大于 {{max}}",
     "typeRefused": "不接受此类型的文件",
+    "storageFailed": "无法保存该文件：上传链接被拒绝或已过期。请重试。",
     "dismiss": "从上传列表中移除",
     "locked": "已签发的文档",
     "download": "下载 {{name}}",

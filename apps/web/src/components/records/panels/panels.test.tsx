@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw/http';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RealtimeProvider } from '@/lib/realtime';
 import { recordKeys } from '@/lib/records';
+import type { Features } from '@/lib/session';
 import { createFakeRealtime, type FakeRealtime } from '@/test/fake-realtime';
 import {
   MAYA,
@@ -49,7 +50,7 @@ const ME = `user:${signedInUser.user.id}`;
 /** The record's ETag, as its page would have cached it with the record. */
 const ETAG = `"${ID}-1"`;
 
-async function mountPanels(can: string[]) {
+async function mountPanels(can: string[], features?: Partial<Features>) {
   const view = await renderComponent(
     <RealtimeProvider>
       <RecordPanels
@@ -59,7 +60,7 @@ async function mountPanels(can: string[]) {
         tags={[{ id: 't1', name: 'Internal', color: '#6b7280' }]}
       />
     </RealtimeProvider>,
-    { can },
+    { can, features },
   );
   view.queryClient.setQueryData(
     recordKeys.detail(TEST_RECORD.path.replace('/{id}', ''), ID),
@@ -271,6 +272,97 @@ describe('attachments', () => {
       'href',
       expect.stringMatching(/^\/v1\/attachments\/.+\/download$/),
     );
+  });
+
+  describe('direct uploads (the API offers presignedUploads: STORAGE_DRIVER=s3)', () => {
+    const direct = { presignedUploads: true };
+    const plan = () => new File(['hello'], 'plan.txt', { type: 'text/plain' });
+    const upload = async (file: File) => {
+      const user = await open('Attachments');
+      await user.upload(
+        document.querySelector('input[type="file"]') as HTMLInputElement,
+        file,
+      );
+    };
+
+    it('sends the file to the store with the signed headers, then completes it, and never through the API', async () => {
+      const calls = usePanelsApi();
+      await mountPanels(ALL, direct);
+      await upload(plan());
+      const list = await screen.findByRole('list', { name: 'Attachments' });
+      expect(within(list).getByText('plan.txt')).toBeVisible();
+      expect(calls.presigned).toEqual([
+        { name: 'plan.txt', size: 5, contentType: 'text/plain' },
+      ]);
+      expect(calls.stored).toEqual([
+        {
+          url: expect.stringMatching(
+            /^https:\/\/files\.example\.test\/tenants\/t\/attachments\/u1\?/,
+          ),
+          type: 'text/plain',
+          size: 5,
+        },
+      ]);
+      expect(calls.completed).toEqual(['u1']);
+      // The multipart route was not used.
+      expect(calls.uploaded).toEqual([]);
+    });
+
+    it('uploads through the API instead when the browser cannot reach the store (a bucket with no CORS rule)', async () => {
+      const calls = usePanelsApi({ direct: { store: 'unreachable' } });
+      await mountPanels(ALL, direct);
+      await upload(plan());
+      await waitFor(() =>
+        expect(calls.uploaded).toEqual([
+          { name: 'plan.txt', type: 'text/plain', size: 5 },
+        ]),
+      );
+      expect(calls.completed).toEqual([]);
+      const list = await screen.findByRole('list', { name: 'Attachments' });
+      expect(within(list).getByText('plan.txt')).toBeVisible();
+    });
+
+    it('uploads through the API instead when the server turns out to offer none (503)', async () => {
+      const calls = usePanelsApi({
+        direct: {
+          presign: { status: 503, code: 'presigned_uploads_unavailable' },
+        },
+      });
+      await mountPanels(ALL, direct);
+      await upload(plan());
+      await waitFor(() => expect(calls.uploaded).toHaveLength(1));
+      expect(calls.stored).toEqual([]);
+    });
+
+    it('uploads through the API a file the browser cannot name the type of', async () => {
+      const calls = usePanelsApi();
+      await mountPanels(ALL, direct);
+      await upload(new File(['hello'], 'README', { type: '' }));
+      await waitFor(() => expect(calls.uploaded).toHaveLength(1));
+      expect(calls.presigned).toEqual([]);
+    });
+
+    it("shows the API's refusal of the announcement and does not retry through the API", async () => {
+      const calls = usePanelsApi({
+        direct: { presign: { status: 415, code: 'unsupported_media_type' } },
+      });
+      await mountPanels(ALL, direct);
+      await upload(plan());
+      await findToast('unsupported_media_type (test)');
+      expect(calls.uploaded).toEqual([]);
+      expect(calls.stored).toEqual([]);
+    });
+
+    it("tells the store's refusal (an expired link) and attaches nothing", async () => {
+      const calls = usePanelsApi({ direct: { store: 'refused' } });
+      await mountPanels(ALL, direct);
+      await upload(plan());
+      await findToast(
+        'The file could not be stored: the upload link was refused or has expired. Try again.',
+      );
+      expect(calls.completed).toEqual([]);
+      expect(calls.uploaded).toEqual([]);
+    });
   });
 
   it("shows the API's refusal of a type", async () => {

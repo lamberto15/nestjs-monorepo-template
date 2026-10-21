@@ -42,6 +42,7 @@
     "rejected": "{{name}}: {{reason}}",
     "tooLarge": "the file is larger than {{max}}",
     "typeRefused": "this type of file is not accepted",
+    "storageFailed": "The file could not be stored: the upload link was refused or has expired. Try again.",
     "dismiss": "Remove from the upload list",
     "locked": "Issued document",
     "download": "Download {{name}}",

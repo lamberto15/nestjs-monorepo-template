@@ -24,8 +24,9 @@ import { toast } from 'sonner';
 import { ConfirmButton } from '@/components/confirm-button';
 import { RelativeTime } from '@/features/notifications/relative-time';
 import { errorMessage } from '@/lib/errors';
-import { useMe } from '@/lib/features';
+import { useFeature, useMe } from '@/lib/features';
 import { useRealtime, useRealtimeConnected } from '@/lib/realtime';
+import { StoreRefusedError } from '@/lib/upload';
 import {
   downloadUrl,
   listAttachments,
@@ -102,6 +103,8 @@ function UploadZone(props: {
 }) {
   const { t, i18n } = useTranslation('records');
   const [files, setFiles] = useState<File[]>([]);
+  // With STORAGE_DRIVER=s3 the file goes straight to the bucket, not through the API.
+  const direct = useFeature('presignedUploads');
   const { maxBytes, types } = props.limits;
   const max = formatSize(maxBytes, i18n.language);
   return (
@@ -136,14 +139,22 @@ function UploadZone(props: {
         await Promise.all(
           batch.map(async (file) => {
             try {
-              await uploadAttachment(props.base, props.id, file, (percent) =>
-                onProgress(file, percent),
+              await uploadAttachment(
+                props.base,
+                props.id,
+                file,
+                (percent) => onProgress(file, percent),
+                direct,
               );
               onSuccess(file);
               // Listed below now: the row leaves the upload list.
               setFiles((current) => current.filter((f) => f !== file));
             } catch (error) {
-              toast.error(errorMessage(error));
+              toast.error(
+                error instanceof StoreRefusedError
+                  ? t('attachments.storageFailed')
+                  : errorMessage(error),
+              );
               onError(file, error instanceof Error ? error : new Error());
             }
           }),

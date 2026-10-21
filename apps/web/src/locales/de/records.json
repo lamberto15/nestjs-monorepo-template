@@ -42,6 +42,7 @@
     "rejected": "{{name}}: {{reason}}",
     "tooLarge": "die Datei ist größer als {{max}}",
     "typeRefused": "dieser Dateityp ist nicht erlaubt",
+    "storageFailed": "Die Datei konnte nicht gespeichert werden: Der Upload-Link wurde abgelehnt oder ist abgelaufen. Versuchen Sie es erneut.",
     "dismiss": "Aus der Upload-Liste entfernen",
     "locked": "Ausgestelltes Dokument",
     "download": "{{name}} herunterladen",
