@@ -155,6 +155,11 @@
       "cancel": "Batal",
       "none": "Log masuk tunggal tidak tersedia untuk alamat itu. Log masuk dengan cara lain, atau tanya pentadbir anda.",
       "failed": "Kami tidak dapat menyemak alamat itu. Cuba lagi sebentar lagi."
+    },
+    "idle": {
+      "title": "Sesi anda hampir tamat",
+      "description": "Anda tidak aktif. Anda akan dilog keluar dalam {{time}}.",
+      "stay": "Kekal log masuk"
     }
   },
   "account": {

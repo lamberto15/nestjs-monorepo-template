@@ -155,6 +155,11 @@
       "cancel": "Cancel",
       "none": "Single sign-on isn’t available for that address. Sign in another way, or ask your administrator.",
       "failed": "We couldn’t check that address. Try again in a moment."
+    },
+    "idle": {
+      "title": "Your session is about to end",
+      "description": "You have been inactive. You will be signed out in {{time}}.",
+      "stay": "Stay signed in"
     }
   },
   "account": {

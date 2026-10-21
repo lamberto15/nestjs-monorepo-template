@@ -14,6 +14,10 @@ import {
   type AuthPolicyCeiling,
   type AuthPolicySource,
   effectivePasswordMinLength,
+  effectiveSessionLimit,
+  SESSION_IDLE_MINUTES_LIMIT,
+  SESSION_MAX_HOURS_LIMIT,
+  type SessionCeiling,
   effectiveRequireMfa,
 } from './auth-policy.js';
 import type { RequestPrincipal } from './principal.js';
@@ -50,6 +54,50 @@ export class AuthPolicyService {
   /** The environment's ceiling, now. */
   ceiling(): AuthPolicyCeiling {
     return { AUTH_MFA: this.config.get('AUTH_MFA', { infer: true }) };
+  }
+
+  /** The session lifetimes the environment allows, now. */
+  sessionCeiling(): SessionCeiling {
+    return {
+      SESSION_IDLE_MINUTES: this.config.get('SESSION_IDLE_MINUTES', {
+        infer: true,
+      }),
+      SESSION_MAX_HOURS: this.config.get('SESSION_MAX_HOURS', { infer: true }),
+    };
+  }
+
+  /**
+   * How long sessions of a tenant last, in milliseconds: the tenant's
+   * choices under the environment's ceiling (`idleMs`: without a request;
+   * `maxMs`: from the sign-in, however active). No tenant (or no source):
+   * the ceiling. `chosen` is what the tenant itself restricted, if it did
+   * (a setting left at its default is no choice): token clients' refresh
+   * families, which have no idle timeout or short lifetime of their own,
+   * are limited only by that.
+   */
+  async sessionLimits(tenantId: string | null | undefined) {
+    const ceiling = this.sessionCeiling();
+    const source = this.source;
+    const [idle, max] =
+      tenantId && source
+        ? await Promise.all([
+            source.sessionIdleMinutes?.(tenantId),
+            source.sessionMaxHours?.(tenantId),
+          ])
+        : [undefined, undefined];
+    const idleChosen =
+      idle !== undefined && idle < SESSION_IDLE_MINUTES_LIMIT
+        ? effectiveSessionLimit(ceiling.SESSION_IDLE_MINUTES, idle) * 60_000
+        : undefined;
+    const maxChosen =
+      max !== undefined && max < SESSION_MAX_HOURS_LIMIT
+        ? effectiveSessionLimit(ceiling.SESSION_MAX_HOURS, max) * 3_600_000
+        : undefined;
+    return {
+      idleMs: idleChosen ?? ceiling.SESSION_IDLE_MINUTES * 60_000,
+      maxMs: maxChosen ?? ceiling.SESSION_MAX_HOURS * 3_600_000,
+      chosen: { idleMs: idleChosen, maxMs: maxChosen },
+    };
   }
 
   /**
