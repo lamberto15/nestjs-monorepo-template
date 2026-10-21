@@ -55,6 +55,14 @@ Filling `.env` (each step is commented in `env.example`):
   `<script>`, no `eval`. Check a change by loading the built app through Caddy (`docker
 build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviolation`
   events: there must be none.
+- **Security contact** (`/.well-known/security.txt`, RFC 9116). Caddy answers that one
+  path itself (its handle comes before the `@api` matcher); `caddy/entrypoint.sh` writes
+  the file to `/srv/security` at each start from `SECURITY_CONTACT` (one or more
+  `mailto:`/`https:` URIs, comma-separated; the RFC requires it, and unset means no file,
+  a 404), `SECURITY_EXPIRES` (RFC 3339 UTC; unset, a year from the start, so pin it to
+  keep one date), `SECURITY_POLICY` (the `SECURITY.md` URL; the default is this template's
+  on GitHub, so set your own) and `SECURITY_PREFERRED_LANGUAGES` (`en`). Check it after a
+  deploy: `curl -i https://<APP_DOMAIN>/.well-known/security.txt`.
 - **Replacing an earlier deployment's Caddy?** Its token and email:
   `docker inspect --format '{{json .Config.Env}}' <caddy container>`.
 
@@ -1009,6 +1017,72 @@ docker run --rm -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
 and `REDIS_URL`. With Redis
 Sentinel, remove `redis-exporter` and its scrape job; the app's own
 `RedisUnreachableFromApp` still covers Redis.
+
+### Logs
+
+Logs live in Docker's files, bounded by `DOCKER_LOG_*`. To search them
+across containers, `compose.monitoring.yaml` has an optional log pipeline:
+**Loki** (storage and queries) and **Grafana Alloy** (the collector), plus
+**Grafana** as the UI. All three have Compose profiles, so they are off even
+when the file is in `COMPOSE_FILE`:
+
+```bash
+# .env: COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.monitoring.yaml
+#       COMPOSE_PROFILES=logs            # Loki + Alloy
+#       COMPOSE_PROFILES=logs,grafana    # and Grafana (GRAFANA_ADMIN_PASSWORD required)
+docker compose up -d
+```
+
+- **Alloy, not Promtail.** Grafana ended Promtail's life on 2026-03-02; Alloy
+  is its documented successor. `monitoring/alloy/config.alloy` discovers this
+  Compose project's containers (`discovery.docker`, filtered by the project
+  label), reads them with `loki.source.docker` and pushes to Loki. Labels:
+  `service` (api, worker, caddy, ...), `container`, `job="docker"`, `level`.
+- **The log driver.** Alloy reads through the Docker API (the socket,
+  mounted read only), so it works with the default `local` driver and with
+  `json-file`: anything `docker logs` can print. Drivers Docker can't read
+  back (`syslog`, `gelf`, `awslogs`, `fluentd`, `none`) leave Alloy with
+  nothing, and then the shipper belongs to that driver, not here. Set
+  `DOCKER_LOG_DRIVER=json-file` only for a collector that tails the files in
+  `/var/lib/docker/containers` (Promtail-style, or Vector); Alloy doesn't
+  need it. The socket gives Alloy the whole Docker API, even read only, so it
+  runs as root; it is not published.
+- **Retention.** `LOKI_RETENTION` (default `720h`, 30 days), enforced by
+  Loki's compactor (`retention_enabled`, `monitoring/loki/loki.yml`). The
+  chunks live in the `loki_data` volume; budget the disk for it. Change the
+  value and `docker compose up -d loki`.
+- **Redaction is unchanged.** The app masks secrets before it writes a line
+  ([Log redaction](#log-redaction)); Alloy ships those lines as they are and
+  adds no parsing that could un-mask anything. Anything Caddy or PostgreSQL
+  log is shipped as written.
+- **Loki is not published** (no authentication: `auth_enabled: false`);
+  Alloy and Grafana reach it as `loki:3100`. Grafana listens on
+  `127.0.0.1:${GRAFANA_PORT:-3001}`: reach it through an SSH tunnel, like
+  Prometheus (`ssh -L 3001:127.0.0.1:3001 <host>`), sign in as `admin` with
+  `GRAFANA_ADMIN_PASSWORD`, open Explore. The Loki data source is
+  provisioned (`monitoring/grafana/provisioning/datasources/loki.yml`).
+- **Limits:** `LOKI_CPUS`/`LOKI_MEMORY` (0.5, 512 MB), `ALLOY_*` (0.25, 256
+  MB), `GRAFANA_*` (0.5, 256 MB).
+
+**Querying by `requestId`.** In production the app writes one JSON object per
+line (`LOG_FORMAT=json`), and every request carries an id: the
+`X-Request-Id` header, which the response returns and an error body's
+`requestId` repeats. Alloy turns `requestId` into structured metadata
+`request_id` (not a label: it is unbounded), and `level` into a label.
+In Grafana's Explore (LogQL):
+
+```logql
+{service=~"api|worker"} | request_id = "7c1b0f0e-6e0f-4a43-9d3c-2f1d0a9c1e55"
+{service="api", level="error"} | json | status >= 500
+{service="api"} |= "7c1b0f0e" | json
+```
+
+Without Grafana the UI is missing, not the data: it stays in Loki, and
+`logcli` works against an SSH tunnel to a port you publish yourself.
+
+**Checks.** `.github/workflows/monitoring.yml` verifies `loki.yml`
+(`loki -verify-config`) and parses `config.alloy` (`alloy fmt`) on every
+change, with the images `compose.monitoring.yaml` pins.
 
 ## Redis
 

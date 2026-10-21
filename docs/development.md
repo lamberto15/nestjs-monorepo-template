@@ -225,7 +225,8 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 | `pnpm start:debug` | the same with the Node.js inspector (`nest start --debug --watch`) |
 | `pnpm dev:web` | the web app's dev server alone, http://localhost:5173; it proxies `/v1`, `/health` and `/socket.io` to the API on :3000, so the session cookie is same-origin |
 | `pnpm build && pnpm lint && pnpm test && pnpm test:e2e` | the check before every commit (Turborepo: a task whose inputs didn't change is replayed from `.turbo/cache`) |
-| `pnpm lint` | oxlint in every package (Turborepo), then knip: unused files, exports and dependencies across the workspaces ([Dead code](#dead-code-knip)); `pnpm lint:code` is oxlint alone, `pnpm knip` knip alone |
+| `pnpm i18n:check` | the translation parity check (also run by `pnpm lint`): every locale's keys, placeholders and plural forms against `en`, web and API ([i18n](i18n-and-time.md)) |
+| `pnpm lint` | oxlint in every package (Turborepo), the translation parity check, then knip: unused files, exports and dependencies across the workspaces ([Dead code](#dead-code-knip)); `pnpm lint:code` is the first two, `pnpm knip` knip alone |
 | `pnpm format` | Prettier on the TypeScript of every package (not on Markdown, nor `packages/ui`: the shadcn CLI writes it) |
 | `pnpm db:generate` | a migration from the tables (after any `*.tables.ts` change) |
 | `pnpm db:generate:fixtures` | the test-only record's migrations (`apps/api/test/fixtures/drizzle`), after changing `test/fixtures/test-items` |

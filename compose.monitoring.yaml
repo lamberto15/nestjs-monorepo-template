@@ -12,6 +12,10 @@
 # UIs listen on the host's loopback only (127.0.0.1:9090 and :9093): reach
 # them through an SSH tunnel (ssh -L 9090:127.0.0.1:9090 -L 9093:127.0.0.1:9093
 # <host>). docs/deployment.md, "Alerting".
+#
+# Log shipping (Loki, Alloy, Grafana) is a second, separate opt-in inside this
+# file: its services have Compose profiles, so they stay off until
+# COMPOSE_PROFILES=logs (or logs,grafana) is set. docs/deployment.md, "Logs".
 
 # Bounded logs, as in compose.yaml (an anchor can't cross files).
 x-logging: &logging
@@ -242,6 +246,106 @@ services:
           memory: 64M
     logging: *logging
 
+  # Log shipping (docs/deployment.md, "Logs"). OFF unless the profile is
+  # chosen: COMPOSE_PROFILES=logs (Loki and Alloy), or logs,grafana (and the
+  # UI). Loki keeps the logs on its volume for LOKI_RETENTION.
+  loki:
+    image: grafana/loki:3.7.9
+    restart: unless-stopped
+    profiles: [logs]
+    command:
+      - -config.file=/etc/loki/loki.yml
+      # loki.yml reads LOKI_RETENTION.
+      - -config.expand-env=true
+    environment:
+      LOKI_RETENTION: ${LOKI_RETENTION:-720h}
+    volumes:
+      - ./monitoring/loki:/etc/loki:ro
+      # Chunks, index and the compactor's work files (/loki is the image's
+      # own directory, owned by its user).
+      - loki_data:/loki
+    healthcheck:
+      # The image is distroless (no shell, no wget): the binary checks itself
+      # (GET http://localhost:3100/ready), as in Grafana's own Compose file.
+      test: ['CMD', '/usr/bin/loki', '-health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '${LOKI_CPUS:-0.5}'
+          memory: ${LOKI_MEMORY:-512M}
+    logging: *logging
+
+  # Grafana Alloy (Promtail's successor) reads the stack's containers' logs
+  # through the Docker API: it works with the default `local` driver and
+  # with json-file (docker logs must work), not with drivers Docker can't
+  # read back (syslog, gelf, awslogs, none). Mounting the socket, even read
+  # only, gives Alloy the Docker API: it runs as root for that. Not published.
+  alloy:
+    image: grafana/alloy:v1.21.0
+    restart: unless-stopped
+    profiles: [logs]
+    depends_on:
+      loki:
+        condition: service_healthy
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    environment:
+      LOG_COMPOSE_PROJECT: ${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}
+    user: '0:0'
+    volumes:
+      - ./monitoring/alloy:/etc/alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # The read positions: a restart resumes where it stopped.
+      - alloy_data:/var/lib/alloy/data
+    deploy:
+      resources:
+        limits:
+          cpus: '${ALLOY_CPUS:-0.25}'
+          memory: ${ALLOY_MEMORY:-256M}
+    logging: *logging
+
+  # Optional UI over Loki (profile "grafana"; with Loki's profile too:
+  # COMPOSE_PROFILES=logs,grafana). 127.0.0.1 only: reach it through an SSH
+  # tunnel. GRAFANA_ADMIN_PASSWORD is required (it refuses to start without).
+  grafana:
+    image: grafana/grafana:13.2.4
+    restart: unless-stopped
+    profiles: [grafana]
+    entrypoint:
+      - sh
+      - -c
+      - '[ -n "$$GF_SECURITY_ADMIN_PASSWORD" ] || { echo "GRAFANA_ADMIN_PASSWORD is not set" >&2; exit 1; }; exec /run.sh'
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      GF_SERVER_ROOT_URL: http://localhost:${GRAFANA_PORT:-3001}
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - 127.0.0.1:${GRAFANA_PORT:-3001}:3000
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3000/api/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '${GRAFANA_CPUS:-0.5}'
+          memory: ${GRAFANA_MEMORY:-256M}
+    logging: *logging
+
 secrets:
   metrics_token:
     environment: METRICS_TOKEN
@@ -259,3 +363,7 @@ volumes:
   alertmanager_data:
   # compose.prod.yaml's, where the backup service writes.
   backups:
+  # Log shipping (profiles logs, grafana).
+  loki_data:
+  alloy_data:
+  grafana_data:

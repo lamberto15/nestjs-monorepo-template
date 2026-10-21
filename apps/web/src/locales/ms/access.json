@@ -101,7 +101,6 @@
       "permissions": "Kebenaran",
       "members": "Ahli"
     },
-    "permissionCount_one": "{{count}} kebenaran",
     "permissionCount_other": "{{count}} kebenaran",
     "everything": "Semuanya, termasuk kawalan akses",
     "builtInBadge": "Terbina dalam",
@@ -119,7 +118,6 @@
     "saved": "Peranan disimpan.",
     "delete": "Padam",
     "deleteTitle": "Padam peranan {{name}}?",
-    "deleteDescription_one": "{{count}} orang memilikinya: mereka kehilangan kebenarannya.",
     "deleteDescription_other": "{{count}} orang memilikinya: mereka kehilangan kebenarannya.",
     "deleted": "Peranan {{name}} dipadam.",
     "errors": {

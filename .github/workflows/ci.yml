@@ -289,6 +289,10 @@ jobs:
       # The release notes' generator (tools/release/, docs/releases.md): git only.
       - name: The release notes' tests
         run: node --test tools/release/notes.test.mjs
+      # The translation parity check's tests (tools/i18n/); the check itself
+      # runs in `pnpm lint`.
+      - name: The i18n check's tests
+        run: node --test tools/i18n/check.test.mjs
 
   # The unit tests in parallel (Vitest's --shard): the API's in 3 shards, the
   # web app's in 3 (jsdom, the run's longest at 3 min whole), the packages'
@@ -914,6 +918,22 @@ jobs:
           cache-to: type=gha,scope=caddy,mode=max
       - name: The web app is in the image
         run: docker run --rm --entrypoint test caddy:ci -f /srv/web/index.html
+      # The Caddyfile parses (its security.txt handle included), and the entrypoint
+      # writes the file from SECURITY_CONTACT, and writes none without it (docs/deployment.md).
+      # Caddy's Cloudflare module checks the token's format while it provisions the
+      # ACME DNS provider (legacy: 35-50 alphanumeric, dash or underscore), so the dummy must look like one.
+      - name: The Caddyfile is valid
+        run: |
+          docker run --rm -e APP_DOMAIN=ci.example.com -e ACME_EMAIL=ci@example.com \
+            -e CLOUDFLARE_API_TOKEN=0123456789abcdef0123456789abcdef01234567 \
+            -v "$PWD/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:ci caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: security.txt is written from SECURITY_CONTACT
+        run: |
+          docker run --rm -e CLOUDFLARE_API_TOKEN=ci -e SECURITY_CONTACT=mailto:ci@example.com \
+            caddy:ci test -f /srv/security/.well-known/security.txt
+          docker run --rm -e CLOUDFLARE_API_TOKEN=ci caddy:ci \
+            sh -c 'test ! -f /srv/security/.well-known/security.txt'
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
