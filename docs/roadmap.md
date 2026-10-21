@@ -1,7 +1,7 @@
 # Roadmap
 
 What the template builds next, in order. Version 2 (2026-10-16): the approved v1 list
-(items 0–17, Kubernetes excluded for now) after an independent edge-case review by
+(items 0–17; Kubernetes was excluded and now has a Helm chart, [deploy-kubernetes.md](deploy-kubernetes.md)) after an independent edge-case review by
 Claude Fable 5.1. Every review finding that cites code was re-checked against `main` at
 7676b43; where this plan departs from the review is listed at the end. Each item is
 built in its own worktree and pull request ([development](development.md), "Git

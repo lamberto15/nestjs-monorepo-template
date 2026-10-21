@@ -1,0 +1,25 @@
+# On top of values.yaml, for the kind cluster: no Ingress controller, the
+# images the cluster doesn't have (web, Gotenberg) left out, one replica.
+ingress:
+  enabled: false
+web:
+  enabled: false
+gotenberg:
+  enabled: false
+prometheusRule:
+  enabled: false
+api:
+  autoscaling:
+    enabled: false
+  replicas: 1
+  podDisruptionBudget:
+    enabled: false
+env:
+  GOTENBERG_URL: ''
+  # Files go to S3 in production; the smoke test never stores one, so a bucket
+  # nobody serves and throwaway keys are enough for the app to start.
+  S3_BUCKET: ci-bucket
+  S3_REGION: us-east-1
+  S3_ENDPOINT: http://s3.invalid
+  AWS_ACCESS_KEY_ID: ci
+  AWS_SECRET_ACCESS_KEY: ci-only

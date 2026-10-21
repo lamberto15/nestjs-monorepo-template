@@ -113,9 +113,14 @@ export function useRotateKey(id: string) {
   });
 }
 
-export function useUpdateClient(id: string) {
+/** `errorToast: false`: the caller shows a refusal itself, on a field. */
+export function useUpdateClient(
+  id: string,
+  options: { errorToast?: boolean } = {},
+) {
   const refresh = useRefresh();
   return useMutation({
+    meta: { errorToast: options.errorToast ?? true },
     mutationFn: (body: ClientChanges) =>
       unwrap(
         api.PATCH('/v1/access/clients/{id}', {

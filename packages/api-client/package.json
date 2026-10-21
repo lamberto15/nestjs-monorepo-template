@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "The typed client of this API: REST (openapi-fetch, types generated from the OpenAPI document) and realtime (socket.io).",
   "private": true,
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "exports": {
     ".": {
