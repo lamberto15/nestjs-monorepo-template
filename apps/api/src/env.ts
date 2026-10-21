@@ -44,4 +44,5 @@ logRedaction.declareFields(...SECRET_VARIABLES);
  */
 export const envSchema = withSecretFiles(variables);
 
+/** @public */
 export type Env = typeof envSchema._zod.output;

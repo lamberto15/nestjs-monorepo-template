@@ -39,6 +39,7 @@ export type RealtimeEventDeclaration = ReturnType<typeof defineRealtimeEvent>;
  * `defineRealtimeEvent(id, description, schema)`: `id` names the payload's
  * OpenAPI component (`Realtime…Event`, unique). Names must not repeat a
  * platform event's.
+ * @public
  */
 export const defineRealtimeEvents = <
   const T extends Record<string, RealtimeEventDeclaration>,

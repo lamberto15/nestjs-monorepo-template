@@ -7,7 +7,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 export type SavedView = GetResponse<'/v1/views'>['items'][number];
-export type AppliedView = GetResponse<'/v1/views/{id}/apply'>;
 export type NewView = paths['/v1/views']['post'] extends {
   requestBody: { content: { 'application/json': infer B } };
 }
