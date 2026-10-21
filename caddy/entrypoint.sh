@@ -64,4 +64,58 @@ if [ -n "${SECURITY_CONTACT:-}" ]; then
   } > "$security_file"
   set +f
 fi
+
+# connect-src of the web app's Content-Security-Policy (caddy/Caddyfile reads
+# $WEB_CONNECT_SRC): this origin, and with STORAGE_DRIVER=s3 the bucket's, since
+# the browser PUTs a direct upload straight to it (docs/attachments.md, "Direct
+# uploads"); the policy would block that request before any CORS check. The
+# origin is the one the API's S3 disk signs its URLs for (@nestjs/storage's
+# S3Disk): S3_ENDPOINT, or https://s3.<S3_REGION or AWS_REGION>.amazonaws.com,
+# with the bucket in front of the host (virtual-hosted style), or without it
+# (path style: S3_FORCE_PATH_STYLE=on, an IP address as the host, or a bucket
+# name that is not a DNS label). Anything that does not parse is left out, with
+# a warning: the web app then uploads through the API (docs/attachments.md).
+WEB_CONNECT_SRC="'self'"
+if [ "${STORAGE_DRIVER:-}" = s3 ] && [ -n "${S3_BUCKET:-}" ]; then
+  bucket=$S3_BUCKET
+  endpoint=${S3_ENDPOINT:-}
+  region=${S3_REGION:-${AWS_REGION:-}}
+  if [ -z "$endpoint" ] && [ -n "$region" ]; then
+    endpoint=https://s3.$region.amazonaws.com
+  fi
+  scheme=${endpoint%%://*}
+  host=${endpoint#*://}
+  host=${host%%/*}
+  case $scheme in http | https) ;; *) host= ;; esac
+  # Only what a host and a bucket name are made of: nothing that could end the directive.
+  case $host$bucket in
+    *[!]A-Za-z0-9._:[-]*) host= ;;
+  esac
+  if [ -z "$host" ]; then
+    echo 'STORAGE_DRIVER=s3: no bucket origin from S3_ENDPOINT, S3_REGION and S3_BUCKET; the web app'"'"'s Content-Security-Policy leaves it out' >&2
+  else
+    path_style=no
+    if [ "${S3_FORCE_PATH_STYLE:-}" = on ]; then path_style=yes; fi
+    case $host in
+      \[*) path_style=yes ;; # an IPv6 address
+      *[!0-9.:]*) ;;          # a name
+      *.*.*.*) path_style=yes ;; # an IPv4 address (and a port)
+    esac
+    case $bucket in
+      -* | *- | .* | *. | *..*) path_style=yes ;;
+    esac
+    if [ ${#bucket} -lt 3 ] || [ ${#bucket} -gt 63 ]; then path_style=yes; fi
+    if [ "$scheme" = http ]; then
+      case $bucket in *[!a-z0-9.-]*) path_style=yes ;; esac
+    else
+      case $bucket in *[!a-z0-9-]*) path_style=yes ;; esac
+    fi
+    if [ "$path_style" = yes ]; then
+      WEB_CONNECT_SRC="'self' $scheme://$host"
+    else
+      WEB_CONNECT_SRC="'self' $scheme://$bucket.$host"
+    fi
+  fi
+fi
+export WEB_CONNECT_SRC
 exec "$@"

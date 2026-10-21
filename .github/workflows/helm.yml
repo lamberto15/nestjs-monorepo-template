@@ -52,6 +52,19 @@ jobs:
           grep -q 'helm.sh/hook": pre-install,pre-upgrade' "$RUNNER_TEMP/all.yaml"
           if grep -q ':latest' "$RUNNER_TEMP/all.yaml"; then exit 1; fi
 
+      # Direct uploads (docs/attachments.md): the browser PUTs to the bucket, so
+      # the web app's Content-Security-Policy must name its origin, and only then.
+      - name: The web app's policy names the bucket of direct uploads
+        run: |
+          helm template ci deploy/helm/app -f deploy/helm/ci/values.yaml > "$RUNNER_TEMP/no-bucket.yaml"
+          grep -q "connect-src 'self';" "$RUNNER_TEMP/no-bucket.yaml"
+          helm template ci deploy/helm/app -f deploy/helm/ci/values.yaml \
+            --set env.S3_BUCKET=files --set env.S3_REGION=eu-west-1 > "$RUNNER_TEMP/bucket.yaml"
+          grep -q "connect-src 'self' https://files.s3.eu-west-1.amazonaws.com;" "$RUNNER_TEMP/bucket.yaml"
+          helm template ci deploy/helm/app -f deploy/helm/ci/values.yaml \
+            --set env.S3_BUCKET=files --set env.S3_ENDPOINT=http://minio:9000 --set-string env.S3_FORCE_PATH_STYLE=on > "$RUNNER_TEMP/minio.yaml"
+          grep -q "connect-src 'self' http://minio:9000;" "$RUNNER_TEMP/minio.yaml"
+
       - name: An image without a tag is refused
         run: |
           if helm template ci deploy/helm/app -f deploy/helm/ci/values.yaml --set image.tag= 2>err.txt; then

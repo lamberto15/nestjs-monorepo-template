@@ -284,6 +284,165 @@ describe(
   },
 );
 
+/** The CSP's connect-src, from a response. */
+const connectSrc = (response) =>
+  /connect-src ([^;]*);/.exec(
+    response.headers.get('content-security-policy') ?? '',
+  )?.[1];
+
+describe(
+  'the web app, connect-src of its Content-Security-Policy',
+  { skip },
+  () => {
+    it('is this origin only, unless WEB_CONNECT_SRC says more (caddy/entrypoint.sh sets it)', async () => {
+      const caddy = await startCaddy({});
+      try {
+        assert.equal(connectSrc(await get(caddy, '/')), "'self'");
+      } finally {
+        await caddy.stop();
+      }
+    });
+
+    it('names the bucket when it is given, on every response of the app', async () => {
+      const bucket = 'https://files.s3.eu-west-1.amazonaws.com';
+      const caddy = await startCaddy({ WEB_CONNECT_SRC: `'self' ${bucket}` });
+      try {
+        for (const path of ['/', '/sign-in', '/assets/app.js']) {
+          const response = await get(caddy, path);
+          assert.equal(connectSrc(response), `'self' ${bucket}`, path);
+          assertSecurityHeaders(response);
+        }
+      } finally {
+        await caddy.stop();
+      }
+    });
+  },
+);
+
+describe("the connect-src that caddy/entrypoint.sh derives from the app's S3 settings", () => {
+  const entrypoint = fileURLToPath(new URL('./entrypoint.sh', import.meta.url));
+  /** What the entrypoint hands Caddy as WEB_CONNECT_SRC, and what it said about it. */
+  function derive(env) {
+    const run = spawnSync(
+      'sh',
+      [entrypoint, 'sh', '-c', 'printf %s "$WEB_CONNECT_SRC"'],
+      {
+        env: { PATH: process.env.PATH, CLOUDFLARE_API_TOKEN: 'ci', ...env },
+        encoding: 'utf8',
+      },
+    );
+    assert.equal(run.status, 0, run.stderr);
+    return { value: run.stdout, warning: run.stderr };
+  }
+  const s3 = { STORAGE_DRIVER: 's3', S3_BUCKET: 'files' };
+
+  it('stays this origin with the local driver, or without a bucket', () => {
+    assert.equal(derive({}).value, "'self'");
+    assert.equal(
+      derive({
+        STORAGE_DRIVER: 'local',
+        S3_BUCKET: 'files',
+        S3_REGION: 'eu-west-1',
+      }).value,
+      "'self'",
+    );
+    assert.equal(
+      derive({ STORAGE_DRIVER: 's3', S3_REGION: 'eu-west-1' }).value,
+      "'self'",
+    );
+  });
+
+  // The origins S3Disk (@nestjs/storage) signs its URLs for: the bucket in
+  // front of the host, unless it uses path style.
+  const cases = [
+    [
+      'AWS, from S3_REGION',
+      { ...s3, S3_REGION: 'eu-west-1' },
+      'https://files.s3.eu-west-1.amazonaws.com',
+    ],
+    [
+      'AWS, from AWS_REGION',
+      { ...s3, AWS_REGION: 'us-east-2' },
+      'https://files.s3.us-east-2.amazonaws.com',
+    ],
+    [
+      'S3_REGION before AWS_REGION',
+      { ...s3, S3_REGION: 'eu-west-1', AWS_REGION: 'us-east-2' },
+      'https://files.s3.eu-west-1.amazonaws.com',
+    ],
+    [
+      'R2 (an endpoint, the region "auto")',
+      {
+        ...s3,
+        S3_REGION: 'auto',
+        S3_ENDPOINT: 'https://acct.r2.cloudflarestorage.com',
+      },
+      'https://files.acct.r2.cloudflarestorage.com',
+    ],
+    [
+      'an endpoint with a trailing slash',
+      { ...s3, S3_ENDPOINT: 'https://acct.r2.cloudflarestorage.com/' },
+      'https://files.acct.r2.cloudflarestorage.com',
+    ],
+    [
+      'MinIO: path style, the endpoint itself',
+      { ...s3, S3_ENDPOINT: 'http://minio:9000', S3_FORCE_PATH_STYLE: 'on' },
+      'http://minio:9000',
+    ],
+    [
+      'an IPv4 host: path style by itself',
+      { ...s3, S3_ENDPOINT: 'http://10.0.0.5:9000' },
+      'http://10.0.0.5:9000',
+    ],
+    [
+      'an IPv6 host: path style by itself',
+      { ...s3, S3_ENDPOINT: 'http://[::1]:9000' },
+      'http://[::1]:9000',
+    ],
+    [
+      'a name that is not a DNS label (a dot, over https): path style',
+      { ...s3, S3_BUCKET: 'my.files', S3_REGION: 'eu-west-1' },
+      'https://s3.eu-west-1.amazonaws.com',
+    ],
+    [
+      'a name with a capital: path style',
+      { ...s3, S3_BUCKET: 'Files', S3_REGION: 'eu-west-1' },
+      'https://s3.eu-west-1.amazonaws.com',
+    ],
+    [
+      'a dotted name over http: still a label',
+      { ...s3, S3_BUCKET: 'my.files', S3_ENDPOINT: 'http://store.test:9000' },
+      'http://my.files.store.test:9000',
+    ],
+    [
+      'S3_FORCE_PATH_STYLE=off',
+      { ...s3, S3_REGION: 'eu-west-1', S3_FORCE_PATH_STYLE: 'off' },
+      'https://files.s3.eu-west-1.amazonaws.com',
+    ],
+  ];
+  for (const [name, env, origin] of cases) {
+    it(`names the bucket's origin: ${name}`, () => {
+      const { value, warning } = derive(env);
+      assert.equal(value, `'self' ${origin}`);
+      assert.equal(warning, '');
+    });
+  }
+
+  it('leaves the bucket out, with a warning, when no origin can be made of the settings', () => {
+    for (const env of [
+      { ...s3 }, // no region, no endpoint
+      { ...s3, S3_ENDPOINT: 'store.test' }, // no scheme
+      { ...s3, S3_ENDPOINT: 'ftp://store.test' },
+      { ...s3, S3_ENDPOINT: "https://store.test; script-src 'unsafe-inline'" }, // would end the directive
+      { ...s3, S3_BUCKET: "files'", S3_REGION: 'eu-west-1' },
+    ]) {
+      const { value, warning } = derive(env);
+      assert.equal(value, "'self'", JSON.stringify(env));
+      assert.match(warning, /no bucket origin/, JSON.stringify(env));
+    }
+  });
+});
+
 describe('the maintenance page', () => {
   const page = readFileSync(maintenancePage, 'utf8');
 

@@ -78,3 +78,43 @@ app.kubernetes.io/component: {{ .component }}
     secretName: {{ include "app.secretName" . }}
     defaultMode: 0444
 {{- end -}}
+
+{{/*
+connect-src of the web app's Content-Security-Policy (templates/web-configmap.yaml):
+this origin, and with env.STORAGE_DRIVER=s3 and env.S3_BUCKET the bucket's, since
+the browser PUTs a direct upload straight to it (docs/attachments.md, "Direct
+uploads") and the policy would block that request. The origin is the one the API's
+S3 disk signs its URLs for, as caddy/entrypoint.sh works it out: env.S3_ENDPOINT, or
+https://s3.<env.S3_REGION or AWS_REGION>.amazonaws.com, with the bucket in front of
+the host (virtual-hosted style), or not (path style: env.S3_FORCE_PATH_STYLE "on",
+an IP address as the host, or a bucket name that is not a DNS label).
+*/}}
+{{- define "app.webConnectSrc" -}}
+{{- $env := .Values.env -}}
+{{- $src := "'self'" -}}
+{{- if and (eq (toString (default "" $env.STORAGE_DRIVER)) "s3") $env.S3_BUCKET -}}
+{{- $bucket := toString $env.S3_BUCKET -}}
+{{- $region := toString (default (default "" $env.AWS_REGION) $env.S3_REGION) -}}
+{{- $endpoint := toString (default "" $env.S3_ENDPOINT) -}}
+{{- if and (not $endpoint) $region -}}
+{{- $endpoint = printf "https://s3.%s.amazonaws.com" $region -}}
+{{- end -}}
+{{- if not (regexMatch "^https?://[A-Za-z0-9._:\\[\\]-]+/?$" $endpoint) -}}
+{{- fail "env.STORAGE_DRIVER is s3 and env.S3_BUCKET is set: set env.S3_REGION (or AWS_REGION), or env.S3_ENDPOINT as http(s)://host; the web app's Content-Security-Policy names the bucket's origin" -}}
+{{- end -}}
+{{- if not (regexMatch "^[A-Za-z0-9._-]+$" $bucket) -}}
+{{- fail "env.S3_BUCKET is not a bucket name (letters, digits, dots and dashes)" -}}
+{{- end -}}
+{{- $scheme := regexReplaceAll "^(https?)://.*$" $endpoint "${1}" -}}
+{{- $host := regexReplaceAll "^https?://([^/]+)/?$" $endpoint "${1}" -}}
+{{- $forced := has (toString (default "" $env.S3_FORCE_PATH_STYLE)) (list "on" "true") -}}
+{{- $ip := or (regexMatch "^\\[" $host) (regexMatch "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+(:[0-9]+)?$" $host) -}}
+{{- $label := or (regexMatch "^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$" $bucket) (and (eq $scheme "http") (regexMatch "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$" $bucket) (not (contains ".." $bucket))) -}}
+{{- if or $forced $ip (not $label) -}}
+{{- $src = printf "'self' %s://%s" $scheme $host -}}
+{{- else -}}
+{{- $src = printf "'self' %s://%s.%s" $scheme $bucket $host -}}
+{{- end -}}
+{{- end -}}
+{{- $src -}}
+{{- end -}}

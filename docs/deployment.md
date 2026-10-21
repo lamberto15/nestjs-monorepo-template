@@ -53,8 +53,16 @@ Filling `.env` (each step is commented in `env.example`):
 - **The web app's security headers** are set in the Caddyfile's web-app `handle` only
   (the API's responses keep helmet's own): `Content-Security-Policy`
   (`default-src 'self'`; scripts and frames also from `https://challenges.cloudflare.com`,
-  Turnstile's only needs; `connect-src 'self'` covers the API and socket.io;
-  `img-src 'self' data:`; `style-src` keeps `'unsafe-inline'` because sonner and the theme
+  Turnstile's only needs; `connect-src` is `'self'`, which covers the API and
+  socket.io, and with `STORAGE_DRIVER=s3` the bucket's origin too, because the browser
+  PUTs a direct upload straight to it ([attachments](attachments.md#direct-uploads-s3);
+  a policy without it blocks the request before any CORS check, and the web app
+  silently uploads through the API instead): `caddy/entrypoint.sh` derives it from
+  `S3_BUCKET`, `S3_ENDPOINT`, `S3_REGION` (or `AWS_REGION`) and `S3_FORCE_PATH_STYLE`,
+  as the API's S3 disk does, and `compose.prod.yaml` hands those to `caddy` (an
+  origin it cannot make of them is left out, with a warning in Caddy's log); the Helm
+  chart does the same from `env` (`app.webConnectSrc`, and it refuses an `env` it
+  cannot read); `img-src 'self' data:`; `style-src` keeps `'unsafe-inline'` because sonner and the theme
   provider inject `<style>` elements; no `'unsafe-eval'`, so `apps/web` imports `z` from `@/lib/zod`, which sets zod to
   `jitless`; `frame-ancestors 'none'`), `X-Frame-Options: DENY`, `X-Content-Type-Options`,
   `Referrer-Policy: strict-origin-when-cross-origin` and a `Permissions-Policy` that turns
