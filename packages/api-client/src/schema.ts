@@ -1283,6 +1283,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/account/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set your picture
+         * @description Multipart, the field `file`: a PNG, JPEG, WebP or GIF, recognized from its bytes (not the name or the declared type), at most AVATAR_MAX_MB (2). Replaces the one you had. The answer is the `avatarUrl` to show it by (also on GET /v1/auth/me and GET /v1/people). Audited (account.avatar-changed). Never while acting as another user.
+         */
+        put: operations["AvatarController_set_v1"];
+        post?: never;
+        /**
+         * Remove your picture
+         * @description The file goes too. Without a picture, nothing happens. Audited (account.avatar-removed). Never while acting as another user.
+         */
+        delete: operations["AvatarController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/account/deletion/cancel": {
         parameters: {
             query?: never;
@@ -1492,6 +1516,26 @@ export interface paths {
          * @description With `q` (or nothing): the active members of your tenant whose name contains `q`, by name. With `key=user:<id>,client:<id>`: the names of these keys, in the order asked: a member, or a former member (they still own records), or an API client of your tenant; a key your tenant has no one for is left out (no error). Each item is a key (`user:<id>`, what `@user:<id>` mentions and `ownerId` holds) and a name, nothing else. For any member. A mention still reaches only those who may read the record (docs/comments.md).
          */
         get: operations["PeopleController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/people/{id}/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A person's picture
+         * @description The picture itself (what `avatarUrl` of a person points at), streamed by this API rather than redirected to the disk's signed link: an `<img>` then loads it from the page's own origin, whatever the storage (a redirect to another origin, the bucket with S3, is refused by the browser's cross-origin and Content-Security-Policy rules). `Content-Disposition: inline`, `Cache-Control: private` (the address changes with the picture), `nosniff`. For a member (or former member) of your tenant, or yourself. 404 when they have none, or are no one of your tenant: the two are not told apart.
+         */
+        get: operations["PeopleController_avatar_v1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -11242,6 +11286,94 @@ export interface operations {
             };
         };
     };
+    AvatarController_set_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Where the picture is shown from (a path on this API, for an `<img>`). */
+                        avatarUrl: string;
+                    };
+                };
+            };
+            /** @description No file (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not signed in as a user. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Larger than AVATAR_MAX_MB (payload_too_large). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a PNG, JPEG, WebP or GIF, or not the type declared (unsupported_media_type). */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AvatarController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not signed in as a user. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     AccountDeletionLinkController_cancel_v1: {
         parameters: {
             query?: never;
@@ -11956,6 +12088,8 @@ export interface operations {
                             key: string;
                             /** @example Maya Patel */
                             name: string;
+                            /** @description Their picture: a path on this API for an `<img>` (GET /v1/people/{id}/avatar; sign-in required); null: none, and always for an API client. A new picture is a new address. */
+                            avatarUrl: string | null;
                         }[];
                     };
                 };
@@ -11976,6 +12110,54 @@ export interface operations {
             };
             /** @description Your session acts in no tenant (tenant_required). */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PeopleController_avatar_v1: {
+        parameters: {
+            query?: {
+                /** @description The version in `avatarUrl`: it only tells a new picture from the one a browser kept, and is not read. */
+                v?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The picture: a PNG, JPEG, WebP or GIF. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                    "image/webp": string;
+                    "image/gif": string;
+                };
+            };
+            /** @description No valid session or user token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Your session acts in no tenant (tenant_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -17460,6 +17642,8 @@ export interface operations {
                         emailVerified: boolean;
                         locale: string | null;
                         timezone: string | null;
+                        /** @description Their picture (PUT /v1/account/avatar): a path on this API to put in an `<img>` (sign-in required, the same session or token); null: none. A new picture is a new address. */
+                        avatarUrl?: string | null;
                         /** @description The tenant this session or token acts in (GET /auth/tenants, POST /auth/tenant); null: none (no membership yet). */
                         tenantId: string | null;
                         /** @description Set while an administrator acts as this user. */
@@ -17589,6 +17773,8 @@ export interface operations {
                             emailVerified: boolean;
                             locale: string | null;
                             timezone: string | null;
+                            /** @description Their picture (PUT /v1/account/avatar): a path on this API to put in an `<img>` (sign-in required, the same session or token); null: none. A new picture is a new address. */
+                            avatarUrl?: string | null;
                             /** @description The tenant this session or token acts in (GET /auth/tenants, POST /auth/tenant); null: none (no membership yet). */
                             tenantId: string | null;
                             /** @description Set while an administrator acts as this user. */
@@ -17699,6 +17885,8 @@ export interface operations {
                         emailVerified: boolean;
                         locale: string | null;
                         timezone: string | null;
+                        /** @description Their picture (PUT /v1/account/avatar): a path on this API to put in an `<img>` (sign-in required, the same session or token); null: none. A new picture is a new address. */
+                        avatarUrl?: string | null;
                         /** @description The tenant this session or token acts in (GET /auth/tenants, POST /auth/tenant); null: none (no membership yet). */
                         tenantId: string | null;
                         /** @description Set while an administrator acts as this user. */
@@ -19668,6 +19856,8 @@ export interface operations {
                             locale: string | null;
                             /** @description Their IANA time zone, or null (APP_TIMEZONE). */
                             timezone: string | null;
+                            /** @description Their picture (an `<img>` path, GET /v1/people/{id}/avatar); null: none. */
+                            avatarUrl?: string | null;
                             /** @description The membership in this tenant and the account, together. */
                             active: boolean;
                             /** @description false: invited, or signs in only with a provider. */
@@ -19803,6 +19993,8 @@ export interface operations {
                         locale: string | null;
                         /** @description Their IANA time zone, or null (APP_TIMEZONE). */
                         timezone: string | null;
+                        /** @description Their picture (an `<img>` path, GET /v1/people/{id}/avatar); null: none. */
+                        avatarUrl?: string | null;
                         /** @description The membership in this tenant and the account, together. */
                         active: boolean;
                         /** @description false: invited, or signs in only with a provider. */

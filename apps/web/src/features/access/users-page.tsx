@@ -1,3 +1,4 @@
+import { UserAvatar } from '@/components/user-avatar';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
 import { DropdownMenuItem } from '@nestjs-monorepo-template/ui/components/dropdown-menu';
@@ -101,9 +102,14 @@ function Members() {
         cell: ({ row }) => (
           <button
             type="button"
-            className="font-medium underline-offset-4 hover:underline"
+            className="flex items-center gap-2 font-medium underline-offset-4 hover:underline"
             onClick={() => setSelected(row.original.id)}
           >
+            <UserAvatar
+              size="sm"
+              name={row.original.name || row.original.email}
+              src={row.original.avatarUrl}
+            />
             {row.original.name || row.original.email}
           </button>
         ),

@@ -199,6 +199,9 @@ export const platformEnv = z.object({
     types.length > 0 ? types : DEFAULT_ATTACHMENT_TYPES,
   ),
 
+  /** Users' pictures (PUT /v1/account/avatar): the largest, in MB. */
+  AVATAR_MAX_MB: z.coerce.number().int().min(1).max(50).default(2),
+
   /**
    * PDF documents (platform/documents): Gotenberg's URL, `http://gotenberg:3000`
    * in Compose. Unset: documents are off, and asking for one answers 503

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { OnOneInstance, WithoutOverlapping } from '@nestjs/locks';
+import { StorageDisk } from '@nestjs/storage';
 import { Cron } from '@nestjs/schedule';
 import { and, eq, isNull, lte, sql } from 'drizzle-orm';
 import {
@@ -27,6 +28,7 @@ import {
 } from '../notifications/notifications.tables.js';
 import { ACCOUNT_DELETION_JOB } from '../platform.jobs.js';
 import { settingOverrides } from '../settings/settings.tables.js';
+import { accountFileKey } from '../storage/storage.config.js';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service.js';
 import { accountDeletions } from './account.tables.js';
 import { PersonalDataRegistry } from './personal-data.registry.js';
@@ -66,6 +68,7 @@ export class AccountDeletionJob {
     private readonly subscriptions: SubscriptionsService,
     private readonly system: SystemContext,
     private readonly holds: LegalHoldsService,
+    private readonly disk: StorageDisk,
   ) {}
 
   @Cron('50 3 * * *', {
@@ -240,6 +243,7 @@ export class AccountDeletionJob {
           );
         });
         deleted++;
+        await this.removePictures(user.id);
       } catch (error) {
         failures.push({ userId: user.id, tenantId: null, error });
         this.logger.error('Account not anonymized', {
@@ -261,6 +265,33 @@ export class AccountDeletionJob {
       );
     }
     return deleted;
+  }
+
+  /**
+   * Every file under `accounts/<id>/avatar/`, not only the one
+   * `users.avatar_key` named: a replaced picture whose delete failed
+   * (AvatarService.dispose() only logs it) is an orphan nothing points at,
+   * and would outlive the erased person. Listed first, then deleted (as
+   * TenantCleanup.removeFiles does for a tenant). After the commit: a
+   * failure leaves files nothing points at, it never fails the erasure.
+   */
+  private async removePictures(userId: string) {
+    try {
+      const keys: string[] = [];
+      for await (const entry of this.disk.listAll({
+        prefix: accountFileKey(userId, 'avatar/'),
+      })) {
+        keys.push(entry.key);
+      }
+      if (keys.length > 0) {
+        await this.disk.delete(keys);
+      }
+    } catch (error) {
+      this.logger.warn("A deleted account's pictures were not deleted", {
+        userId,
+        error: String(error),
+      });
+    }
   }
 }
 

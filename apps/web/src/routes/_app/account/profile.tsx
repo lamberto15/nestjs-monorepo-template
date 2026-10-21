@@ -22,6 +22,7 @@ import { z } from '@/lib/zod';
 import { languages } from '@/i18n';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { api } from '@/lib/api';
+import { AvatarSection } from '@/components/account/avatar-section';
 import { useMe } from '@/lib/features';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { browserTimeZone } from '@/lib/link-token';
@@ -123,6 +124,7 @@ function ProfileForm({ me }: { me: Me }) {
         >
           <FieldGroup>
             <FormAlert message={error} />
+            <AvatarSection me={me} />
             <Field>
               <FieldLabel htmlFor="account-email">
                 {t('auth.fields.email')}
