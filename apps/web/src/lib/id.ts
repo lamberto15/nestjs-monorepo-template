@@ -15,9 +15,10 @@ export function generateId(
 
   const { alphabet = DEFAULT_ALPHABET, length = 12 } = options;
 
-  // Not a secret (a table filter's key in the page): Math.random is enough.
+  // Not a secret (a table filter's key in the page); the Web Crypto source
+  // keeps it out of the "is this PRNG safe here" question for good.
   return Array.from(
-    { length },
-    () => alphabet[Math.trunc(Math.random() * alphabet.length)],
+    crypto.getRandomValues(new Uint32Array(length)),
+    (value) => alphabet[value % alphabet.length],
   ).join('');
 }
