@@ -173,7 +173,7 @@ nothing for it), loaded by a worker on its first image, never by the API.
   transparency), upright (the EXIF orientation applied to the pixels),
   without metadata, never enlarged: `thumb` fits in 256 × 256 pixels
   (quality 75), `preview` in 1600 × 1600 (quality 80), the proportions
-  kept. An animated GIF or WebP gives its first frame. They are stored
+  kept. An animated GIF, WebP or PNG gives its first frame. They are stored
   under the tenant's prefix like the original, at keys unique to the
   processing run (`attachments/<uuid>.thumb.webp`, `<uuid>.preview.webp`;
   a stripped original of the same run is `<uuid>.jpg`): two jobs on one
@@ -207,7 +207,9 @@ nothing for it), loaded by a worker on its first image, never by the API.
   between gets one whole file or the other and a failure leaves the
   original where it was. `size` becomes the copy's. An original **without**
   metadata stays byte for byte as uploaded, as do a GIF (it has no EXIF),
-  an animated WebP and an image of more than 8 bits per channel.
+  an animated WebP or PNG (a copy would be a still; the library loads only
+  an APNG's first image, so the `acTL` chunk is how it is told) and an
+  image of more than 8 bits per channel.
   `IMAGE_STRIP_ORIGINALS=off` keeps every original as uploaded (evidence,
   a legal copy); the renditions are stripped whatever it says. A JPEG whose
   only metadata is a COM comment is not touched: the library does not

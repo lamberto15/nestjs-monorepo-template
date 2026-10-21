@@ -179,8 +179,11 @@ export class ImageProcessor {
     }
 
     const found = new Set(metadataKinds(meta));
+    let animated = false;
     if (meta.format === 'png') {
-      for (const kind of pngMetadataKinds(input)) found.add(kind);
+      const png = scanPng(input);
+      for (const kind of png.kinds) found.add(kind);
+      animated = png.animated;
     }
     const removed = KINDS.filter((kind) => found.has(kind));
     if (
@@ -188,6 +191,9 @@ export class ImageProcessor {
       removed.length === 0 ||
       !STRIPPABLE.has(meta.format) ||
       (meta.pages ?? 1) > 1 ||
+      // An APNG reports one page (the library loads only its default image):
+      // a re-encoded copy would be a still, and replace the animation.
+      animated ||
       // 16-bit images would come out 8-bit: leave them (and their metadata) alone.
       (meta.depth !== undefined && meta.depth !== 'uchar')
     ) {
@@ -250,20 +256,26 @@ export function metadataKinds(meta: Metadata): string[] {
 const XMP_KEYWORD = 'XML:com.adobe.xmp\0';
 
 /**
- * The kinds of metadata in a PNG's EXIF and text chunks, wherever they are.
+ * What the chunks of a PNG say that the library does not: the kinds of
+ * metadata in its EXIF and text chunks, wherever they are, and whether it is
+ * animated (an APNG has an `acTL` chunk).
  * Read here because the library reads only the chunks before the image data
  * (IDAT), and a PNG may carry them after it as well (libpng writes there what
  * is set late; ImageMagick puts its EXIF and text there): sharp's metadata
  * would miss them, and the original would be kept with its GPS position.
+ * And it loads only an APNG's default image, reporting one page.
  */
-function pngMetadataKinds(input: Buffer): string[] {
+function scanPng(input: Buffer): { kinds: string[]; animated: boolean } {
   const kinds = new Set<string>();
+  let animated = false;
   // After the 8-byte signature, chunks: length, type, data, CRC.
   for (let at = 8; at + 8 <= input.length;) {
     const length = input.readUInt32BE(at);
     const type = input.toString('latin1', at + 4, at + 8);
     if (type === 'IEND') break;
-    if (type === 'eXIf') {
+    if (type === 'acTL') {
+      animated = true;
+    } else if (type === 'eXIf') {
       kinds.add('exif');
     } else if (
       type === 'iTXt' &&
@@ -276,7 +288,7 @@ function pngMetadataKinds(input: Buffer): string[] {
     }
     at += 12 + length;
   }
-  return [...kinds];
+  return { kinds: [...kinds], animated };
 }
 
 /**

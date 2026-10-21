@@ -307,6 +307,59 @@ describe('ImageProcessor', () => {
     expect(after.equals(before)).toBe(true);
   });
 
+  it.each([
+    ['before the image data', true],
+    ['after the image data', false],
+  ])(
+    'leaves an animated PNG with text %s as uploaded (a copy would be a still)',
+    async (_where, early) => {
+      const chunks = pngChunks(await blank(40, 30).png().toBuffer());
+      const chunk = (type: string) =>
+        chunks.find((found) => found.type === type)!.bytes;
+      const [IHDR, IDAT] = [chunk('IHDR'), chunk('IDAT')];
+      const text = pngChunk(
+        'tEXt',
+        Buffer.from('Software\0Animator', 'latin1'),
+      );
+      // Two frames: acTL (frames, plays), then fcTL + IDAT and fcTL + fdAT
+      // (each with a sequence number).
+      const u32 = (...values: number[]) => {
+        const out = Buffer.alloc(values.length * 4);
+        values.forEach((value, at) => out.writeUInt32BE(value, at * 4));
+        return out;
+      };
+      const frameControl = (sequence: number) =>
+        pngChunk(
+          'fcTL',
+          Buffer.concat([
+            u32(sequence, 40, 30, 0, 0),
+            Buffer.from([0, 1, 0, 10, 0, 0]), // delay 1/10 s, dispose, blend
+          ]),
+        );
+      const original = Buffer.concat([
+        PNG_SIGNATURE,
+        IHDR,
+        pngChunk('acTL', u32(2, 0)),
+        ...(early ? [text] : []),
+        frameControl(0),
+        IDAT,
+        frameControl(1),
+        pngChunk('fdAT', Buffer.concat([u32(2), IDAT.subarray(8, -4)])),
+        ...(early ? [] : [text]),
+        pngChunk('IEND', Buffer.alloc(0)),
+      ]);
+      expect(pngChunks(original).map(({ type }) => type)).toContain('acTL');
+      // The library loads only the default image, so it cannot tell.
+      expect((await meta(original)).pages).toBeUndefined();
+      expect((await meta(original)).format).toBe('png');
+
+      const result = await processor().process(original);
+
+      expect(result.stripped).toBeUndefined();
+      expect(result.renditions.thumb).toMatchObject({ width: 40, height: 30 });
+    },
+  );
+
   it('writes a stripped PNG with row filters, about as small as it was', async () => {
     // Each row the one above plus 1: the Up filter, which an encoder that
     // chooses its filters finds again. Unfiltered, 4 KB would become 1 MB.
