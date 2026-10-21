@@ -24,7 +24,7 @@ export interface HashRange {
  * 5 characters (the only part sent) and the other 35 (compared here).
  */
 export function hashRange(password: string): HashRange {
-  const hash = createHash('sha1')
+  const hash = createHash('sha1') // NOSONAR S4790: the range API is defined on SHA-1, not a choice of ours
     .update(password, 'utf8')
     .digest('hex')
     .toUpperCase();

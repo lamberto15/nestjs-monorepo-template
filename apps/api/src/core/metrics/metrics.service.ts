@@ -123,7 +123,8 @@ export class MetricsService {
       return;
     }
     const logger = this.logger;
-    new Gauge<Label>({
+    // Kept by the registry (`registers`), not by us: `void` says it is meant.
+    void new Gauge<Label>({
       name,
       help,
       labelNames,

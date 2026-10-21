@@ -58,10 +58,11 @@ jobs:
       # job has no use for), pinned: raise it by hand, against
       # https://github.com/devcontainers/cli/releases. Installed from the
       # runner's temp directory: package.json's devEngines asks for pnpm,
-      # which npm refuses in the repository.
+      # which npm refuses in the repository. --ignore-scripts: the package is
+      # bundled (no dependencies, no install script), so nothing is lost.
       - name: Install the Dev Containers CLI
         working-directory: ${{ runner.temp }}
-        run: npm install --global @devcontainers/cli@0.89.0
+        run: npm install --global --ignore-scripts @devcontainers/cli@0.89.0
 
       # Builds the images, starts the Compose project (nestjs-monorepo-template-devcontainer)
       # and runs postCreateCommand: pnpm install into the node_modules

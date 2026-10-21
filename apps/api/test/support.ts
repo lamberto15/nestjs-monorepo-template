@@ -55,7 +55,7 @@ export function totp(secret: string, at = Date.now()) {
     bits += alphabet.indexOf(char).toString(2).padStart(5, '0');
   }
   const key = Buffer.from(
-    bits.match(/.{8}/g)!.map((byte) => parseInt(byte, 2)),
+    bits.match(/.{8}/g)!.map((byte) => Number.parseInt(byte, 2)),
   );
   const counter = Buffer.alloc(8);
   counter.writeBigUInt64BE(BigInt(Math.floor(at / 30_000)));
@@ -574,14 +574,16 @@ export async function bootApp(
      */
     writeItem(
       auth: string | request.Agent,
-      body: Record<string, unknown> = { title: 'Hello', body: 'World' },
+      body?: Record<string, unknown>,
       key: string = randomUUID(),
     ) {
       const req =
         typeof auth === 'string'
           ? http().post('/v1/test-items').set('Authorization', auth)
           : auth.post('/v1/test-items');
-      return req.set('Idempotency-Key', key).send(body);
+      return req
+        .set('Idempotency-Key', key)
+        .send(body ?? { title: 'Hello', body: 'World' });
     },
 
     /** Hands committed outbox messages to the fan-out, then delivers what is due. */

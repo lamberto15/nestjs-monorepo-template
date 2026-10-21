@@ -234,9 +234,8 @@ export class RevisionsService implements PersonalDataSource {
   }
 
   /** Nothing to export: revisions are the records' history, not the person's data. */
-  // eslint-disable-next-line require-yield -- a source with no rows of its own
   async *rows(_user: UserPrincipal): AsyncGenerator<Record<string, unknown>[]> {
-    return;
+    yield* []; // a source with no rows of its own
   }
 
   /** An account's deletion: the revisions stay, their author becomes `anonymized`. */

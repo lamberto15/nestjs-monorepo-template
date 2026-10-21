@@ -290,10 +290,12 @@ describe('scheduled reports (e2e)', () => {
       subject: 'TestItem',
       allowed: () => true,
       columns: [{ key: 'id' }],
-      // oxlint-disable-next-line require-yield
-      async *batches() {
-        throw new Error('The source is gone.');
-      },
+      // A source whose first batch fails.
+      batches: () => ({
+        [Symbol.asyncIterator]: () => ({
+          next: () => Promise.reject(new Error('The source is gone.')),
+        }),
+      }),
     });
     const ada = await editor();
     const created = await ada.agent

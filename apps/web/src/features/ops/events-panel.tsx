@@ -48,27 +48,32 @@ export function EventsPanel() {
         </Button>
       </div>
       {entries.length ? (
-        <ol
-          tabIndex={0}
-          className="max-h-[32rem] overflow-auto rounded-md border text-xs focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+        // The log scrolls, so the keyboard must reach it (WCAG 2.1.1): a
+        // focusable, named region around the list, which keeps its own role.
+        <div
+          role="region"
           aria-label={t('events.log')}
+          tabIndex={0} // NOSONAR S6845: a named scroll region, focusable for keyboard scrolling
+          className="max-h-[32rem] overflow-auto rounded-md border text-xs focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
         >
-          {entries.map((entry) => (
-            <li
-              key={entry.id}
-              className="flex flex-wrap items-baseline gap-x-2 border-b px-3 py-1.5 last:border-b-0"
-            >
-              <time className="font-mono text-muted-foreground">
-                {format(new Date(entry.at).toISOString(), 'time')}
-              </time>
-              <Badge variant="secondary">{entry.source}</Badge>
-              <span className="font-medium">{entry.kind}</span>
-              <span className="min-w-0 break-all font-mono text-muted-foreground">
-                {entry.detail}
-              </span>
-            </li>
-          ))}
-        </ol>
+          <ol>
+            {entries.map((entry) => (
+              <li
+                key={entry.id}
+                className="flex flex-wrap items-baseline gap-x-2 border-b px-3 py-1.5 last:border-b-0"
+              >
+                <time className="font-mono text-muted-foreground">
+                  {format(new Date(entry.at).toISOString(), 'time')}
+                </time>
+                <Badge variant="secondary">{entry.source}</Badge>
+                <span className="font-medium">{entry.kind}</span>
+                <span className="min-w-0 break-all font-mono text-muted-foreground">
+                  {entry.detail}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
       ) : (
         <p className="text-sm text-muted-foreground">{t('events.empty')}</p>
       )}

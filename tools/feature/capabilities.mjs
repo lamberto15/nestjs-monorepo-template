@@ -138,7 +138,9 @@ export function parseSettings(list, approvals = []) {
         `--settings: "${text}" is not name:kind[=default]; kinds flag, int, string, enum(a|b).`,
       );
     }
-    const [, name, kindText, enumValues, initial] = match;
+    // A group that did not take part (no `=default`, not an enum) is undefined.
+    const [, name, kindText, enumValues, initial] =
+      /** @type {(string | undefined)[]} */ (match);
     if (!/^[a-z][a-zA-Z0-9]*$/.test(name)) {
       throw new Error(`--settings: "${name}" is not a camelCase name.`);
     }

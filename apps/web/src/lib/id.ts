@@ -15,8 +15,9 @@ export function generateId(
 
   const { alphabet = DEFAULT_ALPHABET, length = 12 } = options;
 
+  // Not a secret (a table filter's key in the page): Math.random is enough.
   return Array.from(
     { length },
-    () => alphabet[(Math.random() * alphabet.length) | 0],
+    () => alphabet[Math.trunc(Math.random() * alphabet.length)],
   ).join('');
 }

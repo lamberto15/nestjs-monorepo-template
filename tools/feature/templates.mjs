@@ -19,7 +19,7 @@ export function record({
   fields,
   softDelete,
   team,
-  clientAccess = false,
+  clientAccess = /** @type {'own' | false} */ (false),
   grants = 'standard',
   idempotency,
   capabilities,
