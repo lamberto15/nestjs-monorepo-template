@@ -79,7 +79,8 @@ jobs:
             | docker compose exec -T clamav sh -c 'cat > /tmp/eicar.com'
           out=$(docker compose exec -T clamav clamdscan --stream --no-summary /tmp/eicar.com || true)
           echo "$out"
-          echo "$out" | grep -q 'EICAR.* FOUND'
+          # "Eicar-Test-Signature FOUND" (the case of the name is the database's).
+          echo "$out" | grep -qi 'eicar.* FOUND'
           # A clean file, then one over StreamMaxLength: "INSTREAM size limit
           # exceeded" is what the app's scanner reports as a failed scan.
           docker compose exec -T clamav sh -c 'echo clean > /tmp/clean.txt'
