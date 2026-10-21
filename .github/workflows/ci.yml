@@ -267,8 +267,8 @@ jobs:
           path: .turbo/cache
           key: turbo-${{ runner.os }}-${{ github.sha }}
           restore-keys: turbo-${{ runner.os }}-
-      # Oxlint in every package, then knip: unused files, exports and
-      # dependencies (knip.json).
+      # Oxlint in every package, the translation parity check, then knip:
+      # unused files, exports and dependencies (knip.jsonc).
       - run: pnpm lint
       - run: pnpm build
       # The typed client's OpenAPI document and types must match the routes.
@@ -590,7 +590,7 @@ jobs:
           pnpm feature:sync
           pnpm feature:sync --check
           pnpm db:generate
-      # Without knip: it checks this repository's own code (knip.json), not a
+      # Without knip: it checks this repository's own code (knip.jsonc), not a
       # generated one.
       - run: pnpm lint:code
       - run: pnpm build
