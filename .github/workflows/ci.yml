@@ -313,26 +313,32 @@ jobs:
         include:
           - name: api 1/3
             blob: api-1
+            app: api
             filter: --filter=@nestjs-monorepo-template/api
             args: --shard=1/3
           - name: api 2/3
             blob: api-2
+            app: api
             filter: --filter=@nestjs-monorepo-template/api
             args: --shard=2/3
           - name: api 3/3
             blob: api-3
+            app: api
             filter: --filter=@nestjs-monorepo-template/api
             args: --shard=3/3
           - name: web 1/3
             blob: web-1
+            app: web
             filter: --filter=@nestjs-monorepo-template/web
             args: --shard=1/3
           - name: web 2/3
             blob: web-2
+            app: web
             filter: --filter=@nestjs-monorepo-template/web
             args: --shard=2/3
           - name: web 3/3
             blob: web-3
+            app: web
             filter: --filter=@nestjs-monorepo-template/web
             args: --shard=3/3
           - name: packages
@@ -367,7 +373,15 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.blob }}
-          path: apps/*/.vitest/blob/
+          # One app's directory, so the files keep their bare names (a glob
+          # over apps/* nests them under api/.vitest/blob, which Vitest's
+          # --merge-reports does not read). .vitest is hidden, which
+          # upload-artifact skips unless told otherwise (and warns only); with
+          # no files it fails, so the coverage job is never left with nothing
+          # to merge.
+          path: apps/${{ matrix.app }}/.vitest/blob/
+          include-hidden-files: true
+          if-no-files-found: error
           retention-days: 1
 
   # The coverage thresholds (each package's vitest.config.ts): the unit
