@@ -15,6 +15,12 @@
 #
 # Its own workflow, so that adding or removing the label runs this check
 # again, not the whole CI.
+#
+# Every label event starts a run, and a pull request gets several in a
+# moment (ci, bug, in progress...) next to the push's own, which the
+# concurrency group then cancels. Only the destructive-migration label
+# changes the result, so a run for any other label gets its own group (it
+# cannot cancel the push's run) and its job is skipped.
 name: Migrations
 
 on:
@@ -29,11 +35,12 @@ permissions:
   actions: read
 
 concurrency:
-  group: migrations-${{ github.ref }}
+  group: migrations-${{ github.ref }}${{ contains(fromJSON('["labeled","unlabeled"]'), github.event.action) && github.event.label.name != 'destructive-migration' && format('-other-label-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 jobs:
   migration-lint:
+    if: ${{ !(contains(fromJSON('["labeled","unlabeled"]'), github.event.action) && github.event.label.name != 'destructive-migration') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
