@@ -1449,6 +1449,29 @@ jobs:
           build-args: APT_REFRESH=${{ github.run_id }}
           cache-from: type=gha,scope=gotenberg
           cache-to: type=gha,scope=gotenberg,mode=max
+      # The unit and e2e tests answer with a stub PDF, never Gotenberg's: only
+      # here does the image render for real (its Go programs rebuilt, its
+      # Debian packages, Chromium among them, upgraded this very run).
+      - name: It renders a PDF that opens
+        run: |
+          # Production's flags (compose.prod.yaml), the container as it runs there.
+          mapfile -t command < <(yq -r '.services.gotenberg.command[]' compose.prod.yaml)
+          docker run -d --name gotenberg-smoke -p 127.0.0.1:3100:3000 gotenberg:ci "${command[@]}"
+          timeout 60 sh -c 'until curl -fsS http://127.0.0.1:3100/health >/dev/null; do sleep 1; done'
+          # The request the API's PdfRenderer makes.
+          curl -fsS http://127.0.0.1:3100/forms/chromium/convert/html \
+            -F 'files=@gotenberg/smoke.html;filename=index.html' \
+            -F preferCssPageSize=true -F printBackground=true -F generateTaggedPdf=true \
+            -o "$RUNNER_TEMP/smoke.pdf"
+          head -c 5 "$RUNNER_TEMP/smoke.pdf" | grep -q '^%PDF-'
+          tail -c 1024 "$RUNNER_TEMP/smoke.pdf" | grep -aq '%%EOF'
+          # The image's own pdfcpu (the one built here) reads it as a whole: one A4 page.
+          docker cp "$RUNNER_TEMP/smoke.pdf" gotenberg-smoke:/tmp/smoke.pdf
+          docker exec gotenberg-smoke pdfcpu validate -m relaxed /tmp/smoke.pdf
+          docker exec gotenberg-smoke pdfcpu info /tmp/smoke.pdf | grep -E 'Page count: +1$'
+      - name: Gotenberg's log, when it did not
+        if: failure()
+        run: docker logs gotenberg-smoke || true
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:

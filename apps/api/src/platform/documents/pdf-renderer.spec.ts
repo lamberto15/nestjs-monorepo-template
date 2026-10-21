@@ -4,7 +4,7 @@ import { UnrecoverableError } from 'bullmq';
 import type { PlatformEnv } from '../platform.env.js';
 import { PdfRejectedError, PdfRenderer } from './pdf-renderer.js';
 
-const PDF = Buffer.from('%PDF-1.7\n%stub\n');
+const PDF = Buffer.from('%PDF-1.7\n%stub\n%%EOF\n');
 
 /** A renderer whose Gotenberg answers with `answer` (and records the request). */
 function renderer(
@@ -86,6 +86,14 @@ describe('PdfRenderer', () => {
     await expect(pdf.render('<p/>', { trace: 'd' })).rejects.toThrow(
       'something other than a PDF',
     );
+  });
+
+  it('refuses a PDF whose body stops short, retryably', async () => {
+    const { pdf } = renderer(() => new Response(PDF.subarray(0, 12)));
+    const error = await pdf.render('<p/>', { trace: 'd' }).catch((e) => e);
+    expect(error).toBeInstanceOf(Error);
+    expect(error.message).toContain('stops short');
+    expect(error).not.toBeInstanceOf(UnrecoverableError);
   });
 
   it('is off without GOTENBERG_URL', () => {

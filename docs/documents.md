@@ -83,8 +83,9 @@ notes are the example (`features/notes/note-documents.ts`,
   (more than 10 a minute from one user; API clients have their quotas),
   503 `documents_unavailable` (no `GOTENBERG_URL`), the idempotency codes.
 - **Failures:** a render that times out (`GOTENBERG_TIMEOUT_MS`, 30 s) or
-  that Gotenberg fails (5xx, 408, 429, the network) is tried again with
-  exponential backoff from 1 s, `DOCUMENTS_RENDER_ATTEMPTS` (3) times in all;
+  that Gotenberg fails (5xx, 408, 429, the network), or an answer that is not a
+  whole PDF (no `%PDF-` start, or no `%%EOF` at its end: a body cut short),
+  is tried again with exponential backoff from 1 s, `DOCUMENTS_RENDER_ATTEMPTS` (3) times in all;
   a page Gotenberg refuses (another 4xx), a record gone and a deactivated
   requester fail at once. A failed document has no attachment and no file.
 - Audited: `document.requested`, `document.issued` (with the attachment's
