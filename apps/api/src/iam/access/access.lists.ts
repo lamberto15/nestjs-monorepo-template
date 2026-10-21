@@ -162,6 +162,10 @@ export const AUDIT_LIST = listQuery(
       ops: ['eq', 'in', 'isNull'],
     },
     targetId: { column: auditLog.targetId, type: 'string', ops: ['eq'] },
+    // The entry's tenant: row-level security keeps GET /access/audit to one,
+    // the consolidated read (docs/tenancy.md, "The tenant tree") spans the
+    // subtree, so there it narrows the log to some of the tenants.
+    tenantId: { column: auditLog.tenantId, type: 'uuid', ops: ['eq', 'in'] },
     at: {
       column: auditLog.at,
       type: 'datetime',
@@ -172,6 +176,7 @@ export const AUDIT_LIST = listQuery(
   {
     select: [
       'id',
+      'tenantId',
       'at',
       'actor',
       'actorLabel',

@@ -34451,6 +34451,28 @@
             }
           },
           {
+            "name": "tenantId",
+            "required": false,
+            "in": "query",
+            "description": "Filter: tenantId =",
+            "schema": {
+              "description": "Filter: tenantId =",
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "tenantId.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: tenantId in",
+            "schema": {
+              "description": "Filter: tenantId in",
+              "type": "string"
+            }
+          },
+          {
             "name": "at.gt",
             "required": false,
             "in": "query",
@@ -34512,9 +34534,9 @@
             "name": "filter",
             "required": false,
             "in": "query",
-            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"action\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); at (gt, gte, lt, lte, between).",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"action\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); tenantId (eq, in); at (gt, gte, lt, lte, between).",
             "schema": {
-              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"action\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); at (gt, gte, lt, lte, between).",
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"action\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); tenantId (eq, in); at (gt, gte, lt, lte, between).",
               "type": "string",
               "maxLength": 20000
             }
@@ -34534,9 +34556,9 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: tenantId,at. Fields: id, tenantId, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip.",
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: tenantId,at. Fields: id, tenantId, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip.",
               "type": "string"
             }
           }
@@ -34837,6 +34859,28 @@
             }
           },
           {
+            "name": "tenantId",
+            "required": false,
+            "in": "query",
+            "description": "Filter: tenantId =",
+            "schema": {
+              "description": "Filter: tenantId =",
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "tenantId.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: tenantId in",
+            "schema": {
+              "description": "Filter: tenantId in",
+              "type": "string"
+            }
+          },
+          {
             "name": "at.gt",
             "required": false,
             "in": "query",
@@ -34898,9 +34942,9 @@
             "name": "filter",
             "required": false,
             "in": "query",
-            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"action\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); at (gt, gte, lt, lte, between).",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"action\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); tenantId (eq, in); at (gt, gte, lt, lte, between).",
             "schema": {
-              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"action\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); at (gt, gte, lt, lte, between).",
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"action\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); tenantId (eq, in); at (gt, gte, lt, lte, between).",
               "type": "string",
               "maxLength": 20000
             }
@@ -34920,9 +34964,9 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: tenantId,at. Fields: id, tenantId, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip.",
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: tenantId,at. Fields: id, tenantId, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip.",
               "type": "string"
             }
           }

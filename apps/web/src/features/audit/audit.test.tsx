@@ -56,6 +56,13 @@ const description = {
       custom: false,
     },
     {
+      name: 'tenantId',
+      type: 'uuid',
+      operators: ['eq', 'in'],
+      sortable: false,
+      custom: false,
+    },
+    {
       name: 'at',
       type: 'datetime',
       operators: ['gt', 'gte', 'lt', 'lte', 'between'],
@@ -65,6 +72,7 @@ const description = {
   ],
   select: [
     'id',
+    'tenantId',
     'at',
     'actor',
     'actorLabel',
@@ -267,8 +275,10 @@ describe('the audit log across the tenant tree', () => {
 
     expect(await screen.findByText('Alpha Ltd')).toBeInTheDocument();
     expect(await screen.findByText(/Including: Alpha Ltd/)).toBeInTheDocument();
-    // Every field comes, so each entry carries its tenantId.
-    expect(urls.at(-1)!.searchParams.has('fields')).toBe(false);
+    // tenantId is a declared field, so the column asks for it by name.
+    expect(urls.at(-1)!.searchParams.get('fields')?.split(',')).toContain(
+      'tenantId',
+    );
   });
 
   it('offers no switch while impersonating', async () => {

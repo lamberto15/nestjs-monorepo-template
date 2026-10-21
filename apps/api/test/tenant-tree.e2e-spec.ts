@@ -361,6 +361,27 @@ describe('the tenant tree (e2e)', () => {
         new Set([holding.id, alpha.id, beta.id, grandchild.id]),
       );
 
+      // tenantId is a field and a filter of the list: narrow to some tenants.
+      const onlyAlpha = await holding.admin
+        .get(
+          `/v1/access/consolidated/audit?limit=100&tenantId=${alpha.id}&fields=at,tenantId`,
+        )
+        .expect(200);
+      expect(tenantsOf(onlyAlpha.body)).toEqual(new Set([alpha.id]));
+      const someTenants = await holding.admin
+        .get(
+          `/v1/access/consolidated/audit?limit=100&tenantId.in=${beta.id},${grandchild.id}`,
+        )
+        .expect(200);
+      expect(tenantsOf(someTenants.body)).toEqual(
+        new Set([beta.id, grandchild.id]),
+      );
+      // A tenant outside the subtree matches nothing (row-level security).
+      const outside = await alpha.admin
+        .get(`/v1/access/consolidated/audit?limit=100&tenantId=${holding.id}`)
+        .expect(200);
+      expect(outside.body.items).toEqual([]);
+
       // alpha: itself and its grandchild, never the holding nor beta.
       const fromAlpha = await alpha.admin
         .get('/v1/access/consolidated/audit?limit=100')

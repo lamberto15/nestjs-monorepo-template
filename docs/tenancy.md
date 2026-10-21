@@ -242,7 +242,7 @@ or a sibling reads nothing of theirs.
 | Route | What |
 | --- | --- |
 | `GET /v1/access/consolidated/tenants` | The tenants a consolidated read spans (`id`, `slug`, `name`, `parentId`, `depth`), nearest first. `Access.readConsolidated`. |
-| `GET /v1/access/consolidated/audit` | The audit log of your tenant and that subtree, each entry with its `tenantId`, filtered, sorted and paged as `GET /v1/access/audit`. `actorName` names your tenant's members and clients; another tenant's show their `actorLabel`. `Access.readAudit` and `Access.readConsolidated`. |
+| `GET /v1/access/consolidated/audit` | The audit log of your tenant and that subtree, each entry with its `tenantId` (a field, and a filter: `tenantId=<id>`, `tenantId.in=<id>,<id>`), filtered, sorted and paged as `GET /v1/access/audit`. `actorName` names your tenant's members and clients; another tenant's show their `actorLabel`. `Access.readAudit` and `Access.readConsolidated`. |
 
 A feature's consolidated report calls `TenantTree.consolidated()` the same
 way, and reads with its usual queries: row-level security does the rest.

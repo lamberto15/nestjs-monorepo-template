@@ -87,8 +87,7 @@ export function AuditPage() {
       ...(consolidated
         ? [
             {
-              // `tenantId` is no field of the list (no filter yet): it comes
-              // with the consolidated rows (allFields), named from the tree.
+              // `tenantId` is a field and filter of the list; named from the tree.
               id: 'tenantId',
               accessorFn: (entry: AuditEntry) => entry.tenantId,
               ...header('tenant'),
@@ -184,7 +183,6 @@ export function AuditPage() {
         }
         columns={columns}
         rowActions={rowActions}
-        allFields={consolidated}
         toolbarActions={
           canConsolidate && (
             <div className="flex items-center gap-2">

@@ -20355,6 +20355,10 @@ export interface operations {
                 "targetType.isNull"?: "true" | "false";
                 /** @description Filter: targetId = */
                 targetId?: string;
+                /** @description Filter: tenantId = */
+                tenantId?: string;
+                /** @description Filter: tenantId in */
+                "tenantId.in"?: string;
                 /** @description Filter: at gt */
                 "at.gt"?: string;
                 /** @description Filter: at gte */
@@ -20365,11 +20369,11 @@ export interface operations {
                 "at.lte"?: string;
                 /** @description Filter: at between */
                 "at.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"action","op":"eq","value":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); at (gt, gte, lt, lte, between). */
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"action","op":"eq","value":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); tenantId (eq, in); at (gt, gte, lt, lte, between). */
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -action. Sortable: action, at. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: tenantId,at. Fields: id, tenantId, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip. */
                 fields?: string;
             };
             header?: never;
@@ -20474,6 +20478,10 @@ export interface operations {
                 "targetType.isNull"?: "true" | "false";
                 /** @description Filter: targetId = */
                 targetId?: string;
+                /** @description Filter: tenantId = */
+                tenantId?: string;
+                /** @description Filter: tenantId in */
+                "tenantId.in"?: string;
                 /** @description Filter: at gt */
                 "at.gt"?: string;
                 /** @description Filter: at gte */
@@ -20484,11 +20492,11 @@ export interface operations {
                 "at.lte"?: string;
                 /** @description Filter: at between */
                 "at.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"action","op":"eq","value":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); at (gt, gte, lt, lte, between). */
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"action","op":"eq","value":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); tenantId (eq, in); at (gt, gte, lt, lte, between). */
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -action. Sortable: action, at. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: tenantId,at. Fields: id, tenantId, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip. */
                 fields?: string;
             };
             header?: never;
