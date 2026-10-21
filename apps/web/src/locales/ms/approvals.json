@@ -324,5 +324,10 @@
         "payload": "Nilai daripada perubahan yang dicadangkan"
       }
     }
+  },
+  "dashboard": {
+    "title": "Menunggu kelulusan anda",
+    "count": "Ditugaskan kepada anda: {{count}}",
+    "empty": "Tiada apa-apa yang menunggu anda."
   }
 }

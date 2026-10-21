@@ -23,5 +23,9 @@
     "switch": "Termasuk sub-penyewa",
     "included": "Termasuk: {{names}}",
     "none": "Tiada sub-penyewa di bawah penyewa ini."
+  },
+  "dashboard": {
+    "title": "Aktiviti terkini",
+    "empty": "Belum ada aktiviti."
   }
 }

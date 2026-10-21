@@ -1,0 +1,7 @@
+{
+  "offline": "You are offline. What you see may be out of date, and changes can't be saved until you're back.",
+  "reconnecting": "Connection to the server lost. Live updates are paused while we reconnect.",
+  "install": "Install the app",
+  "updateAvailable": "A new version is available.",
+  "reload": "Reload"
+}
