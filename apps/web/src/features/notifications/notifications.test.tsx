@@ -127,6 +127,8 @@ beforeEach(() => {
   connections.length = 0;
 });
 
+// The popover's rows are read on /approvals: the home page lists the unread
+// notifications itself (the dashboard's card), which would match the same texts.
 describe('the bell and realtime', () => {
   it('shows the unread count and follows the socket', async () => {
     api();
@@ -144,7 +146,7 @@ describe('the bell and realtime', () => {
   it('puts a new notification on top of the popover', async () => {
     api();
     const user = userEvent.setup();
-    await renderApp('/');
+    await renderApp('/approvals');
     await user.click(await bell());
     expect(await screen.findByText('Title a')).toBeVisible();
 
@@ -186,7 +188,7 @@ describe('the bell and realtime', () => {
   it('marks one read and all read, in the cache', async () => {
     const state = api();
     const user = userEvent.setup();
-    await renderApp('/');
+    await renderApp('/approvals');
     await user.click(await bell());
     const row = (await screen.findByText('Title a')).closest('li')!;
     await user.click(within(row).getByRole('button', { name: 'Mark as read' }));
@@ -205,7 +207,7 @@ describe('the bell and realtime', () => {
   it('offers no changes while impersonating', async () => {
     api({ impersonating: true });
     const user = userEvent.setup();
-    await renderApp('/');
+    await renderApp('/approvals');
     await user.click(await bell());
     await screen.findByText('Title a');
     expect(

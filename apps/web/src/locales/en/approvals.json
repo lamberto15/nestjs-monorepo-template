@@ -324,5 +324,10 @@
         "payload": "A value of the proposed change"
       }
     }
+  },
+  "dashboard": {
+    "title": "Waiting for your approval",
+    "count": "Assigned to you: {{count}}",
+    "empty": "Nothing is waiting for you."
   }
 }
