@@ -1,0 +1,201 @@
+# Values of the chart (docs/deploy-kubernetes.md). The same settings as the
+# Compose production stack (compose.prod.yaml), as Kubernetes objects.
+
+# The API image (APP_IMAGE in Compose): api, worker and the migrate hook run
+# it. Pin it by commit SHA or digest; `latest` is refused by the template.
+image:
+  repository: ghcr.io/example/app
+  tag: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# The public host (APP_DOMAIN in Compose). Required.
+domain: ""
+# https unless TLS ends before the cluster in plain http (never in production).
+scheme: https
+
+# Plain settings, one variable per key, the same names as env.example. Both
+# api and worker get them. Secrets do not belong here: see `secretFiles`.
+env:
+  NODE_ENV: production
+  APP_ENV: production
+  APP_TIMEZONE: UTC
+  LOCALES: en,de,ar,zh,ms
+  LOG_LEVEL: log
+  OPENAPI: "on"
+  MIGRATE_ON_START: "off"
+  TENANCY: multi
+  AUTH_SIGN_UP: "off"
+  TENANT_SIGN_UP: "off"
+  STORAGE_DRIVER: s3
+  RATE_LIMIT_STORE: redis
+  REDIS_PREFIX: app
+  # Set for the web app on another origin: WEB_URL, CORS_ORIGINS, MAIL_TRANSPORT,
+  # S3_BUCKET, S3_REGION, ... (docs/configuration.md).
+
+# Values of the Secret. Each key becomes a file under /run/secrets, and the
+# variable named in `secretFiles` points at it (the `_FILE` convention of
+# compose.prod.yaml): the app reads the file, so no secret sits in an
+# environment variable or a manifest.
+secret:
+  # Use a Secret you manage (sealed-secrets, External Secrets, ...): its keys
+  # are the file names below. Empty: the chart makes one from `secret.data`.
+  existingSecret: ""
+  # Only for trying the chart out: values given here end up in the release
+  # (helm get values). Use existingSecret in production.
+  data: {}
+
+# variable -> key of the Secret. A variable is set only for the services that
+# list it; the key must exist in the Secret. DATABASE_URL_FILE is the app
+# role's URL, DATABASE_OWNER_URL_FILE the owner's (migrate only).
+secretFiles:
+  common:
+    DATABASE_URL_FILE: database_url
+    JWT_SECRET_FILE: jwt_secret
+    # Required in production: the app refuses to start without it (openssl rand -base64 32).
+    MFA_ENCRYPTION_KEYS_FILE: mfa_encryption_keys
+    # Required too: the shipped schema has encrypted and blind-indexed columns
+    # (SSO secrets, devices, phone numbers; docs/encryption.md).
+    DATA_ENCRYPTION_KEYS_FILE: data_encryption_keys
+    BLIND_INDEX_KEYS_FILE: blind_index_keys
+  api: {}
+  worker:
+    DATABASE_MAINTENANCE_URL_FILE: database_maintenance_url
+  migrate:
+    DATABASE_OWNER_URL_FILE: database_owner_url
+    DATABASE_MAINTENANCE_URL_FILE: database_maintenance_url
+
+# PostgreSQL and Redis are external (a managed service, or a chart you install
+# beside this one: docs/deploy-kubernetes.md). Their URLs go in the Secret
+# (database_url, database_owner_url) or here (redisUrl, not secret when it has
+# no password).
+redisUrl: ""
+
+api:
+  replicas: 2
+  # Replicas the HPA keeps (autoscaling.enabled), replacing `replicas`.
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+  # api's connections: DATABASE_POOL_MAX x replicas must stay under PostgreSQL's max_connections.
+  extraEnv:
+    APP_ROLE: api
+    DATABASE_POOL_MAX: "10"
+    NODE_OPTIONS: --max-old-space-size=384
+    PASSWORD_HASH_CONCURRENCY: "2"
+  resources:
+    requests: { cpu: 250m, memory: 512Mi, ephemeral-storage: 128Mi }
+    limits: { cpu: "1", memory: 768Mi, ephemeral-storage: 1Gi }
+  terminationGracePeriodSeconds: 30
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+worker:
+  replicas: 1
+  extraEnv:
+    APP_ROLE: worker
+    DATABASE_POOL_MAX: "20"
+    NODE_OPTIONS: --max-old-space-size=768
+    PASSWORD_HASH_CONCURRENCY: "1"
+  resources:
+    requests: { cpu: 250m, memory: 768Mi, ephemeral-storage: 128Mi }
+    limits: { cpu: "1", memory: 1Gi, ephemeral-storage: 1Gi }
+  terminationGracePeriodSeconds: 60
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Runs `node dist/migrate` before every install and upgrade (a Helm hook), so
+# a failed migration stops the release before any new pod starts.
+migrate:
+  backoffLimit: 3
+  activeDeadlineSeconds: 900
+  resources:
+    requests: { cpu: 100m, memory: 256Mi, ephemeral-storage: 128Mi }
+    limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 1Gi }
+
+# The web app: the published Caddy image serves its static files (/srv/web)
+# over plain http; the Ingress sends the API's paths to api and the rest here.
+# TLS ends at the Ingress, so Caddy's Cloudflare entrypoint is not used.
+web:
+  enabled: true
+  image:
+    repository: ghcr.io/example/app/caddy
+    tag: ""
+    digest: ""
+  replicas: 2
+  resources:
+    requests: { cpu: 50m, memory: 64Mi, ephemeral-storage: 128Mi }
+    limits: { cpu: 500m, memory: 128Mi, ephemeral-storage: 1Gi }
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+ingress:
+  enabled: true
+  className: ""
+  annotations: {}
+  # The Secret with the certificate (cert-manager fills it from the annotation above).
+  tlsSecretName: ""
+  # The paths caddy/Caddyfile sends to the API; the rest is the web app.
+  # /metrics is never exposed.
+  apiPaths:
+    - /v1
+    - /socket.io
+    - /health
+    - /api
+    - /api-json
+    - /api-yaml
+    - /files
+    - /.well-known
+
+# PDF documents (docs/documents.md): Gotenberg, reachable only by the worker.
+gotenberg:
+  enabled: true
+  image:
+    repository: ghcr.io/example/app/gotenberg
+    tag: ""
+    digest: ""
+  resources:
+    requests: { cpu: 250m, memory: 512Mi, ephemeral-storage: 128Mi }
+    limits: { cpu: "1", memory: 1Gi, ephemeral-storage: 1Gi }
+
+# Files on a volume (STORAGE_DRIVER=local) need a ReadWriteMany class shared by
+# api and worker; S3 (the default above) needs nothing here.
+persistence:
+  enabled: false
+  storageClass: ""
+  size: 10Gi
+  accessModes: [ReadWriteMany]
+
+# NetworkPolicy: Gotenberg accepts only the worker.
+networkPolicy:
+  enabled: true
+
+# The Prometheus rules of monitoring/prometheus/alerts.yml as a PrometheusRule
+# (prometheus-operator CRD). Needs the CRD, so off by default.
+prometheusRule:
+  enabled: false
+  labels: {}
+
+serviceAccount:
+  create: true
+  annotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile: { type: RuntimeDefault }
+podAnnotations: {}
