@@ -152,13 +152,28 @@ describe('comments', () => {
     );
   });
 
-  it('writes a mention into the body and sends exactly that text', async () => {
-    const calls = usePanelsApi({ people: [MAYA] });
+  // The comment box, once the people it offers are asked for (the first
+  // ones by name, without `q`: an empty one is a 400).
+  const startComment = async (calls: ReturnType<typeof usePanelsApi>) => {
     await mountPanels(ALL);
     const user = await open('Comments');
     const box = await screen.findByLabelText('Write a comment');
-    // The first people by name, asked without `q` (an empty one is a 400).
     await waitFor(() => expect(calls.peopleQueries).toContain(''));
+    return { user, box };
+  };
+  const send = (user: ReturnType<typeof userEvent.setup>) =>
+    user.click(screen.getByText('Comment', { selector: 'button' }));
+  /** Waits for the sent comment's box: a new one, the old one is gone. */
+  const newBox = () =>
+    waitFor(() => {
+      const box = screen.getByLabelText('Write a comment');
+      expect(box).toHaveValue('');
+      return box;
+    });
+
+  it('writes a mention into the body and sends exactly that text', async () => {
+    const calls = usePanelsApi({ people: [MAYA] });
+    const { user, box } = await startComment(calls);
     // One keystroke after the "@": with the list open, each key makes the
     // mention measure the caret, which jsdom does slowly (~0.3 s a key), so
     // the list is not narrowed by typing: the person is picked from it.
@@ -167,7 +182,7 @@ describe('comments', () => {
     // The box shows the name, never the key the API reads.
     expect(box).toHaveValue('Please check, @Maya Patel ');
     await user.type(box, 'thanks');
-    await user.click(screen.getByText('Comment', { selector: 'button' }));
+    await send(user);
     await waitFor(() => expect(calls.commented).toHaveLength(1));
     // `@user:<id>`, what the API reads (docs/comments.md).
     expect(calls.commented[0]).toEqual({
@@ -187,10 +202,7 @@ describe('comments', () => {
     const FIRST = { ...ALEX, id: '0199a3f2-0000-7000-8000-0000000000a1' };
     const SECOND = { ...ALEX, id: '0199a3f2-0000-7000-8000-0000000000a2' };
     const calls = usePanelsApi({ people: [FIRST, SECOND] });
-    await mountPanels(ALL);
-    const user = await open('Comments');
-    const box = await screen.findByLabelText('Write a comment');
-    await waitFor(() => expect(calls.peopleQueries).toContain(''));
+    const { user, box } = await startComment(calls);
     await user.type(box, '@');
     await user.click((await screen.findAllByRole('option'))[1]!);
     await user.type(box, 'and @');
@@ -198,7 +210,7 @@ describe('comments', () => {
     // Told apart in the box, one id each in the body.
     const [one, two] = (box as HTMLInputElement).value.split(' and ');
     expect(one).not.toBe(two!.trim());
-    await user.click(screen.getByText('Comment', { selector: 'button' }));
+    await send(user);
     await waitFor(() => expect(calls.commented).toHaveLength(1));
     expect(calls.commented[0]).toEqual({
       id: ID,
@@ -208,87 +220,75 @@ describe('comments', () => {
 
   it('clears the box after sending, and offers the mention list again', async () => {
     const calls = usePanelsApi({ people: [MAYA] });
-    await mountPanels(ALL);
-    const user = await open('Comments');
-    const box = await screen.findByLabelText('Write a comment');
-    await waitFor(() => expect(calls.peopleQueries).toContain(''));
+    const { user, box } = await startComment(calls);
     await user.type(box, '@');
     await user.click(await screen.findByText('Maya Patel'));
-    await user.click(screen.getByText('Comment', { selector: 'button' }));
+    await send(user);
     await waitFor(() => expect(calls.commented).toHaveLength(1));
     // A new box: the old one's mentions are forgotten with it.
-    await waitFor(() =>
-      expect(screen.getByLabelText('Write a comment')).toHaveValue(''),
-    );
+    const next = await newBox();
     // The old mention's place is forgotten: no text of the new comment is
     // marked as a mention, and a new `@` opens the list again.
-    await user.type(screen.getByLabelText('Write a comment'), 'Hello there');
+    await user.type(next, 'Hello there');
     expect(document.querySelector('[data-tag]')).toBeNull();
-    await user.type(screen.getByLabelText('Write a comment'), ' @');
+    await user.type(next, ' @');
     expect(await screen.findByRole('option')).toBeVisible();
-  });
-
-  it('keeps the text when sending fails', async () => {
-    usePanelsApi({ people: [MAYA] });
-    server.use(
-      http.post('/v1/test-items/:id/comments', () => problem(409, 'conflict')),
-    );
-    await mountPanels(ALL);
-    const user = await open('Comments');
-    const box = await screen.findByLabelText('Write a comment');
-    await user.type(box, 'Do not lose me');
-    await user.click(screen.getByText('Comment', { selector: 'button' }));
-    await findToast('conflict (test)');
-    expect(box).toHaveValue('Do not lose me');
-  });
-
-  it('keeps the people picked when sending fails, and sends them on the next try', async () => {
-    const calls = usePanelsApi({ people: [MAYA] });
-    server.use(
-      http.post('/v1/test-items/:id/comments', () => problem(409, 'conflict'), {
-        once: true,
-      }),
-    );
-    await mountPanels(ALL);
-    const user = await open('Comments');
-    const box = await screen.findByLabelText('Write a comment');
-    await waitFor(() => expect(calls.peopleQueries).toContain(''));
-    await user.type(box, 'Please check, @');
-    await user.click(await screen.findByText('Maya Patel'));
-    await user.type(box, 'thanks');
-    await user.click(screen.getByText('Comment', { selector: 'button' }));
-    await findToast('conflict (test)');
-    expect(box).toHaveValue('Please check, @Maya Patel thanks');
-    await user.click(screen.getByText('Comment', { selector: 'button' }));
-    await waitFor(() => expect(calls.commented).toHaveLength(1));
-    expect(calls.commented[0]).toEqual({
-      id: ID,
-      body: { body: `Please check, @user:${MAYA.id} thanks` },
-    });
   });
 
   it('does not turn a name typed by hand into a mention after a send', async () => {
     const calls = usePanelsApi({ people: [MAYA] });
-    await mountPanels(ALL);
-    const user = await open('Comments');
-    const box = await screen.findByLabelText('Write a comment');
-    await waitFor(() => expect(calls.peopleQueries).toContain(''));
+    const { user, box } = await startComment(calls);
     await user.type(box, '@');
     await user.click(await screen.findByText('Maya Patel'));
-    await user.click(screen.getByText('Comment', { selector: 'button' }));
+    await send(user);
     await waitFor(() => expect(calls.commented).toHaveLength(1));
     // The new box has picked nobody: the same words are only text.
-    await waitFor(() =>
-      expect(screen.getByLabelText('Write a comment')).toHaveValue(''),
-    );
-    fireEvent.change(screen.getByLabelText('Write a comment'), {
-      target: { value: '@Maya Patel' },
-    });
-    await user.click(screen.getByText('Comment', { selector: 'button' }));
+    fireEvent.change(await newBox(), { target: { value: '@Maya Patel' } });
+    await send(user);
     await waitFor(() => expect(calls.commented).toHaveLength(2));
     expect(calls.commented[1]).toEqual({
       id: ID,
       body: { body: '@Maya Patel' },
+    });
+  });
+
+  describe('when sending fails', () => {
+    // The first attempt is refused (409), the second goes through.
+    const refuseOnce = () =>
+      server.use(
+        http.post(
+          '/v1/test-items/:id/comments',
+          () => problem(409, 'conflict'),
+          { once: true },
+        ),
+      );
+
+    it('keeps the text', async () => {
+      const calls = usePanelsApi({ people: [MAYA] });
+      const { user, box } = await startComment(calls);
+      refuseOnce();
+      await user.type(box, 'Do not lose me');
+      await send(user);
+      await findToast('conflict (test)');
+      expect(box).toHaveValue('Do not lose me');
+    });
+
+    it('keeps the people picked, and sends them on the next try', async () => {
+      const calls = usePanelsApi({ people: [MAYA] });
+      const { user, box } = await startComment(calls);
+      refuseOnce();
+      await user.type(box, 'Please check, @');
+      await user.click(await screen.findByText('Maya Patel'));
+      await user.type(box, 'thanks');
+      await send(user);
+      await findToast('conflict (test)');
+      expect(box).toHaveValue('Please check, @Maya Patel thanks');
+      await send(user);
+      await waitFor(() => expect(calls.commented).toHaveLength(1));
+      expect(calls.commented[0]).toEqual({
+        id: ID,
+        body: { body: `Please check, @user:${MAYA.id} thanks` },
+      });
     });
   });
 
@@ -317,13 +317,20 @@ describe('comments', () => {
     expect(mentioned()).not.toContain(`user:${ids[20]}`);
   });
 
-  it('keeps a mention the API read next to a bracket when its comment is edited', async () => {
+  // The user's own comment mentioning Maya is edited: the box shows her name,
+  // and the id goes back where it was (the API reads a mention next to a
+  // bracket too, so the edit must not lose it).
+  it.each([
+    ['Ask @user:{id} first', 'Ask @Maya Patel first'],
+    ['Ask (@user:{id}) first', 'Ask (@Maya Patel) first'],
+  ])('edits %s from its text, mentions by name', async (stored, shown) => {
+    const body = stored.replace('{id}', MAYA.id);
     const calls = usePanelsApi({
       comments: [
         {
           id: 'mine',
           author: ME,
-          body: `Ask (@user:${MAYA.id}) first`,
+          body,
           mentions: [`user:${MAYA.id}`],
           mentionNames: { [`user:${MAYA.id}`]: MAYA.name },
         },
@@ -333,44 +340,12 @@ describe('comments', () => {
     const user = await open('Comments');
     await user.click(await screen.findByRole('button', { name: 'Edit' }));
     const box = screen.getByLabelText('Edit the comment');
-    expect(box).toHaveValue('Ask (@Maya Patel) first');
+    expect(box).toHaveValue(shown);
     await user.type(box, ' today');
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() =>
       expect(calls.edited).toEqual([
-        {
-          commentId: 'mine',
-          body: { body: `Ask (@user:${MAYA.id}) first today` },
-        },
-      ]),
-    );
-  });
-
-  it('edits a comment from its text, mentions by name, and sends the ids', async () => {
-    const calls = usePanelsApi({
-      comments: [
-        {
-          id: 'mine',
-          author: ME,
-          body: `Ask @user:${MAYA.id} first`,
-          mentions: [`user:${MAYA.id}`],
-          mentionNames: { [`user:${MAYA.id}`]: MAYA.name },
-        },
-      ],
-    });
-    await mountPanels(['TestItem.read']);
-    const user = await open('Comments');
-    await user.click(await screen.findByRole('button', { name: 'Edit' }));
-    const box = screen.getByLabelText('Edit the comment');
-    expect(box).toHaveValue('Ask @Maya Patel first');
-    await user.type(box, ' today');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() =>
-      expect(calls.edited).toEqual([
-        {
-          commentId: 'mine',
-          body: { body: `Ask @user:${MAYA.id} first today` },
-        },
+        { commentId: 'mine', body: { body: `${body} today` } },
       ]),
     );
   });
