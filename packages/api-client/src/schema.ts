@@ -541,7 +541,7 @@ export interface paths {
         };
         /**
          * Which switches are on in this deployment
-         * @description The deployment switches (`REALTIME`, `WEBHOOKS`, `REPORTS`, `USAGE`, `IMPERSONATION`, `AUTH_MFA`, `API_CLIENTS`), the sign-in options (`PASSKEYS`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`), whether PDF documents are set up, whether the AI helper has a provider (`ai`; a tenant opts in with the public setting `ai.enabled`), `TENANCY` and `LOCALES`. A switch that is off leaves its routes out (404) or refuses them (404 `feature_off`, 503 `documents_unavailable`). Read at startup: a change needs a restart.
+         * @description The deployment switches (`REALTIME`, `WEBHOOKS`, `REPORTS`, `USAGE`, `IMPERSONATION`, `AUTH_MFA`, `API_CLIENTS`), the sign-in options (`PASSKEYS`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`), whether PDF documents are set up, whether uploads can go straight to the object store (`presignedUploads`, `STORAGE_DRIVER=s3`), whether the AI helper has a provider (`ai`; a tenant opts in with the public setting `ai.enabled`), `TENANCY` and `LOCALES`. A switch that is off leaves its routes out (404) or refuses them (404 `feature_off`, 503 `documents_unavailable`). Read at startup: a change needs a restart.
          */
         get: operations["FeaturesController_list_v1"];
         put?: never;
@@ -4441,6 +4441,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notes/{id}/attachments/presign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Announce a direct upload of a file to a note
+         * @description For `STORAGE_DRIVER=s3` (`GET /v1/features`: `presignedUploads`), instead of streaming the file through the API: who may change the note (Note.update). Send the file's name, size and type; answer a URL to PUT the file to (signed for exactly that size and `Content-Type`, for ten minutes, at a key the server chose under your tenant) and an `uploadId`. Then `POST …/attachments/complete` with it. Nothing is attached until then.
+         */
+        post: operations["NoteAttachmentsController_presign_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/attachments/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete a direct upload to a note
+         * @description After the PUT to the URL of `POST …/attachments/presign`: the server reads the object back (its size and type from the store, its first bytes for the type the bytes say, never the client's word), deletes it if it is not what was announced, and otherwise attaches it exactly as an upload through the API does (`attachment.added`, the quota, the malware scan, the image renditions). Only the one who announced the upload may complete it.
+         */
+        post: operations["NoteAttachmentsController_complete_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/notes/{id}/tags": {
         parameters: {
             query?: never;
@@ -5127,6 +5167,29 @@ export interface components {
             size: number;
             /** @example image/webp */
             contentType: string;
+        };
+        PresignedUpload: {
+            /**
+             * Format: uuid
+             * @description Send it to `POST …/attachments/complete` once the PUT is done.
+             */
+            uploadId: string;
+            /**
+             * Format: uri
+             * @description PUT the file here, with the `headers`. Signed for this size and type only, and for ten minutes.
+             */
+            url: string;
+            /** @enum {string} */
+            method: "PUT";
+            /** @description Send them as they are (`Content-Type`, and the encryption header when the bucket uses one). `Content-Length` is the file size: the HTTP client sets it. */
+            headers: {
+                [key: string]: string;
+            };
+            /**
+             * Format: date-time
+             * @description When the URL stops working. The upload may be completed for an hour after it.
+             */
+            expiresAt: string;
         };
         AttachmentPage: {
             items: components["schemas"]["Attachment"][];
@@ -8185,6 +8248,8 @@ export interface operations {
                         magicLink: boolean;
                         /** @description PDF documents of records. Off: they answer 503 `documents_unavailable` (no Gotenberg is configured). */
                         documents: boolean;
+                        /** @description Uploads straight to the object store (`STORAGE_DRIVER=s3`): `POST /v1/<records>/{id}/attachments/presign`, then `…/complete`. Off: they answer 503 `presigned_uploads_unavailable`; upload with the multipart `POST …/attachments`. */
+                        presignedUploads: boolean;
                         /** @description The AI helper has a provider (`ANTHROPIC_API_KEY`). Off: `POST /v1/ai/runs` answers 503 `ai_unavailable`. On, a tenant still opts in with the public setting `ai.enabled` (403 `ai_disabled`). */
                         ai: boolean;
                         /** @description The ECB reference rates are fetched (`EXCHANGE_RATES_FETCH`). Off: no rates are stored, and the money conversions have none. */
@@ -26187,6 +26252,186 @@ export interface operations {
             };
             /** @description A type not allowed, or not the one declared (unsupported_media_type). */
             415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteAttachmentsController_presign_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description The file name, shown and used for downloads. Never a path.
+                     * @example invoice.pdf
+                     */
+                    name: string;
+                    /** @description The size in bytes. The URL accepts exactly this many; at most ATTACHMENT_MAX_MB (413 `payload_too_large`). */
+                    size: number;
+                    /**
+                     * @description The file's type, as the browser names it (`File.type`). Required, and one of the allowed types (415 `unsupported_media_type`); the URL accepts only this `Content-Type`. It is checked against the file's bytes on completion.
+                     * @example application/pdf
+                     */
+                    contentType: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresignedUpload"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change the note. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Larger than ATTACHMENT_MAX_MB (payload_too_large). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A type not allowed, or none declared (unsupported_media_type). */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Too many uploads announced and not completed (attachment_uploads_pending). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The server stores files on a local disk (presigned_uploads_unavailable): upload with a multipart POST. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteAttachmentsController_complete_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description The `uploadId` of the presign answer.
+                     */
+                    uploadId: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attachment"];
+                };
+            };
+            /** @description The object is not the size and type announced (attachment_upload_mismatch); it is deleted. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change the note. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note, or no such upload of yours (attachment_upload_not_found). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Nothing was PUT yet (attachment_upload_incomplete: try again), or another request is completing it (attachment_upload_in_progress). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description More than an hour past the URL's expiry (attachment_upload_expired): announce it again. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Larger than ATTACHMENT_MAX_MB (payload_too_large); deleted. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The bytes are a type not allowed, or not the one declared (unsupported_media_type); deleted. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The server stores files on a local disk (presigned_uploads_unavailable). */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

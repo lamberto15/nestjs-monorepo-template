@@ -34,6 +34,11 @@ export const featuresSchema = z.object({
     .describe(
       'PDF documents of records. Off: they answer 503 `documents_unavailable` (no Gotenberg is configured).',
     ),
+  presignedUploads: z
+    .boolean()
+    .describe(
+      'Uploads straight to the object store (`STORAGE_DRIVER=s3`): `POST /v1/<records>/{id}/attachments/presign`, then `…/complete`. Off: they answer 503 `presigned_uploads_unavailable`; upload with the multipart `POST …/attachments`.',
+    ),
   ai: z
     .boolean()
     .describe(

@@ -132,7 +132,7 @@
     },
     "attachment-sweep": {
       "label": "附件清理",
-      "description": "每晚删除其记录已不存在的附件的文件和数据行。"
+      "description": "每晚删除其记录已不存在的附件的文件和数据行，以及从未完成的直传文件。"
     },
     "attachment-scan": {
       "label": "附件恶意软件扫描",

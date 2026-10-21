@@ -7247,7 +7247,7 @@
     },
     "/v1/features": {
       "get": {
-        "description": "The deployment switches (`REALTIME`, `WEBHOOKS`, `REPORTS`, `USAGE`, `IMPERSONATION`, `AUTH_MFA`, `API_CLIENTS`), the sign-in options (`PASSKEYS`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`), whether PDF documents are set up, whether the AI helper has a provider (`ai`; a tenant opts in with the public setting `ai.enabled`), `TENANCY` and `LOCALES`. A switch that is off leaves its routes out (404) or refuses them (404 `feature_off`, 503 `documents_unavailable`). Read at startup: a change needs a restart.",
+        "description": "The deployment switches (`REALTIME`, `WEBHOOKS`, `REPORTS`, `USAGE`, `IMPERSONATION`, `AUTH_MFA`, `API_CLIENTS`), the sign-in options (`PASSKEYS`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`), whether PDF documents are set up, whether uploads can go straight to the object store (`presignedUploads`, `STORAGE_DRIVER=s3`), whether the AI helper has a provider (`ai`; a tenant opts in with the public setting `ai.enabled`), `TENANCY` and `LOCALES`. A switch that is off leaves its routes out (404) or refuses them (404 `feature_off`, 503 `documents_unavailable`). Read at startup: a change needs a restart.",
         "operationId": "FeaturesController_list_v1",
         "parameters": [],
         "responses": {
@@ -7302,6 +7302,10 @@
                       "type": "boolean",
                       "description": "PDF documents of records. Off: they answer 503 `documents_unavailable` (no Gotenberg is configured)."
                     },
+                    "presignedUploads": {
+                      "type": "boolean",
+                      "description": "Uploads straight to the object store (`STORAGE_DRIVER=s3`): `POST /v1/<records>/{id}/attachments/presign`, then `…/complete`. Off: they answer 503 `presigned_uploads_unavailable`; upload with the multipart `POST …/attachments`."
+                    },
                     "ai": {
                       "type": "boolean",
                       "description": "The AI helper has a provider (`ANTHROPIC_API_KEY`). Off: `POST /v1/ai/runs` answers 503 `ai_unavailable`. On, a tenant still opts in with the public setting `ai.enabled` (403 `ai_disabled`)."
@@ -7347,6 +7351,7 @@
                     "signUp",
                     "magicLink",
                     "documents",
+                    "presignedUploads",
                     "ai",
                     "exchangeRates",
                     "tenancy",
@@ -46375,6 +46380,192 @@
         ]
       }
     },
+    "/v1/notes/{id}/attachments/presign": {
+      "post": {
+        "description": "For `STORAGE_DRIVER=s3` (`GET /v1/features`: `presignedUploads`), instead of streaming the file through the API: who may change the note (Note.update). Send the file's name, size and type; answer a URL to PUT the file to (signed for exactly that size and `Content-Type`, for ten minutes, at a key the server chose under your tenant) and an `uploadId`. Then `POST …/attachments/complete` with it. Nothing is attached until then.",
+        "operationId": "NoteAttachmentsController_presign_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "example": "invoice.pdf",
+                    "description": "The file name, shown and used for downloads. Never a path."
+                  },
+                  "size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991,
+                    "description": "The size in bytes. The URL accepts exactly this many; at most ATTACHMENT_MAX_MB (413 `payload_too_large`)."
+                  },
+                  "contentType": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "example": "application/pdf",
+                    "description": "The file's type, as the browser names it (`File.type`). Required, and one of the allowed types (415 `unsupported_media_type`); the URL accepts only this `Content-Type`. It is checked against the file's bytes on completion."
+                  }
+                },
+                "required": [
+                  "name",
+                  "size",
+                  "contentType"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresignedUpload"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not change the note."
+          },
+          "404": {
+            "description": ""
+          },
+          "413": {
+            "description": "Larger than ATTACHMENT_MAX_MB (payload_too_large)."
+          },
+          "415": {
+            "description": "A type not allowed, or none declared (unsupported_media_type)."
+          },
+          "429": {
+            "description": "Too many uploads announced and not completed (attachment_uploads_pending)."
+          },
+          "503": {
+            "description": "The server stores files on a local disk (presigned_uploads_unavailable): upload with a multipart POST."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Announce a direct upload of a file to a note",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/v1/notes/{id}/attachments/complete": {
+      "post": {
+        "description": "After the PUT to the URL of `POST …/attachments/presign`: the server reads the object back (its size and type from the store, its first bytes for the type the bytes say, never the client's word), deletes it if it is not what was announced, and otherwise attaches it exactly as an upload through the API does (`attachment.added`, the quota, the malware scan, the image renditions). Only the one who announced the upload may complete it.",
+        "operationId": "NoteAttachmentsController_complete_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "uploadId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "The `uploadId` of the presign answer."
+                  }
+                },
+                "required": [
+                  "uploadId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attachment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The object is not the size and type announced (attachment_upload_mismatch); it is deleted."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not change the note."
+          },
+          "404": {
+            "description": "No such note, or no such upload of yours (attachment_upload_not_found)."
+          },
+          "409": {
+            "description": "Nothing was PUT yet (attachment_upload_incomplete: try again), or another request is completing it (attachment_upload_in_progress)."
+          },
+          "410": {
+            "description": "More than an hour past the URL's expiry (attachment_upload_expired): announce it again."
+          },
+          "413": {
+            "description": "Larger than ATTACHMENT_MAX_MB (payload_too_large); deleted."
+          },
+          "415": {
+            "description": "The bytes are a type not allowed, or not the one declared (unsupported_media_type); deleted."
+          },
+          "503": {
+            "description": "The server stores files on a local disk (presigned_uploads_unavailable)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Complete a direct upload to a note",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
     "/v1/notes/{id}/tags": {
       "put": {
         "description": "Replaces the whole set (`[]` removes every tag); the tags must be `Note` tags (GET /v1/tags?subject=Note). Answers the note's tags, by name. Audited (`tags.changed`, from → to).",
@@ -49228,6 +49419,49 @@
           "height",
           "size",
           "contentType"
+        ],
+        "additionalProperties": false
+      },
+      "PresignedUpload": {
+        "type": "object",
+        "properties": {
+          "uploadId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Send it to `POST …/attachments/complete` once the PUT is done."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "PUT the file here, with the `headers`. Signed for this size and type only, and for ten minutes."
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "PUT"
+            ]
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Send them as they are (`Content-Type`, and the encryption header when the bucket uses one). `Content-Length` is the file size: the HTTP client sets it."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When the URL stops working. The upload may be completed for an hour after it."
+          }
+        },
+        "required": [
+          "uploadId",
+          "url",
+          "method",
+          "headers",
+          "expiresAt"
         ],
         "additionalProperties": false
       },

@@ -31,7 +31,7 @@ export const ATTACHMENT_SWEEP_JOB = defineSystemJob({
   key: 'attachment-sweep',
   label: 'Attachment sweep',
   description:
-    'Deletes the files and rows of attachments whose record no longer exists, every night.',
+    'Deletes the files and rows of attachments whose record no longer exists, and the files of direct uploads that were never completed, every night.',
   permissions: [],
 });
 

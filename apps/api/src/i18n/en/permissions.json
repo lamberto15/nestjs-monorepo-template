@@ -132,7 +132,7 @@
     },
     "attachment-sweep": {
       "label": "Attachment sweep",
-      "description": "Deletes the files and rows of attachments whose record no longer exists, every night."
+      "description": "Deletes the files and rows of attachments whose record no longer exists, and the files of direct uploads that were never completed, every night."
     },
     "attachment-scan": {
       "label": "Attachment malware scan",

@@ -52,7 +52,11 @@ import { AttachmentScanQueue } from './attachment-scan.queue.js';
 import { ATTACHMENT_LIST } from './attachment.list.js';
 import type { AttachmentView } from './attachment.schemas.js';
 import { AttachmentsRegistry } from './attachments.registry.js';
-import { type Attachment, attachments } from './attachments.tables.js';
+import {
+  type Attachment,
+  attachments,
+  attachmentUploads,
+} from './attachments.tables.js';
 
 /** How long a download link works. */
 export const DOWNLOAD_LINK_TTL = '5m';
@@ -201,13 +205,19 @@ export class AttachmentsService implements PersonalDataSource {
   /**
    * Records a file the upload stored (`file.key`) as the record's
    * attachment, audited `attachment.added`. Refused or failed, the file
-   * is deleted from the disk.
+   * is deleted from the disk. The one way an uploaded file becomes an
+   * attachment, whether it came through the API (AttachmentUpload) or went
+   * straight to the object store (AttachmentUploadsService): the quota, the
+   * tenant, the audit entry, the malware scan and the image renditions are
+   * this method's, so a file never gets a weaker path. `within` runs in the
+   * transaction, after the row and its audit entry.
    */
   async upload(
     principal: Principal,
     record: RecordRef,
-    file: StoredUpload,
+    file: Pick<StoredUpload, 'key' | 'originalname' | 'size' | 'contentType'>,
     ip?: string,
+    { within }: { within?: (tx: Transaction) => Promise<unknown> } = {},
   ): Promise<AttachmentView> {
     try {
       await this.assertCanUpload(principal, record);
@@ -250,6 +260,7 @@ export class AttachmentsService implements PersonalDataSource {
           },
           tx,
         );
+        await within?.(tx);
         return row!;
       });
       if (row.scanStatus === 'pending') {
@@ -479,6 +490,12 @@ export class AttachmentsService implements PersonalDataSource {
       .update(attachments)
       .set({ uploadedBy: ANONYMIZED_UPLOADER })
       .where(eq(attachments.uploadedBy, principalKey(user)));
+    // Uploads announced and not completed (direct uploads): nobody can complete them now;
+    // the sweep deletes them within a day, and they are not in the export.
+    await tx
+      .update(attachmentUploads)
+      .set({ uploadedBy: ANONYMIZED_UPLOADER })
+      .where(eq(attachmentUploads.uploadedBy, principalKey(user)));
   }
 
   /** An attachment of a record the principal may read, or a 404. */
