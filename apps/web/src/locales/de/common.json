@@ -6,10 +6,6 @@
     "platform": "Plattform",
     "dashboard": "Dashboard"
   },
-  "dashboard": {
-    "title": "Dashboard",
-    "description": "Hier erscheint Ihre Übersicht."
-  },
   "auth": {
     "signIn": {
       "title": "Anmelden",

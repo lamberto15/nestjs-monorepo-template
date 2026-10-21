@@ -50,6 +50,10 @@ function api(
     items: options.items ?? [breached()],
     readCalls: [] as string[],
     listQueries: [] as string[],
+    /** Only the banner's own requests: the home page's dashboard lists notifications too. */
+    get breachQueries() {
+      return this.listQueries.filter((q) => q.includes('passwordBreached'));
+    },
     unreadCalls: 0,
     changeBody: undefined as unknown,
   };
@@ -147,7 +151,7 @@ describe('the breached-password banner', () => {
       ignoreFilters: true,
     });
     await renderApp('/');
-    await waitFor(() => expect(state.listQueries).toHaveLength(1));
+    await waitFor(() => expect(state.breachQueries).toHaveLength(1));
     await screen.findByText('Dashboard', { selector: 'h1' });
     expect(banner()).toBeNull();
   });
@@ -157,7 +161,7 @@ describe('the breached-password banner', () => {
     const user = userEvent.setup();
     await renderApp('/');
     await screen.findByText('Dashboard', { selector: 'h1' });
-    await waitFor(() => expect(state.listQueries).toHaveLength(1));
+    await waitFor(() => expect(state.breachQueries).toHaveLength(1));
     expect(banner()).toBeNull();
 
     state.items = [breached()];

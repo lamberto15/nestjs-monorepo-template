@@ -3,6 +3,7 @@ import { Public } from '@nestjs/authentication';
 import { Throttle, minutes } from '@nestjs/throttler';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
+import { AllowInMaintenance } from '../../core/http/maintenance.js';
 import { SsoDiscovery } from './sso-discovery.service.js';
 
 const discoverSchema = z.object({
@@ -34,6 +35,7 @@ const discoveredSchema = z.object({
  */
 @ApiTags('auth')
 @Public()
+@AllowInMaintenance()
 @Controller('auth/sso')
 export class SsoDiscoveryController {
   constructor(private readonly discovery: SsoDiscovery) {}

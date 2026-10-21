@@ -6,10 +6,6 @@
     "platform": "Platform",
     "dashboard": "Papan pemuka"
   },
-  "dashboard": {
-    "title": "Papan pemuka",
-    "description": "Gambaran keseluruhan anda akan dipaparkan di sini."
-  },
   "auth": {
     "signIn": {
       "title": "Log masuk",

@@ -1,6 +1,7 @@
 import type { ConfigService } from '@nestjs/config';
 import type { PdfRenderer } from '../documents/pdf-renderer.js';
 import type { AiProvider } from '../ai/ai-provider.js';
+import type { ModeService } from '../mode/mode.service.js';
 import { FeaturesService } from './features.service.js';
 
 const SWITCHES = ['REALTIME', 'WEBHOOKS', 'REPORTS', 'USAGE'] as const;
@@ -32,6 +33,7 @@ function service(
       enabled: documents,
     } as unknown as PdfRenderer,
     { enabled: ai } as unknown as AiProvider,
+    { current: () => 'normal' } as unknown as ModeService,
   );
 }
 
@@ -65,6 +67,7 @@ describe('FeaturesService', () => {
       documents: false,
       ai: false,
       exchangeRates: true,
+      mode: 'normal',
       tenancy: 'multi',
       locales: ['en', 'de'],
     });

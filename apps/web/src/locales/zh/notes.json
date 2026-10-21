@@ -88,5 +88,18 @@
   "bulk": {
     "delete": "删除",
     "restore": "恢复"
+  },
+  "dashboard": {
+    "newNote": "新建笔记",
+    "recent": {
+      "title": "最近修改的笔记",
+      "empty": "暂无笔记。"
+    },
+    "chart": {
+      "title": "每周笔记数",
+      "description": "最近 8 周创建的笔记(每周从周一开始,UTC)。",
+      "series": "笔记",
+      "empty": "最近 8 周没有创建笔记。"
+    }
   }
 }
