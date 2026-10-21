@@ -78,6 +78,14 @@ node --test tools/release/notes.test.mjs     # its tests (CI's check job runs th
 Re-running the `release` job rewrites the notes of the existing release; edit
 them on GitHub afterwards if needed (a later re-run overwrites the edit).
 
+### Removing a deprecated route
+
+A route marked `@Deprecated()` ([api-conventions](api-conventions.md),
+"Deprecation") is removed only after its successor has been out for 6 months
+and its sunset date has passed. Check `deprecated_route_calls_total{route}`
+first: calls still arriving mean clients still depend on it. The release that
+removes it lists it in the notes as a breaking change.
+
 ### Rolling back
 
 Rolling back is rolling the image back: the previous release's images in
