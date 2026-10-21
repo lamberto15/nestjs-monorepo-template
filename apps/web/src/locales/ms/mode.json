@@ -1,0 +1,16 @@
+{
+  "readOnly": {
+    "banner": "Perkhidmatan kini dalam mod baca sahaja. Anda boleh melihat-lihat, tetapi perubahan tidak dapat disimpan sehingga ia kembali."
+  },
+  "maintenance": {
+    "title": "Sedang diselenggara",
+    "description": "Perkhidmatan sedang diselenggara dan akan kembali tidak lama lagi. Halaman ini menyemak semula secara automatik, jadi anda tidak perlu berbuat apa-apa.",
+    "check": "Semak semula",
+    "operator": {
+      "end": "Tamatkan penyelenggaraan",
+      "ended": "Mod penyelenggaraan telah dimatikan.",
+      "stillOn": "Mod masih aktif. Ia ditetapkan dalam persekitaran penerapan (APP_MODE), jadi hanya boleh diubah di sana.",
+      "hint": "Untuk pengendali sahaja. Jika mod ditetapkan dalam persekitaran penerapan (APP_MODE), ia hanya boleh diubah di sana."
+    }
+  }
+}

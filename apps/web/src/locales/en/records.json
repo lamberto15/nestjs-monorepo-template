@@ -46,6 +46,8 @@
     "locked": "Issued document",
     "download": "Download {{name}}",
     "downloadShort": "Download",
+    "scanning": "Scanning…",
+    "downloadScanning": "Download {{name}}: available when the scan is done",
     "delete": "Delete",
     "deleteTitle": "Delete this file?",
     "deleteDescription": "“{{name}}” is removed from the record, and the file with it."

@@ -13,14 +13,17 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { BreachedPasswordBanner } from '@/components/breached-password-banner';
 import { OfflineBanner } from '@/components/offline-banner';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
+import { MaintenanceNotice } from '@/components/maintenance-notice';
+import { ModeBanner } from '@/components/mode-banner';
 import { SessionIdleWarning } from '@/components/session-idle-warning';
 import { UnverifiedBanner } from '@/components/unverified-banner';
 import { SearchPalette } from '@/features/search/palette';
 import { NotificationsBell } from '@/features/notifications/bell';
 import { languages } from '@/i18n';
 import { BrandTheme } from '@/lib/branding';
+import { useModeWatch } from '@/lib/mode';
 import { RealtimeProvider } from '@/lib/realtime';
-import { meQuery, saveLanguageKey } from '@/lib/session';
+import { featuresQuery, meQuery, saveLanguageKey } from '@/lib/session';
 
 // The signed-in app. Nobody signed in: to sign-in, and back here afterwards.
 export const Route = createFileRoute('/_app')({
@@ -48,6 +51,13 @@ export const Route = createFileRoute('/_app')({
     ) {
       throw redirect({ to: '/account/security' });
     }
+    // The deployment's mode comes with the switches: known before the first
+    // paint, so a deployment in maintenance never flashes a page of failed
+    // requests. A failure is no reason to hold the app back (the layout asks
+    // again, and the error handler says what went wrong).
+    await context.queryClient
+      .ensureQueryData(featuresQuery)
+      .catch(() => undefined);
     return { me };
   },
   component: AppLayout,
@@ -55,6 +65,12 @@ export const Route = createFileRoute('/_app')({
 
 function AppLayout() {
   useSavedLanguage();
+  const mode = useModeWatch();
+  // Maintenance: the API refuses everything, so no page, menu or socket
+  // would work; one notice instead (it asks nothing but the mode).
+  if (mode === 'maintenance') {
+    return <MaintenanceNotice />;
+  }
   return (
     <TooltipProvider>
       {/* The tenant's colour on the theme; read again after a tenant switch. */}
@@ -65,6 +81,7 @@ function AppLayout() {
           <SidebarInset>
             <OfflineBanner />
             <ImpersonationBanner />
+            <ModeBanner />
             <SessionIdleWarning />
             <UnverifiedBanner />
             <BreachedPasswordBanner />

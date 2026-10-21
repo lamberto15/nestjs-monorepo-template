@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useCallback, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { useWritesPaused } from '@/lib/mode';
 import type { BulkAction, BulkPath } from './api';
 import type { BulkContext } from './types';
 import { useBulkRun } from './use-bulk-run';
@@ -27,6 +28,8 @@ export interface BulkActionSpec {
  */
 export function useBulkActions(path: BulkPath, actions: BulkActionSpec[]) {
   const { t } = useTranslation('bulk');
+  // Every bulk action writes (POST …/bulk): off while the API refuses writes.
+  const paused = useWritesPaused();
   const run = useBulkRun(path);
   const [asking, setAsking] = useState<{
     spec: BulkActionSpec;
@@ -53,6 +56,7 @@ export function useBulkActions(path: BulkPath, actions: BulkActionSpec[]) {
         <ActionBarItem
           key={spec.action}
           variant={spec.confirm ? 'destructive' : 'secondary'}
+          disabled={paused}
           onSelect={(event) => {
             // The bar stays (with its selection) until the run ends.
             event.preventDefault();
@@ -68,7 +72,7 @@ export function useBulkActions(path: BulkPath, actions: BulkActionSpec[]) {
         </ActionBarItem>
       )),
     // `actions` is the caller's; keep it stable (useMemo).
-    [actions, go],
+    [actions, go, paused],
   );
 
   const dialogs = (

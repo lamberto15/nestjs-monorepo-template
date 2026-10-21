@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { unwatchRecord, watchRecord } from '@/components/records/panels/api';
 import { useCan, type Permission } from '@/lib/features';
 import { useListDescription } from '@/lib/list-query';
+import { useWritesPaused } from '@/lib/mode';
 import { recordKeys } from '@/lib/records';
 
 /**
@@ -41,6 +42,7 @@ export function WatchButton(props: {
 }) {
   const { t } = useTranslation('watching');
   const queryClient = useQueryClient();
+  const paused = useWritesPaused();
   const canRead = useCan(`${props.subject}.read` as Permission);
   const description = useListDescription(props.subject, canRead).data;
   const takesWatch = canRead && description?.capabilities.watch === true;
@@ -76,7 +78,7 @@ export function WatchButton(props: {
     <Button
       type="button"
       variant="outline"
-      disabled={toggle.isPending}
+      disabled={toggle.isPending || paused}
       title={t(props.watching ? 'hintOn' : 'hintOff')}
       onClick={() => toggle.mutate(watch)}
     >

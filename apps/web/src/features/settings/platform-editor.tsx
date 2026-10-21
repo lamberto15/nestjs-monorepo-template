@@ -283,6 +283,9 @@ export function PlatformEditor({ setting }: { setting: Setting }) {
             {stored && (
               <ConfirmButton
                 variant="outline"
+                // The operators' routes answer in read-only and maintenance
+                // mode too: this is how the mode is turned off again.
+                allowInMaintenance
                 title={t('platform.removeTitle')}
                 description={t('platform.removeDescription')}
                 confirm={t('platform.remove')}

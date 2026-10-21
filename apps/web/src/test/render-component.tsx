@@ -13,20 +13,25 @@ import { Toaster } from '@nestjs-monorepo-template/ui/components/sonner';
 import { ThemeProvider } from '@nestjs-monorepo-template/ui/components/theme-provider';
 import { resourcesFrom } from '@/i18n';
 import { createQueryClient } from '@/lib/errors';
-import { meQuery, type Me } from '@/lib/session';
-import { signedInUser } from '@/test/server';
+import { featuresQuery, meQuery, type Features, type Me } from '@/lib/session';
+import { allFeatures, signedInUser } from '@/test/server';
 
 /**
  * One component with what the app gives it (the texts, the query client
  * with its error toasts, a router for its links, the signed-in user with
- * these permissions), without a page around it. For shared components a
+ * these permissions, and the deployment's switches when `features` says what
+ * differs from `allFeatures`), without a page around it. For shared components a
  * feature's page would host: their tests then need no feature's routes,
  * and stand when `pnpm feature:remove` takes that feature (a test-only
  * subject, as the API's tests use TestItem).
  */
 export async function renderComponent(
   ui: ReactNode,
-  options: { can?: readonly string[] } = {},
+  options: {
+    can?: readonly string[];
+    /** The switches `GET /v1/features` gave, over `allFeatures`: none given, none known. */
+    features?: Partial<Features>;
+  } = {},
 ) {
   const i18n = i18next.createInstance();
   await i18n.use(initReactI18next).init({
@@ -49,6 +54,12 @@ export async function renderComponent(
     can: Object.fromEntries((options.can ?? []).map((p) => [p, true])),
   };
   queryClient.setQueryData(meQuery.queryKey, me);
+  if (options.features) {
+    queryClient.setQueryData(featuresQuery.queryKey, {
+      ...allFeatures,
+      ...options.features,
+    });
+  }
   // A router of one route that shows the component: a Link inside it
   // builds its href as in the app.
   const router = createRouter({

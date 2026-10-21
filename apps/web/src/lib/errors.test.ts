@@ -1,11 +1,12 @@
 import { ApiError } from '@nestjs-monorepo-template/api-client';
+import { QueryObserver, type QueryClient } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw/http';
 import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, reauthenticationMiddleware } from '@/lib/api';
 import { createQueryClient, handleApiError } from '@/lib/errors';
-import { createSession, meQuery } from '@/lib/session';
-import { problem, server, signedInUser } from '@/test/server';
+import { createSession, featuresQuery, meQuery } from '@/lib/session';
+import { allFeatures, problem, server, signedInUser } from '@/test/server';
 import { createApiClient, unwrap } from '@nestjs-monorepo-template/api-client';
 
 vi.mock('sonner', () => ({
@@ -118,6 +119,85 @@ describe('the global error handler', () => {
       undefined,
     );
     expect(toast.error).toHaveBeenCalledWith('Already there');
+  });
+
+  describe.each(['read_only', 'maintenance'])(
+    'a request refused by the deployment mode (503 %s)',
+    (code) => {
+      const refused = () =>
+        new ApiError({ status: 503, code, detail: `refused: ${code}` });
+
+      /** The switches watched by something on screen: an active observer. */
+      const watching = (queryClient: QueryClient) =>
+        new QueryObserver(queryClient, featuresQuery).subscribe(
+          () => undefined,
+        );
+
+      it('asks for the mode again at once, and toasts once', async () => {
+        let asked = 0;
+        server.use(
+          http.get('/v1/features', () => {
+            asked += 1;
+            return HttpResponse.json(allFeatures);
+          }),
+        );
+        const queryClient = createQueryClient(() => target());
+        const stop = watching(queryClient);
+        await vi.waitFor(() => expect(asked).toBe(1));
+
+        handleApiError(queryClient, target(), refused(), undefined);
+        await vi.waitFor(() => expect(asked).toBe(2));
+        expect(toast.error).toHaveBeenCalledWith(`refused: ${code}`, {
+          id: 'deployment-mode',
+        });
+        stop();
+      });
+
+      it('asks once for a page of refused requests, not once each', async () => {
+        let asked = 0;
+        server.use(
+          http.get('/v1/features', async () => {
+            asked += 1;
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            return HttpResponse.json(allFeatures);
+          }),
+        );
+        const queryClient = createQueryClient(() => target());
+        const stop = watching(queryClient);
+        await vi.waitFor(() => expect(asked).toBe(1));
+        const idle = () =>
+          expect(
+            queryClient.isFetching({ queryKey: featuresQuery.queryKey }),
+          ).toBe(0);
+        await vi.waitFor(idle);
+
+        for (let i = 0; i < 5; i += 1) {
+          handleApiError(queryClient, target(), refused(), undefined);
+        }
+        await vi.waitFor(idle);
+        expect(asked).toBe(2);
+        stop();
+      });
+
+      it('leaves the toast to a caller that shows the error itself', () => {
+        const queryClient = createQueryClient(() => target());
+        handleApiError(queryClient, target(), refused(), {
+          errorToast: false,
+        });
+        expect(toast.error).not.toHaveBeenCalled();
+      });
+    },
+  );
+
+  it('toasts a 503 that is not the mode like any other problem', () => {
+    const queryClient = createQueryClient(() => target());
+    handleApiError(
+      queryClient,
+      target(),
+      new ApiError({ status: 503, code: 'unavailable', detail: 'Down' }),
+      undefined,
+    );
+    expect(toast.error).toHaveBeenCalledWith('Down');
   });
 
   it('goes to sign-in when a refetch of `me` finds nobody signed in', async () => {

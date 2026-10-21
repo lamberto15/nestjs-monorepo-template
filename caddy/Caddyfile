@@ -81,6 +81,25 @@
 			# WebAuthn (publickey-credentials-*) stays on for this origin; the rest is off.
 			Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), publickey-credentials-get=(self), publickey-credentials-create=(self)"
 		}
+		# Maintenance (MAINTENANCE_PAGE=on, docs/deployment.md, "Maintenance
+		# page"): every path of the web app answers the static page, 503 with
+		# Retry-After, so neither the shell nor its files are served. The API's
+		# paths (the @api handle above) are not touched: they answer for
+		# themselves, 503 `maintenance` while APP_MODE says so. {env.*} is read
+		# at each request, so an unset or any other value is "off". Written
+		# first in this block: a handle with a single path (/assets/* below)
+		# would otherwise be sorted before it (Caddyfile directives, "Sorting
+		# algorithm"; a named matcher keeps its place).
+		@maintenance expression {env.MAINTENANCE_PAGE} == "on"
+		handle @maintenance {
+			root * /srv/maintenance
+			header Cache-Control "no-store"
+			header Retry-After "30"
+			rewrite * /index.html
+			file_server {
+				status 503
+			}
+		}
 		# Hashed file names: they never change. A missing one is a 404, not the page.
 		handle /assets/* {
 			# Only a file that exists: a 404 must not be cached for a year.
