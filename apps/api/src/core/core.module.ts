@@ -52,6 +52,7 @@ import { observability } from './observability/observe.js';
 import { REDIS } from './redis/redis.js';
 import { RedisModule } from './redis/redis.module.js';
 import { MetricsModule } from './metrics/metrics.module.js';
+import { TenantQuotas } from './tenancy/tenant-quotas.js';
 import { Tenancy } from './tenancy/tenancy.service.js';
 import { EncryptionService } from './encryption/encryption.service.js';
 import {
@@ -159,9 +160,11 @@ const CURSOR_KEYS = Symbol('CURSOR_KEYS');
     ),
   ],
   controllers: [HealthController],
-  exports: [MailQueue, BullModule, Tenancy, EncryptionService],
+  exports: [MailQueue, BullModule, Tenancy, TenantQuotas, EncryptionService],
   providers: [
     Tenancy,
+    // Tenant limits (members, API clients, storage, records): docs/tenancy.md, "Quotas".
+    TenantQuotas,
     // Personal data at rest: the encrypted columns' keys (docs/encryption.md).
     EncryptionService,
     // The keys sorted lists' cursors are sealed with (CURSOR_KEYS, else the

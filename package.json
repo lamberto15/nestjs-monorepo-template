@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "NestJS 12 REST backend template: accounts (passwords, two-factor, OAuth, magic links, tokens, impersonation), roles with CASL, API keys, audit log, idempotency, outbox, webhooks, workflows, queues, mail, storage, realtime, i18n, Docker Compose for dev and production.",
   "private": true,
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "scripts": {
     "build": "turbo run build",
@@ -23,6 +23,7 @@
     "db:studio": "pnpm --filter @nestjs-monorepo-template/api db:studio",
     "migrate": "pnpm --filter @nestjs-monorepo-template/api migrate",
     "db:seed:demo": "pnpm --filter @nestjs-monorepo-template/api db:seed:demo",
+    "ops": "pnpm --filter @nestjs-monorepo-template/api ops",
     "db:mark-dev": "docker compose -p ${npm_package_name}-dev --env-file dev/compose.env -f compose.yaml -f compose.dev.yaml exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -f /docker-entrypoint-initdb.d/10-dev-database.sql'",
     "services:up": "docker compose -p ${npm_package_name}-dev --env-file dev/compose.env -f compose.yaml -f compose.dev.yaml up -d",
     "services:down": "docker compose -p ${npm_package_name}-dev --env-file dev/compose.env -f compose.yaml -f compose.dev.yaml down",
@@ -49,6 +50,9 @@
     "oxlint-tsgolint": "^7.0.2001",
     "prettier": "^3.4.2",
     "turbo": "2.11.8"
+  },
+  "engines": {
+    "node": "^24.0.0"
   },
   "devEngines": {
     "packageManager": {

@@ -217,6 +217,15 @@ groups:
           summary: 'Telemetry is rejected by {{ $labels.target }} ({{ $labels.status }})'
           description: 'The {{ $labels.job }} uploads to {{ $labels.target }} were refused with HTTP {{ $labels.status }} for 5 minutes: 401/403 a wrong or revoked key, 429 the plan is out of credits. Traces, metrics and errors are being dropped. Check OBSERVE_APP_KEY, OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_EXPORTER_OTLP_HEADERS, and the collector''s quota (docs/deployment.md, "Telemetry").'
 
+      - alert: TenantStorageNearLimit
+        expr: max by (tenant) (tenant_storage_bytes) / max by (tenant) (tenant_storage_limit_bytes) > 0.9
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Tenant {{ $labels.tenant }} stores {{ $value | humanizePercentage }} of its storage limit'
+          description: "The tenant's attachments and issued documents are over 90% of its limit; past it, uploads answer 422 quota_exceeded. Raise it (PUT /v1/tenants/{id}/quotas, or the quotas.maxStorageBytes platform setting) or have the tenant free some (docs/tenancy.md, Quotas)."
+
   - name: dependencies
     rules:
       # From the app's own gauges: they go absent when their read fails, so

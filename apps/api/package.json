@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "The NestJS API: HTTP, WebSockets and the workers (one image, three commands: node dist/main, dist/worker, dist/migrate).",
   "private": true,
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "files": [
     "dist",
@@ -27,6 +27,7 @@
     "db:studio": "drizzle-kit studio",
     "migrate": "node dist/migrate",
     "db:seed:demo": "nest build && node dist/seed-demo",
+    "ops": "nest build && node dist/cli",
     "openapi:dump": "nest build && node dist/openapi-dump"
   },
   "dependencies": {
@@ -79,6 +80,7 @@
     "drizzle-orm": "^0.45.4",
     "exceljs": "^4.4.0",
     "ioredis": "^6.0.0",
+    "nest-commander": "3.21.0",
     "nestjs-cls": "7.0.1",
     "openid-client": "6.8.8",
     "pg": "^8.23.1",
@@ -100,6 +102,7 @@
     "@nestjs/schematics": "^12.0.0",
     "@nestjs/testing": "^12.0.1",
     "@types/express": "^5.0.0",
+    "@types/inquirer": "8.2.13",
     "@types/multer": "^2.3.0",
     "@types/node": "^24.19.2",
     "@types/pg": "^8.23.1",
