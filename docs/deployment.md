@@ -1943,6 +1943,7 @@ may hide any path).
 | `web`       | `apps/web/`, `apps/web-e2e/`, `packages/`, `caddy/Caddyfile` (`apps/web/pwa-paths.test.ts` reads it) and the roots |
 | `tools`     | `tools/`, and the files its tests read: `env.example`, `.prettierrc`, `.prettierignore` |
 | `stack`     | `compose*.yaml`, `secret.empty`, `swarm.placeholder`, `scripts/`, `loadtest/`, `redis/`, `caddy/`, `backup/`, `gotenberg/`, `monitoring/`, `clamav/`, `pgbouncer/`, `tools/deploy/` |
+| `services`  | `compose.yaml`: CI's PostgreSQL and Redis are its images (`compose-images`), so a Dependabot update of one runs the suites on them |
 | `backup`    | `backup/`, `scripts/test-backup-pitr.sh`, `.trivyignore.yaml` |
 | `gotenberg` | `gotenberg/`, `compose.dev.yaml`, `compose.prod.yaml`, `.trivyignore.yaml` |
 | `caddy`     | `caddy/`, `apps/web/`, `packages/`, `apps/api/package.json` (Caddy's image builds the web app from the repository root), the roots, `.trivyignore.yaml` |
@@ -1951,12 +1952,13 @@ may hide any path).
 | ----------------------------------------------------------- | ----------------------------------------------------------------- |
 | `changes`, `compose-images`, `security`                     | always                                                            |
 | `check`                                                     | `code`                                                            |
-| `unit-api`, `e2e`, `e2e-telemetry`, `image`, `openapi-diff` | `api`                                                             |
+| `unit-api`, `image`, `openapi-diff`                         | `api`                                                             |
+| `e2e`, `e2e-telemetry`                                      | `api` or `services`                                               |
 | `unit-web`                                                  | `web`                                                             |
 | `coverage`                                                  | a unit job ran and none failed (it merges the sides that ran)     |
-| `e2e-web`                                                   | `api` or `web`                                                    |
-| `feature-smoke`                                             | `api` or `tools` (the generator writes into the API only)         |
-| `template-without-notes`                                    | `api`, `web` or `tools`                                           |
+| `e2e-web`                                                   | `api`, `web` or `services`                                        |
+| `feature-smoke`                                             | `api`, `tools` (the generator writes into the API only) or `services` |
+| `template-without-notes`                                    | `api`, `web`, `tools` or `services`                               |
 | `compose-secrets`, `swarm-stack`                            | `stack`                                                           |
 | `hardened-stack`                                            | `api` or `stack`                                                  |
 | `backup-image`                                              | `backup`                                                          |
@@ -1973,8 +1975,10 @@ and prints the jobs each one runs.
 
 - **A new job** gets `needs: changes` and an `if` on the outputs whose
   paths it reads (broader when unsure); the test fails a job that has
-  neither. A job that needs a gated one is skipped with it, unless its `if`
-  calls a status function, as `coverage`'s does (`!cancelled()`).
+  neither. A job whose service containers take `compose-images`' images
+  reads `services` too (the test fails one that doesn't). A job that needs
+  a gated one is skipped with it, unless its `if` calls a status function,
+  as `coverage`'s does (`!cancelled()`).
 - **Required checks:** a skipped job counts as passed. `main`'s ruleset
   requires none of this workflow's checks today; before requiring one, pick
   a job without a matrix: a matrix job skipped by its `if` is skipped before

@@ -400,6 +400,51 @@ test('a Compose-only pull request checks the stack, and Gotenberg for compose.pr
   );
 });
 
+test("compose.yaml runs every suite on CI's PostgreSQL and Redis: compose-images reads them from it", (t) => {
+  // Dependabot's docker-compose updates (a new Redis or PostgreSQL) change
+  // compose.yaml alone: the suites on those images must meet it before main.
+  const outputs = expectJobs(
+    t,
+    ['compose.yaml'],
+    only(
+      ALWAYS,
+      'compose-secrets',
+      'swarm-stack',
+      'check',
+      'e2e',
+      'e2e-telemetry',
+      'e2e-web',
+      'feature-smoke',
+      'template-without-notes',
+      'hardened-stack',
+    ),
+  );
+  assert.equal(outputs.services, 'true');
+  // Only the root's: the devcontainer's compose.yaml is devcontainer.yml's.
+  assert.equal(classify(['.devcontainer/compose.yaml']).services, 'false');
+  assert.equal(classify(['compose.prod.yaml']).services, 'false');
+});
+
+test('every job whose services run compose.yaml images reads the services output', () => {
+  // compose-images' outputs are the image of a service container: a job
+  // with one runs on a pull request that changes compose.yaml.
+  for (const job of jobs(TEXT)) {
+    if (!job.lines.some((l) => /needs\.compose-images\.outputs\./.test(l))) {
+      continue;
+    }
+    if (job.id === 'check') {
+      // Gated on `code`, which compose.yaml sets too.
+      assert.match(job.if, /needs\.changes\.outputs\.code == 'true'/);
+      continue;
+    }
+    assert.match(
+      job.if,
+      /needs\.changes\.outputs\.services == 'true'/,
+      `${job.id} runs on compose.yaml's images: gate it on services too`,
+    );
+  }
+});
+
 test("a change to the generator's tools runs feature-smoke and the template check", (t) => {
   expectJobs(
     t,
