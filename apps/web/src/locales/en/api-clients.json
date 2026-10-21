@@ -60,6 +60,17 @@
       "remove": "Remove quota",
       "none": "No quota."
     },
+    "allowlist": {
+      "title": "IP allowlist",
+      "description": "The addresses this client's keys may be used from: one IPv4 or IPv6 address or CIDR range per line (203.0.113.0/24, 2001:db8::/32). A request from elsewhere is refused with 403 client_ip_not_allowed. Leave empty to allow any address.",
+      "label": "Allowed addresses",
+      "placeholder": "203.0.113.9\n198.51.100.0/24",
+      "save": "Save allowlist",
+      "saved": "Allowlist saved.",
+      "none": "Any address is allowed.",
+      "invalid": "Line {{line}}: “{{value}}” is not an IPv4 or IPv6 address or CIDR range.",
+      "prefix": "Line {{line}}: “{{value}}” has a prefix length outside 0-{{max}}."
+    },
     "state": {
       "title": "Access",
       "activeDescription": "While revoked, every key of this client is refused.",

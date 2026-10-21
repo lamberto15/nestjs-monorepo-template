@@ -40,6 +40,7 @@ const client = (extra: object = {}) => ({
   name: 'Billing exporter',
   active: true,
   dailyQuota: 100 as number | null,
+  allowedCidrs: [] as string[],
   createdAt: '2026-10-10T08:00:00.000Z',
   updatedAt: '2026-10-10T08:00:00.000Z',
   keys: [key('1', { lastUsedAt: '2026-10-16T08:00:00.000Z' })],
@@ -387,6 +388,75 @@ describe('a client', () => {
     await waitFor(() =>
       expect(state.patches.at(-1)).toEqual({ dailyQuota: null }),
     );
+  });
+
+  it('shows the allowlist, one entry a line, and saves an edit', async () => {
+    const state = api();
+    state.clients = [client({ allowedCidrs: ['203.0.113.0/24'] })];
+    const user = userEvent.setup();
+    await renderApp(path);
+    const input = await screen.findByLabelText('Allowed addresses');
+    expect(input).toHaveValue('203.0.113.0/24');
+    await user.type(input, '{Enter}2001:db8::/32{Enter}198.51.100.9');
+    await user.click(screen.getByRole('button', { name: 'Save allowlist' }));
+    await waitFor(() =>
+      expect(state.patches).toEqual([
+        {
+          allowedCidrs: ['203.0.113.0/24', '2001:db8::/32', '198.51.100.9'],
+        },
+      ]),
+    );
+    await findToast('Allowlist saved.');
+  });
+
+  it('clears the allowlist to allow any address', async () => {
+    const state = api();
+    state.clients = [client({ allowedCidrs: ['203.0.113.0/24'] })];
+    const user = userEvent.setup();
+    await renderApp(path);
+    await user.clear(await screen.findByLabelText('Allowed addresses'));
+    await user.click(screen.getByRole('button', { name: 'Save allowlist' }));
+    await waitFor(() => expect(state.patches).toEqual([{ allowedCidrs: [] }]));
+  });
+
+  it('names a malformed entry and its line without sending it', async () => {
+    const state = api();
+    const user = userEvent.setup();
+    await renderApp(path);
+    const input = await screen.findByLabelText('Allowed addresses');
+    await user.type(input, '203.0.113.9{Enter}300.1.1.1{Enter}10.0.0.0/33');
+    await user.click(screen.getByRole('button', { name: 'Save allowlist' }));
+    expect(
+      await screen.findByText(/Line 2: “300\.1\.1\.1” is not an IPv4/),
+    ).toBeVisible();
+    expect(screen.getByText(/Line 3: “10\.0\.0\.0\/33” has a prefix/)).toBe(
+      screen.getByText(/Line 2:/),
+    );
+    expect(state.patches).toEqual([]);
+  });
+
+  it("shows the API's invalid_cidr on the field", async () => {
+    const state = api();
+    server.use(
+      http.patch('/v1/access/clients/:id', async ({ request }) => {
+        state.patches.push(await request.json());
+        return problem(400, 'invalid_cidr', {
+          detail: '“::g” is not an IPv4 or IPv6 address or CIDR.',
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    await renderApp(path);
+    // Passes the friendly check; the API still refuses it.
+    await user.type(
+      await screen.findByLabelText('Allowed addresses'),
+      '10.0.0.1',
+    );
+    await user.click(screen.getByRole('button', { name: 'Save allowlist' }));
+    expect(
+      await screen.findByText('“::g” is not an IPv4 or IPv6 address or CIDR.'),
+    ).toBeVisible();
+    expect(screen.getByLabelText('Allowed addresses')).toBeInvalid();
   });
 });
 
