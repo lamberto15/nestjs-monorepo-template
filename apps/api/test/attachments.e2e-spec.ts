@@ -371,6 +371,27 @@ describe('attachments (e2e)', () => {
     ).toEqual([]);
   });
 
+  it('offers no direct uploads on a disk that is not S3: the flag is off and both routes answer 503 (presigned_uploads_unavailable)', async () => {
+    const features = (await node.admin().get('/v1/features').expect(200)).body;
+    expect(features.presignedUploads).toBe(false);
+    const { editor, note } = await noteOfEditor();
+    const presign = await editor.agent
+      .post(`/v1/test-items/${note.id}/attachments/presign`)
+      .send({ name: 'dot.png', size: PNG.length, contentType: 'image/png' })
+      .expect(503);
+    expect(presign.body.code).toBe('presigned_uploads_unavailable');
+    const complete = await editor.agent
+      .post(`/v1/test-items/${note.id}/attachments/complete`)
+      .send({ uploadId: crypto.randomUUID() })
+      .expect(503);
+    expect(complete.body.code).toBe('presigned_uploads_unavailable');
+    // Uploading through the API is what works here.
+    await editor.agent
+      .post(`/v1/test-items/${note.id}/attachments`)
+      .attach('file', PNG, { filename: 'dot.png', contentType: 'image/png' })
+      .expect(201);
+  });
+
   it('publishes the limits it enforces in GET /v1/lists/{subject} (ATTACHMENT_MAX_MB=1 here)', async () => {
     const { body } = await node.admin().get('/v1/lists/TestItem').expect(200);
     expect(body.attachmentLimits).toEqual({

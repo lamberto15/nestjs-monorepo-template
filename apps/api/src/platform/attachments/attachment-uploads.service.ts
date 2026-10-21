@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ConflictException,
   GoneException,
   HttpException,
@@ -13,9 +12,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { StorageDisk, StorageFileNotFoundError } from '@nestjs/storage';
+import { StorageDisk } from '@nestjs/storage';
 import { and, count, eq, isNull, lt, or } from 'drizzle-orm';
-import { buffer } from 'node:stream/consumers';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import {
   database,
@@ -28,14 +26,11 @@ import { type Principal, principalKey } from '../../iam/auth/principal.js';
 import type { PlatformEnv } from '../platform.env.js';
 import type { RecordRef } from '../subscriptions/subscriptions.service.js';
 import { attachmentLimits, presignedUploads } from './attachment-limits.js';
+import { directUploadType, isAllowedType } from './attachment-types.js';
 import {
-  assertDeclaredType,
-  ATTACHMENT_SAMPLE_BYTES,
-  detectUploadedType,
-  directUploadType,
-  isAllowedType,
-  sameType,
-} from './attachment-types.js';
+  checkUploadedObject,
+  type UploadVerdict,
+} from './attachment-upload-check.js';
 import type {
   AttachmentView,
   PresignedUploadView,
@@ -61,11 +56,6 @@ const CLAIM_MS = 5 * 60 * 1000;
 
 /** The most uploads one uploader may have announced and not completed: the objects they leave are not counted by the storage quota. */
 export const MAX_PENDING_UPLOADS = 100;
-
-/** What `verify()` makes of an object: the file is fine, or a refusal (and whether the upload is kept for another try). */
-type Verdict =
-  | { ok: true; size: number; contentType: string }
-  | { ok: false; keep: boolean; error: HttpException };
 
 /**
  * Uploads that go straight from the client to the object store
@@ -219,9 +209,13 @@ export class AttachmentUploadsService {
         message: 'This upload expired: announce it again.',
       });
     }
-    let verdict: Verdict;
+    let verdict: UploadVerdict;
     try {
-      verdict = await this.verify(upload);
+      verdict = await checkUploadedObject(
+        this.disk,
+        upload,
+        attachmentLimits(this.config),
+      );
     } catch (error) {
       // The store could not be asked: nothing is known of the file, try again later.
       await this.release(upload);
@@ -322,72 +316,6 @@ export class AttachmentUploadsService {
       code: 'attachment_upload_in_progress',
       message: 'This upload is being completed by another request.',
     });
-  }
-
-  /**
-   * Reads the object back and compares it with what was announced: its size
-   * and type by HEAD, then the first bytes by a ranged GET, whose type
-   * (never the client's word) must be allowed and not contradict the one
-   * declared. Throws only when the store cannot be asked.
-   */
-  private async verify(upload: AttachmentUpload): Promise<Verdict> {
-    const limits = attachmentLimits(this.config);
-    const refuse = (error: HttpException): Verdict => ({
-      ok: false,
-      keep: false,
-      error,
-    });
-    let file;
-    try {
-      file = await this.disk.stat(upload.key);
-    } catch (error) {
-      if (error instanceof StorageFileNotFoundError) {
-        return {
-          ok: false,
-          keep: true,
-          error: new ConflictException({
-            code: 'attachment_upload_incomplete',
-            message:
-              'The file has not arrived in storage: PUT it to the upload URL first.',
-          }),
-        };
-      }
-      throw error;
-    }
-    // The limit may be lower than when the URL was signed.
-    if (file.size > limits.maxBytes) {
-      return refuse(new PayloadTooLargeException('File too large'));
-    }
-    if (
-      file.size !== upload.size ||
-      !sameType(file.contentType, upload.contentType)
-    ) {
-      return refuse(
-        new BadRequestException({
-          code: 'attachment_upload_mismatch',
-          message:
-            'The uploaded file is not the size and type that were announced.',
-        }),
-      );
-    }
-    const { body } = await this.disk.get(upload.key, {
-      range: { start: 0, end: ATTACHMENT_SAMPLE_BYTES - 1 },
-    });
-    const sample = await buffer(body);
-    const detected = detectUploadedType(sample, upload.contentType);
-    if (!detected || !isAllowedType(detected, limits.types)) {
-      return refuse(
-        new UnsupportedMediaTypeException(
-          `File type not allowed. Allowed types: ${limits.types.join(', ')}`,
-        ),
-      );
-    }
-    try {
-      assertDeclaredType(upload.contentType, detected);
-    } catch (error) {
-      return refuse(error as HttpException);
-    }
-    return { ok: true, size: file.size, contentType: detected };
   }
 
   /** Lets the upload be completed again (a claim from a request that is done with it). */

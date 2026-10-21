@@ -1,6 +1,9 @@
 import type { OpenAPIObject } from '@nestjs/swagger';
 import type { z } from 'zod';
-import { attachmentPageSchema } from '../attachments/attachment.schemas.js';
+import {
+  attachmentPageSchema,
+  presignedUploadSchema,
+} from '../attachments/attachment.schemas.js';
 import { commentPageSchema } from '../comments/comment.schemas.js';
 import { recordDocumentPageSchema } from '../documents/document.schemas.js';
 import {
@@ -13,7 +16,7 @@ import { tagPageSchema, tagRefListSchema } from '../tags/tag.schemas.js';
  * The shapes every record's panel routes share (`…/{id}/comments`,
  * `/attachments`, `/tags`, `/revisions`, `/documents`), as the roots of the
  * named OpenAPI components `Comment`, `CommentPage`, `Attachment`,
- * `AttachmentPage`, `Tag`, `TagPage`, `TagRef`, `TagRefList`, `Revision`,
+ * `AttachmentPage`, `PresignedUpload`, `Tag`, `TagPage`, `TagRef`, `TagRefList`, `Revision`,
  * `RevisionPage`, `RevisionDiff`, `RecordDocument` and `RecordDocumentPage`. Each schema names itself with Zod's `.meta({ id })`; the
  * routes' `standardSchema` makes @nestjs/swagger move the `$defs` of its
  * conversion into `components.schemas`, so every panel route points at the
@@ -23,6 +26,7 @@ import { tagPageSchema, tagRefListSchema } from '../tags/tag.schemas.js';
 export const PANEL_COMPONENT_SCHEMAS: readonly z.ZodType[] = [
   commentPageSchema,
   attachmentPageSchema,
+  presignedUploadSchema,
   revisionPageSchema,
   revisionDiffSchema,
   tagPageSchema,
