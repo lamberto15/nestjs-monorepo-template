@@ -19,6 +19,15 @@
 		resolvers 1.1.1.1 1.0.0.1
 	}
 
+	# RFC 9116 security.txt: a static file, written at each start by
+	# caddy/entrypoint.sh from SECURITY_* (no file without SECURITY_CONTACT: 404).
+	# Its own handle, before @api: @api takes every /.well-known/* path, and
+	# the API serves no files of its own here (the REST-only rule holds).
+	handle /.well-known/security.txt {
+		root * /srv/security
+		file_server
+	}
+
 	# The API's paths (versioned routes, realtime, health, Swagger UI and its
 	# document, stored files, .well-known); every other path is the web app.
 	# Exact segments, no bare prefixes: /api* would also take the app's /api-keys.

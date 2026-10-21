@@ -443,6 +443,12 @@ services:
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
       CLOUDFLARE_API_TOKEN_FILE: ${CLOUDFLARE_API_TOKEN_FILE:+/run/secrets/cloudflare_api_token}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+      # /.well-known/security.txt (RFC 9116; caddy/entrypoint.sh writes it at
+      # each start). No file while SECURITY_CONTACT is empty.
+      SECURITY_CONTACT: ${SECURITY_CONTACT:-}
+      SECURITY_EXPIRES: ${SECURITY_EXPIRES:-}
+      SECURITY_POLICY: ${SECURITY_POLICY:-https://github.com/lamberto15/nestjs-monorepo-template/blob/main/SECURITY.md}
+      SECURITY_PREFERRED_LANGUAGES: ${SECURITY_PREFERRED_LANGUAGES:-en}
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

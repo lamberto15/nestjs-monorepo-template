@@ -55,6 +55,14 @@ Filling `.env` (each step is commented in `env.example`):
   `<script>`, no `eval`. Check a change by loading the built app through Caddy (`docker
 build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviolation`
   events: there must be none.
+- **Security contact** (`/.well-known/security.txt`, RFC 9116). Caddy answers that one
+  path itself (its handle comes before the `@api` matcher); `caddy/entrypoint.sh` writes
+  the file to `/srv/security` at each start from `SECURITY_CONTACT` (one or more
+  `mailto:`/`https:` URIs, comma-separated; the RFC requires it, and unset means no file,
+  a 404), `SECURITY_EXPIRES` (RFC 3339 UTC; unset, a year from the start, so pin it to
+  keep one date), `SECURITY_POLICY` (the `SECURITY.md` URL; the default is this template's
+  on GitHub, so set your own) and `SECURITY_PREFERRED_LANGUAGES` (`en`). Check it after a
+  deploy: `curl -i https://<APP_DOMAIN>/.well-known/security.txt`.
 - **Replacing an earlier deployment's Caddy?** Its token and email:
   `docker inspect --format '{{json .Config.Env}}' <caddy container>`.
 
