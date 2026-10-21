@@ -6,6 +6,7 @@ import {
 } from '@nestjs-monorepo-template/ui/components/tabs';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useCan, useFeature, type Permission } from '@/lib/features';
 import { useListDescription } from '@/lib/list-query';
 import { useRealtimeEvent } from '@/lib/realtime';
@@ -41,7 +42,9 @@ import { TagsPanel } from './tags-panel';
  *
  * The realtime events of the record (`record.commented`,
  * `record.attachments.changed`: docs/webhooks-and-realtime.md, "Record
- * events") reload its comments or attachments.
+ * events") reload its comments or attachments. A file the malware scan
+ * rejects is removed by the API and its uploader notified
+ * (`attachment.rejected`): a toast says so while the record is open.
  */
 export function RecordPanels(props: {
   subject: string;
@@ -71,6 +74,23 @@ export function RecordPanels(props: {
   });
   useRealtimeEvent('record.attachments.changed', (event) => {
     if (ours(event)) {
+      void queryClient.invalidateQueries({
+        queryKey: panelKeys.attachments(props.path, props.id),
+      });
+    }
+  });
+  // An upload the malware scan flagged is deleted, not marked (docs/attachments.md):
+  // its uploader is told why here (the API's notification, in their language)
+  // while a record of the subject is open; the bell has it anywhere else.
+  // The notification also reloads the list: the `removed` event above goes to
+  // the record's watchers only, and the uploader may not be one. It names no
+  // record, so the open one is read again (a rare event, one cheap read).
+  useRealtimeEvent('notification', (event) => {
+    if (
+      event.type === 'attachment.rejected' &&
+      event.data.subject === props.subject
+    ) {
+      toast.error(event.title, { description: event.body });
       void queryClient.invalidateQueries({
         queryKey: panelKeys.attachments(props.path, props.id),
       });

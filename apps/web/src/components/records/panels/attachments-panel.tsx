@@ -1,3 +1,4 @@
+import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
 import {
   Button,
   buttonVariants,
@@ -14,6 +15,7 @@ import {
   FileUploadTrigger,
 } from '@nestjs-monorepo-template/ui/components/file-upload';
 import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
+import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DownloadIcon, LockIcon, UploadIcon, XIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -23,7 +25,7 @@ import { ConfirmButton } from '@/components/confirm-button';
 import { RelativeTime } from '@/features/notifications/relative-time';
 import { errorMessage } from '@/lib/errors';
 import { useMe } from '@/lib/features';
-import { useRealtime } from '@/lib/realtime';
+import { useRealtime, useRealtimeConnected } from '@/lib/realtime';
 import {
   downloadUrl,
   listAttachments,
@@ -70,6 +72,24 @@ function typeLabel(contentType: string) {
   if (office) return office[1];
   return (subtype.split(/[.+-]/).at(-1) ?? subtype).toUpperCase();
 }
+
+/**
+ * A file whose malware scan has not finished (`scanStatus` `pending`,
+ * docs/attachments.md): the API answers its download with 409
+ * `attachment_scan_pending`, so it is not offered.
+ */
+const isScanning = (attachment: Pick<Attachment, 'scanStatus'>) =>
+  attachment.scanStatus === 'pending';
+
+/**
+ * How often a list with a file being scanned is read again. The scan job acts
+ * as the system principal, so `record.attachments.changed` (`scanned`,
+ * `removed`) reaches only the record's watchers, and an uploader who is not
+ * one never hears of the scan's end: the read is what settles their list
+ * (an infected file's notification reloads it sooner, RecordPanels). Hence
+ * a short interval even with a connected socket.
+ */
+const SCAN_POLL = { live: 10_000, offline: 5_000 } as const;
 
 /** Why the browser refuses a file before the upload: `onFileValidate`'s answer. */
 const TYPE_REFUSED = 'type';
@@ -183,6 +203,7 @@ function AttachmentRow(props: {
 }) {
   const { t, i18n } = useTranslation('records');
   const { attachment } = props;
+  const scanning = isScanning(attachment);
   return (
     <li className="flex items-center justify-between gap-3 rounded-lg border p-3">
       <div className="min-w-0">
@@ -195,24 +216,51 @@ function AttachmentRow(props: {
           )}
           <span className="truncate">{attachment.name}</span>
         </p>
-        <p className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
           <span>{typeLabel(attachment.contentType)}</span>
           <span>{formatSize(attachment.size, i18n.language)}</span>
           <RelativeTime value={attachment.createdAt} />
+          {scanning && (
+            // A status, so a screen reader hears it when the upload lands.
+            <Badge variant="secondary" role="status">
+              <Spinner
+                aria-hidden
+                role="presentation"
+                data-icon="inline-start"
+              />
+              {t('attachments.scanning')}
+            </Badge>
+          )}
         </p>
       </div>
       <div className="flex shrink-0 gap-1">
-        {/* The API answers with a redirect to a signed link (5 minutes) and
-            names the file itself (Content-Disposition: attachment). */}
-        <a
-          href={downloadUrl(attachment.id)}
-          download={attachment.name}
-          aria-label={t('attachments.download', { name: attachment.name })}
-          className={buttonVariants({ variant: 'outline', size: 'sm' })}
-        >
-          <DownloadIcon />
-          {t('attachments.downloadShort')}
-        </a>
+        {scanning ? (
+          // Not a link: the download answers 409 until the scan is done.
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            disabled
+            aria-label={t('attachments.downloadScanning', {
+              name: attachment.name,
+            })}
+          >
+            <DownloadIcon />
+            {t('attachments.downloadShort')}
+          </Button>
+        ) : (
+          /* The API answers with a redirect to a signed link (5 minutes) and
+             names the file itself (Content-Disposition: attachment). */
+          <a
+            href={downloadUrl(attachment.id)}
+            download={attachment.name}
+            aria-label={t('attachments.download', { name: attachment.name })}
+            className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          >
+            <DownloadIcon />
+            {t('attachments.downloadShort')}
+          </a>
+        )}
         {props.canRemove && !attachment.locked && (
           <ConfirmButton
             variant="ghost"
@@ -236,8 +284,13 @@ function AttachmentRow(props: {
 }
 
 /**
- * Files on the record: upload (who may change it), download (who may read it),
- * delete (the uploader, or who may change the record; never an issued document).
+ * Files on the record: upload (who may change it), download (who may read it,
+ * once the malware scan is done: a file still being scanned says so and has
+ * no link), delete (the uploader, or who may change the record; never an
+ * issued document). A file found infected is deleted by the API: it leaves
+ * the list on `record.attachments.changed` (`removed`, to the record's
+ * watchers) or when its uploader's rejection notification arrives, and the
+ * uploader is told (RecordPanels).
  */
 export function AttachmentsPanel(props: {
   base: string;
@@ -249,13 +302,21 @@ export function AttachmentsPanel(props: {
   const queryClient = useQueryClient();
   const me = useMe()?.user.id;
   const live = useRealtime() !== undefined;
+  const connected = useRealtimeConnected();
   const key = panelKeys.attachments(props.base, props.id);
   const query = useQuery({
     queryKey: key,
     queryFn: () => listAttachments(props.base, props.id),
     // `record.attachments.changed` reloads it (RecordPanels); polled only
-    // without realtime.
-    refetchInterval: live ? false : 60_000,
+    // without realtime, and while a file is being scanned (SCAN_POLL).
+    refetchInterval: (q) =>
+      q.state.data?.some(isScanning)
+        ? connected
+          ? SCAN_POLL.live
+          : SCAN_POLL.offline
+        : live
+          ? false
+          : 60_000,
   });
   const refresh = () => queryClient.invalidateQueries({ queryKey: key });
 

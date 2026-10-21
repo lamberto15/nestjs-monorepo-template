@@ -46,6 +46,8 @@
     "locked": "Ausgestelltes Dokument",
     "download": "{{name}} herunterladen",
     "downloadShort": "Herunterladen",
+    "scanning": "Wird gescannt…",
+    "downloadScanning": "{{name}} herunterladen: verfügbar, sobald der Scan abgeschlossen ist",
     "delete": "Löschen",
     "deleteTitle": "Diese Datei löschen?",
     "deleteDescription": "„{{name}}“ wird vom Datensatz entfernt, samt der Datei."
