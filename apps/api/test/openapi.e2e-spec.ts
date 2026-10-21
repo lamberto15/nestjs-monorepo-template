@@ -371,7 +371,10 @@ describe('OpenAPI document (e2e)', () => {
 
   it('documents the unsubscribe link twice, both public: the POST unsubscribes, the GET only says what it stops', () => {
     const route = document.paths['/v1/notifications/unsubscribe/{token}']!;
-    expect(Object.keys(route).sort()).toEqual(['get', 'post']);
+    expect(Object.keys(route).sort((a, b) => a.localeCompare(b))).toEqual([
+      'get',
+      'post',
+    ]);
     for (const operation of Object.values(route)) {
       expect(operation.security ?? []).toEqual([]);
       expect(operation.responses['400']).toBeDefined();
