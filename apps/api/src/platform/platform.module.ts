@@ -110,6 +110,9 @@ import {
   NotificationMail,
 } from './notifications/notification.mails.js';
 import { NotificationsController } from './notifications/notifications.controller.js';
+import { NotificationUnsubscribeController } from './notifications/notification-unsubscribe.controller.js';
+import { NotificationUnsubscribeService } from './notifications/notification-unsubscribe.service.js';
+import { notificationUnsubscribeLinksProvider } from './notifications/notification-unsubscribe.js';
 import {
   inDevelopment,
   TEST_NOTIFICATIONS,
@@ -398,6 +401,7 @@ export class PlatformModule {
         BulkController,
         CustomFieldsController,
         NotificationsController,
+        NotificationUnsubscribeController,
         // Push devices and the SMS number; the provider's inbound STOP/START webhook.
         MessagingController,
         SmsInboundController,
@@ -535,6 +539,8 @@ export class PlatformModule {
         NotificationChannelRegistry,
         NotificationCatalog,
         NotificationsService,
+        NotificationUnsubscribeService,
+        notificationUnsubscribeLinksProvider,
         // IAM's security notifications go through it (iam can't import the platform).
         { provide: IAM_NOTIFIER, useExisting: NotificationsService },
         // The audit log's actor names (iam/audit, `actorName`): the people directory's.

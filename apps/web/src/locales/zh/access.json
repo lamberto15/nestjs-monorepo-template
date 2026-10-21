@@ -141,9 +141,7 @@
       "allFieldsHint": "可限制的字段：{{fields}}。取消勾选以选择。",
       "noFields": "没有可限制的字段。",
       "sensitive": "敏感"
-    },
-    "permissionCount_one": "{{count}} 项权限",
-    "deleteDescription_one": "有 {{count}} 人拥有该角色：他们将失去其权限。"
+    }
   },
   "teams": {
     "title": "团队",

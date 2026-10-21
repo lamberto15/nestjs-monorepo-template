@@ -14,6 +14,7 @@ import {
 import { Throttle, minutes } from '@nestjs/throttler';
 import { z } from 'zod';
 import { AllowInMaintenance } from '../../core/http/maintenance.js';
+import { SessionLifetime } from '../auth/session-lifetime.js';
 import { Captcha } from '../captcha/captcha.guard.js';
 import { CaptchaService } from '../captcha/captcha.service.js';
 import { email } from './account.schemas.js';
@@ -65,6 +66,7 @@ export class TokensController {
     private readonly tokens: TokenService,
     private readonly account: AccountService,
     private readonly captcha: CaptchaService,
+    private readonly lifetime: SessionLifetime,
   ) {}
 
   @Throttle({ default: { limit: 5, ttl: minutes(15) } })
@@ -118,9 +120,11 @@ export class TokensController {
   @ApiUnauthorizedResponse({
     description: 'Unknown, expired or reused refresh token.',
   })
-  refresh(
+  async refresh(
     @Body({ schema: refreshSchema }) body: z.infer<typeof refreshSchema>,
   ) {
+    // A family past its tenant's session limits is refused (401) and revoked.
+    await this.lifetime.assertRefreshable(body.refreshToken);
     return this.tokens.refresh(body.refreshToken);
   }
 

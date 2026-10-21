@@ -161,6 +161,30 @@ cause). It never goes to an address that **bounced hard** (the mailbox
 isn't there; a reset mail to it only hurts the reputation) or that an
 administrator **listed** (their decision stands until they remove it).
 
+**Unsubscribe headers (RFC 8058).** Gmail and Yahoo require bulk senders
+to support one-click unsubscribe, and a recipient who can't find it reports
+the mail as spam, which is what the complaint rate counts. Notification and
+digest mail (not essential mail) carries `List-Unsubscribe` with an https
+URL and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`
+([notifications.md](notifications.md), "For clients"). Three
+things for the deployment:
+
+- **`APP_URL` must be https** and reachable by the providers (the POST comes from
+  Gmail's or Yahoo's servers, not the recipient's browser); `POST
+  /v1/notifications/unsubscribe/{token}` is public and rate-limited like any route.
+- **DKIM must cover both headers** (RFC 8058: the message needs a valid signature covering `List-Unsubscribe`
+  and `List-Unsubscribe-Post`, or a receiver ignores them). The app sets the headers; the signature
+  is made where your mail leaves: SES Easy DKIM, Postmark, Resend and SendGrid sign for you
+  (which headers they include is theirs to decide, so check), and the SMTP transport's own signer (`DkimOptions`, not enabled by this template's
+  settings) signs every custom header by default. Check once after
+  setting up: send a notification mail, open the original message and see that
+  the `h=` list of `DKIM-Signature` names `list-unsubscribe` and `list-unsubscribe-post`
+  (Gmail: "Show original", then look for `DKIM: PASS`). A provider or relay that
+  doesn't sign them needs its setting changed or a signer in front.
+- `MAIL_UNSUBSCRIBE_MAILTO` adds a `mailto:` to `List-Unsubscribe` for older
+  clients. **Nothing in the app reads that mailbox**: leave it empty unless your mail
+  setup acts on messages sent to it.
+
 **Soft bounces expire.** A `soft_bounce` suppression lasts
 `MAIL_SOFT_BOUNCE_SUPPRESSION_HOURS` (72): a full mailbox gets emptied,
 and the provider only reports a delivery when delivery notices are on.
