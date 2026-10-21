@@ -189,12 +189,30 @@ export function panelHandlers(
           }),
         ]),
     http.get('/v1/people', ({ request }) => {
-      const q = new URL(request.url).searchParams.get('q') ?? '';
+      const query = new URL(request.url).searchParams;
+      const q = query.get('q') ?? '';
+      const keys = query.get('key')?.split(',');
+      // `?key=` names these keys (an author's picture, the comments' names); `?q=` searches.
+      if (keys) {
+        return HttpResponse.json({
+          items: [MAYA, ...(options.people ?? [])]
+            .filter((p) => keys.includes(`user:${p.id}`))
+            .map((p) => ({
+              key: `user:${p.id}`,
+              name: p.name,
+              avatarUrl: null,
+            })),
+        });
+      }
       calls.peopleQueries.push(q);
       return HttpResponse.json({
         items: (options.people ?? [])
           .filter((p) => p.name.toLowerCase().includes(q.toLowerCase()))
-          .map((p) => ({ key: `user:${p.id}`, name: p.name })),
+          .map((p) => ({
+            key: `user:${p.id}`,
+            name: p.name,
+            avatarUrl: null,
+          })),
       });
     }),
     http.get('/v1/tags', () => page(options.tags ?? [])),
