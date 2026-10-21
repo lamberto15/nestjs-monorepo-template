@@ -23,7 +23,9 @@ export default defineConfig({
     // slower and random ones hit their timeouts (#127). With half, the
     // same 3 runs finished sooner and the slowest test took 2 s, not 10. A
     // run alone is no slower: the last workers only add contention.
-    maxWorkers: '50%',
+    // CI is the exception: its web job runs this package's Vitest alone
+    // (`turbo run test --filter`), so all of its 4 CPUs go to the tests.
+    maxWorkers: process.env.CI ? '100%' : '50%',
     // Headroom for a loaded machine (CI's 4 CPUs, agents running e2e
     // beside it): the slowest test takes ~1.7 s alone, so 5 s (the default)
     // left 3×. Paired with Testing Library's asyncUtilTimeout in

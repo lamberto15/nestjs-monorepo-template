@@ -467,7 +467,8 @@ rather than a component alone.
 - **`findToast(text)`** (`src/test/toast.ts`) waits until a sonner toast is
   visible: sonner mounts it hidden, so `findByText` alone may return it
   before `toBeVisible()` holds.
-- **Timing** (`vitest.config.ts`, `src/test/setup.ts`): `maxWorkers: '50%'`,
+- **Timing** (`vitest.config.ts`, `src/test/setup.ts`): `maxWorkers: '50%'` (`'100%'` when `CI` is set: CI's web job
+  runs this package alone),
   because `pnpm test` runs every package's Vitest at once; `testTimeout`
   15 s and Testing Library's `asyncUtilTimeout` 3 s, headroom for a loaded
   machine; `fsModuleCache: false`, since Vitest's module cache kept stale
