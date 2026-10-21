@@ -81,8 +81,8 @@ api:
     NODE_OPTIONS: --max-old-space-size=384
     PASSWORD_HASH_CONCURRENCY: "2"
   resources:
-    requests: { cpu: 250m, memory: 512Mi }
-    limits: { cpu: "1", memory: 768Mi }
+    requests: { cpu: 250m, memory: 512Mi, ephemeral-storage: 128Mi }
+    limits: { cpu: "1", memory: 768Mi, ephemeral-storage: 1Gi }
   terminationGracePeriodSeconds: 30
   podDisruptionBudget:
     enabled: true
@@ -99,8 +99,8 @@ worker:
     NODE_OPTIONS: --max-old-space-size=768
     PASSWORD_HASH_CONCURRENCY: "1"
   resources:
-    requests: { cpu: 250m, memory: 768Mi }
-    limits: { cpu: "1", memory: 1Gi }
+    requests: { cpu: 250m, memory: 768Mi, ephemeral-storage: 128Mi }
+    limits: { cpu: "1", memory: 1Gi, ephemeral-storage: 1Gi }
   terminationGracePeriodSeconds: 60
   podDisruptionBudget:
     enabled: false
@@ -115,8 +115,8 @@ migrate:
   backoffLimit: 3
   activeDeadlineSeconds: 900
   resources:
-    requests: { cpu: 100m, memory: 256Mi }
-    limits: { cpu: "1", memory: 512Mi }
+    requests: { cpu: 100m, memory: 256Mi, ephemeral-storage: 128Mi }
+    limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 1Gi }
 
 # The web app: the published Caddy image serves its static files (/srv/web)
 # over plain http; the Ingress sends the API's paths to api and the rest here.
@@ -129,8 +129,8 @@ web:
     digest: ""
   replicas: 2
   resources:
-    requests: { cpu: 50m, memory: 64Mi }
-    limits: { cpu: 500m, memory: 128Mi }
+    requests: { cpu: 50m, memory: 64Mi, ephemeral-storage: 128Mi }
+    limits: { cpu: 500m, memory: 128Mi, ephemeral-storage: 1Gi }
   podDisruptionBudget:
     enabled: true
     minAvailable: 1
@@ -161,8 +161,8 @@ gotenberg:
     tag: ""
     digest: ""
   resources:
-    requests: { cpu: 250m, memory: 512Mi }
-    limits: { cpu: "1", memory: 1Gi }
+    requests: { cpu: 250m, memory: 512Mi, ephemeral-storage: 128Mi }
+    limits: { cpu: "1", memory: 1Gi, ephemeral-storage: 1Gi }
 
 # Files on a volume (STORAGE_DRIVER=local) need a ReadWriteMany class shared by
 # api and worker; S3 (the default above) needs nothing here.
