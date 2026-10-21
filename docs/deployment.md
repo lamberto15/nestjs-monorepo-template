@@ -107,6 +107,7 @@ rollback is one command).
 | Rolling (Compose)    | `pnpm deploy:rolling`    | deploy the previous `APP_IMAGE`                                      | one host, the default: new replicas start beside the old, which stop once the new are healthy ([deploy-rolling.md](deploy-rolling.md))   |
 | Blue-green (Compose) | `pnpm deploy:blue-green` | `pnpm deploy:blue-green rollback`: instant while the old colour runs | one host, an instant switch back matters, 2× the API's resources during a deploy are fine ([deploy-blue-green.md](deploy-blue-green.md)) |
 | Docker Swarm         | `pnpm deploy:swarm`      | automatic on a failed health check, or `pnpm deploy:swarm rollback`  | one or more nodes, updates and rollback by the orchestrator ([deploy-swarm.md](deploy-swarm.md))                                         |
+| Kubernetes (Helm)    | `helm upgrade --install` | `helm rollback`; the migrate Job is a pre-upgrade hook               | a managed cluster ([deploy-kubernetes.md](deploy-kubernetes.md))                                                                         |
 
 A plain `docker compose up -d --build` is not one of them: it recreates the
 replicas in place (below, what Caddy does about that).

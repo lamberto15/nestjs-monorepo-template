@@ -1,0 +1,26 @@
+# Values of CI's helm lint, template and kind smoke test (.github/workflows/helm.yml).
+domain: app.example.test
+image:
+  repository: app
+  tag: ci
+  pullPolicy: Never
+web:
+  image:
+    repository: ghcr.io/example/app/caddy
+    tag: '1'
+gotenberg:
+  image:
+    repository: ghcr.io/example/app/gotenberg
+    tag: '1'
+prometheusRule:
+  enabled: true
+ingress:
+  className: nginx
+  tlsSecretName: app-tls
+redisUrl: redis://redis:6379/0
+secret:
+  data:
+    database_url: postgres://app_runtime:ci@postgres:5432/app
+    database_owner_url: postgres://app:ci@postgres:5432/app
+    database_maintenance_url: postgres://app_maintenance:ci@postgres:5432/app
+    jwt_secret: ci-only-secret-ci-only-secret-ci-only-secret

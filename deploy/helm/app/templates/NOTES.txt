@@ -1,0 +1,7 @@
+{{ include "app.fullname" . }} is deployed: https://{{ .Values.domain }}
+
+  kubectl get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+  kubectl logs job/{{ include "app.fullname" . }}-migrate   # only while the hook's job exists
+
+Rollback: helm rollback {{ .Release.Name }} (the previous image; migrations are
+expand/contract, so the old version runs against the new schema).

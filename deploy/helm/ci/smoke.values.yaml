@@ -1,0 +1,18 @@
+# On top of values.yaml, for the kind cluster: no Ingress controller, the
+# images the cluster doesn't have (web, Gotenberg) left out, one replica.
+ingress:
+  enabled: false
+web:
+  enabled: false
+gotenberg:
+  enabled: false
+prometheusRule:
+  enabled: false
+api:
+  autoscaling:
+    enabled: false
+  replicas: 1
+  podDisruptionBudget:
+    enabled: false
+env:
+  GOTENBERG_URL: ''
