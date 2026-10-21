@@ -335,6 +335,7 @@ describe('the environment (env.ts)', () => {
         'OBSERVE_APP_SECRET',
         'POSTMARK_WEBHOOK_SECRET',
         'REDIS_PASSWORD',
+        'RESEND_WEBHOOK_SECRET',
         'REDIS_URL',
         'SMTP_URL',
         'STORAGE_SIGNING_KEYS',

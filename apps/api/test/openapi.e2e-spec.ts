@@ -269,6 +269,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/naming-series/{id}/counter',
         '/v1/notifications',
         '/v1/notifications/preferences',
+        '/v1/notifications/quiet-hours',
         '/v1/notifications/read-all',
         '/v1/notifications/test',
         '/v1/notifications/types',

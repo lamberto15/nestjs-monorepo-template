@@ -958,7 +958,9 @@ copies only: a lost disk loses them too, so set it.
 - **When:** `BACKUP_SCHEDULE` (cron, UTC; `0 3 * * *`). An hourly check
   runs one when the last run failed or the newest backup is older than
   `BACKUP_MAX_AGE_HOURS` (25): a host that was off or asleep catches up,
-  and a failed run is retried every hour. With a less frequent schedule,
+  and a failed run is retried every hour. The same check runs once when
+  the container starts (after the database answers), so a new stack gets its
+  first backup at once instead of at the next schedule. With a less frequent schedule,
   raise `BACKUP_MAX_AGE_HOURS` to match.
 - **The image** (`backup/Dockerfile`): `postgres:18.6-alpine` without `gosu`
   (never used: it runs as `postgres`), rclone, and supercronic built from
