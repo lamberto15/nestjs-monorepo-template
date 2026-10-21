@@ -241,34 +241,27 @@ describe('auth policies (e2e)', () => {
     });
 
     it('refuses requiring two-factor of a caller who has none: 409 mfa_enroll_first, at the tenant, platform and own-team scopes', async () => {
-      const tenant = await node.otherTenant();
-      const team = await tenant.admin
-        .post('/v1/access/teams')
-        .send({ name: 'Mine' })
-        .expect(201);
-      const me = await tenant.admin.get('/v1/auth/me').expect(200);
-      await tenant.admin
-        .patch(`/v1/access/users/${me.body.user.id}`)
-        .send({ teamIds: [team.body.id] })
-        .expect(204);
+      // An administrator of no authenticator, in a team of their own (an
+      // administrator can't change their own teams: the operator adds them).
+      const caller = await node.user(['administrator']);
+      const team = await teamWith(caller.id);
       for (const request of [
-        tenant.admin.put('/v1/settings/auth.requireMfa').send({ value: true }),
-        tenant.admin
+        caller.agent.put('/v1/settings/auth.requireMfa').send({ value: true }),
+        caller.agent
           .put('/v1/settings/auth.requireMfa')
-          .send({ scope: 'team', scopeId: team.body.id, value: true }),
+          .send({ scope: 'team', scopeId: team, value: true }),
       ]) {
         const refused = await request.expect(409);
         expect(refused.body).toMatchObject({ code: 'mfa_enroll_first' });
       }
       // Not requiring it, or requiring it of a team they are not in, is fine.
-      await tenant.admin
+      await caller.agent
         .put('/v1/settings/auth.requireMfa')
         .send({ value: false })
         .expect(200);
-      await tenant.admin.delete('/v1/settings/auth.requireMfa').expect(204);
-      // (The operator isn't enrolled yet: the next test enrols them.)
-      const refusedPlatform = await node
-        .admin()
+      await caller.agent.delete('/v1/settings/auth.requireMfa').expect(204);
+      // An operator too (an administrator of the operators' tenant).
+      const refusedPlatform = await caller.agent
         .put('/v1/settings/auth.requireMfa/platform')
         .send({ value: true })
         .expect(409);
