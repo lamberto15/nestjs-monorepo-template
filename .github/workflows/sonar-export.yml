@@ -1,6 +1,6 @@
-# Scratch branch only, never merged: prints the project's open SonarCloud
-# issues and hotspots to the job log (sonarcloud.io is unreachable from the
-# cloud sessions that work issues #470 and #471). Deleted with its branch.
+# Scratch branch only, never merged: prints SonarCloud data to the job log
+# (sonarcloud.io is unreachable from the cloud sessions that work issues #470
+# and #471). Deleted with its branch.
 name: sonar-export
 
 on:
@@ -13,23 +13,17 @@ jobs:
   export:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      API: https://sonarcloud.io/api
+      KEY: lamberto15_nestjs-monorepo-template
+      PR: '469'
     steps:
-      - name: Open issues
+      - name: Duplicated new lines per file on the pull request
         run: |
-          api=https://sonarcloud.io/api
-          key=lamberto15_nestjs-monorepo-template
-          curl -fsS --retry 3 "$api/issues/search?componentKeys=$key&resolved=false&ps=500" > issues.json
-          echo "total $(jq .total issues.json)"
-          jq -r '.issues | group_by(.rule) | map("\(length) \(.[0].rule)") | .[]' issues.json
-          echo '=== ISSUES rule|severity|file|line|message|flows'
-          jq -r '.issues[] | [
-              .rule, .severity, (.component | sub("^[^:]*:"; "")), ((.line // 0) | tostring), .message,
-              ((.flows // []) | map(.locations | map("\(.component | sub("^[^:]*:"; "")):\(.textRange.startLine) \(.msg // "")") | join(" <- ")) | join(" || "))
-            ] | join(" | ")' issues.json
-      - name: Hotspots to review
-        run: |
-          api=https://sonarcloud.io/api
-          key=lamberto15_nestjs-monorepo-template
-          curl -fsS --retry 3 "$api/hotspots/search?projectKey=$key&status=TO_REVIEW&ps=500" > hotspots.json
-          echo "=== HOTSPOTS total $(jq .paging.total hotspots.json) rule|probability|file|line|message"
-          jq -r '.hotspots[] | [.ruleKey, .vulnerabilityProbability, (.component | sub("^[^:]*:"; "")), ((.line // 0) | tostring), .message] | join(" | ")' hotspots.json
+          curl -fsS --retry 3 "$API/measures/component_tree?component=$KEY&pullRequest=$PR&metricKeys=new_duplicated_lines,new_lines&qualifiers=FIL&ps=500" > tree.json
+          jq -r '.components[] | [.path, (.measures | map("\(.metric)=\(.period.value // .value)") | join(" "))] | join(" | ")' tree.json
+          for f in $(jq -r '.components[] | select(any(.measures[]; .metric=="new_duplicated_lines" and ((.period.value // .value) | tonumber) > 0)) | .key' tree.json); do
+            echo "=== DUPLICATIONS $f"
+            curl -fsS --retry 3 -G "$API/duplications/show" --data-urlencode "key=$f" --data-urlencode "pullRequest=$PR" \
+              | jq -r '.files as $files | .duplications[] | [.blocks[] | "\($files[.["_ref"]].name // .["_ref"]):\(.from)+\(.size)"] | join("  ==  ")'
+          done
