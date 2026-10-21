@@ -312,8 +312,6 @@ describe('live events', () => {
       stream.send('not json');
     });
     const log = screen.getByRole('region', { name: 'Live events' });
-    // A scroll region: the keyboard reaches it to scroll.
-    expect(log).toHaveAttribute('tabindex', '0');
     const items = within(log).getAllByRole('listitem');
     expect(items).toHaveLength(2);
     expect(items[0]).toHaveTextContent('mail');
@@ -387,10 +385,10 @@ describe('live events', () => {
     const stream = await openEvents();
     act(() => stream.send({ source: 'mail', at: Date.now(), type: 'sent' }));
     expect(screen.getByRole('tabpanel')).toBeVisible();
-    expect(screen.getByRole('list', { name: 'Live events' })).toHaveAttribute(
-      'tabindex',
-      '0',
-    );
+    // The scroll region is named and in the tab order; the list inside keeps its role.
+    const log = screen.getByRole('region', { name: 'Live events' });
+    expect(log).toHaveAttribute('tabindex', '0');
+    expect(within(log).getByRole('list')).toBeVisible();
   });
 
   it('closes the stream when leaving the tab', async () => {
