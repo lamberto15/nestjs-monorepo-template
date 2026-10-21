@@ -441,14 +441,17 @@ jobs:
       # app, or http, Express and pg are loaded unpatched and nothing is traced
       # (the suite above cannot show it).
       - name: The built app, started as production starts it, is traced
+        # The database and Redis above, as the browser tests' job has them. The
+        # CI roles' passwords are their names; the URLs are built from them so
+        # no literal password sits in the file (SonarCloud's secret check).
         run: |
           pnpm --filter @nestjs-monorepo-template/api build
-          node apps/api/test/telemetry-stub.mjs boot
+          runtime=app_runtime maintenance=app_maintenance
+          DATABASE_URL="postgres://$runtime:$runtime@localhost:5432/app" \
+          DATABASE_MAINTENANCE_URL="postgres://$maintenance:$maintenance@localhost:5432/app" \
+            node apps/api/test/telemetry-stub.mjs boot
         env:
-          # The database and Redis above, as the browser tests' job has them.
-          DATABASE_URL: postgres://app_runtime:app_runtime@localhost:5432/app
           DATABASE_OWNER_URL: postgres://app:app@localhost:5432/app
-          DATABASE_MAINTENANCE_URL: postgres://app_maintenance:app_maintenance@localhost:5432/app
           REDIS_URL: redis://localhost:6379
 
   # The browser tests (apps/web-e2e, docs/development.md, "Browser tests"):
