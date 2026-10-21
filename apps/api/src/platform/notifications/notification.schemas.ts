@@ -122,3 +122,29 @@ export const unsubscribeSchema = z.object({
     .literal('One-Click')
     .describe('Always `One-Click` (RFC 8058).'),
 });
+
+/**
+ * What an unsubscribe link stops (`GET`, the read-only twin of the POST): a
+ * notification type, or a digest. Never the person's email or id.
+ */
+export const unsubscribeDescriptionSchema = z
+  .discriminatedUnion('kind', [
+    z.object({
+      kind: z.literal('type'),
+      label: z
+        .string()
+        .nullable()
+        .describe(
+          "What the notification type is called, in the request's language. Null when the link would change nothing (the type is gone, or mandatory): the client then speaks generally.",
+        ),
+    }),
+    z.object({
+      kind: z.literal('digest'),
+      modes: z
+        .array(z.enum(['hourly', 'daily']))
+        .describe(
+          'The digests the link stands for: every type the person gets in these modes.',
+        ),
+    }),
+  ])
+  .meta({ example: { kind: 'type', label: 'Mentioned in a comment' } });
