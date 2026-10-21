@@ -5,6 +5,10 @@ import {
   inboundKeyword,
   maskPhone,
   utcDay,
+  previousMonthStart,
+  smsCost,
+  smsSegments,
+  utcMonthStart,
 } from './messaging.policy.js';
 
 describe('inboundKeyword', () => {
@@ -65,4 +69,34 @@ it('masks a number but its country prefix and last digits', () => {
 
 it('counts the UTC day', () => {
   expect(utcDay(new Date('2026-10-20T23:59:59Z'))).toBe('2026-10-20');
+});
+
+describe('SMS cost', () => {
+  it('counts segments: 160 ASCII characters, then 153 each; 70 and 67 with Unicode', () => {
+    expect(smsSegments('')).toBe(1);
+    expect(smsSegments('a'.repeat(160))).toBe(1);
+    expect(smsSegments('a'.repeat(161))).toBe(2);
+    expect(smsSegments('a'.repeat(306))).toBe(2);
+    expect(smsSegments('a'.repeat(307))).toBe(3);
+    expect(smsSegments('é'.repeat(70))).toBe(1);
+    expect(smsSegments('é'.repeat(71))).toBe(2);
+    expect(smsSegments('é'.repeat(135))).toBe(3);
+  });
+
+  it('prices the segments by prefix, else the default', () => {
+    const prices = { '+1': 79, '+44': 120 };
+    expect(smsCost('hi', '+44', prices, 5)).toBe(120);
+    expect(smsCost('a'.repeat(200), '+1', prices, 5)).toBe(158);
+    expect(smsCost('hi', '+49', prices, 5)).toBe(5);
+    expect(smsCost('hi', '+49', prices, 0)).toBe(0);
+  });
+
+  it('names the month the spend counts in', () => {
+    const now = new Date('2026-03-31T23:59:59Z');
+    expect(utcMonthStart(now)).toBe('2026-03-01');
+    expect(previousMonthStart(now)).toBe('2026-02-01');
+    expect(previousMonthStart(new Date('2026-01-05T00:00:00Z'))).toBe(
+      '2025-12-01',
+    );
+  });
 });

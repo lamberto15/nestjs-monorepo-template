@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
+import { ConfigService } from '@nestjs/config';
 import { I18nService } from '@nestjs/i18n';
 import {
   NonRetryableMessageError,
@@ -7,6 +8,7 @@ import {
   type OutboxHandlerContext,
 } from '@nestjs/outbox';
 import { eq } from 'drizzle-orm';
+import type { CoreEnv } from '../../core/config/core.env.js';
 import type { Transaction } from '../../core/database/drizzle.js';
 import {
   database,
@@ -21,6 +23,7 @@ import { apiClients } from '../../iam/iam.tables.js';
 import { NotificationCatalog } from './notification-catalog.js';
 import { NotificationChannelRegistry } from './notification-channel.registry.js';
 import { same } from './notification-preferences.js';
+import { quietUntil } from './quiet-hours.js';
 import {
   NOTIFICATIONS_TOPIC,
   type NotificationChannel,
@@ -60,6 +63,7 @@ export class NotificationDeliveryHandler {
     private readonly users: UsersRepository,
     private readonly i18n: I18nService,
     private readonly system: SystemContext,
+    private readonly config: ConfigService<CoreEnv, true>,
   ) {}
 
   @OnOutboxMessage(NOTIFICATIONS_TOPIC, { consumer: 'notifications' })
@@ -113,6 +117,16 @@ export class NotificationDeliveryHandler {
           locale,
           ...this.catalog.render(row.type, row.data, row.count, locale),
         };
+        // Quiet hours hold back what disturbs (push, SMS), but not an urgent type.
+        const quiet =
+          recipient.kind === 'user' && !declaration.urgent
+            ? quietUntil(
+                new Date(),
+                await this.notifications.quietHoursOf(row.recipient),
+                recipient.timezone ??
+                  this.config.get('APP_TIMEZONE', { infer: true }),
+              )
+            : null;
         const deliveries: {
           channel: NotificationChannel;
           delivery: NotificationDelivery;
@@ -123,7 +137,13 @@ export class NotificationDeliveryHandler {
           if (channel.settings && same(setting, channel.settings.off)) continue;
           deliveries.push({
             channel,
-            delivery: { notification: row, recipient, setting, rendered },
+            delivery: {
+              notification: row,
+              recipient,
+              setting,
+              rendered,
+              ...(quiet ? { quietUntil: quiet } : {}),
+            },
           });
         }
         const result = await inTransaction(this.txHost, async (tx) =>

@@ -128,6 +128,7 @@ describe('notifications of notes (e2e)', () => {
       type: 'note.deleted',
       label: 'Note deleted by someone else',
       mandatory: true,
+      urgent: false,
       channels: { email: 'immediate' },
     });
   });

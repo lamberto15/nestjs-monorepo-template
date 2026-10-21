@@ -414,6 +414,13 @@
       "when": 1792591712924,
       "tag": "0058_neat_ozymandias",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1792595229772,
+      "tag": "0059_brave_spot",
+      "breakpoints": true
     }
   ]
 }

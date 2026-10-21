@@ -18,7 +18,12 @@ export interface PushPayload {
 export interface PushProvider {
   readonly name: string;
   readonly platforms: readonly DevicePlatform[];
-  send(token: string, payload: PushPayload): Promise<'sent' | 'gone'>;
+  /** `platform` is the device's; a provider serving several (the composite) routes by it. */
+  send(
+    token: string,
+    payload: PushPayload,
+    platform?: DevicePlatform,
+  ): Promise<'sent' | 'gone'>;
 }
 
 export class PushSendError extends Error {
