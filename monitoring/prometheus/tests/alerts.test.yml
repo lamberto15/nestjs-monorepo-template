@@ -902,3 +902,34 @@ tests:
             exp_annotations:
               summary: 'The host CPU is 95% busy'
               description: The CPUs have been over 90% busy for 15 minutes. `docker stats` says which container; scale out or raise the host.
+
+  - name: the collector refuses the telemetry
+    interval: 1m
+    input_series:
+      # Refused at every minute for 10 minutes, then accepted again.
+      - series: 'telemetry_rejected_total{job="worker",instance="10.0.0.4:3000",target="otlp",status="429"}'
+        values: '0+1x10 10x20'
+      # The same refusals counted by another replica: one alert, not two.
+      - series: 'telemetry_rejected_total{job="worker",instance="10.0.0.5:3000",target="otlp",status="429"}'
+        values: '0+1x10 10x20'
+      # Never refused.
+      - series: 'telemetry_rejected_total{job="api",instance="10.0.0.2:3000",target="observe",status="401"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: TelemetryRejected
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: TelemetryRejected
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: worker
+              target: otlp
+              status: '429'
+            exp_annotations:
+              summary: 'Telemetry is rejected by otlp (429)'
+              description: 'The worker uploads to otlp were refused with HTTP 429 for 5 minutes: 401/403 a wrong or revoked key, 429 the plan is out of credits. Traces, metrics and errors are being dropped. Check OBSERVE_APP_KEY, OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_EXPORTER_OTLP_HEADERS, and the collector''s quota (docs/deployment.md, "Telemetry").'
+      - eval_time: 28m
+        alertname: TelemetryRejected
+        exp_alerts: []

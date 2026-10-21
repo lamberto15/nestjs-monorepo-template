@@ -3,7 +3,14 @@ import { acrossTenantsReadOnly } from '../tenancy/tenant-scope.js';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { getHeapStatistics } from 'node:v8';
 import { Injectable, Logger } from '@nestjs/common';
-import { collectDefaultMetrics, Gauge, Histogram, Registry } from 'prom-client';
+import {
+  collectDefaultMetrics,
+  Counter,
+  Gauge,
+  Histogram,
+  Registry,
+} from 'prom-client';
+import { onTelemetryRejected } from '../observability/telemetry-health.js';
 
 /** A collector that takes longer (Redis or PostgreSQL away) is given up: the scrape goes on without it. */
 const COLLECT_TIMEOUT_MS = 2_000;
@@ -47,8 +54,23 @@ export class MetricsService {
     registers: [this.registry],
   });
 
+  /**
+   * Telemetry the collector turned away (401, 403, 429), by pipeline: a
+   * dead export that the app itself would never notice
+   * (observability/telemetry-health.ts, the TelemetryRejected alert).
+   */
+  readonly telemetryRejected = new Counter({
+    name: 'telemetry_rejected_total',
+    help: 'Telemetry uploads refused by the collector, by target (observe, otlp, sentry) and HTTP status.',
+    labelNames: ['target', 'status'] as const,
+    registers: [this.registry],
+  });
+
   constructor() {
     collectDefaultMetrics({ register: this.registry });
+    onTelemetryRejected((target, status) =>
+      this.telemetryRejected.inc({ target, status: String(status) }),
+    );
     // Not among prom-client's defaults: what the heap alert compares the used heap with.
     this.collect(
       'nodejs_heap_size_limit_bytes',

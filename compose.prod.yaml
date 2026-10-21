@@ -170,6 +170,11 @@ x-app: &app
     # Observability (NestJS Observe, when both are set)
     OBSERVE_APP_KEY: ${OBSERVE_APP_KEY:-}
     OBSERVE_APP_SECRET: ${OBSERVE_APP_SECRET:-}
+    # OpenTelemetry (OTLP/HTTP) and Sentry, each off when empty
+    OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+    SENTRY_DSN: ${SENTRY_DSN:-}
+    SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-}
     # Prometheus' bearer token for GET /metrics (unset: 404); scraped inside the network only.
     METRICS_TOKEN: ${METRICS_TOKEN:-}
     # The example feature

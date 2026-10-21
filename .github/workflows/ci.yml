@@ -378,6 +378,58 @@ jobs:
           # The tests create their databases here (a template, then a copy per app).
           TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
 
+  # One shard of the e2e suite with the instrumentation on: OpenTelemetry
+  # (OTEL_EXPORTER_OTLP_ENDPOINT) and Sentry (SENTRY_DSN) pointing at a stub
+  # collector on loopback (apps/api/test/telemetry-stub.mjs). test/setup-env.ts
+  # starts the SDKs when either is set, as main.ts does, so http, Express, pg
+  # and ioredis are patched while the tests run: the instrumentation must not
+  # break the app (as NestJS Observe's proxies broke the mail transports and
+  # the lock-decorated jobs, issue #392), and the collector must have received
+  # traces (docs/deployment.md, "Telemetry"). Hosted vendors need credentials
+  # CI doesn't have, so NestJS Observe's own path is covered by observe.spec.ts.
+  e2e-telemetry:
+    needs: compose-images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      redis:
+        image: ${{ needs.compose-images.outputs.redis }}
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+      postgres:
+        image: ${{ needs.compose-images.outputs.postgres }}
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - name: The stub collector (OTLP/HTTP and Sentry's envelope endpoint)
+        run: |
+          nohup node apps/api/test/telemetry-stub.mjs serve 4318 > "$RUNNER_TEMP/stub.log" 2>&1 &
+          for _ in $(seq 1 20); do
+            curl -fs http://127.0.0.1:4318/stats && break
+            sleep 0.5
+          done
+      - name: The e2e tests with OpenTelemetry and Sentry on
+        run: pnpm test:e2e --shard=1/6
+        env:
+          REDIS_URL: redis://localhost:6379
+          TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
+          OTEL_EXPORTER_OTLP_ENDPOINT: http://127.0.0.1:4318
+          # Spans leave the process every second, not every five.
+          OTEL_BSP_SCHEDULE_DELAY: '1000'
+          SENTRY_DSN: http://public@127.0.0.1:4318/1
+      - name: The collector received traces
+        run: node apps/api/test/telemetry-stub.mjs check 4318
+
   # The browser tests (apps/web-e2e, docs/development.md, "Browser tests"):
   # Playwright drives the built web app on the built API with the demo data,
   # on one origin (`vite preview` proxies /v1 as Caddy does), against this

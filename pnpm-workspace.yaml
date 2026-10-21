@@ -10,6 +10,8 @@ overrides:
   'exceljs>uuid': 14.0.3
 allowBuilds:
   '@scarf/scarf': false
+  # OpenTelemetry's OTLP transformer: the postinstall only prints a notice.
+  protobufjs: false
   # drizzle-kit's bundler: its script checks the platform binary.
   esbuild: true
   # Its postinstall runs `lefthook install`, the git hooks (lefthook.yml);

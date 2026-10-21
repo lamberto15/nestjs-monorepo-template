@@ -1,5 +1,7 @@
 // First: .env.development into process.env, before the modules below are evaluated.
 import './dev-env.js';
+// Second: OpenTelemetry and Sentry patch the libraries loaded after them.
+import './core/observability/instrument.js';
 import type { Server } from 'node:http';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
