@@ -203,6 +203,7 @@
       "saved": "我已保存",
       "requiredTitle": "必须启用双重验证",
       "required": "您的组织要求使用双重验证：请先设置才能继续。",
+      "redirected": "请先设置双重验证，然后才能继续。",
       "remaining_one": "还剩 {{count}} 个恢复码。"
     },
     "passkeys": {

@@ -203,7 +203,8 @@
       "copied": "Kopiert.",
       "saved": "Ich habe sie gespeichert",
       "requiredTitle": "Zwei-Faktor ist erforderlich",
-      "required": "Ihre Organisation verlangt die Zwei-Faktor-Authentifizierung: Richten Sie sie ein, um fortzufahren."
+      "required": "Ihre Organisation verlangt die Zwei-Faktor-Authentifizierung: Richten Sie sie ein, um fortzufahren.",
+      "redirected": "Richten Sie die Zwei-Faktor-Authentifizierung ein, bevor Sie fortfahren."
     },
     "passkeys": {
       "title": "Passkeys",
