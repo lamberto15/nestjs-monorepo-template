@@ -1,0 +1,33 @@
+name: Bug report
+description: Something does not work as the docs say
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: After filing, add the matching label (backend, frontend, ci or documentation).
+      options:
+        - backend (apps/api)
+        - frontend (apps/web, packages/ui)
+        - ci (workflows, images, deploys)
+        - documentation
+        - not sure
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. pnpm dev ..."
+  - type: input
+    id: version
+    attributes:
+      label: Commit or release
+      placeholder: "v0.1.0 or a commit SHA"
