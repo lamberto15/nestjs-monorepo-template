@@ -372,9 +372,9 @@ capabilities it gets back:
 | --- | --- | --- |
 | `api`, `worker`, `migrate` | `/tmp` (64m tmpfs); `api` and `worker` also the `app_storage` volume | none |
 | `postgres` | the `postgres_data` volume, `/tmp` (64m) and `/run/postgresql` (the socket) in memory | `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, `SETUID`: the image's entrypoint starts as root, fixes the data directory and drops to `postgres` |
-| `redis` | the `redis_data` volume, `/tmp` (16m) | `CHOWN`, `SETGID`, `SETUID`: the entrypoint chowns `/data` and drops to `redis` |
+| `redis` | the `redis_data` volume, `/tmp` (16m) | `DAC_OVERRIDE`: the command is `sh redis.sh`, not `redis-server`, so the image's entrypoint never drops to `redis`; the server runs as root on a volume that is `redis`'s, which root can't write without it |
 | `caddy` | the `caddy_data` and `caddy_config` volumes, `/tmp` (16m) | `NET_BIND_SERVICE`: ports 80 and 443 |
-| `backup` | the `backups` volume, `/tmp` (16m); `app_storage` stays read only | none |
+| `backup` | the `backups` volume, `/tmp` (16m); `app_storage` stays read only | none (a files restore adds three: [Restoring](#restoring), step 4) |
 | `gotenberg` | `/tmp` and its home, in memory (see above) | none |
 
 - **The tmpfs counts against the container's memory limit** once used, so
@@ -390,8 +390,17 @@ capabilities it gets back:
   `compose.yaml` / `compose.dev.yaml` alone (development), which keep the
   images' defaults.
 - **Swarm** ([deploy-swarm.md](deploy-swarm.md)) renders these files, so it
-  inherits `read_only`, `tmpfs` and the capabilities; `security_opt` is
+  inherits `read_only` and the capabilities. `docker stack deploy` ignores a
+  service's `tmpfs:` list, so `tools/deploy/render.mjs` turns each entry into
+  a `type: tmpfs` volume (the size only: Gotenberg's `uid` and `gid` have no
+  Swarm equivalent, the mount is writable by anyone). `security_opt` is
   dropped there.
+- **CI** (`.github/workflows/ci.yml`): `compose-secrets` fails when a service
+  of `compose.yaml` + `compose.prod.yaml` lacks the keys, whichever service
+  it is; `hardened-stack` starts the stack on new volumes and fails when a
+  container exits, restarts, is unhealthy or logs `Read-only file system`.
+  Not started there: the production Caddy (its certificate needs a public
+  name; the job runs the stock Caddy image on plain HTTP) and Gotenberg.
 
 ## Staging
 
@@ -1144,9 +1153,16 @@ BACKUP_S3_ACCESS_KEY_ID=… -e BACKUP_S3_SECRET_ACCESS_KEY=…`).
    files keep the app's owner):
 
    ```bash
-   docker compose run --rm --user root -v app_storage:/restore \
-     -e BACKUP_STORAGE_DIR=/restore backup restore files-<time>.tar.gz
+   docker compose run --rm --user root \
+     --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER \
+     -v app_storage:/restore -e BACKUP_STORAGE_DIR=/restore \
+     backup restore files-<time>.tar.gz
    ```
+
+   The `--cap-add`s: the service drops every capability, and root without
+   them can't write into a directory the app owns, nor read a backup that is
+   mode 600 and the `postgres` user's (`DAC_OVERRIDE`), keep the files'
+   owner (`CHOWN`) or set their modes and times (`FOWNER`).
 
    They are extracted over what the volume holds; files no row points to
    are removed later by the orphan sweep.

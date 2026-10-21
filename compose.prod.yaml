@@ -419,13 +419,16 @@ services:
       - redis_password
     # Hardened (docs/deployment.md, "Container hardening"): /data (the
     # volume) and /tmp (redis.sh's here-document) are the only writable
-    # paths. The image's entrypoint starts as root, chowns /data and drops to
-    # `redis` (su-exec): three capabilities.
+    # paths. The command is `sh redis.sh`, not `redis-server`, so the image's
+    # entrypoint never chowns /data or drops to `redis`: the server runs as
+    # root, on a volume the image made `redis`'s. Root without DAC_OVERRIDE
+    # can't write there (no appendonlydir on a new volume, no RDB save
+    # later): that one capability, and no more.
     read_only: true
     tmpfs:
       - /tmp:size=16m
     cap_drop: [ALL]
-    cap_add: [CHOWN, SETGID, SETUID]
+    cap_add: [DAC_OVERRIDE]
     security_opt: ['no-new-privileges:true']
     deploy:
       resources:
