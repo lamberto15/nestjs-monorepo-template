@@ -114,7 +114,7 @@ function olderTemplate(text, keys) {
       start > 0 &&
       lines[start - 1].startsWith('#') &&
       !/^#\s?[A-Z][A-Z0-9_]*=(?:|\S*[^\s.,;:)])$/.test(lines[start - 1]) &&
-      !/^# feature:/.test(lines[start - 1])
+      !lines[start - 1].startsWith('# feature:')
     )
       start--;
     if (start > 0 && lines[start - 1] === '') start--;
