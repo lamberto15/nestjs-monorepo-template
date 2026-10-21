@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "The NestJS API: HTTP, WebSockets and the workers (one image, three commands: node dist/main, dist/worker, dist/migrate).",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "type": "module",
   "files": [
     "dist",

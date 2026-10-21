@@ -8,6 +8,31 @@ Every route is under `/v1` (URI versioning). A breaking change ships as `/v2`
 next to it: `@Version('2')` on a route, or `@Controller({ version: '2' })`.
 `/health`, `/files` and the docs (`/api`) have no version.
 
+### Deprecation
+
+A route that is going away says so, so clients don't learn by breaking:
+
+```ts
+@Get('old')
+@Deprecated({
+  since: '2026-10-21', // Deprecation: @1792540800 (RFC 9745, a structured-field date)
+  sunset: '2027-04-21', // Sunset: Wed, 21 Apr 2027 00:00:00 GMT (RFC 8594)
+  link: 'https://…/deprecations/x', // Link: <…>; rel="deprecation"
+  successor: '/v2/new', // Link: <…>; rel="successor-version"
+})
+```
+
+`@Deprecated()` (`core/http/deprecated.ts`) goes on a route or a controller.
+Besides the headers, the OpenAPI operation is `deprecated: true` (the typed
+client's generated types then carry `@deprecated`) and every call counts in
+`deprecated_route_calls_total{route}` ([metrics](deployment.md#metrics)):
+remove the route when the rate has been zero past its sunset date.
+
+Policy: a version (or route) is deprecated when its successor ships, lives at
+least **6 months** after that (or until its sunset date, whichever is later),
+and is removed in a release whose notes say so ([releases](releases.md),
+"Removing a deprecated route"). Sunset dates are never moved earlier.
+
 ## Errors: RFC 9457 problem details
 
 Every error, whatever produced it, is `application/problem+json`:

@@ -176,3 +176,7 @@ Releases and the roadmap
 - [Releases](docs/releases.md): template releases and their notes, the typed client's versions (Changesets)
 - [Upgrading](docs/upgrading.md): pulling template updates into your project (the merge, conflicts, migrations)
 - [Roadmap](docs/roadmap.md): what gets built next, and the status of what is done
+
+## License
+
+[MIT](LICENSE).

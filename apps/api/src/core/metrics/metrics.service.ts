@@ -66,6 +66,14 @@ export class MetricsService {
     registers: [this.registry],
   });
 
+  /** Calls to routes marked `@Deprecated()`: when it stops rising, the route can go. */
+  readonly deprecatedCalls = new Counter({
+    name: 'deprecated_route_calls_total',
+    help: 'Calls to deprecated routes, by route pattern.',
+    labelNames: ['route'] as const,
+    registers: [this.registry],
+  });
+
   constructor() {
     collectDefaultMetrics({ register: this.registry });
     onTelemetryRejected((target, status) =>
