@@ -22,7 +22,6 @@
     "retry": "Cuba semula yang gagal",
     "retryTitle": "Cuba semula kerja {{name}} yang gagal?",
     "retryDescription": "{{count}} kerja yang gagal dikembalikan ke baris gilir dan dijalankan semula.",
-    "retried_one": "{{count}} kerja dikembalikan ke baris gilir.",
     "retried_other": "{{count}} kerja dikembalikan ke baris gilir.",
     "failures": "Kegagalan terkini {{name}}",
     "job": "Kerja",
@@ -59,7 +58,6 @@
     "requeueOneDescription": "Mesej untuk {{topic}} dikembalikan ke peti keluar dan dicuba semula.",
     "requeueAllTitle": "Beratur semula semua surat mati?",
     "requeueAllDescription": "Semua surat mati (kini {{count}}) dikembalikan ke peti keluar dan dicuba semula.",
-    "requeued_one": "{{count}} surat mati diberatur semula.",
     "requeued_other": "{{count}} surat mati diberatur semula.",
     "purge": "Padam",
     "purgeAll": "Padam semua",
@@ -67,7 +65,6 @@
     "purgeOneDescription": "Mesej untuk {{topic}} dipadam selama-lamanya. Ia tidak boleh diberatur semula selepas itu.",
     "purgeAllTitle": "Padam semua surat mati?",
     "purgeAllDescription": "Semua surat mati (kini {{count}}) dipadam selama-lamanya. Ia tidak boleh diberatur semula selepas itu.",
-    "purged_one": "{{count}} surat mati dipadam.",
     "purged_other": "{{count}} surat mati dipadam."
   },
   "events": {

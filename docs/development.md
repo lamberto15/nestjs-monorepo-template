@@ -229,6 +229,7 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 | `pnpm start:debug` | the same with the Node.js inspector (`nest start --debug --watch`) |
 | `pnpm dev:web` | the web app's dev server alone, http://localhost:5173; it proxies `/v1`, `/health` and `/socket.io` to the API on :3000, so the session cookie is same-origin |
 | `pnpm build && pnpm lint && pnpm test && pnpm test:e2e` | the check before every commit (Turborepo: a task whose inputs didn't change is replayed from `.turbo/cache`) |
+| `pnpm i18n:check` | the translation parity check (also run by `pnpm lint`): every locale's keys, placeholders and plural forms against `en`, web and API ([i18n](i18n-and-time.md)) |
 | `pnpm format` | Prettier on the TypeScript of every package (not on Markdown, nor `packages/ui`: the shadcn CLI writes it) |
 | `pnpm db:generate` | a migration from the tables (after any `*.tables.ts` change) |
 | `pnpm db:generate:fixtures` | the test-only record's migrations (`apps/api/test/fixtures/drizzle`), after changing `test/fixtures/test-items` |
@@ -375,6 +376,12 @@ A baseline of what four routes cost under load on the production stack, and
 a socket.io check beside it, kept from run to run, so a change that makes one twice as slow fails, and the
 cost of tenancy's row-level security ([roadmap](roadmap.md), 1a) can be
 measured against numbers taken before it ([roadmap](roadmap.md), 17-lite).
+
+The same stack serves two more checks: the **restore drill**
+(`scripts/restore-drill.sh`, [deployment.md](deployment.md), "Restore drill")
+and **PgBouncer** (`LOADTEST_PGBOUNCER=on` adds `compose.pgbouncer.yaml`,
+"PgBouncer"). `loadtest/run.sh compose <args>` runs any `docker compose`
+command on it.
 
 | Scenario | Request | Load (one minute each, one after the other) |
 | --- | --- | --- |

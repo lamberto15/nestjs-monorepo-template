@@ -920,6 +920,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notifications/unsubscribe/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * One-click unsubscribe from notification mail
+         * @description No sign-in: the token of the mail's `List-Unsubscribe` link (RFC 8058). Switches the mail of that notification type (or of that digest's types) off in the user's preferences; mandatory types are never switched off. Repeating it changes nothing. The body is the form `List-Unsubscribe=One-Click` mail clients post (JSON with the same field works too). Audited (`notificationPreferences.updated`, `via: unsubscribe`).
+         */
+        post: operations["NotificationUnsubscribeController_unsubscribeByLink_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/devices": {
         parameters: {
             query?: never;
@@ -9511,6 +9531,42 @@ export interface operations {
             };
         };
     };
+    NotificationUnsubscribeController_unsubscribeByLink_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description Always `One-Click` (RFC 8058).
+                     * @enum {string}
+                     */
+                    "List-Unsubscribe": "One-Click";
+                };
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The link is invalid or expired, the account is gone, or the body is not `List-Unsubscribe=One-Click`: the link errors share one answer. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     MessagingController_devices_v1: {
         parameters: {
             query?: never;
@@ -17597,6 +17653,21 @@ export interface operations {
                              * @description Until when the sensitive routes accept it without a re-authentication (POST /auth/reauthenticate); past, or null, they want one now.
                              */
                             recentUntil: string | null;
+                        } | null;
+                        /** @description A browser session's lifetime, for a warning before it ends. Always sent; null for a token or an impersonation. */
+                        session?: {
+                            /** @description Minutes without a request after which this session ends: the tenant's auth.sessionIdleMinutes under the deployment's SESSION_IDLE_MINUTES. */
+                            idleMinutes: number;
+                            /**
+                             * Format: date-time
+                             * @description The last request this session made, as stored.
+                             */
+                            lastActiveAt: string;
+                            /**
+                             * Format: date-time
+                             * @description When it ends however active: the tenant's auth.sessionMaxHours after the sign-in, under the deployment's SESSION_MAX_HOURS.
+                             */
+                            expiresAt: string;
                         } | null;
                         /** @description Every action of the permission catalog as "Subject.action": true when any of the user's permissions allows it, on some records at least. */
                         can: {

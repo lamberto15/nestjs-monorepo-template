@@ -68,6 +68,7 @@ import { SessionOnly, UserOnly } from './user-only.decorator.js';
 import { DuringMfaEnrollment } from './mfa-enrollment.guard.js';
 import { DuringOnboarding } from './onboarding.js';
 import { AuthPolicyService } from './auth-policy.service.js';
+import { SessionLifetime } from './session-lifetime.js';
 import { SignUpTenant } from '../access/sign-up-tenant.js';
 import { UsersRepository } from './users.repository.js';
 import { WithoutSso } from '../sso/sso-required.guard.js';
@@ -169,6 +170,28 @@ const meSchema = z.object({
         ),
     })
     .nullable(),
+  session: z
+    .object({
+      idleMinutes: z
+        .number()
+        .int()
+        .describe(
+          "Minutes without a request after which this session ends: the tenant's auth.sessionIdleMinutes under the deployment's SESSION_IDLE_MINUTES.",
+        ),
+      lastActiveAt: z.iso
+        .datetime()
+        .describe('The last request this session made, as stored.'),
+      expiresAt: z.iso
+        .datetime()
+        .describe(
+          "When it ends however active: the tenant's auth.sessionMaxHours after the sign-in, under the deployment's SESSION_MAX_HOURS.",
+        ),
+    })
+    .nullable()
+    .optional()
+    .describe(
+      "A browser session's lifetime, for a warning before it ends. Always sent; null for a token or an impersonation.",
+    ),
   can: z
     .record(z.string(), z.boolean())
     .describe(
@@ -236,6 +259,7 @@ export class AuthController {
     private readonly captcha: CaptchaService,
     private readonly tenancy: Tenancy,
     private readonly authPolicy: AuthPolicyService,
+    private readonly lifetime: SessionLifetime,
     private readonly signUpTenant: SignUpTenant,
   ) {}
 
@@ -414,6 +438,7 @@ export class AuthController {
         (await this.accounts.findView(user.id))?.hasPassword ?? false,
       mfaEnrollmentRequired: await this.authPolicy.mfaEnrollmentRequired(user),
       onboardingRequired: user.onboarding ?? null,
+      session: await this.lifetime.describe(session, user),
       authentication: authentication && {
         ...authentication,
         authenticatedAt: authentication.authenticatedAt?.toISOString() ?? null,

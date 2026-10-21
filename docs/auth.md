@@ -1357,6 +1357,8 @@ never loosen it. Unset, every policy is today's behaviour.
 | `auth.requireMfa` | tenant, team | users it applies to who have no authenticator must set one up before anything else (below) | `AUTH_MFA=off`: refused when set (400 `setting_not_allowed`); a stored `true` has no effect |
 | `auth.allowBreakGlass` | tenant | whether the deployment's operators may open the tenant with break-glass (default `true`; `false`: new grants are refused, running ones stop: [tenancy](tenancy.md#break-glass)) | none |
 | `auth.passwordMinLength` | tenant | a new password (change, reset link, an invitation's acceptance, a sign-up with `TENANCY=single`) is at least this long: 400 `password_too_short` (`minLength`, the field in `errors`), checked before the breach check | never under 12 (the floor) nor over 64; 128 stays the maximum |
+| `auth.sessionIdleMinutes` | tenant | a browser session ends after this many minutes without a request (5 to 10080; [below](#session-lifetime)) | `SESSION_IDLE_MINUTES` (120): a longer value is refused (400 `setting_not_allowed`) |
+| `auth.sessionMaxHours` | tenant | a browser session, and a token client's refresh-token family, ends this many hours after the sign-in, however active (1 to 720) | `SESSION_MAX_HOURS` (12): a longer value is refused |
 
 - **Two-factor required.** The first factor signs in as usual (no code
   is asked: there is no authenticator yet), but the session or token is
@@ -1383,6 +1385,34 @@ never loosen it. Unset, every policy is today's behaviour.
   refused with 409 `mfa_enroll_first`: set up two-factor first
   (`SettingsAuthPolicy`, through `SettingsService.guardWrite()`). Turning it
   off, or requiring it of other teams, is never refused.
+- **Session lifetime.** <a id="session-lifetime"></a>The deployment sets
+  the ceiling (`SESSION_IDLE_MINUTES`, default 120, at least 5;
+  `SESSION_MAX_HOURS`, default 12), which the package enforces itself
+  (`session.idleTtl`, `session.absoluteTtl`). A tenant may only shorten
+  them (`auth.sessionIdleMinutes`, `auth.sessionMaxHours`; a setting left
+  at its default, the largest allowed, is no choice), checked on every
+  request by `SessionAuth` through `SessionLifetime`
+  (`iam/auth/session-lifetime.ts`): a session older than the maximum, or
+  idle longer than the timeout *before this request*, answers 401 and is
+  deleted (the store hands over the activity before the request moved it:
+  `sessionExtra.previousActiveAt`). A policy that is turned off frees only
+  sessions not yet ended. The session's tenant decides (a switch of tenant
+  re-issues it, under the new one's policy); an impersonation has its own
+  time (`IMPERSONATION_TTL_MINUTES`) and is left out.
+  **Token clients:** a refresh-token family keeps its own 90 days and has no
+  idle timeout, unless the tenant chose: then `POST /v1/auth/token/refresh`
+  refuses (401, as an expired token) and revokes a family older than
+  `auth.sessionMaxHours` since its sign-in, or not refreshed within
+  `auth.sessionIdleMinutes` plus the access token's 15 minutes (a client
+  working on its access token has not refreshed yet). An access token
+  already issued works until it expires (15 minutes). The tenant of a
+  family is the token's (`tid`).
+  `GET /v1/auth/me` has `session { idleMinutes, lastActiveAt, expiresAt }`
+  for a browser session (null for a token or an impersonation): the web app
+  (`SessionIdleWarning`) counts the user's own activity (pointer, keys,
+  scrolling), tells the API about it with a `me` request at most once a
+  minute, and with no input for `idleMinutes - 2` shows a dialog that
+  counts down and offers "Stay signed in" (another `me` request).
 - **Who meets a minimum length.** A password is the account's, in every
   tenant: the strictest of the tenants it is an active member of; an
   invitation's new address, the inviting tenant's. A reset link is read
@@ -1412,7 +1442,9 @@ never loosen it. Unset, every policy is today's behaviour.
 - **Proof:** `test/auth-policies.e2e-spec.ts` (a team's requirement until
   enrolled, off again, a tenant's requirement with a team's `false`, API
   clients, the `AUTH_MFA=off` ceiling, minimum lengths on change, reset and
-  invitation, per tenant), `iam/auth/auth-policy.spec.ts` (the ceiling).
+  invitation, per tenant), `iam/auth/auth-policy.spec.ts` (the ceiling),
+  `test/session-lifetime.e2e-spec.ts` (idle and maximum, per tenant, the
+  ceiling, token families), `iam/auth/session-lifetime.spec.ts`.
 
 ## Impersonation (support)
 

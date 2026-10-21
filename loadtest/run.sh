@@ -10,6 +10,8 @@
 #   loadtest/run.sh realtime   run the Artillery socket.io scenario against it
 #   loadtest/run.sh down       remove the stack and its volumes
 #   loadtest/run.sh config     the stack's Compose configuration (a check)
+#   loadtest/run.sh compose …  any `docker compose` command on the stack (the
+#                              restore drill, scripts/restore-drill.sh, uses it)
 #
 # LOADTEST_PROJECT  Compose project, loadtest-<name> only (loadtest-local):
 #                   `down` removes its volumes, so it can never name a deployment
@@ -18,6 +20,8 @@
 # LOADTEST_REPLICAS API replicas behind Caddy, 1 to 6 (default 2: compose.prod.yaml's)
 # LOADTEST_CAPTCHA  `always` puts the bot check in place with the stub provider
 #                   (compose.loadtest.yaml); default off. k6 then sends a token
+# LOADTEST_PGBOUNCER `on` adds compose.pgbouncer.yaml: api and worker connect through
+#                   PgBouncer (transaction pooling); default off
 # LOADTEST_REALTIME `off` leaves the Artillery socket.io run out of the default run
 # PHASE_SECONDS, SIGN_IN_RATE, LIST_RATE, CREATE_RATE, EXPORT_RATE: scenarios.js' load
 # REALTIME_RATE     new socket.io connections a second (realtime.yml, default 10)
@@ -44,6 +48,12 @@ fi
 captcha=${LOADTEST_CAPTCHA:-off}
 if [ "$captcha" != off ] && [ "$captcha" != always ]; then
   echo "LOADTEST_CAPTCHA=$captcha: off or always" >&2
+  exit 2
+fi
+
+pgbouncer=${LOADTEST_PGBOUNCER:-off}
+if [[ "$pgbouncer" != off ]] && [[ "$pgbouncer" != on ]]; then
+  echo "LOADTEST_PGBOUNCER=$pgbouncer: on or off" >&2
   exit 2
 fi
 
@@ -90,10 +100,12 @@ fi
 # The files named here, never an exported COMPOSE_FILE (it would drop the
 # overlay: Caddy publishing 80 and 443, the limits not raised).
 compose() {
+  local files=(-f compose.yaml -f compose.prod.yaml -f compose.loadtest.yaml)
+  if [[ "$pgbouncer" = on ]]; then files+=(-f compose.pgbouncer.yaml); fi
   env -u COMPOSE_FILE -u COMPOSE_PROJECT_NAME \
     API_REPLICAS="$replicas" LOADTEST_CAPTCHA="$captcha" docker compose \
     --project-name "$project" --env-file "$env_file" \
-    -f compose.yaml -f compose.prod.yaml -f compose.loadtest.yaml "$@"
+    "${files[@]}" "$@"
 }
 setting() { grep -E "^$1=" "$env_file" | cut -d= -f2-; }
 
@@ -176,6 +188,10 @@ case "${1:-all}" in
   realtime) realtime ;;
   down) down ;;
   config) compose config ;;
+  compose)
+    shift
+    compose "$@"
+    ;;
   all)
     trap down EXIT
     up
@@ -183,7 +199,7 @@ case "${1:-all}" in
     if [ "${LOADTEST_REALTIME:-on}" != off ]; then realtime; fi
     ;;
   *)
-    echo "usage: $0 [up|run|realtime|down|config|all]" >&2
+    echo "usage: $0 [up|run|realtime|down|config|compose …|all]" >&2
     exit 2
     ;;
 esac

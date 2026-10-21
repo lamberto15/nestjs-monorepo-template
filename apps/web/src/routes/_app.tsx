@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { AppSidebar } from '@/components/app-sidebar';
 import { BreachedPasswordBanner } from '@/components/breached-password-banner';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
+import { SessionIdleWarning } from '@/components/session-idle-warning';
 import { UnverifiedBanner } from '@/components/unverified-banner';
 import { SearchPalette } from '@/features/search/palette';
 import { NotificationsBell } from '@/features/notifications/bell';
@@ -59,6 +60,7 @@ function AppLayout() {
           <AppSidebar />
           <SidebarInset>
             <ImpersonationBanner />
+            <SessionIdleWarning />
             <UnverifiedBanner />
             <BreachedPasswordBanner />
             <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">

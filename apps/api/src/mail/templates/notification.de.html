@@ -2,4 +2,4 @@
 <h2 style="font-size:18px;margin:16px 0 8px;">{{ title }}</h2>
 <p>{{ body }}</p>
 {{#if url}}<p><a href="{{ url }}">In {{ app }} öffnen</a></p>{{/if}}
-<p style="color:#59636e;font-size:13px;">Sie erhalten diese E-Mail aufgrund Ihrer Benachrichtigungseinstellungen in {{ app }}.</p>
+<p style="color:#59636e;font-size:13px;">Sie erhalten diese E-Mail aufgrund Ihrer Benachrichtigungseinstellungen in {{ app }}.{{#if unsubscribeUrl}} <a href="{{ unsubscribeUrl }}">Abbestellen</a>{{/if}}</p>

@@ -1,0 +1,28 @@
+name: Feature request
+description: Something the template should do
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: After filing, add the matching label (backend, frontend, ci or documentation).
+      options:
+        - backend (apps/api)
+        - frontend (apps/web, packages/ui)
+        - ci (workflows, images, deploys)
+        - documentation
+        - not sure
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does it solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What it could look like. Check docs/roadmap.md first; it may already be planned.
