@@ -25,6 +25,7 @@ export const signedInUser: Me = {
   mfaEnabled: false,
   hasPassword: true,
   mfaEnrollmentRequired: false,
+  onboardingRequired: null,
   authentication: {
     via: 'session',
     method: 'password',

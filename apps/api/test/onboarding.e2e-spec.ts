@@ -4,7 +4,10 @@ import { bootApp, type TestApp } from './support.js';
 
 // The suites run with ADMIN_ONBOARDING=off (setup-env.ts); this one seeds the
 // administrator as a template deployment does: the placeholder address.
-process.env.ADMIN_ONBOARDING = 'on';
+// Read when AppModule loads.
+vi.hoisted(() => {
+  process.env.ADMIN_ONBOARDING = 'on';
+});
 
 /**
  * The first administrator's onboarding (docs/auth.md, "Administrator
@@ -21,17 +24,12 @@ describe('administrator onboarding (e2e)', () => {
   });
   afterAll(() => node.close());
 
-  const adminRow = async () =>
-    (
-      await node.db
-        .select()
-        .from(users)
-        .where(eq(users.email, process.env.ADMIN_EMAIL!))
-    )[0];
+  let adminId = '';
 
   it('asks for a real address first: only the onboarding routes answer', async () => {
     const admin = node.admin();
     const me = await admin.get('/v1/auth/me').expect(200);
+    adminId = me.body.user.id;
     expect(me.body.onboardingRequired).toEqual({
       email: true,
       password: false,
@@ -100,11 +98,10 @@ describe('administrator onboarding (e2e)', () => {
   });
 
   it('changing the generated password ends the password step, with two-factor required alongside', async () => {
-    const row = await adminRow();
     await node.db
       .update(users)
       .set({ onboardingPassword: true })
-      .where(eq(users.id, row!.id));
+      .where(eq(users.id, adminId));
     const admin = await node.signIn(REAL, process.env.ADMIN_PASSWORD!);
     expect(
       (await admin.get('/v1/auth/me').expect(200)).body.onboardingRequired,
@@ -126,7 +123,6 @@ describe('administrator onboarding (e2e)', () => {
   });
 
   it('lets a mistyped, unproved address still sign in (no lock-out) while onboarding asks', async () => {
-    const row = await adminRow();
     await node.db
       .update(users)
       .set({
@@ -134,7 +130,7 @@ describe('administrator onboarding (e2e)', () => {
         emailVerified: false,
         onboardingEmail: true,
       })
-      .where(eq(users.id, row!.id));
+      .where(eq(users.id, adminId));
     const admin = await node.signIn('typo@acme-corp.dev', NEW_PASSWORD);
     await admin.get('/v1/auth/me').expect(200);
   });

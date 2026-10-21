@@ -46,6 +46,11 @@ export function createApp(history?: RouterHistory) {
           current.state.matches.some((match) => match.routeId === '/_app'),
         toSignIn: (redirect) =>
           void current.navigate({ to: '/sign-in', search: { redirect } }),
+        toOnboarding: () => {
+          if (current.state.location.pathname !== '/onboarding') {
+            void current.navigate({ to: '/onboarding' });
+          }
+        },
         toMfaSetup: () => {
           if (current.state.location.pathname !== '/account/security') {
             void current.navigate({ to: '/account/security' });

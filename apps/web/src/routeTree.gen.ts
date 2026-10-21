@@ -25,6 +25,7 @@ import { Route as AppLegalHoldsRouteImport } from './routes/_app/legal-holds'
 import { Route as AppMailSuppressionsRouteImport } from './routes/_app/mail-suppressions'
 import { Route as AppNamingSeriesRouteImport } from './routes/_app/naming-series'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
+import { Route as AppOnboardingRouteImport } from './routes/_app/onboarding'
 import { Route as AppRetentionRouteImport } from './routes/_app/retention'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppSignInsRouteImport } from './routes/_app/sign-ins'
@@ -142,6 +143,11 @@ const AppNamingSeriesRoute = AppNamingSeriesRouteImport.update({
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOnboardingRoute = AppOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => AppRoute,
 } as any)
 const AppRetentionRoute = AppRetentionRouteImport.update({
@@ -358,6 +364,7 @@ export interface FileRoutesByFullPath {
   '/mail-suppressions': typeof AppMailSuppressionsRoute
   '/naming-series': typeof AppNamingSeriesRoute
   '/notifications': typeof AppNotificationsRoute
+  '/onboarding': typeof AppOnboardingRoute
   '/retention': typeof AppRetentionRoute
   '/settings': typeof AppSettingsRoute
   '/sign-ins': typeof AppSignInsRoute
@@ -413,6 +420,7 @@ export interface FileRoutesByTo {
   '/mail-suppressions': typeof AppMailSuppressionsRoute
   '/naming-series': typeof AppNamingSeriesRoute
   '/notifications': typeof AppNotificationsRoute
+  '/onboarding': typeof AppOnboardingRoute
   '/retention': typeof AppRetentionRoute
   '/settings': typeof AppSettingsRoute
   '/sign-ins': typeof AppSignInsRoute
@@ -471,6 +479,7 @@ export interface FileRoutesById {
   '/_app/mail-suppressions': typeof AppMailSuppressionsRoute
   '/_app/naming-series': typeof AppNamingSeriesRoute
   '/_app/notifications': typeof AppNotificationsRoute
+  '/_app/onboarding': typeof AppOnboardingRoute
   '/_app/retention': typeof AppRetentionRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/sign-ins': typeof AppSignInsRoute
@@ -530,6 +539,7 @@ export interface FileRouteTypes {
     | '/mail-suppressions'
     | '/naming-series'
     | '/notifications'
+    | '/onboarding'
     | '/retention'
     | '/settings'
     | '/sign-ins'
@@ -585,6 +595,7 @@ export interface FileRouteTypes {
     | '/mail-suppressions'
     | '/naming-series'
     | '/notifications'
+    | '/onboarding'
     | '/retention'
     | '/settings'
     | '/sign-ins'
@@ -642,6 +653,7 @@ export interface FileRouteTypes {
     | '/_app/mail-suppressions'
     | '/_app/naming-series'
     | '/_app/notifications'
+    | '/_app/onboarding'
     | '/_app/retention'
     | '/_app/settings'
     | '/_app/sign-ins'
@@ -808,6 +820,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/notifications'
       preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/onboarding': {
+      id: '/_app/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AppOnboardingRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/retention': {
@@ -1093,6 +1112,7 @@ interface AppRouteChildren {
   AppMailSuppressionsRoute: typeof AppMailSuppressionsRoute
   AppNamingSeriesRoute: typeof AppNamingSeriesRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
+  AppOnboardingRoute: typeof AppOnboardingRoute
   AppRetentionRoute: typeof AppRetentionRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppSignInsRoute: typeof AppSignInsRoute
@@ -1142,6 +1162,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppMailSuppressionsRoute: AppMailSuppressionsRoute,
   AppNamingSeriesRoute: AppNamingSeriesRoute,
   AppNotificationsRoute: AppNotificationsRoute,
+  AppOnboardingRoute: AppOnboardingRoute,
   AppRetentionRoute: AppRetentionRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppSignInsRoute: AppSignInsRoute,

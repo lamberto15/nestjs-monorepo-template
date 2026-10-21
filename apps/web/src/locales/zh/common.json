@@ -418,5 +418,23 @@
     "searching": "正在搜索…",
     "none": "没有匹配的人。",
     "failed": "搜索失败。"
+  },
+  "onboarding": {
+    "title": "完成账户设置",
+    "description": "此管理员账户仍使用占位邮箱或自动生成的密码。请替换后继续。",
+    "emailTitle": "真实的邮箱地址",
+    "emailDescription": "重置链接和安全提醒会发送到这里。我们会发送确认链接。",
+    "email": "新邮箱地址",
+    "currentPassword": "当前密码",
+    "emailSubmit": "发送确认链接",
+    "emailSent": "我们已向 {{email}} 发送链接。请打开它，然后回到这里。",
+    "emailWaiting": "正在等待确认 {{email}}。",
+    "check": "我已确认",
+    "resend": "重新发送链接",
+    "optionalTitle": "可选：更多保护",
+    "optionalDescription": "现在设置两步验证或通行密钥，也可稍后在账户、安全中设置。",
+    "done": "进入应用",
+    "doneHint": "所有必需步骤已完成。",
+    "redirected": "请先完成管理员账户设置再继续。"
   }
 }
