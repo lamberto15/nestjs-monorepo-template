@@ -81,14 +81,22 @@ jobs:
           echo "$out"
           # "Eicar-Test-Signature FOUND" (the case of the name is the database's).
           echo "$out" | grep -qi 'eicar.* FOUND'
-          # A clean file, then one over StreamMaxLength: "INSTREAM size limit
-          # exceeded" is what the app's scanner reports as a failed scan.
+          # A clean file, then one over StreamMaxLength (1 MB here): clamd
+          # refuses the stream and drops the connection, which clamdscan
+          # reports as an error and the app's scanner as a failed scan, never
+          # as clean. clamd logs why.
           docker compose exec -T clamav sh -c 'echo clean > /tmp/clean.txt'
           docker compose exec -T clamav clamdscan --stream --no-summary /tmp/clean.txt
           docker compose exec -T clamav sh -c 'head -c 2097152 /dev/zero > /tmp/big.bin'
-          out=$(docker compose exec -T clamav clamdscan --stream --no-summary /tmp/big.bin || true)
-          echo "$out"
-          echo "$out" | grep -q 'INSTREAM size limit exceeded'
+          if docker compose exec -T clamav clamdscan --stream --no-summary /tmp/big.bin; then
+            echo "::error::a 2 MB stream was scanned with StreamMaxLength at 1 MB"
+            exit 1
+          fi
+          for _ in $(seq 1 10); do
+            docker compose logs --no-color clamav | grep -q 'INSTREAM: Size limit reached' && break
+            sleep 1
+          done
+          docker compose logs --no-color clamav | grep -F 'INSTREAM: Size limit reached'
 
       - name: freshclam runs, nothing was restarted, nothing wrote to the image
         run: |
