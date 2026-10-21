@@ -322,11 +322,14 @@ a drop fails CI.
 
 - **Locally:** `pnpm --filter @nestjs-monorepo-template/web test:cov` (or
   `api`, `api-client`); `pnpm test` stays without coverage.
-- **In CI:** the unit job's shards run `test:cov` (the same run, not a second
-  one): each writes a blob report (`.vitest/blob`) and checks no threshold
-  of its own, since a share of the tests covers a share of the code. The
-  `coverage` job merges the blobs (`vitest --merge-reports --coverage`) and
-  enforces the thresholds. The packages job runs whole and enforces its own.
+- **In CI:** the unit jobs' shards (`unit-api`, `unit-web`) run `test:cov`
+  (the same run, not a second one): each writes a blob report
+  (`.vitest/blob`) and checks no threshold of its own, since a share of the
+  tests covers a share of the code. The `coverage` job merges the blobs
+  (`vitest --merge-reports --coverage`) and enforces the thresholds; on a
+  pull request that ran one side's unit job only (deployment.md, "Which jobs
+  a pull request runs"), that side's. The packages job runs whole and
+  enforces its own.
 - **Measure again** before raising: run `test:cov` and read the summary; set
   each threshold to the figure rounded down.
 
