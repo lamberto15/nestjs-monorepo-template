@@ -12,9 +12,11 @@
 //
 // Development writes apps/api/.env.development (from env.development.example),
 // production the root .env (from env.example, chmod 600). An existing file is
-// the default of every question, its secrets are kept (unless --rotate), a
-// masked diff is shown before anything is written, and `<file>.bak` keeps
-// the old one. Which variables each answer sets: plan.mjs.
+// the default of every question, its secrets are kept (unless --rotate), every
+// variable the template gained since it was written is added with the
+// template's default and comment, a masked diff is shown before anything is
+// written, and `<file>.bak` keeps the old one. Which variables each answer
+// sets: plan.mjs. Checking a file against the template: envcheck.mjs.
 import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
@@ -39,8 +41,10 @@ import {
 } from './plan.mjs';
 import {
   applyValues,
+  mergeTemplate,
   parseEnv,
   stripFeatureBlocks,
+  TARGETS,
   templateKeys,
 } from './envfile.mjs';
 
@@ -48,15 +52,6 @@ const REPO = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '../..',
 );
-
-/** Where each target's template is and its file goes, relative to the root. */
-const TARGETS = {
-  development: {
-    template: 'apps/api/env.development.example',
-    file: 'apps/api/.env.development',
-  },
-  production: { template: 'env.example', file: '.env' },
-};
 
 const kebab = (id) => id.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
@@ -142,7 +137,8 @@ function promptLine(q, def, ctx) {
 
 /**
  * Runs the wizard. `io` is for tests: { isTTY, ask(line) => answer,
- * runRemove(root) => exit code, out, err }. Returns the exit code.
+ * runRemove(root) => exit code, vapid() => { publicKey, privateKey } | null,
+ * out, err }. Returns the exit code.
  */
 export async function run(argv, io = {}) {
   const out = io.out ?? ((line) => console.log(line));
@@ -171,7 +167,13 @@ export async function run(argv, io = {}) {
       return rl.question(line);
     });
   try {
-    return await wizard(values, { out, err, ask, runRemove: io.runRemove });
+    return await wizard(values, {
+      out,
+      err,
+      ask,
+      runRemove: io.runRemove,
+      vapid: io.vapid,
+    });
   } finally {
     rl?.close();
   }
@@ -263,8 +265,34 @@ async function wizard(values, io) {
     );
   }
 
-  const plan = buildPlan({ answers, ctx, rotate: values.rotate });
+  const plan = buildPlan({
+    answers,
+    ctx,
+    rotate: values.rotate,
+    ...(io.vapid && { vapid: io.vapid }),
+  });
+  const removeNotes = answers.removeNotes === true;
+  // The file as it will be: an existing one (without the example feature when
+  // it is removed now) plus every variable the template gained since.
+  let base = existingText ?? templateText;
+  let current = templateText;
+  if (removeNotes) {
+    base = stripFeatureBlocks(base, 'notes');
+    current = stripFeatureBlocks(current, 'notes');
+  }
+  const merged =
+    existingText === null
+      ? { text: base, added: [] }
+      : mergeTemplate(base, current);
   const changes = diffValues(ctx.current, plan.values);
+  // The variables the template gained, in its order, each with the value it
+  // will have: the template's default, or what an answer or a secret sets.
+  const added = merged.added.map(({ key, value }) => ({
+    key,
+    to: plan.values.has(key) ? (plan.values.get(key) ?? '') : value,
+  }));
+  const addedKeys = new Set(added.map(({ key }) => key));
+  const answered = changes.filter(({ key }) => !addedKeys.has(key));
   for (const warning of plan.warnings) err(`WARNING: ${warning}`);
   if (missing.length) {
     err(
@@ -273,25 +301,30 @@ async function wizard(values, io) {
   }
 
   out(
-    changes.length
+    answered.length || added.length
       ? `\n${dryRun ? 'Plan' : 'Changes'} for ${files.file} (secrets masked):`
       : '\nNothing to change in the file.',
   );
-  for (const { key, from, to } of changes) {
+  for (const { key, from, to } of answered) {
     out(
       from === ''
         ? `  + ${key}=${mask(key, to)}`
         : `  ~ ${key}: ${mask(key, from)} -> ${mask(key, to)}`,
     );
   }
-  const removeNotes = answers.removeNotes === true;
+  if (added.length) {
+    out(
+      `  New in ${files.template} since this file was written (${added.length}), added with its default:`,
+    );
+    for (const { key, to } of added) out(`  + ${key}=${mask(key, to)}`);
+  }
   if (removeNotes)
     out('  Remove the example feature: pnpm feature:remove notes');
   if (dryRun) {
     out('\nDry run: nothing written.');
     return 0;
   }
-  if (interactive && (changes.length || removeNotes)) {
+  if (interactive && (changes.length || added.length || removeNotes)) {
     const answer = (await ask(`\nWrite ${files.file}? [Y/n]: `)).trim();
     if (/^n/i.test(answer)) {
       out('Nothing written.');
@@ -301,9 +334,7 @@ async function wizard(values, io) {
 
   // Write: the old file to .bak first; an existing file is the base, so
   // the owner's other lines stay.
-  let text = existingText ?? templateText;
-  if (removeNotes) text = stripFeatureBlocks(text, 'notes');
-  text = applyValues(text, plan.values);
+  const text = applyValues(merged.text, plan.values);
   mkdirSync(path.dirname(filePath), { recursive: true });
   const mode = target === 'production' ? 0o600 : 0o644;
   if (existingText !== null) {
@@ -336,7 +367,7 @@ async function wizard(values, io) {
   }
   out(
     target === 'production'
-      ? '\nNext: docker compose up -d --build (docs/deployment.md).'
+      ? '\nNext: pnpm env:check, then docker compose up -d --build (docs/deployment.md).'
       : '\nNext: pnpm services:up && pnpm dev (the API and the web app; docs/development.md).',
   );
   return 0;

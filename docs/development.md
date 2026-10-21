@@ -224,6 +224,7 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 | Command | Does |
 | --- | --- |
 | `pnpm setup` | the first-run wizard: asks the deployment shape and the few choices, writes the env file with generated secrets (`--dry-run`, `--yes`, `--rotate`; [configuration](configuration.md), "First setup") |
+| `pnpm env:check` | an env file against its template, by name: the variables it lacks, the ones the template does not name, the REQUIRED ones that are empty (exit 1); `--strict`, `--target`, `--file`, `--templates` ([configuration](configuration.md), "First setup"; its tests: `node --test tools/setup/*.test.mjs`) |
 | `pnpm dev` | the API and its workers, and the web app, with reload (Turborepo's `dev` task in both, the client built first) |
 | `pnpm dev:api` / `pnpm start:dev` | the API and its workers alone, with reload (through Turborepo / straight through pnpm) |
 | `pnpm start:debug` | the same with the Node.js inspector (`nest start --debug --watch`) |

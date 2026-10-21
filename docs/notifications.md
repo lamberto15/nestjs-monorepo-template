@@ -226,6 +226,12 @@ Phone numbers and push tokens are personal data: encrypted columns with a blind
 index ([encryption.md](encryption.md)), so `DATA_ENCRYPTION_KEYS` and `BLIND_INDEX_KEYS`
 are required. Nothing here returns a token, and the number only masked.
 
+`pnpm setup --target production` asks for both ([configuration.md](configuration.md#first-setup-pnpm-setup)):
+Web Push (it makes the VAPID key pair with the `web-push` package and asks for the
+contact, `WEB_PUSH_SUBJECT`) and Twilio (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
+`TWILIO_FROM`, `SMS_ALLOWED_PREFIXES`). APNs and FCM are set in the `.env` by hand;
+a re-run keeps them in `PUSH_PROVIDER`.
+
 **How a message goes.** The channel (`SmsChannel`, `PushChannel`) runs in the
 delivery like the email channel and only queues a job on the `messaging` queue
 (job id from the notification, so a retried delivery queues it once; push: one job
