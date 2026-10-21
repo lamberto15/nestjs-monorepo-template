@@ -104,7 +104,7 @@ export class PasswordResetMailer extends PasswordResetHandler {
   }
 
   async updatePassword(userId: string, passwordHash: string) {
-    await this.accounts.updatePasswordHash(userId, passwordHash);
+    await this.accounts.replacePassword(userId, passwordHash);
   }
 }
 

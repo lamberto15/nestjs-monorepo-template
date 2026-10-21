@@ -1,4 +1,6 @@
+import { PasswordHasher } from '@nestjs/authentication';
 import { eq } from 'drizzle-orm';
+import { AccessSeeder } from '../src/iam/access/access.seeder.js';
 import { users } from '../src/iam/iam.tables.js';
 import { bootApp, type TestApp } from './support.js';
 
@@ -133,5 +135,85 @@ describe('administrator onboarding (e2e)', () => {
       .where(eq(users.id, adminId));
     const admin = await node.signIn('typo@acme-corp.dev', NEW_PASSWORD);
     await admin.get('/v1/auth/me').expect(200);
+  });
+
+  it('keeps the password step when a sign-in only rehashes the same password', async () => {
+    // A hash made with other scrypt costs than the app's (the e2e app's are
+    // logN 10): the sign-in stores a fresh one while it has the plaintext.
+    const stale = await new PasswordHasher({ logN: 11 }).hash(NEW_PASSWORD);
+    await node.db
+      .update(users)
+      .set({
+        email: REAL,
+        emailVerified: true,
+        onboardingEmail: false,
+        onboardingPassword: true,
+        passwordHash: stale,
+      })
+      .where(eq(users.id, adminId));
+    const admin = await node.signIn(REAL, NEW_PASSWORD);
+    const [row] = await node.db
+      .select({
+        passwordHash: users.passwordHash,
+        onboardingPassword: users.onboardingPassword,
+      })
+      .from(users)
+      .where(eq(users.id, adminId));
+    expect(row.passwordHash).not.toBe(stale);
+    expect(row.passwordHash).toMatch(/^\$scrypt\$ln=10,/);
+    expect(row.onboardingPassword).toBe(true);
+    expect(
+      (await admin.get('/v1/auth/me').expect(200)).body.onboardingRequired,
+    ).toEqual({ email: false, password: true });
+  });
+
+  it('flags an administrator seeded before onboarding existed, at the next start', async () => {
+    const seeder = node.app.get(AccessSeeder);
+    const flagged = () =>
+      node.db
+        .select({ onboardingEmail: users.onboardingEmail })
+        .from(users)
+        .where(eq(users.id, adminId))
+        .then(([row]) => row.onboardingEmail);
+    const entries = () =>
+      node.auditEntries({
+        action: 'user.onboarding-required',
+        targetId: adminId,
+      });
+    const holdPlaceholder = (changes: Partial<typeof users.$inferInsert>) =>
+      node.db
+        .update(users)
+        .set({
+          email: 'admin@example.com',
+          emailVerified: true,
+          onboardingEmail: false,
+          onboardingPassword: false,
+          ...changes,
+        })
+        .where(eq(users.id, adminId));
+
+    // Unverified: not the seeded account, never flagged (the flag lets an
+    // unproved address sign in).
+    await holdPlaceholder({ emailVerified: false });
+    await seeder.onModuleInit();
+    expect(await flagged()).toBe(false);
+
+    // The placeholder address, nothing pending: the start flags it, once.
+    await holdPlaceholder({});
+    await seeder.onModuleInit();
+    expect(await flagged()).toBe(true);
+    expect(await entries()).toHaveLength(1);
+    await seeder.onModuleInit();
+    expect(await entries()).toHaveLength(1);
+    const admin = await node.signIn(process.env.ADMIN_EMAIL!, NEW_PASSWORD);
+    expect(
+      (await admin.get('/v1/auth/me').expect(200)).body.onboardingRequired,
+    ).toEqual({ email: true, password: false });
+    await admin.get('/v1/access/roles').expect(403);
+
+    // A real address (onboarding done): nothing matches, nothing is reopened.
+    await holdPlaceholder({ email: REAL });
+    await seeder.onModuleInit();
+    expect(await flagged()).toBe(false);
   });
 });

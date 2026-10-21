@@ -20,7 +20,8 @@ export const iamEnv = z.object({
    * (`admin@example.com`) with a real, verified address and a generated
    * password with their own before anything else (docs/auth.md,
    * "Administrator onboarding"). `off` (tests, scripted installs): never.
-   * Read when the administrator is seeded.
+   * Read when the administrator is seeded, and at every start for one still
+   * on the placeholder address (flagged for the email step).
    */
   ADMIN_ONBOARDING: flag('on'),
   /**

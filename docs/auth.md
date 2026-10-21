@@ -1317,6 +1317,14 @@ development) and `OnboardingGuard` (a global guard after
 those marked `@DuringOnboarding()`, until both are done. Nothing is stored on
 the session: it is a normal one the moment the last step is.
 
+An administrator seeded before onboarding existed (or with
+`ADMIN_ONBOARDING=off`, since turned `on`) is never seeded again, so every
+start also checks: when `ADMIN_EMAIL` is a placeholder, the verified account
+on exactly that address gets `onboarding_email` (a `user.onboarding-required`
+audit entry; a no-op once the address is changed, so a finished onboarding is
+not reopened). Only the address: a generated password can't be told from a
+chosen one afterwards. `ADMIN_ONBOARDING=off` keeps it from being flagged.
+
 - `GET /v1/auth/me` has `onboardingRequired`: `{ email, password }` while
   something is pending, `null` otherwise.
 - `POST /v1/auth/email/change { email, currentPassword }` (202): the address
@@ -1325,7 +1333,9 @@ the session: it is a normal one the moment the last step is.
   `placeholder_email` for another placeholder (`example.*`, `.test`, `.invalid`,
   `localhost`). Signing in with the unproved address stays possible while the
   step is pending, so a typo is corrected, not a lock-out.
-- `POST /v1/auth/password/change` ends the password step (so does a reset link).
+- `POST /v1/auth/password/change` ends the password step (so does a reset link
+  and the ops CLI's password reset; the sign-in's silent rehash of the same
+  password, after the scrypt cost was raised, does not).
 - Reachable meanwhile: `me`, sign-out, the features, the email and password
   routes above, re-authentication, the two-factor routes (`/auth/mfa`) and
   the passkey registration routes, switching tenant. The routes shared with

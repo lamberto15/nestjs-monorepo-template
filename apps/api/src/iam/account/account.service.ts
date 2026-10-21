@@ -577,7 +577,7 @@ export class AccountService {
     );
     const hash = await this.passwordHasher.hash(passwords.newPassword);
     const told = await inTransaction(this.txHost, async (tx) => {
-      await this.users.updatePasswordHash(user.id, hash, tx);
+      await this.users.replacePassword(user.id, hash, tx);
       return this.securityAlerts.credentialsChanged(tx, user, user.id, {
         action: 'auth.password-changed',
         ip,

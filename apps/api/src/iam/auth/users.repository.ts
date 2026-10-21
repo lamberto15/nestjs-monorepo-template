@@ -504,8 +504,20 @@ export class UsersRepository {
     return row ? toView(row) : null;
   }
 
+  /**
+   * The same password, hashed anew (the sign-in's rehash after the cost
+   * settings changed): the hash only. A new password is `replacePassword`.
+   */
   async updatePasswordHash(id: string, passwordHash: string, db: Db = this.db) {
-    // A new password also ends the first administrator's password onboarding.
+    await db.update(users).set({ passwordHash }).where(eq(users.id, id));
+  }
+
+  /**
+   * A new password (a change, a reset link, the ops CLI's one-time password).
+   * It also ends the first administrator's password onboarding: the generated
+   * password is replaced. Not for a rehash of the same one (`updatePasswordHash`).
+   */
+  async replacePassword(id: string, passwordHash: string, db: Db = this.db) {
     await db
       .update(users)
       .set({ passwordHash, onboardingPassword: false })

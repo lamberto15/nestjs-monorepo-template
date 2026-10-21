@@ -80,6 +80,55 @@ describe('the administrator onboarding step', () => {
     );
   });
 
+  it('lets the user on once the password step is done (me is refreshed, no redirect back)', async () => {
+    useOnboardingApi({ email: false });
+    // The API clears the step when the password is changed; the page must ask again.
+    let changed = false;
+    const bodies: unknown[] = [];
+    server.use(
+      http.get('/v1/auth/me', () =>
+        HttpResponse.json({
+          ...signedInUser,
+          mfaEnrollmentRequired: false,
+          onboardingRequired: changed ? null : { email: false, password: true },
+        }),
+      ),
+      http.post('/v1/auth/password/change', async ({ request }) => {
+        bodies.push(await request.json());
+        changed = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const { history } = await renderApp('/onboarding');
+    const user = userEvent.setup();
+    await user.type(
+      await screen.findByLabelText('Current password'),
+      'generated-password-1',
+    );
+    await user.type(
+      screen.getByLabelText('New password'),
+      'a-brand-new-passphrase-2026',
+    );
+    await user.type(
+      screen.getByLabelText('Confirm the password'),
+      'a-brand-new-passphrase-2026',
+    );
+    await user.click(
+      screen.getByRole('button', { name: 'Change the password' }),
+    );
+    await user.click(await screen.findByText('Continue to the app'));
+    expect(
+      await screen.findByText('Dashboard', { selector: 'h1' }),
+    ).toBeVisible();
+    expect(history.location.pathname).toBe('/');
+    expect(bodies).toEqual([
+      {
+        currentPassword: 'generated-password-1',
+        newPassword: 'a-brand-new-passphrase-2026',
+      },
+    ]);
+  });
+
   it('stays on the page when two-factor is required too (no redirect loop)', async () => {
     useOnboardingApi({ mfaRequired: true });
     const { history } = await renderApp('/');
