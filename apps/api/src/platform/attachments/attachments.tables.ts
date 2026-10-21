@@ -72,7 +72,7 @@ export const attachments = pgTable(
     renditionStatus: text('rendition_status').$type<RenditionStatus>(),
     /**
      * The thumbnail and the preview of an image, `thumb` and `preview`: their
-     * keys on the private disk (next to the original's) and sizes. `{}`
+     * keys on the private disk (under the tenant's prefix) and sizes. `{}`
      * until `renditionStatus` is `ready`, and for what has none.
      */
     renditions: jsonb('renditions')

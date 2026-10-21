@@ -52,7 +52,7 @@ const BATCH = 1000;
  * JPEG, PNG, WebP or GIF is stored `renditionStatus: 'pending'`; once it may
  * be served (the malware scan found it clean, or scanning is off) a queue job
  * on a worker reads it, hands the bytes to the ImageProcessor, writes the
- * results next to the original and records them on the row, with an audit
+ * results under keys of its own and records them on the row, with an audit
  * entry (`attachment.processed`, by `system:attachment-images`), in one
  * transaction. When the original carried metadata it is replaced by a
  * stripped copy at a new key, the old file going after the commit. A file the
@@ -224,12 +224,16 @@ export class AttachmentImagesService {
 
   /**
    * Writes the processed files and records them on the row, with the audit
-   * entry, in one transaction. The files go to the disk first, under new
-   * keys: the stripped original under a key of its own (the row's key changes
-   * with the commit, so a download in between gets the old file whole, and
-   * a failure leaves the original where it was). The row is changed only if
-   * it is still pending with the key that was read; else (removed, or
-   * processed by another job) the files are deleted again.
+   * entry, in one transaction. The files go to the disk first, under keys
+   * of this run alone (one fresh stem: the stripped original, when there is
+   * one, and the renditions share it; the row's key changes with the commit,
+   * so a download in between gets the old file whole, and a failure leaves
+   * the original where it was). The row is changed only if it is still
+   * pending with the key that was read; else (removed, or processed by
+   * another job) the files are deleted again. They are this run's own
+   * keys, never the ones another job on the same image just committed:
+   * two jobs can run on one pending image (a retry job's duplicate, a
+   * stalled job run again), and the loser must not take the winner's files.
    */
   private async store(
     row: Attachment,
@@ -240,21 +244,20 @@ export class AttachmentImagesService {
     const written: string[] = [];
     let updated: Attachment | undefined;
     try {
+      // Unique to this run, also when the original stays where it is (nothing
+      // to strip, or IMAGE_STRIP_ORIGINALS off): its key, and so any name
+      // made from it, is the same for every job on this image.
+      const stem = tenantFileKey(tenantId, `attachments/${randomUUID()}`);
       let key = row.key;
       let size = row.size;
       if (image.stripped) {
-        key = tenantFileKey(
-          tenantId,
-          `attachments/${randomUUID()}${posix.extname(row.key)}`,
-        );
+        key = `${stem}${posix.extname(row.key)}`;
         await this.disk.put(key, image.stripped.data, {
           contentType: row.contentType,
         });
         written.push(key);
         size = image.stripped.data.length;
       }
-      // Next to the original: `<id>.jpg` has `<id>.thumb.webp`.
-      const stem = key.slice(0, key.length - posix.extname(key).length);
       const renditions: StoredRenditions = {};
       for (const name of RENDITION_NAMES) {
         const rendition = image.renditions[name];

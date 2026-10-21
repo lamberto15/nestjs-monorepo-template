@@ -174,9 +174,12 @@ nothing for it), loaded by a worker on its first image, never by the API.
   without metadata, never enlarged: `thumb` fits in 256 × 256 pixels
   (quality 75), `preview` in 1600 × 1600 (quality 80), the proportions
   kept. An animated GIF or WebP gives its first frame. They are stored
-  next to the original (`<id>.jpg` has `<id>.thumb.webp`,
-  `<id>.preview.webp`), under the tenant's prefix like it, and go with it:
-  removing the attachment, the nightly sweep and deleting the tenant take
+  under the tenant's prefix like the original, at keys unique to the
+  processing run (`attachments/<uuid>.thumb.webp`, `<uuid>.preview.webp`;
+  a stripped original of the same run is `<uuid>.jpg`): two jobs on one
+  image (the retry job's duplicate, a stalled job run again) never write the
+  same file, so the one that loses deletes only its own. They go with the
+  attachment: removing it, the nightly sweep and deleting the tenant take
   them too.
 - **Download:** `GET /v1/attachments/{id}/download?rendition=thumb` (or
   `preview`) answers like the download of the file: 302 to a signed link

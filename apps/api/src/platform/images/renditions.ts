@@ -48,8 +48,10 @@ export const isProcessable = (contentType: string) =>
 
 /**
  * Where a rendition is on the private disk and what it is, as the attachment
- * row keeps it (`attachments.renditions`). The key is under the original's
- * name: `…/attachments/<id>.jpg` has `…/attachments/<id>.thumb.webp`.
+ * row keeps it (`attachments.renditions`). The key is the processing run's
+ * own, unique to it (two jobs on one image never share a file):
+ * `…/attachments/<uuid>.thumb.webp`; a stripped original written by the same
+ * run is `…/attachments/<uuid>.jpg`.
  */
 export interface StoredRendition {
   key: string;

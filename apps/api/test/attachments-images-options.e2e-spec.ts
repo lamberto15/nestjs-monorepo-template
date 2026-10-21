@@ -3,7 +3,10 @@ import { eq } from 'drizzle-orm';
 import sharp from 'sharp';
 import type { Database } from '../src/core/database/drizzle.js';
 import { auditLog } from '../src/iam/iam.tables.js';
+import { AttachmentImagesQueue } from '../src/platform/attachments/attachment-images.queue.js';
+import { AttachmentImagesService } from '../src/platform/attachments/attachment-images.service.js';
 import { attachments } from '../src/platform/attachments/attachments.tables.js';
+import { ImageProcessor } from '../src/platform/images/image-processor.js';
 import { bootApp, type TestApp } from './support.js';
 
 // Small pictures only (100 × 100), and originals kept as uploaded: read when AppModule loads.
@@ -102,6 +105,83 @@ describe('image attachments with IMAGE_MAX_PIXELS and IMAGE_STRIP_ORIGINALS=off 
       renditions: ['thumb', 'preview'],
       stripped: [],
     });
+    await editor.agent
+      .get(`/v1/attachments/${id}/download?rendition=thumb`)
+      .expect(302);
+  });
+
+  it('keeps the files of the job that won when a second job on the same pending image loses', async () => {
+    // The original stays where it is (stripping is off), so its key, and any
+    // name made from it, would be the same for both jobs.
+    const editor = await node.user(['editor']);
+    const note = (
+      await node
+        .writeItem(editor.agent, { title: 'Two jobs', body: 'x' })
+        .expect(201)
+    ).body as { id: string };
+    // No job queued by the upload: the test runs both by hand.
+    const enqueue = vi
+      .spyOn(node.app.get(AttachmentImagesQueue), 'enqueue')
+      .mockResolvedValue(undefined);
+    let id: string;
+    try {
+      const added = await editor.agent
+        .post(`/v1/test-items/${note.id}/attachments`)
+        .attach('file', await picture(80, 60), {
+          filename: 'twice.jpg',
+          contentType: 'image/jpeg',
+        })
+        .expect(201);
+      id = added.body.id as string;
+    } finally {
+      enqueue.mockRestore();
+    }
+    const pending = await rowOf(id);
+    expect(pending.renditionStatus).toBe('pending');
+    const job = { tenantId: pending.tenantId, attachmentId: id };
+
+    // Job B has read the row as pending and converted the picture, and waits
+    // before writing; job A then runs whole and commits.
+    const processor = node.app.get(ImageProcessor);
+    const convert = processor.process.bind(processor);
+    let run = 0;
+    let reached!: () => void;
+    const atGate = new Promise<void>((resolve) => (reached = resolve));
+    let open!: () => void;
+    const gate = new Promise<void>((resolve) => (open = resolve));
+    const spy = vi
+      .spyOn(processor, 'process')
+      .mockImplementation(async (input) => {
+        const mine = ++run;
+        const result = await convert(input);
+        if (mine === 1) {
+          reached();
+          await gate;
+        }
+        return result;
+      });
+    const images = node.app.get(AttachmentImagesService);
+    try {
+      const loser = images.process(job);
+      await atGate;
+      expect(await images.process(job)).toBe('ready');
+      const won = await rowOf(id);
+      expect(won.renditionStatus).toBe('ready');
+      expect(won.renditions.thumb).toBeDefined();
+
+      open();
+      expect(await loser).toBe('skipped');
+    } finally {
+      open();
+      spy.mockRestore();
+    }
+
+    // The row is still A's, and its files are still on the disk.
+    const row = await rowOf(id);
+    expect(row.renditionStatus).toBe('ready');
+    for (const name of ['thumb', 'preview'] as const) {
+      expect(await disk.exists(row.renditions[name]!.key)).toBe(true);
+    }
     await editor.agent
       .get(`/v1/attachments/${id}/download?rendition=thumb`)
       .expect(302);
