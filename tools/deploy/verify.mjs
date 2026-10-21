@@ -14,10 +14,10 @@ export function verifyEnabled(env = process.env) {
   return ['1', 'true'].includes(String(env.VERIFY_IMAGES ?? '').toLowerCase());
 }
 
-/** Runs the script, resolving its exit code; `images` default to the env's. */
-export function runVerify(env = process.env, images = []) {
+/** Runs the script on the env's images (no arguments), resolving its exit code. */
+export function runVerify(env = process.env) {
   return new Promise((resolve, reject) => {
-    const child = spawn(SCRIPT, images, { env, stdio: 'inherit' });
+    const child = spawn(SCRIPT, [], { env, stdio: 'inherit' });
     child.on('error', reject);
     child.on('close', (code) => resolve(code ?? 1));
   });

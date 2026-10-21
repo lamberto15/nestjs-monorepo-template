@@ -12,12 +12,12 @@
 set -euo pipefail
 
 images=("$@")
-if [ ${#images[@]} -eq 0 ]; then
+if [[ ${#images[@]} -eq 0 ]]; then
   for v in APP_IMAGE GOTENBERG_IMAGE CADDY_IMAGE; do
-    [ -n "${!v:-}" ] && images+=("${!v}")
+    [[ -n "${!v:-}" ]] && images+=("${!v}")
   done
 fi
-if [ ${#images[@]} -eq 0 ]; then
+if [[ ${#images[@]} -eq 0 ]]; then
   echo "verify-image: no image given and none of APP_IMAGE, GOTENBERG_IMAGE, CADDY_IMAGE set" >&2
   exit 2
 fi

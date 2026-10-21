@@ -336,7 +336,13 @@ export function createDeployer({
     // (scripts/verify-image.sh) before anything starts; off by default.
     if (!options.build && options.image && verifyEnabled(processEnv)) {
       log(`verifying ${options.image}`);
-      const code = await verify(processEnv, [options.image]);
+      // Only this image: the script reads the image variables, never argv.
+      const code = await verify({
+        ...processEnv,
+        APP_IMAGE: options.image,
+        GOTENBERG_IMAGE: '',
+        CADDY_IMAGE: '',
+      });
       if (code !== 0) {
         throw new DeployError(`image verification failed (exit ${code})`);
       }

@@ -152,6 +152,7 @@ describe('rollingDeploy', () => {
         throw new Error('called');
       },
     });
+    assert.match(d.calls.join('\n'), /compose pull/);
   });
 
   it('passes the project, files and env file to every compose call', async () => {
