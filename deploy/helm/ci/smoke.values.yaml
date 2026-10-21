@@ -18,7 +18,7 @@ env:
   GOTENBERG_URL: ''
   # Files go to S3 in production; the smoke test never stores one, so a bucket
   # nobody serves and throwaway keys are enough for the app to start.
-  S3_BUCKET: ci
+  S3_BUCKET: ci-bucket
   S3_REGION: us-east-1
   S3_ENDPOINT: http://s3.invalid
   AWS_ACCESS_KEY_ID: ci
