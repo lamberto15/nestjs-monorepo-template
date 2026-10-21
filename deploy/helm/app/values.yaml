@@ -55,6 +55,10 @@ secretFiles:
     JWT_SECRET_FILE: jwt_secret
     # Required in production: the app refuses to start without it (openssl rand -base64 32).
     MFA_ENCRYPTION_KEYS_FILE: mfa_encryption_keys
+    # Required too: the shipped schema has encrypted and blind-indexed columns
+    # (SSO secrets, devices, phone numbers; docs/encryption.md).
+    DATA_ENCRYPTION_KEYS_FILE: data_encryption_keys
+    BLIND_INDEX_KEYS_FILE: blind_index_keys
   api: {}
   worker:
     DATABASE_MAINTENANCE_URL_FILE: database_maintenance_url

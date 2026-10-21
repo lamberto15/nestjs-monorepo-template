@@ -78,14 +78,21 @@ jobs:
           kubectl apply -f deploy/helm/ci/deps.yaml
           kubectl rollout status deploy/postgres deploy/redis --timeout=180s
 
-      - name: A test key for the two-factor secrets (required in production)
-        run: echo "MFA_KEY=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+      - name: Test keys for the encrypted columns (required in production)
+        run: |
+          {
+            echo "MFA_KEY=$(openssl rand -base64 32)"
+            echo "DATA_KEY=$(openssl rand -base64 32)"
+            echo "BLIND_KEY=$(openssl rand -base64 32)"
+          } >> "$GITHUB_ENV"
 
       - name: Install the chart (the migrate hook runs first)
         run: |
           helm upgrade --install ci deploy/helm/app --wait --timeout 8m \
             -f deploy/helm/ci/values.yaml -f deploy/helm/ci/smoke.values.yaml \
-            --set-string secret.data.mfa_encryption_keys="$MFA_KEY"
+            --set-string secret.data.mfa_encryption_keys="$MFA_KEY" \
+            --set-string secret.data.data_encryption_keys="$DATA_KEY" \
+            --set-string secret.data.blind_index_keys="$BLIND_KEY"
 
       - name: api answers its readiness check
         run: |
@@ -97,7 +104,9 @@ jobs:
         run: |
           helm upgrade ci deploy/helm/app --wait --timeout 8m \
             -f deploy/helm/ci/values.yaml -f deploy/helm/ci/smoke.values.yaml \
-            --set-string secret.data.mfa_encryption_keys="$MFA_KEY"
+            --set-string secret.data.mfa_encryption_keys="$MFA_KEY" \
+            --set-string secret.data.data_encryption_keys="$DATA_KEY" \
+            --set-string secret.data.blind_index_keys="$BLIND_KEY"
 
       - name: Diagnostics
         if: failure()

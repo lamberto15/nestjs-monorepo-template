@@ -29,7 +29,9 @@ kubectl create secret generic app-secrets \
   --from-file=database_url=./database_url \
   --from-file=database_owner_url=./database_owner_url \
   --from-file=jwt_secret=./jwt_secret \
-  --from-file=mfa_encryption_keys=./mfa_encryption_keys      # one key per file name in secretFiles
+  --from-file=mfa_encryption_keys=./mfa_encryption_keys \
+  --from-file=data_encryption_keys=./data_encryption_keys \
+  --from-file=blind_index_keys=./blind_index_keys      # one key per file name in secretFiles
 
 helm upgrade --install app deploy/helm/app --wait \
   --set domain=app.example.com \
@@ -47,15 +49,19 @@ old version runs against the new schema ([deployment.md](deployment.md),
 
 ## Configuration
 
+- **Files:** the default `STORAGE_DRIVER=s3` needs `S3_BUCKET` and `S3_REGION` in `env` and
+  credentials (`AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY_FILE` in `secretFiles`), or the
+  app refuses to start.
 - **Settings:** `env` holds plain variables (the names of `env.example`);
   `api.extraEnv` and `worker.extraEnv` add per-process ones
   (`DATABASE_POOL_MAX`, `NODE_OPTIONS`). Keep `DATABASE_POOL_MAX` times the
   replicas under PostgreSQL's `max_connections`.
 - **Secrets:** `secretFiles.common`, `.api`, `.worker` and `.migrate` map a
   variable (`JWT_SECRET_FILE`) to a key of the Secret (`jwt_secret`). The
-  defaults are the database URLs, the JWT secret and the two-factor keys
-  (`mfa_encryption_keys`, `openssl rand -base64 32`: the app refuses to start
-  in production without it); add the others of `compose.prod.yaml`
+  defaults are the database URLs, the JWT secret and the keys of the encrypted
+  columns (`mfa_encryption_keys`, `data_encryption_keys`, `blind_index_keys`,
+  each `openssl rand -base64 32`: the app refuses to start in production
+  without them, docs/encryption.md); add the others of `compose.prod.yaml`
   (`CURSOR_KEYS_FILE`, ...) when
   you use them, each key present in the Secret. Use `secret.existingSecret`
   (sealed-secrets, External Secrets); `secret.data` is for trials only.
