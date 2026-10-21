@@ -10,7 +10,11 @@ import {
   Histogram,
   Registry,
 } from 'prom-client';
-import { onTelemetryRejected } from '../observability/telemetry-health.js';
+import {
+  COUNTED_TARGETS,
+  onTelemetryRejected,
+  REFUSAL_STATUSES,
+} from '../observability/telemetry-health.js';
 
 /** A collector that takes longer (Redis or PostgreSQL away) is given up: the scrape goes on without it. */
 const COLLECT_TIMEOUT_MS = 2_000;
@@ -76,6 +80,15 @@ export class MetricsService {
 
   constructor() {
     collectDefaultMetrics({ register: this.registry });
+    // Every series a refusal can make, at 0 from the start: Prometheus'
+    // increase() needs a sample before the first count, and a refusal that
+    // happens once (NestJS Observe pauses its uploads after the first 401 or
+    // 429) would otherwise show up already at 1 and never raise the alert.
+    for (const target of COUNTED_TARGETS) {
+      for (const status of REFUSAL_STATUSES) {
+        this.telemetryRejected.inc({ target, status: String(status) }, 0);
+      }
+    }
     onTelemetryRejected((target, status) =>
       this.telemetryRejected.inc({ target, status: String(status) }),
     );

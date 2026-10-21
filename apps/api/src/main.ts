@@ -1,18 +1,23 @@
-// First: .env.development into process.env, before the modules below are evaluated.
+// First: .env.development into process.env, before the modules below are loaded.
 import './dev-env.js';
-// Second: OpenTelemetry and Sentry patch the libraries loaded after them.
-import './core/observability/instrument.js';
 import type { Server } from 'node:http';
-import { Logger } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { AppModule } from './app.module.js';
-import { configureApp } from './configure-app.js';
-import { createLogger } from './core/logging/logging.js';
-import {
-  ObserveInstrument,
-  observeEnabled,
-} from './core/observability/observe.js';
+
+// Second: OpenTelemetry and Sentry start, and finish starting, before the app
+// is loaded: they patch the libraries it loads (http, Express, pg), so they
+// cannot start later. Not a static import of instrument.ts followed by static
+// imports of the app: a module's top-level await holds back only the modules
+// that import it, so Nest, Express and the rest would load while the SDKs were
+// still starting, and stay unpatched. Awaiting the imports in turn guarantees
+// the order.
+await import('./core/observability/instrument.js');
+const { Logger } = await import('@nestjs/common');
+const { NestFactory } = await import('@nestjs/core');
+const { AppModule } = await import('./app.module.js');
+const { configureApp } = await import('./configure-app.js');
+const { createLogger } = await import('./core/logging/logging.js');
+const { ObserveInstrument, observeEnabled } =
+  await import('./core/observability/observe.js');
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {

@@ -941,19 +941,31 @@ is not tied to one hosted vendor:
   collector's credential, e.g. `x-honeycomb-team=KEY`): OpenTelemetry through
   `@opentelemetry/sdk-node`. Traces and metrics go over OTLP/HTTP to any
   collector (Grafana Tempo, Jaeger, Honeycomb, Datadog): spans for HTTP,
-  Express, NestJS, PostgreSQL and Redis, and runtime metrics. The SDK reads
-  the standard `OTEL_*` variables too (`OTEL_SERVICE_NAME`, defaulting to
-  `SERVICE_NAME`; `OTEL_TRACES_SAMPLER`, …).
+  Express, PostgreSQL and Redis (the commands of a request), and runtime
+  metrics. The SDK reads the standard `OTEL_*` variables too
+  (`OTEL_SERVICE_NAME`, defaulting to `SERVICE_NAME`; `OTEL_TRACES_SAMPLER`,
+  …).
 - **`SENTRY_DSN`** (and `SENTRY_TRACES_SAMPLE_RATE`, 0 to 1): Sentry
   (`@sentry/nestjs`) gets the 5xx the problem-details filter answers, with
   the request id and error code as tags. Errors only unless the sample rate
   is set.
 
-`core/observability/instrument.ts` is the first import of `main.ts` (after
-the development settings): the SDKs patch `http`, Express and the database
-and Redis clients as they load, so they start before anything else does. The
-packages are imported only when their variable is set. Libraries loaded
-through `require` (Nest, Express, `pg`, `ioredis`) are instrumented.
+`main.ts` awaits `core/observability/instrument.ts` (after the development
+settings) before it loads anything else: the SDKs patch `http`, Express and
+the database and Redis clients as they load, so they start first. The app's
+modules are imported with `await import()` after it, not as static imports
+below it: a module's top-level `await` holds back only the modules that
+import it, so static imports would load Nest, Express and `pg` while the SDKs
+were still starting, and nothing would be traced. The packages are imported
+only when their variable is set. Libraries loaded through `require` or a CJS
+`import` (Express, `pg`, `ioredis`) are instrumented. NestJS's own
+instrumentation (`@opentelemetry/instrumentation-nestjs-core`) does not
+support Nest 12 yet, so there are no spans of controllers and providers.
+
+The SDKs start before the environment is validated, so they read their `_FILE`
+secrets themselves (`SENTRY_DSN_FILE`, `OTEL_EXPORTER_OTLP_HEADERS_FILE`,
+[Secrets in files](#secrets-in-files)); a file that can't be read is reported
+by the validation, which stops the app.
 
 - **The trace id is in every log line** while a span is active: `traceId` in
   JSON lines, `[trace <id>]` in text lines. It finds the trace in the
@@ -962,7 +974,11 @@ through `require` (Nest, Express, `pg`, `ioredis`) are instrumented.
   scrubbed in `beforeSend` by the log-redaction registry
   ([Log redaction](#log-redaction)): the same names and patterns, nothing
   declared twice, and Sentry collects no user, cookies, bodies or query strings (`dataCollection`). Spans carry the route
-  pattern and status, not headers or bodies.
+  pattern and status, not headers or bodies, and the values of the query
+  parameters the registry names (`code` and `state` of an OIDC callback,
+  `token`, `password`, …) are masked in `url.query` and `url.full`, on top of
+  the instrumentation's own (`sig`, `X-Amz-Signature`, …). The list is read
+  when the SDK starts: a name a feature declares later is not in it.
 - **Error tracking is an adapter.** `ErrorTracker`
   (`core/observability/error-tracker.ts`) is the interface the filter
   reports to: Sentry when `SENTRY_DSN` is set, otherwise nothing. Inject it
@@ -974,18 +990,38 @@ through `require` (Nest, Express, `pg`, `ioredis`) are instrumented.
   `telemetry_rejected_total{target="otlp|observe",status}` on `/metrics`
   (OTLP: the exporters' answers; Observe: its refusal log lines, "Telemetry
   rate-limited (429)", because it has no hook), and the `TelemetryRejected`
-  alert fires after 5 minutes ([Alerting](#alerting)). Timeouts and 5xx are
-  left to the exporters' retries. Sentry's SDK drops events it is
-  rate-limited on without telling the app: watch its quota page.
+  alert fires after 5 minutes ([Alerting](#alerting)). The OTLP exporters
+  report a 429, 502, 503 or 504 whose retries ran out as one "retryable"
+  failure without the status, counted as 429; other timeouts and 5xx are left
+  to the exporters' retries. Every series starts at 0 (Prometheus' `increase()`
+  needs a sample before the first count: Observe refuses once, then pauses its
+  uploads until the app restarts, so its alert is that one event). Sentry's
+  SDK drops events it is rate-limited on without telling the app: watch its
+  quota page.
+- **Crashes still crash.** Sentry's default `OnUnhandledRejection`
+  integration is left out (`LEFT_OUT` in `sentry.ts`): with a listener for
+  `unhandledRejection` Node no longer ends the process on a floating
+  rejection, which is how a project without `SENTRY_DSN` is restarted by
+  Compose, and the integration only logs. Without it Node raises the
+  rejection as an uncaught exception, which Sentry's `OnUncaughtException`
+  integration reports before the process exits: the same behaviour with or
+  without Sentry.
 - **Compatibility with the instrumentation.** Observe's proxies broke the
   mail transports and lock-decorated jobs (`skipObserve`, above).
   OpenTelemetry and Sentry patch module functions, not provider instances,
   so they need no such exclusion, and CI proves it: the `e2e-telemetry` job
   runs a shard of the e2e suite with `OTEL_EXPORTER_OTLP_ENDPOINT` and
   `SENTRY_DSN` pointing at a stub collector
-  (`apps/api/test/telemetry-stub.mjs`) and fails if no trace reached it.
-  `apps/api/test/setup-env.ts` starts the SDKs when either variable is set,
-  as `main.ts` does. Locally, run the stub
+  (`apps/api/test/telemetry-stub.mjs`) and fails if no span of a request the
+  app served reached it. `apps/api/test/setup-env.ts` starts the SDKs when
+  either variable is set, before it loads the app: the order that works, so
+  the suite alone cannot show a wrong one in `main.ts`. The job ends by
+  building the API and starting `node dist/main` against a collector of its
+  own (`node apps/api/test/telemetry-stub.mjs boot`, with `DATABASE_URL`,
+  `DATABASE_OWNER_URL`, `DATABASE_MAINTENANCE_URL` and `REDIS_URL` set, as for
+  the browser tests): the credentials are `_FILE` secrets, and it fails unless
+  the request it sent was traced (HTTP, Express and `pg` spans) with the
+  secrets of its query string masked. Locally, run the stub
   (`node apps/api/test/telemetry-stub.mjs serve`) or Jaeger
   (`jaegertracing/all-in-one`, OTLP on 4318) and point the variables at it.
 - **Not covered:** logs over OTLP, and ESM-only libraries (they need Node's
@@ -1219,7 +1255,7 @@ merged migration fails it already):
 | `compose-secrets`        | the production stack's secrets with the values in `.env` and with every one in a file, as Compose renders them (the monitoring stack too); then the shell readers in their images (`scripts/test-secret-readers.sh`)                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `swarm-stack`            | `compose.swarm.yaml` rendered with dummy values and accepted by `docker stack config` (`pnpm deploy:swarm check`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `feature-smoke`          | the feature generator's tests, then two features generated with every option, which must build, lint, migrate and pass their generated e2e tests ([adding a feature](adding-a-feature.md))                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `e2e-telemetry` | one shard of the e2e suite (`--shard=1/6`) with OpenTelemetry and Sentry on, against a stub collector (`apps/api/test/telemetry-stub.mjs`); fails if the instrumentation breaks the app or no trace arrives ([Telemetry](#telemetry)) |
+| `e2e-telemetry` | one shard of the e2e suite (`--shard=1/6`) with OpenTelemetry and Sentry on, against a stub collector (`apps/api/test/telemetry-stub.mjs`), then the built app (`node dist/main`) against one of its own; fails if the instrumentation breaks the app or no span of a request served arrives ([Telemetry](#telemetry)) |
 | `template-without-notes` | `pnpm feature:remove notes` (the API's and the web app's part), no `notes` left in `apps/api` or `apps/web`, then lint, build, `db:check`, `client:generate` and the build again on that client: the core and the web app stand without the example. On main, tags and the nightly run (03:17 UTC) also its unit and web tests and the whole e2e suite, in 6 shards like the `e2e` job's (each runs a sixth of the e2e suite and a third of the API's or the web app's unit tests), so the run lasts as long as a pull request's; a pull request skips those (they are the `unit` and `e2e` jobs' tests with a feature fewer) |
 | `security`               | `pnpm audit --prod --audit-level high`; Trivy: any secret in the repository, high or critical misconfigurations in the Dockerfiles                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `image`                  | builds the production image; Trivy: fixable high or critical vulnerabilities in it (OS packages and `node_modules`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |

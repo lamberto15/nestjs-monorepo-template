@@ -934,6 +934,37 @@ tests:
         alertname: TelemetryRejected
         exp_alerts: []
 
+  - name: a collector refuses once, and the exporter then stops sending
+    interval: 1m
+    input_series:
+      # NestJS Observe counts a 401 once and pauses its uploads until the app
+      # restarts. The series is there at 0 from the start (MetricsService makes
+      # every refusal series at 0): the step from 0 to 1 is what increase() sees.
+      - series: 'telemetry_rejected_total{job="api",instance="10.0.0.2:3000",target="observe",status="401"}'
+        values: '0x4 1x25'
+      # A series that first appears at 1 has no sample before it: increase()
+      # sees no rise, so nothing fires. Why the app starts every series at 0.
+      - series: 'telemetry_rejected_total{job="api",instance="10.0.0.2:3000",target="observe",status="429"}'
+        values: '_x4 1x25'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: TelemetryRejected
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: TelemetryRejected
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: api
+              target: observe
+              status: '401'
+            exp_annotations:
+              summary: 'Telemetry is rejected by observe (401)'
+              description: 'The api uploads to observe were refused with HTTP 401 for 5 minutes: 401/403 a wrong or revoked key, 429 the plan is out of credits. Traces, metrics and errors are being dropped. Check OBSERVE_APP_KEY, OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_EXPORTER_OTLP_HEADERS, and the collector''s quota (docs/deployment.md, "Telemetry").'
+      - eval_time: 25m
+        alertname: TelemetryRejected
+        exp_alerts: []
+
   - name: a tenant nears its storage limit
     interval: 1m
     input_series:

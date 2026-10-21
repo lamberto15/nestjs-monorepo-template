@@ -1,5 +1,5 @@
+import { secretValue } from '../config/secret-files.js';
 import { type LogRedaction, logRedaction } from '../logging/redaction.js';
-import { sentryEnabled } from './telemetry.js';
 
 /**
  * Sentry error tracking (`@sentry/nestjs`): off until `SENTRY_DSN` is set.
@@ -32,14 +32,40 @@ export const tracesSampleRate = (env: NodeJS.ProcessEnv = process.env) => {
     : undefined;
 };
 
+/**
+ * The integrations of Sentry's defaults that are left out, and why.
+ * - "Nest": it wraps every provider method and controller handler (as NestJS
+ *   Observe's proxies did, issue #392), which hides
+ *   @OnOneInstance()/@WithoutOverlapping() jobs from @nestjs/locks
+ *   ("LocksModule doesn't know this instance"). Unexpected errors reach
+ *   Sentry through ErrorTracker (error-tracker.ts) instead.
+ * - "OnUnhandledRejection": it listens for `unhandledRejection`, and with a
+ *   listener there Node no longer raises the rejection as an uncaught
+ *   exception, its default, which ends the process (Compose restarts it): the
+ *   integration's default mode only logs. Without it that default stays, the
+ *   app crashes on a floating rejection with or without a DSN, and the
+ *   "OnUncaughtException" integration reports the crash before the process
+ *   exits.
+ */
+const LEFT_OUT = new Set(['Nest', 'OnUnhandledRejection']);
+
+/** `integrations` for `Sentry.init()`: its defaults without those left out. */
+export const sentryIntegrations = <Integration extends { name: string }>(
+  defaults: Integration[],
+) => defaults.filter((integration) => !LEFT_OUT.has(integration.name));
+
 /** Starts Sentry when `SENTRY_DSN` is set. */
 export async function startSentry(env: NodeJS.ProcessEnv = process.env) {
-  if (!sentryEnabled(env)) {
+  // The DSN may be a secret in a file (SENTRY_DSN_FILE). This runs before the
+  // environment is validated, which is what reads those, so it is read here
+  // (a file that can't be read is for the validation to report).
+  const { value: dsn } = secretValue(env, 'SENTRY_DSN');
+  if (!dsn) {
     return false;
   }
   const Sentry = await import('@sentry/nestjs');
   Sentry.init({
-    dsn: env.SENTRY_DSN,
+    dsn,
     environment: env.APP_ENV || env.NODE_ENV,
     // Set by the image's GIT_SHA build argument; empty in a local build.
     release: env.GIT_SHA || undefined,
@@ -52,13 +78,7 @@ export async function startSentry(env: NodeJS.ProcessEnv = process.env) {
       httpBodies: [],
       urlQueryParams: false,
     },
-    // Without the SDK's "Nest" integration: it wraps every provider method
-    // and controller handler (as NestJS Observe's proxies did, issue #392),
-    // which hides @OnOneInstance()/@WithoutOverlapping() jobs from
-    // @nestjs/locks ("LocksModule doesn't know this instance"). Unexpected
-    // errors reach Sentry through ErrorTracker (error-tracker.ts) instead.
-    integrations: (defaults) =>
-      defaults.filter((integration) => integration.name !== 'Nest'),
+    integrations: sentryIntegrations,
     tracesSampleRate: tracesSampleRate(env),
     beforeSend: (event) => scrub(event),
     beforeSendSpan: (span) => scrub(span),

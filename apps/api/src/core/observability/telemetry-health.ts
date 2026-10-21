@@ -14,8 +14,19 @@ export type TelemetryTarget = 'observe' | 'otlp' | 'sentry';
 
 type Listener = (target: TelemetryTarget, status: number) => void;
 
+/**
+ * The pipelines whose refusals are counted: Sentry's SDK drops what it is
+ * rate-limited on without telling the app.
+ */
+export const COUNTED_TARGETS = [
+  'observe',
+  'otlp',
+] as const satisfies readonly TelemetryTarget[];
+
 /** The statuses that mean "the collector turned us away", not a passing fault. */
-const REFUSALS = new Set([401, 403, 429]);
+export const REFUSAL_STATUSES = [401, 403, 429] as const;
+
+const REFUSALS = new Set<number>(REFUSAL_STATUSES);
 
 const counts = new Map<string, number>();
 const listeners = new Set<Listener>();

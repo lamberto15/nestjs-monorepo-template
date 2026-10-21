@@ -1,5 +1,21 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import * as Sentry from '@sentry/nestjs';
 import { LogRedaction, REDACTED } from '../logging/redaction.js';
-import { scrub, tracesSampleRate } from './sentry.js';
+import {
+  scrub,
+  sentryIntegrations,
+  startSentry,
+  tracesSampleRate,
+} from './sentry.js';
+
+// The SDK itself, but for init(): starting it in a test would install its
+// handlers in the test process.
+vi.mock('@sentry/nestjs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@sentry/nestjs')>()),
+  init: vi.fn(),
+}));
 
 describe('Sentry scrubbing', () => {
   const redaction = new LogRedaction();
@@ -53,5 +69,44 @@ describe('Sentry scrubbing', () => {
     expect(
       tracesSampleRate({ SENTRY_TRACES_SAMPLE_RATE: 'x' }),
     ).toBeUndefined();
+  });
+});
+
+describe('starting Sentry', () => {
+  let directory: string;
+  beforeAll(() => {
+    directory = mkdtempSync(join(tmpdir(), 'sentry-spec-'));
+  });
+  afterAll(() => rmSync(directory, { recursive: true, force: true }));
+  afterEach(() => vi.mocked(Sentry.init).mockClear());
+
+  it('stays off without a DSN', async () => {
+    expect(await startSentry({})).toBe(false);
+    expect(Sentry.init).not.toHaveBeenCalled();
+  });
+
+  it('reads the DSN from its file: it starts before the environment is validated', async () => {
+    const file = join(directory, 'sentry-dsn');
+    writeFileSync(file, 'https://key@o1.ingest.sentry.io/1\n');
+    expect(await startSentry({ SENTRY_DSN_FILE: file })).toBe(true);
+    expect(Sentry.init).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dsn: 'https://key@o1.ingest.sentry.io/1',
+        integrations: sentryIntegrations,
+      }),
+    );
+  });
+
+  it('leaves Node to end the process on a floating rejection', () => {
+    const names = (integrations: { name: string }[]) =>
+      integrations.map((integration) => integration.name);
+    const defaults = Sentry.getDefaultIntegrations({});
+    // The default integration that turns the crash into a log line ...
+    expect(names(defaults)).toContain('OnUnhandledRejection');
+    const kept = names(sentryIntegrations(defaults));
+    expect(kept).not.toContain('OnUnhandledRejection');
+    // ... and the one that reports the crash Node then raises.
+    expect(kept).toContain('OnUncaughtException');
+    expect(kept).not.toContain('Nest');
   });
 });

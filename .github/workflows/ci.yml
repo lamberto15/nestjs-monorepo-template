@@ -385,8 +385,12 @@ jobs:
   # and ioredis are patched while the tests run: the instrumentation must not
   # break the app (as NestJS Observe's proxies broke the mail transports and
   # the lock-decorated jobs, issue #392), and the collector must have received
-  # traces (docs/deployment.md, "Telemetry"). Hosted vendors need credentials
-  # CI doesn't have, so NestJS Observe's own path is covered by observe.spec.ts.
+  # the spans of requests the app served (docs/deployment.md, "Telemetry").
+  # The suite starts the SDKs itself, before it loads the app; the last step
+  # starts the built app as production does (`node dist/main`) and checks that
+  # main.ts does the same, with the credentials as `_FILE` secrets. Hosted
+  # vendors need credentials CI doesn't have, so NestJS Observe's own path is
+  # covered by observe.spec.ts.
   e2e-telemetry:
     needs: compose-images
     runs-on: ubuntu-24.04
@@ -427,8 +431,21 @@ jobs:
           # Spans leave the process every second, not every five.
           OTEL_BSP_SCHEDULE_DELAY: '1000'
           SENTRY_DSN: http://public@127.0.0.1:4318/1
-      - name: The collector received traces
+      - name: The collector received the spans of requests served
         run: node apps/api/test/telemetry-stub.mjs check 4318
+      # The start-up order: the SDKs must be running before main.ts loads the
+      # app, or http, Express and pg are loaded unpatched and nothing is traced
+      # (the suite above cannot show it).
+      - name: The built app, started as production starts it, is traced
+        run: |
+          pnpm --filter @nestjs-monorepo-template/api build
+          node apps/api/test/telemetry-stub.mjs boot
+        env:
+          # The database and Redis above, as the browser tests' job has them.
+          DATABASE_URL: postgres://app_runtime:app_runtime@localhost:5432/app
+          DATABASE_OWNER_URL: postgres://app:app@localhost:5432/app
+          DATABASE_MAINTENANCE_URL: postgres://app_maintenance:app_maintenance@localhost:5432/app
+          REDIS_URL: redis://localhost:6379
 
   # The browser tests (apps/web-e2e, docs/development.md, "Browser tests"):
   # Playwright drives the built web app on the built API with the demo data,
