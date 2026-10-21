@@ -5,6 +5,9 @@ import { registerSW } from 'virtual:pwa-register';
 import '@nestjs-monorepo-template/ui/globals.css';
 import { App, createApp } from '@/app';
 import { initI18n } from '@/i18n';
+// For its side effect: it must hear `beforeinstallprompt` from the first page
+// load, not when the signed-in layout (the user menu) is loaded.
+import '@/lib/pwa';
 
 const { queryClient, router } = createApp();
 const i18n = await initI18n();

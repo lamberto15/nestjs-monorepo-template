@@ -4,6 +4,7 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { apiPathPattern } from './pwa-paths.ts';
 
 // The API is same-origin in development too (a proxy), as behind Caddy in
 // production: the __Host-sid session cookie needs it.
@@ -57,10 +58,9 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         cleanupOutdatedCaches: true,
         navigateFallback: 'index.html',
-        // The API, Swagger UI, metrics and the socket are never the shell.
-        navigateFallbackDenylist: [
-          /^\/(v1|health|metrics|api|socket\.io)(\/|$)/,
-        ],
+        // What Caddy sends to the API (routes, Swagger UI and its documents,
+        // stored files, the socket) is never the shell: pwa-paths.ts.
+        navigateFallbackDenylist: [apiPathPattern],
       },
     }),
   ],
