@@ -4,16 +4,14 @@
 # with the Cloudflare DNS plugin, and the web app (apps/web) built into /srv/web.
 
 # The web app, built as apps/api/Dockerfile builds the API: the official pnpm
-# image, the store in a BuildKit cache mount, the workspace's packages the
+# image, the store in an image layer (#480), the workspace's packages the
 # app needs (the typed client, the shared UI).
 FROM ghcr.io/pnpm/pnpm:12.11.2 AS web
 WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN --mount=type=cache,id=pnpm,target=/var/cache/pnpm \
-    CI=true pnpm fetch --store-dir /var/cache/pnpm
+RUN CI=true pnpm fetch --store-dir /pnpm-store
 COPY . .
-RUN --mount=type=cache,id=pnpm,target=/var/cache/pnpm \
-    CI=true pnpm install --store-dir /var/cache/pnpm --frozen-lockfile --offline \
+RUN CI=true pnpm install --store-dir /pnpm-store --frozen-lockfile --offline \
       --filter @nestjs-monorepo-template/web...
 RUN pnpm --filter @nestjs-monorepo-template/web... build
 

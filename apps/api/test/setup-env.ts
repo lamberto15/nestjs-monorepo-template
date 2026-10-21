@@ -49,3 +49,11 @@ Object.assign(process.env, {
   EXCHANGE_RATES_FETCH: 'off',
   STORAGE_DRIVER: 'memory',
 });
+
+// The "e2e with telemetry on" CI job sets OTEL_EXPORTER_OTLP_ENDPOINT and
+// SENTRY_DSN (a stub collector, test/telemetry-stub.mjs): start the SDKs as
+// main.ts does, so the suite runs with the instrumentation patching http,
+// Express, pg and ioredis (issue #404, as #392 for NestJS Observe).
+if (process.env.OTEL_EXPORTER_OTLP_ENDPOINT || process.env.SENTRY_DSN) {
+  await import('../src/core/observability/instrument.js');
+}

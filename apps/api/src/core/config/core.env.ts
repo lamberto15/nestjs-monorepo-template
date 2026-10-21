@@ -208,6 +208,21 @@ export const coreEnv = z.object({
   /** NestJS Observe (traces, metrics, errors): on when both keys are set. */
   OBSERVE_APP_KEY: secret(optional()),
   OBSERVE_APP_SECRET: secret(optional()),
+  /**
+   * OpenTelemetry export (traces and metrics over OTLP/HTTP, on when the
+   * endpoint is set). The SDK also reads the standard `OTEL_*` variables
+   * itself (OTEL_SERVICE_NAME, OTEL_TRACES_SAMPLER, …); `OTEL_EXPORTER_OTLP_HEADERS`
+   * (`x-honeycomb-team=…`) carries the collector's credential.
+   */
+  OTEL_EXPORTER_OTLP_ENDPOINT: optional().refine(
+    (url) => url === undefined || /^https?:\/\//.test(url),
+    'must be an http(s) URL',
+  ),
+  OTEL_EXPORTER_OTLP_HEADERS: secret(optional()),
+  /** Sentry error tracking: on when the DSN is set. */
+  SENTRY_DSN: secret(optional()),
+  /** 0 to 1: the share of requests Sentry traces; unset, errors only. */
+  SENTRY_TRACES_SAMPLE_RATE: optional(),
   /** Off for the docs at /api in production. */
   OPENAPI: flag('on'),
   /**
