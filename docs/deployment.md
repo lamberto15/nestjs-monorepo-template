@@ -53,16 +53,8 @@ Filling `.env` (each step is commented in `env.example`):
 - **The web app's security headers** are set in the Caddyfile's web-app `handle` only
   (the API's responses keep helmet's own): `Content-Security-Policy`
   (`default-src 'self'`; scripts and frames also from `https://challenges.cloudflare.com`,
-  Turnstile's only needs; `connect-src` is `'self'`, which covers the API and
-  socket.io, and with `STORAGE_DRIVER=s3` the bucket's origin too, because the browser
-  PUTs a direct upload straight to it ([attachments](attachments.md#direct-uploads-s3);
-  a policy without it blocks the request before any CORS check, and the web app
-  silently uploads through the API instead): `caddy/entrypoint.sh` derives it from
-  `S3_BUCKET`, `S3_ENDPOINT`, `S3_REGION` (or `AWS_REGION`) and `S3_FORCE_PATH_STYLE`,
-  as the API's S3 disk does, and `compose.prod.yaml` hands those to `caddy` (an
-  origin it cannot make of them is left out, with a warning in Caddy's log); the Helm
-  chart does the same from `env` (`app.webConnectSrc`, and it refuses an `env` it
-  cannot read); `img-src 'self' data:`; `style-src` keeps `'unsafe-inline'` because sonner and the theme
+  Turnstile's only needs; `connect-src 'self'` covers the API and socket.io;
+  `img-src 'self' data:`; both also name the origins of files, below; `style-src` keeps `'unsafe-inline'` because sonner and the theme
   provider inject `<style>` elements; no `'unsafe-eval'`, so `apps/web` imports `z` from `@/lib/zod`, which sets zod to
   `jitless`; `frame-ancestors 'none'`), `X-Frame-Options: DENY`, `X-Content-Type-Options`,
   `Referrer-Policy: strict-origin-when-cross-origin` and a `Permissions-Policy` that turns
@@ -72,6 +64,34 @@ Filling `.env` (each step is commented in `env.example`):
   `<script>`, no `eval`. Check a change by loading the built app through Caddy (`docker
 build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviolation`
   events: there must be none.
+- **The origins of files** (`STORAGE_DRIVER=s3`). The browser reaches the bucket itself
+  twice: it PUTs a direct upload straight to it
+  ([attachments](attachments.md#direct-uploads-s3)), and the attachments panel's `<img>`
+  for an image's thumbnail and preview
+  (`GET /v1/attachments/{id}/download?rendition=thumb|preview`) follows a 302 to the
+  bucket's signed link ([attachments](attachments.md#image-renditions)). The policy
+  blocks a request to an origin it does not name before any CORS check (the web app
+  still works without it, less directly: uploads go through the API, a thumbnail that
+  cannot load shows the file icon, and the original still downloads, a download being a
+  navigation, which neither directive governs). With `STORAGE_DRIVER=local` there is
+  nothing to add: the files' links are `https://<APP_DOMAIN>/files…`, the app's own
+  origin (`/files/*` goes to the API above), which `'self'` covers. So `connect-src` and
+  `img-src` both name one list of origins, which `caddy/entrypoint.sh` makes at each
+  start (`WEB_FILES_ORIGINS`, the one value the Caddyfile reads for them; after changing
+  the settings, recreate Caddy: `docker compose up -d caddy`). The Helm chart's web
+  Caddy makes the same list from `env` and `web.filesOrigin` (`app.webFilesOrigins`,
+  which fails the render on a value it cannot read). The list holds:
+  - **the bucket's origin**, derived from the app's own `S3_BUCKET`, `S3_ENDPOINT`,
+    `S3_REGION` (or `AWS_REGION`) and `S3_FORCE_PATH_STYLE` as the API's S3 disk signs its
+    URLs (`https://<bucket>.s3.<region>.amazonaws.com`; R2's
+    `https://<bucket>.<account>.r2.cloudflarestorage.com`; with path style, the endpoint
+    itself), which `compose.prod.yaml` hands to `caddy`. Settings it cannot make an
+    origin of leave it out, with a warning in Caddy's log;
+  - then **`FILES_ORIGIN`**, set in `.env`: space-separated `https://host[:port]` origins
+    the settings can't tell, such as a custom domain or a CDN in front of the bucket.
+    Empty (the default), nothing is added. It goes into the policy as written, so
+    `caddy/entrypoint.sh` refuses to start with anything else (a path, a wildcard, a
+    quote or a semicolon).
 - **Security contact** (`/.well-known/security.txt`, RFC 9116). Caddy answers that one
   path itself (its handle comes before the `@api` matcher); `caddy/entrypoint.sh` writes
   the file to `/srv/security` at each start from `SECURITY_CONTACT` (one or more

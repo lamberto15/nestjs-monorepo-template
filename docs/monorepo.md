@@ -89,10 +89,15 @@ first); `pnpm dev:api` or `pnpm dev:web` runs one. Every screen of the
 web app needs the API, so `dev:web` alone suits an API already running.
 
 - **Open http://localhost:5173**, not the API's port: Vite's `server.proxy`
-  (`vite.config.ts`) sends `/v1`, `/health` and `/socket.io` (`ws: true`) to
-  `http://localhost:3000` (`API_URL` in the environment points it at another
-  port: the browser tests do), so the `__Host-sid` cookie is the app's own.
-  Swagger UI stays at http://localhost:3000/api.
+  (`dev-proxy.ts`, used by `vite.config.ts`) sends `/v1`, `/health`, `/files`
+  and `/socket.io` (`ws: true`) to `http://localhost:3000` (`API_URL` in the
+  environment points it at another port: the browser tests do), so the
+  `__Host-sid` cookie is the app's own. A redirect from `/v1` to the API's own
+  address (the signed link an attachment's download, thumbnail or preview
+  answers with: `APP_URL`, `http://localhost:3000` by default) is rewritten to
+  the page's origin (`autoRewrite`), and `/files` serves it: an `<img>` could
+  not load a link on the API's port, whose responses are `same-origin` for
+  `Cross-Origin-Resource-Policy`. Swagger UI stays at http://localhost:3000/api.
 - **Signing in:** the administrator the API's first start creates
   (`ADMIN_EMAIL`, `admin@example.com` unless set; the password is
   `ADMIN_PASSWORD` in `apps/api/.env.development` when `pnpm setup` wrote it,
@@ -436,7 +441,19 @@ fields value onChange errors />` is a typed input per field (the drafts and
   and the download link appears. The scan acts as the system principal, so
   the event reaches only the record's watchers: while a file is pending the
   list is also read every 10 s with a connected socket (5 s without), for an
-  uploader who does not watch the record. An infected file is deleted by the
+  uploader who does not watch the record. An image (`renditionStatus`) shows
+  its `thumb` in the row, sized from `renditions.thumb` (`attachment-visual.tsx`),
+  and opens its `preview` in a dialog with the original one click away; a
+  placeholder stands in while the renditions are `pending`, and the file icon
+  for an image that `failed`, is not processed, or whose thumbnail does not
+  load. The worker acts as the system principal too, so the `processed` event
+  reaches only the watchers: a `pending` image is polled like a pending scan.
+  Thumbnails are an `<img>` on `GET /v1/attachments/{id}/download?rendition=thumb`,
+  which redirects to the disk's signed link: that link's origin must be one
+  the page may load images from (the dev proxy above; under Caddy the app's
+  own origin with the local disk, the bucket's with S3, which Caddy derives
+  from the S3 settings: [deployment](deployment.md), "The origins of files").
+  An infected file is deleted by the
   API, so there is no rejected row: it leaves the list on `removed` or, for
   its uploader, when the `attachment.rejected` notification arrives (a toast
   shows its text and the list is read again). Texts are in the `records`

@@ -52,9 +52,15 @@ old version runs against the new schema ([deployment.md](deployment.md),
 - **Files:** the default `STORAGE_DRIVER=s3` needs `S3_BUCKET` and `S3_REGION` in `env` and
   credentials (`AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY_FILE` in `secretFiles`), or the
   app refuses to start. Keep them in `env` (not `api.extraEnv`): the web app's
-  Content-Security-Policy names the bucket's origin from them, since the browser PUTs
-  direct uploads there ([attachments](attachments.md#direct-uploads-s3)); the bucket
-  also needs a CORS rule for the web app's origin.
+  Content-Security-Policy names the bucket's origin, derived from them, in `connect-src`
+  and `img-src`, since the browser PUTs direct uploads to the bucket
+  ([attachments](attachments.md#direct-uploads-s3)) and loads image thumbnails from its
+  signed links ([attachments](attachments.md#image-renditions)); settings it cannot
+  make an origin of fail the render. `web.filesOrigin` adds origins the settings can't
+  tell (space-separated `https://host[:port]`: a custom domain or a CDN in front of the
+  bucket) to both; a value that is not https origins fails the render
+  ([deployment](deployment.md), "The origins of files"). The bucket also needs a CORS
+  rule for the web app's origin.
 - **Settings:** `env` holds plain variables (the names of `env.example`);
   `api.extraEnv` and `worker.extraEnv` add per-process ones
   (`DATABASE_POOL_MAX`, `NODE_OPTIONS`). Keep `DATABASE_POOL_MAX` times the

@@ -49,6 +49,13 @@
     "downloadShort": "下载",
     "scanning": "正在扫描…",
     "downloadScanning": "下载 {{name}}：扫描完成后可用",
+    "preparing": "正在准备预览…",
+    "preview": "预览 {{name}}",
+    "previewNote": "图片的缩小副本，原文件保持不变。",
+    "previewLoading": "正在加载预览…",
+    "previewError": "无法加载预览，仍可下载原文件。",
+    "close": "关闭",
+    "downloadOriginal": "下载原文件",
     "delete": "删除",
     "deleteTitle": "删除此文件？",
     "deleteDescription": "“{{name}}”及其文件将从记录中移除。"

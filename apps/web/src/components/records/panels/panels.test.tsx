@@ -870,6 +870,62 @@ describe('realtime', () => {
     expect(screen.queryByText('Scanning…')).toBeNull();
   });
 
+  it('shows the thumbnail of an image on record.attachments.changed (processed)', async () => {
+    const calls = usePanelsApi({
+      attachments: [
+        {
+          id: 'a1',
+          name: 'photo.jpg',
+          size: 204_800,
+          contentType: 'image/jpeg',
+          uploadedBy: ME,
+          renditionStatus: 'pending',
+        },
+      ],
+    });
+    await mountPanels(ALL);
+    await open('Attachments');
+    const row = (await screen.findByText('photo.jpg')).closest('li')!;
+    expect(
+      within(row).getByRole('img', { name: 'Preparing preview…' }),
+    ).toBeVisible();
+    const fake = await socket();
+    act(() => fake.emit('connect'));
+    // The worker is done; the event is the signal to read the list again.
+    calls.processed('a1', {
+      thumb: {
+        width: 256,
+        height: 171,
+        size: 9_000,
+        contentType: 'image/webp',
+      },
+      preview: {
+        width: 1600,
+        height: 1067,
+        size: 120_000,
+        contentType: 'image/webp',
+      },
+    });
+    act(() =>
+      fake.emit('record.attachments.changed', {
+        subject: TEST_RECORD.subject,
+        recordId: ID,
+        attachmentId: 'a1',
+        action: 'processed',
+      }),
+    );
+    expect(
+      await within(row).findByRole('button', { name: 'Preview photo.jpg' }),
+    ).toBeVisible();
+    expect(row.querySelector('img')).toHaveAttribute(
+      'src',
+      '/v1/attachments/a1/download?rendition=thumb',
+    );
+    expect(
+      screen.queryByRole('img', { name: 'Preparing preview…' }),
+    ).toBeNull();
+  });
+
   it('drops a file the scan rejected and tells its uploader why', async () => {
     const calls = usePanelsApi({
       attachments: [

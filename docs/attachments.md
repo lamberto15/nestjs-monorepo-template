@@ -226,10 +226,12 @@ only way with the local driver). `GET /v1/features` says so
 - **The web app's Content-Security-Policy must name the bucket** too: the
   browser blocks a request to another origin that `connect-src` does not list,
   before any CORS preflight. The Compose stack's Caddy and the Helm chart's
-  web app add the bucket's origin to `connect-src` themselves when
-  `STORAGE_DRIVER=s3` ([deployment.md](deployment.md), "The web app's
-  security headers"); a deployment that serves the web app another way adds
-  it to its own policy.
+  web app derive the bucket's origin from the S3 settings and name it in
+  `connect-src` and `img-src` themselves when `STORAGE_DRIVER=s3` (one list,
+  which also lets the [thumbnails](#image-renditions) load; `FILES_ORIGIN`
+  adds a custom domain or CDN in front of the bucket: [deployment.md](deployment.md),
+  "The origins of files"); a deployment that serves the web app another way
+  adds it to its own policy.
 - **The web app's dropzone** uses it whenever `presignedUploads` is on and the
   browser names the file's type (a signed URL is bound to one; a file with no
   type goes through the API, which decides). It falls back to the multipart
@@ -291,120 +293,22 @@ nothing for it), loaded by a worker on its first image, never by the API.
   `processed`), or `failed`. The scan check comes first (409
   `attachment_scan_pending`). Like every download, an `<img>` follows the
   redirect only to an origin the page may load from: the avatar section
-  below says what that costs (the dev proxy, S3's host under Caddy's
-  `img-src 'self'`).
-- **Metadata of the original:** an original that carries EXIF, XMP, IPTC,
-  Photoshop resources or PNG text is replaced by a copy without it,
-  rotated upright, in the same format (JPEG and lossy WebP re-encoded at
-  quality 90, so a little larger or smaller; PNG and lossless WebP without
-  loss, a palette staying one), colours in sRGB (the ICC profile goes too).
-  A PNG's EXIF and text chunks count wherever they are, after the image
-  data too (the library reads only the ones before it). A copy more than
-  four times the original's size (plus 64 KB: a PNG can be built to
-  compress only as uploaded), larger than `ATTACHMENT_MAX_MB`, or larger
-  than the original by more than the tenant's storage quota has room for
-  is not stored: the image ends `failed` (`size`, `quota`). The copy is written
-  under a new key and the row changed in one transaction with the audit
-  entry; the old file is deleted after the commit, so a download in
-  between gets one whole file or the other and a failure leaves the
-  original where it was. `size` becomes the copy's. An original **without**
-  metadata stays byte for byte as uploaded, as do a GIF (it has no EXIF),
-  an animated WebP or PNG (a copy would be a still; the library loads only
-  an APNG's first image, so the `acTL` chunk is how it is told) and an
-  image of more than 8 bits per channel.
-  `IMAGE_STRIP_ORIGINALS=off` keeps every original as uploaded (evidence,
-  a legal copy); the renditions are stripped whatever it says. A JPEG whose
-  only metadata is a COM comment is not touched: the library does not
-  report it.
-- **Limits, and failure:** the pixel count of one frame is read from the
-  header before anything is decoded and must not pass `IMAGE_MAX_PIXELS`
-  (50 million: a 50 KB PNG can claim gigapixels, the usual decompression
-  bomb); one conversion may take `IMAGE_TIMEOUT_MS` (30 s); a file over
-  64 MiB is not loaded whatever `ATTACHMENT_MAX_MB` says. The library's
-  strictest `failOn` (the default) refuses a damaged or truncated file
-  instead of repairing it. An image that is refused, or is not what its
-  bytes said, ends `failed`: **the original is as uploaded, its metadata
-  included**, a warning is logged with the reason (`pixels`, `size`,
-  `format`, `timeout`, `invalid`, `missing`, `quota`, `stalled`), and
-  nothing tries again (the same bytes fail the same way). A disk or
-  database failure is not that: the job is tried again (the queue's three
-  attempts, with backoff), then the retry job. A worker that dies while
-  converting (killed at its memory limit, a crash in the library) gets the
-  job back once (BullMQ's stalled-job check); when it dies on it again the
-  image ends `failed` (`stalled`), so one upload can't take the worker down
-  every five minutes. One image at a time per worker process, and the
-  memory it takes lives outside the V8 heap (measured: the whole process
-  stays near 140 MB resident while it converts a 48-megapixel JPEG that
-  needs rotating, with no temporary file): see "Resource limits" in
-  [deployment.md](deployment.md).
-- **Audit:** `attachment.processed` by `system:attachment-images`
-  (renditions made, the kinds of metadata removed, the size before and
-  after when the original was replaced); realtime
-  `record.attachments.changed` with `action: 'processed'` after a success
-  and after a failure, so a panel stops waiting. Metric
-  `attachment_images_processed_total{result="ready|failed|error"}` (a
-  counter per worker process: `rate()` and sum it; `error` is a disk or
-  database failure that is tried again).
-- **Switching it off:** `IMAGE_PROCESSING=off` stores images as uploaded
-  with no state; images still `pending` lose it within minutes (the same
-  retry job), their files untouched. Switching it **on** does not reach back:
-  attachments stored before are not processed (no backfill), so their
-  originals keep their EXIF.
-- **Not counted:** the storage quota (`storageBytes`) counts the original's
-  size (a stripped copy's once it replaces it), not the renditions
-  (derived, a few hundred KB at most each).
-- **Another format:** add its type to `IMAGE_INPUT_TYPES`
-  (`platform/images/renditions.ts`) once the library reads it and the
-  storage package recognizes it from its bytes.
-
-## Image renditions
-
-A JPEG, PNG, WebP or GIF upload (by its bytes; SVG, AVIF and HEIC are stored
-as uploaded) gets a `thumb` and a `preview`, and its metadata (EXIF, GPS) is
-stripped, by a queue job on a worker (`attachment-images`,
-[background-work.md](background-work.md)) once the malware scan found it
-clean. `IMAGE_PROCESSING` (on by default). The code is `platform/images/` (the
-processor, which knows nothing of attachments) and `attachment-images.*` in
-`platform/attachments/` (the job). [sharp](https://sharp.pixelplumbing.com/)
-does the work: pinned, its libvips a prebuilt binary (the image installs
-nothing for it), loaded by a worker on its first image, never by the API.
-
-- **State:** `renditionStatus` on the attachment: `pending` from the upload
-  (null for anything that is not processed, and for everything stored while
-  `IMAGE_PROCESSING=off`), then `ready` or `failed`. `renditions` holds
-  `thumb` and `preview` once ready, each `{ width, height, size,
-  contentType }`, never a storage key. The original can be downloaded while
-  `pending`.
-- **When:** after the malware scan found the file clean: with the scanner
-  off the upload queues the job; with it on, the scan does when it sets
-  `clean` (so a rendition is never made of a file nobody may serve, and an
-  infected image is deleted without being decoded). A job lost with Redis,
-  or retries spent while the disk was away, are picked up by
-  `AttachmentImagesRetryJob` (every five minutes, one instance, each tenant
-  in turn) for images still pending five minutes after they became
-  processable.
-- **Renditions:** WebP (every current browser shows it, with
-  transparency), upright (the EXIF orientation applied to the pixels),
-  without metadata, never enlarged: `thumb` fits in 256 × 256 pixels
-  (quality 75), `preview` in 1600 × 1600 (quality 80), the proportions
-  kept. An animated GIF, WebP or PNG gives its first frame. They are stored
-  under the tenant's prefix like the original, at keys unique to the
-  processing run (`attachments/<uuid>.thumb.webp`, `<uuid>.preview.webp`;
-  a stripped original of the same run is `<uuid>.jpg`): two jobs on one
-  image (the retry job's duplicate, a stalled job run again) never write the
-  same file, so the one that loses deletes only its own. They go with the
-  attachment: removing it, the nightly sweep and deleting the tenant take
-  them too.
-- **Download:** `GET /v1/attachments/{id}/download?rendition=thumb` (or
-  `preview`) answers like the download of the file: 302 to a signed link
-  (5 minutes), as `inline` and named `photo.thumb.webp`. 404
-  `attachment_rendition_not_found` when there is none: not an image, still
-  `pending` (the message says so; try again, or wait for the realtime
-  `processed`), or `failed`. The scan check comes first (409
-  `attachment_scan_pending`). Like every download, an `<img>` follows the
-  redirect only to an origin the page may load from: the avatar section
-  below says what that costs (the dev proxy, S3's host under Caddy's
-  `img-src 'self'`).
+  below says what that costs. The web app's attachments panel does this
+  (`components/records/panels/attachment-visual.tsx`), so both ends are set up
+  for it: `pnpm dev` rewrites the redirect's host to the page's and proxies
+  `/files` (`apps/web/dev-proxy.ts`, [monorepo](monorepo.md), "The web
+  app"); under Caddy the local disk's link is the app's own origin, and with
+  S3 the bucket's origin is in `img-src`, derived from the S3 settings like
+  the direct uploads' `connect-src` ([deployment](deployment.md), "The origins
+  of files").
+- **In the web app:** an image `ready` shows its `thumb` in the attachments panel,
+  sized from `renditions.thumb.width` and `height`, and opens its `preview` in a
+  dialog with the original downloadable; a placeholder while `pending`; the file icon
+  for `failed`, for everything not processed, and for a thumbnail that does not load
+  (a CSP that refuses the redirect's origin, say). The list is read again on
+  `processed`, and every 10 s (5 s without a socket) while an image is `pending`,
+  because the worker's events reach only the record's watchers, not an uploader who
+  does not watch it.
 - **Metadata of the original:** an original that carries EXIF, XMP, IPTC,
   Photoshop resources or PNG text is replaced by a copy without it,
   rotated upright, in the same format (JPEG and lossy WebP re-encoded at
@@ -499,11 +403,14 @@ check `assertDeclaredType`), on a path of its own so changes to attachments
   authenticates it); a client with a token fetches it with its header.
 - **Served by the API, not redirected** to the disk's signed link (as an
   attachment's download is): an `<img>` follows a redirect only to an origin
-  the page may load from. `pnpm dev` proxies `/v1` but not `/files`, the
-  browser refuses a cross-origin image under the API's
-  `Cross-Origin-Resource-Policy: same-origin`, and with `STORAGE_DRIVER=s3`
-  the signed link is the bucket's host, which Caddy's `img-src 'self' data:`
-  blocks. So the route streams the bytes (`serveFile()`, `inline`,
+  the page may load from. The browser refuses a cross-origin image under the
+  API's `Cross-Origin-Resource-Policy: same-origin` (`pnpm dev` proxies `/files`
+  and rewrites the redirect to the page's origin now, for the attachments'
+  thumbnails: [Image renditions](#image-renditions)), and with
+  `STORAGE_DRIVER=s3` the signed link is the bucket's host, which the page's
+  `img-src` must name (Caddy's does: [deployment](deployment.md), "The origins
+  of files"; a policy of your own may not). The avatar needs neither: the
+  route streams the bytes (`serveFile()`, `inline`,
   `Cache-Control: private, max-age=300`) from the origin the page is on.
 - **Personal data:** the account export's `profile` row holds `avatarKey` (the
   file's name, not the bytes). When the account is deleted the file is

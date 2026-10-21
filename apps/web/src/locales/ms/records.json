@@ -49,6 +49,13 @@
     "downloadShort": "Muat turun",
     "scanning": "Sedang diimbas…",
     "downloadScanning": "Muat turun {{name}}: tersedia selepas imbasan selesai",
+    "preparing": "Menyediakan pratonton…",
+    "preview": "Pratonton {{name}}",
+    "previewNote": "Salinan imej yang lebih kecil. Fail asal tidak berubah.",
+    "previewLoading": "Memuatkan pratonton…",
+    "previewError": "Pratonton tidak dapat dimuatkan. Fail asal masih boleh dimuat turun.",
+    "close": "Tutup",
+    "downloadOriginal": "Muat turun fail asal",
     "delete": "Padam",
     "deleteTitle": "Padam fail ini?",
     "deleteDescription": "“{{name}}” dibuang daripada rekod, bersama failnya."

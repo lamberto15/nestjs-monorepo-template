@@ -49,6 +49,13 @@
     "downloadShort": "تنزيل",
     "scanning": "جارٍ الفحص…",
     "downloadScanning": "تنزيل {{name}}: متاح عند اكتمال الفحص",
+    "preparing": "جارٍ تجهيز المعاينة…",
+    "preview": "معاينة {{name}}",
+    "previewNote": "نسخة أصغر من الصورة. يبقى الأصل دون تغيير.",
+    "previewLoading": "جارٍ تحميل المعاينة…",
+    "previewError": "تعذر تحميل المعاينة. لا يزال بالإمكان تنزيل الأصل.",
+    "close": "إغلاق",
+    "downloadOriginal": "تنزيل الأصل",
     "delete": "حذف",
     "deleteTitle": "حذف هذا الملف؟",
     "deleteDescription": "ستتم إزالة «{{name}}» من السجل مع الملف."

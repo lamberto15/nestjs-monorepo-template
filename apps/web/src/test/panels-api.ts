@@ -81,6 +81,14 @@ export function panelsDescription(
   };
 }
 
+/** An image's smaller copy, as the API lists it (`renditions.thumb`, `renditions.preview`). */
+export type TestRendition = {
+  width: number;
+  height: number;
+  size: number;
+  contentType: string;
+};
+
 type Comment = {
   id: string;
   subject: string;
@@ -144,6 +152,10 @@ export function panelHandlers(
       locked?: boolean;
       /** `pending` while the malware scan runs; `clean` unless given. */
       scanStatus?: 'pending' | 'clean';
+      /** An image's processing (null, not an image, unless given). */
+      renditionStatus?: 'pending' | 'ready' | 'failed' | null;
+      /** Empty until `renditionStatus` is `ready`. */
+      renditions?: { thumb?: TestRendition; preview?: TestRendition };
     }[];
     tags?: { id: string; name: string; color: string | null }[];
     revisions?: TestRevision[];
@@ -190,6 +202,15 @@ export function panelHandlers(
     /** The scan of a pending file ends clean (the next listing shows it). */
     scanClean(id: string) {
       attachments.find((a) => a.id === id)!.scanStatus = 'clean';
+    },
+    /** The worker made an image's renditions (the next listing shows them). */
+    processed(
+      id: string,
+      renditions: { thumb: TestRendition; preview: TestRendition },
+    ) {
+      const image = attachments.find((a) => a.id === id)!;
+      image.renditionStatus = 'ready';
+      image.renditions = renditions;
     },
     /** The scan flags it: the API deletes the file and its row. */
     scanInfected(id: string) {
@@ -322,6 +343,8 @@ export function panelHandlers(
           recordId: 'x',
           locked: false,
           scanStatus: 'clean',
+          renditionStatus: null,
+          renditions: {},
           createdAt: '2026-10-17T09:40:00.000Z',
           updatedAt: '2026-10-17T09:40:00.000Z',
           ...a,

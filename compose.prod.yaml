@@ -526,15 +526,20 @@ services:
       # instead of the app (caddy/Caddyfile, docs/deployment.md, "Maintenance
       # page"); the API's paths are untouched. Anything else: off.
       MAINTENANCE_PAGE: ${MAINTENANCE_PAGE:-off}
-      # With STORAGE_DRIVER=s3 the web app's Content-Security-Policy names the
-      # bucket's origin (connect-src: the browser PUTs direct uploads to it);
-      # caddy/entrypoint.sh derives it from the app's own S3_* settings.
+      # The origins the web app may reach for files, in its
+      # Content-Security-Policy's connect-src and img-src: with
+      # STORAGE_DRIVER=s3 the browser PUTs direct uploads to the bucket and
+      # loads attachment thumbnails from its signed links. caddy/entrypoint.sh
+      # derives the bucket's origin from the app's own S3_* settings and adds
+      # FILES_ORIGIN (empty, or https origins it can't know: a custom domain or
+      # CDN in front of the bucket); docs/deployment.md.
       STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
       S3_BUCKET: ${S3_BUCKET:-}
       S3_REGION: ${S3_REGION:-}
       S3_ENDPOINT: ${S3_ENDPOINT:-}
       S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-}
       AWS_REGION: ${AWS_REGION:-}
+      FILES_ORIGIN: ${FILES_ORIGIN:-}
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

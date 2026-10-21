@@ -6,7 +6,8 @@
 // site address becomes a local http one, the `/srv` directories become temp
 // directories, and `api:3000` becomes a stub server. Every edit must match, or
 // the test fails (a Caddyfile that changed shape must not pass by testing
-// nothing).
+// nothing). Caddy runs as it is, or through caddy/entrypoint.sh, as the image
+// starts it, where a suite tests what the entrypoint hands it.
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import {
@@ -34,6 +35,7 @@ if (process.env.CADDY_BIN && !available) {
 const skip = available ? false : 'no caddy binary (set CADDY_BIN)';
 
 const caddyfile = readFileSync(new URL('./Caddyfile', import.meta.url), 'utf8');
+const entrypoint = fileURLToPath(new URL('./entrypoint.sh', import.meta.url));
 const maintenancePage = fileURLToPath(
   new URL('./maintenance.html', import.meta.url),
 );
@@ -80,8 +82,11 @@ function testable({ port, apiPort, dirs }) {
   return text;
 }
 
-/** Caddy running the testable Caddyfile with this environment; `stop()` ends it. */
-async function startCaddy(env) {
+/**
+ * Caddy running the testable Caddyfile with this environment; `stop()` ends it.
+ * `viaEntrypoint`: started by caddy/entrypoint.sh, which execs it.
+ */
+async function startCaddy(env, { viaEntrypoint = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'caddyfile-test-'));
   const dirs = {
     web: join(root, 'web'),
@@ -111,20 +116,20 @@ async function startCaddy(env) {
   const file = join(root, 'Caddyfile');
   writeFileSync(file, testable({ port, apiPort: api.address().port, dirs }));
 
-  const child = spawn(
-    caddyBin,
-    ['run', '--config', file, '--adapter', 'caddyfile'],
-    {
-      env: {
-        PATH: process.env.PATH,
-        HOME: root,
-        XDG_DATA_HOME: join(root, 'data'),
-        XDG_CONFIG_HOME: join(root, 'config'),
-        ...env,
-      },
-      stdio: ['ignore', 'ignore', 'pipe'],
+  const run = [caddyBin, 'run', '--config', file, '--adapter', 'caddyfile'];
+  const [command, ...args] = viaEntrypoint ? ['sh', entrypoint, ...run] : run;
+  const child = spawn(command, args, {
+    env: {
+      PATH: process.env.PATH,
+      HOME: root,
+      XDG_DATA_HOME: join(root, 'data'),
+      XDG_CONFIG_HOME: join(root, 'config'),
+      // The entrypoint requires the token; the testable Caddyfile has no `tls`.
+      ...(viaEntrypoint ? { CLOUDFLARE_API_TOKEN: 'ci' } : {}),
+      ...env,
     },
-  );
+    stdio: ['ignore', 'ignore', 'pipe'],
+  });
   let log = '';
   child.stderr.on('data', (chunk) => (log += chunk));
   const base = `http://127.0.0.1:${port}`;
@@ -284,71 +289,155 @@ describe(
   },
 );
 
-/** The CSP's connect-src, from a response. */
-const connectSrc = (response) =>
-  /connect-src ([^;]*);/.exec(
-    response.headers.get('content-security-policy') ?? '',
-  )?.[1];
+/** A directive's source list in a response's Content-Security-Policy. */
+const sources = (response, directive) =>
+  new RegExp(`(?:^|;)\\s*${directive} ([^;]*)`)
+    .exec(response.headers.get('content-security-policy') ?? '')?.[1]
+    ?.trim()
+    .split(/\s+/);
+const connectSources = (response) => sources(response, 'connect-src');
+const imgSources = (response) => sources(response, 'img-src');
+
+const bucket = 'https://files.s3.eu-west-1.amazonaws.com';
+const cdn = 'https://cdn.example.com:8443';
+
+describe('the web app, WEB_FILES_ORIGINS unset', { skip }, () => {
+  let caddy;
+  before(async () => (caddy = await startCaddy({})));
+  after(() => caddy.stop());
+
+  it('connects to this origin only, and takes images from it and data: URLs', async () => {
+    const response = await get(caddy, '/');
+    assert.deepEqual(connectSources(response), ["'self'"]);
+    assert.deepEqual(imgSources(response), ["'self'", 'data:']);
+  });
+});
 
 describe(
-  'the web app, connect-src of its Content-Security-Policy',
+  'the web app, WEB_FILES_ORIGINS set (caddy/entrypoint.sh sets it)',
   { skip },
   () => {
-    it('is this origin only, unless WEB_CONNECT_SRC says more (caddy/entrypoint.sh sets it)', async () => {
-      const caddy = await startCaddy({});
-      try {
-        assert.equal(connectSrc(await get(caddy, '/')), "'self'");
-      } finally {
-        await caddy.stop();
+    let caddy;
+    before(
+      async () => (caddy = await startCaddy({ WEB_FILES_ORIGINS: bucket })),
+    );
+    after(() => caddy.stop());
+
+    it('names the origin in connect-src and img-src, on every response of the app, and nowhere else', async () => {
+      for (const path of ['/', '/sign-in', '/assets/app.js']) {
+        const response = await get(caddy, path);
+        assert.deepEqual(connectSources(response), ["'self'", bucket], path);
+        assert.deepEqual(
+          imgSources(response),
+          ["'self'", 'data:', bucket],
+          path,
+        );
+        const policy = response.headers.get('content-security-policy') ?? '';
+        assert.equal(policy.split(bucket).length, 3, path); // twice
+        assertSecurityHeaders(response);
       }
     });
 
-    it('names the bucket when it is given, on every response of the app', async () => {
-      const bucket = 'https://files.s3.eu-west-1.amazonaws.com';
-      const caddy = await startCaddy({ WEB_CONNECT_SRC: `'self' ${bucket}` });
+    it('names every origin of a list in both', async () => {
+      const two = await startCaddy({ WEB_FILES_ORIGINS: `${bucket} ${cdn}` });
       try {
-        for (const path of ['/', '/sign-in', '/assets/app.js']) {
-          const response = await get(caddy, path);
-          assert.equal(connectSrc(response), `'self' ${bucket}`, path);
-          assertSecurityHeaders(response);
-        }
+        const response = await get(two, '/');
+        assert.deepEqual(connectSources(response), ["'self'", bucket, cdn]);
+        assert.deepEqual(imgSources(response), [
+          "'self'",
+          'data:',
+          bucket,
+          cdn,
+        ]);
       } finally {
-        await caddy.stop();
+        await two.stop();
       }
     });
   },
 );
 
-describe("the connect-src that caddy/entrypoint.sh derives from the app's S3 settings", () => {
-  const entrypoint = fileURLToPath(new URL('./entrypoint.sh', import.meta.url));
-  /** What the entrypoint hands Caddy as WEB_CONNECT_SRC, and what it said about it. */
-  function derive(env) {
-    const run = spawnSync(
-      'sh',
-      [entrypoint, 'sh', '-c', 'printf %s "$WEB_CONNECT_SRC"'],
-      {
-        env: { PATH: process.env.PATH, CLOUDFLARE_API_TOKEN: 'ci', ...env },
-        encoding: 'utf8',
-      },
+describe('the web app started by caddy/entrypoint.sh', { skip }, () => {
+  /** The policy's connect-src and img-src, Caddy started with this environment. */
+  async function policyWith(env) {
+    const caddy = await startCaddy(env, { viaEntrypoint: true });
+    try {
+      const response = await get(caddy, '/');
+      return {
+        connect: connectSources(response),
+        img: imgSources(response),
+      };
+    } finally {
+      await caddy.stop();
+    }
+  }
+  const s3 = {
+    STORAGE_DRIVER: 's3',
+    S3_BUCKET: 'files',
+    S3_REGION: 'eu-west-1',
+  };
+
+  it("puts the bucket's origin, derived from the S3 settings, in connect-src and img-src", async () => {
+    assert.deepEqual(await policyWith(s3), {
+      connect: ["'self'", bucket],
+      img: ["'self'", 'data:', bucket],
+    });
+  });
+
+  it("adds FILES_ORIGIN after the bucket's origin, in both", async () => {
+    assert.deepEqual(await policyWith({ ...s3, FILES_ORIGIN: cdn }), {
+      connect: ["'self'", bucket, cdn],
+      img: ["'self'", 'data:', bucket, cdn],
+    });
+  });
+
+  it('adds nothing with the local driver, whatever WEB_FILES_ORIGINS the environment held', async () => {
+    assert.deepEqual(
+      await policyWith({
+        STORAGE_DRIVER: 'local',
+        S3_BUCKET: 'files',
+        S3_REGION: 'eu-west-1',
+        WEB_FILES_ORIGINS: "'unsafe-inline'",
+      }),
+      { connect: ["'self'"], img: ["'self'", 'data:'] },
     );
-    assert.equal(run.status, 0, run.stderr);
-    return { value: run.stdout, warning: run.stderr };
+  });
+});
+
+/** What caddy/entrypoint.sh hands Caddy as WEB_FILES_ORIGINS, what it said, and its exit status. */
+function filesOrigins(env) {
+  const run = spawnSync(
+    'sh',
+    [entrypoint, 'sh', '-c', 'printf %s "$WEB_FILES_ORIGINS"'],
+    {
+      env: { PATH: process.env.PATH, CLOUDFLARE_API_TOKEN: 'ci', ...env },
+      encoding: 'utf8',
+    },
+  );
+  return { status: run.status, value: run.stdout, warning: run.stderr };
+}
+
+describe("the bucket origin caddy/entrypoint.sh derives from the app's S3 settings", () => {
+  /** WEB_FILES_ORIGINS and the warning, for an environment the entrypoint accepts. */
+  function derive(env) {
+    const { status, value, warning } = filesOrigins(env);
+    assert.equal(status, 0, warning);
+    return { value, warning };
   }
   const s3 = { STORAGE_DRIVER: 's3', S3_BUCKET: 'files' };
 
-  it('stays this origin with the local driver, or without a bucket', () => {
-    assert.equal(derive({}).value, "'self'");
+  it('adds none with the local driver, or without a bucket', () => {
+    assert.equal(derive({}).value, '');
     assert.equal(
       derive({
         STORAGE_DRIVER: 'local',
         S3_BUCKET: 'files',
         S3_REGION: 'eu-west-1',
       }).value,
-      "'self'",
+      '',
     );
     assert.equal(
       derive({ STORAGE_DRIVER: 's3', S3_REGION: 'eu-west-1' }).value,
-      "'self'",
+      '',
     );
   });
 
@@ -423,7 +512,7 @@ describe("the connect-src that caddy/entrypoint.sh derives from the app's S3 set
   for (const [name, env, origin] of cases) {
     it(`names the bucket's origin: ${name}`, () => {
       const { value, warning } = derive(env);
-      assert.equal(value, `'self' ${origin}`);
+      assert.equal(value, origin);
       assert.equal(warning, '');
     });
   }
@@ -437,9 +526,70 @@ describe("the connect-src that caddy/entrypoint.sh derives from the app's S3 set
       { ...s3, S3_BUCKET: "files'", S3_REGION: 'eu-west-1' },
     ]) {
       const { value, warning } = derive(env);
-      assert.equal(value, "'self'", JSON.stringify(env));
+      assert.equal(value, '', JSON.stringify(env));
       assert.match(warning, /no bucket origin/, JSON.stringify(env));
     }
+  });
+});
+
+describe('the entrypoint checks FILES_ORIGIN', () => {
+  const run = (FILES_ORIGIN) =>
+    filesOrigins(FILES_ORIGIN === undefined ? {} : { FILES_ORIGIN });
+
+  it('starts without it, with an empty one, and with https origins', () => {
+    for (const value of [
+      undefined,
+      '',
+      'https://files.s3.eu-west-1.amazonaws.com',
+      'https://a.example.com https://b.example.com:8443',
+      '  https://a.example.com  ',
+    ]) {
+      const result = run(value);
+      assert.equal(
+        result.status,
+        0,
+        `${JSON.stringify(value)}: ${result.warning}`,
+      );
+    }
+  });
+
+  it('refuses anything that is not an https origin: it goes into the policy as written', () => {
+    for (const value of [
+      'http://files.example.com',
+      'files.example.com',
+      'https://',
+      'https://files.example.com/bucket',
+      'https://*.example.com',
+      "https://a.example.com; script-src 'unsafe-inline'",
+      'https://a.example.com; script-src',
+      "https://a.example.com'",
+      'https://a.example.com,https://b.example.com',
+      "'self'",
+    ]) {
+      const result = run(value);
+      assert.equal(result.status, 1, JSON.stringify(value));
+      assert.match(result.warning, /FILES_ORIGIN: .* is not an https origin/);
+    }
+  });
+
+  it("adds its origins after the bucket's, each once, spaces trimmed", () => {
+    assert.equal(run(`  ${cdn}  `).value, cdn);
+    assert.equal(
+      filesOrigins({
+        STORAGE_DRIVER: 's3',
+        S3_BUCKET: 'files',
+        S3_REGION: 'eu-west-1',
+        FILES_ORIGIN: `${cdn} ${bucket} ${cdn}`,
+      }).value,
+      `${bucket} ${cdn}`,
+    );
+  });
+
+  it('never takes WEB_FILES_ORIGINS from the environment', () => {
+    assert.equal(
+      filesOrigins({ WEB_FILES_ORIGINS: "'unsafe-inline'" }).value,
+      '',
+    );
   });
 });
 

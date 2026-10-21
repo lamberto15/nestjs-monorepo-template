@@ -52,18 +52,30 @@ jobs:
           grep -q 'helm.sh/hook": pre-install,pre-upgrade' "$RUNNER_TEMP/all.yaml"
           if grep -q ':latest' "$RUNNER_TEMP/all.yaml"; then exit 1; fi
 
-      # Direct uploads (docs/attachments.md): the browser PUTs to the bucket, so
-      # the web app's Content-Security-Policy must name its origin, and only then.
-      - name: The web app's policy names the bucket of direct uploads
+      # The origins of files (docs/deployment.md): the browser PUTs direct uploads
+      # to the bucket and loads thumbnails from its signed links, so the web app's
+      # Content-Security-Policy names the bucket's origin (derived from env), then
+      # web.filesOrigin's, in connect-src and img-src alike, and only then.
+      - name: The web app's policy names the origins of files
         run: |
           helm template ci deploy/helm/app -f deploy/helm/ci/values.yaml > "$RUNNER_TEMP/no-bucket.yaml"
-          grep -q "connect-src 'self';" "$RUNNER_TEMP/no-bucket.yaml"
+          grep -q "connect-src 'self'; img-src 'self' data:;" "$RUNNER_TEMP/no-bucket.yaml"
           helm template ci deploy/helm/app -f deploy/helm/ci/values.yaml \
             --set env.S3_BUCKET=files --set env.S3_REGION=eu-west-1 > "$RUNNER_TEMP/bucket.yaml"
-          grep -q "connect-src 'self' https://files.s3.eu-west-1.amazonaws.com;" "$RUNNER_TEMP/bucket.yaml"
+          grep -q "connect-src 'self' https://files.s3.eu-west-1.amazonaws.com; img-src 'self' data: https://files.s3.eu-west-1.amazonaws.com;" "$RUNNER_TEMP/bucket.yaml"
           helm template ci deploy/helm/app -f deploy/helm/ci/values.yaml \
-            --set env.S3_BUCKET=files --set env.S3_ENDPOINT=http://minio:9000 --set-string env.S3_FORCE_PATH_STYLE=on > "$RUNNER_TEMP/minio.yaml"
-          grep -q "connect-src 'self' http://minio:9000;" "$RUNNER_TEMP/minio.yaml"
+            --set env.S3_BUCKET=files --set env.S3_ENDPOINT=https://minio.internal:9000 --set-string env.S3_FORCE_PATH_STYLE=on > "$RUNNER_TEMP/minio.yaml"
+          grep -q "connect-src 'self' https://minio.internal:9000; img-src 'self' data: https://minio.internal:9000;" "$RUNNER_TEMP/minio.yaml"
+          helm template ci deploy/helm/app -f deploy/helm/ci/values.yaml \
+            --set env.S3_BUCKET=files --set env.S3_REGION=eu-west-1 \
+            --set-string 'web.filesOrigin=https://cdn.example.com https://files.s3.eu-west-1.amazonaws.com' > "$RUNNER_TEMP/cdn.yaml"
+          grep -q "connect-src 'self' https://files.s3.eu-west-1.amazonaws.com https://cdn.example.com; img-src 'self' data: https://files.s3.eu-west-1.amazonaws.com https://cdn.example.com;" "$RUNNER_TEMP/cdn.yaml"
+          # web.filesOrigin goes into the policy as written: anything but https origins fails.
+          if helm template ci deploy/helm/app -f deploy/helm/ci/values.yaml \
+            --set-string web.filesOrigin=https://files.example.com/bucket 2>err.txt; then
+            echo "expected a failure"; exit 1
+          fi
+          grep -q 'is not an https origin' err.txt
 
       - name: An image without a tag is refused
         run: |
