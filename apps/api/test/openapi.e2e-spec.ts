@@ -188,6 +188,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/approvals/{id}/resubmit',
         '/v1/attachments/{id}',
         '/v1/attachments/{id}/download',
+        '/v1/auth/email/change',
         '/v1/auth/email/verification',
         '/v1/auth/email/verification/resend',
         '/v1/auth/email/verify',
