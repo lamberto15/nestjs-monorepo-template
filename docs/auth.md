@@ -1309,7 +1309,9 @@ never loosen it. Unset, every policy is today's behaviour.
   restricted: every route answers 403 `mfa_enrollment_required` except
   `GET /v1/auth/me` (its `mfaEnrollmentRequired: true` tells the web app to
   show the set-up), `/v1/auth/mfa…` (status, `enroll`, `confirm`),
-  `/v1/auth/reauthenticate` (enrolling wants a recent sign-in), signing out
+  `/v1/auth/reauthenticate` (enrolling wants a recent sign-in),
+  `GET /v1/features` (the deployment-wide switches the web app reads to
+  draw the set-up, e.g. `mfa`; any signed-in caller sees them anyway), signing out
   (`/sign-out`, `/sign-out-everywhere`), `GET /v1/auth/tenants`,
   `POST /v1/auth/tenant` (another tenant may not require it) and
   accepting an invitation. Once `confirm` succeeds the same session is a
@@ -1321,6 +1323,12 @@ never loosen it. Unset, every policy is today's behaviour.
   (the administrator signed in, not the user). The package's second factor
   covers enrolled users only (a pending session, `@Authenticate({ mfa: true })`)
   and has no hook to make a user enroll, hence the guard.
+- **No locking yourself out.** Requiring it of a scope that covers the
+  caller while they have no authenticator (`PUT /v1/settings/auth.requireMfa`
+  at the tenant scope or a team they belong to, or `…/platform`) is
+  refused with 409 `mfa_enroll_first`: set up two-factor first
+  (`SettingsAuthPolicy`, through `SettingsService.guardWrite()`). Turning it
+  off, or requiring it of other teams, is never refused.
 - **Who meets a minimum length.** A password is the account's, in every
   tenant: the strictest of the tenants it is an active member of; an
   invitation's new address, the inviting tenant's. A reset link is read

@@ -169,13 +169,18 @@ describe('auth policies (e2e)', () => {
         .send({ scope: 'team', scopeId: team.body.id, value: false })
         .expect(200);
 
+      // An administrator with no authenticator can't require it of all (that
+      // would lock them out); once enrolled they can.
+      await tenant.admin
+        .put('/v1/settings/auth.requireMfa')
+        .send({ value: true })
+        .expect(409);
+      await enroll(tenant.admin);
       await tenant.admin
         .put('/v1/settings/auth.requireMfa')
         .send({ value: true })
         .expect(200);
-      // The administrator who set it is held to it as well…
-      await tenant.admin.get('/v1/settings').expect(403);
-      // …the team's false doesn't exempt its member…
+      // The team's false doesn't exempt its member…
       await user.agent.get('/v1/test-items').expect(403);
       // …and API clients have no second factor to set up.
       await node
@@ -186,8 +191,6 @@ describe('auth policies (e2e)', () => {
       // The seeded tenant isn't concerned.
       await node.admin().get('/v1/settings').expect(200);
 
-      await enroll(tenant.admin);
-      await tenant.admin.get('/v1/settings').expect(200);
       await tenant.admin.delete('/v1/settings/auth.requireMfa').expect(204);
       await user.agent.get('/v1/test-items').expect(200);
     });
@@ -216,11 +219,53 @@ describe('auth policies (e2e)', () => {
         .send({ value: false, enforced: true })
         .expect(200);
       await user.agent.get('/v1/test-items').expect(200);
+      await enroll(tenant.admin);
       await tenant.admin
         .put('/v1/settings/auth.requireMfa')
         .send({ value: true })
         .expect(200);
       await user.agent.get('/v1/test-items').expect(403);
+    });
+
+    it('the shell keeps working while enrolling: GET /v1/features is open to a restricted session', async () => {
+      const member = await node.user(['editor']);
+      const team = await teamWith(member.id);
+      await node
+        .admin()
+        .put('/v1/settings/auth.requireMfa')
+        .send({ scope: 'team', scopeId: team, value: true })
+        .expect(200);
+      await member.agent.get('/v1/test-items').expect(403);
+      const features = await member.agent.get('/v1/features').expect(200);
+      expect(features.body.mfa).toBe(true);
+    });
+
+    it('refuses requiring two-factor of a caller who has none: 409 mfa_enroll_first, at the tenant, platform and own-team scopes', async () => {
+      // An administrator of no authenticator, in a team of their own (an
+      // administrator can't change their own teams: the operator adds them).
+      const caller = await node.user(['administrator']);
+      const team = await teamWith(caller.id);
+      for (const request of [
+        caller.agent.put('/v1/settings/auth.requireMfa').send({ value: true }),
+        caller.agent
+          .put('/v1/settings/auth.requireMfa')
+          .send({ scope: 'team', scopeId: team, value: true }),
+      ]) {
+        const refused = await request.expect(409);
+        expect(refused.body).toMatchObject({ code: 'mfa_enroll_first' });
+      }
+      // Not requiring it, or requiring it of a team they are not in, is fine.
+      await caller.agent
+        .put('/v1/settings/auth.requireMfa')
+        .send({ value: false })
+        .expect(200);
+      await caller.agent.delete('/v1/settings/auth.requireMfa').expect(204);
+      // An operator too (an administrator of the operators' tenant).
+      const refusedPlatform = await caller.agent
+        .put('/v1/settings/auth.requireMfa/platform')
+        .send({ value: true })
+        .expect(409);
+      expect(refusedPlatform.body).toMatchObject({ code: 'mfa_enroll_first' });
     });
 
     it('AUTH_MFA=off is the ceiling: refused when set, no effect when stored', async () => {
