@@ -45,7 +45,9 @@ export class BrandingLogoUpload implements NestInterceptor {
   }
 
   async intercept(context: ExecutionContext, next: CallHandler) {
-    await this.branding.assertEditable();
+    await this.branding.assertEditable(
+      context.switchToHttp().getRequest<{ user: Principal }>().user,
+    );
     return this.multer.intercept(context, next);
   }
 }

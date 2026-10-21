@@ -1440,7 +1440,7 @@ export interface paths {
         };
         /**
          * The logo of a tenant
-         * @description No sign-in needed. Redirects to a signed link to the image, valid for 5 minutes, served as an image under `Content-Security-Policy: default-src 'none'; sandbox` with `nosniff`.
+         * @description No sign-in needed. The image itself (PNG, JPEG or WebP, the type its bytes say), cached for five minutes, with `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox` and `Cross-Origin-Resource-Policy: cross-origin` (other sites' mail pages and apps may show it).
          */
         get: operations["PublicBrandingController_logo_v1"];
         put?: never;
@@ -11794,8 +11794,8 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description To the image (a signed link). */
-            302: {
+            /** @description The image. */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

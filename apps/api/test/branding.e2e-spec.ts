@@ -1,3 +1,6 @@
+import { StorageDisk } from '@nestjs/storage';
+import { randomUUID } from 'node:crypto';
+import { BrandingService } from '../src/platform/branding/branding.service.js';
 import { bootApp, type TestApp } from './support.js';
 
 /** A 1x1 PNG, a JPEG and a WebP header: what the logo's bytes must start with. */
@@ -15,10 +18,14 @@ const SVG = Buffer.from(
 );
 const HTML = Buffer.from('<html><script>alert(1)</script></html>');
 
-/** The path and query of a signed URL: the tests reach the app on its own port. */
-const local = (url: string) => {
-  const { pathname, search } = new URL(url);
-  return pathname + search;
+/** The bytes of a response, whatever its type. */
+const binary = (
+  res: NodeJS.ReadableStream,
+  done: (error: Error | null, body: Buffer) => void,
+) => {
+  const chunks: Buffer[] = [];
+  res.on('data', (chunk: Buffer) => chunks.push(chunk));
+  res.on('end', () => done(null, Buffer.concat(chunks)));
 };
 
 describe('tenant branding (e2e)', () => {
@@ -140,26 +147,20 @@ describe('tenant branding (e2e)', () => {
         .expect(201);
       expect(first.body.logoUrl).toBe(`/v1/branding/${tenant.id}/logo`);
 
-      // No sign-in needed: a mail client shows it.
-      const redirect = await node
-        .http()
-        .get(`/v1/branding/${tenant.id}/logo`)
-        .expect(302);
+      // No sign-in needed: a mail client shows it. The bytes, with the type
+      // they say and the headers of a file that is never a page.
       const file = await node
         .http()
-        .get(local(redirect.headers.location!))
+        .get(`/v1/branding/${tenant.id}/logo`)
         .buffer(true)
-        .parse((res, done) => {
-          const chunks: Buffer[] = [];
-          res.on('data', (chunk: Buffer) => chunks.push(chunk));
-          res.on('end', () => done(null, Buffer.concat(chunks)));
-        })
+        .parse(binary)
         .expect(200);
       expect(file.headers['content-type']).toBe('image/png');
       expect(file.headers['x-content-type-options']).toBe('nosniff');
       expect(file.headers['content-security-policy']).toContain(
         "default-src 'none'",
       );
+      expect(file.headers['cross-origin-resource-policy']).toBe('cross-origin');
       expect(file.body).toEqual(PNG);
 
       // A new one replaces it, whatever the name says.
@@ -167,12 +168,14 @@ describe('tenant branding (e2e)', () => {
         .post('/v1/branding/logo')
         .attach('file', JPEG, { filename: 'x.png', contentType: 'image/png' })
         .expect(201);
-      const second = await node
+      const jpeg = await node
         .http()
         .get(`/v1/branding/${tenant.id}/logo`)
-        .expect(302);
-      const jpeg = await node.http().get(local(second.headers.location!));
+        .buffer(true)
+        .parse(binary)
+        .expect(200);
       expect(jpeg.headers['content-type']).toBe('image/jpeg');
+      expect(jpeg.body).toEqual(JPEG);
 
       // Another tenant has none.
       await node.http().get(`/v1/branding/${node.tenantId}/logo`).expect(404);
@@ -213,20 +216,34 @@ describe('tenant branding (e2e)', () => {
         .post('/v1/branding/logo')
         .attach('file', big, { filename: 'big.png', contentType: 'image/png' })
         .expect(413);
-      const redirect = await node
-        .http()
-        .get(`/v1/branding/${tenant.id}/logo`)
-        .expect(302);
       const kept = await node
         .http()
-        .get(local(redirect.headers.location!))
+        .get(`/v1/branding/${tenant.id}/logo`)
         .buffer(true)
-        .parse((res, done) => {
-          const chunks: Buffer[] = [];
-          res.on('data', (chunk: Buffer) => chunks.push(chunk));
-          res.on('end', () => done(null, Buffer.concat(chunks)));
-        });
+        .parse(binary)
+        .expect(200);
       expect(kept.body).toEqual(PNG);
+    });
+
+    it('serves only what the bytes say is an image, whatever the file was stored as', async () => {
+      const tenant = await node.otherTenant();
+      // A file put on the key by other means (a restore, a bucket tool),
+      // labelled as an image but holding a script.
+      await node.app
+        .get(StorageDisk)
+        .put(BrandingService.logoKey(tenant.id), SVG, {
+          contentType: 'image/png',
+        });
+      await node.http().get(`/v1/branding/${tenant.id}/logo`).expect(404);
+      expect(
+        (await tenant.admin.get('/v1/branding').expect(200)).body.logoUrl,
+      ).toBeNull();
+    });
+
+    it('answers 404 for an id that is no tenant’s, and 400 for one that is no id', async () => {
+      await node.http().get(`/v1/branding/${randomUUID()}/logo`).expect(404);
+      await node.http().get('/v1/branding/..%2F..%2Fetc/logo').expect(400);
+      await node.http().get('/v1/branding/not-an-id/logo').expect(400);
     });
 
     it('needs a file', async () => {
@@ -247,11 +264,8 @@ describe('tenant branding (e2e)', () => {
       .expect(201);
 
     const email = `invitee-${Date.now()}@example.com`;
-    await tenant.admin
-      .post('/v1/access/users')
-      .send({ email, name: 'Invitee' })
-      .expect(201);
-    const mail = await node.waitForMail({
+    await node.invite(tenant.admin, { email, name: 'Invitee' });
+    const mail = node.mailbox.assertSent({
       to: email,
       subject: /invited you to/,
     });
@@ -263,11 +277,8 @@ describe('tenant branding (e2e)', () => {
     // Another tenant's mail is not branded.
     const plain = await node.otherTenant();
     const other = `plain-${Date.now()}@example.com`;
-    await plain.admin
-      .post('/v1/access/users')
-      .send({ email: other, name: 'Plain' })
-      .expect(201);
-    const unbranded = await node.waitForMail({
+    await node.invite(plain.admin, { email: other, name: 'Plain' });
+    const unbranded = node.mailbox.assertSent({
       to: other,
       subject: /invited you to/,
     });
@@ -350,7 +361,7 @@ describe('tenant branding (e2e)', () => {
           .expect(refused);
         await tenant.admin.delete('/v1/branding/logo').expect(409);
         // What was stored stays in force, and the logo is still served.
-        await node.http().get(`/v1/branding/${tenant.id}/logo`).expect(302);
+        await node.http().get(`/v1/branding/${tenant.id}/logo`).expect(200);
         // Other tenants are free.
         const free = await node.otherTenant();
         await free.admin

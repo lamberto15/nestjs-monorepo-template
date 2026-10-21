@@ -26,13 +26,18 @@ GET    /v1/branding                    { primaryColor, mailFromName, logoUrl, lo
 PUT    /v1/branding                    { primaryColor?, mailFromName? }   null removes, absent stays   Access.manageSettings
 POST   /v1/branding/logo               multipart, field `file`   201, the branding   Access.manageSettings
 DELETE /v1/branding/logo               204   Access.manageSettings
-GET    /v1/branding/{tenantId}/logo    302 to a signed link (5 minutes)   no sign-in
+GET    /v1/branding/{tenantId}/logo    the image, cached 5 minutes   no sign-in
 ```
 
 `logoUrl` is the path of the last route. It is public on purpose: a mail client
 and the sign-in page show it without a session, and the logo is in every mail
 the tenant sends. It reveals nothing but the image, to someone who has the
-tenant's id.
+tenant's id. The route serves the bytes itself (no redirect, so no URL is built
+from the request): the key comes from the id the database answers for an
+**active** tenant, never from the one in the path; the `Content-Type` is the
+one the first bytes say, from the allowlist, whatever the stored metadata
+says; and the response carries `nosniff`, `Content-Security-Policy:
+default-src 'none'; sandbox` and `Cross-Origin-Resource-Policy: cross-origin`.
 
 ## What is checked
 
@@ -53,8 +58,13 @@ tenant's id.
   detection): PNG, JPEG or WebP, whatever the name or the declared type says
   (415 `unsupported_media_type` for anything else). **SVG is refused** on
   purpose: it can carry scripts. At most 512 KB (413). A refused or cut upload
-  never replaces the logo that is there. The file is served under the files'
-  `Content-Security-Policy` and `nosniff`.
+  never replaces the logo that is there. The bytes are checked again every time
+  the logo is read (served, put in a mail, embedded in a PDF): a file on the key
+  that is not one of the three is not a logo (404, none in the mail).
+- **Stored values are checked again where they are used** (`safeColor`,
+  `safeName`): a colour or a name that the schemas would refuse (an enforced
+  platform value, a row written by hand) is dropped, never escaped into a style
+  or a header.
 
 ## In mail
 

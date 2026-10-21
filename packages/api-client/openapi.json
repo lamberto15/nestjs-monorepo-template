@@ -15336,7 +15336,7 @@
     },
     "/v1/branding/{tenantId}/logo": {
       "get": {
-        "description": "No sign-in needed. Redirects to a signed link to the image, valid for 5 minutes, served as an image under `Content-Security-Policy: default-src 'none'; sandbox` with `nosniff`.",
+        "description": "No sign-in needed. The image itself (PNG, JPEG or WebP, the type its bytes say), cached for five minutes, with `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox` and `Cross-Origin-Resource-Policy: cross-origin` (other sites' mail pages and apps may show it).",
         "operationId": "PublicBrandingController_logo_v1",
         "parameters": [
           {
@@ -15349,8 +15349,8 @@
           }
         ],
         "responses": {
-          "302": {
-            "description": "To the image (a signed link)."
+          "200": {
+            "description": "The image."
           },
           "404": {
             "description": "The tenant has no logo."

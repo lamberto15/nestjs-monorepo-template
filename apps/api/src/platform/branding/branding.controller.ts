@@ -12,7 +12,8 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
-  Redirect,
+  Res,
+  StreamableFile,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -24,17 +25,18 @@ import {
   ApiConsumes,
   ApiCookieAuth,
   ApiCreatedResponse,
-  ApiFoundResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiProduces,
   ApiPayloadTooLargeResponse,
   ApiTags,
   ApiUnauthorizedResponse,
   ApiUnsupportedMediaTypeResponse,
 } from '@nestjs/swagger';
 import type { StoredUpload } from '@nestjs/storage';
+import type { Response } from 'express';
 import { z } from 'zod';
 import { AccessPolicy } from '../../iam/access/policies.js';
 import type { Principal } from '../../iam/auth/principal.js';
@@ -44,7 +46,8 @@ import {
   updateBrandingSchema,
   type UpdateBranding,
 } from './branding.schemas.js';
-import { BrandingService } from './branding.service.js';
+import { BrandingService, LOGO_TYPES } from './branding.service.js';
+import { FILE_CSP } from '../storage/files.controller.js';
 
 const logoUploadSchema = z.object({
   file: z.unknown().optional().meta({
@@ -163,19 +166,31 @@ export class PublicBrandingController {
   constructor(private readonly branding: BrandingService) {}
 
   @Get(':tenantId/logo')
-  @Redirect()
   @ApiOperation({
     summary: 'The logo of a tenant',
     description:
-      "No sign-in needed. Redirects to a signed link to the image, valid for 5 minutes, served as an image under `Content-Security-Policy: default-src 'none'; sandbox` with `nosniff`.",
+      "No sign-in needed. The image itself (PNG, JPEG or WebP, the type its bytes say), cached for five minutes, with `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox` and `Cross-Origin-Resource-Policy: cross-origin` (other sites' mail pages and apps may show it).",
   })
-  @ApiFoundResponse({ description: 'To the image (a signed link).' })
+  @ApiProduces(...LOGO_TYPES)
+  @ApiOkResponse({ description: 'The image.' })
   @ApiNotFoundResponse({ description: 'The tenant has no logo.' })
-  async logo(@Param('tenantId', ParseUUIDPipe) tenantId: string) {
-    const url = await this.branding.logoLink(tenantId);
-    if (!url) {
+  async logo(
+    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const file = await this.branding.logoFile(tenantId);
+    if (!file) {
       throw new NotFoundException('There is no logo.');
     }
-    return { url, statusCode: 302 };
+    // An image is never a page: nothing loads, nothing runs, whatever the
+    // bytes hold; the replaced policy is the API's own (Swagger UI's).
+    res.setHeader('Content-Security-Policy', FILE_CSP);
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    return new StreamableFile(file.body, {
+      type: file.contentType,
+      length: file.size,
+      disposition: 'inline',
+    });
   }
 }
