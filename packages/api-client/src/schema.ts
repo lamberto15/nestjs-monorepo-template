@@ -10164,6 +10164,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Would lock the caller out: `auth.requireMfa` on for the caller while they have no authenticator (409 `mfa_enroll_first`; set up two-factor first). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     SettingsController_unset_v1: {
@@ -10533,6 +10540,13 @@ export interface operations {
                 content?: never;
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Would lock the caller out: `auth.requireMfa` on for the caller while they have no authenticator (409 `mfa_enroll_first`; set up two-factor first). */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

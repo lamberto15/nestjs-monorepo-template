@@ -16,6 +16,7 @@ import { Can } from '@nestjs/authorization';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiCookieAuth,
   ApiForbiddenResponse,
   ApiNoContentResponse,
@@ -43,6 +44,9 @@ import {
   unsetSettingQuerySchema,
 } from './setting.schemas.js';
 import { SettingsService } from './settings.service.js';
+
+const CONFLICT_LOCKOUT =
+  'Would lock the caller out: `auth.requireMfa` on for the caller while they have no authenticator (409 `mfa_enroll_first`; set up two-factor first).';
 
 /**
  * Settings and feature flags: what the features declared, with the value
@@ -140,6 +144,7 @@ export class SettingsController {
     description:
       'A value its schema refuses (validation_failed), or one the deployment does not allow (setting_not_allowed).',
   })
+  @ApiConflictResponse({ description: CONFLICT_LOCKOUT })
   @ApiNotFoundResponse()
   setPlatform(
     @CurrentUser() user: Principal,
@@ -189,6 +194,7 @@ export class SettingsController {
     description:
       'A scope the setting does not take, a value its schema refuses, a rollout on something that is not a flag at the tenant scope (validation_failed).',
   })
+  @ApiConflictResponse({ description: CONFLICT_LOCKOUT })
   @ApiNotFoundResponse({
     description: 'No such setting, team or principal.',
   })

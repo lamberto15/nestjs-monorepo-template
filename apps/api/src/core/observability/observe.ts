@@ -1,4 +1,5 @@
 import { ConditionalModule, ConfigService } from '@nestjs/config';
+import * as nestMail from '@nestjs/mail';
 import { createObserveModule } from '@nestjs/observe';
 import { appEnv, type Config, type CoreEnv } from '../config/core.env.js';
 import { logRedaction } from '../logging/redaction.js';
@@ -14,7 +15,70 @@ import { logRedaction } from '../logging/redaction.js';
  * default), so one id follows a request through the proxy, the logs and the
  * traces.
  */
-export const { ObserveModule, ObserveInstrument } = createObserveModule();
+/**
+ * The mail transport classes @nestjs/mail exports (every `*Transport`, found
+ * by name so a transport added in a later release is covered).
+ */
+const mailTransportClasses = Object.entries(nestMail)
+  .filter(
+    ([name, value]) =>
+      name.endsWith('Transport') && typeof value === 'function',
+  )
+  .map(([, value]) => value as abstract new (...args: never[]) => unknown);
+
+/** The key @nestjs/locks stamps on a method wrapped by @OnOneInstance()/@WithoutOverlapping(). */
+const LOCK_JOB_KEY = 'nestjs:locks:job';
+
+/** Whether the instance's class has a method @nestjs/locks wrapped. */
+const hasLockedJob = (instance: object) => {
+  for (
+    let proto = Object.getPrototypeOf(instance) as object | null;
+    proto && proto !== Object.prototype;
+    proto = Object.getPrototypeOf(proto) as object | null
+  ) {
+    for (const key of Object.getOwnPropertyNames(proto)) {
+      const method = Object.getOwnPropertyDescriptor(proto, key)
+        ?.value as unknown;
+      if (
+        typeof method === 'function' &&
+        Object.getOwnPropertySymbols(method).some(
+          (symbol) => symbol.description === LOCK_JOB_KEY,
+        )
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+};
+
+/**
+ * Providers Observe must leave unproxied (its `skipInstrumentation`). Observe
+ * runs a method with its proxy as `this`, which breaks two things keyed by the
+ * real instance:
+ *
+ * - the mail transports: @nestjs/mail compiles `#field` to a WeakMap
+ *   (`__classPrivateFieldGet`), which Observe doesn't detect as a private
+ *   member, so every send throws "Cannot read private member";
+ * - every job decorated with @OnOneInstance()/@WithoutOverlapping():
+ *   @nestjs/locks finds the job's runner in a WeakMap keyed by the instance
+ *   (`jobRunners.get(this)`), so the call throws before the job runs.
+ *
+ * Lock-decorated classes are found by the marker @nestjs/locks puts on the
+ * method, so a new job is covered without being listed. Custom code, because
+ * Observe has no per-class opt-out other than this hook (issue #392). The
+ * cost: no spans for those classes' own methods; their outgoing calls still
+ * trace. Drop this once @nestjs/observe or @nestjs/locks handles proxies.
+ */
+export const skipObserve = (instance: unknown): boolean =>
+  typeof instance === 'object' &&
+  instance !== null &&
+  (mailTransportClasses.some((type) => instance instanceof type) ||
+    hasLockedJob(instance));
+
+export const { ObserveModule, ObserveInstrument } = createObserveModule({
+  skipInstrumentation: skipObserve,
+});
 
 /** Whether Observe is configured: main.ts passes `ObserveInstrument` only then. */
 export const observeEnabled = (env: NodeJS.ProcessEnv = process.env) =>
