@@ -1,4 +1,8 @@
 import { Logger } from '@nestjs/common';
+import {
+  recordTelemetryFailure,
+  resetTelemetryHealth,
+} from '../observability/telemetry-health.js';
 import { MetricsService } from './metrics.service.js';
 
 describe('MetricsService.collect()', () => {
@@ -54,5 +58,40 @@ describe('MetricsService.collect()', () => {
     );
     fail = true;
     expect((await metrics.scrape()).body).not.toMatch(/^queue_jobs[{ ]/m);
+  });
+});
+
+describe('MetricsService telemetry_rejected_total', () => {
+  afterEach(resetTelemetryHealth);
+
+  it('has every refusal series at 0 before the first refusal', async () => {
+    // Prometheus' increase() needs a sample before the count: a series that
+    // appears already at 1 (NestJS Observe refuses once, then pauses) would
+    // never raise TelemetryRejected.
+    const { body } = await new MetricsService().scrape();
+    for (const target of ['observe', 'otlp']) {
+      for (const status of [401, 403, 429]) {
+        expect(body).toContain(
+          `telemetry_rejected_total{target="${target}",status="${status}"} 0`,
+        );
+      }
+    }
+  });
+
+  it('counts the refusals on top of that', async () => {
+    const metrics = new MetricsService();
+    recordTelemetryFailure('observe', 401);
+    recordTelemetryFailure('otlp', 429);
+    recordTelemetryFailure('otlp', 429);
+    const { body } = await metrics.scrape();
+    expect(body).toContain(
+      'telemetry_rejected_total{target="observe",status="401"} 1',
+    );
+    expect(body).toContain(
+      'telemetry_rejected_total{target="otlp",status="429"} 2',
+    );
+    expect(body).toContain(
+      'telemetry_rejected_total{target="otlp",status="401"} 0',
+    );
   });
 });

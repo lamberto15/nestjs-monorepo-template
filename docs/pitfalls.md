@@ -95,6 +95,19 @@
   Still declare such settings in a `*.env.ts` and pass them as options
   (`awsCredentials(config)`): validated, and the same in every process.
 
+- **Instrumentation must start before the libraries it patches load, and a
+  top-level `await` in the first import does not make that so.** The SDKs
+  (`core/observability/instrument.ts`) `await` their dynamic imports, but a
+  module's top-level `await` holds back only the modules that import it: the
+  other imports of `main.ts` (Nest, Express, `pg`, the whole app) were
+  evaluated while it waited, so `node dist/main` was traced by nothing while
+  the e2e suite, which starts the SDKs before it loads the app, looked fine.
+  `main.ts` loads the app with `await import()` after the SDKs; a static
+  import there brings the bug back (`node apps/api/test/telemetry-stub.mjs boot`,
+  CI's `e2e-telemetry`, starts the built app and fails on it). The SDKs also
+  run before the environment is validated, so a secret they use read from
+  its `_FILE` is read by them (`secretValue()`), not left to ConfigModule.
+
 - **`Promise.all` of two queries takes two connections** (a page and its
   count). Fine with a pool of 10; with a pool of 1 every such request waits
   for itself and gets `503 database_busy`. Inside a transaction, queries run
