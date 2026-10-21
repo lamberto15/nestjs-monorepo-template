@@ -164,9 +164,19 @@ const dailyQuota = z
     'Requests a UTC day; past it, 429 quota_exceeded until midnight UTC. null: no quota.',
   );
 
+/** IPv4/IPv6 CIDRs; the service validates them (400 invalid_cidr) and stores them canonical. */
+const allowedCidrs = z
+  .array(z.string().trim().min(1).max(64))
+  .max(100)
+  .optional()
+  .describe(
+    'IPv4/IPv6 CIDRs (a bare address is /32 or /128) the client’s keys may be used from; a request from elsewhere gets 403 client_ip_not_allowed. Empty: any address. A malformed one: 400 invalid_cidr.',
+  );
+
 const clientSchema = z.object({
   name: z.string().trim().min(1).max(80),
   dailyQuota,
+  allowedCidrs,
   roleIds: z
     .array(z.uuid())
     .default([])
@@ -183,6 +193,7 @@ const clientChangesSchema = z.object({
     .optional()
     .describe('false: every key is refused from the next request.'),
   dailyQuota,
+  allowedCidrs,
   roleIds: z.array(z.uuid()).optional(),
   roleExpiresAt,
 });
@@ -230,6 +241,9 @@ const clientViewSchema = z.object({
     .describe(
       'Requests a UTC day (GET /v1/access/clients/{id}/usage); null: none.',
     ),
+  allowedCidrs: z
+    .array(z.string())
+    .describe('CIDRs its keys may be used from; empty: any address.'),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   keys: z
@@ -613,7 +627,7 @@ export class AccessController {
   })
   @ApiOperation({
     summary:
-      'Revoke (active: false) or reactivate a client; change its roles or daily quota',
+      'Revoke (active: false) or reactivate a client; change its roles, daily quota or IP allowlist',
   })
   @ApiOkResponse({ standardSchema: clientViewSchema })
   @ApiNotFoundResponse()

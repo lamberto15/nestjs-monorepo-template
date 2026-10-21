@@ -476,6 +476,36 @@ rather than a component alone.
   what jsdom lacks (`matchMedia`, pointer capture, `ResizeObserver`,
   `scrollIntoView`) and dismisses toasts between tests.
 
+### Developer tooling: Storybook, the bundle budget, Lighthouse
+
+CI runs these in `.github/workflows/web.yml` (pull requests touching
+`apps/web` or `packages/`, and `main`).
+
+- **Storybook** (`packages/ui`, Vite + React, set up with `storybook init`):
+  `pnpm --filter @nestjs-monorepo-template/ui storybook` serves it on
+  http://localhost:6006; `build-storybook` writes `storybook-static/`
+  (a Turborepo task; CI publishes it as the `storybook` workflow artifact).
+  `.storybook/preview.tsx` loads `globals.css`, so the stories wear the app's
+  Tailwind theme, and adds toolbar switches for light/dark (the `.dark` class)
+  and LTR/RTL (`dir` plus `DirectionProvider`); the a11y addon checks each
+  story. A story sits next to its component (`button.stories.tsx`); the
+  set is representative, add one when you add or change a component.
+- **Bundle budget** (`apps/web/.size-limit.json`, [size-limit](https://github.com/ai/size-limit)
+  with `@size-limit/file`): `pnpm --filter @nestjs-monorepo-template/web size`
+  builds the app and measures, in brotli, the entry script, the entry styles
+  and all scripts. The limits sit about 10% above the measured sizes
+  (entry 64.6 kB, styles 19.6 kB, all 1.01 MB at the time); over a limit, the
+  job fails the pull request, and its summary lists every size against its
+  limit. Raise a limit in the same pull request that justifies it, never to
+  get past a check.
+- **Lighthouse CI** (`apps/web/lighthouserc.json`, `@lhci/cli`):
+  `pnpm --filter @nestjs-monorepo-template/web lighthouse` audits the built
+  app (performance, accessibility, best practices). Non-blocking: assertions
+  are warnings and the job has `continue-on-error`; the scores are in the job
+  summary and the reports in the `lighthouse` artifact. It audits the signed-out
+  shell of the static build (no API behind it). Make it blocking by changing
+  `warn` to `error` once the scores are stable.
+
 ### Adding a page for a feature
 
 `pnpm feature:add` writes the API side only; the web side is written by

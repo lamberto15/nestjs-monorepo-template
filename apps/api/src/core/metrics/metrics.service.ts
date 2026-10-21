@@ -3,7 +3,13 @@ import { acrossTenantsReadOnly } from '../tenancy/tenant-scope.js';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { getHeapStatistics } from 'node:v8';
 import { Injectable, Logger } from '@nestjs/common';
-import { collectDefaultMetrics, Gauge, Histogram, Registry } from 'prom-client';
+import {
+  collectDefaultMetrics,
+  Counter,
+  Gauge,
+  Histogram,
+  Registry,
+} from 'prom-client';
 
 /** A collector that takes longer (Redis or PostgreSQL away) is given up: the scrape goes on without it. */
 const COLLECT_TIMEOUT_MS = 2_000;
@@ -44,6 +50,14 @@ export class MetricsService {
   readonly inFlight = new Gauge({
     name: 'http_requests_in_flight',
     help: 'HTTP requests being served.',
+    registers: [this.registry],
+  });
+
+  /** Calls to routes marked `@Deprecated()`: when it stops rising, the route can go. */
+  readonly deprecatedCalls = new Counter({
+    name: 'deprecated_route_calls_total',
+    help: 'Calls to deprecated routes, by route pattern.',
+    labelNames: ['route'] as const,
     registers: [this.registry],
   });
 

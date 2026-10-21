@@ -1,0 +1,22 @@
+{
+  "nav": "Kadar pertukaran",
+  "title": "Kadar pertukaran",
+  "description": "Kadar rujukan euro Bank Pusat Eropah, diterbitkan setiap hari bekerja. Pilih satu hari untuk melihat kadar terkini pada atau sebelum hari itu.",
+  "date": "Hari",
+  "today": "Hari ini",
+  "search": "Cari mata wang",
+  "empty": "Belum ada kadar pertukaran.",
+  "none": "Tiada mata wang yang sepadan.",
+  "fetched": "Kadar bagi {{day}}, unit setiap {{base}} (sumber: {{source}}).",
+  "currency": "Mata wang",
+  "name": "Nama",
+  "perBase": "Setiap {{base}}",
+  "converter": {
+    "title": "Penukar mata wang",
+    "amount": "Jumlah",
+    "to": "Ke",
+    "badAmount": "Masukkan jumlah seperti 12.34.",
+    "rate": "1 {{from}} = {{rate}} {{to}} (kadar {{date}})",
+    "from": "Dari"
+  }
+}
