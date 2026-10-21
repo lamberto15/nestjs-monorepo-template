@@ -24,6 +24,7 @@ import {
   mfaFailures,
   mfaRecoveryCodes,
   passkeys,
+  passwordHistory,
   refreshTokens,
   sessions,
   userIdentities,
@@ -170,8 +171,10 @@ export class UsersRepository {
    * a placeholder address and name, no password, no sign-in methods
    * (providers, passkeys), sessions, tokens, roles or teams; deactivated. Their audit entries keep
    * the actor key (`user:<id>`), labelled "Deleted user" instead of the
-   * address. The row stays: what references it (records they created)
-   * keeps pointing at an account that is nobody's.
+   * address. The password history (earlier hashes) goes too: the row
+   * stays, so its foreign key's cascade never fires. The row stays: what
+   * references it (records they created) keeps pointing at an account that
+   * is nobody's.
    */
   async anonymize(tx: Transaction, id: string) {
     await this.lockAccount(tx, id);
@@ -191,6 +194,7 @@ export class UsersRepository {
       .where(eq(users.id, id));
     await tx.delete(userIdentities).where(eq(userIdentities.userId, id));
     await tx.delete(passkeys).where(eq(passkeys.userId, id));
+    await tx.delete(passwordHistory).where(eq(passwordHistory.userId, id));
     // Its roles and teams in every tenant go with the memberships (cascade).
     await tx.delete(memberships).where(eq(memberships.userId, id));
     await tx.delete(mfaAuthenticators).where(eq(mfaAuthenticators.userId, id));

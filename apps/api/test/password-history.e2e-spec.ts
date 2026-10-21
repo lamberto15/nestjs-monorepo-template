@@ -1,4 +1,7 @@
+import { eq } from 'drizzle-orm';
 import type request from 'supertest';
+import { passwordHistory, users } from '../src/iam/iam.tables.js';
+import { AccountDeletionJob } from '../src/platform/account/account-deletion.job.js';
 import { bootApp, newPassword, type TestApp } from './support.js';
 
 // Many changes from one address in one file: the password routes' limits
@@ -138,6 +141,35 @@ describe('password history (e2e)', () => {
     // The reset replaced p2: it is in the history now (fresh signs in again).
     const again = await node.signIn(user.email, fresh);
     await change({ agent: again }, fresh, p2).expect(422);
+  });
+
+  it('is erased with the account: the deletion job drops the kept hashes, though the row stays', async () => {
+    await setHistory(3).expect(200);
+    const user = await node.user(['editor']);
+    const p2 = newPassword();
+    await change(user, user.password, p2).expect(204);
+    const kept = () =>
+      node.db
+        .select()
+        .from(passwordHistory)
+        .where(eq(passwordHistory.userId, user.id));
+    expect(await kept()).toHaveLength(1);
+
+    await user.agent
+      .post('/v1/account/deletion')
+      .send({ password: p2 })
+      .expect(200);
+    const job = node.app.get(AccountDeletionJob);
+    expect(await job.run(new Date(Date.now() + 15 * 86_400_000))).toBe(1);
+
+    // The account row stays (anonymized), so the foreign key's cascade
+    // never fires: the job has to delete the history itself.
+    const [account] = await node.db
+      .select()
+      .from(users)
+      .where(eq(users.id, user.id));
+    expect(account).toMatchObject({ name: 'Deleted user', passwordHash: null });
+    expect(await kept()).toHaveLength(0);
   });
 
   it("is the tenant's choice: another tenant's members are free", async () => {

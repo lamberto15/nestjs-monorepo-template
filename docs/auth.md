@@ -259,7 +259,8 @@ the job runs), or use the mail's link. Asking again while one is pending
 returns that request as is: no new mail, nothing signed out.
 
 The nightly job anonymizes a due account (`UsersRepository.anonymize`):
-placeholder address and name, no password, sign-in methods, sessions,
+placeholder address and name, no password (nor its history,
+`password_history`), sign-in methods, sessions,
 tokens, memberships (with their roles and units); its notifications,
 preferences and settings go;
 its audit entries keep the actor key, labelled "Deleted user". Records
