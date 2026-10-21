@@ -138,7 +138,7 @@ describe('the dashboard registry', () => {
           { id: 'a', order: 20, component },
         ],
         actions: [
-          { to: '/notes/new', order: 2, label: 'x', icon: FilePlusIcon },
+          { to: '/approvals', order: 2, label: 'x', icon: FilePlusIcon },
         ],
       },
       {
@@ -148,6 +148,6 @@ describe('the dashboard registry', () => {
       {},
     ]);
     expect(cards.map((c) => c.id)).toEqual(['c', 'a', 'b']);
-    expect(actions.map((a) => a.to)).toEqual(['/audit', '/notes/new']);
+    expect(actions.map((a) => a.to)).toEqual(['/audit', '/approvals']);
   });
 });
