@@ -24,7 +24,9 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
+import { Throttle, minutes } from '@nestjs/throttler';
 import type { z } from 'zod';
 import { listSchema } from '../../core/http/pagination.js';
 import { AccessPolicy } from '../access/policies.js';
@@ -34,6 +36,7 @@ import { UserOnly } from '../auth/user-only.decorator.js';
 import { SsoConnectionsService } from './sso-connections.service.js';
 import { SsoDomainsService } from './sso-domains.service.js';
 import { SsoPolicyService } from './sso-policy.service.js';
+import { SamlMetadataImport } from './saml-metadata.service.js';
 import {
   acceptedSchema,
   connectionSchema,
@@ -41,6 +44,8 @@ import {
   domainSchema,
   domainViewSchema,
   exemptSchema,
+  importedSamlMetadataSchema,
+  importSamlMetadataSchema,
   policySchema,
   policyViewSchema,
   updateConnectionSchema,
@@ -61,6 +66,7 @@ export class SsoController {
     private readonly connections: SsoConnectionsService,
     private readonly domains: SsoDomainsService,
     private readonly policy: SsoPolicyService,
+    private readonly samlMetadata: SamlMetadataImport,
   ) {}
 
   @Get('connections')
@@ -135,6 +141,25 @@ export class SsoController {
     @Ip() ip: string,
   ) {
     await this.connections.remove(user, id, ip);
+  }
+
+  @Post('saml/metadata')
+  @Can(AccessPolicy, 'manageSso')
+  @RecentAuthentication()
+  @Throttle({ default: { limit: 10, ttl: minutes(1) } })
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Read a SAML IdP's metadata from its URL (nothing is stored)",
+    description:
+      "Fetches the https URL (private and metadata addresses refused, no redirects, 10 s, 512 KiB) and answers the entity id, the HTTP-Redirect sign-on URL and the signing certificates, to create or change a SAML connection with. The metadata's own signature is not checked: its trust is the URL. 422 `saml_metadata_url_refused`, `saml_metadata_unreachable`, `saml_metadata_too_large`, `saml_metadata_invalid`.",
+  })
+  @ApiOkResponse({ standardSchema: importedSamlMetadataSchema })
+  @ApiUnprocessableEntityResponse()
+  importSamlMetadata(
+    @Body({ schema: importSamlMetadataSchema })
+    body: z.infer<typeof importSamlMetadataSchema>,
+  ) {
+    return this.samlMetadata.import(body.url);
   }
 
   @Post('connections/:id/refresh')

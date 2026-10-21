@@ -37,7 +37,7 @@ const ENCRYPTION_ALGORITHMS = new Set([
   'http://www.w3.org/2009/xmlenc11#rsa-oaep',
 ]);
 
-const parse = (xml: string) =>
+export const parse = (xml: string) =>
   new DOMParser({
     // A document that doesn't parse cleanly is refused, never repaired:
     // xmldom reports an unclosed tag as a mere warning.
