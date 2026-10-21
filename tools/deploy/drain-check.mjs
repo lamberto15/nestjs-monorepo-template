@@ -1,6 +1,7 @@
 // Proves the graceful shutdown on a running container (docs/deploy-rolling.md):
 //
 //   node tools/deploy/drain-check.mjs <api container name or id>
+//   node --test tools/deploy/drain-check.test.mjs   # its tests (a fake docker)
 //
 // Inside the container a request is left in flight (its body trickles in),
 // SIGTERM is sent to the container, and the check asserts that:
@@ -11,13 +12,18 @@
 // It KILLS the container's main process: run it on a throwaway replica
 // (`docker compose up -d --scale api=3`, then pass the third), never alone.
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
+
+/**
+ * A container's name or ID, as Docker allows them (names: [a-zA-Z0-9]
+ * then [a-zA-Z0-9_.-]; IDs are hex). It starts with a letter or a digit, so
+ * it never reads as an option; `--` before it in every docker call says so
+ * to docker too (#471).
+ */
+const CONTAINER = /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/;
 
 const container = process.argv[2];
-if (!container) {
-  console.error('usage: drain-check.mjs <container>');
+if (!container || !CONTAINER.test(container)) {
+  console.error('usage: drain-check.mjs <container name or id>');
   process.exit(2);
 }
 
@@ -48,18 +54,17 @@ setTimeout(() => slow.end(body.slice(5)), 9000);
 setTimeout(() => { clearInterval(timer); console.log(JSON.stringify(out)); process.exit(0); }, 12000);
 `;
 
-const dir = mkdtempSync(path.join(tmpdir(), 'drain-'));
-const file = path.join(dir, 'probe.cjs');
-writeFileSync(file, probe);
-execFileSync('docker', ['cp', file, `${container}:/tmp/probe.cjs`]);
-const child = spawn('docker', ['exec', container, 'node', '/tmp/probe.cjs']);
+// The probe is node's -e argument: no file to write, here or in the
+// container's shared /tmp.
+const child = spawn('docker', ['exec', '--', container, 'node', '-e', probe]);
 let stdout = '';
 child.stdout.on('data', (d) => {
   stdout += d;
   if (stdout.includes('READY') && !child.killed && !globalThis.sent) {
     globalThis.sent = true;
     setTimeout(
-      () => execFileSync('docker', ['kill', '-s', 'TERM', container]),
+      () =>
+        execFileSync('docker', ['kill', '--signal', 'TERM', '--', container]),
       1500,
     );
   }
@@ -76,8 +81,9 @@ let exit = '';
 for (let i = 0; i < 20; i++) {
   exit = execFileSync('docker', [
     'inspect',
-    '-f',
+    '--format',
     '{{.State.Status}} {{.State.ExitCode}}',
+    '--',
     container,
   ])
     .toString()

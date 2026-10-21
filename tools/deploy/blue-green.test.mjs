@@ -1,6 +1,7 @@
 // The blue-green script's tests (node --test tools/deploy/blue-green.test.mjs):
 // a fake Docker behind the injectable runner, no daemon needed.
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import { describe, it } from 'node:test';
 import { createDeployer, DeployError, main } from './blue-green.mjs';
 
@@ -170,6 +171,13 @@ describe('blue-green', () => {
     );
     assert.ok(migrate >= 0 && migrate < up);
     assert.equal(compose(docker.calls, 'run')[0].env.APP_IMAGE, 'app:1');
+    // the image is a value, never an option of docker
+    assert.deepEqual(docker.calls.find((c) => c.args[0] === 'image').args, [
+      'image',
+      'inspect',
+      '--',
+      'app:1',
+    ]);
   });
 
   it('deploys to the idle colour, switches with an overlap, stops the old one after the grace', async () => {
@@ -330,12 +338,59 @@ describe('blue-green', () => {
     assert.deepEqual(docker.calls[0].args.slice(0, 7), [
       'compose',
       '-f',
-      'a.yaml',
+      path.resolve('a.yaml'),
       '--env-file',
-      'x.env',
+      path.resolve('x.env'),
       '-p',
       'demo',
     ]);
     assert.equal(await main(['deploy'], fakeDocker().deps), 1);
+  });
+
+  // Claude runs it: no argument becomes an option of docker or names a file
+  // outside the checkout (#471). Refused before docker runs at all.
+  it('refuses a project, image, smoke path or file that is not one', async () => {
+    for (const argv of [
+      ['status', '--project=-v'],
+      ['status', '-p', 'Demo'],
+      ['status', '-p', 'demo;rm'],
+      ['status', '-f', '/etc/passwd'],
+      ['status', '--env-file', '../../outside.env'],
+      ['deploy', '--image=--output=/tmp/x'],
+      ['deploy', '--image', 'app:1 --privileged'],
+      ['deploy', '--image', 'app:1', '--smoke-path=-x'],
+      ['deploy', '--image', 'app:1', '--smoke-path', 'health'],
+    ]) {
+      const docker = fakeDocker();
+      assert.equal(await main(argv, docker.deps), 1, argv.join(' '));
+      assert.deepEqual(docker.calls, [], argv.join(' '));
+    }
+  });
+
+  it('takes the documented values', async () => {
+    const docker = fakeDocker();
+    const code = await main(
+      [
+        'deploy',
+        '--image',
+        'ghcr.io/owner/repo:0123abc',
+        '-p',
+        'nestjs-monorepo-template',
+        '-f',
+        'compose.yaml',
+        '--smoke-path',
+        '/health',
+        '--smoke-path',
+        '/v1/health?x=1',
+        '--grace',
+        'keep',
+      ],
+      docker.deps,
+    );
+    assert.equal(code, 0);
+    assert.equal(
+      docker.containers.find((c) => c.colour === 'blue').image,
+      'ghcr.io/owner/repo:0123abc',
+    );
   });
 });
