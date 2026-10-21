@@ -790,6 +790,9 @@ that masks:
 - **NestJS Observe** (when configured) gets the same keys and patterns as
   `redaction.keys` / `redaction.patterns`, on top of its own defaults, for
   the errors and requests it captures and the log lines it forwards.
+- **Sentry** (when `SENTRY_DSN` is set) gets every event, breadcrumb and
+  transaction through `logRedaction.redactValue()` in its `beforeSend`
+  ([Telemetry](#telemetry)).
 
 Where that applies: the request log (method, path, status, never headers or
 bodies), the problem-details filter's 5xx report (message and stack), every
@@ -869,7 +872,8 @@ process, [Resource limits](#resource-limits)), mail (`mail_sent_total`,
 `mail_suppressed_total{reason}`, `mail_events_total{provider,type}`:
 [deliverability](deliverability.md)), `deprecated_route_calls_total{route}` (calls to `@Deprecated()` routes: [api-conventions](api-conventions.md), "Deprecation"), `attachments_scanned_total{result="clean|infected|error"}` (malware scans of uploads, a counter per worker: [attachments](attachments.md)), `encrypted_rows_on_old_key{column}`
 ([encryption](encryption.md)), `exchange_rates_age_seconds`
-([money](money.md)), Node's defaults (`process_cpu_seconds_total`,
+([money](money.md)), `telemetry_rejected_total{target,status}` (uploads a
+collector refused: 401, 403, 429; [Telemetry](#telemetry)), Node's defaults (`process_cpu_seconds_total`,
 heap, event loop lag, GC) and the heap's limit (`nodejs_heap_size_limit_bytes`).
 Queue, outbox, webhook and approval gauges are shared state: every process reports the
 same values, so aggregate them with `max()`, not `sum()`. A gauge whose read
@@ -947,6 +951,7 @@ warning: look today):
 | `TenantStorageNearLimit` | a tenant stores over 90% of its storage limit for 15 min (`tenant_storage_bytes` / `tenant_storage_limit_bytes`; [Quotas](tenancy.md#quotas)) | warning |
 | `ApprovalsOverdue`                                           | an approval stage is 15 min past its deadline (its workflow should have escalated or expired it)                                                                                    | warning           |
 | `ApprovalsNotApplied`                                        | an approved request's outcome hasn't been applied (or failed) after an hour: its record stays locked                                                                                | warning           |
+| `TelemetryRejected` | OTLP or Observe uploads were refused (401, 403, 429) for 5 min: a dead pipeline ([Telemetry](#telemetry)) | warning |
 | `ExchangeRatesStale`                                         | the newest stored ECB rates are more than six days old (or none was ever fetched), for 2 h ([money.md](money.md))                                                                   | warning           |
 | `DatabaseUnreachableFromApp`, `RedisUnreachableFromApp`      | a process answers but can't read PostgreSQL / Redis, for 2 min (works with managed services too)                                                                                    | critical          |
 | `MailBounceRateHigh`, `MailComplaints`                       | over 5% of the mail sent in an hour bounced hard (at least 20 sent, for 15 min); any spam complaint in the last hour ([deliverability.md](deliverability.md))                       | warning           |
@@ -1213,8 +1218,9 @@ pointing `REDIS_URL` at it.
 
 **Hosted instead:** NestJS Observe (`OBSERVE_APP_KEY`, `OBSERVE_APP_SECRET`)
 is the hosted alternative: traces, metrics and errors go to the service, and
-alerting is set up there, with nothing to run on the host. The two can run
-side by side.
+alerting is set up there, with nothing to run on the host. It is one option
+of three, none required and all able to run side by side: Observe, your own
+collector over OpenTelemetry, and Sentry for errors ([Telemetry](#telemetry)).
 
 Observe wraps every provider in a proxy, which breaks code keyed by the real
 instance. `core/observability/observe.ts` (`skipObserve`, Observe's
@@ -1228,6 +1234,104 @@ instance decorator. Both are upstream defects (`@nestjs/observe` should treat
 downleveled private fields and wrapped receivers like native `#` members;
 `@nestjs/locks` shouldn't key by instance identity): file them, then drop the
 exclusion.
+
+## Telemetry
+
+Three independent switches, each off until its variable is set, so a project
+is not tied to one hosted vendor:
+
+- **`OBSERVE_APP_KEY` and `OBSERVE_APP_SECRET`:** NestJS Observe (above),
+  hosted traces, metrics and errors.
+- **`OTEL_EXPORTER_OTLP_ENDPOINT`** (and `OTEL_EXPORTER_OTLP_HEADERS` for the
+  collector's credential, e.g. `x-honeycomb-team=KEY`): OpenTelemetry through
+  `@opentelemetry/sdk-node`. Traces and metrics go over OTLP/HTTP to any
+  collector (Grafana Tempo, Jaeger, Honeycomb, Datadog): spans for HTTP,
+  Express, PostgreSQL and Redis (the commands of a request), and runtime
+  metrics. The SDK reads the standard `OTEL_*` variables too
+  (`OTEL_SERVICE_NAME`, defaulting to `SERVICE_NAME`; `OTEL_TRACES_SAMPLER`,
+  …).
+- **`SENTRY_DSN`** (and `SENTRY_TRACES_SAMPLE_RATE`, 0 to 1): Sentry
+  (`@sentry/nestjs`) gets the 5xx the problem-details filter answers, with
+  the request id and error code as tags. Errors only unless the sample rate
+  is set.
+
+`main.ts` awaits `core/observability/instrument.ts` (after the development
+settings) before it loads anything else: the SDKs patch `http`, Express and
+the database and Redis clients as they load, so they start first. The app's
+modules are imported with `await import()` after it, not as static imports
+below it: a module's top-level `await` holds back only the modules that
+import it, so static imports would load Nest, Express and `pg` while the SDKs
+were still starting, and nothing would be traced. The packages are imported
+only when their variable is set. Libraries loaded through `require` or a CJS
+`import` (Express, `pg`, `ioredis`) are instrumented. NestJS's own
+instrumentation (`@opentelemetry/instrumentation-nestjs-core`) does not
+support Nest 12 yet, so there are no spans of controllers and providers.
+
+The SDKs start before the environment is validated, so they read their `_FILE`
+secrets themselves (`SENTRY_DSN_FILE`, `OTEL_EXPORTER_OTLP_HEADERS_FILE`,
+[Secrets in files](#secrets-in-files)); a file that can't be read is reported
+by the validation, which stops the app.
+
+- **The trace id is in every log line** while a span is active: `traceId` in
+  JSON lines, `[trace <id>]` in text lines. It finds the trace in the
+  collector from a log line, and the request's logs from a trace.
+- **Secrets stay out.** Sentry events, breadcrumbs and transactions are
+  scrubbed in `beforeSend` by the log-redaction registry
+  ([Log redaction](#log-redaction)): the same names and patterns, nothing
+  declared twice, and Sentry collects no user, cookies, bodies or query strings (`dataCollection`). Spans carry the route
+  pattern and status, not headers or bodies, and the values of the query
+  parameters the registry names (`code` and `state` of an OIDC callback,
+  `token`, `password`, …) are masked in `url.query` and `url.full`, on top of
+  the instrumentation's own (`sig`, `X-Amz-Signature`, …). The list is read
+  when the SDK starts: a name a feature declares later is not in it.
+- **Error tracking is an adapter.** `ErrorTracker`
+  (`core/observability/error-tracker.ts`) is the interface the filter
+  reports to: Sentry when `SENTRY_DSN` is set, otherwise nothing. Inject it
+  to report an error you handled; another vendor is one subclass and a line
+  in `errorTracker()`. Sentry's own `SentryGlobalFilter` is not used: the one
+  problem-details filter owns every error response.
+- **A dead pipeline is noticed.** An exporter the collector turns away (HTTP
+  401/403 or 429: a revoked key, an exhausted plan) is counted as
+  `telemetry_rejected_total{target="otlp|observe",status}` on `/metrics`
+  (OTLP: the exporters' answers; Observe: its refusal log lines, "Telemetry
+  rate-limited (429)", because it has no hook), and the `TelemetryRejected`
+  alert fires after 5 minutes ([Alerting](#alerting)). The OTLP exporters
+  report a 429, 502, 503 or 504 whose retries ran out as one "retryable"
+  failure without the status, counted as 429; other timeouts and 5xx are left
+  to the exporters' retries. Every series starts at 0 (Prometheus' `increase()`
+  needs a sample before the first count: Observe refuses once, then pauses its
+  uploads until the app restarts, so its alert is that one event). Sentry's
+  SDK drops events it is rate-limited on without telling the app: watch its
+  quota page.
+- **Crashes still crash.** Sentry's default `OnUnhandledRejection`
+  integration is left out (`LEFT_OUT` in `sentry.ts`): with a listener for
+  `unhandledRejection` Node no longer ends the process on a floating
+  rejection, which is how a project without `SENTRY_DSN` is restarted by
+  Compose, and the integration only logs. Without it Node raises the
+  rejection as an uncaught exception, which Sentry's `OnUncaughtException`
+  integration reports before the process exits: the same behaviour with or
+  without Sentry.
+- **Compatibility with the instrumentation.** Observe's proxies broke the
+  mail transports and lock-decorated jobs (`skipObserve`, above).
+  OpenTelemetry and Sentry patch module functions, not provider instances,
+  so they need no such exclusion, and CI proves it: the `e2e-telemetry` job
+  runs a shard of the e2e suite with `OTEL_EXPORTER_OTLP_ENDPOINT` and
+  `SENTRY_DSN` pointing at a stub collector
+  (`apps/api/test/telemetry-stub.mjs`) and fails if no span of a request the
+  app served reached it. `apps/api/test/setup-env.ts` starts the SDKs when
+  either variable is set, before it loads the app: the order that works, so
+  the suite alone cannot show a wrong one in `main.ts`. The job ends by
+  building the API and starting `node dist/main` against a collector of its
+  own (`node apps/api/test/telemetry-stub.mjs boot`, with `DATABASE_URL`,
+  `DATABASE_OWNER_URL`, `DATABASE_MAINTENANCE_URL` and `REDIS_URL` set, as for
+  the browser tests): the credentials are `_FILE` secrets, and it fails unless
+  the request it sent was traced (HTTP, Express and `pg` spans) with the
+  secrets of its query string masked. Locally, run the stub
+  (`node apps/api/test/telemetry-stub.mjs serve`) or Jaeger
+  (`jaegertracing/all-in-one`, OTLP on 4318) and point the variables at it.
+- **Not covered:** logs over OTLP, and ESM-only libraries (they need Node's
+  `--import` hook, `module.register`). Add them when a library you use needs
+  it.
 
 ## Operator CLI
 
@@ -1622,6 +1726,7 @@ merged migration fails it already):
 | `compose-secrets`        | the production stack's secrets with the values in `.env` and with every one in a file, as Compose renders them (the monitoring stack too); then the shell readers in their images (`scripts/test-secret-readers.sh`)                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `swarm-stack`            | `compose.swarm.yaml` rendered with dummy values and accepted by `docker stack config` (`pnpm deploy:swarm check`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `feature-smoke`          | the feature generator's tests, then two features generated with every option, which must build, lint, migrate and pass their generated e2e tests ([adding a feature](adding-a-feature.md))                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `e2e-telemetry` | one shard of the e2e suite (`--shard=1/6`) with OpenTelemetry and Sentry on, against a stub collector (`apps/api/test/telemetry-stub.mjs`), then the built app (`node dist/main`) against one of its own; fails if the instrumentation breaks the app or no span of a request served arrives ([Telemetry](#telemetry)) |
 | `template-without-notes` | `pnpm feature:remove notes` (the API's and the web app's part), no `notes` left in `apps/api` or `apps/web`, then lint, build, `db:check`, `client:generate` and the build again on that client: the core and the web app stand without the example. On main, tags and the nightly run (03:17 UTC) also its unit and web tests and the whole e2e suite, in 6 shards like the `e2e` job's (each runs a sixth of the e2e suite and a third of the API's or the web app's unit tests), so the run lasts as long as a pull request's; a pull request skips those (they are the `unit` and `e2e` jobs' tests with a feature fewer) |
 | `security`               | `pnpm audit --prod --audit-level high`; Trivy: any secret in the repository, high or critical misconfigurations in the Dockerfiles                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `image`                  | builds the production image; Trivy: fixable high or critical vulnerabilities in it (OS packages and `node_modules`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
