@@ -131,7 +131,8 @@ template's text, keeping its comments, order and unknown keys).
   command). The pair is made once and `--rotate` leaves it: every browser
   subscription is bound to the public key, so a new pair ends them all (empty
   both lines to start over). A secret whose `<NAME>_FILE` is set is not made
-  again in the variable.
+  again in the variable, and the Observe secret and the Twilio auth token are
+  not asked for (the app refuses to start with both set).
 - **The example feature:** the last question removes `notes`
   (`pnpm feature:remove notes`, the API's and the web app's part; default
   yes in production); then run `pnpm db:generate`, `pnpm client:generate`

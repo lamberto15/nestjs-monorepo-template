@@ -1366,6 +1366,72 @@ describe('questions for observability, the AI key, push and SMS', () => {
     assert.equal(env.get('OBSERVE_APP_SECRET'), '');
   });
 
+  test('a credential kept in a file is not asked for again, and no second source is written', async () => {
+    const root = fixture();
+    const out = temp();
+    await setup(root, out, PRODUCTION);
+    const file = path.join(out, '.env');
+    // The documented Docker or Swarm secrets setup: the secrets are in files.
+    writeFileSync(
+      file,
+      applyValues(
+        readFileSync(file, 'utf8'),
+        new Map([
+          ['OBSERVE_APP_KEY', 'k1'],
+          ['OBSERVE_APP_SECRET_FILE', '/run/secrets/observe'],
+          ['SMS_PROVIDER', 'twilio'],
+          ['TWILIO_ACCOUNT_SID', 'AC1'],
+          ['TWILIO_AUTH_TOKEN_FILE', '/run/secrets/twilio'],
+          ['TWILIO_FROM', '+15551234567'],
+        ]),
+      ),
+    );
+    // Without the fix this re-run threw: "A value is needed for
+    // --observe-app-secret, --twilio-auth-token".
+    const { code, text } = await setup(root, out, ['--target', 'production']);
+    assert.equal(code, 0, text);
+    const env = parseEnv(read(out, 'production'));
+    assert.equal(env.get('OBSERVE_APP_KEY'), 'k1');
+    assert.equal(env.get('OBSERVE_APP_SECRET'), '');
+    assert.equal(env.get('OBSERVE_APP_SECRET_FILE'), '/run/secrets/observe');
+    assert.equal(env.get('SMS_PROVIDER'), 'twilio');
+    assert.equal(env.get('TWILIO_AUTH_TOKEN'), '');
+    assert.equal(env.get('TWILIO_AUTH_TOKEN_FILE'), '/run/secrets/twilio');
+  });
+
+  test('the secret questions are asked when the _FILE line is empty or the file is new', () => {
+    const text = readFileSync(path.join(REPO, 'env.example'), 'utf8');
+    const tpl = parseEnv(text);
+    const base = {
+      target: 'production',
+      tpl,
+      keys: templateKeys(text),
+      hasNotes: false,
+    };
+    const asked = (id, answers, existing) =>
+      applies(
+        QUESTIONS.find((q) => q.id === id),
+        answers,
+        { ...base, existing, current: existing ?? tpl },
+      );
+    for (const [id, answers, name] of [
+      ['observeAppSecret', { observe: true }, 'OBSERVE_APP_SECRET'],
+      ['twilioAuthToken', { sms: true }, 'TWILIO_AUTH_TOKEN'],
+    ]) {
+      assert.equal(asked(id, answers, null), true, `${id}: first run`);
+      assert.equal(
+        asked(id, answers, new Map([[`${name}_FILE`, '']])),
+        true,
+        `${id}: empty ${name}_FILE`,
+      );
+      assert.equal(
+        asked(id, answers, new Map([[`${name}_FILE`, '/run/secrets/x']])),
+        false,
+        `${id}: ${name}_FILE set`,
+      );
+    }
+  });
+
   test('development is not asked these: its template keeps its own lines', async () => {
     const root = fixture();
     const out = temp();

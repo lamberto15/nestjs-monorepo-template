@@ -86,6 +86,13 @@ const isSet = (value) => (value === undefined ? undefined : value !== '');
 const usesAws = (a) => a.storage === 's3' || a.mail === 'ses';
 
 /**
+ * The existing file keeps the credential in a file (`<key>_FILE`, Docker or
+ * Swarm secrets): its question is not asked and the variable is not written,
+ * since the app refuses to start with both set.
+ */
+const keptInFile = (key, ctx) => Boolean(ctx.existing?.get(`${key}_FILE`));
+
+/**
  * The questions. Each has:
  *   id, label, type ('choice' | 'bool' | 'text'), choices (a list, or a
  *   function of the context, to filter by the template);
@@ -559,7 +566,7 @@ export const QUESTIONS = [
     secret: true,
     keys: ['OBSERVE_APP_SECRET'],
     target: 'production',
-    when: (a) => a.observe,
+    when: (a, ctx) => a.observe && !keptInFile('OBSERVE_APP_SECRET', ctx),
     read: (env) => env.OBSERVE_APP_SECRET,
     required: true,
     write: (v) => ({ OBSERVE_APP_SECRET: v }),
@@ -697,7 +704,7 @@ export const QUESTIONS = [
     secret: true,
     keys: ['TWILIO_AUTH_TOKEN'],
     target: 'production',
-    when: (a) => a.sms,
+    when: (a, ctx) => a.sms && !keptInFile('TWILIO_AUTH_TOKEN', ctx),
     read: (env) => env.TWILIO_AUTH_TOKEN,
     required: true,
     write: (v) => ({ TWILIO_AUTH_TOKEN: v }),
