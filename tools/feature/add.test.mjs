@@ -8,6 +8,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -15,7 +16,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { after, before, describe, it } from 'node:test';
 import { addFeature, MARKERS } from './add.mjs';
 import { format } from './format.mjs';
@@ -30,6 +31,7 @@ import {
 } from './capabilities.mjs';
 import { parseField, parseFields } from './fields.mjs';
 import { names, singularize } from './names.mjs';
+import { checkout, inside } from './paths.mjs';
 
 const REPO = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -925,5 +927,116 @@ describe('feature:sync', () => {
       warnings,
       /grants none -> standard: the seed roles are written when a tenant is made, so existing tenants keep/,
     );
+  });
+});
+
+// Claude runs these tools: a wrong or hostile argument must not reach a file
+// outside the checkout, and a name is never a path (#471).
+describe('where the tools write', () => {
+  let root;
+  let empty;
+  const api = (...parts) => path.join(root, 'apps/api', ...parts);
+  const cli = (tool, ...args) =>
+    spawnSync(
+      process.execPath,
+      [path.join(REPO, 'tools/feature', tool), ...args],
+      { encoding: 'utf8' },
+    );
+
+  before(async () => {
+    root = mkdtempSync(path.join(tmpdir(), 'feature-paths-'));
+    empty = mkdtempSync(path.join(tmpdir(), 'feature-paths-empty-'));
+    copyFileSync(
+      path.join(REPO, '.prettierrc'),
+      path.join(root, '.prettierrc'),
+    );
+    for (const file of [
+      'src/features/index.ts',
+      'src/features/tables.ts',
+      'test/openapi.e2e-spec.ts',
+      ...['ar', 'de', 'en', 'ms', 'zh'].flatMap((locale) => [
+        `src/i18n/${locale}/notifications.json`,
+        `src/i18n/${locale}/documents.json`,
+      ]),
+    ]) {
+      mkdirSync(path.dirname(api(file)), { recursive: true });
+      copyFileSync(path.join(REPO, 'apps/api', file), api(file));
+    }
+    await addFeature(root, { name: 'orders', fields: 'title:string' });
+  });
+  after(() => {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(empty, { recursive: true, force: true });
+  });
+
+  it('keeps a path under its root, and refuses one that leaves it', () => {
+    assert.equal(inside('/srv/repo', 'apps/api'), '/srv/repo/apps/api');
+    assert.equal(inside('/srv/repo', 'a', '..', 'b'), '/srv/repo/b');
+    assert.throws(() => inside('/srv/repo', '../etc'), /outside/);
+    assert.throws(() => inside('/srv/repo', '/etc/passwd'), /outside/);
+    assert.throws(() => inside('/srv/repo', '..', 'repo-other'), /outside/);
+    assert.throws(() => inside('/srv/repo', '.'), /outside/);
+  });
+
+  it('takes a checkout of the template as --root, and nothing else', () => {
+    assert.equal(checkout(root, 'apps/api/src/features'), root);
+    assert.throws(
+      () => checkout(empty, 'apps/api/src/features'),
+      /not a checkout of the template/,
+    );
+  });
+
+  it('refuses a root that is not a checkout, and writes nothing there', async () => {
+    await assert.rejects(
+      addFeature(empty, { name: 'invoices', fields: 'title:string' }),
+      /not a checkout of the template/,
+    );
+    assert.deepEqual(readdirSync(empty), []);
+    const run = cli(
+      'add.mjs',
+      'invoices',
+      '--fields',
+      'title:string',
+      '--root',
+      empty,
+    );
+    assert.equal(run.status, 1);
+    assert.match(run.stderr, /not a checkout of the template/);
+    assert.deepEqual(readdirSync(empty), []);
+  });
+
+  it('refuses a name or a singular that is a path', async () => {
+    for (const options of [
+      { name: '../../evil', fields: 'title:string' },
+      { name: 'evil/../../x', fields: 'title:string' },
+      { name: 'people', singular: '../person', fields: 'title:string' },
+      { name: 'invoices', fields: 'ledgerId:ref(../ledgers)?' },
+    ]) {
+      await assert.rejects(
+        addFeature(root, options),
+        /lowercase|names a feature/,
+      );
+    }
+    assert.deepEqual(readdirSync(api('src/features')).sort(), [
+      'index.ts',
+      'orders',
+      'tables.ts',
+    ]);
+  });
+
+  it('syncs a feature by its name, never by a path', async () => {
+    await assert.rejects(
+      syncFeature(api(), '../../../etc'),
+      /not a feature's name/,
+    );
+    assert.equal((await syncFeature(api(), 'orders')).plural, 'orders');
+    const run = cli('sync.mjs', '--check', '../../../etc', '--root', root);
+    assert.equal(run.status, 1);
+    assert.match(run.stderr, /"\.\.\/\.\.\/\.\.\/etc" is not a feature's name/);
+    const clean = cli('sync.mjs', '--check', 'orders', '--root', root);
+    assert.equal(clean.status, 0, clean.stderr);
+    const elsewhere = cli('sync.mjs', '--check', '--root', empty);
+    assert.equal(elsewhere.status, 1);
+    assert.match(elsewhere.stderr, /not a checkout of the template/);
   });
 });

@@ -39,6 +39,7 @@ import { parseArgs } from 'node:util';
 import { texts } from './capabilities.mjs';
 import { format } from './format.mjs';
 import { names, snake } from './names.mjs';
+import { checkout, FEATURE_NAME, inside } from './paths.mjs';
 import * as templates from './templates.mjs';
 
 const REPO = path.resolve(
@@ -138,7 +139,7 @@ export function handWritten(api, record) {
   const errors = [];
   for (const { file, flag, pattern, what } of HAND_WRITTEN) {
     const name = file(record.t);
-    const full = path.join(api, name);
+    const full = inside(api, name);
     if (!existsSync(full) || !pattern.test(readFileSync(full, 'utf8')))
       continue;
     errors.push(
@@ -251,11 +252,15 @@ export function permissionWarnings(file, record) {
   let committed;
   try {
     const full = path.resolve(file);
-    committed = execFileSync('git', ['show', `HEAD:./${path.basename(full)}`], {
-      cwd: path.dirname(full),
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
+    committed = execFileSync(
+      'git',
+      ['show', '--end-of-options', `HEAD:./${path.basename(full)}`],
+      {
+        cwd: path.dirname(full),
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      },
+    );
   } catch {
     return []; // new, or not in git: nothing to compare
   }
@@ -322,7 +327,7 @@ export function recordPaths(record) {
 
 /** The OpenAPI test's sorted path list, with the feature's paths as its declaration has them. */
 async function syncPaths(api, record, check) {
-  const file = path.join(api, 'test/openapi.e2e-spec.ts');
+  const file = inside(api, 'test/openapi.e2e-spec.ts');
   const text = readFileSync(file, 'utf8');
   const start = text.indexOf(
     'expect(Object.keys(document.paths).sort()).toEqual([',
@@ -401,7 +406,7 @@ function mergeMissing(target, wanted, prefix = '') {
 function syncTexts(api, record, check) {
   const has = (name) => record.capabilities.has(name);
   const wanted = texts({ t: record.t, fields: record.fields, has });
-  const root = path.join(api, 'src/i18n');
+  const root = inside(api, 'src/i18n');
   const locales = readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
@@ -410,7 +415,7 @@ function syncTexts(api, record, check) {
   const translate = [];
   for (const [namespace, entries] of Object.entries(wanted)) {
     for (const locale of locales) {
-      const file = path.join(root, locale, `${namespace}.json`);
+      const file = inside(root, locale, `${namespace}.json`);
       const current = JSON.parse(readFileSync(file, 'utf8'));
       const added = mergeMissing(current, withPlurals(entries, locale));
       if (!added.length) continue;
@@ -429,16 +434,16 @@ function syncTexts(api, record, check) {
 
 /** The table as the latest drizzle snapshot has it: column name → its NOT NULL and default. */
 function snapshotTable(api, table) {
-  const meta = path.join(api, 'drizzle/meta');
-  if (!existsSync(path.join(meta, '_journal.json'))) return null; // nothing migrated yet
+  const meta = inside(api, 'drizzle/meta');
+  if (!existsSync(inside(meta, '_journal.json'))) return null; // nothing migrated yet
   const journal = JSON.parse(
-    readFileSync(path.join(meta, '_journal.json'), 'utf8'),
+    readFileSync(inside(meta, '_journal.json'), 'utf8'),
   );
   const last = journal.entries[journal.entries.length - 1];
   if (!last) return null;
   const snapshot = JSON.parse(
     readFileSync(
-      path.join(meta, `${String(last.idx).padStart(4, '0')}_snapshot.json`),
+      inside(meta, `${String(last.idx).padStart(4, '0')}_snapshot.json`),
       'utf8',
     ),
   );
@@ -575,9 +580,9 @@ export function wireApprovals(text, t, wanted) {
  */
 async function syncApprovals(api, record, check) {
   const { t } = record;
-  const dir = path.join(api, 'src/features', record.plural);
-  const file = path.join(dir, `${t.singular}.approvals.ts`);
-  const moduleFile = path.join(dir, `${t.plural}.module.ts`);
+  const dir = inside(api, 'src/features', record.plural);
+  const file = inside(dir, `${t.singular}.approvals.ts`);
+  const moduleFile = inside(dir, `${t.plural}.module.ts`);
   const changes = [];
   const errors = [];
   const relative = (full) =>
@@ -665,17 +670,25 @@ async function syncApprovals(api, record, check) {
   return { changes, errors };
 }
 
-/** One feature: its texts and OpenAPI paths in line (unless `check`), its migration guarded. */
+/**
+ * One feature: its texts and OpenAPI paths in line (unless `check`), its
+ * migration guarded. `plural` is a feature's folder name, never a path.
+ */
 export async function syncFeature(api, plural, { check = false } = {}) {
-  const dir = path.join(api, 'src/features', plural);
+  if (!FEATURE_NAME.test(plural)) {
+    throw new Error(
+      `"${plural}" is not a feature's name (plural, lowercase words joined by "-").`,
+    );
+  }
+  const dir = inside(api, 'src/features', plural);
   const file = readdirSync(dir).find((name) => name.endsWith('.record.ts'));
   if (!file) return null; // a hand-written feature (notes): nothing to sync
-  const record = readRecord(path.join(dir, file));
+  const record = readRecord(inside(dir, file));
   const texts = syncTexts(api, record, check);
   const paths = await syncPaths(api, record, check);
   const approvals = await syncApprovals(api, record, check);
   const { errors, warnings, generate } = guard(api, record);
-  warnings.push(...permissionWarnings(path.join(dir, file), record));
+  warnings.push(...permissionWarnings(inside(dir, file), record));
   return {
     plural,
     changes: [...texts.changes, ...paths, ...approvals.changes],
@@ -689,12 +702,12 @@ export async function syncFeature(api, plural, { check = false } = {}) {
 
 /** Every feature with a record declaration. */
 export function featureNames(api) {
-  const root = path.join(api, 'src/features');
+  const root = inside(api, 'src/features');
   return readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .filter((name) =>
-      readdirSync(path.join(root, name)).some((f) => f.endsWith('.record.ts')),
+      readdirSync(inside(root, name)).some((f) => f.endsWith('.record.ts')),
     )
     .sort();
 }
@@ -707,11 +720,20 @@ async function main() {
       root: { type: 'string' },
     },
   });
-  const api = path.join(path.resolve(values.root ?? REPO), 'apps/api');
+  // --root: a checkout of the template, this one by default; names, not paths.
+  const repo = checkout(values.root ?? REPO, 'apps/api/src/features');
+  const api = inside(repo, 'apps/api');
   const features = positionals.length ? positionals : featureNames(api);
   let failed = false;
   for (const plural of features) {
-    if (!existsSync(path.join(api, 'src/features', plural))) {
+    if (!FEATURE_NAME.test(plural)) {
+      console.error(
+        `"${plural}" is not a feature's name (plural, lowercase words joined by "-").`,
+      );
+      failed = true;
+      continue;
+    }
+    if (!existsSync(inside(api, 'src/features', plural))) {
       console.error(`features/${plural} doesn't exist.`);
       failed = true;
       continue;
