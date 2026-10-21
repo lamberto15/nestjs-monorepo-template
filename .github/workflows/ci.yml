@@ -17,6 +17,10 @@ on:
     branches: [main]
     tags: ['v*']
   pull_request:
+  # A nightly run of everything on main, the checks a pull request skips
+  # included (below): new advisories in the images, the generated template.
+  schedule:
+    - cron: '17 3 * * *'
 
 permissions:
   contents: read
@@ -28,6 +32,43 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # What a pull request touched, to run the slow image builds only for the
+  # paths they read. Everything else (main, tags, the nightly run) runs them
+  # all. The files come from the API (no checkout, no history to fetch).
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      gotenberg: ${{ steps.paths.outputs.gotenberg }}
+      caddy: ${{ steps.paths.outputs.caddy }}
+    steps:
+      - id: paths
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+            echo "gotenberg=true" >> "$GITHUB_OUTPUT"
+            echo "caddy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/${{ github.event.pull_request.number }}/files" --paginate --jq '.[].filename')
+          echo "$files"
+          # The workflow itself counts: a change to a job must run it.
+          if grep -qE '^(gotenberg/|compose\.(dev|prod)\.yaml$|\.github/workflows/ci\.yml$)' <<< "$files"; then
+            echo "gotenberg=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "gotenberg=false" >> "$GITHUB_OUTPUT"
+          fi
+          # Caddy's image builds the web app from the repository root.
+          if grep -qE '^(caddy/|apps/web/|packages/|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|\.github/workflows/ci\.yml$)' <<< "$files"; then
+            echo "caddy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "caddy=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # CI's PostgreSQL and Redis are compose.yaml's images, read from it: they
   # can't drift apart, and Dependabot's compose.yaml updates reach CI too.
   compose-images:
@@ -197,8 +238,8 @@ jobs:
           CLOUDFLARE_API_TOKEN: ci
         run: node tools/deploy/swarm.mjs check --stack ci
 
-  # Lint, build, the typed client, migrations and unit tests. The e2e tests
-  # run beside it (the e2e job), not after it.
+  # Lint, build, the typed client and migrations. The unit tests (the unit
+  # job) and the e2e tests (the e2e job) run beside it, not after it.
   check:
     needs: compose-images
     runs-on: ubuntu-24.04
@@ -243,10 +284,57 @@ jobs:
         env:
           DATABASE_OWNER_URL: postgres://app:app@localhost:5432/app
           DATABASE_URL: postgres://app_runtime:app_runtime@localhost:5432/app
-      - run: pnpm test
       # The release notes' generator (tools/release/, docs/releases.md): git only.
       - name: The release notes' tests
         run: node --test tools/release/notes.test.mjs
+
+  # The unit tests in parallel (Vitest's --shard): the API's in 3 shards, the
+  # web app's in 3 (jsdom, the run's longest at 3 min whole), the packages'
+  # (the client's) in one job. Turborepo builds what they depend on, replayed
+  # from its cache when nothing changed.
+  unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api 1/3
+            filter: --filter=@nestjs-monorepo-template/api
+            args: --shard=1/3
+          - name: api 2/3
+            filter: --filter=@nestjs-monorepo-template/api
+            args: --shard=2/3
+          - name: api 3/3
+            filter: --filter=@nestjs-monorepo-template/api
+            args: --shard=3/3
+          - name: web 1/3
+            filter: --filter=@nestjs-monorepo-template/web
+            args: --shard=1/3
+          - name: web 2/3
+            filter: --filter=@nestjs-monorepo-template/web
+            args: --shard=2/3
+          - name: web 3/3
+            filter: --filter=@nestjs-monorepo-template/web
+            args: --shard=3/3
+          - name: packages
+            filter: --filter=!@nestjs-monorepo-template/api --filter=!@nestjs-monorepo-template/web
+            args: ''
+    name: unit (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - name: Turborepo's cache (tasks whose inputs didn't change are replayed)
+        uses: actions/cache@v6
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+      - run: pnpm exec turbo run test ${{ matrix.filter }} -- ${{ matrix.args }}
 
   # The e2e tests in shards, each on its own runner with its own Redis and
   # PostgreSQL: the slowest step of CI, split (Vitest's --shard). They run
@@ -259,8 +347,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
-    name: e2e (${{ matrix.shard }}/2)
+        shard: [1, 2, 3, 4, 5, 6]
+    name: e2e (${{ matrix.shard }}/6)
     services:
       # Redis: queues, rate limits, realtime; each file keeps to its own prefix.
       redis:
@@ -284,7 +372,7 @@ jobs:
         with:
           runtime: node@24
           cache: true
-      - run: pnpm test:e2e --shard=${{ matrix.shard }}/2
+      - run: pnpm test:e2e --shard=${{ matrix.shard }}/6
         env:
           REDIS_URL: redis://localhost:6379
           # The tests create their databases here (a template, then a copy per app).
@@ -456,12 +544,16 @@ jobs:
     needs: compose-images
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    # Its e2e run in two shards like e2e's: the whole suite in one job was the
-    # run's longest (about 6 min); each shard repeats the cheap steps before it.
+    # A pull request runs shard 1's cheap steps only (the example removed, then
+    # lint, build, migrations, the client): the unit and e2e suites are the
+    # same tests as the unit and e2e jobs' with a feature fewer, and doubled the
+    # run's length. Main, tags and the nightly run do all of it, in two shards
+    # of e2e like e2e's; each shard repeats the cheap steps before it.
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        # Matrix expressions: the job-level `if` can't read the matrix.
+        shard: ${{ fromJSON(github.event_name == 'pull_request' && '[1]' || '[1, 2]') }}
     name: template-without-notes (${{ matrix.shard }}/2)
     services:
       redis:
@@ -504,10 +596,11 @@ jobs:
       - name: 'Build on the regenerated client (once: shard 1)'
         if: matrix.shard == 1
         run: pnpm build
-      - name: 'Unit and web tests (once: shard 1)'
-        if: matrix.shard == 1
+      - name: 'Unit and web tests (once: shard 1; not on pull requests)'
+        if: matrix.shard == 1 && github.event_name != 'pull_request'
         run: pnpm test
-      - name: Every e2e test (this shard's half)
+      - name: Every e2e test (this shard's half; not on pull requests)
+        if: github.event_name != 'pull_request'
         run: pnpm --filter @nestjs-monorepo-template/api exec vitest run --config ./vitest.config.e2e.ts --shard=${{ matrix.shard }}/2
         env:
           REDIS_URL: redis://localhost:6379
@@ -727,6 +820,8 @@ jobs:
   # the Cloudflare DNS plugin, then the same scan. Its own cache scope.
   # Published by publish-caddy, as the app image is.
   caddy-image:
+    needs: changes
+    if: needs.changes.outputs.caddy == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -765,6 +860,8 @@ jobs:
   # run) and passes the same scan. Its own cache scope. Published by
   # publish-gotenberg, as the app image is.
   gotenberg-image:
+    needs: changes
+    if: needs.changes.outputs.gotenberg == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -826,7 +923,7 @@ jobs:
   # Never `latest`: a deploy names the image it runs.
   publish:
     if: github.event_name == 'push'
-    needs: [check, e2e, security, image]
+    needs: [check, unit, e2e, security, image]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -906,7 +1003,7 @@ jobs:
   # would freeze.
   publish-gotenberg:
     if: github.event_name == 'push'
-    needs: [check, e2e, security, image, gotenberg-image]
+    needs: [check, unit, e2e, security, image, gotenberg-image]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -984,7 +1081,7 @@ jobs:
   # docs/deployment.md), Swarm requires it.
   publish-caddy:
     if: github.event_name == 'push'
-    needs: [check, e2e, security, image, caddy-image]
+    needs: [check, unit, e2e, security, image, caddy-image]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
