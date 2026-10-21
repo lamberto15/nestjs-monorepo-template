@@ -1,5 +1,5 @@
 {
-  "id": "4ddd407c-6e57-4160-910c-af4d7ff82414",
+  "id": "80def971-e4bf-437d-b6e6-92ce1462d01d",
   "prevId": "d6b1cde2-e07d-4202-b0a4-3b51591232ac",
   "version": "7",
   "dialect": "postgresql",
@@ -469,6 +469,13 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "allowed_cidrs": {
+          "name": "allowed_cidrs",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
         },
         "created_at": {
           "name": "created_at",
@@ -3104,20 +3111,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": true
-        },
-        "onboarding_email": {
-          "name": "onboarding_email",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "onboarding_password": {
-          "name": "onboarding_password",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "deprovisioned_at": {
           "name": "deprovisioned_at",
