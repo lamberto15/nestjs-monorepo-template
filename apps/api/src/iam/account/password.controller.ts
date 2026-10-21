@@ -1,3 +1,5 @@
+import { DuringMfaEnrollment } from '../auth/mfa-enrollment.guard.js';
+import { DuringOnboarding } from '../auth/onboarding.js';
 import { Body, Controller, HttpCode, Ip, Post } from '@nestjs/common';
 import { AccountService } from './account.service.js';
 import {
@@ -103,6 +105,9 @@ export class PasswordController {
   @UserOnly()
   @Can.Anyone()
   @RecentAuthentication()
+  // The first administrator's onboarding changes the generated password here.
+  @DuringOnboarding()
+  @DuringMfaEnrollment()
   @Throttle({ default: { limit: 5, ttl: minutes(15) } })
   @Post('change')
   @HttpCode(204)

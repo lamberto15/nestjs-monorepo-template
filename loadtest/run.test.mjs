@@ -39,6 +39,9 @@ test('applies the overlay even with COMPOSE_FILE exported', { skip: !docker && '
   assert.doesNotMatch(result.stdout, /published:/);
   // Generated, never a default the scenarios know.
   assert.match(readFileSync(join(out, 'stack.env'), 'utf8'), /^ADMIN_PASSWORD=[0-9a-f]{48}$/m);
+  // The administrator keeps its placeholder address: onboarding would block the scenarios' admin calls.
+  assert.match(readFileSync(join(out, 'stack.env'), 'utf8'), /^ADMIN_ONBOARDING=off$/m);
+  assert.match(result.stdout, /ADMIN_ONBOARDING: ['"]?off['"]?$/m);
 });
 
 test('refuses a replica count or a bot check mode it does not know, before touching anything', () => {

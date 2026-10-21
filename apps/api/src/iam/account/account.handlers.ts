@@ -113,7 +113,7 @@ export class PasswordResetMailer extends PasswordResetHandler {
     const count = await this.history.count(userId);
     await inTransaction(this.txHost, async (tx) => {
       await this.history.replaced(userId, count);
-      await this.accounts.updatePasswordHash(userId, passwordHash, tx);
+      await this.accounts.replacePassword(userId, passwordHash, tx);
     });
   }
 }

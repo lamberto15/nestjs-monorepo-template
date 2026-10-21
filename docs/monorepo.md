@@ -97,7 +97,9 @@ web app needs the API, so `dev:web` alone suits an API already running.
   (`ADMIN_EMAIL`, `admin@example.com` unless set; the password is
   `ADMIN_PASSWORD` in `apps/api/.env.development` when `pnpm setup` wrote it,
   otherwise logged once in the API's output). That account is in the
-  operators' tenant, which holds no demo data. For a populated app, run
+  operators' tenant, which holds no demo data. In production the first
+  sign-in is the onboarding step (docs/auth.md); locally
+  `ADMIN_ONBOARDING=off` skips it. For a populated app, run
   `pnpm db:seed:demo` and sign in as one of the members it prints
   (`<first>.<last>@demo.example.com`, passwords printed once): the
   administrator sees every screen, the editors and the viewer see what their

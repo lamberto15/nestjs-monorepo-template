@@ -438,5 +438,23 @@
     "searching": "Mencari…",
     "none": "Tiada yang sepadan.",
     "failed": "Carian gagal."
+  },
+  "onboarding": {
+    "title": "Siapkan akaun anda",
+    "description": "Akaun pentadbir ini masih menggunakan e-mel pemegang tempat atau kata laluan yang dijana. Gantikannya untuk meneruskan.",
+    "emailTitle": "Alamat e-mel sebenar",
+    "emailDescription": "Pautan tetapan semula dan amaran keselamatan dihantar ke sini. Kami menghantar pautan untuk mengesahkannya.",
+    "email": "Alamat e-mel baharu",
+    "currentPassword": "Kata laluan semasa",
+    "emailSubmit": "Hantar pautan pengesahan",
+    "emailSent": "Kami menghantar pautan ke {{email}}. Bukanya, kemudian kembali ke sini.",
+    "emailWaiting": "Menunggu {{email}} disahkan.",
+    "check": "Saya telah mengesahkannya",
+    "resend": "Hantar pautan lagi",
+    "optionalTitle": "Pilihan: perlindungan tambahan",
+    "optionalDescription": "Sediakan dua faktor atau passkey sekarang, atau kemudian di Akaun, Keselamatan.",
+    "done": "Teruskan ke aplikasi",
+    "doneHint": "Semua langkah yang diperlukan telah selesai.",
+    "redirected": "Siapkan akaun pentadbir dahulu sebelum meneruskan."
   }
 }
