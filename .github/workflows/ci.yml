@@ -32,9 +32,14 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # What a pull request touched, to run the slow image builds only for the
-  # paths they read. Everything else (main, tags, the nightly run) runs them
-  # all. The files come from the API (no checkout, no history to fetch).
+  # What a pull request touched, so each job runs only when the paths it
+  # reads changed: a docs-only or web-only pull request doesn't queue the
+  # API's e2e shards, and the reverse. The runner pool is shared by every
+  # open pull request (GitHub's concurrent-jobs limit), so a job that has
+  # nothing to prove costs every other run its wait in the queue. Main, tags
+  # and the nightly run skip nothing. The files come from the API (no
+  # checkout, no history to fetch). The workflow itself counts everywhere: a
+  # change to a job must run it.
   changes:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -42,6 +47,16 @@ jobs:
       contents: read
       pull-requests: read
     outputs:
+      # Anything but docs, Markdown and Claude's files: lint, build, the
+      # browser tests and the template check.
+      code: ${{ steps.paths.outputs.code }}
+      # The API, its client, the tools and the workspace's roots: the API's
+      # unit and e2e tests, the feature generator, the app image.
+      api: ${{ steps.paths.outputs.api }}
+      # The web app, the UI package, the browser tests' package: the web
+      # app's unit tests, Caddy's image.
+      web: ${{ steps.paths.outputs.web }}
+      backup: ${{ steps.paths.outputs.backup }}
       gotenberg: ${{ steps.paths.outputs.gotenberg }}
       caddy: ${{ steps.paths.outputs.caddy }}
     steps:
@@ -50,24 +65,27 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
-            echo "gotenberg=true" >> "$GITHUB_OUTPUT"
-            echo "caddy=true" >> "$GITHUB_OUTPUT"
+            for key in code api web backup gotenberg caddy; do
+              echo "$key=true" >> "$GITHUB_OUTPUT"
+            done
             exit 0
           fi
           files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/${{ github.event.pull_request.number }}/files" --paginate --jq '.[].filename')
           echo "$files"
-          # The workflow itself counts: a change to a job must run it.
-          if grep -qE '^(gotenberg/|compose\.(dev|prod)\.yaml$|\.github/workflows/ci\.yml$)' <<< "$files"; then
-            echo "gotenberg=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "gotenberg=false" >> "$GITHUB_OUTPUT"
-          fi
+          # touched <key> <regex>: true when any changed path matches.
+          touched() {
+            if grep -qE "$2" <<< "$files"; then echo "$1=true"; else echo "$1=false"; fi >> "$GITHUB_OUTPUT"
+            tail -1 "$GITHUB_OUTPUT"
+          }
+          workflow='\.github/workflows/ci\.yml$'
+          roots='package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|tsconfig[^/]*\.json$|\.oxlintrc\.json$|\.npmrc$'
+          touched code "^(apps/|packages/|tools/|backup/|caddy/|gotenberg/|dev/|compose[^/]*\.yaml$|env\.example$|Dockerfile|\.dockerignore$|$roots|$workflow)"
+          touched api "^(apps/api/|packages/api-client/|tools/|compose[^/]*\.yaml$|env\.example$|$roots|$workflow)"
+          touched web "^(apps/web/|apps/web-e2e/|packages/|$roots|$workflow)"
+          touched backup "^(backup/|$workflow)"
+          touched gotenberg "^(gotenberg/|compose\.(dev|prod)\.yaml$|$workflow)"
           # Caddy's image builds the web app from the repository root.
-          if grep -qE '^(caddy/|apps/web/|packages/|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|\.github/workflows/ci\.yml$)' <<< "$files"; then
-            echo "caddy=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "caddy=false" >> "$GITHUB_OUTPUT"
-          fi
+          touched caddy "^(caddy/|apps/web/|packages/|$roots|$workflow)"
 
   # CI's PostgreSQL and Redis are compose.yaml's images, read from it: they
   # can't drift apart, and Dependabot's compose.yaml updates reach CI too.
@@ -97,6 +115,8 @@ jobs:
   # Compose renders them (the monitoring stack too); then the shell readers
   # in their images. The app booting on files: secret-files.e2e-spec.ts.
   compose-secrets:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
@@ -216,6 +236,8 @@ jobs:
   # the Compose files with dummy values and accepted by `docker stack config`
   # (which needs no Swarm). The script's unit tests run in feature-smoke.
   swarm-stack:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -241,7 +263,8 @@ jobs:
   # Lint, build, the typed client and migrations. The unit tests (the unit
   # job) and the e2e tests (the e2e job) run beside it, not after it.
   check:
-    needs: compose-images
+    needs: [compose-images, changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
@@ -288,11 +311,14 @@ jobs:
       - name: The release notes' tests
         run: node --test tools/release/notes.test.mjs
 
-  # The unit tests in parallel (Vitest's --shard): the API's in 3 shards, the
-  # web app's in 3 (jsdom, the run's longest at 3 min whole), the packages'
-  # (the client's) in one job. Turborepo builds what they depend on, replayed
-  # from its cache when nothing changed.
-  unit:
+  # The unit tests in parallel (Vitest's --shard): the API's in 3 shards and
+  # the web app's in 3 plus the packages' (the client's), as two jobs so each
+  # side runs only when its paths changed (a job-level `if` can't read the
+  # matrix). Turborepo builds what they depend on, replayed from its cache
+  # when nothing changed.
+  unit-api:
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
@@ -308,6 +334,31 @@ jobs:
           - name: api 3/3
             filter: --filter=@nestjs-monorepo-template/api
             args: --shard=3/3
+    name: unit (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - name: Turborepo's cache (tasks whose inputs didn't change are replayed)
+        uses: actions/cache@v6
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+      - run: pnpm exec turbo run test ${{ matrix.filter }} -- ${{ matrix.args }}
+
+  unit-web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
           - name: web 1/3
             filter: --filter=@nestjs-monorepo-template/web
             args: --shard=1/3
@@ -341,7 +392,8 @@ jobs:
   # the sources (no build needed). Raise `shard`'s list and --shard's total
   # together.
   e2e:
-    needs: compose-images
+    needs: [compose-images, changes]
+    if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
@@ -386,7 +438,8 @@ jobs:
   # are uploaded when it fails). Accessibility findings (axe) go to the job
   # summary; serious and critical ones fail the tests.
   e2e-web:
-    needs: compose-images
+    needs: [compose-images, changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
@@ -466,7 +519,8 @@ jobs:
   # build, lint, migrate and pass their own generated e2e tests on today's
   # core. Nothing generated is committed: the checkout is thrown away.
   feature-smoke:
-    needs: compose-images
+    needs: [compose-images, changes]
+    if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
@@ -541,7 +595,8 @@ jobs:
   # migrate and pass every remaining test, unit and e2e (the platform's run
   # on the test-only record, test/fixtures). Thrown away like feature-smoke's.
   template-without-notes:
-    needs: compose-images
+    needs: [compose-images, changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     # A pull request runs shard 1's cheap steps only (the example removed, then
@@ -763,6 +818,8 @@ jobs:
   # The production image builds and has no fixable high or critical
   # vulnerability (OS packages and node_modules).
   image:
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -799,6 +856,8 @@ jobs:
   # Its own cache scope, so it never evicts the app image's. Not published:
   # every deploy builds it (`docker compose up -d --build`).
   backup-image:
+    needs: changes
+    if: needs.changes.outputs.backup == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -937,7 +996,7 @@ jobs:
   # Never `latest`: a deploy names the image it runs.
   publish:
     if: github.event_name == 'push'
-    needs: [check, unit, e2e, security, image]
+    needs: [check, unit-api, unit-web, e2e, security, image]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -1024,7 +1083,7 @@ jobs:
   # would freeze.
   publish-gotenberg:
     if: github.event_name == 'push'
-    needs: [check, unit, e2e, security, image, gotenberg-image]
+    needs: [check, unit-api, unit-web, e2e, security, image, gotenberg-image]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -1109,7 +1168,7 @@ jobs:
   # docs/deployment.md), Swarm requires it.
   publish-caddy:
     if: github.event_name == 'push'
-    needs: [check, unit, e2e, security, image, caddy-image]
+    needs: [check, unit-api, unit-web, e2e, security, image, caddy-image]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
