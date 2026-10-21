@@ -1,0 +1,35 @@
+# Scratch branch only, never merged: prints the project's open SonarCloud
+# issues and hotspots to the job log (sonarcloud.io is unreachable from the
+# cloud sessions that work issues #470 and #471). Deleted with its branch.
+name: sonar-export
+
+on:
+  push:
+    branches: [sonar-export]
+
+permissions: {}
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Open issues
+        run: |
+          api=https://sonarcloud.io/api
+          key=lamberto15_nestjs-monorepo-template
+          curl -fsS --retry 3 "$api/issues/search?componentKeys=$key&resolved=false&ps=500" > issues.json
+          echo "total $(jq .total issues.json)"
+          jq -r '.issues | group_by(.rule) | map("\(length) \(.[0].rule)") | .[]' issues.json
+          echo '=== ISSUES rule|severity|file|line|message|flows'
+          jq -r '.issues[] | [
+              .rule, .severity, (.component | sub("^[^:]*:"; "")), ((.line // 0) | tostring), .message,
+              ((.flows // []) | map(.locations | map("\(.component | sub("^[^:]*:"; "")):\(.textRange.startLine) \(.msg // "")") | join(" <- ")) | join(" || "))
+            ] | join(" | ")' issues.json
+      - name: Hotspots to review
+        run: |
+          api=https://sonarcloud.io/api
+          key=lamberto15_nestjs-monorepo-template
+          curl -fsS --retry 3 "$api/hotspots/search?projectKey=$key&status=TO_REVIEW&ps=500" > hotspots.json
+          echo "=== HOTSPOTS total $(jq .paging.total hotspots.json) rule|probability|file|line|message"
+          jq -r '.hotspots[] | [.ruleKey, .vulnerabilityProbability, (.component | sub("^[^:]*:"; "")), ((.line // 0) | tostring), .message] | join(" | ")' hotspots.json
