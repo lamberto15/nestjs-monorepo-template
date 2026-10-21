@@ -263,6 +263,12 @@
     "description": "您要查找的页面不存在。",
     "back": "返回仪表盘"
   },
+  "routeError": {
+    "title": "出错了",
+    "description": "此页面加载失败，应用的其余部分仍可使用。",
+    "reportId": "报告编号：{{id}}",
+    "retry": "重试"
+  },
   "preferences": {
     "open": "偏好设置",
     "theme": "主题",
