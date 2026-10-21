@@ -264,6 +264,7 @@ describe('notifications (e2e)', () => {
         type: 'testItem.commented',
         label: 'Comment on a test item you watch',
         mandatory: false,
+        urgent: false,
         channels: { webhook: true },
       });
       const refused = await node

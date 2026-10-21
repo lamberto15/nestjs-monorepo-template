@@ -6,10 +6,6 @@
     "platform": "Plattform",
     "dashboard": "Dashboard"
   },
-  "dashboard": {
-    "title": "Dashboard",
-    "description": "Hier erscheint Ihre Übersicht."
-  },
   "auth": {
     "signIn": {
       "title": "Anmelden",
@@ -122,6 +118,20 @@
       "submit": "Löschung abbrechen",
       "done": "Die Löschung ist abgebrochen: Ihr Konto bleibt bestehen."
     },
+    "unsubscribe": {
+      "title": "E-Mails abbestellen",
+      "description": "Bestätigen Sie, dass Sie diese E-Mail nicht mehr erhalten möchten",
+      "hint": "Sie erhalten diese Art von E-Mail nicht mehr. E-Mails, die wir zu Ihrem Konto und dessen Sicherheit senden müssen, erreichen Sie weiterhin. Was Sie erhalten, legen Sie in Ihren Benachrichtigungseinstellungen fest.",
+      "hintType": "Sie erhalten die E-Mails „{{label}}“ nicht mehr. E-Mails, die wir zu Ihrem Konto und dessen Sicherheit senden müssen, erreichen Sie weiterhin. Was Sie erhalten, legen Sie in Ihren Benachrichtigungseinstellungen fest.",
+      "hintDigest": "Sie erhalten die E-Mails, die Sie als Zusammenfassung bekommen ({{modes, list}}), nicht mehr. E-Mails, die wir zu Ihrem Konto und dessen Sicherheit senden müssen, erreichen Sie weiterhin. Was Sie erhalten, legen Sie in Ihren Benachrichtigungseinstellungen fest.",
+      "modes": {
+        "hourly": "stündlich",
+        "daily": "täglich"
+      },
+      "submit": "Abbestellen",
+      "done": "Sie haben die E-Mails abbestellt: Wir senden Ihnen diese Art von E-Mail nicht mehr.",
+      "invalid": "Dieser Link ist ungültig oder abgelaufen. Öffnen Sie ihn erneut aus der E-Mail oder legen Sie in Ihren Benachrichtigungseinstellungen fest, was Sie erhalten."
+    },
     "links": {
       "missingToken": "Dieser Link ist unvollständig. Öffnen Sie ihn erneut aus der E-Mail.",
       "backToSignIn": "Zurück zur Anmeldung"
@@ -155,6 +165,11 @@
       "cancel": "Abbrechen",
       "none": "Single Sign-on ist für diese Adresse nicht verfügbar. Melden Sie sich anders an oder fragen Sie Ihre Administration.",
       "failed": "Wir konnten die Adresse nicht prüfen. Versuchen Sie es gleich noch einmal."
+    },
+    "idle": {
+      "title": "Ihre Sitzung läuft gleich ab",
+      "description": "Sie waren inaktiv. Sie werden in {{time}} abgemeldet.",
+      "stay": "Angemeldet bleiben"
     }
   },
   "account": {
@@ -167,6 +182,16 @@
       "emailHint": "Ihre Anmeldeadresse.",
       "timezone": "Zeitzone",
       "saved": "Profil gespeichert."
+    },
+    "avatar": {
+      "title": "Bild",
+      "choose": "Bild auswählen",
+      "change": "Bild ändern",
+      "remove": "Entfernen",
+      "hint": "PNG, JPEG, WebP oder GIF. Sichtbar für die Mitglieder Ihrer Organisationen.",
+      "saved": "Bild gespeichert.",
+      "removed": "Bild entfernt.",
+      "rejected": "{{name}} wurde nicht verwendet: {{reason}}"
     },
     "security": {
       "title": "Sicherheit"
@@ -262,6 +287,12 @@
     "title": "Seite nicht gefunden",
     "description": "Die gesuchte Seite existiert nicht.",
     "back": "Zurück zum Dashboard"
+  },
+  "routeError": {
+    "title": "Etwas ist schiefgelaufen",
+    "description": "Diese Seite konnte nicht geladen werden. Der Rest der App funktioniert weiterhin.",
+    "reportId": "Meldungs-ID: {{id}}",
+    "retry": "Erneut versuchen"
   },
   "preferences": {
     "open": "Präferenzen",
@@ -418,5 +449,23 @@
     "searching": "Suche läuft…",
     "none": "Niemand passt.",
     "failed": "Die Suche ist fehlgeschlagen."
+  },
+  "onboarding": {
+    "title": "Konto fertig einrichten",
+    "description": "Dieses Administratorkonto hat noch die Platzhalter-E-Mail oder das generierte Passwort. Ersetzen Sie sie, um fortzufahren.",
+    "emailTitle": "Eine echte E-Mail-Adresse",
+    "emailDescription": "Hierhin gehen Zurücksetzen-Links und Sicherheitswarnungen. Wir senden einen Bestätigungslink.",
+    "email": "Neue E-Mail-Adresse",
+    "currentPassword": "Aktuelles Passwort",
+    "emailSubmit": "Bestätigungslink senden",
+    "emailSent": "Wir haben einen Link an {{email}} gesendet. Öffnen Sie ihn und kehren Sie dann hierher zurück.",
+    "emailWaiting": "Warten auf die Bestätigung von {{email}}.",
+    "check": "Ich habe bestätigt",
+    "resend": "Link erneut senden",
+    "optionalTitle": "Optional: mehr Schutz",
+    "optionalDescription": "Richten Sie jetzt Zwei-Faktor oder einen Passkey ein, oder später unter Konto, Sicherheit.",
+    "done": "Weiter zur App",
+    "doneHint": "Alle nötigen Schritte sind erledigt.",
+    "redirected": "Schließen Sie zuerst die Einrichtung des Administratorkontos ab."
   }
 }

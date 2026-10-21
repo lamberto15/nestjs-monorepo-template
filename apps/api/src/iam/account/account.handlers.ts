@@ -4,6 +4,7 @@ import type { Request } from 'express';
 import { CLS_REQ, ClsService } from 'nestjs-cls';
 import {
   database,
+  inTransaction,
   type DrizzleTransactions,
 } from '../../core/database/transactions.js';
 import { Injectable, Logger } from '@nestjs/common';
@@ -30,6 +31,7 @@ import { normalizeEmail, UsersRepository } from '../auth/users.repository.js';
 import { SignUpTenant } from '../access/sign-up-tenant.js';
 import type { IamEnv } from '../iam.env.js';
 import { userIdentities, users } from '../iam.tables.js';
+import { PasswordHistoryService } from './password-history.service.js';
 import { oidcProviders } from './oidc.providers.js';
 import {
   isFreshAuthentication,
@@ -65,6 +67,7 @@ export class PasswordResetMailer extends PasswordResetHandler {
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly mailQueue: MailQueue,
     private readonly accounts: UsersRepository,
+    private readonly history: PasswordHistoryService,
     registry: AuthenticationRegistry,
   ) {
     super();
@@ -104,7 +107,14 @@ export class PasswordResetMailer extends PasswordResetHandler {
   }
 
   async updatePassword(userId: string, passwordHash: string) {
-    await this.accounts.updatePasswordHash(userId, passwordHash);
+    // The replaced hash joins the history in the same transaction. The
+    // count is read before it: a tenant's settings can't be read inside a
+    // transaction for no tenant, which a reset link has.
+    const count = await this.history.count(userId);
+    await inTransaction(this.txHost, async (tx) => {
+      await this.history.replaced(userId, count);
+      await this.accounts.replacePassword(userId, passwordHash, tx);
+    });
   }
 }
 

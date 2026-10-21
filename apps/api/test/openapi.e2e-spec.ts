@@ -24,6 +24,7 @@ const PANEL_COMPONENTS = [
   'CommentPage',
   'Attachment',
   'AttachmentPage',
+  'PresignedUpload',
   'Tag',
   'TagPage',
   'TagRef',
@@ -164,6 +165,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/access/users/{id}',
         '/v1/access/users/{id}/impersonate',
         '/v1/account',
+        '/v1/account/avatar',
         '/v1/account/consent-kinds',
         '/v1/account/consents',
         '/v1/account/consents/{kind}',
@@ -188,6 +190,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/approvals/{id}/resubmit',
         '/v1/attachments/{id}',
         '/v1/attachments/{id}/download',
+        '/v1/auth/email/change',
         '/v1/auth/email/verification',
         '/v1/auth/email/verification/resend',
         '/v1/auth/email/verify',
@@ -235,6 +238,9 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/auth/token',
         '/v1/auth/token/refresh',
         '/v1/auth/token/revoke',
+        '/v1/branding',
+        '/v1/branding/logo',
+        '/v1/branding/{tenantId}/logo',
         '/v1/bulk',
         '/v1/bulk/{id}',
         '/v1/custom-fields',
@@ -269,10 +275,12 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/naming-series/{id}/counter',
         '/v1/notifications',
         '/v1/notifications/preferences',
+        '/v1/notifications/quiet-hours',
         '/v1/notifications/read-all',
         '/v1/notifications/test',
         '/v1/notifications/types',
         '/v1/notifications/unread-count',
+        '/v1/notifications/unsubscribe/{token}',
         '/v1/notifications/{id}',
         '/v1/notifications/{id}/read',
         '/v1/ops/dead-letters/purge',
@@ -282,6 +290,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/ops/queues',
         '/v1/ops/queues/{name}/retry-failed',
         '/v1/people',
+        '/v1/people/{id}/avatar',
         '/v1/reports',
         '/v1/reports/{id}',
         '/v1/reports/{id}/run',
@@ -363,6 +372,27 @@ describe('OpenAPI document (e2e)', () => {
     expect(Object.keys(body.properties)).toEqual(['name', 'dryRun', 'file']);
   });
 
+  it('documents the unsubscribe link twice, both public: the POST unsubscribes, the GET only says what it stops', () => {
+    const route = document.paths['/v1/notifications/unsubscribe/{token}']!;
+    expect(Object.keys(route).sort((a, b) => a.localeCompare(b))).toEqual([
+      'get',
+      'post',
+    ]);
+    for (const operation of Object.values(route)) {
+      expect(operation.security ?? []).toEqual([]);
+      expect(operation.responses['400']).toBeDefined();
+    }
+    expect(route.post!.responses['204']).toBeDefined();
+    const answer =
+      route.get!.responses['200'].content['application/json'].schema;
+    expect(
+      answer.oneOf.map(
+        (shape: { properties: { kind: { enum: string[] } } }) =>
+          shape.properties.kind.enum[0],
+      ),
+    ).toEqual(['type', 'digest']);
+  });
+
   it('pre-fills Idempotency-Key with "generate", which Swagger UI swaps for a fresh key', async () => {
     const header = document.paths['/v1/webhook-endpoints'].post.parameters.find(
       (parameter: { name: string }) => parameter.name === 'Idempotency-Key',
@@ -430,6 +460,13 @@ describe("OpenAPI document: the record panels' components (e2e)", () => {
       ref('AttachmentPage'),
     );
     expect(response(`${base}/attachments`, 'post', '201')).toEqual(
+      ref('Attachment'),
+    );
+    // Direct uploads to the object store (STORAGE_DRIVER=s3): announce, then complete.
+    expect(response(`${base}/attachments/presign`, 'post', '201')).toEqual(
+      ref('PresignedUpload'),
+    );
+    expect(response(`${base}/attachments/complete`, 'post', '201')).toEqual(
       ref('Attachment'),
     );
     expect(response(`${base}/tags`, 'put')).toEqual(ref('TagRefList'));

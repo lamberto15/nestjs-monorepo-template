@@ -1,7 +1,10 @@
 {{- if .Values.web.enabled }}
+{{- $filesOrigins := include "app.webFilesOrigins" . }}
 # caddy/Caddyfile without the API proxy and TLS: the Ingress routes the API's
 # paths and ends TLS, so this Caddy only serves the built web app (/srv/web,
-# in the published Caddy image). The headers are the Caddyfile's.
+# in the published Caddy image). The headers are the Caddyfile's; connect-src
+# and img-src also name the origins the browser reaches for files: the bucket
+# of env.S3_BUCKET and web.filesOrigin (app.webFilesOrigins, helpers).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -18,7 +21,7 @@ data:
     :8080 {
       root * /srv/web
       header {
-        Content-Security-Policy "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        Content-Security-Policy "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src 'self'{{ with $filesOrigins }} {{ . }}{{ end }}; img-src 'self' data:{{ with $filesOrigins }} {{ . }}{{ end }}; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
         X-Frame-Options "DENY"
         X-Content-Type-Options "nosniff"
         Referrer-Policy "strict-origin-when-cross-origin"

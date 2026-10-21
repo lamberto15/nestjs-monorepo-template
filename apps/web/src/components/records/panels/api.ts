@@ -1,11 +1,12 @@
 import {
+  ApiError,
   etagOf,
   unwrap,
-  type GetResponse,
+  type components,
   type paths,
 } from '@nestjs-monorepo-template/api-client';
 import { api } from '@/lib/api';
-import { postMultipart } from '@/lib/upload';
+import { postMultipart, putFile, StoreUnreachableError } from '@/lib/upload';
 
 /**
  * The record panels' routes (docs/comments.md, attachments.md, tags.md,
@@ -22,6 +23,8 @@ type Suffix =
   | '/comments'
   | '/comments/{commentId}'
   | '/attachments'
+  | '/attachments/presign'
+  | '/attachments/complete'
   | '/tags'
   | '/pdf'
   | '/watch'
@@ -49,6 +52,7 @@ type Answer<S extends Suffix> = [At<S>] extends [never]
 
 export type Comment = Answer<'/comments'>['items'][number];
 export type Attachment = Answer<'/attachments'>['items'][number];
+type PresignedUpload = components['schemas']['PresignedUpload'];
 export type Revision = Answer<'/revisions'>['items'][number];
 export type RevisionDiff = Answer<'/revisions/{a}/diff/{b}'>;
 
@@ -91,8 +95,6 @@ const call = <T>(
 /** Pages of 100, at most 10: far past what a thread or a list can use. */
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
-
-export type IssuedDocument = GetResponse<'/v1/documents/{id}'>;
 
 export const panelKeys = {
   all: (base: string, id: string) => ['panels', base, id] as const,
@@ -179,6 +181,17 @@ export const listAttachments = (base: string, id: string) =>
 export const downloadUrl = (attachmentId: string) =>
   `/v1/attachments/${attachmentId}/download`;
 
+/**
+ * An image's smaller copy (`thumb` 256 px, `preview` 1600 px, WebP: docs/attachments.md,
+ * "Image renditions"). Like the download, it redirects to a signed link, which an
+ * `<img>` follows only to an origin the page may load images from (the dev proxy,
+ * Caddy's `img-src`: docs/attachments.md). 404 while the image is not `ready`.
+ */
+export const renditionUrl = (
+  attachmentId: string,
+  rendition: 'thumb' | 'preview',
+) => `${downloadUrl(attachmentId)}?rendition=${rendition}`;
+
 export const removeAttachment = (attachmentId: string) =>
   unwrap(
     api.DELETE('/v1/attachments/{id}', {
@@ -187,21 +200,68 @@ export const removeAttachment = (attachmentId: string) =>
   );
 
 /**
- * Uploads one file (multipart, the field `file`: docs/attachments.md; the API
- * has no presigned upload), with progress for the dropzone.
+ * Uploads one file with progress for the dropzone (docs/attachments.md).
+ *
+ * `direct` (`GET /v1/features`: `presignedUploads`, `STORAGE_DRIVER=s3`): the
+ * file goes straight to the object store, which spares the API its bytes:
+ * `…/attachments/presign` for a signed URL, a PUT of the file to it, then
+ * `…/attachments/complete`, which attaches it after the server checked what
+ * arrived. Otherwise, and whenever a direct upload cannot be tried (the
+ * browser cannot name the file's type, which a signed URL is bound to; the
+ * server answered 503 `presigned_uploads_unavailable` meanwhile, or 429
+ * `attachment_uploads_pending`; the browser cannot reach the store, say a
+ * bucket with no CORS rule for this origin),
+ * the file goes as multipart through the API, which works with every driver.
  */
-export function uploadAttachment(
+export async function uploadAttachment(
   base: string,
   id: string,
   file: File,
   onProgress: (percent: number) => void,
+  direct = false,
 ): Promise<Attachment> {
+  if (direct && file.type) {
+    try {
+      return await uploadDirect(base, id, file, onProgress);
+    } catch (error) {
+      // The multipart upload leaves no announcement behind, so a user who
+      // has many open (attachment_uploads_pending) can still attach files.
+      const fallback =
+        error instanceof StoreUnreachableError ||
+        (error instanceof ApiError &&
+          (error.code === 'presigned_uploads_unavailable' ||
+            error.code === 'attachment_uploads_pending'));
+      if (!fallback) throw error;
+      onProgress(0);
+    }
+  }
   const form = new FormData();
   form.append('file', file);
   return postMultipart<Attachment>(
     `${base}/attachments`.replace('{id}', id),
     form,
     onProgress,
+  );
+}
+
+async function uploadDirect(
+  base: string,
+  id: string,
+  file: File,
+  onProgress: (percent: number) => void,
+): Promise<Attachment> {
+  const upload = await unwrap(
+    call<PresignedUpload>('POST', base, '/attachments/presign', {
+      params: { path: { id } },
+      body: { name: file.name, size: file.size, contentType: file.type },
+    }),
+  );
+  await putFile(upload.url, upload.headers, file, onProgress);
+  return unwrap(
+    call<Attachment>('POST', base, '/attachments/complete', {
+      params: { path: { id } },
+      body: { uploadId: upload.uploadId },
+    }),
   );
 }
 

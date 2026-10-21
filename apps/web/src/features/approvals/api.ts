@@ -15,8 +15,6 @@ import { api } from '@/lib/api';
 export type ApprovalItem = GetResponse<'/v1/approvals'>['items'][number];
 export type Approval = GetResponse<'/v1/approvals/{id}'>;
 export type ApprovalStatus = Approval['status'];
-export type Delegation =
-  GetResponse<'/v1/approvals/delegations'>['items'][number];
 export type DelegationBody = NonNullable<
   paths['/v1/approvals/delegations']['post']['requestBody']
 >['content']['application/json'];

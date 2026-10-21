@@ -39,7 +39,11 @@ through Turborepo or `pnpm --filter` ([monorepo](monorepo.md)).
 - **Floci** is AWS on http://localhost:4566: files go to its S3, mail through
   its SES (then on to Mailpit), so development runs the code production runs.
 - The first start creates the administrator (`ADMIN_EMAIL`); without
-  `ADMIN_PASSWORD`, the password is logged once.
+  `ADMIN_PASSWORD`, the password is logged once. With the default
+  `admin@example.com` or a generated password, the first sign-in is blocked
+  until a real address and a new password are set (docs/auth.md,
+  "Administrator onboarding"); `ADMIN_ONBOARDING=off` (in
+  `env.development.example`) skips that locally.
 - Swagger UI at `/api`: sign in with `POST /v1/auth/sign-in`, then try the routes.
 
 ## Floci (AWS locally)
@@ -220,11 +224,14 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 | Command | Does |
 | --- | --- |
 | `pnpm setup` | the first-run wizard: asks the deployment shape and the few choices, writes the env file with generated secrets (`--dry-run`, `--yes`, `--rotate`; [configuration](configuration.md), "First setup") |
+| `pnpm env:check` | an env file against its template, by name: the variables it lacks, the ones the template does not name, the REQUIRED ones that are empty (exit 1); `--strict`, `--target`, `--file`, `--templates` ([configuration](configuration.md), "First setup"; its tests: `node --test tools/setup/*.test.mjs`) |
 | `pnpm dev` | the API and its workers, and the web app, with reload (Turborepo's `dev` task in both, the client built first) |
 | `pnpm dev:api` / `pnpm start:dev` | the API and its workers alone, with reload (through Turborepo / straight through pnpm) |
 | `pnpm start:debug` | the same with the Node.js inspector (`nest start --debug --watch`) |
-| `pnpm dev:web` | the web app's dev server alone, http://localhost:5173; it proxies `/v1`, `/health` and `/socket.io` to the API on :3000, so the session cookie is same-origin |
+| `pnpm dev:web` | the web app's dev server alone, http://localhost:5173; it proxies `/v1`, `/health`, `/files` and `/socket.io` to the API on :3000 (`apps/web/dev-proxy.ts`), so the session cookie is same-origin and a signed file link is too |
 | `pnpm build && pnpm lint && pnpm test && pnpm test:e2e` | the check before every commit (Turborepo: a task whose inputs didn't change is replayed from `.turbo/cache`) |
+| `pnpm i18n:check` | the translation parity check (also run by `pnpm lint`): every locale's keys, placeholders and plural forms against `en`, web and API ([i18n](i18n-and-time.md)) |
+| `pnpm lint` | oxlint in every package (Turborepo), the translation parity check, then knip: unused files, exports and dependencies across the workspaces ([Dead code](#dead-code-knip)); `pnpm lint:code` is the first two, `pnpm knip` knip alone |
 | `pnpm format` | Prettier on the TypeScript of every package (not on Markdown, nor `packages/ui`: the shadcn CLI writes it) |
 | `pnpm db:generate` | a migration from the tables (after any `*.tables.ts` change) |
 | `pnpm db:generate:fixtures` | the test-only record's migrations (`apps/api/test/fixtures/drizzle`), after changing `test/fixtures/test-items` |
@@ -302,6 +309,49 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 - **Store contracts** (`apps/api/test/stores.e2e-spec.ts`): the lock and
   authentication stores against the suites their packages ship.
 - `TEST_LOGS=1 pnpm test:e2e` shows the app's errors and warnings.
+
+## Coverage
+
+Each package that has unit tests sets coverage thresholds in its
+`vitest.config.ts` (`test.coverage.thresholds`): `apps/api`, `apps/web` and
+`packages/api-client`. They sit at the levels measured when they were added
+(the API's is low because its unit tests are the small share; the e2e suite
+carries the rest and isn't measured), so main never fails on day one. They
+only ratchet: when a change lifts the numbers, raise the thresholds with it;
+a drop fails CI.
+
+- **Locally:** `pnpm --filter @nestjs-monorepo-template/web test:cov` (or
+  `api`, `api-client`); `pnpm test` stays without coverage.
+- **In CI:** the unit job's shards run `test:cov` (the same run, not a second
+  one): each writes a blob report (`.vitest/blob`) and checks no threshold
+  of its own, since a share of the tests covers a share of the code. The
+  `coverage` job merges the blobs (`vitest --merge-reports --coverage`) and
+  enforces the thresholds. The packages job runs whole and enforces its own.
+- **Measure again** before raising: run `test:cov` and read the summary; set
+  each threshold to the figure rounded down.
+
+## Dead code (knip)
+
+`pnpm lint` ends with [knip](https://knip.dev) (`knip.jsonc`, one entry per
+workspace, as its monorepo guide describes): files nothing imports, unused
+exports and types, and dependencies that are unused or not listed. CI runs it
+in the `check` job. The generated-template jobs run `pnpm lint:code`, since
+knip checks this repository's own code.
+
+- **Entry points** knip can't find on its own are listed in `knip.jsonc`
+  (the worker, `migrate`, `seed-demo`, `openapi-dump` and the CLI, started
+  by `node dist/<name>`; the `tools/` scripts; the load test).
+- **An unused export:** remove the `export` (or the code). A helper meant
+  for the projects built on the template stays exported with a `@public`
+  JSDoc tag, which knip leaves alone (`isEncrypted`, `withCan`, ...).
+- **Ignored on purpose**, each with its reason in `knip.jsonc` or here:
+  Dice UI's data table (`components/data-table/`, `lib/data-table-*.ts`:
+  registry output the CLI writes, left whole so `shadcn add` updates apply),
+  `react-day-picker` and `tailwindcss` (used by that registry code and the
+  stylesheet's `@import`), `@types/multer` (the global `Express.Multer`
+  types), `k6` (the load test runs in k6's container) and `redis-server` (the
+  e2e tests start it).
+- Ignoring is the last resort: prefer removing the dead code.
 
 ## Browser tests
 
@@ -638,6 +688,11 @@ pages, ETags. Usage, the bell-icon recipe included:
   their merge base, and its new journal entries must still come after
   `main`'s), or `node tools/migration-lint/lint.mjs apps/api/drizzle/*.sql` for
   given files; its tests: `node --test tools/migration-lint/lint.test.mjs`.
+- **The Caddyfile:** `CADDY_BIN=/path/to/caddy node --test caddy/caddyfile.test.mjs`
+  runs the real Caddyfile (its TLS block and Docker names edited out, every
+  edit checked) under a real Caddy: the app, the maintenance page, the API's
+  paths. Without a binary the tests are skipped; CI's `caddy-image` job runs them
+  with the image's own ([deployment](deployment.md), "Maintenance page").
 - **A new feature:** `pnpm feature:add <plural> --fields "…"`
   (`tools/feature/`, [adding a feature](adding-a-feature.md)); its tests:
   `node --test tools/feature/add.test.mjs`. CI's `feature-smoke` job

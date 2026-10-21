@@ -67,6 +67,58 @@ test('toStack: fixes what docker stack refuses', () => {
   assert.equal(stack.volumes.postgres_data.name, undefined);
 });
 
+test('toStack: tmpfs entries become tmpfs volumes (docker stack ignores `tmpfs:`)', () => {
+  const stack = toStack(
+    {
+      services: {
+        postgres: {
+          image: 'postgres',
+          read_only: true,
+          tmpfs: ['/tmp:size=64m', '/run/postgresql'],
+          volumes: [
+            { type: 'volume', source: 'postgres_data', target: '/data' },
+          ],
+        },
+        gotenberg: {
+          image: 'gotenberg',
+          read_only: true,
+          tmpfs: [
+            '/tmp:size=512m',
+            '/home/gotenberg:size=64m,uid=1001,gid=1001',
+          ],
+        },
+        caddy: { image: 'caddy' },
+      },
+    },
+    { stack: 'swtest', readFile, placeholder: '/repo/swarm.placeholder' },
+  );
+  assert.equal(stack.services.postgres.tmpfs, undefined);
+  assert.equal(stack.services.postgres.read_only, true);
+  assert.deepEqual(stack.services.postgres.volumes, [
+    { type: 'volume', source: 'postgres_data', target: '/data' },
+    { type: 'tmpfs', target: '/tmp', tmpfs: { size: 64 * 1024 * 1024 } },
+    { type: 'tmpfs', target: '/run/postgresql' },
+  ]);
+  // uid and gid have no Swarm equivalent: the size stays.
+  assert.deepEqual(stack.services.gotenberg.volumes, [
+    { type: 'tmpfs', target: '/tmp', tmpfs: { size: 512 * 1024 * 1024 } },
+    {
+      type: 'tmpfs',
+      target: '/home/gotenberg',
+      tmpfs: { size: 64 * 1024 * 1024 },
+    },
+  ]);
+  assert.equal(stack.services.caddy.volumes, undefined);
+  assert.throws(
+    () =>
+      toStack(
+        { services: { x: { image: 'x', tmpfs: ['/tmp:size=lots'] } } },
+        { stack: 'swtest', readFile, placeholder: '/repo/swarm.placeholder' },
+      ),
+    /can't read the size/,
+  );
+});
+
 test('toStack: secrets and configs are named by their content, empty ones use the placeholder', () => {
   const stack = toStack(rendered(), {
     stack: 'swtest',

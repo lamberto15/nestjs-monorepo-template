@@ -541,7 +541,7 @@ export interface paths {
         };
         /**
          * Which switches are on in this deployment
-         * @description The deployment switches (`REALTIME`, `WEBHOOKS`, `REPORTS`, `USAGE`, `IMPERSONATION`, `AUTH_MFA`, `API_CLIENTS`), the sign-in options (`PASSKEYS`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`), whether PDF documents are set up, whether the AI helper has a provider (`ai`; a tenant opts in with the public setting `ai.enabled`), `TENANCY` and `LOCALES`. A switch that is off leaves its routes out (404) or refuses them (404 `feature_off`, 503 `documents_unavailable`). Read at startup: a change needs a restart.
+         * @description The deployment switches (`REALTIME`, `WEBHOOKS`, `REPORTS`, `USAGE`, `IMPERSONATION`, `AUTH_MFA`, `API_CLIENTS`), the sign-in options (`PASSKEYS`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`), whether PDF documents are set up, whether uploads can go straight to the object store (`presignedUploads`, `STORAGE_DRIVER=s3`), whether the AI helper has a provider (`ai`; a tenant opts in with the public setting `ai.enabled`), `TENANCY` and `LOCALES`. A switch that is off leaves its routes out (404) or refuses them (404 `feature_off`, 503 `documents_unavailable`). Read at startup: a change needs a restart.
          */
         get: operations["FeaturesController_list_v1"];
         put?: never;
@@ -886,6 +886,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notifications/quiet-hours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your quiet hours
+         * @description While the clock of your time zone is inside the window, push and SMS wait for it to end (types marked `urgent` do not). In-app, realtime and email are unaffected.
+         */
+        get: operations["NotificationsController_quietHours_v1"];
+        /**
+         * Set your quiet hours
+         * @description A window on the clock of your time zone (`PATCH /auth/me { timezone }`, else the deployment’s), as `HH:MM`; one past midnight (`22:00` to `07:00`) is fine. Push and SMS of a non-urgent notification arriving inside it are sent when it ends. Audited.
+         */
+        put: operations["NotificationsController_setQuietHours_v1"];
+        post?: never;
+        /** Remove your quiet hours */
+        delete: operations["NotificationsController_clearQuietHours_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/notifications/{id}/read": {
         parameters: {
             query?: never;
@@ -915,6 +940,30 @@ export interface paths {
         post?: never;
         /** Remove one of your notifications */
         delete: operations["NotificationsController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notifications/unsubscribe/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Which mail an unsubscribe link stops
+         * @description No sign-in, and read-only: it changes and records nothing, so a mail scanner that follows the link does no harm. Answers what the token of the mail's unsubscribe link stops: a notification type (`kind: type`, its `label` in the request's language) or a digest (`kind: digest`, its `modes`). Never the person's email or id. A forged, expired or foreign token, or a gone account, is the same 400 the POST gives.
+         */
+        get: operations["NotificationUnsubscribeController_describe_v1"];
+        put?: never;
+        /**
+         * One-click unsubscribe from notification mail
+         * @description No sign-in: the token of the mail's `List-Unsubscribe` link (RFC 8058). Switches the mail of that notification type (or of that digest's types) off in the user's preferences; mandatory types are never switched off. Repeating it changes nothing. The body is the form `List-Unsubscribe=One-Click` mail clients post (JSON with the same field works too). Audited (`notificationPreferences.updated`, `via: unsubscribe`).
+         */
+        post: operations["NotificationUnsubscribeController_unsubscribeByLink_v1"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1263,6 +1312,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/account/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set your picture
+         * @description Multipart, the field `file`: a PNG, JPEG, WebP or GIF, recognized from its bytes (not the name or the declared type), at most AVATAR_MAX_MB (2). Replaces the one you had. The answer is the `avatarUrl` to show it by (also on GET /v1/auth/me and GET /v1/people). Audited (account.avatar-changed). Never while acting as another user.
+         */
+        put: operations["AvatarController_set_v1"];
+        post?: never;
+        /**
+         * Remove your picture
+         * @description The file goes too. Without a picture, nothing happens. Audited (account.avatar-removed). Never while acting as another user.
+         */
+        delete: operations["AvatarController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/account/deletion/cancel": {
         parameters: {
             query?: never;
@@ -1383,6 +1456,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/branding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The branding of your tenant
+         * @description The brand colour (`#rrggbb`), the name mail is sent under, the logo’s path, whether the operators locked it and whether you may change it.
+         */
+        get: operations["BrandingController_get_v1"];
+        /**
+         * Change the branding of your tenant
+         * @description Who manages settings. Sets the colour and the sender name (the settings `branding.primaryColor` and `branding.mailFromName`, so audited as `setting.updated`): `null` removes one, an absent key stays. The colour is `#rrggbb` only. Answers 409 `branding_locked` while the operators have it locked.
+         */
+        put: operations["BrandingController_update_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set the logo of your tenant
+         * @description Who manages settings. Multipart, the field `file`: a PNG, JPEG or WebP of at most 512 KB, recognized by its bytes (never SVG). Replaces the logo. Audited (`branding.logo-changed`). 409 `branding_locked` while locked.
+         */
+        post: operations["BrandingController_upload_v1"];
+        /**
+         * Remove the logo of your tenant
+         * @description Who manages settings. The file goes too. Audited (`branding.logo-removed`). 409 `branding_locked` while locked.
+         */
+        delete: operations["BrandingController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/{tenantId}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The logo of a tenant
+         * @description No sign-in needed. The image itself (PNG, JPEG or WebP, the type its bytes say), cached for five minutes, with `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox` and `Cross-Origin-Resource-Policy: cross-origin` (other sites' mail pages and apps may show it).
+         */
+        get: operations["PublicBrandingController_logo_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/subscriptions": {
         parameters: {
             query?: never;
@@ -1480,6 +1621,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/people/{id}/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A person's picture
+         * @description The picture itself (what `avatarUrl` of a person points at), streamed by this API rather than redirected to the disk's signed link: an `<img>` then loads it from the page's own origin, whatever the storage (a redirect to another origin, the bucket with S3, is refused by the browser's cross-origin and Content-Security-Policy rules). `Content-Disposition: inline`, `Cache-Control: private` (the address changes with the picture), `nosniff`. For a member (or former member) of your tenant, or yourself. 404 when they have none, or are no one of your tenant: the two are not told apart.
+         */
+        get: operations["PeopleController_avatar_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams": {
         parameters: {
             query?: never;
@@ -1509,7 +1670,7 @@ export interface paths {
         };
         /**
          * Download an attachment
-         * @description Whoever may read its record. Redirects to a signed link to the file, valid for 5m: it needs no credentials, so a browser can follow it (a link, an image). The file comes as `Content-Disposition: attachment` (a download), with `X-Content-Type-Options: nosniff`; `?inline=true` shows a PDF in the browser instead (a preview in a new tab), under `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox` (nothing loads, nothing runs, no page may frame it). Any other type stays a download.
+         * @description Whoever may read its record. Redirects to a signed link to the file, valid for 5m: it needs no credentials, so a browser can follow it (a link, an image). The file comes as `Content-Disposition: attachment` (a download), with `X-Content-Type-Options: nosniff`; `?inline=true` shows a PDF in the browser instead (a preview in a new tab), under `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox` (nothing loads, nothing runs, no page may frame it). Any other type stays a download. `?rendition=thumb` or `preview` links to an image's smaller WebP copy instead, inline.
          */
         get: operations["AttachmentsController_download_v1"];
         put?: never;
@@ -2581,6 +2742,26 @@ export interface paths {
         put?: never;
         /** Send the verification link again */
         post: operations["EmailController_resend_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/email/change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replace the first administrator's placeholder email
+         * @description Only while onboarding asks for it (`GET /auth/me` `onboardingRequired.email`): 409 otherwise. Wants the current password. The address changes at once and is unproved until its link (WEB_URL/verify-email?token=…) is opened; signing in stays possible meanwhile, so a typo can be corrected by calling this again.
+         */
+        post: operations["EmailController_change_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4260,6 +4441,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notes/{id}/attachments/presign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Announce a direct upload of a file to a note
+         * @description For `STORAGE_DRIVER=s3` (`GET /v1/features`: `presignedUploads`), instead of streaming the file through the API: who may change the note (Note.update). Send the file's name, size and type; answer a URL to PUT the file to (signed for exactly that size and `Content-Type`, for ten minutes, at a key the server chose under your tenant) and an `uploadId`. Then `POST …/attachments/complete` with it. Nothing is attached until then.
+         */
+        post: operations["NoteAttachmentsController_presign_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/attachments/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete a direct upload to a note
+         * @description After the PUT to the URL of `POST …/attachments/presign`: the server reads the object back (its size and type from the store, its first bytes for the type the bytes say, never the client's word), deletes it if it is not what was announced, and otherwise attaches it exactly as an upload through the API does (`attachment.added`, the quota, the malware scan, the image renditions). Only the one who announced the upload may complete it.
+         */
+        post: operations["NoteAttachmentsController_complete_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/notes/{id}/tags": {
         parameters: {
             query?: never;
@@ -4917,10 +5138,58 @@ export interface components {
             uploadedBy: string;
             /** @description An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record. */
             locked: boolean;
+            /**
+             * @description `pending`: the malware scan has not finished (MALWARE_SCANNER is on) and the file cannot be downloaded yet (409 `attachment_scan_pending`). `clean` otherwise, always when scanning is off. An infected file is rejected: the attachment is deleted and its uploader notified.
+             * @enum {string}
+             */
+            scanStatus: "pending" | "clean";
+            /**
+             * @description Only for JPEG, PNG, WebP and GIF uploads while IMAGE_PROCESSING is on, else null. `pending`: the thumbnail and preview are being made (after the malware scan, when it is on); the original can be downloaded meanwhile. `ready`: `renditions` has them. `failed`: the image could not be processed (more than IMAGE_MAX_PIXELS, damaged, over the time limit); the file stays as it was uploaded.
+             * @enum {string|null}
+             */
+            renditionStatus: "pending" | "ready" | "failed" | null;
+            /** @description Smaller WebP copies of an image, upright and without metadata: `thumb` fits in 256 × 256 pixels, `preview` in 1600 × 1600 (neither enlarges). Empty until `renditionStatus` is `ready`. Download one with `GET /v1/attachments/{id}/download?rendition=thumb|preview`. */
+            renditions: {
+                thumb?: components["schemas"]["AttachmentRendition"];
+                preview?: components["schemas"]["AttachmentRendition"];
+            };
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        AttachmentRendition: {
+            /** @description Pixels, upright. */
+            width: number;
+            /** @description Pixels, upright. */
+            height: number;
+            /** @description Bytes. */
+            size: number;
+            /** @example image/webp */
+            contentType: string;
+        };
+        PresignedUpload: {
+            /**
+             * Format: uuid
+             * @description Send it to `POST …/attachments/complete` once the PUT is done.
+             */
+            uploadId: string;
+            /**
+             * Format: uri
+             * @description PUT the file here, with the `headers`. Signed for this size and type only, and for ten minutes.
+             */
+            url: string;
+            /** @enum {string} */
+            method: "PUT";
+            /** @description Send them as they are (`Content-Type`, and the encryption header when the bucket uses one). `Content-Length` is the file size: the HTTP client sets it. */
+            headers: {
+                [key: string]: string;
+            };
+            /**
+             * Format: date-time
+             * @description When the URL stops working. The upload may be completed for an hour after it.
+             */
+            expiresAt: string;
         };
         AttachmentPage: {
             items: components["schemas"]["Attachment"][];
@@ -5223,7 +5492,7 @@ export interface components {
             recordId: string;
             attachmentId: string;
             /** @enum {string} */
-            action: "added" | "removed";
+            action: "added" | "removed" | "scanned" | "processed";
         };
     };
     responses: never;
@@ -7979,6 +8248,8 @@ export interface operations {
                         magicLink: boolean;
                         /** @description PDF documents of records. Off: they answer 503 `documents_unavailable` (no Gotenberg is configured). */
                         documents: boolean;
+                        /** @description Uploads straight to the object store (`STORAGE_DRIVER=s3`): `POST /v1/<records>/{id}/attachments/presign`, then `…/complete`. Off: they answer 503 `presigned_uploads_unavailable`; upload with the multipart `POST …/attachments`. */
+                        presignedUploads: boolean;
                         /** @description The AI helper has a provider (`ANTHROPIC_API_KEY`). Off: `POST /v1/ai/runs` answers 503 `ai_unavailable`. On, a tenant still opts in with the public setting `ai.enabled` (403 `ai_disabled`). */
                         ai: boolean;
                         /** @description The ECB reference rates are fetched (`EXCHANGE_RATES_FETCH`). Off: no rates are stored, and the money conversions have none. */
@@ -7988,6 +8259,11 @@ export interface operations {
                          * @enum {string}
                          */
                         tenancy: "multi" | "single";
+                        /**
+                         * @description `platform.mode` / `APP_MODE`. `read-only`: writes answer 503 `read_only`. `maintenance`: everything but health, sign-in and the operators' routes answers 503 `maintenance`. Both carry `Retry-After`.
+                         * @enum {string}
+                         */
+                        mode: "normal" | "read-only" | "maintenance";
                         /** @description The languages the API answers in; the first is the default. */
                         locales: string[];
                     };
@@ -9224,6 +9500,8 @@ export interface operations {
                             label: string;
                             /** @description Its channels cannot be switched off (their frequency may change). */
                             mandatory: boolean;
+                            /** @description Push and SMS go through quiet hours at once. */
+                            urgent: boolean;
                             /** @description The defaults of the channels you may set (in-app and realtime are always on). */
                             channels: {
                                 /** @description Users only: `false` (no mail), `immediate`, or bundled into an `hourly` or `daily` digest. */
@@ -9385,6 +9663,142 @@ export interface operations {
             };
         };
     };
+    NotificationsController_quietHours_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        quietHours: {
+                            start: string;
+                            end: string;
+                            /** @description The time zone whose clock the window follows: yours, else the deployment’s. */
+                            timezone: string;
+                        } | null;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An API client has no quiet hours. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotificationsController_setQuietHours_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example 22:00 */
+                    start: string;
+                    /** @example 07:00 */
+                    end: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        quietHours: {
+                            start: string;
+                            end: string;
+                            /** @description The time zone whose clock the window follows: yours, else the deployment’s. */
+                            timezone: string;
+                        } | null;
+                    };
+                };
+            };
+            /** @description validation_failed. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotificationsController_clearQuietHours_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        quietHours: {
+                            start: string;
+                            end: string;
+                            /** @description The time zone whose clock the window follows: yours, else the deployment’s. */
+                            timezone: string;
+                        } | null;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     NotificationsController_markRead_v1: {
         parameters: {
             query?: never;
@@ -9484,6 +9898,80 @@ export interface operations {
             };
             /** @description Not yours, or gone. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotificationUnsubscribeController_describe_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        kind: "type";
+                        /** @description What the notification type is called, in the request's language. Null when the link would change nothing (the type is gone, or mandatory): the client then speaks generally. */
+                        label: string | null;
+                    } | {
+                        /** @enum {string} */
+                        kind: "digest";
+                        /** @description The digests the link stands for: every type the person gets in these modes. */
+                        modes: ("hourly" | "daily")[];
+                    };
+                };
+            };
+            /** @description The link is invalid or expired, or the account is gone: the link errors share one answer, the POST included. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotificationUnsubscribeController_unsubscribeByLink_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description Always `One-Click` (RFC 8058).
+                     * @enum {string}
+                     */
+                    "List-Unsubscribe": "One-Click";
+                };
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The link is invalid or expired, the account is gone, or the body is not `List-Unsubscribe=One-Click`: the link errors share one answer. */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -11186,6 +11674,94 @@ export interface operations {
             };
         };
     };
+    AvatarController_set_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Where the picture is shown from (a path on this API, for an `<img>`). */
+                        avatarUrl: string;
+                    };
+                };
+            };
+            /** @description No file (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not signed in as a user. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Larger than AVATAR_MAX_MB (payload_too_large). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a PNG, JPEG, WebP or GIF, or not the type declared (unsupported_media_type). */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AvatarController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not signed in as a user. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     AccountDeletionLinkController_cancel_v1: {
         parameters: {
             query?: never;
@@ -11518,6 +12094,227 @@ export interface operations {
                         };
                     };
                 };
+            };
+        };
+    };
+    BrandingController_get_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description `#rrggbb`, or null: the default theme. */
+                        primaryColor: string | null;
+                        /** @description The name mail is sent under, or null: the deployment’s. */
+                        mailFromName: string | null;
+                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
+                        logoUrl: string | null;
+                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
+                        locked: boolean;
+                        /** @description The caller may change it (and it is not locked). */
+                        canEdit: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    primaryColor?: string | null;
+                    mailFromName?: string | null;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description `#rrggbb`, or null: the default theme. */
+                        primaryColor: string | null;
+                        /** @description The name mail is sent under, or null: the deployment’s. */
+                        mailFromName: string | null;
+                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
+                        logoUrl: string | null;
+                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
+                        locked: boolean;
+                        /** @description The caller may change it (and it is not locked). */
+                        canEdit: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked by the operators (branding_locked). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingController_upload_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description Required. A PNG, JPEG or WebP image of at most 512 KB, recognized by its bytes.
+                     */
+                    file?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description `#rrggbb`, or null: the default theme. */
+                        primaryColor: string | null;
+                        /** @description The name mail is sent under, or null: the deployment’s. */
+                        mailFromName: string | null;
+                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
+                        logoUrl: string | null;
+                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
+                        locked: boolean;
+                        /** @description The caller may change it (and it is not locked). */
+                        canEdit: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked by the operators (branding_locked). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Larger than 512 KB (payload_too_large). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a PNG, JPEG or WebP (unsupported_media_type). */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description There is no logo. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked by the operators (branding_locked). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PublicBrandingController_logo_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The tenant has no logo. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -11900,6 +12697,8 @@ export interface operations {
                             key: string;
                             /** @example Maya Patel */
                             name: string;
+                            /** @description Their picture: a path on this API for an `<img>` (GET /v1/people/{id}/avatar; sign-in required); null: none, and always for an API client. A new picture is a new address. */
+                            avatarUrl: string | null;
                         }[];
                     };
                 };
@@ -11920,6 +12719,54 @@ export interface operations {
             };
             /** @description Your session acts in no tenant (tenant_required). */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PeopleController_avatar_v1: {
+        parameters: {
+            query?: {
+                /** @description The version in `avatarUrl`: it only tells a new picture from the one a browser kept, and is not read. */
+                v?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The picture: a PNG, JPEG, WebP or GIF. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                    "image/webp": string;
+                    "image/gif": string;
+                };
+            };
+            /** @description No valid session or user token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Your session acts in no tenant (tenant_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12001,6 +12848,8 @@ export interface operations {
             query?: {
                 /** @description `true`: a PDF is shown in the browser (`Content-Disposition: inline`); any other type is still a download. */
                 inline?: "true" | "false";
+                /** @description An image attachment's smaller copy instead of the file: `thumb` (fits in 256 × 256 pixels) or `preview` (1600 × 1600), WebP, upright, without metadata. Shown inline whatever `inline` says. 404 (`attachment_rendition_not_found`) when there is none: not an image, not made yet (`renditionStatus` `pending`), or it could not be processed. */
+                rendition?: "thumb" | "preview";
             };
             header?: never;
             path: {
@@ -12024,7 +12873,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description No such attachment, or with `rendition`: it has no such copy (attachment_rendition_not_found). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The malware scan has not finished (attachment_scan_pending): try again shortly. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -17404,6 +18261,8 @@ export interface operations {
                         emailVerified: boolean;
                         locale: string | null;
                         timezone: string | null;
+                        /** @description Their picture (PUT /v1/account/avatar): a path on this API to put in an `<img>` (sign-in required, the same session or token); null: none. A new picture is a new address. */
+                        avatarUrl?: string | null;
                         /** @description The tenant this session or token acts in (GET /auth/tenants, POST /auth/tenant); null: none (no membership yet). */
                         tenantId: string | null;
                         /** @description Set while an administrator acts as this user. */
@@ -17533,6 +18392,8 @@ export interface operations {
                             emailVerified: boolean;
                             locale: string | null;
                             timezone: string | null;
+                            /** @description Their picture (PUT /v1/account/avatar): a path on this API to put in an `<img>` (sign-in required, the same session or token); null: none. A new picture is a new address. */
+                            avatarUrl?: string | null;
                             /** @description The tenant this session or token acts in (GET /auth/tenants, POST /auth/tenant); null: none (no membership yet). */
                             tenantId: string | null;
                             /** @description Set while an administrator acts as this user. */
@@ -17554,6 +18415,11 @@ export interface operations {
                         hasPassword: boolean;
                         /** @description true: this tenant requires two-factor (auth.requireMfa) and you have none: set it up (POST /auth/mfa/enroll, then /confirm); until then other routes answer 403 `mfa_enrollment_required`. */
                         mfaEnrollmentRequired: boolean;
+                        /** @description Not null: the first administrator still has to replace the placeholder email (POST /auth/email/change, then the link mailed to it) and/or the generated password (POST /auth/password/change); until then other routes answer 403 `onboarding_required`. Null: nothing to do. */
+                        onboardingRequired: {
+                            email: boolean;
+                            password: boolean;
+                        } | null;
                         authentication: {
                             /** @enum {string} */
                             via: "session" | "token";
@@ -17572,6 +18438,21 @@ export interface operations {
                              * @description Until when the sensitive routes accept it without a re-authentication (POST /auth/reauthenticate); past, or null, they want one now.
                              */
                             recentUntil: string | null;
+                        } | null;
+                        /** @description A browser session's lifetime, for a warning before it ends. Always sent; null for a token or an impersonation. */
+                        session?: {
+                            /** @description Minutes without a request after which this session ends: the tenant's auth.sessionIdleMinutes under the deployment's SESSION_IDLE_MINUTES. */
+                            idleMinutes: number;
+                            /**
+                             * Format: date-time
+                             * @description The last request this session made, as stored.
+                             */
+                            lastActiveAt: string;
+                            /**
+                             * Format: date-time
+                             * @description When it ends however active: the tenant's auth.sessionMaxHours after the sign-in, under the deployment's SESSION_MAX_HOURS.
+                             */
+                            expiresAt: string;
                         } | null;
                         /** @description Every action of the permission catalog as "Subject.action": true when any of the user's permissions allows it, on some records at least. */
                         can: {
@@ -17628,6 +18509,8 @@ export interface operations {
                         emailVerified: boolean;
                         locale: string | null;
                         timezone: string | null;
+                        /** @description Their picture (PUT /v1/account/avatar): a path on this API to put in an `<img>` (sign-in required, the same session or token); null: none. A new picture is a new address. */
+                        avatarUrl?: string | null;
                         /** @description The tenant this session or token acts in (GET /auth/tenants, POST /auth/tenant); null: none (no membership yet). */
                         tenantId: string | null;
                         /** @description Set while an administrator acts as this user. */
@@ -17746,6 +18629,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description `password_reused`: one of the account's last passwords (`auth.passwordHistory`); the link still works. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     PasswordController_change_v1: {
@@ -17784,6 +18674,13 @@ export interface operations {
              *     `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user.
              */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `password_reused`: the current password or one of the last ones (`auth.passwordHistory`). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -17848,6 +18745,50 @@ export interface operations {
                         accepted: true;
                     };
                 };
+            };
+        };
+    };
+    EmailController_change_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example ada@example.com */
+                    email: string;
+                    currentPassword: string;
+                };
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        accepted: true;
+                    };
+                };
+            };
+            /** @description `placeholder_email`: the address is a placeholder. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No email onboarding pending, or the address is taken. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -19597,6 +20538,8 @@ export interface operations {
                             locale: string | null;
                             /** @description Their IANA time zone, or null (APP_TIMEZONE). */
                             timezone: string | null;
+                            /** @description Their picture (an `<img>` path, GET /v1/people/{id}/avatar); null: none. */
+                            avatarUrl?: string | null;
                             /** @description The membership in this tenant and the account, together. */
                             active: boolean;
                             /** @description false: invited, or signs in only with a provider. */
@@ -19732,6 +20675,8 @@ export interface operations {
                         locale: string | null;
                         /** @description Their IANA time zone, or null (APP_TIMEZONE). */
                         timezone: string | null;
+                        /** @description Their picture (an `<img>` path, GET /v1/people/{id}/avatar); null: none. */
+                        avatarUrl?: string | null;
                         /** @description The membership in this tenant and the account, together. */
                         active: boolean;
                         /** @description false: invited, or signs in only with a provider. */
@@ -25193,6 +26138,8 @@ export interface operations {
                 "contentType.in"?: string;
                 /** @description Filter: contentType startsWith */
                 "contentType.startsWith"?: string;
+                /** @description Filter: scanStatus = */
+                scanStatus?: string;
                 /** @description Filter: size gte */
                 "size.gte"?: number;
                 /** @description Filter: size lte */
@@ -25209,11 +26156,11 @@ export interface operations {
                 "updatedAt.lt"?: string;
                 /** @description Filter: updatedAt between */
                 "updatedAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"name","op":"eq","value":…},{…}]}. Fields and operators: name (eq, contains); contentType (eq, in, startsWith); size (gte, lte); createdAt (gte, lt, between); updatedAt (gte, lt, between). */
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"name","op":"eq","value":…},{…}]}. Fields and operators: name (eq, contains); contentType (eq, in, startsWith); scanStatus (eq); size (gte, lte); createdAt (gte, lt, between); updatedAt (gte, lt, between). */
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, size, createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, renditionStatus, renditions, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -25305,6 +26252,186 @@ export interface operations {
             };
             /** @description A type not allowed, or not the one declared (unsupported_media_type). */
             415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteAttachmentsController_presign_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description The file name, shown and used for downloads. Never a path.
+                     * @example invoice.pdf
+                     */
+                    name: string;
+                    /** @description The size in bytes. The URL accepts exactly this many; at most ATTACHMENT_MAX_MB (413 `payload_too_large`). */
+                    size: number;
+                    /**
+                     * @description The file's type, as the browser names it (`File.type`). Required, and one of the allowed types (415 `unsupported_media_type`); the URL accepts only this `Content-Type`. It is checked against the file's bytes on completion.
+                     * @example application/pdf
+                     */
+                    contentType: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresignedUpload"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change the note. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Larger than ATTACHMENT_MAX_MB (payload_too_large). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A type not allowed, or none declared (unsupported_media_type). */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Too many uploads announced and not completed (attachment_uploads_pending). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The server stores files on a local disk (presigned_uploads_unavailable): upload with a multipart POST. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteAttachmentsController_complete_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description The `uploadId` of the presign answer.
+                     */
+                    uploadId: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attachment"];
+                };
+            };
+            /** @description The object is not the size and type announced (attachment_upload_mismatch); it is deleted. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change the note. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note, or no such upload of yours (attachment_upload_not_found). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Nothing was PUT yet (attachment_upload_incomplete: try again), or another request is completing it (attachment_upload_in_progress). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description More than an hour past the URL's expiry (attachment_upload_expired): announce it again. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Larger than ATTACHMENT_MAX_MB (payload_too_large); deleted. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The bytes are a type not allowed, or not the one declared (unsupported_media_type); deleted. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The server stores files on a local disk (presigned_uploads_unavailable). */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

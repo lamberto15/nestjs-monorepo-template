@@ -26,12 +26,13 @@ import {
 } from '@nestjs/swagger';
 import { z } from 'zod';
 import type { Principal } from '../../iam/auth/principal.js';
+import { RENDITION_NAMES } from '../images/renditions.js';
 import {
   AttachmentsService,
   DOWNLOAD_LINK_TTL,
 } from './attachments.service.js';
 
-/** `?inline=true`: a PDF shown in the browser rather than downloaded. */
+/** `?inline=true`: a PDF shown in the browser rather than downloaded. `?rendition=`: an image's thumbnail or preview. */
 const downloadQuerySchema = z.object({
   inline: z
     .enum(['true', 'false'])
@@ -39,6 +40,12 @@ const downloadQuerySchema = z.object({
     .transform((value) => value === 'true')
     .describe(
       '`true`: a PDF is shown in the browser (`Content-Disposition: inline`); any other type is still a download.',
+    ),
+  rendition: z
+    .enum(RENDITION_NAMES)
+    .optional()
+    .describe(
+      "An image attachment's smaller copy instead of the file: `thumb` (fits in 256 × 256 pixels) or `preview` (1600 × 1600), WebP, upright, without metadata. Shown inline whatever `inline` says. 404 (`attachment_rendition_not_found`) when there is none: not an image, not made yet (`renditionStatus` `pending`), or it could not be processed.",
     ),
 });
 type DownloadQuery = z.infer<typeof downloadQuerySchema>;
@@ -62,10 +69,17 @@ export class AttachmentsController {
   @Redirect()
   @ApiOperation({
     summary: 'Download an attachment',
-    description: `Whoever may read its record. Redirects to a signed link to the file, valid for ${DOWNLOAD_LINK_TTL}: it needs no credentials, so a browser can follow it (a link, an image). The file comes as \`Content-Disposition: attachment\` (a download), with \`X-Content-Type-Options: nosniff\`; \`?inline=true\` shows a PDF in the browser instead (a preview in a new tab), under \`Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox\` (nothing loads, nothing runs, no page may frame it). Any other type stays a download.`,
+    description: `Whoever may read its record. Redirects to a signed link to the file, valid for ${DOWNLOAD_LINK_TTL}: it needs no credentials, so a browser can follow it (a link, an image). The file comes as \`Content-Disposition: attachment\` (a download), with \`X-Content-Type-Options: nosniff\`; \`?inline=true\` shows a PDF in the browser instead (a preview in a new tab), under \`Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox\` (nothing loads, nothing runs, no page may frame it). Any other type stays a download. \`?rendition=thumb\` or \`preview\` links to an image's smaller WebP copy instead, inline.`,
   })
   @ApiFoundResponse({ description: 'To the file (a signed link).' })
-  @ApiNotFoundResponse()
+  @ApiConflictResponse({
+    description:
+      'The malware scan has not finished (attachment_scan_pending): try again shortly.',
+  })
+  @ApiNotFoundResponse({
+    description:
+      'No such attachment, or with `rendition`: it has no such copy (attachment_rendition_not_found).',
+  })
   download(
     @CurrentUser() user: Principal,
     @Param('id', ParseUUIDPipe) id: string,

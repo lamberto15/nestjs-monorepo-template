@@ -88,5 +88,18 @@
   "bulk": {
     "delete": "Löschen",
     "restore": "Wiederherstellen"
+  },
+  "dashboard": {
+    "newNote": "Neue Notiz",
+    "recent": {
+      "title": "Zuletzt geänderte Notizen",
+      "empty": "Noch keine Notizen."
+    },
+    "chart": {
+      "title": "Notizen pro Woche",
+      "description": "In den letzten 8 Wochen erstellte Notizen (Wochen beginnen montags, UTC).",
+      "series": "Notizen",
+      "empty": "In den letzten 8 Wochen wurden keine Notizen erstellt."
+    }
   }
 }

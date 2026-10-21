@@ -1,19 +1,45 @@
+import { createHash } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { sql } from 'drizzle-orm';
 import type { PlatformEnv } from '../platform.env.js';
+import type { Transaction } from '../../core/database/drizzle.js';
 import {
   database,
   type DrizzleTransactions,
   inTransaction,
 } from '../../core/database/transactions.js';
-import { allowedPrefix, utcDay } from './messaging.policy.js';
+import {
+  allowedPrefix,
+  smsCost,
+  utcDay,
+  utcMonthStart,
+} from './messaging.policy.js';
 import { messagingUsage } from './messaging.tables.js';
 
 /** Why an SMS was not sent. */
 export type SmsBlock =
-  'prefix_not_allowed' | 'tenant_limit' | 'prefix_limit' | 'user_limit';
+  | 'prefix_not_allowed'
+  | 'tenant_limit'
+  | 'prefix_limit'
+  | 'user_limit'
+  | 'ip_limit'
+  | 'budget_exceeded';
+
+/** The share of the monthly budget at which the alert is raised. */
+const BUDGET_WARNING = 0.8;
+
+const SPEND_COUNTER = 'spend';
+
+/** One counter a send takes from: its row (`day`, `counter`), the cap, and how much one send adds. */
+interface Counter {
+  day: string;
+  counter: string;
+  limit: number;
+  reason: SmsBlock;
+  step?: number;
+}
 
 /** Rolls the reservation's transaction back when a cap is hit. */
 class CapHit extends Error {
@@ -29,7 +55,12 @@ class CapHit extends Error {
  * - the destination must start with an allowed prefix (SMS_ALLOWED_PREFIXES);
  * - per day (UTC), at most SMS_DAILY_LIMIT_PER_TENANT in the tenant,
  *   SMS_DAILY_LIMIT_PER_PREFIX to one prefix in it, and
- *   SMS_DAILY_LIMIT_PER_USER to one user.
+ *   SMS_DAILY_LIMIT_PER_USER to one user;
+ * - per UTC month, spend within SMS_MONTHLY_BUDGET_MINOR (the segments of the
+ *   text times the prefix's price, SMS_PRICES), logged as an error when it
+ *   passes 80 %;
+ * - per client IP, at most SMS_DAILY_LIMIT_PER_IP codes a day (`reserveIp`,
+ *   asked when the code is requested).
  *
  * The counters are incremented in one transaction with an atomic upsert, so
  * the caps hold under concurrent workers, and the transaction rolls back
@@ -60,12 +91,14 @@ export class MessagingLimits {
   }
 
   /**
-   * Takes one SMS from today's allowance: `{ ok: true }`, or the reason it
-   * may not go. Call it right before sending.
+   * Takes one SMS from today's allowance and the month's budget: `{ ok: true }`,
+   * or the reason it may not go. Call it right before sending, with the text
+   * (its length sets the cost).
    */
   async reserve(
     userId: string,
     phone: string,
+    text: string,
     now = new Date(),
   ): Promise<{ ok: true } | { ok: false; reason: SmsBlock }> {
     const prefix = this.prefixOf(phone);
@@ -76,29 +109,51 @@ export class MessagingLimits {
     const day = utcDay(now);
     const get = (name: keyof PlatformEnv) =>
       this.config.get(name, { infer: true }) as number;
-    const counters: [string, number, SmsBlock][] = [
-      ['tenant', get('SMS_DAILY_LIMIT_PER_TENANT'), 'tenant_limit'],
-      [`prefix:${prefix}`, get('SMS_DAILY_LIMIT_PER_PREFIX'), 'prefix_limit'],
-      [`user:${userId}`, get('SMS_DAILY_LIMIT_PER_USER'), 'user_limit'],
+    const counters: Counter[] = [
+      {
+        day,
+        counter: 'tenant',
+        limit: get('SMS_DAILY_LIMIT_PER_TENANT'),
+        reason: 'tenant_limit',
+      },
+      {
+        day,
+        counter: `prefix:${prefix}`,
+        limit: get('SMS_DAILY_LIMIT_PER_PREFIX'),
+        reason: 'prefix_limit',
+      },
+      {
+        day,
+        counter: `user:${userId}`,
+        limit: get('SMS_DAILY_LIMIT_PER_USER'),
+        reason: 'user_limit',
+      },
     ];
+    const budget = get('SMS_MONTHLY_BUDGET_MINOR');
+    const cost = smsCost(
+      text,
+      prefix,
+      this.config.get('SMS_PRICES', { infer: true }),
+      get('SMS_PRICE_DEFAULT_MINOR'),
+    );
+    if (budget > 0 && cost > 0) {
+      counters.push({
+        day: utcMonthStart(now),
+        counter: SPEND_COUNTER,
+        limit: budget,
+        reason: 'budget_exceeded',
+        step: cost,
+      });
+    }
+    let spent: number | undefined;
     try {
       await inTransaction(this.txHost, async (tx) => {
-        for (const [counter, limit, reason] of counters) {
-          const [row] = await tx
-            .insert(messagingUsage)
-            .values({ day, counter, count: 1 })
-            .onConflictDoUpdate({
-              target: [
-                messagingUsage.tenantId,
-                messagingUsage.day,
-                messagingUsage.counter,
-              ],
-              set: { count: sql`${messagingUsage.count} + 1` },
-            })
-            .returning({ count: messagingUsage.count });
-          if ((row?.count ?? 0) > limit) {
-            throw new CapHit(reason);
+        for (const entry of counters) {
+          const count = await this.increment(tx, entry);
+          if (count > entry.limit) {
+            throw new CapHit(entry.reason);
           }
+          if (entry.counter === SPEND_COUNTER) spent = count;
         }
       });
     } catch (error) {
@@ -108,7 +163,66 @@ export class MessagingLimits {
       }
       throw error;
     }
+    if (
+      spent !== undefined &&
+      spent >= budget * BUDGET_WARNING &&
+      spent - cost < budget * BUDGET_WARNING
+    ) {
+      // Crossed on this send: said once a month per tenant.
+      this.logger.error('SMS spend passed 80 % of the monthly budget', {
+        spent,
+        budget,
+      });
+    }
     return { ok: true };
+  }
+
+  /**
+   * Takes one code from the client IP's allowance for today (the IP is kept
+   * only hashed): false when the cap is used up. Asked when a number is set,
+   * so the refusal reaches the person in the request.
+   */
+  async reserveIp(ip: string, now = new Date()): Promise<boolean> {
+    const limit = this.config.get('SMS_DAILY_LIMIT_PER_IP', { infer: true });
+    const counter = `ip:${createHash('sha256').update(ip).digest('hex').slice(0, 24)}`;
+    try {
+      await inTransaction(this.txHost, async (tx) => {
+        const count = await this.increment(tx, {
+          day: utcDay(now),
+          counter,
+          limit,
+          reason: 'ip_limit',
+        });
+        if (count > limit) throw new CapHit('ip_limit');
+      });
+    } catch (error) {
+      if (error instanceof CapHit) {
+        await this.countBlocked('ip_limit', now);
+        return false;
+      }
+      throw error;
+    }
+    return true;
+  }
+
+  /** The counter after adding `step` (default 1): an atomic upsert. */
+  private async increment(
+    tx: Transaction,
+    { day, counter, step = 1 }: Counter,
+  ): Promise<number> {
+    const [row] = await tx
+      .insert(messagingUsage)
+      .values({ day, counter, count: step })
+      .onConflictDoUpdate({
+        target: [
+          messagingUsage.tenantId,
+          messagingUsage.day,
+          messagingUsage.counter,
+        ],
+        set: { count: sql`${messagingUsage.count} + ${step}` },
+      })
+      .returning({ count: messagingUsage.count });
+    return row?.count ?? 0;
   }
 
   /** Counts a refusal and logs it as an error (what an alert reads). */

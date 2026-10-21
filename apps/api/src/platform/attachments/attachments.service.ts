@@ -42,10 +42,21 @@ import {
 import { RECORD_EVENTS, RecordActivity } from '../realtime/record-activity.js';
 import { isTenantFileKey, tenantFileKey } from '../storage/storage.config.js';
 import type { RecordRef } from '../subscriptions/subscriptions.service.js';
+import {
+  publicRenditions,
+  type RenditionName,
+  renditionKeys,
+} from '../images/renditions.js';
+import { AttachmentImagesQueue } from './attachment-images.queue.js';
+import { AttachmentScanQueue } from './attachment-scan.queue.js';
 import { ATTACHMENT_LIST } from './attachment.list.js';
 import type { AttachmentView } from './attachment.schemas.js';
 import { AttachmentsRegistry } from './attachments.registry.js';
-import { type Attachment, attachments } from './attachments.tables.js';
+import {
+  type Attachment,
+  attachments,
+  attachmentUploads,
+} from './attachments.tables.js';
 
 /** How long a download link works. */
 export const DOWNLOAD_LINK_TTL = '5m';
@@ -118,6 +129,8 @@ export class AttachmentsService implements PersonalDataSource {
     private readonly audit: AuditService,
     private readonly registry: AttachmentsRegistry,
     private readonly activity: RecordActivity,
+    private readonly scans: AttachmentScanQueue,
+    private readonly images: AttachmentImagesQueue,
     personalData: PersonalDataRegistry,
     private readonly quotas: TenantQuotas,
   ) {
@@ -192,13 +205,19 @@ export class AttachmentsService implements PersonalDataSource {
   /**
    * Records a file the upload stored (`file.key`) as the record's
    * attachment, audited `attachment.added`. Refused or failed, the file
-   * is deleted from the disk.
+   * is deleted from the disk. The one way an uploaded file becomes an
+   * attachment, whether it came through the API (AttachmentUpload) or went
+   * straight to the object store (AttachmentUploadsService): the quota, the
+   * tenant, the audit entry, the malware scan and the image renditions are
+   * this method's, so a file never gets a weaker path. `within` runs in the
+   * transaction, after the row and its audit entry.
    */
   async upload(
     principal: Principal,
     record: RecordRef,
-    file: StoredUpload,
+    file: Pick<StoredUpload, 'key' | 'originalname' | 'size' | 'contentType'>,
     ip?: string,
+    { within }: { within?: (tx: Transaction) => Promise<unknown> } = {},
   ): Promise<AttachmentView> {
     try {
       await this.assertCanUpload(principal, record);
@@ -222,6 +241,12 @@ export class AttachmentsService implements PersonalDataSource {
             size: file.size,
             contentType: file.contentType,
             uploadedBy: principalKey(principal),
+            // Off (the default): clean at once, as ever. Otherwise it waits for its scan.
+            scanStatus: this.scans.enabled ? 'pending' : 'clean',
+            // An image waits for its renditions (once it is clean); anything else has none.
+            renditionStatus: this.images.wants(file.contentType)
+              ? 'pending'
+              : null,
           })
           .returning();
         await this.audit.record(
@@ -235,8 +260,15 @@ export class AttachmentsService implements PersonalDataSource {
           },
           tx,
         );
+        await within?.(tx);
         return row!;
       });
+      if (row.scanStatus === 'pending') {
+        // The scan queues the image job when it finds the file clean.
+        await this.scans.enqueue(row.id);
+      } else if (row.renditionStatus === 'pending') {
+        await this.images.enqueue(row.id);
+      }
       this.changed(principal, row, row.id, 'added');
       return view(row);
     } catch (error) {
@@ -303,14 +335,44 @@ export class AttachmentsService implements PersonalDataSource {
    * inline`), for a PDF only (INLINE_TYPES); any other type stays an
    * attachment. The disposition is part of what the link signs (the local
    * disk's claims, S3's `response-content-disposition`), so a client can't
-   * turn one link into the other.
+   * turn one link into the other. `rendition`: the link to the image's
+   * `thumb` or `preview` instead (a WebP, inline), a 404 when it has none.
    */
   async download(
     principal: Principal,
     id: string,
-    { inline = false }: { inline?: boolean } = {},
+    {
+      inline = false,
+      rendition,
+    }: { inline?: boolean; rendition?: RenditionName } = {},
   ) {
     const row = await this.findReadable(principal, id);
+    if (row.scanStatus === 'pending') {
+      throw new ConflictException({
+        code: 'attachment_scan_pending',
+        message:
+          'This file is still being scanned for malware: try again in a moment.',
+      });
+    }
+    if (rendition) {
+      const file = row.renditions[rendition];
+      if (!file) {
+        throw new NotFoundException({
+          code: 'attachment_rendition_not_found',
+          message:
+            row.renditionStatus === 'pending'
+              ? `The ${rendition} of attachment ${id} is not made yet: try again in a moment.`
+              : `Attachment ${id} has no ${rendition}.`,
+        });
+      }
+      // Our own WebP, always safe to show: the renditions are for `<img>`s and previews.
+      const url = await this.disk.signedUrl(file.key, {
+        expiresIn: DOWNLOAD_LINK_TTL,
+        filename: renditionName(row.name, rendition),
+        disposition: 'inline',
+      });
+      return { url };
+    }
     const url = await this.disk.signedUrl(row.key, {
       expiresIn: DOWNLOAD_LINK_TTL,
       filename: row.name,
@@ -321,7 +383,7 @@ export class AttachmentsService implements PersonalDataSource {
   }
 
   /**
-   * Removes an attachment, row and file, audited `attachment.removed`: the
+   * Removes an attachment, row and files (the renditions too), audited `attachment.removed`: the
    * uploader's own, or any with `canWrite` on the record. Never an issued
    * document (`locked`): 409 `attachment_locked`.
    */
@@ -340,11 +402,11 @@ export class AttachmentsService implements PersonalDataSource {
     ) {
       throw new ForbiddenException('You may not remove this attachment.');
     }
-    await inTransaction(this.txHost, async (tx) => {
+    const removed = await inTransaction(this.txHost, async (tx) => {
       const [gone] = await tx
         .delete(attachments)
         .where(and(eq(attachments.id, row.id), eq(attachments.locked, false)))
-        .returning({ id: attachments.id });
+        .returning();
       if (!gone) {
         // Removed meanwhile: nothing to audit.
         throw new NotFoundException(`Attachment ${id} not found.`);
@@ -360,12 +422,16 @@ export class AttachmentsService implements PersonalDataSource {
         },
         tx,
       );
+      return gone;
     });
     this.changed(principal, row, row.id, 'removed');
     // After the commit: a failed delete leaves a file nothing points at, never a row without its file.
-    await this.disk.delete(row.key).catch((error: unknown) =>
+    // The files of the row that was deleted, not of the one read above: an
+    // image job may have replaced the original and added renditions since.
+    const keys = [removed.key, ...renditionKeys(removed.renditions)];
+    await this.disk.delete(keys).catch((error: unknown) =>
       this.logger.warn('An attachment file was not deleted', {
-        key: row.key,
+        keys,
         error: String(error),
       }),
     );
@@ -381,7 +447,7 @@ export class AttachmentsService implements PersonalDataSource {
     by: Principal,
     record: RecordRef,
     attachmentId: string,
-    action: 'added' | 'removed',
+    action: 'added' | 'removed' | 'scanned' | 'processed',
   ) {
     const target = this.registry.get(record.subject);
     if (!target) return;
@@ -410,7 +476,10 @@ export class AttachmentsService implements PersonalDataSource {
         .orderBy(desc(attachments.id))
         .limit(1000);
       if (rows.length === 0) return;
-      yield rows.map(({ key: _key, ...row }) => row);
+      yield rows.map(({ key: _key, renditions, ...row }) => ({
+        ...row,
+        renditions: publicRenditions(renditions),
+      }));
       cursor = rows[rows.length - 1]!.id;
     }
   }
@@ -421,6 +490,12 @@ export class AttachmentsService implements PersonalDataSource {
       .update(attachments)
       .set({ uploadedBy: ANONYMIZED_UPLOADER })
       .where(eq(attachments.uploadedBy, principalKey(user)));
+    // Uploads announced and not completed (direct uploads): nobody can complete them now;
+    // the sweep deletes them within a day, and they are not in the export.
+    await tx
+      .update(attachmentUploads)
+      .set({ uploadedBy: ANONYMIZED_UPLOADER })
+      .where(eq(attachmentUploads.uploadedBy, principalKey(user)));
   }
 
   /** An attachment of a record the principal may read, or a 404. */
@@ -450,9 +525,11 @@ export class AttachmentsService implements PersonalDataSource {
 const view = ({
   key: _key,
   fields: _fields,
+  renditions,
   ...row
 }: Attachment): AttachmentView => ({
   ...row,
+  renditions: publicRenditions(renditions),
   createdAt: row.createdAt.toISOString(),
   updatedAt: row.updatedAt.toISOString(),
 });
@@ -475,4 +552,11 @@ function fileName(original: string | undefined) {
     .trim()
     .slice(0, 255);
   return name || 'file';
+}
+
+/** The download name of a rendition: `photo.jpg`'s thumb is `photo.thumb.webp`. */
+function renditionName(name: string, rendition: RenditionName) {
+  const dot = name.lastIndexOf('.');
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  return `${stem}.${rendition}.webp`;
 }

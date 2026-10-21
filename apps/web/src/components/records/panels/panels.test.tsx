@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw/http';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RealtimeProvider } from '@/lib/realtime';
 import { recordKeys } from '@/lib/records';
+import type { Features } from '@/lib/session';
 import { createFakeRealtime, type FakeRealtime } from '@/test/fake-realtime';
 import {
   MAYA,
@@ -49,7 +50,7 @@ const ME = `user:${signedInUser.user.id}`;
 /** The record's ETag, as its page would have cached it with the record. */
 const ETAG = `"${ID}-1"`;
 
-async function mountPanels(can: string[]) {
+async function mountPanels(can: string[], features?: Partial<Features>) {
   const view = await renderComponent(
     <RealtimeProvider>
       <RecordPanels
@@ -59,7 +60,7 @@ async function mountPanels(can: string[]) {
         tags={[{ id: 't1', name: 'Internal', color: '#6b7280' }]}
       />
     </RealtimeProvider>,
-    { can },
+    { can, features },
   );
   view.queryClient.setQueryData(
     recordKeys.detail(TEST_RECORD.path.replace('/{id}', ''), ID),
@@ -273,6 +274,111 @@ describe('attachments', () => {
     );
   });
 
+  describe('direct uploads (the API offers presignedUploads: STORAGE_DRIVER=s3)', () => {
+    const direct = { presignedUploads: true };
+    const plan = () => new File(['hello'], 'plan.txt', { type: 'text/plain' });
+    const upload = async (file: File) => {
+      const user = await open('Attachments');
+      await user.upload(
+        document.querySelector('input[type="file"]') as HTMLInputElement,
+        file,
+      );
+    };
+
+    it('sends the file to the store with the signed headers, then completes it, and never through the API', async () => {
+      const calls = usePanelsApi();
+      await mountPanels(ALL, direct);
+      await upload(plan());
+      const list = await screen.findByRole('list', { name: 'Attachments' });
+      expect(within(list).getByText('plan.txt')).toBeVisible();
+      expect(calls.presigned).toEqual([
+        { name: 'plan.txt', size: 5, contentType: 'text/plain' },
+      ]);
+      expect(calls.stored).toEqual([
+        {
+          url: expect.stringMatching(
+            /^https:\/\/files\.example\.test\/tenants\/t\/attachments\/u1\?/,
+          ),
+          type: 'text/plain',
+          size: 5,
+        },
+      ]);
+      expect(calls.completed).toEqual(['u1']);
+      // The multipart route was not used.
+      expect(calls.uploaded).toEqual([]);
+    });
+
+    it('uploads through the API instead when the browser cannot reach the store (a bucket with no CORS rule)', async () => {
+      const calls = usePanelsApi({ direct: { store: 'unreachable' } });
+      await mountPanels(ALL, direct);
+      await upload(plan());
+      await waitFor(() =>
+        expect(calls.uploaded).toEqual([
+          { name: 'plan.txt', type: 'text/plain', size: 5 },
+        ]),
+      );
+      expect(calls.completed).toEqual([]);
+      const list = await screen.findByRole('list', { name: 'Attachments' });
+      expect(within(list).getByText('plan.txt')).toBeVisible();
+    });
+
+    it('uploads through the API instead when the server turns out to offer none (503)', async () => {
+      const calls = usePanelsApi({
+        direct: {
+          presign: { status: 503, code: 'presigned_uploads_unavailable' },
+        },
+      });
+      await mountPanels(ALL, direct);
+      await upload(plan());
+      await waitFor(() => expect(calls.uploaded).toHaveLength(1));
+      expect(calls.stored).toEqual([]);
+    });
+
+    it('uploads through the API instead when the user has too many announced uploads open (429)', async () => {
+      const calls = usePanelsApi({
+        direct: {
+          presign: { status: 429, code: 'attachment_uploads_pending' },
+        },
+      });
+      await mountPanels(ALL, direct);
+      await upload(plan());
+      await waitFor(() => expect(calls.uploaded).toHaveLength(1));
+      expect(calls.stored).toEqual([]);
+      const list = await screen.findByRole('list', { name: 'Attachments' });
+      expect(within(list).getByText('plan.txt')).toBeVisible();
+    });
+
+    it('uploads through the API a file the browser cannot name the type of', async () => {
+      const calls = usePanelsApi();
+      await mountPanels(ALL, direct);
+      await upload(new File(['hello'], 'README', { type: '' }));
+      await waitFor(() => expect(calls.uploaded).toHaveLength(1));
+      expect(calls.presigned).toEqual([]);
+    });
+
+    it("shows the API's refusal of the announcement and does not retry through the API", async () => {
+      const calls = usePanelsApi({
+        direct: { presign: { status: 415, code: 'unsupported_media_type' } },
+      });
+      await mountPanels(ALL, direct);
+      await upload(plan());
+      await findToast('unsupported_media_type (test)');
+      expect(calls.uploaded).toEqual([]);
+      expect(calls.stored).toEqual([]);
+    });
+
+    it("tells the store's refusal (an expired link) and attaches nothing", async () => {
+      const calls = usePanelsApi({ direct: { store: 'refused' } });
+      await mountPanels(ALL, direct);
+      await upload(plan());
+      await findToast(
+        'The file could not be stored: the upload link was refused or has expired. Try again.',
+      );
+      expect(calls.completed).toEqual([]);
+      expect(calls.uploaded).toEqual([]);
+    });
+  });
+
   it("shows the API's refusal of a type", async () => {
     usePanelsApi({ uploadStatus: 415 });
     await mountPanels(ALL);
@@ -364,6 +470,143 @@ describe('attachments', () => {
     await open('Attachments');
     await screen.findByText('No files attached.');
     expect(document.querySelector('input[type="file"]')).toBeNull();
+  });
+
+  describe('malware scan', () => {
+    const files = [
+      {
+        id: 'a1',
+        name: 'incoming.pdf',
+        size: 2048,
+        contentType: 'application/pdf',
+        uploadedBy: ME,
+        scanStatus: 'pending' as const,
+      },
+      {
+        id: 'a2',
+        name: 'checked.pdf',
+        size: 2048,
+        contentType: 'application/pdf',
+        uploadedBy: ME,
+        scanStatus: 'clean' as const,
+      },
+    ];
+
+    it('marks a file still being scanned and offers no download for it', async () => {
+      usePanelsApi({ attachments: files });
+      await mountPanels(ALL);
+      await open('Attachments');
+      const pending = (await screen.findByText('incoming.pdf')).closest('li')!;
+      expect(within(pending).getByRole('status')).toHaveTextContent(
+        'Scanning…',
+      );
+      // No link to follow (the API answers 409 until the scan is done): a
+      // disabled button that says why.
+      expect(within(pending).queryByRole('link')).toBeNull();
+      expect(
+        within(pending).getByRole('button', {
+          name: 'Download incoming.pdf: available when the scan is done',
+        }),
+      ).toBeDisabled();
+      // It can still be removed, as the API allows.
+      expect(
+        within(pending).getByRole('button', { name: 'Delete' }),
+      ).toBeEnabled();
+      // A clean file is as before: a link, no badge.
+      const clean = screen.getByText('checked.pdf').closest('li')!;
+      expect(within(clean).queryByRole('status')).toBeNull();
+      expect(
+        within(clean).getByRole('link', { name: 'Download checked.pdf' }),
+      ).toHaveAttribute('href', '/v1/attachments/a2/download');
+    });
+
+    it('lists a new upload as being scanned', async () => {
+      usePanelsApi({ uploadScanStatus: 'pending' });
+      await mountPanels(ALL);
+      const user = await open('Attachments');
+      await user.upload(
+        document.querySelector('input[type="file"]') as HTMLInputElement,
+        new File(['hello'], 'plan.txt', { type: 'text/plain' }),
+      );
+      const list = await screen.findByRole('list', { name: 'Attachments' });
+      expect(within(list).getByText('plan.txt')).toBeVisible();
+      expect(within(list).getByRole('status')).toHaveTextContent('Scanning…');
+      expect(within(list).queryByRole('link')).toBeNull();
+    });
+
+    it('polls for the scan while there is no connected socket', async () => {
+      vi.useFakeTimers({
+        toFake: ['setInterval', 'clearInterval'],
+        shouldAdvanceTime: true,
+      });
+      try {
+        const calls = usePanelsApi({ attachments: files });
+        await mountPanels(ALL);
+        await open('Attachments');
+        const pending = (await screen.findByText('incoming.pdf')).closest(
+          'li',
+        )!;
+        expect(within(pending).getByRole('status')).toBeVisible();
+        const listed = calls.attachmentListings;
+        // The worker finishes; the page notices on its next read.
+        calls.scanClean('a1');
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(5000);
+        });
+        await waitFor(() =>
+          expect(
+            within(screen.getByText('incoming.pdf').closest('li')!).getByRole(
+              'link',
+              { name: 'Download incoming.pdf' },
+            ),
+          ).toBeVisible(),
+        );
+        expect(calls.attachmentListings).toBeGreaterThan(listed);
+        expect(screen.queryByText('Scanning…')).toBeNull();
+        // Nothing left to scan: no more reads.
+        const settled = calls.attachmentListings;
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(10_000);
+        });
+        expect(calls.attachmentListings).toBe(settled);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('polls for the scan with a connected socket that never hears of its end', async () => {
+      // The scan job acts as the system principal: `scanned` goes to the
+      // record's watchers, and an uploader who is not one gets no event.
+      vi.useFakeTimers({
+        toFake: ['setInterval', 'clearInterval'],
+        shouldAdvanceTime: true,
+      });
+      try {
+        const calls = usePanelsApi({ attachments: files });
+        await mountPanels(ALL);
+        await open('Attachments');
+        await screen.findByText('incoming.pdf');
+        await waitFor(() => expect(connections).toHaveLength(1));
+        act(() => connections[0]!.emit('connect'));
+        calls.scanClean('a1');
+        const listed = calls.attachmentListings;
+        // Not yet: a connected socket is read less often than none.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(calls.attachmentListings).toBe(listed);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(
+          await screen.findByRole('link', { name: 'Download incoming.pdf' }),
+        ).toBeVisible();
+        expect(calls.attachmentListings).toBeGreaterThan(listed);
+        expect(screen.queryByText('Scanning…')).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });
 
@@ -519,8 +762,12 @@ describe('realtime', () => {
     await screen.findByText('First');
     const fake = await socket();
     // Another record's, then another subject's: nothing to reload.
+    // Only the comments' own requests: an author's picture is looked up
+    // beside them (GET /v1/people?key=), at a time of its own.
     let requests = 0;
-    const count = () => (requests += 1);
+    const count = ({ request }: { request: Request }) => {
+      if (new URL(request.url).pathname.endsWith('/comments')) requests += 1;
+    };
     server.events.on('request:start', count);
     act(() => {
       fake.emit('record.commented', {
@@ -587,6 +834,214 @@ describe('realtime', () => {
       }),
     );
     expect(await screen.findByText('issued.pdf')).toBeVisible();
+  });
+
+  it('turns a scanned file downloadable on record.attachments.changed (scanned)', async () => {
+    const calls = usePanelsApi({
+      attachments: [
+        {
+          id: 'a1',
+          name: 'incoming.pdf',
+          size: 2048,
+          contentType: 'application/pdf',
+          uploadedBy: ME,
+          scanStatus: 'pending',
+        },
+      ],
+    });
+    await mountPanels(ALL);
+    await open('Attachments');
+    const row = (await screen.findByText('incoming.pdf')).closest('li')!;
+    expect(within(row).getByRole('status')).toHaveTextContent('Scanning…');
+    const fake = await socket();
+    act(() => fake.emit('connect'));
+    calls.scanClean('a1');
+    act(() =>
+      fake.emit('record.attachments.changed', {
+        subject: TEST_RECORD.subject,
+        recordId: ID,
+        attachmentId: 'a1',
+        action: 'scanned',
+      }),
+    );
+    expect(
+      await screen.findByRole('link', { name: 'Download incoming.pdf' }),
+    ).toHaveAttribute('href', '/v1/attachments/a1/download');
+    expect(screen.queryByText('Scanning…')).toBeNull();
+  });
+
+  it('shows the thumbnail of an image on record.attachments.changed (processed)', async () => {
+    const calls = usePanelsApi({
+      attachments: [
+        {
+          id: 'a1',
+          name: 'photo.jpg',
+          size: 204_800,
+          contentType: 'image/jpeg',
+          uploadedBy: ME,
+          renditionStatus: 'pending',
+        },
+      ],
+    });
+    await mountPanels(ALL);
+    await open('Attachments');
+    const row = (await screen.findByText('photo.jpg')).closest('li')!;
+    expect(
+      within(row).getByRole('img', { name: 'Preparing preview…' }),
+    ).toBeVisible();
+    const fake = await socket();
+    act(() => fake.emit('connect'));
+    // The worker is done; the event is the signal to read the list again.
+    calls.processed('a1', {
+      thumb: {
+        width: 256,
+        height: 171,
+        size: 9_000,
+        contentType: 'image/webp',
+      },
+      preview: {
+        width: 1600,
+        height: 1067,
+        size: 120_000,
+        contentType: 'image/webp',
+      },
+    });
+    act(() =>
+      fake.emit('record.attachments.changed', {
+        subject: TEST_RECORD.subject,
+        recordId: ID,
+        attachmentId: 'a1',
+        action: 'processed',
+      }),
+    );
+    expect(
+      await within(row).findByRole('button', { name: 'Preview photo.jpg' }),
+    ).toBeVisible();
+    expect(row.querySelector('img')).toHaveAttribute(
+      'src',
+      '/v1/attachments/a1/download?rendition=thumb',
+    );
+    expect(
+      screen.queryByRole('img', { name: 'Preparing preview…' }),
+    ).toBeNull();
+  });
+
+  it('drops a file the scan rejected and tells its uploader why', async () => {
+    const calls = usePanelsApi({
+      attachments: [
+        {
+          id: 'a1',
+          name: 'virus.pdf',
+          size: 2048,
+          contentType: 'application/pdf',
+          uploadedBy: ME,
+          scanStatus: 'pending',
+        },
+      ],
+    });
+    await mountPanels(ALL);
+    await open('Attachments');
+    await screen.findByText('virus.pdf');
+    const fake = await socket();
+    // The API deletes an infected file: its row is gone, then it says so.
+    calls.scanInfected('a1');
+    act(() =>
+      fake.emit('record.attachments.changed', {
+        subject: TEST_RECORD.subject,
+        recordId: ID,
+        attachmentId: 'a1',
+        action: 'removed',
+      }),
+    );
+    await screen.findByText('No files attached.');
+    expect(screen.queryByText('virus.pdf')).toBeNull();
+    const notification = {
+      id: '0199a3f2-0000-7000-8000-000000000701',
+      type: 'attachment.rejected',
+      title: 'Your file was rejected',
+      body: '“virus.pdf” was removed from TestItem: the malware scan flagged it (Eicar-Test-Signature).',
+      data: {
+        name: 'virus.pdf',
+        subject: 'Elsewhere',
+        signature: 'Eicar-Test-Signature',
+      },
+      link: null,
+      key: null,
+      count: 1,
+      read: false,
+      readAt: null,
+      createdAt: '2026-10-21T10:00:00.000Z',
+      updatedAt: '2026-10-21T10:00:00.000Z',
+    };
+    // Another subject's file is none of this page's business.
+    act(() => fake.emit('notification', notification));
+    await act(() => Promise.resolve());
+    expect(screen.queryByText('Your file was rejected')).toBeNull();
+    act(() =>
+      fake.emit('notification', {
+        ...notification,
+        data: { ...notification.data, subject: TEST_RECORD.subject },
+      }),
+    );
+    await findToast('Your file was rejected');
+    expect(screen.getByText(/the malware scan flagged it/)).toBeVisible();
+    // Other notifications are not toasted here.
+    act(() =>
+      fake.emit('notification', {
+        ...notification,
+        type: 'note.published',
+        title: 'A note was published',
+        data: { subject: TEST_RECORD.subject },
+      }),
+    );
+    await act(() => Promise.resolve());
+    expect(screen.queryByText('A note was published')).toBeNull();
+  });
+
+  it("drops a rejected file on the uploader's notification when the removed event does not reach them", async () => {
+    // The uploader is no watcher of the record: `removed` (sent by the system
+    // principal) goes to the watchers only; the notification is theirs.
+    const calls = usePanelsApi({
+      attachments: [
+        {
+          id: 'a1',
+          name: 'virus.pdf',
+          size: 2048,
+          contentType: 'application/pdf',
+          uploadedBy: ME,
+          scanStatus: 'pending',
+        },
+      ],
+    });
+    await mountPanels(ALL);
+    await open('Attachments');
+    await screen.findByText('virus.pdf');
+    const fake = await socket();
+    act(() => fake.emit('connect'));
+    calls.scanInfected('a1');
+    act(() =>
+      fake.emit('notification', {
+        id: '0199a3f2-0000-7000-8000-000000000702',
+        type: 'attachment.rejected',
+        title: 'Your file was rejected',
+        body: '“virus.pdf” was removed from TestItem: the malware scan flagged it (Eicar-Test-Signature).',
+        data: {
+          name: 'virus.pdf',
+          subject: TEST_RECORD.subject,
+          signature: 'Eicar-Test-Signature',
+        },
+        link: null,
+        key: null,
+        count: 1,
+        read: false,
+        readAt: null,
+        createdAt: '2026-10-21T10:00:00.000Z',
+        updatedAt: '2026-10-21T10:00:00.000Z',
+      }),
+    );
+    await findToast('Your file was rejected');
+    await screen.findByText('No files attached.');
+    expect(screen.queryByText('virus.pdf')).toBeNull();
   });
 });
 

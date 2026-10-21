@@ -26,6 +26,7 @@ import {
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import { Textarea } from '@nestjs-monorepo-template/ui/components/textarea';
 import { LazyMarkdownEditor } from '@/components/markdown/lazy';
+import { useWritesPaused } from '@/lib/mode';
 import { CircleAlertIcon } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 
@@ -285,20 +286,27 @@ function SelectField(props: {
   );
 }
 
-/** The submit button: disabled and spinning while the form submits. */
+/**
+ * The submit button: disabled and spinning while the form submits, and
+ * disabled while the API refuses writes (read-only or maintenance mode, the
+ * banner says why) unless the form's route stays open in both
+ * (`allowInMaintenance`, as the API's `@AllowInMaintenance()`).
+ */
 function SubmitButton(props: {
   children: ReactNode;
   disabled?: boolean;
   className?: string;
+  allowInMaintenance?: boolean;
 }) {
   const form = useFormContext();
+  const paused = useWritesPaused() && !props.allowInMaintenance;
   return (
     <form.Subscribe selector={(state) => state.isSubmitting}>
       {(submitting) => (
         <Button
           type="submit"
           className={props.className}
-          disabled={submitting || props.disabled}
+          disabled={submitting || props.disabled || paused}
         >
           {submitting && <Spinner />}
           {props.children}

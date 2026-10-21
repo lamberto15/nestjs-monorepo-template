@@ -8,6 +8,9 @@ import { MemoryPushProvider } from './providers/memory-push.provider.js';
 import { MemorySmsProvider } from './providers/memory-sms.provider.js';
 import { PUSH_PROVIDER, type PushProvider } from './providers/push-provider.js';
 import { SMS_PROVIDER, type SmsProvider } from './providers/sms-provider.js';
+import { ApnsPushProvider } from './providers/apns-push.provider.js';
+import { CompositePushProvider } from './providers/push-composite.provider.js';
+import { FcmPushProvider } from './providers/fcm-push.provider.js';
 import { TwilioSmsProvider } from './providers/twilio-sms.provider.js';
 import { WebPushProvider } from './providers/web-push.provider.js';
 
@@ -55,31 +58,74 @@ export const smsProvider: Provider = {
   },
 };
 
-/** The push provider PUSH_PROVIDER names, or null while `off`. */
+/** A PEM from an environment variable: `\n` written as two characters become newlines. */
+const pem = (value: string) => value.replace(/\\n/g, '\n');
+
+/**
+ * The push providers PUSH_PROVIDER names (several serve several platforms),
+ * or null while `off`. A configured provider with a missing credential stops
+ * the app at start.
+ */
 export const pushProvider: Provider = {
   provide: PUSH_PROVIDER,
   inject: [ConfigService],
   useFactory: (config: ConfigService<Env, true>): PushProvider | null => {
     const get = <K extends keyof Env>(key: K) =>
       config.get(key, { infer: true });
-    switch (get('PUSH_PROVIDER')) {
-      case 'memory':
-        return new MemoryPushProvider();
-      case 'web-push': {
-        const publicKey = get('WEB_PUSH_VAPID_PUBLIC_KEY');
-        const privateKey = get('WEB_PUSH_VAPID_PRIVATE_KEY');
-        const subject = get('WEB_PUSH_SUBJECT');
-        if (!publicKey || !privateKey || !subject) {
-          throw missing('PUSH_PROVIDER=web-push', [
+    const need = <K extends keyof Env>(provider: string, names: K[]) => {
+      const values = names.map((name) => get(name)) as string[];
+      if (values.some((value) => !value)) {
+        throw missing(`PUSH_PROVIDER=${provider}`, names as string[]);
+      }
+      return values;
+    };
+    const providers = get('PUSH_PROVIDER').map((name): PushProvider => {
+      switch (name) {
+        case 'memory':
+          return new MemoryPushProvider();
+        case 'web-push': {
+          const [publicKey, privateKey, subject] = need('web-push', [
             'WEB_PUSH_VAPID_PUBLIC_KEY',
             'WEB_PUSH_VAPID_PRIVATE_KEY',
             'WEB_PUSH_SUBJECT',
-          ]);
+          ]) as [string, string, string];
+          return new WebPushProvider({ publicKey, privateKey, subject });
         }
-        return new WebPushProvider({ publicKey, privateKey, subject });
+        case 'apns': {
+          const [keyId, privateKey, teamId, bundleId] = need('apns', [
+            'APNS_KEY_ID',
+            'APNS_PRIVATE_KEY',
+            'APNS_TEAM_ID',
+            'APNS_BUNDLE_ID',
+          ]) as [string, string, string, string];
+          return new ApnsPushProvider({
+            keyId,
+            privateKey: pem(privateKey),
+            teamId,
+            bundleId,
+            apiUrl: get('APNS_API_URL') ?? 'https://api.push.apple.com',
+          });
+        }
+        case 'fcm': {
+          const [projectId, clientEmail, privateKey] = need('fcm', [
+            'FCM_PROJECT_ID',
+            'FCM_CLIENT_EMAIL',
+            'FCM_PRIVATE_KEY',
+          ]) as [string, string, string];
+          return new FcmPushProvider({
+            projectId,
+            clientEmail,
+            privateKey: pem(privateKey),
+            apiUrl: get('FCM_API_URL') ?? 'https://fcm.googleapis.com',
+            tokenUrl:
+              get('FCM_TOKEN_URL') ?? 'https://oauth2.googleapis.com/token',
+          });
+        }
       }
-      default:
-        return null;
-    }
+    });
+    if (providers.length === 0) return null;
+    return providers.length === 1
+      ? providers[0]!
+      : new CompositePushProvider(providers);
   },
 };

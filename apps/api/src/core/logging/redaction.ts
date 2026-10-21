@@ -60,8 +60,9 @@ export const SECRET_HEADERS = [
  * and the providers' (SNS confirmations carry the subscription token in
  * `Token` and `SubscribeURL`). A dotted path masks the key only under that
  * parent: `code` is a two-factor code in a request body (`body.code`) and
- * the OIDC authorization code in a query string (`query.code`), but also
- * every error's `code`, which the logs need.
+ * the OIDC authorization code in a query string (`query.code`, with the
+ * `query.state` that binds it to the browser that asked), but also every
+ * error's `code`, which the logs need.
  */
 export const SECRET_FIELDS = [
   'password',
@@ -95,6 +96,7 @@ export const SECRET_FIELDS = [
   'unsubscribeUrl',
   'body.code',
   'query.code',
+  'query.state',
 ] as const;
 
 /** Escapes a name for use inside a regular expression. */
@@ -481,5 +483,8 @@ export const redactValue = (value: unknown, options?: RedactValueOptions) =>
 export const redactString = (text: string, maxString?: number) =>
   logRedaction.redactString(text, maxString);
 
-/** `logRedaction.redactText()`, for the places that build a text from an error (a job's failure reason). */
+/**
+ * `logRedaction.redactText()`, for the places that build a text from an error (a job's failure reason).
+ * @public
+ */
 export const redactText = (text: string) => logRedaction.redactText(text);

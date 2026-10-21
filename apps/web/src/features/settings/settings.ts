@@ -26,14 +26,6 @@ export const overridesQuery = (key: string) =>
       ).items,
   });
 
-/**
- * How a value is edited: the setting's declared `type` (docs/settings.md,
- * "What a setting describes"). A boolean (a flag) is a switch, an enum a
- * select of its `options`, a number a number input within `min`/`max`, a
- * string a text input up to `maxLength`; `json` (an object, a union) JSON.
- */
-export type Kind = Setting['type'];
-
 /** What the input and the checks need of a setting. */
 export type ValueSpec = Pick<
   Setting,

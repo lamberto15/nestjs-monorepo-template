@@ -1,3 +1,4 @@
+import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
 import {
   Button,
   buttonVariants,
@@ -14,6 +15,7 @@ import {
   FileUploadTrigger,
 } from '@nestjs-monorepo-template/ui/components/file-upload';
 import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
+import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DownloadIcon, LockIcon, UploadIcon, XIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -22,8 +24,9 @@ import { toast } from 'sonner';
 import { ConfirmButton } from '@/components/confirm-button';
 import { RelativeTime } from '@/features/notifications/relative-time';
 import { errorMessage } from '@/lib/errors';
-import { useMe } from '@/lib/features';
-import { useRealtime } from '@/lib/realtime';
+import { useFeature, useMe } from '@/lib/features';
+import { useRealtime, useRealtimeConnected } from '@/lib/realtime';
+import { StoreRefusedError } from '@/lib/upload';
 import {
   downloadUrl,
   listAttachments,
@@ -32,6 +35,7 @@ import {
   uploadAttachment,
   type Attachment,
 } from './api';
+import { AttachmentVisual } from './attachment-visual';
 
 /**
  * What a file may be, as the upload route enforces it (`attachmentLimits` of
@@ -71,6 +75,33 @@ function typeLabel(contentType: string) {
   return (subtype.split(/[.+-]/).at(-1) ?? subtype).toUpperCase();
 }
 
+/**
+ * A file whose malware scan has not finished (`scanStatus` `pending`,
+ * docs/attachments.md): the API answers its download with 409
+ * `attachment_scan_pending`, so it is not offered.
+ */
+const isScanning = (attachment: Pick<Attachment, 'scanStatus'>) =>
+  attachment.scanStatus === 'pending';
+
+/**
+ * An image whose thumbnail and preview are still being made
+ * (`renditionStatus` `pending`, docs/attachments.md, "Image renditions"):
+ * the original can be downloaded, and the row shows a placeholder.
+ */
+const isProcessing = (attachment: Pick<Attachment, 'renditionStatus'>) =>
+  attachment.renditionStatus === 'pending';
+
+/**
+ * How often a list with a file waiting for a worker (the malware scan, an
+ * image's renditions) is read again. Both jobs act as the system principal,
+ * so `record.attachments.changed` (`scanned`, `processed`, `removed`)
+ * reaches only the record's watchers, and an uploader who is not one never
+ * hears of the job's end: the read is what settles their list (an infected
+ * file's notification reloads it sooner, RecordPanels). Hence a short
+ * interval even with a connected socket.
+ */
+const WORKER_POLL = { live: 10_000, offline: 5_000 } as const;
+
 /** Why the browser refuses a file before the upload: `onFileValidate`'s answer. */
 const TYPE_REFUSED = 'type';
 
@@ -82,6 +113,8 @@ function UploadZone(props: {
 }) {
   const { t, i18n } = useTranslation('records');
   const [files, setFiles] = useState<File[]>([]);
+  // With STORAGE_DRIVER=s3 the file goes straight to the bucket, not through the API.
+  const direct = useFeature('presignedUploads');
   const { maxBytes, types } = props.limits;
   const max = formatSize(maxBytes, i18n.language);
   return (
@@ -116,14 +149,22 @@ function UploadZone(props: {
         await Promise.all(
           batch.map(async (file) => {
             try {
-              await uploadAttachment(props.base, props.id, file, (percent) =>
-                onProgress(file, percent),
+              await uploadAttachment(
+                props.base,
+                props.id,
+                file,
+                (percent) => onProgress(file, percent),
+                direct,
               );
               onSuccess(file);
               // Listed below now: the row leaves the upload list.
               setFiles((current) => current.filter((f) => f !== file));
             } catch (error) {
-              toast.error(errorMessage(error));
+              toast.error(
+                error instanceof StoreRefusedError
+                  ? t('attachments.storageFailed')
+                  : errorMessage(error),
+              );
               onError(file, error instanceof Error ? error : new Error());
             }
           }),
@@ -183,36 +224,67 @@ function AttachmentRow(props: {
 }) {
   const { t, i18n } = useTranslation('records');
   const { attachment } = props;
+  const scanning = isScanning(attachment);
   return (
     <li className="flex items-center justify-between gap-3 rounded-lg border p-3">
-      <div className="min-w-0">
-        <p className="flex items-center gap-1.5 truncate text-sm font-medium">
-          {attachment.locked && (
-            <LockIcon
-              className="size-3.5 shrink-0"
-              aria-label={t('attachments.locked')}
-            />
-          )}
-          <span className="truncate">{attachment.name}</span>
-        </p>
-        <p className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
-          <span>{typeLabel(attachment.contentType)}</span>
-          <span>{formatSize(attachment.size, i18n.language)}</span>
-          <RelativeTime value={attachment.createdAt} />
-        </p>
+      <div className="flex min-w-0 items-center gap-3">
+        <AttachmentVisual attachment={attachment} />
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 truncate text-sm font-medium">
+            {attachment.locked && (
+              <LockIcon
+                className="size-3.5 shrink-0"
+                aria-label={t('attachments.locked')}
+              />
+            )}
+            <span className="truncate">{attachment.name}</span>
+          </p>
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            <span>{typeLabel(attachment.contentType)}</span>
+            <span>{formatSize(attachment.size, i18n.language)}</span>
+            <RelativeTime value={attachment.createdAt} />
+            {scanning && (
+              // A status, so a screen reader hears it when the upload lands.
+              <Badge variant="secondary" role="status">
+                <Spinner
+                  aria-hidden
+                  role="presentation"
+                  data-icon="inline-start"
+                />
+                {t('attachments.scanning')}
+              </Badge>
+            )}
+          </p>
+        </div>
       </div>
       <div className="flex shrink-0 gap-1">
-        {/* The API answers with a redirect to a signed link (5 minutes) and
-            names the file itself (Content-Disposition: attachment). */}
-        <a
-          href={downloadUrl(attachment.id)}
-          download={attachment.name}
-          aria-label={t('attachments.download', { name: attachment.name })}
-          className={buttonVariants({ variant: 'outline', size: 'sm' })}
-        >
-          <DownloadIcon />
-          {t('attachments.downloadShort')}
-        </a>
+        {scanning ? (
+          // Not a link: the download answers 409 until the scan is done.
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            disabled
+            aria-label={t('attachments.downloadScanning', {
+              name: attachment.name,
+            })}
+          >
+            <DownloadIcon />
+            {t('attachments.downloadShort')}
+          </Button>
+        ) : (
+          /* The API answers with a redirect to a signed link (5 minutes) and
+             names the file itself (Content-Disposition: attachment). */
+          <a
+            href={downloadUrl(attachment.id)}
+            download={attachment.name}
+            aria-label={t('attachments.download', { name: attachment.name })}
+            className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          >
+            <DownloadIcon />
+            {t('attachments.downloadShort')}
+          </a>
+        )}
         {props.canRemove && !attachment.locked && (
           <ConfirmButton
             variant="ghost"
@@ -236,8 +308,15 @@ function AttachmentRow(props: {
 }
 
 /**
- * Files on the record: upload (who may change it), download (who may read it),
- * delete (the uploader, or who may change the record; never an issued document).
+ * Files on the record: upload (who may change it), download (who may read it,
+ * once the malware scan is done: a file still being scanned says so and has
+ * no link), delete (the uploader, or who may change the record; never an
+ * issued document). A file found infected is deleted by the API: it leaves
+ * the list on `record.attachments.changed` (`removed`, to the record's
+ * watchers) or when its uploader's rejection notification arrives, and the
+ * uploader is told (RecordPanels). An image shows its thumbnail once the
+ * worker has made it (AttachmentVisual); `processed` reloads the list like
+ * the other events.
  */
 export function AttachmentsPanel(props: {
   base: string;
@@ -249,13 +328,22 @@ export function AttachmentsPanel(props: {
   const queryClient = useQueryClient();
   const me = useMe()?.user.id;
   const live = useRealtime() !== undefined;
+  const connected = useRealtimeConnected();
   const key = panelKeys.attachments(props.base, props.id);
   const query = useQuery({
     queryKey: key,
     queryFn: () => listAttachments(props.base, props.id),
     // `record.attachments.changed` reloads it (RecordPanels); polled only
-    // without realtime.
-    refetchInterval: live ? false : 60_000,
+    // without realtime, and while a file waits for a worker: its malware
+    // scan or its image renditions (WORKER_POLL).
+    refetchInterval: (q) =>
+      q.state.data?.some((a) => isScanning(a) || isProcessing(a))
+        ? connected
+          ? WORKER_POLL.live
+          : WORKER_POLL.offline
+        : live
+          ? false
+          : 60_000,
   });
   const refresh = () => queryClient.invalidateQueries({ queryKey: key });
 

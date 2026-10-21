@@ -100,6 +100,8 @@ same tenant only (or among the account's own).
 | `DELETE /v1/notifications/{id}` | removes one |
 | `GET /v1/notifications/types` | the types: label, `mandatory`, the defaults of the channels the caller may set |
 | `GET /v1/notifications/preferences` | the caller's effective settings per type |
+| `GET /v1/notifications/unsubscribe/{token}` | public, read-only; what a mail's unsubscribe link would stop (below): `{ kind: 'type', label }` or `{ kind: 'digest', modes }`; 400 for an invalid link |
+| `POST /v1/notifications/unsubscribe/{token}` | public; the one-click unsubscribe of a mail's `List-Unsubscribe` link (below); 204 |
 | `PUT /v1/notifications/preferences` | replaces the caller's overrides: `{ "note.published": { "email": "daily" } }`; a type or channel left out goes back to its default; a mandatory type refuses `false`; audited (`notificationPreferences.updated`) |
 | `POST /v1/notifications/test` | development and tests only: sends the caller a `system.test` notification, answers `{ id }` |
 
@@ -132,6 +134,37 @@ same tenant only (or among the account's own).
   and `daily` bundle them (one mail listing them, times in the user's
   zone), the daily one at `NOTIFICATIONS_DIGEST_HOUR` in the user's time
   zone. After downtime, everything due goes in the next run.
+- **Unsubscribe** (RFC 8058, which Gmail and Yahoo require of bulk senders):
+  every notification and digest mail carries `List-Unsubscribe: <https://…/v1/notifications/unsubscribe/{token}>`
+  (and a `mailto:` when `MAIL_UNSUBSCRIBE_MAILTO` is set), `List-Unsubscribe-Post: List-Unsubscribe=One-Click`,
+  and an "Unsubscribe" link in the footer (to `WEB_URL/unsubscribe?token=…`, the web app's
+  `unsubscribe` page, no sign-in: it asks the read-only `GET` below what the link stops and
+  shows it above a button, and only that button POSTs the token; a GET changes nothing, since
+  mail scanners follow links). The mail client
+  POSTs the form `List-Unsubscribe=One-Click` to the https URL, with no sign-in: the
+  `{token}` is a JWT (`notification-unsubscribe.ts`) signed with a key derived
+  from `JWT_SECRET` (HKDF, labelled, own audience and `typ`), naming the user and
+  what to switch off, valid for a year, so it can't be forged, changed or
+  taken from another kind of token. It turns the preference `email` of that type off
+  (a digest's token: of every type the user gets in that digest's modes), audited
+  (`notificationPreferences.updated`, `via: unsubscribe`); repeating it changes
+  nothing. **Essential mail is excluded**: a `mandatory` type's mail carries
+  no headers and no link, and its token would not switch it off. Every refusal
+  (forged, expired, account gone) is the same 400, as a wrong body is a 400
+  `validation_failed`.
+  **`GET /v1/notifications/unsubscribe/{token}`** only describes the link, for the
+  page above its button (and a mail scanner that follows it): public, it writes nothing,
+  records no audit entry and spends nothing (the token is not single-use), and it is
+  throttled like the POST (the app's default per-address limit). It answers
+  `{ kind: 'type', label }`, the notification type's label in the request's language
+  (`label` is null when the POST would change nothing: a `mandatory` type, or one no
+  longer declared), or `{ kind: 'digest', modes }`, the digests the link stands for
+  (`hourly`, `daily`). Never the user's email or id. It checks the token exactly as the
+  POST does (the same code, `NotificationUnsubscribeService.resolve`), so a forged,
+  expired, wrong-purpose or gone-account token is the same single 400 from both: no
+  way to tell them apart. The web page falls back to its generic text on any failure. The headers need an https `APP_URL` (the RFC says so);
+  with http (development) mail has the footer link only. See
+  [deliverability.md](deliverability.md), "Unsubscribe headers (RFC 8058)".
 - **Export**: `POST /v1/data/exports { name: 'notifications' }` (CSV, JSON
   or Excel of the caller's own; see [data-transfer.md](data-transfer.md)).
 
@@ -193,6 +226,12 @@ Phone numbers and push tokens are personal data: encrypted columns with a blind
 index ([encryption.md](encryption.md)), so `DATA_ENCRYPTION_KEYS` and `BLIND_INDEX_KEYS`
 are required. Nothing here returns a token, and the number only masked.
 
+`pnpm setup --target production` asks for both ([configuration.md](configuration.md#first-setup-pnpm-setup)):
+Web Push (it makes the VAPID key pair with the `web-push` package and asks for the
+contact, `WEB_PUSH_SUBJECT`) and Twilio (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
+`TWILIO_FROM`, `SMS_ALLOWED_PREFIXES`). APNs and FCM are set in the `.env` by hand;
+a re-run keeps them in `PUSH_PROVIDER`.
+
 **How a message goes.** The channel (`SmsChannel`, `PushChannel`) runs in the
 delivery like the email channel and only queues a job on the `messaging` queue
 (job id from the notification, so a retried delivery queues it once; push: one job
@@ -221,6 +260,20 @@ its token is dead (Web Push 404/410), after `DEVICES_RETENTION_DAYS` without bei
 seen (nightly), and with the account (a `PersonalDataSource`: both devices and
 number are in the data export).
 
+**Quiet hours.** A user may set a window (`PUT /v1/notifications/quiet-hours
+{ "start": "22:00", "end": "07:00" }`, `GET` to read it, `DELETE` to remove it;
+audited as `notificationQuietHours.updated`) on the clock of their time zone
+(`PATCH /v1/auth/me { timezone }`, else `APP_TIMEZONE`;
+[i18n-and-time.md](i18n-and-time.md)). The window may run past midnight and follows
+daylight-saving changes. A push or SMS whose notification is delivered inside
+it is not dropped: its job is queued with a delay and goes when the window ends
+(the other channels, the bell and mail, are unaffected). A type declared
+`urgent: true` goes through at once; the security notifications of IAM
+(`security.newSignIn`, password and two-factor changes, passkeys, break-glass)
+are urgent, and so is the verification code, which is not a notification.
+Code: `platform/notifications/quiet-hours.ts` (`quietUntil`), the delivery handler
+sets `NotificationDelivery.quietUntil` and the two channels read it.
+
 **Preferences.** `sms` and `push` are booleans per type in
 `PUT /notifications/preferences`, off unless a declaration's `channels` says
 `{ sms: true }`. SMS also needs a verified number that has not opted out; push needs a
@@ -238,17 +291,30 @@ included), so they hold whatever queued it:
   incremented in one transaction with an atomic upsert, which rolls back when a cap
   is hit, so a refused SMS uses none of the allowance and concurrent workers cannot
   overshoot;
-- per client IP, the routes that text a code are throttled (5 per 10 minutes);
+- per client IP, the routes that text a code are throttled (5 per 10 minutes),
+  and `PUT /v1/messaging/phone` also takes a daily allowance per IP and tenant
+  (`SMS_DAILY_LIMIT_PER_IP`, 20): past it, 429 `sms_ip_limit`. The IP is kept only as
+  a hash in the counter (`ip:<hash>`), swept with the other daily counters;
+- per UTC month, a **spend cap** per tenant: `SMS_MONTHLY_BUDGET_MINOR` (minor
+  units of one currency; 0, the default, is no cap). An SMS costs its segments
+  (160 characters, 153 when split; 70 and 67 with any non-ASCII character) times the price of
+  its prefix, `SMS_PRICES` (`+1=79,+44=120`), else `SMS_PRICE_DEFAULT_MINOR`; the prices
+  are yours to keep right (they are not the provider's invoice). The cost is
+  added to the month's `spend` counter in the same transaction as the others and
+  rolled back at the cap, so sending stops at it (reason `budget_exceeded`) until the
+  next month. The send that crosses 80 % logs an error ("SMS spend passed 80 % of the
+  monthly budget"), and the gauge `sms_budget_used_ratio` is at 0.8;
 - a refusal is counted (`blocked:<reason>`), logged as an error and shown by the
-  gauges `sms_sent_today` and `sms_blocked_today{reason}` on the workers'
-  `/metrics`; alert on a rising `sms_blocked_today` or on `sms_sent_today` beyond what
-  you expect (no rule ships yet);
+  gauges `sms_sent_today`, `sms_blocked_today{reason}`, `sms_spend_month_minor` and
+  `sms_budget_used_ratio` on the workers' `/metrics`. The rules `SmsBlocked` (any
+  `sms_blocked_today`, by reason) and `SmsBudgetNearCap` (80 %) ship in
+  `monitoring/prometheus/alerts.yml`, with their tests ([deployment.md](deployment.md), "Alerting");
 - the **kill switch** is the flag `messaging.sms` (on by default). The operators
   switch it off for every tenant with `PUT /v1/settings/messaging.sms/platform
   { "value": false, "enforced": true }`; a tenant's administrator can switch off
   their own tenant. A job meeting it is skipped (`switched_off`), not retried.
 
-The caps count messages, not money: a spend ceiling would need the provider's prices.
+The daily caps count messages; the monthly cap counts money, by the price table you configure.
 
 **STOP and START.** Point the provider's inbound webhook at
 `https://<APP_DOMAIN>/v1/webhooks/sms/twilio`. The adapter verifies Twilio's
@@ -268,9 +334,32 @@ opt-out row and its audit entry.
 `messaging/providers/`) chosen by the environment; `memory` keeps what it would send
 (tests; never receives inbound). Twilio is written over `fetch` and `node:crypto`
 (two calls, as the SendGrid intake does for its signature), Web Push uses the pinned
-`web-push` library (VAPID, payload encryption). APNs and FCM are further adapters of
-`PushProvider` (iOS and Android devices are stored but have no provider yet); another
-SMS provider implements `SmsProvider.send` and `parseInbound`.
+`web-push` library (VAPID, payload encryption). `PUSH_PROVIDER` takes several,
+comma-separated (`web-push,apns,fcm`): each device goes to the provider of its
+platform (`web`, `ios`, `android`), and a device whose platform nobody serves is skipped.
+
+- **APNs** (`apns`, iOS): token-based authentication. An ES256 JWT (`kid` =
+  `APNS_KEY_ID`, `iss` = `APNS_TEAM_ID`), signed with the `.p8` key
+  (`APNS_PRIVATE_KEY`, PEM; write the newlines as `\n` in an env file) and reused for
+  40 minutes, goes in `authorization: bearer`; `apns-topic` is `APNS_BUNDLE_ID`.
+  APNs needs HTTP/2, which `fetch` does not speak, so the adapter keeps one
+  `node:http2` session open and reopens it when it drops. `APNS_API_URL` is production
+  (`https://api.push.apple.com`); use `https://api.sandbox.push.apple.com` for
+  development builds. A 410 or a `BadDeviceToken`, `DeviceTokenNotForTopic` or
+  `Unregistered` reason deletes the device; 429, 5xx, a connection failure and
+  `ExpiredProviderToken` (a new JWT is signed) are retried; anything else fails the job.
+- **FCM** (`fcm`, Android): the HTTP v1 API, authorised with a service account
+  (`FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY`). An RS256 JWT is
+  exchanged at `FCM_TOKEN_URL` for an access token, cached until a minute before it
+  ends, and the message is posted to `FCM_API_URL/v1/projects/<id>/messages:send`. A 404
+  (`UNREGISTERED`) or an invalid registration token deletes the device; 401 (the token
+  is dropped), 429 and 5xx are retried; anything else fails the job.
+- Both are written over `node:crypto` (and `node:http2` for APNs), like the Twilio
+  adapter, and are tested against stubs of the two services (`providers/*.spec.ts`);
+  no real credential has exercised them. Neither is on unless `PUSH_PROVIDER` names it
+  and its variables are set (the app refuses to start with one missing).
+
+Another SMS provider implements `SmsProvider.send` and `parseInbound`.
 
 **Limits.** An SMS is cut to `SMS_MAX_LENGTH` characters; a push payload to
 `PUSH_MAX_PAYLOAD_BYTES` (the body gives way).

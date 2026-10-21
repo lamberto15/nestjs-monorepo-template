@@ -1,0 +1,32 @@
+{
+  "nav": "Penjenamaan",
+  "title": "Penjenamaan",
+  "description": "Warna, logo dan nama penghantar anda: aplikasi web, mel yang anda hantar dan dokumen PDF anda memaparkannya.",
+  "locked": "Pengendali telah mengunci penjenamaan penyewa ini. Ia tidak boleh diubah di sini.",
+  "saved": "Penjenamaan disimpan.",
+  "save": "Simpan",
+  "color": {
+    "label": "Warna jenama",
+    "hint": "Warna penekanan butang dan pautan dalam aplikasi web, mel dan dokumen.",
+    "set": "Pilih warna",
+    "remove": "Guna warna lalai"
+  },
+  "mailName": {
+    "label": "Nama penghantar mel",
+    "hint": "Nama yang digunakan untuk menghantar dan menandatangani mel. Alamat kekal milik pemasangan."
+  },
+  "logo": {
+    "label": "Logo",
+    "hint": "Imej PNG, JPEG atau WebP. Ia dipaparkan dalam menu, mel dan dokumen.",
+    "alt": "Logo semasa",
+    "drop": "Letakkan logo di sini",
+    "limit": "PNG, JPEG atau WebP, sehingga 512 KB",
+    "choose": "Pilih fail",
+    "saved": "Logo disimpan.",
+    "remove": "Buang logo",
+    "removed": "Logo dibuang.",
+    "rejected": "{{name}}: {{reason}}",
+    "tooLarge": "Fail melebihi {{max}} KB.",
+    "typeRefused": "Gunakan imej PNG, JPEG atau WebP."
+  }
+}

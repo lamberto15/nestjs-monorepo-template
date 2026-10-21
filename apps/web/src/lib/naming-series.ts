@@ -14,11 +14,8 @@ import { api } from '@/lib/api';
 export type NamingSeries = GetResponse<'/v1/naming-series'>['items'][number];
 export type NumberedSubject =
   GetResponse<'/v1/naming-series/subjects'>['items'][number];
-export type NamingVariable =
-  GetResponse<'/v1/naming-series/variables'>['items'][number];
 export type NamingCondition = NamingSeries['conditions'][number];
 export type NamingField = NumberedSubject['fields'][number];
-export type NamingCounter = GetResponse<'/v1/naming-series/{id}/counter'>;
 export type NamingSeriesCreate = NonNullable<
   paths['/v1/naming-series']['post']['requestBody']
 >['content']['application/json'];

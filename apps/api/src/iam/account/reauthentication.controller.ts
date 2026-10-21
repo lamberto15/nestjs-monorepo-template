@@ -27,6 +27,7 @@ import { z } from 'zod';
 import type { UserPrincipal } from '../auth/principal.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
 import { DuringMfaEnrollment } from '../auth/mfa-enrollment.guard.js';
+import { DuringOnboarding } from '../auth/onboarding.js';
 import { UserThrottle } from '../auth/user-throttle.guard.js';
 import type { AuthenticationResponseJSON } from '@simplewebauthn/server';
 import { authenticationResponseSchema } from './passkey.schemas.js';
@@ -121,6 +122,7 @@ const reauthenticatedSchema = z.object({
 @UserOnly()
 @Can.Anyone()
 @DuringMfaEnrollment()
+@DuringOnboarding()
 @Controller('auth/reauthenticate')
 export class ReauthenticationController {
   constructor(private readonly reauthentication: ReauthenticationService) {}

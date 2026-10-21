@@ -17,9 +17,13 @@ import { after, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
   applyValues,
+  duplicateKeys,
   formatValue,
+  mergeTemplate,
+  missingKeys,
   parseEnv,
   templateKeys,
+  unknownKeys,
 } from './envfile.mjs';
 import {
   buildPlan,
@@ -95,6 +99,46 @@ async function setup(root, out, args, io = {}) {
 const read = (out, target) =>
   readFileSync(path.join(out, FILES[target]), 'utf8');
 
+/** Sets these values in the production file of `out`, as its owner would. */
+function edit(out, values) {
+  const file = path.join(out, FILES.production);
+  writeFileSync(file, applyValues(readFileSync(file, 'utf8'), new Map(values)));
+}
+
+/** A production re-run with no flags, which must succeed: its variables. */
+async function rerun(root, out) {
+  const { code, text, errors } = await setup(root, out, [
+    '--target',
+    'production',
+  ]);
+  assert.equal(code, 0, `${text}\n${errors}`);
+  return parseEnv(read(out, 'production'));
+}
+
+/**
+ * The template as an older one: without the given variables, each with the
+ * comment right above it and the blank line that opened its paragraph.
+ */
+function olderTemplate(text, keys) {
+  const lines = text.split('\n');
+  const drop = new Set();
+  for (const key of keys) {
+    const at = lines.findIndex((line) => line.startsWith(`${key}=`));
+    assert.ok(at >= 0, `${key} is not an active variable of the template`);
+    let start = at;
+    while (
+      start > 0 &&
+      lines[start - 1].startsWith('#') &&
+      !/^#\s?[A-Z][A-Z0-9_]*=(?:|\S*[^\s.,;:)])$/.test(lines[start - 1]) &&
+      !lines[start - 1].startsWith('# feature:')
+    )
+      start--;
+    if (start > 0 && lines[start - 1] === '') start--;
+    for (let i = start; i <= at; i++) drop.add(i);
+  }
+  return lines.filter((_, i) => !drop.has(i)).join('\n');
+}
+
 describe('envfile', () => {
   test('replaces active lines, uncomments examples, keeps comments, order and unknown keys', () => {
     const text = [
@@ -163,6 +207,123 @@ describe('envfile', () => {
       'A=1\n# B=x\n# TENANCY=single: the roles\n# plain words\n',
     );
     assert.deepEqual([...keys].sort(), ['A', 'B']);
+  });
+
+  test('a sentence that ends on KEY=value. is prose, not a commented example', () => {
+    const keys = templateKeys(
+      '# (only the load test, APP_ENV=loadtest.)\n# APP_ENV=loadtest.\n# C=\n',
+    );
+    assert.deepEqual([...keys], ['C']);
+  });
+});
+
+describe('merging the template', () => {
+  const template = [
+    '# Head',
+    'A=1',
+    '',
+    '# About B',
+    '# and more',
+    'B=2',
+    'C=3',
+    '',
+    '# About D',
+    'D=4',
+    '# E=example',
+    '',
+  ].join('\n');
+
+  test('adds a missing variable after the one before it in the template, with its comment and paragraph', () => {
+    const { text, added } = mergeTemplate(
+      '# Head\nA=x\n\nD=custom\n',
+      template,
+    );
+    assert.equal(
+      text,
+      [
+        '# Head',
+        'A=x',
+        '',
+        '# About B',
+        '# and more',
+        'B=2',
+        'C=3',
+        '',
+        'D=custom',
+        '',
+      ].join('\n'),
+    );
+    assert.deepEqual(added, [
+      { key: 'B', value: '2' },
+      { key: 'C', value: '3' },
+    ]);
+  });
+
+  test('changes nothing when the file has every variable; a commented example counts as named', () => {
+    const file = 'A=x\nB=y\nC=z\n# D=chosen\n';
+    assert.deepEqual(mergeTemplate(file, template), { text: file, added: [] });
+  });
+
+  test('a variable with no neighbour in the file goes to the end, under a heading', () => {
+    const { text } = mergeTemplate('MINE=1\n', 'A=1\nB=2\n');
+    assert.equal(
+      text,
+      'MINE=1\n\n# New in the template (added by pnpm setup)\nA=1\nB=2\n',
+    );
+  });
+
+  test('the anchor keeps the note under it: the new text goes after the note', () => {
+    const tpl = 'A=1\n# a note on A\n\n# about B\nB=2\n';
+    const { text } = mergeTemplate('A=1\n# a note on A\n', tpl);
+    assert.equal(text, 'A=1\n# a note on A\n\n# about B\nB=2\n');
+  });
+
+  test('leaves out a feature block the file no longer has', () => {
+    const tpl = 'A=1\n# feature:notes begin\nN=1\n# feature:notes end\nB=2\n';
+    const without = mergeTemplate('A=1\n', tpl);
+    assert.deepEqual(
+      without.added.map((a) => a.key),
+      ['B'],
+    );
+    const withBlock = mergeTemplate(
+      'A=1\n# feature:notes begin\n# feature:notes end\n',
+      tpl,
+    );
+    assert.deepEqual(
+      withBlock.added.map((a) => a.key),
+      ['N', 'B'],
+    );
+  });
+
+  test('missing, unknown and repeated names', () => {
+    assert.deepEqual(
+      missingKeys('A=1\nB=2\n# C=3\n', 'A=1\n').map((m) => m.key),
+      ['B'],
+    );
+    assert.deepEqual(unknownKeys('A=1\n# C=3\n', 'A=1\nC=x\nZ=9\n'), ['Z']);
+    assert.deepEqual(duplicateKeys('A=1\nB=2\nA=3\n'), ['A']);
+  });
+
+  test('env.example: every variable removed from an older copy comes back where it was', () => {
+    const text = readFileSync(path.join(REPO, 'env.example'), 'utf8');
+    const keys = missingKeys(text, '').map((m) => m.key);
+    // The first one has nothing before it to sit after: it goes to the end.
+    for (const key of keys.slice(1)) {
+      assert.equal(
+        mergeTemplate(olderTemplate(text, [key]), text).text,
+        text,
+        key,
+      );
+    }
+    // Many at once: every third, and all after the 40th.
+    for (const pick of [keys.filter((_, i) => i % 3 === 1), keys.slice(40)]) {
+      const merged = mergeTemplate(olderTemplate(text, pick), text);
+      assert.equal(merged.text, text);
+      assert.deepEqual(
+        merged.added.map((a) => a.key),
+        pick,
+      );
+    }
   });
 });
 
@@ -766,6 +927,10 @@ describe('templates and wizard do not drift', () => {
         captcha: 'turnstile',
         passkeys: true,
         social: 'microsoft',
+        observe: true,
+        otelEndpoint: 'https://otel.example.com',
+        push: true,
+        sms: true,
       },
       { tenancy: 'multi', signUp: true, mail: 'resend', social: 'google' },
     ];
@@ -775,5 +940,722 @@ describe('templates and wizard do not drift', () => {
         `${q.id} is not asked in production`,
       );
     }
+  });
+});
+
+describe('a re-run merges what the template gained', () => {
+  /** A fixture whose env.example is an older one, without `gone`; its first run done. */
+  async function aged(gone, args = PRODUCTION) {
+    const root = fixture();
+    const template = path.join(root, TEMPLATES.production);
+    const current = readFileSync(template, 'utf8');
+    writeFileSync(template, olderTemplate(current, gone));
+    const out = temp();
+    const first = await setup(root, out, args);
+    assert.equal(first.code, 0, first.text);
+    for (const key of gone) {
+      assert.equal(parseEnv(read(out, 'production')).has(key), false, key);
+    }
+    writeFileSync(template, current);
+    return { root, out, current };
+  }
+
+  const GONE = [
+    'WEBHOOKS',
+    'REPORTS',
+    'SMS_PROVIDER',
+    'TWILIO_FROM',
+    'PUSH_PROVIDER',
+    'WEB_PUSH_SUBJECT',
+    'OBSERVE_APP_KEY',
+    'USAGE_RETENTION_DAYS',
+    'DATA_ENCRYPTION_KEYS_FILE',
+    'POSTGRES_REPORTING_PASSWORD',
+  ];
+
+  test('adds each missing variable with the template default and shows it as + NAME=default', async () => {
+    const { root, out, current } = await aged(GONE);
+    const before = parseEnv(read(out, 'production'));
+    const { code, text } = await setup(root, out, ['--target', 'production']);
+    assert.equal(code, 0, text);
+    const env = parseEnv(read(out, 'production'));
+    const template = parseEnv(current);
+    for (const key of GONE) {
+      assert.ok(env.has(key), `${key} was not added`);
+      if (key === 'POSTGRES_REPORTING_PASSWORD') continue;
+      assert.equal(env.get(key), template.get(key), key);
+      assert.match(
+        text,
+        new RegExp(`^  \\+ ${key}=${template.get(key)}$`, 'm'),
+      );
+    }
+    assert.match(
+      text,
+      /New in env\.example since this file was written \(10\)/,
+    );
+    // The reporting role's password is a secret like the others: made, hidden.
+    assert.match(env.get('POSTGRES_REPORTING_PASSWORD'), /^[0-9a-f]{48}$/);
+    assert.match(text, /^  \+ POSTGRES_REPORTING_PASSWORD=\*{8}$/m);
+    assert.ok(!text.includes(env.get('POSTGRES_REPORTING_PASSWORD')));
+    // What the file had is untouched.
+    for (const [key, value] of before) assert.equal(env.get(key), value, key);
+    // And the file reads like a fresh one: the same names, in the same order.
+    const fresh = temp();
+    await setup(root, fresh, PRODUCTION);
+    assert.deepEqual(
+      [...env.keys()],
+      [...parseEnv(read(fresh, 'production')).keys()],
+    );
+  });
+
+  test('the second re-run has nothing left to add', async () => {
+    const { root, out } = await aged(GONE);
+    await setup(root, out, ['--target', 'production']);
+    const merged = read(out, 'production');
+    const again = await setup(root, out, ['--target', 'production']);
+    assert.equal(read(out, 'production'), merged);
+    assert.doesNotMatch(again.text, /New in env\.example/);
+  });
+
+  test('--dry-run lists them and writes nothing', async () => {
+    const { root, out } = await aged(GONE);
+    const before = read(out, 'production');
+    const { text } = await setup(root, out, [
+      '--target',
+      'production',
+      '--dry-run',
+    ]);
+    assert.match(text, /^  \+ WEBHOOKS=on$/m);
+    assert.equal(read(out, 'production'), before);
+  });
+
+  test('a variable the owner commented out is left alone, and the .bak keeps the old file', async () => {
+    const { root, out } = await aged(['REPORTS', 'USAGE_RETENTION_DAYS']);
+    const file = path.join(out, '.env');
+    writeFileSync(
+      file,
+      `${readFileSync(file, 'utf8')}# USAGE_RETENTION_DAYS=30\n`,
+    );
+    const old = readFileSync(file, 'utf8');
+    await setup(root, out, ['--target', 'production']);
+    const text = read(out, 'production');
+    assert.match(text, /^# USAGE_RETENTION_DAYS=30$/m);
+    assert.doesNotMatch(text, /^USAGE_RETENTION_DAYS=/m);
+    assert.match(text, /^REPORTS=on$/m);
+    assert.equal(readFileSync(`${file}.bak`, 'utf8'), old);
+  });
+
+  test('development merges its own template too', async () => {
+    const root = fixture();
+    const template = path.join(root, TEMPLATES.development);
+    const current = readFileSync(template, 'utf8');
+    writeFileSync(
+      template,
+      olderTemplate(current, ['LOG_LEVEL', 'SENTRY_DSN']),
+    );
+    const out = temp();
+    await setup(root, out, ['--target', 'development']);
+    writeFileSync(template, current);
+    const { text } = await setup(root, out, ['--target', 'development']);
+    assert.match(text, /^  \+ LOG_LEVEL=debug$/m);
+    assert.match(text, /^  \+ SENTRY_DSN=$/m);
+    assert.equal(parseEnv(read(out, 'development')).get('LOG_LEVEL'), 'debug');
+  });
+
+  test('the example feature removed in the same run is not brought back', async () => {
+    const root = fixture({ notes: true });
+    const out = temp();
+    await setup(root, out, [...PRODUCTION, '--no-remove-notes'], {
+      runRemove: () => 0,
+    });
+    const { text } = await setup(
+      root,
+      out,
+      ['--target', 'production', '--remove-notes'],
+      {
+        runRemove: () => 0,
+      },
+    );
+    assert.doesNotMatch(text, /EXAMPLE_SENDER_WEBHOOK_SECRET/);
+    assert.equal(
+      parseEnv(read(out, 'production')).has('NOTE_PUBLISH_DELAY'),
+      false,
+    );
+  });
+
+  test('a secret kept in a file is not made again in the variable', async () => {
+    const root = fixture();
+    const out = temp();
+    await setup(root, out, PRODUCTION);
+    const file = path.join(out, '.env');
+    writeFileSync(
+      file,
+      readFileSync(file, 'utf8')
+        .replace(/^JWT_SECRET=.*$/m, 'JWT_SECRET=')
+        .replace(/^JWT_SECRET_FILE=.*$/m, 'JWT_SECRET_FILE=/run/secrets/jwt'),
+    );
+    await setup(root, out, ['--target', 'production', '--rotate']);
+    const env = parseEnv(read(out, 'production'));
+    assert.equal(env.get('JWT_SECRET'), '');
+    assert.equal(env.get('JWT_SECRET_FILE'), '/run/secrets/jwt');
+  });
+});
+
+describe('questions for observability, the AI key, push and SMS', () => {
+  const KEYS = { publicKey: 'pub-key', privateKey: 'priv-key' };
+  const vapid = () => KEYS;
+
+  test('all off by default: nothing is set, no key pair is made', async () => {
+    const root = fixture();
+    const out = temp();
+    const { code, text, errors } = await setup(root, out, PRODUCTION, {
+      vapid,
+    });
+    assert.equal(code, 0, text);
+    const env = parseEnv(read(out, 'production'));
+    for (const key of [
+      'OBSERVE_APP_KEY',
+      'OBSERVE_APP_SECRET',
+      'OTEL_EXPORTER_OTLP_ENDPOINT',
+      'SENTRY_DSN',
+      'ANTHROPIC_API_KEY',
+      'WEB_PUSH_VAPID_PUBLIC_KEY',
+      'TWILIO_ACCOUNT_SID',
+    ]) {
+      assert.equal(env.get(key), '', key);
+    }
+    assert.equal(env.get('PUSH_PROVIDER'), 'off');
+    assert.equal(env.get('SMS_PROVIDER'), 'off');
+    assert.doesNotMatch(errors, /VAPID|SMS_ALLOWED/);
+  });
+
+  test('flags set them; secrets are masked, nothing is printed', async () => {
+    const root = fixture();
+    const out = temp();
+    const { code, text } = await setup(
+      root,
+      out,
+      [
+        ...PRODUCTION,
+        '--admin-email',
+        'ops@acme.io',
+        '--observe',
+        '--observe-app-key',
+        'ok-123',
+        '--observe-app-secret',
+        'os-secret-value',
+        '--otel-endpoint',
+        'https://otel.acme.test:4318',
+        '--otel-headers',
+        'x-honeycomb-team=hc-secret',
+        '--sentry-dsn',
+        'https://pub@o1.ingest.sentry.io/2',
+        '--anthropic-api-key',
+        'sk-ant-test',
+        '--push',
+        '--sms',
+        '--twilio-account-sid',
+        'AC123',
+        '--twilio-auth-token',
+        'tw-token-value',
+        '--twilio-from',
+        '+15551234567',
+        '--sms-allowed-prefixes',
+        '+1, +44',
+      ],
+      { vapid },
+    );
+    assert.equal(code, 0, text);
+    const env = parseEnv(read(out, 'production'));
+    assert.equal(env.get('OBSERVE_APP_KEY'), 'ok-123');
+    assert.equal(env.get('OBSERVE_APP_SECRET'), 'os-secret-value');
+    assert.equal(
+      env.get('OTEL_EXPORTER_OTLP_ENDPOINT'),
+      'https://otel.acme.test:4318',
+    );
+    assert.equal(
+      env.get('OTEL_EXPORTER_OTLP_HEADERS'),
+      'x-honeycomb-team=hc-secret',
+    );
+    assert.equal(env.get('SENTRY_DSN'), 'https://pub@o1.ingest.sentry.io/2');
+    assert.equal(env.get('ANTHROPIC_API_KEY'), 'sk-ant-test');
+    assert.equal(env.get('PUSH_PROVIDER'), 'web-push');
+    assert.equal(env.get('WEB_PUSH_SUBJECT'), 'mailto:ops@acme.io');
+    assert.equal(env.get('SMS_PROVIDER'), 'twilio');
+    assert.equal(env.get('TWILIO_ACCOUNT_SID'), 'AC123');
+    assert.equal(env.get('TWILIO_AUTH_TOKEN'), 'tw-token-value');
+    assert.equal(env.get('TWILIO_FROM'), '+15551234567');
+    assert.equal(env.get('SMS_ALLOWED_PREFIXES'), '+1, +44');
+    for (const secret of [
+      'os-secret-value',
+      'hc-secret',
+      'sk-ant-test',
+      'tw-token-value',
+      'priv-key',
+      'pub@o1',
+    ]) {
+      assert.ok(!text.includes(secret), `${secret} printed`);
+    }
+  });
+
+  test('push: the VAPID pair is made once and kept, even by --rotate', async () => {
+    const root = fixture();
+    const out = temp();
+    const args = [
+      ...PRODUCTION,
+      '--push',
+      '--web-push-subject',
+      'https://acme.test',
+    ];
+    const first = await setup(root, out, args, { vapid });
+    assert.match(
+      first.text,
+      /Generated \d+ secrets: .*WEB_PUSH_VAPID_PRIVATE_KEY/,
+    );
+    let env = parseEnv(read(out, 'production'));
+    assert.equal(env.get('WEB_PUSH_VAPID_PUBLIC_KEY'), 'pub-key');
+    assert.equal(env.get('WEB_PUSH_VAPID_PRIVATE_KEY'), 'priv-key');
+    const other = () => ({ publicKey: 'other-pub', privateKey: 'other-priv' });
+    await setup(root, out, ['--target', 'production', '--rotate'], {
+      vapid: other,
+    });
+    env = parseEnv(read(out, 'production'));
+    assert.equal(env.get('WEB_PUSH_VAPID_PUBLIC_KEY'), 'pub-key');
+    assert.equal(env.get('WEB_PUSH_VAPID_PRIVATE_KEY'), 'priv-key');
+    // Emptied on purpose: a new pair.
+    writeFileSync(
+      path.join(out, '.env'),
+      read(out, 'production').replace(
+        /^WEB_PUSH_VAPID_PRIVATE_KEY=.*$/m,
+        'WEB_PUSH_VAPID_PRIVATE_KEY=',
+      ),
+    );
+    await setup(root, out, ['--target', 'production'], { vapid: other });
+    assert.equal(
+      parseEnv(read(out, 'production')).get('WEB_PUSH_VAPID_PRIVATE_KEY'),
+      'other-priv',
+    );
+  });
+
+  test('push: without the web-push package the keys are left out, with the way to make them', async () => {
+    const root = fixture();
+    const out = temp();
+    const { code, errors } = await setup(
+      root,
+      out,
+      [...PRODUCTION, '--push', '--web-push-subject', 'https://acme.test'],
+      { vapid: () => null },
+    );
+    assert.equal(code, 0);
+    assert.match(
+      errors,
+      /WARNING: The web-push package is not installed.*npx web-push generate-vapid-keys/,
+    );
+    assert.equal(
+      parseEnv(read(out, 'production')).get('WEB_PUSH_VAPID_PRIVATE_KEY'),
+      '',
+    );
+  });
+
+  test('push: web-push joins the providers the file names, and --no-push takes only it away', async () => {
+    const root = fixture();
+    const out = temp();
+    await setup(root, out, PRODUCTION);
+    const file = path.join(out, '.env');
+    writeFileSync(
+      file,
+      read(out, 'production').replace(
+        /^PUSH_PROVIDER=.*$/m,
+        'PUSH_PROVIDER=apns,fcm',
+      ),
+    );
+    await setup(
+      root,
+      out,
+      [
+        '--target',
+        'production',
+        '--push',
+        '--web-push-subject',
+        'https://acme.test',
+      ],
+      { vapid },
+    );
+    assert.equal(
+      parseEnv(read(out, 'production')).get('PUSH_PROVIDER'),
+      'apns,fcm,web-push',
+    );
+    await setup(root, out, ['--target', 'production', '--no-push']);
+    assert.equal(
+      parseEnv(read(out, 'production')).get('PUSH_PROVIDER'),
+      'apns,fcm',
+    );
+    writeFileSync(
+      file,
+      read(out, 'production').replace(
+        /^PUSH_PROVIDER=.*$/m,
+        'PUSH_PROVIDER=web-push',
+      ),
+    );
+    await setup(root, out, ['--target', 'production', '--no-push']);
+    assert.equal(parseEnv(read(out, 'production')).get('PUSH_PROVIDER'), 'off');
+  });
+
+  test('push: a placeholder administrator address is no default contact', async () => {
+    const root = fixture();
+    await assert.rejects(
+      setup(root, temp(), [...PRODUCTION, '--push'], { vapid }),
+      /--web-push-subject/,
+    );
+    await assert.rejects(
+      setup(
+        root,
+        temp(),
+        [...PRODUCTION, '--push', '--web-push-subject', 'ops@acme.io'],
+        { vapid },
+      ),
+      /mailto:ops@example.com or an https URL/,
+    );
+  });
+
+  test('sms: the credentials are needed; an empty prefix list is warned about; off keeps them', async () => {
+    const root = fixture();
+    await assert.rejects(
+      setup(root, temp(), [...PRODUCTION, '--sms']),
+      /--twilio-account-sid, --twilio-auth-token, --twilio-from/,
+    );
+    await assert.rejects(
+      setup(root, temp(), [
+        ...PRODUCTION,
+        '--sms',
+        '--twilio-account-sid',
+        'AC1',
+        '--twilio-auth-token',
+        't',
+        '--twilio-from',
+        'nope',
+      ]),
+      /--twilio-from: a number like/,
+    );
+    const out = temp();
+    const on = [
+      ...PRODUCTION,
+      '--sms',
+      '--twilio-account-sid',
+      'AC1',
+      '--twilio-auth-token',
+      'token-value',
+      '--twilio-from',
+      'MG0123456789abcdef0123456789abcdef',
+    ];
+    const { errors } = await setup(root, out, on);
+    assert.match(errors, /WARNING: SMS_ALLOWED_PREFIXES is empty/);
+    await setup(root, out, ['--target', 'production', '--no-sms']);
+    const env = parseEnv(read(out, 'production'));
+    assert.equal(env.get('SMS_PROVIDER'), 'off');
+    assert.equal(env.get('TWILIO_AUTH_TOKEN'), 'token-value');
+    await assert.rejects(
+      setup(root, temp(), [...on, '--sms-allowed-prefixes', '1,44']),
+      /--sms-allowed-prefixes: prefixes like \+1,\+44/,
+    );
+  });
+
+  test('observe off empties the keys of an earlier run; the questions keep the file as their default', async () => {
+    const root = fixture();
+    const out = temp();
+    await setup(root, out, [
+      ...PRODUCTION,
+      '--observe',
+      '--observe-app-key',
+      'k1',
+      '--observe-app-secret',
+      's1-value',
+    ]);
+    await setup(root, out, ['--target', 'production']);
+    assert.equal(
+      parseEnv(read(out, 'production')).get('OBSERVE_APP_KEY'),
+      'k1',
+    );
+    await setup(root, out, ['--target', 'production', '--no-observe']);
+    const env = parseEnv(read(out, 'production'));
+    assert.equal(env.get('OBSERVE_APP_KEY'), '');
+    assert.equal(env.get('OBSERVE_APP_SECRET'), '');
+  });
+
+  test('a credential kept in a file is not asked for again, and no second source is written', async () => {
+    const root = fixture();
+    const out = temp();
+    await setup(root, out, PRODUCTION);
+    // The documented Docker or Swarm secrets setup: the secrets are in files.
+    edit(out, [
+      ['OBSERVE_APP_KEY', 'k1'],
+      ['OBSERVE_APP_SECRET_FILE', '/run/secrets/observe'],
+      ['SMS_PROVIDER', 'twilio'],
+      ['TWILIO_ACCOUNT_SID', 'AC1'],
+      ['TWILIO_AUTH_TOKEN_FILE', '/run/secrets/twilio'],
+      ['TWILIO_FROM', '+15551234567'],
+    ]);
+    // Without the fix this re-run threw: "A value is needed for
+    // --observe-app-secret, --twilio-auth-token".
+    const env = await rerun(root, out);
+    assert.equal(env.get('OBSERVE_APP_KEY'), 'k1');
+    assert.equal(env.get('OBSERVE_APP_SECRET'), '');
+    assert.equal(env.get('OBSERVE_APP_SECRET_FILE'), '/run/secrets/observe');
+    assert.equal(env.get('SMS_PROVIDER'), 'twilio');
+    assert.equal(env.get('TWILIO_AUTH_TOKEN'), '');
+    assert.equal(env.get('TWILIO_AUTH_TOKEN_FILE'), '/run/secrets/twilio');
+  });
+
+  test('SMTP_URL kept in SMTP_URL_FILE: a re-run does not ask for the URL, and writes no second source', async () => {
+    const root = fixture();
+    const out = temp();
+    await setup(root, out, [
+      ...PRODUCTION,
+      '--mail',
+      'smtp',
+      '--smtp-url',
+      'smtp://relay.example.com:587',
+      '--mail-from',
+      'no-reply@example.com',
+    ]);
+    edit(out, [
+      ['SMTP_URL', ''],
+      ['SMTP_URL_FILE', '/run/secrets/smtp'],
+    ]);
+    // Before: this threw "A value is needed for --smtp-url".
+    const env = await rerun(root, out);
+    assert.equal(env.get('MAIL_TRANSPORT'), 'smtp');
+    assert.equal(env.get('SMTP_URL'), '');
+    assert.equal(env.get('SMTP_URL_FILE'), '/run/secrets/smtp');
+  });
+
+  test('a social provider whose client secret is in a file is not asked for it; another provider still is', async () => {
+    const root = fixture();
+    const out = temp();
+    await setup(root, out, [
+      ...PRODUCTION,
+      '--social',
+      'google',
+      '--social-client-id',
+      'gid',
+      '--social-client-secret',
+      'gsecret-value',
+    ]);
+    edit(out, [
+      ['GOOGLE_CLIENT_SECRET', ''],
+      ['GOOGLE_CLIENT_SECRET_FILE', '/run/secrets/google'],
+    ]);
+    // Before: this threw "A value is needed for --social-client-secret".
+    let env = await rerun(root, out);
+    assert.equal(env.get('GOOGLE_CLIENT_ID'), 'gid');
+    assert.equal(env.get('GOOGLE_CLIENT_SECRET'), '');
+    assert.equal(env.get('GOOGLE_CLIENT_SECRET_FILE'), '/run/secrets/google');
+    // The file keeps Google's secret only: GitHub's is asked, and written.
+    await assert.rejects(
+      setup(root, out, [
+        '--target',
+        'production',
+        '--social',
+        'github',
+        '--social-client-id',
+        'ghid',
+      ]),
+      /--social-client-secret/,
+    );
+    const github = await setup(root, out, [
+      '--target',
+      'production',
+      '--social',
+      'github',
+      '--social-client-id',
+      'ghid',
+      '--social-client-secret',
+      'ghsecret-value',
+    ]);
+    assert.equal(github.code, 0, `${github.text}\n${github.errors}`);
+    env = parseEnv(read(out, 'production'));
+    assert.equal(env.get('GITHUB_CLIENT_SECRET'), 'ghsecret-value');
+    assert.equal(env.get('GITHUB_CLIENT_SECRET_FILE'), '');
+    assert.equal(env.get('GOOGLE_CLIENT_SECRET_FILE'), '/run/secrets/google');
+  });
+
+  test('every other credential kept in a file is skipped the same way, and none is written beside it', async () => {
+    const root = fixture();
+    const out = temp();
+    const kept = {
+      CLOUDFLARE_API_TOKEN: 'cf-test-value',
+      MAIL_API_KEY: 'mail-key-value',
+      AWS_SECRET_ACCESS_KEY: 'aws-secret-value',
+      TURNSTILE_SECRET_KEY: 'turnstile-secret-value',
+      ANTHROPIC_API_KEY: 'sk-ant-value',
+      OTEL_EXPORTER_OTLP_HEADERS: 'x-team=key-value',
+      SENTRY_DSN: 'https://key@o1.ingest.sentry.io/1',
+    };
+    await setup(root, out, [
+      ...PRODUCTION,
+      '--mail',
+      'resend',
+      '--mail-api-key',
+      kept.MAIL_API_KEY,
+      '--mail-from',
+      'no-reply@example.com',
+      '--storage',
+      's3',
+      '--s3-bucket',
+      'files',
+      '--aws-access-key-id',
+      'AKIA1',
+      '--aws-secret-access-key',
+      kept.AWS_SECRET_ACCESS_KEY,
+      '--captcha',
+      'turnstile',
+      '--turnstile-site-key',
+      'site-key',
+      '--turnstile-secret-key',
+      kept.TURNSTILE_SECRET_KEY,
+      '--anthropic-api-key',
+      kept.ANTHROPIC_API_KEY,
+      '--otel-endpoint',
+      'https://otel.example.com',
+      '--otel-headers',
+      kept.OTEL_EXPORTER_OTLP_HEADERS,
+      '--sentry-dsn',
+      kept.SENTRY_DSN,
+    ]);
+    const first = parseEnv(read(out, 'production'));
+    for (const [name, value] of Object.entries(kept)) {
+      assert.equal(first.get(name), value, `${name} is written on a first run`);
+    }
+    // Every one of them moved to a file.
+    edit(
+      out,
+      Object.keys(kept).flatMap((name) => [
+        [name, ''],
+        [`${name}_FILE`, `/run/secrets/${name.toLowerCase()}`],
+      ]),
+    );
+    const env = await rerun(root, out);
+    for (const name of Object.keys(kept)) {
+      assert.equal(env.get(name), '', `${name} stays empty`);
+      assert.equal(
+        env.get(`${name}_FILE`),
+        `/run/secrets/${name.toLowerCase()}`,
+        `${name}_FILE stays`,
+      );
+    }
+    // Their questions are skipped; what they belong to is kept.
+    assert.equal(env.get('MAIL_TRANSPORT'), 'resend');
+    assert.equal(env.get('AWS_ACCESS_KEY_ID'), 'AKIA1');
+    assert.equal(env.get('TURNSTILE_SITE_KEY'), 'site-key');
+    assert.equal(
+      env.get('OTEL_EXPORTER_OTLP_ENDPOINT'),
+      'https://otel.example.com',
+    );
+  });
+
+  test('every secret question is skipped when its variable is kept in a _FILE, and asked when the line is empty or the file is new', () => {
+    const text = readFileSync(path.join(REPO, 'env.example'), 'utf8');
+    const tpl = parseEnv(text);
+    const base = {
+      target: 'production',
+      tpl,
+      keys: templateKeys(text),
+      hasNotes: false,
+    };
+    const asked = (id, answers, existing) =>
+      applies(
+        QUESTIONS.find((q) => q.id === id),
+        answers,
+        { ...base, existing, current: existing ?? tpl },
+      );
+    const cases = [
+      ['cloudflareApiToken', {}, 'CLOUDFLARE_API_TOKEN'],
+      ['smtpUrl', { mail: 'smtp' }, 'SMTP_URL'],
+      ['mailApiKey', { mail: 'resend' }, 'MAIL_API_KEY'],
+      ['mailApiKey', { mail: 'postmark' }, 'MAIL_API_KEY'],
+      ['awsSecretAccessKey', { storage: 's3' }, 'AWS_SECRET_ACCESS_KEY'],
+      ['awsSecretAccessKey', { mail: 'ses' }, 'AWS_SECRET_ACCESS_KEY'],
+      ['turnstileSecretKey', { captcha: 'turnstile' }, 'TURNSTILE_SECRET_KEY'],
+      ['socialClientSecret', { social: 'google' }, 'GOOGLE_CLIENT_SECRET'],
+      [
+        'socialClientSecret',
+        { social: 'microsoft' },
+        'MICROSOFT_CLIENT_SECRET',
+      ],
+      ['socialClientSecret', { social: 'github' }, 'GITHUB_CLIENT_SECRET'],
+      ['observeAppSecret', { observe: true }, 'OBSERVE_APP_SECRET'],
+      [
+        'otelHeaders',
+        { otelEndpoint: 'https://otel.example.com' },
+        'OTEL_EXPORTER_OTLP_HEADERS',
+      ],
+      ['sentryDsn', {}, 'SENTRY_DSN'],
+      ['anthropicApiKey', {}, 'ANTHROPIC_API_KEY'],
+      ['twilioAuthToken', { sms: true }, 'TWILIO_AUTH_TOKEN'],
+    ];
+    // A secret question added later must be listed here.
+    assert.deepEqual(
+      [...new Set(cases.map(([id]) => id))].sort(),
+      QUESTIONS.filter((q) => q.secret)
+        .map((q) => q.id)
+        .sort(),
+    );
+    for (const [id, answers, name] of cases) {
+      const label = `${id} (${name})`;
+      assert.equal(asked(id, answers, null), true, `${label}: first run`);
+      assert.equal(
+        asked(id, answers, new Map([[`${name}`, 'old-value']])),
+        true,
+        `${label}: the variable is set`,
+      );
+      assert.equal(
+        asked(id, answers, new Map([[`${name}_FILE`, '']])),
+        true,
+        `${label}: empty ${name}_FILE`,
+      );
+      assert.equal(
+        asked(id, answers, new Map([[`${name}_FILE`, '/run/secrets/x']])),
+        false,
+        `${label}: ${name}_FILE set`,
+      );
+    }
+    // A provider's secret is kept in its own file only.
+    assert.equal(
+      asked(
+        'socialClientSecret',
+        { social: 'github' },
+        new Map([['GOOGLE_CLIENT_SECRET_FILE', '/run/secrets/x']]),
+      ),
+      true,
+    );
+  });
+
+  test('development is not asked these: its template keeps its own lines', async () => {
+    const root = fixture();
+    const out = temp();
+    const { code, errors } = await setup(root, out, [
+      '--target',
+      'development',
+      '--observe',
+    ]);
+    assert.equal(code, 0);
+    assert.equal(errors, '');
+    const env = parseEnv(read(out, 'development'));
+    assert.equal(env.get('OBSERVE_APP_KEY'), '');
+    assert.equal(env.has('PUSH_PROVIDER'), false);
+  });
+
+  test('the real web-push package makes the pair (when installed)', async (t) => {
+    const { generateVapidKeys } = await import('./vapid.mjs');
+    const pair = generateVapidKeys();
+    if (!pair) return t.skip('web-push is not installed');
+    assert.match(pair.publicKey, /^[A-Za-z0-9_-]{87}$/);
+    assert.match(pair.privateKey, /^[A-Za-z0-9_-]{43}$/);
+  });
+
+  test('env.example: the AI key is an active empty line, with its _FILE named', () => {
+    const text = readFileSync(path.join(REPO, 'env.example'), 'utf8');
+    assert.equal(parseEnv(text).get('ANTHROPIC_API_KEY'), '');
+    assert.match(text, /^ANTHROPIC_API_KEY_FILE=$/m);
   });
 });

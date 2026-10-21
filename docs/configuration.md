@@ -45,19 +45,23 @@ them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`
 | URLs | `APP_URL` (this API), `WEB_URL` (the web app, for email links), `CORS_ORIGINS` |
 | Database | `DATABASE_URL` (required, PostgreSQL 18+, the app role), `DATABASE_OWNER_URL` (the owner: `migrate`, and the app when `MIGRATE_ON_START` is on), `DATABASE_MAINTENANCE_URL` (the maintenance role, BYPASSRLS: workers' sweeps across tenants, never api; docs/tenancy.md), `MIGRATE_ON_START`, `DATABASE_POOL_MAX` (10), `DATABASE_POOL_TIMEOUT_MS` (5000), `DATABASE_STATEMENT_TIMEOUT_MS` (30000), `DATABASE_IDLE_TX_TIMEOUT_MS` (60000); Compose: `POSTGRES_USER` (`app`, the owner), `POSTGRES_PASSWORD`, `POSTGRES_APP_USER` (`app_runtime`), `POSTGRES_APP_PASSWORD`, `POSTGRES_MAINTENANCE_USER` (`app_maintenance`), `POSTGRES_MAINTENANCE_PASSWORD`, `POSTGRES_DB` (`app`), `POSTGRES_MONITOR_USER` (`app_monitor`: the PostgreSQL exporter's role, `pg_monitor` only, NOBYPASSRLS) and `POSTGRES_MONITOR_PASSWORD` (required with `compose.monitoring.yaml`; or `DATABASE_MONITOR_URL` on a managed PostgreSQL), `POSTGRES_REPORTING_USER` (`app_reporting`: platform analytics' role, reads the `analytics` aggregates only; [tenancy.md](tenancy.md), "Platform analytics") and `POSTGRES_REPORTING_PASSWORD` (empty: no such role), `API_DATABASE_POOL_MAX` (10), `WORKER_DATABASE_POOL_MAX` (20), `POSTGRES_MAX_CONNECTIONS` (100) |
 | Redis | `REDIS_URL` (Redis 7.0 or newer: `EXPIRE NX`; checked at start, [deployment.md](deployment.md), "Redis"), `REDIS_PASSWORD` (replaces the URL's: for one in a file), `REDIS_SENTINELS`, `REDIS_SENTINEL_NAME`, `REDIS_PREFIX`, `RATE_LIMIT_STORE`, `RATE_LIMIT_MULTIPLIER` (1: every rate limit times this; the load test's stack only, [development](development.md), "Load tests": with `NODE_ENV=production`, above 1 stops the app unless `APP_ENV=loadtest`) |
-| Logs and traces | `LOG_FORMAT`, `LOG_LEVEL`, `OBSERVE_APP_KEY`, `OBSERVE_APP_SECRET` |
+| Logs and traces | `LOG_FORMAT`, `LOG_LEVEL`, `OBSERVE_APP_KEY`, `OBSERVE_APP_SECRET`, `OTEL_EXPORTER_OTLP_ENDPOINT` (OpenTelemetry, off when unset; the SDK also reads the standard `OTEL_*` variables), `OTEL_EXPORTER_OTLP_HEADERS`, `SENTRY_DSN` (Sentry, off when unset), `SENTRY_TRACES_SAMPLE_RATE` (0 to 1; unset: errors only); [deployment.md](deployment.md), "Telemetry" |
 | Metrics | `METRICS_TOKEN` (Prometheus' bearer token for `GET /metrics`, at least 16 characters; unset: 404; [deployment.md](deployment.md), "Metrics") |
 | Alerting (`compose.monitoring.yaml`, optional) | `ALERT_EMAIL_TO`, `ALERT_SMTP_URL` (default: `SMTP_URL`), `ALERT_SMTP_REQUIRE_TLS` (true), `ALERT_EMAIL_FROM` (default: `MAIL_FROM`), `ALERT_WEBHOOK_URL`, `ALERT_SLACK_WEBHOOK_URL`; `PROMETHEUS_PORT` (9090), `ALERTMANAGER_PORT` (9093), both on 127.0.0.1; `PROMETHEUS_CPUS` (0.5), `PROMETHEUS_MEMORY` (1G), `ALERTMANAGER_CPUS` (0.25), `ALERTMANAGER_MEMORY` (128M); [deployment.md](deployment.md), "Alerting" |
+| Log shipping (`compose.monitoring.yaml`, optional, off) | `COMPOSE_PROFILES` (`logs`: Loki and Alloy; `logs,grafana`: and Grafana), `LOKI_RETENTION` (720h), `GRAFANA_ADMIN_PASSWORD` (required with the `grafana` profile), `GRAFANA_PORT` (3001, on 127.0.0.1), `LOKI_CPUS` (0.5), `LOKI_MEMORY` (512M), `ALLOY_CPUS` (0.25), `ALLOY_MEMORY` (256M), `GRAFANA_CPUS` (0.5), `GRAFANA_MEMORY` (256M); [deployment.md](deployment.md), "Logs" |
 | Languages and time | `LOCALES`, `APP_TIMEZONE` |
 | Mail | `MAIL_TRANSPORT`, `MAIL_FROM`, `SMTP_URL`, `MAIL_API_KEY`, `MAIL_DIRECTORY` (`.data/mail`), `SES_ENDPOINT` (Floci) |
 | Deliverability | `SES_SNS_TOPIC_ARNS` (the SNS topics SES publishes bounces and complaints to; empty: `POST /v1/webhooks/mail/ses` refuses everything), `MAIL_SOFT_BOUNCE_THRESHOLD` (3: transient bounces before an address is suppressed), `MAIL_SOFT_BOUNCE_WINDOW_HOURS` (24: they count when the last is at most this old), `MAIL_SOFT_BOUNCE_SUPPRESSION_HOURS` (72: how long a soft-bounce suppression lasts), `SES_SNS_REQUIRE_SIGNATURE_V2` (`off`: refuse SignatureVersion 1), `POSTMARK_WEBHOOK_SECRET`, `RESEND_WEBHOOK_SECRET` and `SENDGRID_WEBHOOK_PUBLIC_KEY` (the Postmark, Resend and SendGrid webhooks; empty: refused), `MAIL_EVENTS_RETENTION_DAYS` (90: the bounce, complaint and delivery events); [deliverability.md](deliverability.md) |
 | Deployment switches | `WEBHOOKS`, `REPORTS`, `USAGE`, `REALTIME` (all `on`; [below](#deployment-switches)) |
 | Webhooks | `WEBHOOKS_DELIVERY_RETENTION_DAYS` (30: finished outgoing deliveries, with their attempt log and recorded request; [webhooks](webhooks-and-realtime.md#retention)) |
 | Background | `SCHEDULER`, `OUTBOX_RELAY`, `WEBHOOKS_WORKER`, `BULK_SYNC_LIMIT` (100: bulk runs of up to this many ids answer in the request, larger ones are queued) |
-| Notifications | `NOTIFICATIONS_DIGEST_HOUR` (8: daily digests, in each user's time zone), `NOTIFICATIONS_RETENTION_DAYS` (90: read ones), `NOTIFICATIONS_MAX_AGE_DAYS` (365: any) |
-| Push and SMS | `SMS_PROVIDER` (`off`, `twilio`, `memory`: off), `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` (secret), `TWILIO_FROM` (a number or a Messaging Service SID), `TWILIO_WEBHOOK_URL` (when a proxy changes the URL Twilio signs), `TWILIO_API_URL`; `PUSH_PROVIDER` (`off`, `web-push`, `memory`: off), `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY` (secret), `WEB_PUSH_SUBJECT`; the toll-fraud caps `SMS_ALLOWED_PREFIXES` (`+1,+44`; empty: no SMS is sent), `SMS_DAILY_LIMIT_PER_TENANT` (200), `SMS_DAILY_LIMIT_PER_PREFIX` (100), `SMS_DAILY_LIMIT_PER_USER` (10); the limits `SMS_MAX_LENGTH` (320), `PUSH_MAX_PAYLOAD_BYTES` (3500), `DEVICES_RETENTION_DAYS` (270); [notifications.md](notifications.md#push-and-sms) |
+| Notifications | `NOTIFICATIONS_DIGEST_HOUR` (8: daily digests, in each user's time zone), `NOTIFICATIONS_RETENTION_DAYS` (90: read ones), `NOTIFICATIONS_MAX_AGE_DAYS` (365: any), `MAIL_UNSUBSCRIBE_MAILTO` (empty: a `mailto:` for `List-Unsubscribe` beside the https link) |
+| Push and SMS | `SMS_PROVIDER` (`off`, `twilio`, `memory`: off), `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` (secret), `TWILIO_FROM` (a number or a Messaging Service SID), `TWILIO_WEBHOOK_URL` (when a proxy changes the URL Twilio signs), `TWILIO_API_URL`; `PUSH_PROVIDER` (comma-separated: `off`, `web-push`, `apns`, `fcm`, `memory`: off), `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY` (secret), `WEB_PUSH_SUBJECT`; `APNS_KEY_ID`, `APNS_PRIVATE_KEY` (secret), `APNS_TEAM_ID`, `APNS_BUNDLE_ID`, `APNS_API_URL`; `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY` (secret), `FCM_API_URL`, `FCM_TOKEN_URL`; the toll-fraud caps `SMS_ALLOWED_PREFIXES` (`+1,+44`; empty: no SMS is sent), `SMS_DAILY_LIMIT_PER_TENANT` (200), `SMS_DAILY_LIMIT_PER_PREFIX` (100), `SMS_DAILY_LIMIT_PER_USER` (10), `SMS_DAILY_LIMIT_PER_IP` (20); the spend cap `SMS_MONTHLY_BUDGET_MINOR` (0: none), `SMS_PRICES` (`+1=79,+44=120`), `SMS_PRICE_DEFAULT_MINOR` (0); the limits `SMS_MAX_LENGTH` (320), `PUSH_MAX_PAYLOAD_BYTES` (3500), `DEVICES_RETENTION_DAYS` (270); [notifications.md](notifications.md#push-and-sms) |
 | Attachments | `ATTACHMENT_MAX_MB` (25), `ATTACHMENT_ALLOWED_TYPES` (comma-separated MIME types, detected from the bytes; default: JPEG, PNG, GIF, WebP, PDF, docx, xlsx, pptx, plain text, CSV, zip) |
+| Avatars | `AVATAR_MAX_MB` (2): the largest picture (PNG, JPEG, WebP, GIF), [attachments.md](attachments.md#avatars-a-users-picture) |
 | AI helper | `ANTHROPIC_API_KEY` (unset: off, 503 `ai_unavailable`), `AI_BASE_URL`, `AI_MODEL` (`claude-sonnet-5-5`), `AI_MODEL_CHEAP` (`claude-haiku-5-5`), `AI_TIMEOUT_MS` (60000), `AI_MAX_OUTPUT_TOKENS` (1024), `AI_ATTEMPTS` (2), `AI_TENANT_DAILY_TOKENS` (500000; 0: no cap), `AI_CACHE_TTL_SECONDS` (3600) ([ai](ai.md)) |
+| Image attachments | `IMAGE_PROCESSING` (`on`; `off`: images are stored as uploaded), `IMAGE_MAX_PIXELS` (50000000: one frame's width × height, checked from the header), `IMAGE_TIMEOUT_MS` (30000: one conversion's limit), `IMAGE_STRIP_ORIGINALS` (`on`: an original with EXIF, GPS or XMP is replaced by a copy without; `off`: originals stay as uploaded) ([attachments](attachments.md#image-renditions)) |
+| Malware scanning | `MALWARE_SCANNER` (`off` default, `clamav`, `memory` for tests), `CLAMAV_HOST` (required with `clamav`; Compose: `clamav`), `CLAMAV_PORT` (3310), `CLAMAV_TIMEOUT_MS` (60000: one scan's limit), `MALWARE_SCAN_ATTEMPTS` (5: tries per scan) ([attachments](attachments.md), "Malware scanning") |
 | Documents | `GOTENBERG_URL` (unset: PDF documents are off, 503 `documents_unavailable`; Compose: `http://gotenberg:3000`), `GOTENBERG_TIMEOUT_MS` (30000: one render's limit), `DOCUMENTS_RENDER_ATTEMPTS` (3: tries per document) ([documents](documents.md)) |
 | Password hashing | `PASSWORD_HASH_CONCURRENCY` (2; Compose: `API_PASSWORD_HASH_CONCURRENCY` 2, `WORKER_PASSWORD_HASH_CONCURRENCY` 1), `PASSWORD_HASH_MAX_QUEUE` (20), `PASSWORD_HASH_QUEUE_TIMEOUT_MS` (5000): past them, 503 `server_busy`; the memory limit holds the heap plus 128 MiB per hash, [deployment.md](deployment.md#resource-limits) |
 | Breached passwords | `PASSWORD_BREACH_CHECK` (`on`), `PASSWORD_BREACH_API_URL` (`https://api.pwnedpasswords.com`, or a mirror), `PASSWORD_BREACH_TIMEOUT_MS` (2000), `PASSWORD_BREACH_ON_ERROR` (`allow`: fail-open; `reject`: 503), `PASSWORD_BREACH_MIN_COUNT` (1), `PASSWORD_BREACH_RECHECK_DAYS` (30: a sign-in's password is checked again after this long); [auth.md](auth.md#passwords) |
@@ -67,7 +71,7 @@ them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`
 | Revisions | `REVISIONS_RETENTION_DAYS` (365: record revisions; each record's latest stays, [revisions.md](revisions.md)) |
 | Money | `EXCHANGE_RATES_FETCH` (`on`: the ECB's reference rates every working day), `EXCHANGE_RATES_ECB_URL` (`https://www.ecb.europa.eu/stats/eurofxref`, or a mirror); [money.md](money.md) |
 | Scheduled reports | `REPORT_LINK_TTL` (`24h`: how long a report mail's download link works, at most `7d`; [reports.md](reports.md)) |
-| Accounts | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_TENANT_NAME` (the first tenant, the operators': docs/tenancy.md), `TENANCY` (`multi`; `single`: the first tenant is the only one), `SIGN_UP_ROLES` (`single`: the roles a sign-up gets, seed role keys; none by default), `INVITATION_TTL_HOURS` (168: how long an invitation to a tenant works), `TENANT_DELETION_GRACE_DAYS` (30: until an operator's tenant deletion is carried out), `SESSION_COOKIE_SECURE`, `AUTH_SIGN_UP`, `TENANT_SIGN_UP` (off; on, with `multi` and `AUTH_SIGN_UP`: a sign-up makes its own tenant and administers it, docs/tenancy.md, "Tenants made at sign-up"), `AUTH_MAGIC_LINK`, `JWT_SECRET`, `MFA_ENCRYPTION_KEYS`, `MFA_ISSUER`, `IMPERSONATION` (off: a privileged support tool, opt in), `IMPERSONATION_TTL_MINUTES` (60), `AUTH_MFA` (on; off: no new enrollments, enrolled users still asked), `API_CLIENTS` (on; off: no client routes, no keys accepted), `REAUTHENTICATION_MAX_AGE_MINUTES` (10: how long a sign-in counts for the sensitive routes), `AUDIT_RETENTION_DAYS` (400), `SOFT_DELETE_RETENTION_DAYS` (30: the recycle bins) |
+| Accounts | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_ONBOARDING` (on: the first administrator must replace a placeholder address and a generated password at the first sign-in, docs/auth.md "Administrator onboarding"), `ADMIN_TENANT_NAME` (the first tenant, the operators': docs/tenancy.md), `TENANCY` (`multi`; `single`: the first tenant is the only one), `SIGN_UP_ROLES` (`single`: the roles a sign-up gets, seed role keys; none by default), `INVITATION_TTL_HOURS` (168: how long an invitation to a tenant works), `TENANT_DELETION_GRACE_DAYS` (30: until an operator's tenant deletion is carried out), `SESSION_COOKIE_SECURE`, `SESSION_IDLE_MINUTES` (120) and `SESSION_MAX_HOURS` (12: a browser session's idle timeout and absolute lifetime, the ceiling of the tenants' `auth.sessionIdleMinutes`/`auth.sessionMaxHours`), `AUTH_SIGN_UP`, `TENANT_SIGN_UP` (off; on, with `multi` and `AUTH_SIGN_UP`: a sign-up makes its own tenant and administers it, docs/tenancy.md, "Tenants made at sign-up"), `AUTH_MAGIC_LINK`, `JWT_SECRET`, `MFA_ENCRYPTION_KEYS`, `MFA_ISSUER`, `IMPERSONATION` (off: a privileged support tool, opt in), `IMPERSONATION_TTL_MINUTES` (60), `AUTH_MFA` (on; off: no new enrollments, enrolled users still asked), `API_CLIENTS` (on; off: no client routes, no keys accepted), `REAUTHENTICATION_MAX_AGE_MINUTES` (10: how long a sign-in counts for the sensitive routes), `AUDIT_RETENTION_DAYS` (400), `SOFT_DELETE_RETENTION_DAYS` (30: the recycle bins) |
 | Passkeys | `PASSKEYS` (`on`), `PASSKEY_RP_ID` (the relying party: default `WEB_URL`'s host, else `APP_URL`'s; never change it once passkeys exist), `PASSKEY_RP_NAME` (default `SERVICE_NAME`), `PASSKEY_ORIGINS` (more origins under the RP ID), `PASSKEY_CHALLENGE_TTL_SECONDS` (120), `PASSKEY_ANDROID_APPS` (`package.name:AA:BB:…`, the signing certificate's SHA-256 fingerprint), `PASSKEY_APPLE_APPS` (`TEAMID.bundle.id`). Refused at boot: an origin outside the RP ID; in production also `localhost`, an IP address or plain http (or `PASSKEYS=off`); [auth.md](auth.md#passkeys) |
 | Bot protection | `CAPTCHA_MODE` (`off`; `always`, `after-failures`), `CAPTCHA_PROVIDER` (`turnstile`; `stub` for tests and load tests, refused in production unless `APP_ENV=loadtest`), `TURNSTILE_SITE_KEY` (public), `TURNSTILE_SECRET_KEY`, `CAPTCHA_VERIFY_URL` (Cloudflare's siteverify), `CAPTCHA_HOSTNAMES` (the widget's hosts; default: `WEB_URL`'s), `CAPTCHA_TIMEOUT_MS` (2000), `CAPTCHA_ON_ERROR` (`allow`: fail-open under `CAPTCHA_DEGRADED_LIMIT` (2) per address in the window; `reject`: 503), `CAPTCHA_FAILURES` (3), `CAPTCHA_FAILURES_WINDOW_MINUTES` (15); [auth.md](auth.md#bot-protection) |
 | Sign in with | `GOOGLE_CLIENT_ID/SECRET`, `MICROSOFT_TENANT_ID/CLIENT_ID/CLIENT_SECRET`, `GITHUB_CLIENT_ID/SECRET` (redirect URI: `<APP_URL>/v1/auth/oidc/<provider>/callback`) |
@@ -76,9 +80,9 @@ them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`
 | AWS (S3, SES) | `AWS_REGION` (also S3's default region), `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`; unset keys: the packages read `process.env` |
 | Platform keys | `IDEMPOTENCY` (`required`; `optional`: [api-conventions.md](api-conventions.md#idempotency)), `IDEMPOTENCY_KEYS`, `WEBHOOKS_ENCRYPTION_KEYS`, `DATA_ENCRYPTION_KEYS` and `BLIND_INDEX_KEYS` (encrypted columns; never created, required once a column is declared encrypted, which SSO's client secrets are: [encryption.md](encryption.md)), `WEBHOOKS_ALLOW_LOOPBACK` (development only: lets endpoints be `http://127.0.0.1` or `localhost`; [webhooks-and-realtime.md](webhooks-and-realtime.md), "A receiver on your machine") |
 | Compose | `COMPOSE_FILE`, `COMPOSE_PROJECT_NAME`, `APP_IMAGE`, `GOTENBERG_IMAGE`, `CADDY_IMAGE` (unset: built from the checkout; a published image: [deployment.md](deployment.md), "Publishing and rolling back images"; `VERIFY_IMAGES`, `VERIFY_IDENTITY_REGEXP`: [deployment.md](deployment.md), "Signing and verifying images"), `API_REPLICAS`, `WORKER_REPLICAS`, `API_CPUS`, `API_MEMORY` (768M), `API_HEAP_MB` (384), `API_PASSWORD_HASH_CONCURRENCY` (2), `WORKER_CPUS`, `WORKER_MEMORY` (1G), `WORKER_HEAP_MB` (768), `WORKER_PASSWORD_HASH_CONCURRENCY` (1), `POSTGRES_CPUS`, `POSTGRES_MEMORY`, `REDIS_PASSWORD`, `REDIS_CPUS`, `REDIS_MEMORY`, `REDIS_MAXMEMORY` (400mb); the PostgreSQL roles: the Database row |
-| Caddy | `APP_DOMAIN`, `CLOUDFLARE_API_TOKEN`, `ACME_EMAIL` |
+| Caddy | `APP_DOMAIN`, `CLOUDFLARE_API_TOKEN`, `ACME_EMAIL`; the security contact file: `SECURITY_CONTACT` (empty: no file), `SECURITY_EXPIRES`, `SECURITY_POLICY`, `SECURITY_PREFERRED_LANGUAGES` (`en`) ([deployment.md](deployment.md), "Security contact"); `MAINTENANCE_PAGE` (`off`; `on` serves the static maintenance page instead of the web app, [deployment.md](deployment.md), "Maintenance page"); `FILES_ORIGIN` (empty; space-separated https origins the browser may reach for files besides the bucket's own, such as a custom domain or CDN in front of it: added after the bucket's origin, which Caddy derives from the `S3_*` settings, to the web app's `connect-src` and `img-src`, [deployment.md](deployment.md), "The origins of files") |
 | PgBouncer (Compose, optional `compose.pgbouncer.yaml`, [deployment.md](deployment.md), "PgBouncer") | `PGBOUNCER_POOL_SIZE` (20: the app role's server connections), `PGBOUNCER_MAINTENANCE_POOL_SIZE` (3), `PGBOUNCER_MAX_CLIENT_CONN` (400), `PGBOUNCER_QUERY_WAIT_TIMEOUT` (10, seconds), `PGBOUNCER_DB_HOST` (`postgres`), `PGBOUNCER_DB_PORT` (5432), `PGBOUNCER_CPUS` (0.5), `PGBOUNCER_MEMORY` (128M) |
-| Backups (Compose, [deployment.md](deployment.md), "Backups and restore") | `BACKUP_SCHEDULE` (`0 3 * * *`, cron, UTC), `BACKUP_RETENTION_DAYS` (14: in the `backups` volume), `BACKUP_MAX_AGE_HOURS` (25: older, a catch-up runs and the service turns unhealthy), `BACKUP_CPUS` (0.5), `BACKUP_MEMORY` (512M); off the host, all optional: `BACKUP_S3_BUCKET` (empty: off), `BACKUP_S3_ENDPOINT`, `BACKUP_S3_REGION`, `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY`, `BACKUP_S3_PREFIX` (`COMPOSE_PROJECT_NAME`), `BACKUP_S3_PROVIDER` (rclone's provider name) |
+| Backups (Compose, [deployment.md](deployment.md), "Backups and restore") | `BACKUP_SCHEDULE` (`0 3 * * *`, cron, UTC), `BACKUP_RETENTION_DAYS` (14: in the `backups` volume), `BACKUP_MAX_AGE_HOURS` (25: older, a catch-up runs and the service turns unhealthy), `BACKUP_CPUS` (0.5), `BACKUP_MEMORY` (512M); off the host, all optional: `BACKUP_S3_BUCKET` (empty: off), `BACKUP_S3_ENDPOINT`, `BACKUP_S3_REGION`, `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY`, `BACKUP_S3_PREFIX` (`COMPOSE_PROJECT_NAME`), `BACKUP_S3_PROVIDER` (rclone's provider name); `BACKUP_ENCRYPTION_KEY` (empty: plaintext; age public key(s) `age1…`, space separated, or an SSH public key, to encrypt every backup; `_FILE` is read too, one recipient per line; restoring takes `BACKUP_DECRYPTION_KEY` or `BACKUP_DECRYPTION_KEY_FILE`, the identity, at restore time only); with `compose.pitr.yaml` (point-in-time recovery, off by default; it sets `BACKUP_PITR=on` and `BACKUP_WAL_DIR`): `BACKUP_WAL_ARCHIVE_TIMEOUT` (300 s) |
 | Container logs (Compose) | `DOCKER_LOG_DRIVER` (`local`; `json-file` for a shipper reading Docker's files), `DOCKER_LOG_MAX_SIZE` (20m), `DOCKER_LOG_MAX_FILE` (5): per container |
 | Example feature | `NOTE_PUBLISH_DELAY`, `EXAMPLE_SENDER_WEBHOOK_SECRET` |
 
@@ -108,10 +112,32 @@ template's text, keeping its comments, order and unknown keys).
   (a privileged support tool, default off; development's template turns it on and
   that is its default); in production also `APP_DOMAIN`, `ACME_EMAIL`,
   `CLOUDFLARE_API_TOKEN`, `WEB_URL`, `CORS_ORIGINS`, the administrator and the
-  first tenant. It asks only what the target's template has variables for.
+  first tenant, and what is off until a key is given: NestJS Observe
+  (`OBSERVE_APP_KEY`, `OBSERVE_APP_SECRET`), an OpenTelemetry collector
+  (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`), Sentry
+  (`SENTRY_DSN`), the AI helper (`ANTHROPIC_API_KEY`), Web Push
+  (`PUSH_PROVIDER`, `WEB_PUSH_SUBJECT`) and SMS through Twilio (`SMS_PROVIDER`,
+  `TWILIO_*`, `SMS_ALLOWED_PREFIXES`; with none listed no SMS is sent, and
+  the wizard warns). APNs and FCM are set in the file
+  ([notifications.md](notifications.md#push-and-sms)); a re-run keeps what the
+  file names for `PUSH_PROVIDER`. It asks only what the target's template has
+  variables for.
 - **Secrets are generated** as `env.example` says (passwords `openssl rand
 -hex 24`, keys `-base64 32`) and never printed: the first
-  administrator's password is `ADMIN_PASSWORD` in the file it wrote.
+  administrator's password is `ADMIN_PASSWORD` in the file it wrote. The
+  reporting role's password (`POSTGRES_REPORTING_PASSWORD`) is one of them,
+  and Web Push's VAPID key pair comes from the `web-push` package's own
+  generator (what `npx web-push generate-vapid-keys` runs; before
+  `pnpm install` the package is not there, and the wizard says to run that
+  command). The pair is made once and `--rotate` leaves it: every browser
+  subscription is bound to the public key, so a new pair ends them all (empty
+  both lines to start over). A secret whose `<NAME>_FILE` is set is not made
+  again in the variable, and the wizard does not ask for it either (the
+  Cloudflare token, the SMTP URL, the mail API key, the AWS secret key, the
+  Turnstile secret, a social provider's client secret, the Observe secret, the
+  collector's header, the Sentry DSN, the AI key, the Twilio auth token): the
+  variable stays as the file has it, since the app refuses to start with both
+  set.
 - **The example feature:** the last question removes `notes`
   (`pnpm feature:remove notes`, the API's and the web app's part; default
   yes in production); then run `pnpm db:generate`, `pnpm client:generate`
@@ -121,6 +147,26 @@ template's text, keeping its comments, order and unknown keys).
   data stays readable), shows the changes masked, asks before writing and
   keeps the old file as `<file>.bak`. A changed `TENANCY` or `PASSKEY_RP_ID`
   is warned about.
+- **It also merges the template.** Every variable the template gained since
+  the file was written is added with the template's default and comment, at
+  the place the template puts it, and listed in the diff as `+ NAME=default`
+  (a secret made now is masked). Without this a re-run left the new variables
+  out, silently: Compose has defaults, so `docker compose config` passed and
+  the app ran with values the owner never saw. A variable the file already
+  names, active or as a commented example, is left as it is; the example
+  feature's block (`# feature:notes`) is not brought back once removed.
+- **Checking a file: `pnpm env:check`** compares `.env` and
+  `apps/api/.env.development` (whichever exist; `--target`, `--file`) with the
+  template by name: the variables the file lacks, the ones the template does
+  not name (a typo, a removed variable, or an optional one it does not list),
+  and the REQUIRED ones that are empty, which is the one thing that exits 1
+  (`APP_DOMAIN` still the placeholder, `ACME_EMAIL`, `CLOUDFLARE_API_TOKEN`,
+  the two database passwords, `MFA_ENCRYPTION_KEYS`, `DATA_ENCRYPTION_KEYS` and
+  `BLIND_INDEX_KEYS`; a `_FILE` or a managed database's URL stands in for
+  its variable). `--strict` fails on missing variables too. It writes
+  nothing; `pnpm setup` adds what is missing. Run it before `docker compose
+  up`. CI runs `pnpm env:check --templates` (no variable set twice in a
+  template, the REQUIRED ones named) and the wizard's tests.
 - **Without a terminal:** `--yes` takes the defaults and the flags (one per
   question, `pnpm setup --help`; a required one missing is an error naming
   it), `--dry-run` prints the plan and writes nothing.
@@ -147,9 +193,11 @@ route answers the app's ordinary 404 problem.
 | `REALTIME` | No `/realtime` gateway and no socket.io Redis adapter. Everything that pushes (notifications, bulk and export progress, documents, approvals) keeps working: notifications are still stored and mailed, only the live event is dropped. |
 
 The environment is also the **ceiling of the auth policies** a tenant's
-administrators set at runtime (`auth.requireMfa`, `auth.passwordMinLength`):
+administrators set at runtime (`auth.requireMfa`, `auth.passwordMinLength`, `auth.sessionIdleMinutes`,
+`auth.sessionMaxHours`):
 a setting only tightens what the env allows, never loosens it
-(`AUTH_MFA=off` and `auth.requireMfa` can't be on). See
+(`AUTH_MFA=off` and `auth.requireMfa` can't be on; a session limit over
+`SESSION_IDLE_MINUTES`/`SESSION_MAX_HOURS` is refused). See
 [auth.md](auth.md#policies) and [settings.md](settings.md#iams-auth-policies-auth).
 
 There is no `WORKFLOWS` switch: approvals (and the notes example) start and
@@ -182,6 +230,7 @@ the way its module reads it (`FeaturesService`, `platform/features/`):
   "signUp": false,
   "magicLink": true,
   "documents": false,
+  "presignedUploads": false,
   "exchangeRates": true,
   "tenancy": "multi",
   "locales": ["en", "de", "ar", "zh", "ms"]
@@ -194,6 +243,7 @@ the way its module reads it (`FeaturesService`, `platform/features/`):
 | `impersonation`, `mfa`, `apiClients`       | `IMPERSONATION`, `AUTH_MFA`, `API_CLIENTS`                                 | their routes answer 404 `feature_off`                                                                  |
 | `passkeys`, `signUp`, `magicLink`          | `PASSKEYS`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`                              | as in `GET /v1/auth/methods` (which also lists the providers and bot protection, and needs no sign-in) |
 | `documents`                                | `GOTENBERG_URL` set                                                        | PDF routes answer 503 `documents_unavailable`                                                          |
+| `presignedUploads`                         | `STORAGE_DRIVER=s3`                                                        | the presign and complete routes answer 503 `presigned_uploads_unavailable` ([attachments](attachments.md#direct-uploads-s3)) |
 | `exchangeRates`                            | `EXCHANGE_RATES_FETCH`                                                     | no ECB rates are fetched (the money conversions have none)                                             |
 | `tenancy`                                  | `TENANCY`                                                                  | `single`: the first tenant is the only one                                                             |
 | `locales`                                  | `LOCALES`                                                                  | the languages the API answers in, the first is the default                                             |
@@ -252,7 +302,7 @@ holds it too (for code that reads it directly).
 | `ADMIN_PASSWORD` | the first administrator's, on the first start only | Nothing to rotate: change the password in the app, then remove the variable or file. |
 | `METRICS_TOKEN` | Prometheus' bearer token for `/metrics` | Change it for the app and Prometheus at once; scrapes in between get a 401. |
 | `TURNSTILE_SECRET_KEY` | verifies challenge tokens with Cloudflare (one key per widget) | Turnstile has no second key per widget: rotate it in the dashboard, put it in place and recreate the app; verifications in between fail as an outage (`CAPTCHA_ON_ERROR`). Or create a second widget with the same hosts, switch both keys, then delete the old one. |
-| `SMTP_URL`, `MAIL_API_KEY`, `POSTMARK_WEBHOOK_SECRET`, `RESEND_WEBHOOK_SECRET`, `ANTHROPIC_API_KEY`, `TWILIO_AUTH_TOKEN`, `WEB_PUSH_VAPID_PRIVATE_KEY`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_SECRET`, `GITHUB_CLIENT_SECRET`, `OBSERVE_APP_KEY`, `OBSERVE_APP_SECRET` | credentials of an outside service | Create a new credential at the provider (most allow two at once), put it in place, recreate the app, then revoke the old one. Where only one can exist (an SMTP password), the swap is a moment of failed sends, which the mail queue retries. |
+| `SMTP_URL`, `MAIL_API_KEY`, `POSTMARK_WEBHOOK_SECRET`, `RESEND_WEBHOOK_SECRET`, `ANTHROPIC_API_KEY`, `TWILIO_AUTH_TOKEN`, `WEB_PUSH_VAPID_PRIVATE_KEY`, `APNS_PRIVATE_KEY`, `FCM_PRIVATE_KEY`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_SECRET`, `GITHUB_CLIENT_SECRET`, `OBSERVE_APP_KEY`, `OBSERVE_APP_SECRET`, `OTEL_EXPORTER_OTLP_HEADERS`, `SENTRY_DSN` | credentials of an outside service | Create a new credential at the provider (most allow two at once), put it in place, recreate the app, then revoke the old one. Where only one can exist (an SMTP password), the swap is a moment of failed sends, which the mail queue retries. |
 
 Outside the app (Compose, [deployment.md](deployment.md), "Secrets in files"):
 `POSTGRES_PASSWORD` (PostgreSQL, the backup), `POSTGRES_MONITOR_PASSWORD` (`migrate`, the PostgreSQL exporter), `REDIS_PASSWORD`

@@ -132,7 +132,15 @@
     },
     "attachment-sweep": {
       "label": "附件清理",
-      "description": "每晚删除其记录已不存在的附件的文件和数据行。"
+      "description": "每晚删除其记录已不存在的附件的文件和数据行，以及从未完成的直传文件。"
+    },
+    "attachment-scan": {
+      "label": "附件恶意软件扫描",
+      "description": "扫描上传的文件是否含有恶意软件，并移除被感染的文件。"
+    },
+    "attachment-images": {
+      "label": "附件图片处理",
+      "description": "为上传的图片生成缩略图和预览图，并移除原图的元数据（EXIF、GPS）。"
     },
     "revisions-retention": {
       "label": "修订保留",

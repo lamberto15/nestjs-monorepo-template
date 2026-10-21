@@ -366,6 +366,46 @@ tests:
               summary: The exchange rates are stale
               description: "The newest stored ECB reference rates are +Inf old (+Inf: none was ever fetched). The worker's ExchangeRatesJob logs why each hourly fetch fails; conversions use the last rates meanwhile (docs/money.md)."
 
+  - name: sms refusals and spend
+    interval: 1m
+    input_series:
+      # Two workers report the same counts; a toll-fraud cap is hit from the 3rd minute, the allowlist never.
+      - series: 'sms_blocked_today{job="worker",instance="10.0.0.4:3000",reason="tenant_limit"}'
+        values: '0 0 0 4x30'
+      - series: 'sms_blocked_today{job="worker",instance="10.0.0.5:3000",reason="tenant_limit"}'
+        values: '0 0 0 4x30'
+      - series: 'sms_blocked_today{job="worker",instance="10.0.0.4:3000",reason="prefix_not_allowed"}'
+        values: '0x30'
+      # The biggest tenant is at 70 % and reaches 85 % at the 10th minute.
+      - series: 'sms_budget_used_ratio{job="worker",instance="10.0.0.4:3000"}'
+        values: '0.7x9 0.85x20'
+      - series: 'sms_budget_used_ratio{job="worker",instance="10.0.0.5:3000"}'
+        values: '0.7x9 0.85x20'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: SmsBlocked
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: SmsBlocked
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              reason: tenant_limit
+            exp_annotations:
+              summary: 'SMS refused today: tenant_limit'
+              description: '4 SMS were refused today (UTC) for "tenant_limit": a toll-fraud cap, the country allowlist (prefix_not_allowed) or the monthly spend cap (budget_exceeded). The worker logs each as an error ("SMS blocked by the toll-fraud caps"); check who asked for them before raising a limit.'
+      - eval_time: 12m
+        alertname: SmsBudgetNearCap
+        exp_alerts: []
+      - eval_time: 16m
+        alertname: SmsBudgetNearCap
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: A tenant has used 85% of its monthly SMS budget
+              description: At 100% (SMS_MONTHLY_BUDGET_MINOR) the tenant's SMS stop until next month (sms_blocked_today{reason="budget_exceeded"}). Check the spend is real (a pumping attack looks like this), then raise the budget or wait for the month to end.
+
   - name: outbox and webhooks
     interval: 1m
     input_series:
@@ -902,6 +942,68 @@ tests:
             exp_annotations:
               summary: 'The host CPU is 95% busy'
               description: The CPUs have been over 90% busy for 15 minutes. `docker stats` says which container; scale out or raise the host.
+
+  - name: the collector refuses the telemetry
+    interval: 1m
+    input_series:
+      # Refused at every minute for 10 minutes, then accepted again.
+      - series: 'telemetry_rejected_total{job="worker",instance="10.0.0.4:3000",target="otlp",status="429"}'
+        values: '0+1x10 10x20'
+      # The same refusals counted by another replica: one alert, not two.
+      - series: 'telemetry_rejected_total{job="worker",instance="10.0.0.5:3000",target="otlp",status="429"}'
+        values: '0+1x10 10x20'
+      # Never refused.
+      - series: 'telemetry_rejected_total{job="api",instance="10.0.0.2:3000",target="observe",status="401"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: TelemetryRejected
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: TelemetryRejected
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: worker
+              target: otlp
+              status: '429'
+            exp_annotations:
+              summary: 'Telemetry is rejected by otlp (429)'
+              description: 'The worker uploads to otlp were refused with HTTP 429 for 5 minutes: 401/403 a wrong or revoked key, 429 the plan is out of credits. Traces, metrics and errors are being dropped. Check OBSERVE_APP_KEY, OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_EXPORTER_OTLP_HEADERS, and the collector''s quota (docs/deployment.md, "Telemetry").'
+      - eval_time: 28m
+        alertname: TelemetryRejected
+        exp_alerts: []
+
+  - name: a collector refuses once, and the exporter then stops sending
+    interval: 1m
+    input_series:
+      # NestJS Observe counts a 401 once and pauses its uploads until the app
+      # restarts. The series is there at 0 from the start (MetricsService makes
+      # every refusal series at 0): the step from 0 to 1 is what increase() sees.
+      - series: 'telemetry_rejected_total{job="api",instance="10.0.0.2:3000",target="observe",status="401"}'
+        values: '0x4 1x25'
+      # A series that first appears at 1 has no sample before it: increase()
+      # sees no rise, so nothing fires. Why the app starts every series at 0.
+      - series: 'telemetry_rejected_total{job="api",instance="10.0.0.2:3000",target="observe",status="429"}'
+        values: '_x4 1x25'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: TelemetryRejected
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: TelemetryRejected
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: api
+              target: observe
+              status: '401'
+            exp_annotations:
+              summary: 'Telemetry is rejected by observe (401)'
+              description: 'The api uploads to observe were refused with HTTP 401 for 5 minutes: 401/403 a wrong or revoked key, 429 the plan is out of credits. Traces, metrics and errors are being dropped. Check OBSERVE_APP_KEY, OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_EXPORTER_OTLP_HEADERS, and the collector''s quota (docs/deployment.md, "Telemetry").'
+      - eval_time: 25m
+        alertname: TelemetryRejected
+        exp_alerts: []
 
   - name: a tenant nears its storage limit
     interval: 1m

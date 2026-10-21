@@ -13,7 +13,12 @@ import {
   AUTH_POLICY,
   type AuthPolicyCeiling,
   type AuthPolicySource,
+  effectivePasswordHistory,
   effectivePasswordMinLength,
+  effectiveSessionLimit,
+  SESSION_IDLE_MINUTES_LIMIT,
+  SESSION_MAX_HOURS_LIMIT,
+  type SessionCeiling,
   effectiveRequireMfa,
 } from './auth-policy.js';
 import type { RequestPrincipal } from './principal.js';
@@ -52,6 +57,50 @@ export class AuthPolicyService {
     return { AUTH_MFA: this.config.get('AUTH_MFA', { infer: true }) };
   }
 
+  /** The session lifetimes the environment allows, now. */
+  sessionCeiling(): SessionCeiling {
+    return {
+      SESSION_IDLE_MINUTES: this.config.get('SESSION_IDLE_MINUTES', {
+        infer: true,
+      }),
+      SESSION_MAX_HOURS: this.config.get('SESSION_MAX_HOURS', { infer: true }),
+    };
+  }
+
+  /**
+   * How long sessions of a tenant last, in milliseconds: the tenant's
+   * choices under the environment's ceiling (`idleMs`: without a request;
+   * `maxMs`: from the sign-in, however active). No tenant (or no source):
+   * the ceiling. `chosen` is what the tenant itself restricted, if it did
+   * (a setting left at its default is no choice): token clients' refresh
+   * families, which have no idle timeout or short lifetime of their own,
+   * are limited only by that.
+   */
+  async sessionLimits(tenantId: string | null | undefined) {
+    const ceiling = this.sessionCeiling();
+    const source = this.source;
+    const [idle, max] =
+      tenantId && source
+        ? await Promise.all([
+            source.sessionIdleMinutes?.(tenantId),
+            source.sessionMaxHours?.(tenantId),
+          ])
+        : [undefined, undefined];
+    const idleChosen =
+      idle !== undefined && idle < SESSION_IDLE_MINUTES_LIMIT
+        ? effectiveSessionLimit(ceiling.SESSION_IDLE_MINUTES, idle) * 60_000
+        : undefined;
+    const maxChosen =
+      max !== undefined && max < SESSION_MAX_HOURS_LIMIT
+        ? effectiveSessionLimit(ceiling.SESSION_MAX_HOURS, max) * 3_600_000
+        : undefined;
+    return {
+      idleMs: idleChosen ?? ceiling.SESSION_IDLE_MINUTES * 60_000,
+      maxMs: maxChosen ?? ceiling.SESSION_MAX_HOURS * 3_600_000,
+      chosen: { idleMs: idleChosen, maxMs: maxChosen },
+    };
+  }
+
   /**
    * Whether the principal must set up two-factor before anything else:
    * a user (not an API client, not an impersonation: the administrator
@@ -87,22 +136,45 @@ export class AuthPolicyService {
     if (!source) {
       return effectivePasswordMinLength([]);
     }
-    let tenantIds: readonly string[];
-    if ('userId' in owner) {
-      tenantIds = (await this.users.memberships(owner.userId)).map(
-        (membership) => membership.id,
-      );
-    } else if ('tenantIds' in owner) {
-      tenantIds = owner.tenantIds;
-    } else {
-      tenantIds = this.singleTenant.enabled
-        ? [(await this.singleTenant.tenant()).id]
-        : [];
-    }
     const chosen = await Promise.all(
-      tenantIds.map((tenantId) => source.passwordMinLength(tenantId)),
+      (await this.tenantIds(owner)).map((tenantId) =>
+        source.passwordMinLength(tenantId),
+      ),
     );
     return effectivePasswordMinLength(chosen);
+  }
+
+  /**
+   * How many of an account's last passwords (the current one included) a
+   * new one may not repeat: the strictest of its tenants' `auth.passwordHistory`,
+   * 0 (off) without a provider or a choice.
+   */
+  async passwordHistory(owner: PasswordOwner): Promise<number> {
+    const source = this.source;
+    if (!source) {
+      return effectivePasswordHistory([]);
+    }
+    const chosen = await Promise.all(
+      (await this.tenantIds(owner)).map((tenantId) =>
+        source.passwordHistory(tenantId),
+      ),
+    );
+    return effectivePasswordHistory(chosen);
+  }
+
+  /** The tenants whose policies bind this password's owner. */
+  private async tenantIds(owner: PasswordOwner): Promise<readonly string[]> {
+    if ('userId' in owner) {
+      return (await this.users.memberships(owner.userId)).map(
+        (membership) => membership.id,
+      );
+    }
+    if ('tenantIds' in owner) {
+      return owner.tenantIds;
+    }
+    return this.singleTenant.enabled
+      ? [(await this.singleTenant.tenant()).id]
+      : [];
   }
 
   /**

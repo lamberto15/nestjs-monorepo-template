@@ -78,3 +78,63 @@ app.kubernetes.io/component: {{ .component }}
     secretName: {{ include "app.secretName" . }}
     defaultMode: 0444
 {{- end -}}
+
+{{/*
+The origins the web app may reach for files, space-separated (empty: none);
+templates/web-configmap.yaml puts them in its Content-Security-Policy's
+connect-src and img-src alike, after 'self', as caddy/entrypoint.sh does with
+WEB_FILES_ORIGINS for the Compose stack. With env.STORAGE_DRIVER=s3 the browser
+PUTs a direct upload to the bucket (docs/attachments.md, "Direct uploads") and an
+<img> follows an attachment's thumbnail to its signed link ("Image renditions"),
+which a policy without the origin blocks. Each origin once, from two sources:
+- With env.STORAGE_DRIVER=s3 and env.S3_BUCKET, the bucket's origin, the one the
+  API's S3 disk signs its URLs for: env.S3_ENDPOINT, or
+  https://s3.<env.S3_REGION or AWS_REGION>.amazonaws.com, with the bucket in front
+  of the host (virtual-hosted style), or else the host with the bucket's path,
+  <scheme>://<host>/<bucket>/ (path style: env.S3_FORCE_PATH_STYLE "on", an IP
+  address as the host, or a bucket name that is not a DNS label). Never the bare
+  host: on AWS and other shared stores it serves every customer's buckets. The
+  PUT goes to /<bucket>/<key>, which the path matches, and CSP ignores a source's
+  path after a redirect, so the thumbnail's 302 to the signed link still loads.
+  Settings it cannot read fail the render.
+- web.filesOrigin: https origins the settings can't tell (a custom domain or a CDN
+  in front of the bucket). They go into the policy as written: anything but
+  https://host[:port] fails the render.
+*/}}
+{{- define "app.webFilesOrigins" -}}
+{{- $env := .Values.env -}}
+{{- $origins := list -}}
+{{- if and (eq (toString (default "" $env.STORAGE_DRIVER)) "s3") $env.S3_BUCKET -}}
+{{- $bucket := toString $env.S3_BUCKET -}}
+{{- $region := toString (default (default "" $env.AWS_REGION) $env.S3_REGION) -}}
+{{- $endpoint := toString (default "" $env.S3_ENDPOINT) -}}
+{{- if and (not $endpoint) $region -}}
+{{- $endpoint = printf "https://s3.%s.amazonaws.com" $region -}}
+{{- end -}}
+{{- if not (regexMatch "^https?://[A-Za-z0-9._:\\[\\]-]+/?$" $endpoint) -}}
+{{- fail "env.STORAGE_DRIVER is s3 and env.S3_BUCKET is set: set env.S3_REGION (or AWS_REGION), or env.S3_ENDPOINT as http(s)://host; the web app's Content-Security-Policy names the bucket's origin" -}}
+{{- end -}}
+{{- if not (regexMatch "^[A-Za-z0-9._-]+$" $bucket) -}}
+{{- fail "env.S3_BUCKET is not a bucket name (letters, digits, dots and dashes)" -}}
+{{- end -}}
+{{- $scheme := regexReplaceAll "^(https?)://.*$" $endpoint "${1}" -}}
+{{- $host := regexReplaceAll "^https?://([^/]+)/?$" $endpoint "${1}" -}}
+{{- $forced := has (toString (default "" $env.S3_FORCE_PATH_STYLE)) (list "on" "true") -}}
+{{- $ip := or (regexMatch "^\\[" $host) (regexMatch "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+(:[0-9]+)?$" $host) -}}
+{{- $label := or (regexMatch "^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$" $bucket) (and (eq $scheme "http") (regexMatch "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$" $bucket) (not (contains ".." $bucket))) -}}
+{{- if or $forced $ip (not $label) -}}
+{{- $origins = append $origins (printf "%s://%s/%s/" $scheme $host $bucket) -}}
+{{- else -}}
+{{- $origins = append $origins (printf "%s://%s.%s" $scheme $bucket $host) -}}
+{{- end -}}
+{{- end -}}
+{{- range splitList " " (default "" .Values.web.filesOrigin | trim) -}}
+{{- if . -}}
+{{- if not (regexMatch "^https://[A-Za-z0-9.:-]+$" .) -}}
+{{- fail (printf "web.filesOrigin: %q is not an https origin (https://host[:port], no path)" .) -}}
+{{- end -}}
+{{- $origins = append $origins . -}}
+{{- end -}}
+{{- end -}}
+{{- join " " (uniq $origins) -}}
+{{- end -}}

@@ -1,8 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { peopleQuery } from '@/lib/people';
 
-export type { Person } from '@/lib/people';
-
 /**
  * The tenant's active members whose name contains `term`, by name
  * (`GET /v1/people?q=`, docs/comments.md): open to every member, for the

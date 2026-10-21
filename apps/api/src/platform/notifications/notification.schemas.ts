@@ -78,6 +78,36 @@ export const channelSettingsInputSchema = z.looseObject({
   push: z.boolean().optional().describe(pushDescription),
 });
 
+const clock = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'HH:MM, 24-hour clock');
+
+/** The body of PUT /notifications/quiet-hours. */
+export const quietHoursInputSchema = z
+  .object({
+    start: clock.meta({ example: '22:00' }),
+    end: clock.meta({ example: '07:00' }),
+  })
+  .refine((value) => value.start !== value.end, {
+    path: ['end'],
+    message: 'The window must not be empty: start and end differ.',
+  });
+
+/** Your quiet hours, or null: push and SMS wait for the window to end (urgent types do not). */
+export const quietHoursViewSchema = z.object({
+  quietHours: z
+    .object({
+      start: clock,
+      end: clock,
+      timezone: z
+        .string()
+        .describe(
+          'The time zone whose clock the window follows: yours, else the deployment’s.',
+        ),
+    })
+    .nullable(),
+});
+
 /** A declared type, as the catalog shows it to this caller. */
 export const notificationTypeSchema = z.object({
   type: z.string().meta({ example: 'note.published' }),
@@ -87,6 +117,7 @@ export const notificationTypeSchema = z.object({
     .describe(
       'Its channels cannot be switched off (their frequency may change).',
     ),
+  urgent: z.boolean().describe('Push and SMS go through quiet hours at once.'),
   channels: channelSettingsSchema.describe(
     'The defaults of the channels you may set (in-app and realtime are always on).',
   ),
@@ -111,3 +142,40 @@ export const preferencesInputSchema = z
 export const testNotificationResultSchema = z.object({
   id: z.uuid().describe('The notification, delivered to you shortly.'),
 });
+
+/**
+ * The body of the one-click unsubscribe (RFC 8058 §3.1): a mail client posts
+ * the form `List-Unsubscribe=One-Click`. The web page's JSON body with the
+ * same field is read the same.
+ */
+export const unsubscribeSchema = z.object({
+  'List-Unsubscribe': z
+    .literal('One-Click')
+    .describe('Always `One-Click` (RFC 8058).'),
+});
+
+/**
+ * What an unsubscribe link stops (`GET`, the read-only twin of the POST): a
+ * notification type, or a digest. Never the person's email or id.
+ */
+export const unsubscribeDescriptionSchema = z
+  .discriminatedUnion('kind', [
+    z.object({
+      kind: z.literal('type'),
+      label: z
+        .string()
+        .nullable()
+        .describe(
+          "What the notification type is called, in the request's language. Null when the link would change nothing (the type is gone, or mandatory): the client then speaks generally.",
+        ),
+    }),
+    z.object({
+      kind: z.literal('digest'),
+      modes: z
+        .array(z.enum(['hourly', 'daily']))
+        .describe(
+          'The digests the link stands for: every type the person gets in these modes.',
+        ),
+    }),
+  ])
+  .meta({ example: { kind: 'type', label: 'Mentioned in a comment' } });

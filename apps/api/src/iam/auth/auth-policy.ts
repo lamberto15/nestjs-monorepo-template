@@ -26,20 +26,27 @@ export interface AuthPolicySource {
   requireMfa(user: UserPrincipal): Promise<boolean>;
   /** The tenant's minimum password length, if it chose one. */
   passwordMinLength(tenantId: string): Promise<number | undefined>;
+  /** How many of an account's last passwords the tenant forbids reusing, if it chose. */
+  passwordHistory(tenantId: string): Promise<number | undefined>;
   /**
    * Whether the tenant lets the deployment's operators open it with a
    * break-glass grant (docs/tenancy.md, "Break-glass"); false: it opted
    * out, and grants it has stop at once. Absent: allowed.
    */
   allowsBreakGlass?(tenantId: string): Promise<boolean>;
+  /** The tenant's idle timeout for sessions, in minutes, if it chose one. */
+  sessionIdleMinutes?(tenantId: string): Promise<number | undefined>;
+  /** The tenant's absolute session lifetime, in hours, if it chose one. */
+  sessionMaxHours?(tenantId: string): Promise<number | undefined>;
 }
 
 /** NIST SP 800-63B: the floor every password meets, whatever a tenant says. */
 export const PASSWORD_MIN_LENGTH = 12;
-/** The longest password accepted (`newPassword`, account.schemas.ts). */
-export const PASSWORD_MAX_LENGTH = 128;
 /** The highest minimum a tenant may ask for: a passphrase, still typeable. */
 export const PASSWORD_MIN_LENGTH_LIMIT = 64;
+
+/** The most passwords a tenant may forbid reusing (and so the history kept per account). */
+export const PASSWORD_HISTORY_LIMIT = 24;
 
 /** The part of the environment that caps the policies. */
 export interface AuthPolicyCeiling {
@@ -65,6 +72,67 @@ export const effectivePasswordMinLength = (
     PASSWORD_MIN_LENGTH_LIMIT,
     Math.max(
       PASSWORD_MIN_LENGTH,
+      ...chosen.filter(
+        (value): value is number =>
+          typeof value === 'number' && Number.isFinite(value),
+      ),
+    ),
+  );
+
+/** The session lifetimes the environment allows (SESSION_IDLE_MINUTES, SESSION_MAX_HOURS). */
+export interface SessionCeiling {
+  SESSION_IDLE_MINUTES: number;
+  SESSION_MAX_HOURS: number;
+}
+
+/** The shortest idle timeout a tenant may ask for: the web app warns two minutes before it. */
+export const SESSION_IDLE_MINUTES_FLOOR = 5;
+/** The longest idle timeout (a week) and absolute lifetime (30 days) a setting or the env may have. */
+export const SESSION_IDLE_MINUTES_LIMIT = 10_080;
+export const SESSION_MAX_HOURS_LIMIT = 720;
+
+/**
+ * A session limit under the ceiling: the tenant's choice when it is
+ * shorter, else the environment's. A non-number counts as no choice.
+ */
+export const effectiveSessionLimit = (
+  ceiling: number,
+  chosen: number | undefined,
+) =>
+  typeof chosen === 'number' && Number.isFinite(chosen) && chosen > 0
+    ? Math.min(ceiling, chosen)
+    : ceiling;
+
+/** Why a session limit can't be stored (over the ceiling), or undefined. */
+export function sessionCeilingRefusal(
+  ceiling: SessionCeiling,
+  key: 'sessionIdleMinutes' | 'sessionMaxHours',
+  value: unknown,
+): string | undefined {
+  if (typeof value !== 'number') {
+    return undefined;
+  }
+  if (key === 'sessionIdleMinutes' && value > ceiling.SESSION_IDLE_MINUTES) {
+    return `SESSION_IDLE_MINUTES is ${ceiling.SESSION_IDLE_MINUTES} in this deployment: a tenant may only shorten it.`;
+  }
+  if (key === 'sessionMaxHours' && value > ceiling.SESSION_MAX_HOURS) {
+    return `SESSION_MAX_HOURS is ${ceiling.SESSION_MAX_HOURS} in this deployment: a tenant may only shorten it.`;
+  }
+  return undefined;
+}
+
+/**
+ * How many of the last passwords an account may not reuse (the current one
+ * included): the strictest of the tenants it belongs to, 0 (off) when none
+ * chose, never over the limit.
+ */
+export const effectivePasswordHistory = (
+  chosen: readonly (number | undefined)[],
+) =>
+  Math.min(
+    PASSWORD_HISTORY_LIMIT,
+    Math.max(
+      0,
       ...chosen.filter(
         (value): value is number =>
           typeof value === 'number' && Number.isFinite(value),

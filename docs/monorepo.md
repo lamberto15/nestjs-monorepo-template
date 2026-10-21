@@ -89,15 +89,22 @@ first); `pnpm dev:api` or `pnpm dev:web` runs one. Every screen of the
 web app needs the API, so `dev:web` alone suits an API already running.
 
 - **Open http://localhost:5173**, not the API's port: Vite's `server.proxy`
-  (`vite.config.ts`) sends `/v1`, `/health` and `/socket.io` (`ws: true`) to
-  `http://localhost:3000` (`API_URL` in the environment points it at another
-  port: the browser tests do), so the `__Host-sid` cookie is the app's own.
-  Swagger UI stays at http://localhost:3000/api.
+  (`dev-proxy.ts`, used by `vite.config.ts`) sends `/v1`, `/health`, `/files`
+  and `/socket.io` (`ws: true`) to `http://localhost:3000` (`API_URL` in the
+  environment points it at another port: the browser tests do), so the
+  `__Host-sid` cookie is the app's own. A redirect from `/v1` to the API's own
+  address (the signed link an attachment's download, thumbnail or preview
+  answers with: `APP_URL`, `http://localhost:3000` by default) is rewritten to
+  the page's origin (`autoRewrite`), and `/files` serves it: an `<img>` could
+  not load a link on the API's port, whose responses are `same-origin` for
+  `Cross-Origin-Resource-Policy`. Swagger UI stays at http://localhost:3000/api.
 - **Signing in:** the administrator the API's first start creates
   (`ADMIN_EMAIL`, `admin@example.com` unless set; the password is
   `ADMIN_PASSWORD` in `apps/api/.env.development` when `pnpm setup` wrote it,
   otherwise logged once in the API's output). That account is in the
-  operators' tenant, which holds no demo data. For a populated app, run
+  operators' tenant, which holds no demo data. In production the first
+  sign-in is the onboarding step (docs/auth.md); locally
+  `ADMIN_ONBOARDING=off` skips it. For a populated app, run
   `pnpm db:seed:demo` and sign in as one of the members it prints
   (`<first>.<last>@demo.example.com`, passwords printed once): the
   administrator sees every screen, the editors and the viewer see what their
@@ -115,11 +122,11 @@ web app needs the API, so `dev:web` alone suits an API already running.
 
 | Area           | Routes (`src/routes`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Code                                                                                                                                                                                                                                |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Signed out     | `/sign-in` (password, magic link, passkey, the providers, SSO by email, two-factor, Turnstile when on), `/sign-up` (with `tenantSignUp` in `GET /v1/auth/methods` it also asks for the new tenant's name, sent as `tenantName` and omitted when empty; sign-in then starts in the account's only tenant), `/forgot-password`, `/reset-password`, `/magic-link`, `/verify-email`, `/accept-invitation`, `/cancel-deletion`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `components/auth`, `lib/sign-in.ts`, `lib/passkeys.ts`                                                                                                                                                                              |
+| Signed out     | `/sign-in` (password, magic link, passkey, the providers, SSO by email, two-factor, Turnstile when on), `/sign-up` (with `tenantSignUp` in `GET /v1/auth/methods` it also asks for the new tenant's name, sent as `tenantName` and omitted when empty; sign-in then starts in the account's only tenant), `/forgot-password`, `/reset-password`, `/magic-link`, `/verify-email`, `/accept-invitation`, `/cancel-deletion`, `/unsubscribe` (the mail footer's link: says which mail it stops, and a button that POSTs the token)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | `components/auth`, `lib/sign-in.ts`, `lib/passkeys.ts`                                                                                                                                                                              |
 | Account        | `/account/profile` (name, language, time zone), `/account/security` (two-factor, password, passkeys, connected sign-in providers, sessions), `/account/notifications` (notification preferences, the SMS number with its confirmation code, the push devices), `/account/preferences` (the settings a user sets for themself), `/account/privacy` (data export, consents, account deletion), `/account/watching` (the records the user watches)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | `routes/_app/account`, `components/account`, `features/notifications`, `features/settings`                                                                                                                                          |
 | Workspace      | `/notes` (list, detail with the AI helper's Summarize and Classify (`features/ai`, [ai](ai.md)), new, edit; the example), `/notifications` (inbox; the bell, live over realtime), `/approvals` (inbox and detail: approve, reject, request changes, resubmit, cancel, abandon; delegations), `/transfers` and `/transfers/import`, `/reports`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `features/*`                                                                                                                                                                                                                        |
 | Administration | `/access/users` (members, invitations, roles and grants, impersonation), `/access/roles`, `/access/teams`, `/api-clients` (keys, quotas), `/api-clients/$id` and `/api-clients/usage`, `/webhooks` (per API client: endpoints, deliveries) and `/webhooks/senders` (incoming-webhook senders), `/audit` (with sub-tenants' entries under `Access.readConsolidated`), `/sign-ins` (sign-in history, `Access.readAudit`), `/retention` (retention rules), `/settings` (values, overrides, feature flags), `/tenants` and `/tenants/$id` (operators only, multi-tenant deployments: list with a deletion-pending badge, create, rename, slug, deactivate and reactivate with `If-Match`, export the tenant's data as a file, delete it after a grace period by typing its slug, and cancel that; the operator tenant has no delete; break-glass access with `Platform.breakGlass`), `/ops` (operators only: job queues, the outbox and its dead letters, a live event log), `/mail-suppressions` (the mail suppression list: filter by address, reason and status, add an address, remove one after a confirmation; operators' tenant with `MailSuppression.view`, any tenancy), `/custom-fields` (define, order, deactivate), `/tags` (rename, recolour, describe, delete; `Access.manageTags`), `/naming-series` (Numbering: the number formats of numbered records, the default, a live preview, the counter; `Access.manageNamingSeries`), `/approval-policies` (the approvable actions: a policy's stages, approver rules, modes, conditions; reset to the code's default), `/sso` (single sign-on, `Access.manageSso`: tabs for the identity-provider connections (with each one's group-to-role mappings), the email domains, the policy (with granting and ending exemptions) and SCIM), `/legal-holds` (`Access.manageLegalHolds`: active and released holds filtered by status and subject, a hold's detail, place one on a record or a whole subject, release one with a note; [retention](retention.md)) | `features/access`, `features/api-clients`, `features/webhooks`, `features/audit`, `features/settings`, `features/tenants`, `features/ops`, `features/suppressions`, `features/custom-fields`, `features/tags`, `features/naming-series`, `features/approvals`, `features/sso`, `features/legal-holds`, `features/sign-ins`, `features/retention` |
-| Everywhere     | the search palette (Cmd/Ctrl+K), the tenant switcher, the impersonation banner, the re-authenticate dialog (step-up)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `features/search`, `components/`                                                                                                                                                                                                    |
+| Everywhere     | the search palette (Cmd/Ctrl+K), the tenant switcher, the impersonation banner, the read-only banner and the maintenance notice, the re-authenticate dialog (step-up)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `features/search`, `components/`                                                                                                                                                                                                    |
 
 ### How it's built
 
@@ -165,6 +172,18 @@ web app needs the API, so `dev:web` alone suits an API already running.
   neutral line ("If this address has an account waiting for confirmation, we
   sent a new link"); Turnstile action `resend-verification` through
   `useCaptcha`; a 429 locks the button for that address for 15 minutes.
+- **The unsubscribe page** (`routes/unsubscribe.tsx`): the "Unsubscribe" link in
+  the footer of notification and digest mail ([notifications](notifications.md),
+  "Unsubscribe") opens `/unsubscribe?token=…`, public like the other link pages
+  (`AuthLayout`, `LinkResult`). Opening it changes nothing (mail scanners follow
+  links): it only reads `GET /v1/notifications/unsubscribe/{token}` and shows what
+  the link stops above the button (the notification type's label in the UI
+  language, or the digest and its modes), keeping the generic text when that read
+  fails for any reason (a 400 included, no toast). Its button POSTs
+  `{ "List-Unsubscribe": "One-Click" }` to the same path. The API answers every
+  refusal (forged, expired, account gone) with the same 400, GET and POST alike, so
+  the page can only say "invalid or expired" (no retry); any other failure shows its
+  detail and keeps the button. Done and invalid both link on to `/account/notifications`.
 - **The breached-password alert** (`components/breached-password-banner.tsx`,
   `features/notifications/breach-alert.ts`): while the user has an unread
   `security.passwordBreached` notification (the API has no `/me` flag for
@@ -176,6 +195,44 @@ web app needs the API, so `dev:web` alone suits an API already running.
   toast if that fails), hides it; none while impersonating.
   In the list the row gets a shield icon, a tint and a "Change your password"
   link to the same page (the API sends the notification without a link).
+- **Maintenance and read-only mode** (`lib/mode.ts`, `components/mode-banner.tsx`,
+  `components/maintenance-notice.tsx`): `GET /v1/features` carries `mode`
+  ([settings](settings.md), "Maintenance and read-only mode"). The signed-in layout
+  knows it before its first paint (`_app`'s `beforeLoad` fetches the switches; a
+  failure holds nothing back) and keeps it fresh with `useModeWatch()`: when the
+  user does something (pointer, keys, scrolling) at least a minute after the last
+  answer, when the tab returns after 30 s, and at once when any request is refused
+  with 503 `read_only` or `maintenance` (`lib/errors.ts` asks again, and toasts once,
+  however many requests were refused). While it is `normal` there is **no timer**: the
+  API counts every request as activity, so a poll would keep an unattended tab signed
+  in and defeat the idle timeout ([auth](auth.md), "Session lifetime"). Only while it
+  is not `normal` it is asked every 15 s (about the `Retry-After` of the refusals, so
+  the notice turns into the app by itself); the session's absolute lifetime still ends
+  such a tab. The sign-in page does not know it (the switches need a
+  session), and sign-in works in both modes.
+  - **`read-only`:** `ModeBanner` (a status line like the other banners) and the
+    writes are off. `useWritesPaused()` disables `SubmitButton` (every TanStack form),
+    `ConfirmButton` and `ConfirmDialog`, the selection's bulk actions, the export and
+    watch buttons; the notes pages show the rest (New, Edit, Delete, Restore are
+    disabled, viewing is not). A feature's own write button does the same
+    (`const paused = useWritesPaused()`, `disabled={paused}`); one left out still
+    works, and the API refuses it with 503, which is the toast. A control whose route
+    stays open in both modes passes `allowInMaintenance` (as the API's
+    `@AllowInMaintenance()`): the confirmations of the ops panels and of the
+    operators' platform settings, which is how the mode is turned off again.
+  - **`maintenance`:** `MaintenanceNotice` replaces the whole layout (menu, page,
+    socket), so nothing asks an API that refuses everything. It offers "Check again",
+    "Sign out" and, to an operator who manages settings, "End maintenance"
+    (`DELETE /v1/settings/platform.mode/platform`). The API answers 204 whatever it
+    removed, so the notice asks for the mode afterwards: still `maintenance` (it is
+    forced by `APP_MODE`, which only the environment changes) is an error toast
+    saying so, not the success toast.
+  - **Caddy** serves a static page for the web app's files while `MAINTENANCE_PAGE=on`
+    ([deployment](deployment.md), "Maintenance page"); an installed app (the service
+    worker) opens its cached shell and shows this notice.
+  - **Tests:** `test/mode.test.tsx` (the app on msw: banner, notice, polling, the
+    operator's button), `lib/mode.test.tsx` (the controls); a component test sets the
+    mode with `renderComponent(ui, { features: { mode: 'read-only' } })`.
 - **Realtime** (`lib/realtime.tsx`): one socket per signed-in session when
   `realtime` is on, reopened when the session changes (tenant switch,
   re-authentication, impersonation); `useRealtimeEvent()` reads it. The
@@ -190,6 +247,20 @@ web app needs the API, so `dev:web` alone suits an API already running.
   `useLivePoll()` makes the poll a fallback: 1 s (2 s in lists) without one
   (`useRealtimeConnected()`), and fast again for a job whose end event came
   but which the queue still reports running. Tests play it with `fake.emit('connect')` / `emit('disconnect')`.
+- **The dashboard** (`features/dashboard`, the home page `/`): cards for the
+  approvals assigned to the user, their unread notifications, the latest audit
+  entries (`Access.readAudit`), the notes changed last and a bar chart of notes
+  created per week over eight weeks (`Note.read`), and a quick-actions card.
+  Like the menu, the features contribute them: `features/<feature>/dashboard.ts`
+  (default export `{ cards, actions }`; a card has an `id`, an `order`, optional
+  `feature`, `permission` and `wide`, and a lazy `component`; an action a `to`,
+  an i18n `label`, an `icon`), collected by `features/dashboard/registry.ts`,
+  so removing a feature takes its cards. A card without its permission or switch
+  is not rendered and asks for nothing; each asks only the existing routes
+  (`/v1/notes` with `count=true` per week, as there is no aggregate route), its
+  failures are quiet (no toast), and its texts are the feature's own namespace
+  (`dashboard.*`). The frame, rows and spinner are `features/dashboard/card.tsx`.
+
 - **Lists** (`components/list-page.tsx`): `<ListPage subject path columns
 title …>` is a server-paginated, filterable, sortable list of any subject;
   its filters, sorts, custom-field columns and tag filter come from
@@ -354,13 +425,41 @@ fields value onChange errors />` is a typed input per field (the drafts and
 
   Which panels a subject takes is the API's `capabilities` in
   `GET /v1/lists/{subject}` (from its `<item>.record.ts`), and uploads are
-  held to its `attachmentLimits` (size, types). @mentions search
+  held to its `attachmentLimits` (size, types). With
+  `presignedUploads` on (`GET /v1/features`, `STORAGE_DRIVER=s3`) the
+  dropzone sends files straight to the bucket (`uploadAttachment()` in
+  `panels/api.ts`: presign, a PUT with progress, complete) and falls back to the
+  API's multipart upload when the bucket cannot be reached
+  ([attachments](attachments.md#direct-uploads-s3)). @mentions search
   `GET /v1/people?q=` (any member) and write `@user:<id>`; authors are the
   API's `authorName` and `changedByName`. Comments and files reload on the
   realtime events `record.commented` and `record.attachments.changed`
-  (polled only without realtime). Texts are in the `records` namespace. Pass
-  `canUpdate` (the record's own `can.update`) when the page has it: the
-  panels' writes take the record's PATCH check, conditions included. Tests:
+  (polled only without realtime). A file whose malware scan is not done
+  (`scanStatus: 'pending'`, [attachments](attachments.md)) shows a
+  "Scanning…" badge and a disabled download (the API answers 409
+  `attachment_scan_pending`); the list is read again on the `scanned` event
+  and the download link appears. The scan acts as the system principal, so
+  the event reaches only the record's watchers: while a file is pending the
+  list is also read every 10 s with a connected socket (5 s without), for an
+  uploader who does not watch the record. An image (`renditionStatus`) shows
+  its `thumb` in the row, sized from `renditions.thumb` (`attachment-visual.tsx`),
+  and opens its `preview` in a dialog with the original one click away; a
+  placeholder stands in while the renditions are `pending`, and the file icon
+  for an image that `failed`, is not processed, or whose thumbnail does not
+  load. The worker acts as the system principal too, so the `processed` event
+  reaches only the watchers: a `pending` image is polled like a pending scan.
+  Thumbnails are an `<img>` on `GET /v1/attachments/{id}/download?rendition=thumb`,
+  which redirects to the disk's signed link: that link's origin must be one
+  the page may load images from (the dev proxy above; under Caddy the app's
+  own origin with the local disk, the bucket's with S3, which Caddy derives
+  from the S3 settings: [deployment](deployment.md), "The origins of files").
+  An infected file is deleted by the
+  API, so there is no rejected row: it leaves the list on `removed` or, for
+  its uploader, when the `attachment.rejected` notification arrives (a toast
+  shows its text and the list is read again). Texts are in the `records`
+  namespace. Pass `canUpdate` (the record's own `can.update`) when the page
+  has it: the panels' writes take the record's PATCH check, conditions
+  included. Tests:
   `usePanelsApi()` (`test/panels-api.ts`) serves the panels' routes for a
   test-only subject; a feature's test description spreads
   `panelsDescription()`.
@@ -505,6 +604,32 @@ CI runs these in `.github/workflows/web.yml` (pull requests touching
   summary and the reports in the `lighthouse` artifact. It audits the signed-out
   shell of the static build (no API behind it). Make it blocking by changing
   `warn` to `error` once the scores are stable.
+
+### Installable and offline (PWA)
+
+`vite-plugin-pwa` (`apps/web/vite.config.ts`, the documented `generateSW`
+setup) writes the web manifest and a Workbox service worker at build time;
+`src/main.tsx` registers it (`registerType: 'prompt'`: a new version waits
+until the user taps "Reload" in the toast, so no page is swapped under them).
+The worker **precaches the built shell only** (scripts, styles, icons) and has
+no runtime caching, so no API response (user data) is ever stored by it;
+navigations fall back to the shell except for the paths Caddy sends to the API
+(`apps/web/pwa-paths.ts`: `/v1`, `/health`, `/metrics`, `/api`, `/api-json`,
+`/api-yaml`, `/files`, `/socket.io`, `/.well-known`; a test keeps it in step
+with the Caddyfile's `@api` matcher, so an export or attachment link reaches
+the server). It is not active under `pnpm dev`.
+
+- **Icons** are generated from `public/favicon.svg`: `pnpm --filter
+  @nestjs-monorepo-template/web pwa:icons` (`@vite-pwa/assets-generator`,
+  `pwa-assets.config.ts`). Name, colours: the `manifest` in `vite.config.ts`.
+- **Install**: the user menu (`NavUser`) shows "Install the app" while the
+  browser offers it (`beforeinstallprompt`, `src/lib/pwa.ts`, listened for
+  from the first page load: the browser fires it once, before the menu
+  exists); Safari and Firefox never do, there the user adds it from the
+  browser's menu.
+- **Offline banner** (`OfflineBanner`, in the `_app` layout): shown when
+  `navigator.onLine` is false, or online with the realtime socket dropped.
+- Strings: the `pwa` namespace, in all five languages.
 
 ### Adding a page for a feature
 

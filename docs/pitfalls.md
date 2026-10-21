@@ -95,6 +95,19 @@
   Still declare such settings in a `*.env.ts` and pass them as options
   (`awsCredentials(config)`): validated, and the same in every process.
 
+- **Instrumentation must start before the libraries it patches load, and a
+  top-level `await` in the first import does not make that so.** The SDKs
+  (`core/observability/instrument.ts`) `await` their dynamic imports, but a
+  module's top-level `await` holds back only the modules that import it: the
+  other imports of `main.ts` (Nest, Express, `pg`, the whole app) were
+  evaluated while it waited, so `node dist/main` was traced by nothing while
+  the e2e suite, which starts the SDKs before it loads the app, looked fine.
+  `main.ts` loads the app with `await import()` after the SDKs; a static
+  import there brings the bug back (`node apps/api/test/telemetry-stub.mjs boot`,
+  CI's `e2e-telemetry`, starts the built app and fails on it). The SDKs also
+  run before the environment is validated, so a secret they use read from
+  its `_FILE` is read by them (`secretValue()`), not left to ConfigModule.
+
 - **`Promise.all` of two queries takes two connections** (a page and its
   count). Fine with a pool of 10; with a pool of 1 every such request waits
   for itself and gets `503 database_busy`. Inside a transaction, queries run
@@ -181,6 +194,25 @@
 - **`docker compose run -v vol:/path` can't make a read-only mount
   writable** (the service's `:ro` wins): mount the volume again at another
   path (`-v app_storage:/restore`, as the file restore does).
+
+- **A `read_only: true` service takes only file secrets and configs.**
+  Compose mounts a secret or config that is a `file:` and *copies* one that
+  comes from a variable (`environment:`) or inline text (`content:`) into the
+  container, which Compose refuses for a read-only service (Docker would
+  too: `docker cp` into a read-only root filesystem fails): `docker compose
+  up` stops with "cannot create secret … in read-only service …: `file` is
+  the sole supported option", and `docker compose config` doesn't show it.
+  That is why Prometheus (its token comes from `METRICS_TOKEN`) is the one
+  hardened service that is not read-only
+  ([deployment.md](deployment.md#container-hardening)). A new hardened
+  service takes its secrets as files, or its settings from a mounted file.
+
+- **A tmpfs over an image directory belongs to root.** The mode of the
+  directory is kept (runc copies it), the owner is not: a service that runs
+  as another user and writes there gets "Permission denied" (ClamAV's
+  `/var/log/clamav`, which the image gives to `clamav`). Name the owner in
+  the `tmpfs:` line: `/var/log/clamav:size=8m,uid=100,gid=101`, as
+  Gotenberg's `/home/gotenberg` does. `/tmp` is world-writable already.
 
 - **`/metrics` behind the rate limiter went dark with Redis.** The limiter
   counts in Redis, and ioredis queues commands while Redis is away, so every

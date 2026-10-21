@@ -11,13 +11,19 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppSidebar } from '@/components/app-sidebar';
 import { BreachedPasswordBanner } from '@/components/breached-password-banner';
+import { OfflineBanner } from '@/components/offline-banner';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
+import { MaintenanceNotice } from '@/components/maintenance-notice';
+import { ModeBanner } from '@/components/mode-banner';
+import { SessionIdleWarning } from '@/components/session-idle-warning';
 import { UnverifiedBanner } from '@/components/unverified-banner';
 import { SearchPalette } from '@/features/search/palette';
 import { NotificationsBell } from '@/features/notifications/bell';
 import { languages } from '@/i18n';
+import { BrandTheme } from '@/lib/branding';
+import { useModeWatch } from '@/lib/mode';
 import { RealtimeProvider } from '@/lib/realtime';
-import { meQuery, saveLanguageKey } from '@/lib/session';
+import { featuresQuery, meQuery, saveLanguageKey } from '@/lib/session';
 
 // The signed-in app. Nobody signed in: to sign-in, and back here afterwards.
 export const Route = createFileRoute('/_app')({
@@ -29,11 +35,29 @@ export const Route = createFileRoute('/_app')({
         search: { redirect: location.href },
       });
     }
+    // The first administrator must replace the placeholder email and the
+    // generated password first (403 `onboarding_required` elsewhere). The
+    // onboarding page also offers two-factor, so it comes before the next
+    // rule: both pending, it is where the user is, not sent back and forth.
+    if (me.onboardingRequired && location.pathname !== '/onboarding') {
+      throw redirect({ to: '/onboarding' });
+    }
     // A tenant that requires two-factor restricts the session until the
     // user sets it up (403 `mfa_enrollment_required` elsewhere).
-    if (me.mfaEnrollmentRequired && location.pathname !== '/account/security') {
+    if (
+      me.mfaEnrollmentRequired &&
+      location.pathname !== '/account/security' &&
+      location.pathname !== '/onboarding'
+    ) {
       throw redirect({ to: '/account/security' });
     }
+    // The deployment's mode comes with the switches: known before the first
+    // paint, so a deployment in maintenance never flashes a page of failed
+    // requests. A failure is no reason to hold the app back (the layout asks
+    // again, and the error handler says what went wrong).
+    await context.queryClient
+      .ensureQueryData(featuresQuery)
+      .catch(() => undefined);
     return { me };
   },
   component: AppLayout,
@@ -41,13 +65,24 @@ export const Route = createFileRoute('/_app')({
 
 function AppLayout() {
   useSavedLanguage();
+  const mode = useModeWatch();
+  // Maintenance: the API refuses everything, so no page, menu or socket
+  // would work; one notice instead (it asks nothing but the mode).
+  if (mode === 'maintenance') {
+    return <MaintenanceNotice />;
+  }
   return (
     <TooltipProvider>
+      {/* The tenant's colour on the theme; read again after a tenant switch. */}
+      <BrandTheme />
       <RealtimeProvider>
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
+            <OfflineBanner />
             <ImpersonationBanner />
+            <ModeBanner />
+            <SessionIdleWarning />
             <UnverifiedBanner />
             <BreachedPasswordBanner />
             <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">

@@ -1,6 +1,7 @@
 import type { ConfigService } from '@nestjs/config';
 import type { PdfRenderer } from '../documents/pdf-renderer.js';
 import type { AiProvider } from '../ai/ai-provider.js';
+import type { ModeService } from '../mode/mode.service.js';
 import { FeaturesService } from './features.service.js';
 
 const SWITCHES = ['REALTIME', 'WEBHOOKS', 'REPORTS', 'USAGE'] as const;
@@ -19,6 +20,7 @@ function service(
     AUTH_SIGN_UP: false,
     AUTH_MAGIC_LINK: true,
     EXCHANGE_RATES_FETCH: true,
+    STORAGE_DRIVER: 'local',
     TENANCY: 'multi',
     LOCALES: ['en', 'de'],
     ...env,
@@ -32,6 +34,7 @@ function service(
       enabled: documents,
     } as unknown as PdfRenderer,
     { enabled: ai } as unknown as AiProvider,
+    { current: () => 'normal' } as unknown as ModeService,
   );
 }
 
@@ -63,8 +66,10 @@ describe('FeaturesService', () => {
       signUp: false,
       magicLink: true,
       documents: false,
+      presignedUploads: false,
       ai: false,
       exchangeRates: true,
+      mode: 'normal',
       tenancy: 'multi',
       locales: ['en', 'de'],
     });
@@ -116,5 +121,16 @@ describe('FeaturesService', () => {
   it('says ai is on while the AI provider is (ANTHROPIC_API_KEY is set)', () => {
     expect(service({}, false, true).current().ai).toBe(true);
     expect(service({}, false, false).current().ai).toBe(false);
+  });
+
+  it('says presignedUploads are on with the S3 driver only (the routes refuse the others)', () => {
+    expect(service({ STORAGE_DRIVER: 's3' }).current().presignedUploads).toBe(
+      true,
+    );
+    for (const driver of ['local', 'memory']) {
+      expect(
+        service({ STORAGE_DRIVER: driver }).current().presignedUploads,
+      ).toBe(false);
+    }
   });
 });

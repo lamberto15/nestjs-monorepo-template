@@ -166,8 +166,16 @@ reservations, which are unset: it doesn't place tasks by their limits.
 - The backup service's healthcheck is off: Swarm would kill an unhealthy
   container, and with it a running backup. Check it with
   `docker exec <container> backup-health`, or alert on the logs.
-- Gotenberg's `security_opt` has no Swarm equivalent and is dropped; its other
-  hardening (read-only, no capabilities, internal network) is kept.
+- `security_opt: no-new-privileges` (Gotenberg and every other service,
+  [deployment.md](deployment.md), "Container hardening") has no Swarm
+  equivalent and is dropped; the rest of the hardening (read-only, tmpfs,
+  `cap_drop`/`cap_add`, Gotenberg's internal network) is kept. It needs
+  Docker 27 or newer, whose services accept capabilities.
+- `tmpfs:` is ignored by `docker stack deploy`, which would leave a
+  read-only service with no writable `/tmp`: the script turns each entry
+  into a `type: tmpfs` volume (tools/deploy/render.mjs). The size is kept;
+  Gotenberg's `uid` and `gid` have no Swarm equivalent, so its home is
+  writable by anyone.
 - Secrets changes need the script (or `docker stack deploy`) to run again.
 - The measurements below are from a one-node swarm on a laptop.
 

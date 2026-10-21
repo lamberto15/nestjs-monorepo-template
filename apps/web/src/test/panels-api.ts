@@ -39,6 +39,16 @@ export const EVERY_PANEL: PanelCapabilities = {
   revisions: true,
 };
 
+/** The object store's origin, in the tests of direct uploads. */
+const STORE = 'https://files.example.test';
+
+/** What a bucket with the CORS rule the docs ask for answers (the browser enforces it). */
+const BUCKET_CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'PUT',
+  'access-control-allow-headers': '*',
+};
+
 export const ATTACHMENT_LIMITS = {
   maxBytes: 25 * 1024 * 1024,
   maxMb: 25,
@@ -70,6 +80,14 @@ export function panelsDescription(
     attachmentLimits: all.attachments ? attachmentLimits : null,
   };
 }
+
+/** An image's smaller copy, as the API lists it (`renditions.thumb`, `renditions.preview`). */
+export type TestRendition = {
+  width: number;
+  height: number;
+  size: number;
+  contentType: string;
+};
 
 type Comment = {
   id: string;
@@ -132,12 +150,30 @@ export function panelHandlers(
       contentType: string;
       uploadedBy: string;
       locked?: boolean;
+      /** `pending` while the malware scan runs; `clean` unless given. */
+      scanStatus?: 'pending' | 'clean';
+      /** An image's processing (null, not an image, unless given). */
+      renditionStatus?: 'pending' | 'ready' | 'failed' | null;
+      /** Empty until `renditionStatus` is `ready`. */
+      renditions?: { thumb?: TestRendition; preview?: TestRendition };
     }[];
     tags?: { id: string; name: string; color: string | null }[];
     revisions?: TestRevision[];
     /** The ETag the restore must carry; another is a 412. */
     restoreEtag?: string;
     uploadStatus?: number;
+    /** What an upload is stored as: `pending` as with MALWARE_SCANNER on. */
+    uploadScanStatus?: 'pending' | 'clean';
+    /**
+     * Direct uploads (`presignedUploads`): how `…/attachments/presign` answers
+     * (an error status and code, or a signed URL) and what the object store
+     * does with the PUT (`unreachable`: no answer, as a bucket without a CORS
+     * rule gives the browser; `refused`: a 403, as an expired link gets).
+     */
+    direct?: {
+      presign?: { status: number; code: string };
+      store?: 'ok' | 'unreachable' | 'refused';
+    };
   } = {},
 ) {
   const { subject, path } = options.record ?? TEST_RECORD;
@@ -148,6 +184,10 @@ export function panelHandlers(
     edited: [] as { commentId: string; body: unknown }[],
     removedComments: [] as string[],
     uploaded: [] as { name: string; type: string; size: number }[],
+    /** Direct uploads: what was announced, what the store received, what was completed. */
+    presigned: [] as { name: string; size: number; contentType: string }[],
+    stored: [] as { url: string; type: string | null; size: number }[],
+    completed: [] as string[],
     removedAttachments: [] as string[],
     tagged: [] as { id: string; tagIds: string[] }[],
     tagsCreated: [] as unknown[],
@@ -157,6 +197,28 @@ export function panelHandlers(
     peopleQueries: [] as string[],
     /** How often the test-only subject's `GET /v1/lists/{subject}` was asked. */
     described: 0,
+    /** How often the attachments were listed. */
+    attachmentListings: 0,
+    /** The scan of a pending file ends clean (the next listing shows it). */
+    scanClean(id: string) {
+      attachments.find((a) => a.id === id)!.scanStatus = 'clean';
+    },
+    /** The worker made an image's renditions (the next listing shows them). */
+    processed(
+      id: string,
+      renditions: { thumb: TestRendition; preview: TestRendition },
+    ) {
+      const image = attachments.find((a) => a.id === id)!;
+      image.renditionStatus = 'ready';
+      image.renditions = renditions;
+    },
+    /** The scan flags it: the API deletes the file and its row. */
+    scanInfected(id: string) {
+      attachments.splice(
+        attachments.findIndex((a) => a.id === id),
+        1,
+      );
+    },
   };
   const comments: Comment[] = (options.comments ?? []).map((c, i) => ({
     id: `c${i}`,
@@ -172,8 +234,12 @@ export function panelHandlers(
     updatedAt: '2026-10-17T09:30:00.000Z',
     ...c,
   }));
-  const attachments = [...(options.attachments ?? [])];
+  // Copies: scanClean() changes an item, which a test's shared fixture must not see.
+  const attachments = (options.attachments ?? []).map((a) => ({ ...a }));
   const revisions = options.revisions ?? [];
+  /** The file the last presign announced: what its completion attaches. */
+  let announced:
+    { name: string; size: number; contentType: string } | undefined;
   const page = (items: unknown[]) =>
     HttpResponse.json({ items, nextCursor: null });
 
@@ -189,12 +255,30 @@ export function panelHandlers(
           }),
         ]),
     http.get('/v1/people', ({ request }) => {
-      const q = new URL(request.url).searchParams.get('q') ?? '';
+      const query = new URL(request.url).searchParams;
+      const q = query.get('q') ?? '';
+      const keys = query.get('key')?.split(',');
+      // `?key=` names these keys (an author's picture, the comments' names); `?q=` searches.
+      if (keys) {
+        return HttpResponse.json({
+          items: [MAYA, ...(options.people ?? [])]
+            .filter((p) => keys.includes(`user:${p.id}`))
+            .map((p) => ({
+              key: `user:${p.id}`,
+              name: p.name,
+              avatarUrl: null,
+            })),
+        });
+      }
       calls.peopleQueries.push(q);
       return HttpResponse.json({
         items: (options.people ?? [])
           .filter((p) => p.name.toLowerCase().includes(q.toLowerCase()))
-          .map((p) => ({ key: `user:${p.id}`, name: p.name })),
+          .map((p) => ({
+            key: `user:${p.id}`,
+            name: p.name,
+            avatarUrl: null,
+          })),
       });
     }),
     http.get('/v1/tags', () => page(options.tags ?? [])),
@@ -251,18 +335,22 @@ export function panelHandlers(
       );
       return new HttpResponse(null, { status: 204 });
     }),
-    http.get(`${route}/attachments`, () =>
-      page(
+    http.get(`${route}/attachments`, () => {
+      calls.attachmentListings += 1;
+      return page(
         attachments.map((a) => ({
           subject,
           recordId: 'x',
           locked: false,
+          scanStatus: 'clean',
+          renditionStatus: null,
+          renditions: {},
           createdAt: '2026-10-17T09:40:00.000Z',
           updatedAt: '2026-10-17T09:40:00.000Z',
           ...a,
         })),
-      ),
-    ),
+      );
+    }),
     http.post(`${route}/attachments`, async ({ request }) => {
       if (options.uploadStatus && options.uploadStatus >= 400) {
         return problem(options.uploadStatus, 'unsupported_media_type');
@@ -281,6 +369,71 @@ export function panelHandlers(
         size: file.size,
         contentType: file.type,
         uploadedBy: `user:${signedInUser.user.id}`,
+        scanStatus: options.uploadScanStatus ?? 'clean',
+      };
+      attachments.push(added);
+      return HttpResponse.json(added, { status: 201 });
+    }),
+    http.post(`${route}/attachments/presign`, async ({ request }) => {
+      const body = (await request.json()) as {
+        name: string;
+        size: number;
+        contentType: string;
+      };
+      calls.presigned.push(body);
+      const refusal = options.direct?.presign;
+      if (refusal) {
+        return problem(refusal.status, refusal.code);
+      }
+      announced = body;
+      return HttpResponse.json(
+        {
+          uploadId: `u${calls.presigned.length}`,
+          url: `${STORE}/tenants/t/attachments/u${calls.presigned.length}?X-Amz-Signature=sig`,
+          method: 'PUT',
+          headers: { 'content-type': body.contentType },
+          expiresAt: '2026-10-17T10:10:00.000Z',
+        },
+        { status: 201 },
+      );
+    }),
+    // The object store, another origin: the signed URL is the credential. jsdom
+    // does what a browser does with a cross-origin PUT carrying a Content-Type:
+    // a preflight, which the bucket's CORS rules (docs/attachments.md) answer.
+    http.options(`${STORE}/*`, () => {
+      if ((options.direct?.store ?? 'ok') === 'unreachable') {
+        return HttpResponse.error();
+      }
+      return new HttpResponse(null, { status: 200, headers: BUCKET_CORS });
+    }),
+    http.put(`${STORE}/*`, async ({ request }) => {
+      const behaviour = options.direct?.store ?? 'ok';
+      if (behaviour === 'unreachable') {
+        return HttpResponse.error();
+      }
+      if (behaviour === 'refused') {
+        return new HttpResponse(
+          '<Error><Code>SignatureDoesNotMatch</Code></Error>',
+          { status: 403, headers: BUCKET_CORS },
+        );
+      }
+      calls.stored.push({
+        url: request.url,
+        type: request.headers.get('content-type'),
+        size: (await request.text()).length,
+      });
+      return new HttpResponse(null, { status: 200, headers: BUCKET_CORS });
+    }),
+    http.post(`${route}/attachments/complete`, async ({ request }) => {
+      const body = (await request.json()) as { uploadId: string };
+      calls.completed.push(body.uploadId);
+      const added = {
+        id: `a${attachments.length}`,
+        name: announced!.name,
+        size: announced!.size,
+        contentType: announced!.contentType,
+        uploadedBy: `user:${signedInUser.user.id}`,
+        scanStatus: options.uploadScanStatus ?? 'clean',
       };
       attachments.push(added);
       return HttpResponse.json(added, { status: 201 });

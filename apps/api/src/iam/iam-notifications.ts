@@ -4,7 +4,9 @@ import type { Transaction } from '../core/database/drizzle.js';
 /**
  * What IAM tells people about their own account's security (texts:
  * `i18n/<locale>/notifications.json`, under `security`). All mandatory:
- * the recipient may change when the mail goes, never switch it off.
+ * the recipient may change when the mail goes, never switch it off. All but
+ * the API key's are `urgent`: a push or text of a sign-in or a change to the
+ * account goes through quiet hours.
  * Handed to the platform in app.module.ts
  * (`PlatformModule.forRoot({ notifications: [...IAM_NOTIFICATIONS, …] })`),
  * which checks them like any other declaration.
@@ -19,6 +21,7 @@ export const IAM_NOTIFICATIONS = [
     type: 'security.newSignIn',
     channels: { email: 'immediate' },
     mandatory: true,
+    urgent: true,
     data: z.object({
       device: z.string(),
       ip: z.string(),
@@ -30,6 +33,7 @@ export const IAM_NOTIFICATIONS = [
     type: 'security.passwordChanged',
     channels: { email: 'immediate' },
     mandatory: true,
+    urgent: true,
     data: z.object({ via: z.enum(['change', 'reset']), ip: z.string() }),
   },
   {
@@ -38,6 +42,7 @@ export const IAM_NOTIFICATIONS = [
     type: 'security.passwordBreached',
     channels: { email: 'immediate' },
     mandatory: true,
+    urgent: true,
     data: z.object({ at: z.iso.datetime(), ip: z.string() }),
   },
   {
@@ -45,6 +50,7 @@ export const IAM_NOTIFICATIONS = [
     type: 'security.mfaChanged',
     channels: { email: 'immediate' },
     mandatory: true,
+    urgent: true,
     data: z.object({ enabled: z.boolean(), ip: z.string() }),
   },
   {
@@ -52,6 +58,7 @@ export const IAM_NOTIFICATIONS = [
     type: 'security.passkeyAdded',
     channels: { email: 'immediate' },
     mandatory: true,
+    urgent: true,
     data: z.object({ name: z.string(), ip: z.string() }),
   },
   {
@@ -59,6 +66,7 @@ export const IAM_NOTIFICATIONS = [
     type: 'security.passkeyRemoved',
     channels: { email: 'immediate' },
     mandatory: true,
+    urgent: true,
     data: z.object({ name: z.string(), ip: z.string() }),
   },
   {
@@ -78,6 +86,7 @@ export const IAM_NOTIFICATIONS = [
     type: 'security.breakGlassStarted',
     channels: { email: 'immediate' },
     mandatory: true,
+    urgent: true,
     data: z.object({
       operator: z.string(),
       reason: z.string(),

@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  SESSION_IDLE_MINUTES_FLOOR,
+  SESSION_IDLE_MINUTES_LIMIT,
+  SESSION_MAX_HOURS_LIMIT,
+} from './auth/auth-policy.js';
 import { TURNSTILE_VERIFY_URL } from './captcha/captcha.providers.js';
 import {
   baseUrl,
@@ -15,6 +20,15 @@ export const iamEnv = z.object({
   ADMIN_EMAIL: withDefault('admin@example.com'),
   /** Unset: a password is generated and logged once. */
   ADMIN_PASSWORD: secret(optional()),
+  /**
+   * `on`: the first administrator must replace a placeholder ADMIN_EMAIL
+   * (`admin@example.com`) with a real, verified address and a generated
+   * password with their own before anything else (docs/auth.md,
+   * "Administrator onboarding"). `off` (tests, scripted installs): never.
+   * Read when the administrator is seeded, and at every start for one still
+   * on the placeholder address (flagged for the email step).
+   */
+  ADMIN_ONBOARDING: flag('on'),
   /**
    * The first tenant, made with the first administrator: the deployment's
    * operator tenant (docs/tenancy.md). Its handle (`slug`) comes from the name.
@@ -35,6 +49,30 @@ export const iamEnv = z.object({
   SIGN_UP_ROLES: list(),
   /** Off only for tests over plain HTTP; the cookie is then named "sid". */
   SESSION_COOKIE_SECURE: flag('on'),
+  /**
+   * A browser session ends after this many minutes without a request. The
+   * deployment's ceiling: a tenant's `auth.sessionIdleMinutes` may only
+   * shorten it (docs/auth.md, "Policies"). At least 5, so the web app can
+   * warn before it ends.
+   */
+  SESSION_IDLE_MINUTES: z.coerce
+    .number()
+    .int()
+    .min(SESSION_IDLE_MINUTES_FLOOR)
+    .max(SESSION_IDLE_MINUTES_LIMIT)
+    .default(120),
+  /**
+   * A browser session ends this many hours after its sign-in, however
+   * active. The deployment's ceiling: a tenant's `auth.sessionMaxHours` may
+   * only shorten it, and it shortens token clients' refresh-token families
+   * too (which otherwise last 90 days).
+   */
+  SESSION_MAX_HOURS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(SESSION_MAX_HOURS_LIMIT)
+    .default(12),
 
   /**
    * Anyone may create an account (POST /auth/sign-up, and a first sign-in

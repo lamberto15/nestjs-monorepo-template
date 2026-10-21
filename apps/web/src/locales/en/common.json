@@ -6,10 +6,6 @@
     "platform": "Platform",
     "dashboard": "Dashboard"
   },
-  "dashboard": {
-    "title": "Dashboard",
-    "description": "Your overview will appear here."
-  },
   "auth": {
     "signIn": {
       "title": "Sign in",
@@ -122,6 +118,20 @@
       "submit": "Cancel the deletion",
       "done": "The deletion is cancelled: your account stays."
     },
+    "unsubscribe": {
+      "title": "Unsubscribe from email",
+      "description": "Confirm that you no longer want this email",
+      "hint": "You will stop getting this kind of email. Emails we must send about your account and its security still reach you, and you choose what you receive in your notification settings.",
+      "hintType": "You will stop getting “{{label}}” emails. Emails we must send about your account and its security still reach you, and you choose what you receive in your notification settings.",
+      "hintDigest": "You will stop getting the emails you receive as a digest ({{modes, list}}). Emails we must send about your account and its security still reach you, and you choose what you receive in your notification settings.",
+      "modes": {
+        "hourly": "hourly",
+        "daily": "daily"
+      },
+      "submit": "Unsubscribe",
+      "done": "You are unsubscribed: we won't send you this kind of email again.",
+      "invalid": "This link is invalid or has expired. Open it again from the email, or choose what you receive in your notification settings."
+    },
     "links": {
       "missingToken": "This link is incomplete. Open it again from the email.",
       "backToSignIn": "Back to sign in"
@@ -155,6 +165,11 @@
       "cancel": "Cancel",
       "none": "Single sign-on isn’t available for that address. Sign in another way, or ask your administrator.",
       "failed": "We couldn’t check that address. Try again in a moment."
+    },
+    "idle": {
+      "title": "Your session is about to end",
+      "description": "You have been inactive. You will be signed out in {{time}}.",
+      "stay": "Stay signed in"
     }
   },
   "account": {
@@ -167,6 +182,16 @@
       "emailHint": "Your sign-in address.",
       "timezone": "Time zone",
       "saved": "Profile saved."
+    },
+    "avatar": {
+      "title": "Picture",
+      "choose": "Choose a picture",
+      "change": "Change picture",
+      "remove": "Remove",
+      "hint": "PNG, JPEG, WebP or GIF. Shown to the members of your organizations.",
+      "saved": "Picture saved.",
+      "removed": "Picture removed.",
+      "rejected": "{{name}} was not used: {{reason}}"
     },
     "security": {
       "title": "Security"
@@ -262,6 +287,12 @@
     "title": "Page not found",
     "description": "The page you are looking for does not exist.",
     "back": "Back to the dashboard"
+  },
+  "routeError": {
+    "title": "Something went wrong",
+    "description": "This page failed to load. The rest of the app still works.",
+    "reportId": "Report ID: {{id}}",
+    "retry": "Try again"
   },
   "preferences": {
     "open": "Preferences",
@@ -411,5 +442,23 @@
     "searching": "Searching…",
     "none": "Nobody matches.",
     "failed": "The search failed."
+  },
+  "onboarding": {
+    "title": "Finish setting up your account",
+    "description": "This administrator account still has the placeholder email or the generated password. Replace them to continue.",
+    "emailTitle": "A real email address",
+    "emailDescription": "Reset links and security alerts go here. We send a link to confirm it.",
+    "email": "New email address",
+    "currentPassword": "Current password",
+    "emailSubmit": "Send the confirmation link",
+    "emailSent": "We sent a link to {{email}}. Open it, then come back here.",
+    "emailWaiting": "Waiting for {{email}} to be confirmed.",
+    "check": "I confirmed it",
+    "resend": "Send the link again",
+    "optionalTitle": "Optional: more protection",
+    "optionalDescription": "Set up two-factor or a passkey now, or later under Account, Security.",
+    "done": "Continue to the app",
+    "doneHint": "All required steps are done.",
+    "redirected": "Finish setting up the administrator account before you continue."
   }
 }

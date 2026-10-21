@@ -10,6 +10,7 @@ import { ThemeProvider } from '@nestjs-monorepo-template/ui/components/theme-pro
 import { Toaster } from '@nestjs-monorepo-template/ui/components/sonner';
 import { NotFound } from '@/components/not-found';
 import { ReauthDialog } from '@/components/reauth-dialog';
+import { RouteError } from '@/components/route-error';
 import { createQueryClient } from '@/lib/errors';
 import { createSession } from '@/lib/session';
 import { routeTree } from '@/routeTree.gen';
@@ -23,6 +24,7 @@ export function createAppRouter(
     routeTree,
     context: { queryClient, session: createSession(queryClient) },
     defaultNotFoundComponent: NotFound,
+    defaultErrorComponent: RouteError,
     defaultPreload: 'intent',
     ...(history && { history }),
   });
@@ -46,6 +48,11 @@ export function createApp(history?: RouterHistory) {
           current.state.matches.some((match) => match.routeId === '/_app'),
         toSignIn: (redirect) =>
           void current.navigate({ to: '/sign-in', search: { redirect } }),
+        toOnboarding: () => {
+          if (current.state.location.pathname !== '/onboarding') {
+            void current.navigate({ to: '/onboarding' });
+          }
+        },
         toMfaSetup: () => {
           if (current.state.location.pathname !== '/account/security') {
             void current.navigate({ to: '/account/security' });

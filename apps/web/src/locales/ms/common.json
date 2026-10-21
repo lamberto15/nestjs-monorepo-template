@@ -6,10 +6,6 @@
     "platform": "Platform",
     "dashboard": "Papan pemuka"
   },
-  "dashboard": {
-    "title": "Papan pemuka",
-    "description": "Gambaran keseluruhan anda akan dipaparkan di sini."
-  },
   "auth": {
     "signIn": {
       "title": "Log masuk",
@@ -122,6 +118,20 @@
       "submit": "Batalkan pemadaman",
       "done": "Pemadaman dibatalkan: akaun anda kekal."
     },
+    "unsubscribe": {
+      "title": "Berhenti melanggan e-mel",
+      "description": "Sahkan bahawa anda tidak mahu menerima e-mel ini lagi",
+      "hint": "Anda tidak akan menerima jenis e-mel ini lagi. E-mel yang wajib kami hantar tentang akaun dan keselamatannya tetap sampai kepada anda, dan anda memilih apa yang diterima dalam tetapan pemberitahuan.",
+      "hintType": "Anda tidak akan menerima e-mel “{{label}}” lagi. E-mel yang wajib kami hantar tentang akaun dan keselamatannya tetap sampai kepada anda, dan anda memilih apa yang diterima dalam tetapan pemberitahuan.",
+      "hintDigest": "Anda tidak akan menerima e-mel yang diterima sebagai ringkasan ({{modes, list}}) lagi. E-mel yang wajib kami hantar tentang akaun dan keselamatannya tetap sampai kepada anda, dan anda memilih apa yang diterima dalam tetapan pemberitahuan.",
+      "modes": {
+        "hourly": "setiap jam",
+        "daily": "harian"
+      },
+      "submit": "Berhenti melanggan",
+      "done": "Anda telah berhenti melanggan: kami tidak akan menghantar jenis e-mel ini kepada anda lagi.",
+      "invalid": "Pautan ini tidak sah atau telah tamat tempoh. Buka semula daripada e-mel, atau pilih apa yang anda terima dalam tetapan pemberitahuan."
+    },
     "links": {
       "missingToken": "Pautan ini tidak lengkap. Buka semula daripada e-mel.",
       "backToSignIn": "Kembali ke log masuk"
@@ -155,6 +165,11 @@
       "cancel": "Batal",
       "none": "Log masuk tunggal tidak tersedia untuk alamat itu. Log masuk dengan cara lain, atau tanya pentadbir anda.",
       "failed": "Kami tidak dapat menyemak alamat itu. Cuba lagi sebentar lagi."
+    },
+    "idle": {
+      "title": "Sesi anda hampir tamat",
+      "description": "Anda tidak aktif. Anda akan dilog keluar dalam {{time}}.",
+      "stay": "Kekal log masuk"
     }
   },
   "account": {
@@ -167,6 +182,16 @@
       "emailHint": "Alamat log masuk anda.",
       "timezone": "Zon waktu",
       "saved": "Profil disimpan."
+    },
+    "avatar": {
+      "title": "Gambar",
+      "choose": "Pilih gambar",
+      "change": "Tukar gambar",
+      "remove": "Alih keluar",
+      "hint": "PNG, JPEG, WebP atau GIF. Dipaparkan kepada ahli organisasi anda.",
+      "saved": "Gambar disimpan.",
+      "removed": "Gambar dialih keluar.",
+      "rejected": "{{name}} tidak digunakan: {{reason}}"
     },
     "security": {
       "title": "Keselamatan"
@@ -190,7 +215,6 @@
       "secret": "Kunci:",
       "qr": "Kod QR untuk aplikasi pengesah anda",
       "confirm": "Hidupkan",
-      "remaining_one": "{{count}} kod pemulihan lagi.",
       "remaining_other": "{{count}} kod pemulihan lagi.",
       "newCodes": "Kod pemulihan baharu",
       "disable": "Matikan",
@@ -263,6 +287,12 @@
     "description": "Halaman yang anda cari tidak wujud.",
     "back": "Kembali ke papan pemuka"
   },
+  "routeError": {
+    "title": "Sesuatu telah berlaku",
+    "description": "Halaman ini gagal dimuatkan. Bahagian lain aplikasi masih berfungsi.",
+    "reportId": "ID laporan: {{id}}",
+    "retry": "Cuba lagi"
+  },
   "preferences": {
     "open": "Keutamaan",
     "theme": "Tema",
@@ -303,9 +333,7 @@
     "no": "Tidak",
     "table": {
       "noResults": "Tiada keputusan.",
-      "rowsSelected_one": "{{count}} baris dipilih.",
       "rowsSelected_other": "{{count}} baris dipilih.",
-      "notShown_one": "{{count}} tidak dipaparkan",
       "notShown_other": "{{count}} tidak dipaparkan",
       "rowsPerPage": "Baris setiap halaman",
       "pageOf": "Halaman {{page}} daripada {{count}}",
@@ -396,9 +424,7 @@
     },
     "bulk": {
       "label": "Tindakan pilihan",
-      "selected_one": "{{count}} dipilih",
       "selected_other": "{{count}} dipilih",
-      "selectAll_one": "Pilih semua {{count}} yang sepadan",
       "selectAll_other": "Pilih semua {{count}} yang sepadan",
       "onlyChosen": "Hanya baris yang dipilih",
       "tooMany": "Paling banyak {{max}} baris dipilih sekali gus: tapis senarai dan pilih semua yang sepadan.",
@@ -418,5 +444,23 @@
     "searching": "Mencari…",
     "none": "Tiada yang sepadan.",
     "failed": "Carian gagal."
+  },
+  "onboarding": {
+    "title": "Siapkan akaun anda",
+    "description": "Akaun pentadbir ini masih menggunakan e-mel pemegang tempat atau kata laluan yang dijana. Gantikannya untuk meneruskan.",
+    "emailTitle": "Alamat e-mel sebenar",
+    "emailDescription": "Pautan tetapan semula dan amaran keselamatan dihantar ke sini. Kami menghantar pautan untuk mengesahkannya.",
+    "email": "Alamat e-mel baharu",
+    "currentPassword": "Kata laluan semasa",
+    "emailSubmit": "Hantar pautan pengesahan",
+    "emailSent": "Kami menghantar pautan ke {{email}}. Bukanya, kemudian kembali ke sini.",
+    "emailWaiting": "Menunggu {{email}} disahkan.",
+    "check": "Saya telah mengesahkannya",
+    "resend": "Hantar pautan lagi",
+    "optionalTitle": "Pilihan: perlindungan tambahan",
+    "optionalDescription": "Sediakan dua faktor atau passkey sekarang, atau kemudian di Akaun, Keselamatan.",
+    "done": "Teruskan ke aplikasi",
+    "doneHint": "Semua langkah yang diperlukan telah selesai.",
+    "redirected": "Siapkan akaun pentadbir dahulu sebelum meneruskan."
   }
 }

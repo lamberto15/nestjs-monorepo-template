@@ -99,5 +99,10 @@
     "removed": "设备已移除。",
     "removeTitle": "移除此设备？",
     "removeDescription": "在应用重新注册之前，{{name}} 将不再收到推送通知。"
+  },
+  "dashboard": {
+    "title": "未读通知",
+    "count": "未读:{{count}}",
+    "empty": "已全部读完。"
   }
 }

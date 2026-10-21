@@ -134,6 +134,26 @@ acceptance (`POST /v1/auth/invitations/accept`) and
 - **`ADMIN_PASSWORD`** is only warned about (an error in the log on the
   first start): refusing it would leave the deployment without an
   administrator. A generated one isn't checked.
+- **Password history** (`auth.passwordHistory`, a tenant setting, 0 to 24,
+  `0` = off, the default): a new password may not repeat the account's
+  last N, the current one included: 422 `password_reused` (`history`, the
+  field in `errors`: `newPassword` on a change, `password` on a reset),
+  translated. Checked on a change and a reset link (before the link is
+  spent, so a refused password leaves it working), after the length and
+  before the breach check; sign-up and invitations make a first password and
+  have nothing to compare. A person in several tenants meets the strictest
+  (like the minimum length). Only **hashes** are kept, never a password:
+  `password_history` (`iam/iam.tables.ts`, global like the account, deleted
+  with it, never in the data export) takes the hash a change or reset
+  replaces, in the same transaction, and is pruned to N - 1 rows. While no
+  tenant asks for a history nothing is kept, and the next change drops what
+  was (so turning it on starts from the current password, and the account
+  gets the full history only as it changes passwords). The comparison is a
+  scrypt verification per kept hash, **all under one hashing slot** in
+  turn (`PasswordHistoryService`, `iam/account/password-history.service.ts`,
+  `limiter.run()`; the limit of 24 bounds the work): never N parallel
+  hashes, and a full queue answers 503 `server_busy` before anything is
+  spent. A sign-in's rehash and an operator's `ops` reset don't touch it.
 - **Hashing:** scrypt from @nestjs/authentication's `PasswordHasher`
   (N = 2^17, r = 8, p = 1: 128 MiB and ~0.4 s of CPU per hash; stored as
   `$scrypt$ln=17,r=8,p=1$…`, so a hash keeps verifying when the parameters
@@ -239,7 +259,8 @@ the job runs), or use the mail's link. Asking again while one is pending
 returns that request as is: no new mail, nothing signed out.
 
 The nightly job anonymizes a due account (`UsersRepository.anonymize`):
-placeholder address and name, no password, sign-in methods, sessions,
+placeholder address and name, no password (nor its history,
+`password_history`), sign-in methods, sessions,
 tokens, memberships (with their roles and units); its notifications,
 preferences and settings go;
 its audit entries keep the actor key, labelled "Deleted user". Records
@@ -1304,6 +1325,46 @@ and the typed client either way (each lists the 404).
 Impersonation is a privileged support tool, so it is opt in: set
 `IMPERSONATION=on` (the development example does).
 
+## Administrator onboarding
+
+The first administrator is made from `ADMIN_EMAIL` (default
+`admin@example.com`, an address nobody reads) and `ADMIN_PASSWORD` (generated
+and logged once when unset). Left like that, no reset mail reaches the only
+administrator. So the seed marks the account (`users.onboarding_email` for a
+placeholder address, `users.onboarding_password` for a generated password;
+`ADMIN_ONBOARDING=off` marks nothing: tests, scripted installs, local
+development) and `OnboardingGuard` (a global guard after
+`MfaEnrollmentGuard`) answers 403 `onboarding_required` on every route but
+those marked `@DuringOnboarding()`, until both are done. Nothing is stored on
+the session: it is a normal one the moment the last step is.
+
+An administrator seeded before onboarding existed (or with
+`ADMIN_ONBOARDING=off`, since turned `on`) is never seeded again, so every
+start also checks: when `ADMIN_EMAIL` is a placeholder, the verified account
+on exactly that address gets `onboarding_email` (a `user.onboarding-required`
+audit entry; a no-op once the address is changed, so a finished onboarding is
+not reopened). Only the address: a generated password can't be told from a
+chosen one afterwards. `ADMIN_ONBOARDING=off` keeps it from being flagged.
+
+- `GET /v1/auth/me` has `onboardingRequired`: `{ email, password }` while
+  something is pending, `null` otherwise.
+- `POST /v1/auth/email/change { email, currentPassword }` (202): the address
+  changes at once, unproved, and the verification link goes to it
+  (`POST /v1/auth/email/verify`). 409 when no email step is pending; 400
+  `placeholder_email` for another placeholder (`example.*`, `.test`, `.invalid`,
+  `localhost`). Signing in with the unproved address stays possible while the
+  step is pending, so a typo is corrected, not a lock-out.
+- `POST /v1/auth/password/change` ends the password step (so does a reset link
+  and the ops CLI's password reset; the sign-in's silent rehash of the same
+  password, after the scrypt cost was raised, does not).
+- Reachable meanwhile: `me`, sign-out, the features, the email and password
+  routes above, re-authentication, the two-factor routes (`/auth/mfa`) and
+  the passkey registration routes, switching tenant. The routes shared with
+  the two-factor enrolment (`auth.requireMfa`) carry both decorators, so
+  the two guards never lock each other out.
+- API clients and impersonations are never restricted.
+- `pnpm setup` warns when a production `ADMIN_EMAIL` is a placeholder.
+
 ## Policies
 
 Auth rules a tenant's administrators change at runtime, as settings
@@ -1316,7 +1377,10 @@ never loosen it. Unset, every policy is today's behaviour.
 | --- | --- | --- | --- |
 | `auth.requireMfa` | tenant, team | users it applies to who have no authenticator must set one up before anything else (below) | `AUTH_MFA=off`: refused when set (400 `setting_not_allowed`); a stored `true` has no effect |
 | `auth.allowBreakGlass` | tenant | whether the deployment's operators may open the tenant with break-glass (default `true`; `false`: new grants are refused, running ones stop: [tenancy](tenancy.md#break-glass)) | none |
+| `auth.passwordHistory` | tenant | the last N passwords of the account (0 to 24, `0` off) can't be used again on a change or a reset link: 422 `password_reused`; hashes only ([Passwords](#passwords)) | the upper limit of 24; none else |
 | `auth.passwordMinLength` | tenant | a new password (change, reset link, an invitation's acceptance, a sign-up with `TENANCY=single`) is at least this long: 400 `password_too_short` (`minLength`, the field in `errors`), checked before the breach check | never under 12 (the floor) nor over 64; 128 stays the maximum |
+| `auth.sessionIdleMinutes` | tenant | a browser session ends after this many minutes without a request (5 to 10080; [below](#session-lifetime)) | `SESSION_IDLE_MINUTES` (120): a longer value is refused (400 `setting_not_allowed`) |
+| `auth.sessionMaxHours` | tenant | a browser session, and a token client's refresh-token family, ends this many hours after the sign-in, however active (1 to 720) | `SESSION_MAX_HOURS` (12): a longer value is refused |
 
 - **Two-factor required.** The first factor signs in as usual (no code
   is asked: there is no authenticator yet), but the session or token is
@@ -1343,6 +1407,38 @@ never loosen it. Unset, every policy is today's behaviour.
   refused with 409 `mfa_enroll_first`: set up two-factor first
   (`SettingsAuthPolicy`, through `SettingsService.guardWrite()`). Turning it
   off, or requiring it of other teams, is never refused.
+- **Session lifetime.** <a id="session-lifetime"></a>The deployment sets
+  the ceiling (`SESSION_IDLE_MINUTES`, default 120, at least 5;
+  `SESSION_MAX_HOURS`, default 12), which the package enforces itself
+  (`session.idleTtl`, `session.absoluteTtl`). A tenant may only shorten
+  them (`auth.sessionIdleMinutes`, `auth.sessionMaxHours`; a setting left
+  at its default, the largest allowed, is no choice), checked on every
+  request by `SessionAuth` through `SessionLifetime`
+  (`iam/auth/session-lifetime.ts`): a session older than the maximum, or
+  idle longer than the timeout *before this request*, answers 401 and is
+  deleted (the store hands over the activity before the request moved it:
+  `sessionExtra.previousActiveAt`). A policy that is turned off frees only
+  sessions not yet ended. The session's tenant decides (a switch of tenant
+  re-issues it, under the new one's policy); an impersonation has its own
+  time (`IMPERSONATION_TTL_MINUTES`) and is left out.
+  **Token clients:** a refresh-token family keeps its own 90 days and has no
+  idle timeout, unless the tenant chose: then `POST /v1/auth/token/refresh`
+  refuses (401, as an expired token) and revokes a family older than
+  `auth.sessionMaxHours` since its sign-in, or not refreshed within
+  `auth.sessionIdleMinutes` plus the access token's 15 minutes (a client
+  working on its access token has not refreshed yet). An access token
+  already issued works until it expires (15 minutes). The tenant of a
+  family is the token's (`tid`).
+  `GET /v1/auth/me` has `session { idleMinutes, lastActiveAt, expiresAt }`
+  for a browser session (null for a token or an impersonation): the web app
+  (`SessionIdleWarning`) counts the user's own activity (pointer, keys,
+  scrolling), tells the API about it with a `me` request at most once a
+  minute, and with no input for `idleMinutes - 2` shows a dialog that
+  counts down and offers "Stay signed in" (another `me` request). Nothing else in
+  the signed-in layout may ask the API on a timer for an unattended tab (every
+  authenticated request is activity): the deployment mode's watch
+  (`useModeWatch`, [monorepo](monorepo.md), "Maintenance and read-only mode")
+  has no timer while the mode is `normal` for this reason.
 - **Who meets a minimum length.** A password is the account's, in every
   tenant: the strictest of the tenants it is an active member of; an
   invitation's new address, the inviting tenant's. A reset link is read
@@ -1372,7 +1468,9 @@ never loosen it. Unset, every policy is today's behaviour.
 - **Proof:** `test/auth-policies.e2e-spec.ts` (a team's requirement until
   enrolled, off again, a tenant's requirement with a team's `false`, API
   clients, the `AUTH_MFA=off` ceiling, minimum lengths on change, reset and
-  invitation, per tenant), `iam/auth/auth-policy.spec.ts` (the ceiling).
+  invitation, per tenant), `iam/auth/auth-policy.spec.ts` (the ceiling),
+  `test/session-lifetime.e2e-spec.ts` (idle and maximum, per tenant, the
+  ceiling, token families), `iam/auth/session-lifetime.spec.ts`.
 
 ## Impersonation (support)
 

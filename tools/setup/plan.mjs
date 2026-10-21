@@ -7,6 +7,7 @@
 // (active or as a commented example), so the wizard never invents a variable;
 // setup.test.mjs checks the templates still name every one it can write.
 import { randomBytes } from 'node:crypto';
+import { generateVapidKeys } from './vapid.mjs';
 
 /** The host of a URL, or '' when it isn't one. */
 export function hostOf(url) {
@@ -21,10 +22,39 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const HOSTNAME =
   /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]*[a-z0-9])?$/i;
 
+/** An address no mail can reach (the template's, or a reserved domain). */
+const PLACEHOLDER_EMAIL =
+  /@(example\.(com|net|org)|[^@]*\.(invalid|test|localhost))$/i;
+
 const email = (v) => (EMAIL.test(v) ? null : 'an email address');
 const hostname = (v) => (HOSTNAME.test(v) ? null : 'a host name, no scheme');
 const httpUrl = (v) =>
   /^https?:\/\/[^\s/]+/.test(v) ? null : 'an http(s) URL';
+/** Empty, or an http(s) URL (the variable is off when empty). */
+const optionalUrl = (v) => (v === '' ? null : httpUrl(v));
+/** The VAPID contact: `mailto:` an address, or an https URL. */
+const vapidSubject = (v) =>
+  (v.startsWith('mailto:') && EMAIL.test(v.slice('mailto:'.length))) ||
+  /^https:\/\/[^\s/]+/.test(v)
+    ? null
+    : 'mailto:ops@example.com or an https URL';
+/** Twilio's sender: a number in E.164 or a Messaging Service SID (MG...). */
+const twilioFrom = (v) =>
+  /^(\+[1-9]\d{6,14}|MG[0-9a-zA-Z]{32})$/.test(v)
+    ? null
+    : 'a number like +15551234567, or a Messaging Service SID (MG...)';
+/** Country calling-code prefixes, comma-separated (+1,+44); empty: none. */
+const callingPrefixes = (v) =>
+  v === '' || v.split(',').every((p) => /^\+[1-9]\d{0,5}$/.test(p.trim()))
+    ? null
+    : 'prefixes like +1,+44';
+
+/** PUSH_PROVIDER's list, without `off`. */
+const providersOf = (value) =>
+  (value ?? '')
+    .split(',')
+    .map((name) => name.trim())
+    .filter((name) => name && name !== 'off');
 
 /** Mail transports, with the template variables each needs besides MAIL_TRANSPORT. */
 const MAIL_TRANSPORTS = {
@@ -57,6 +87,14 @@ const isSet = (value) => (value === undefined ? undefined : value !== '');
 const usesAws = (a) => a.storage === 's3' || a.mail === 'ses';
 
 /**
+ * The existing file keeps the credential in a file (`<key>_FILE`, Docker or
+ * Swarm secrets): the variable is not made or written here, since the app
+ * refuses to start with both set. For a secret question, applies() is where
+ * this is decided.
+ */
+const keptInFile = (key, ctx) => Boolean(ctx.existing?.get(`${key}_FILE`));
+
+/**
  * The questions. Each has:
  *   id, label, type ('choice' | 'bool' | 'text'), choices (a list, or a
  *   function of the context, to filter by the template);
@@ -68,7 +106,9 @@ const usesAws = (a) => a.storage === 's3' || a.mail === 'ses';
  *   write    (value, answers, ctx) => { KEY: value | null } to set (null: empty);
  *   required an empty answer is an error (--yes names the flag);
  *   validate (value) => null, or what the answer must be;
- *   secret   a credential: never shown, kept by default on a re-run;
+ *   secret   a credential: never shown, kept by default on a re-run; not
+ *            asked (and its variable not written) when the existing file keeps
+ *            it in `<NAME>_FILE`, whichever variable `write` sets (applies());
  *   hint     said before the question.
  * The context: { target, tpl (the template's values), keys (the names it
  * has), current (the file's values now), existing (a Map, or null),
@@ -501,6 +541,204 @@ export const QUESTIONS = [
     write: (v) => (v ? {} : { METRICS_TOKEN: null }),
   },
   {
+    id: 'observe',
+    label: 'NestJS Observe (traces, metrics, errors)?',
+    hint: "Keys from the application's project, API keys page. Off empties both.",
+    type: 'bool',
+    keys: ['OBSERVE_APP_KEY', 'OBSERVE_APP_SECRET'],
+    target: 'production',
+    fresh: () => false,
+    read: (env) => isSet(env.OBSERVE_APP_KEY),
+    write: (v) =>
+      v ? {} : { OBSERVE_APP_KEY: null, OBSERVE_APP_SECRET: null },
+  },
+  {
+    id: 'observeAppKey',
+    label: 'Observe application key',
+    type: 'text',
+    keys: ['OBSERVE_APP_KEY'],
+    target: 'production',
+    when: (a) => a.observe,
+    read: (env) => env.OBSERVE_APP_KEY,
+    required: true,
+    write: (v) => ({ OBSERVE_APP_KEY: v }),
+  },
+  {
+    id: 'observeAppSecret',
+    label: 'Observe application secret',
+    type: 'text',
+    secret: true,
+    keys: ['OBSERVE_APP_SECRET'],
+    target: 'production',
+    when: (a) => a.observe,
+    read: (env) => env.OBSERVE_APP_SECRET,
+    required: true,
+    write: (v) => ({ OBSERVE_APP_SECRET: v }),
+  },
+  {
+    id: 'otelEndpoint',
+    label: 'OpenTelemetry collector URL (OTLP/HTTP; empty: off)',
+    type: 'text',
+    keys: ['OTEL_EXPORTER_OTLP_ENDPOINT'],
+    target: 'production',
+    fresh: () => '',
+    read: (env) => env.OTEL_EXPORTER_OTLP_ENDPOINT,
+    validate: optionalUrl,
+    write: (v) => ({ OTEL_EXPORTER_OTLP_ENDPOINT: v || null }),
+  },
+  {
+    id: 'otelHeaders',
+    label:
+      "The collector's credential header (x-honeycomb-team=KEY; empty: none)",
+    type: 'text',
+    secret: true,
+    keys: ['OTEL_EXPORTER_OTLP_HEADERS'],
+    target: 'production',
+    when: (a) => !!a.otelEndpoint,
+    fresh: () => '',
+    read: (env) => env.OTEL_EXPORTER_OTLP_HEADERS,
+    write: (v) => ({ OTEL_EXPORTER_OTLP_HEADERS: v || null }),
+  },
+  {
+    id: 'sentryDsn',
+    label: 'Sentry DSN (error tracking; empty: off)',
+    type: 'text',
+    secret: true,
+    keys: ['SENTRY_DSN'],
+    target: 'production',
+    fresh: () => '',
+    read: (env) => env.SENTRY_DSN,
+    validate: optionalUrl,
+    write: (v) => ({ SENTRY_DSN: v || null }),
+  },
+  {
+    id: 'anthropicApiKey',
+    label: 'Anthropic API key for the AI helper (empty: off; docs/ai.md)',
+    type: 'text',
+    secret: true,
+    keys: ['ANTHROPIC_API_KEY'],
+    target: 'production',
+    fresh: () => '',
+    read: (env) => env.ANTHROPIC_API_KEY,
+    write: (v) => ({ ANTHROPIC_API_KEY: v || null }),
+  },
+  {
+    id: 'push',
+    label: 'Web Push (browser notifications; the VAPID keys are generated)?',
+    hint: 'Adds web-push to PUSH_PROVIDER; APNs and FCM are set in the file (docs/notifications.md, "Push and SMS").',
+    type: 'bool',
+    keys: [
+      'PUSH_PROVIDER',
+      'WEB_PUSH_VAPID_PUBLIC_KEY',
+      'WEB_PUSH_VAPID_PRIVATE_KEY',
+      'WEB_PUSH_SUBJECT',
+    ],
+    target: 'production',
+    fresh: () => false,
+    read: (env) =>
+      env.PUSH_PROVIDER
+        ? providersOf(env.PUSH_PROVIDER).includes('web-push')
+        : undefined,
+    // The list keeps the other providers (apns, fcm) it already names.
+    write: (v, a, ctx) => {
+      const others = providersOf(ctx.current.get('PUSH_PROVIDER')).filter(
+        (name) => name !== 'web-push',
+      );
+      return {
+        PUSH_PROVIDER:
+          (v ? [...others, 'web-push'] : others).join(',') || 'off',
+      };
+    },
+  },
+  {
+    id: 'webPushSubject',
+    label: 'Web Push contact (mailto:ops@example.com, or an https URL)',
+    type: 'text',
+    keys: ['WEB_PUSH_SUBJECT'],
+    target: 'production',
+    when: (a) => a.push,
+    // The administrator's address, unless it is the template's placeholder.
+    fresh: (ctx, a) =>
+      a.adminEmail && !PLACEHOLDER_EMAIL.test(a.adminEmail)
+        ? `mailto:${a.adminEmail}`
+        : undefined,
+    read: (env) => env.WEB_PUSH_SUBJECT,
+    required: true,
+    validate: vapidSubject,
+    write: (v) => ({ WEB_PUSH_SUBJECT: v }),
+  },
+  {
+    id: 'sms',
+    label: 'SMS through Twilio?',
+    hint: 'Off: nothing leaves. Phone numbers are encrypted at rest (the keys are generated).',
+    type: 'bool',
+    keys: [
+      'SMS_PROVIDER',
+      'TWILIO_ACCOUNT_SID',
+      'TWILIO_AUTH_TOKEN',
+      'TWILIO_FROM',
+    ],
+    target: 'production',
+    fresh: () => false,
+    read: (env) =>
+      env.SMS_PROVIDER ? env.SMS_PROVIDER === 'twilio' : undefined,
+    // Off keeps the credentials (the provider is the switch); only twilio is switched off.
+    write: (v, a, ctx) =>
+      v
+        ? { SMS_PROVIDER: 'twilio' }
+        : ctx.current.get('SMS_PROVIDER') === 'twilio'
+          ? { SMS_PROVIDER: 'off' }
+          : {},
+  },
+  {
+    id: 'twilioAccountSid',
+    label: 'Twilio account SID',
+    type: 'text',
+    keys: ['TWILIO_ACCOUNT_SID'],
+    target: 'production',
+    when: (a) => a.sms,
+    read: (env) => env.TWILIO_ACCOUNT_SID,
+    required: true,
+    write: (v) => ({ TWILIO_ACCOUNT_SID: v }),
+  },
+  {
+    id: 'twilioAuthToken',
+    label: 'Twilio auth token',
+    type: 'text',
+    secret: true,
+    keys: ['TWILIO_AUTH_TOKEN'],
+    target: 'production',
+    when: (a) => a.sms,
+    read: (env) => env.TWILIO_AUTH_TOKEN,
+    required: true,
+    write: (v) => ({ TWILIO_AUTH_TOKEN: v }),
+  },
+  {
+    id: 'twilioFrom',
+    label: 'Twilio sender (E.164 number, or a Messaging Service SID MG...)',
+    type: 'text',
+    keys: ['TWILIO_FROM'],
+    target: 'production',
+    when: (a) => a.sms,
+    read: (env) => env.TWILIO_FROM,
+    required: true,
+    validate: twilioFrom,
+    write: (v) => ({ TWILIO_FROM: v }),
+  },
+  {
+    id: 'smsAllowedPrefixes',
+    label: 'Country calling-code prefixes SMS may go to (+1,+44; empty: none)',
+    hint: 'Toll-fraud guard: with none listed, no SMS is sent.',
+    type: 'text',
+    keys: ['SMS_ALLOWED_PREFIXES'],
+    target: 'production',
+    when: (a) => a.sms,
+    fresh: () => '',
+    read: (env) => env.SMS_ALLOWED_PREFIXES,
+    validate: callingPrefixes,
+    write: (v) => ({ SMS_ALLOWED_PREFIXES: v || null }),
+  },
+  {
     id: 'idempotency',
     label: 'Idempotency-Key on writes',
     hint: 'required: a write without the header is refused, so a retry never creates twice; optional: the header is honoured when sent.',
@@ -555,12 +793,27 @@ function providerInTemplate(name, ctx) {
   return Object.values(SOCIAL[name]).every((key) => ctx.keys.has(key));
 }
 
+/**
+ * A secret question whose variable the existing file keeps in `<NAME>_FILE`.
+ * The variable is the one the question writes (a social provider's depends on
+ * the answers), so no question names it a second time.
+ */
+function secretKept(q, answers, ctx) {
+  if (!q.secret || !ctx.existing) return false;
+  return Object.keys(q.write('', answers, ctx)).some((key) =>
+    keptInFile(key, ctx),
+  );
+}
+
 /** Whether the question is asked, given the answers so far. */
 export function applies(q, answers, ctx) {
   if (q.target && q.target !== ctx.target) return false;
   if (!q.keys.every((key) => ctx.keys.has(key))) return false;
   if (q.available && !q.available(ctx)) return false;
-  return q.when ? !!q.when(answers, ctx) : true;
+  if (q.when && !q.when(answers, ctx)) return false;
+  // Not asked, so not required and not written: a value made here would be a
+  // second source next to the file.
+  return !secretKept(q, answers, ctx);
 }
 
 /** The accepted values of a choice question. */
@@ -589,6 +842,7 @@ export const SECRETS = [
   { key: 'POSTGRES_APP_PASSWORD', ...hex24, database: true },
   { key: 'POSTGRES_MAINTENANCE_PASSWORD', ...hex24, database: true },
   { key: 'POSTGRES_MONITOR_PASSWORD', ...hex24, database: true },
+  { key: 'POSTGRES_REPORTING_PASSWORD', ...hex24, database: true },
   { key: 'REDIS_PASSWORD', ...hex24, database: true },
   { key: 'METRICS_TOKEN', ...hex24, when: (a) => a.metrics === true },
   // Keys: comma-separated, newest first, so a rotation puts the new one in front.
@@ -611,6 +865,9 @@ export const SECRETS = [
   { key: 'ADMIN_PASSWORD', kind: 'base64', bytes: 18, first: true },
 ];
 
+/** Web Push's key pair (the public one goes to browsers, the private signs). */
+const VAPID_KEYS = ['WEB_PUSH_VAPID_PUBLIC_KEY', 'WEB_PUSH_VAPID_PRIVATE_KEY'];
+
 /**
  * Every variable the wizard can write for the context's template, probing
  * the answers that reach each question (for the guard test).
@@ -628,6 +885,10 @@ export function writableKeys(ctx) {
       social: 'microsoft',
       documents: true,
       metrics: true,
+      observe: true,
+      otelEndpoint: 'https://otel.example.com',
+      push: true,
+      sms: true,
     },
     { mail: 'resend', social: 'google', captcha: 'none' },
     { social: 'github' },
@@ -647,11 +908,14 @@ export function writableKeys(ctx) {
   for (const secret of SECRETS) {
     if (ctx.keys.has(secret.key)) keys.add(secret.key);
   }
+  for (const key of VAPID_KEYS) {
+    if (ctx.keys.has(key)) keys.add(key);
+  }
   return keys;
 }
 
 const SENSITIVE =
-  /(SECRET|PASSWORD|TOKEN|_KEYS?$|SMTP_URL|DATABASE_\w*URL|ACCESS_KEY|API_KEY)/;
+  /(SECRET|PASSWORD|TOKEN|_KEYS?$|SMTP_URL|DATABASE_\w*URL|ACCESS_KEY|API_KEY|OTLP_HEADERS|SENTRY_DSN)/;
 
 /** `value` for display: a secret's is hidden. */
 export function mask(key, value) {
@@ -667,13 +931,16 @@ function generate(secret, random) {
 /**
  * The plan: { values (Map KEY -> string | null), generated (the secrets
  * made now), adminPassword (the generated one, else undefined), rotated,
- * warnings }. `answers` holds one entry per asked question.
+ * warnings }. `answers` holds one entry per asked question. The secrets'
+ * randomness is `random`, Web Push's key pair is `vapid()` ({ publicKey,
+ * privateKey }, or null when the web-push package is not installed).
  */
 export function buildPlan({
   answers,
   ctx,
   rotate = false,
   random = randomBytes,
+  vapid = generateVapidKeys,
 }) {
   const values = new Map();
   for (const q of QUESTIONS) {
@@ -702,6 +969,9 @@ export function buildPlan({
       generated.push(secret.key);
       continue;
     }
+    // Kept in a file (KEY_FILE): a value made here would be a second source,
+    // and the services refuse to start with both.
+    if (keptInFile(secret.key, ctx)) continue;
     const old = existing?.get(secret.key) ?? '';
     if (old && !rotate) continue;
     const made = generate(secret, random);
@@ -716,8 +986,41 @@ export function buildPlan({
 
   const warnings = [];
   const was = (key) => existing?.get(key) ?? '';
+
+  // Web Push's key pair: made once. Never rotated, not even by --rotate:
+  // every browser subscription is bound to the public key, so a new pair
+  // ends them all (empty both lines to start over).
+  if (answers.push === true) {
+    const [publicKey, privateKey] = VAPID_KEYS;
+    const kept =
+      keptInFile(privateKey, ctx) ||
+      (Boolean(was(publicKey)) && Boolean(was(privateKey)));
+    if (!kept) {
+      const pair = vapid();
+      if (pair) {
+        values.set(publicKey, pair.publicKey);
+        values.set(privateKey, pair.privateKey);
+        generated.push(privateKey, publicKey);
+      } else {
+        warnings.push(
+          `The web-push package is not installed here (run pnpm install), so the VAPID keys were not made: run \`npx web-push generate-vapid-keys\` and set ${publicKey} and ${privateKey}, or the API refuses to start with PUSH_PROVIDER=web-push.`,
+        );
+      }
+    }
+  }
+  if (answers.sms === true && !answers.smsAllowedPrefixes) {
+    warnings.push(
+      'SMS_ALLOWED_PREFIXES is empty: no SMS is sent until it lists the country calling-code prefixes to serve (+1,+44).',
+    );
+  }
   const changes = (key) =>
     was(key) !== '' && values.has(key) && was(key) !== (values.get(key) ?? '');
+  const adminEmail = values.get('ADMIN_EMAIL') ?? was('ADMIN_EMAIL');
+  if (ctx.target === 'production' && PLACEHOLDER_EMAIL.test(adminEmail)) {
+    warnings.push(
+      `ADMIN_EMAIL is the placeholder ${adminEmail}: no mail can reach the only administrator. The first sign-in forces a real, verified address and a new password (ADMIN_ONBOARDING, docs/auth.md); set a real one now to skip the address step.`,
+    );
+  }
   if (changes('TENANCY')) {
     warnings.push(
       `TENANCY changes from ${was('TENANCY')} to ${values.get('TENANCY')}: the deployment shape is chosen once; read docs/tenancy.md before switching a database that has data.`,

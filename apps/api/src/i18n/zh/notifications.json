@@ -125,6 +125,13 @@
       "body": "{by} 撤回了“{title}”：不再需要决定。"
     }
   },
+  "attachment": {
+    "rejected": {
+      "label": "文件被拒绝",
+      "title": "您的文件已被拒绝",
+      "body": "“{name}”已从 {subject} 中移除：恶意软件扫描将其标记为可疑（{signature}）。"
+    }
+  },
   "system": {
     "test": {
       "label": "测试通知",

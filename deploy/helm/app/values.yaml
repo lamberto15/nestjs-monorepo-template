@@ -134,6 +134,13 @@ web:
     tag: ""
     digest: ""
   replicas: 2
+  # The web app's connect-src and img-src name the bucket's origin, derived
+  # from env (S3_BUCKET, S3_ENDPOINT, S3_REGION, S3_FORCE_PATH_STYLE): the
+  # browser PUTs direct uploads to it and loads thumbnails from its signed
+  # links. filesOrigin adds, to both, origins env can't tell: space-separated
+  # https origins (a custom domain or CDN in front of the bucket). Empty: the
+  # bucket's origin only (docs/deployment.md, "The origins of files").
+  filesOrigin: ""
   resources:
     requests: { cpu: 50m, memory: 64Mi, ephemeral-storage: 128Mi }
     limits: { cpu: 500m, memory: 128Mi, ephemeral-storage: 1Gi }

@@ -31,7 +31,7 @@ export const ATTACHMENT_SWEEP_JOB = defineSystemJob({
   key: 'attachment-sweep',
   label: 'Attachment sweep',
   description:
-    'Deletes the files and rows of attachments whose record no longer exists, every night.',
+    'Deletes the files and rows of attachments whose record no longer exists, and the files of direct uploads that were never completed, every night.',
   permissions: [],
 });
 
@@ -188,10 +188,30 @@ export const MESSAGING_RETENTION_JOB = defineSystemJob({
   permissions: [],
 });
 
+/** AttachmentScanService: the malware scan of an upload, on a worker. */
+export const ATTACHMENT_SCAN_JOB = defineSystemJob({
+  key: 'attachment-scan',
+  label: 'Attachment malware scan',
+  description:
+    'Scans uploaded files for malware (MALWARE_SCANNER) and removes the infected ones.',
+  permissions: [],
+});
+
+/** AttachmentImagesService: thumbnails, previews and metadata stripping of an uploaded image, on a worker. */
+export const ATTACHMENT_IMAGES_JOB = defineSystemJob({
+  key: 'attachment-images',
+  label: 'Attachment image processing',
+  description:
+    'Makes thumbnails and previews of uploaded images and removes the metadata (EXIF, GPS) of the originals.',
+  permissions: [],
+});
+
 export const PLATFORM_SYSTEM_JOBS = [
   ACCOUNT_DELETION_JOB,
   USAGE_ROLLUP_JOB,
   ATTACHMENT_SWEEP_JOB,
+  ATTACHMENT_SCAN_JOB,
+  ATTACHMENT_IMAGES_JOB,
   REVISION_RETENTION_JOB,
   NOTIFICATION_RETENTION_JOB,
   NOTIFICATION_DIGEST_JOB,

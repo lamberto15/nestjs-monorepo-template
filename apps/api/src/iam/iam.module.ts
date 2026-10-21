@@ -63,6 +63,7 @@ import {
   PWNED_PASSWORDS,
 } from './account/breached-passwords.service.js';
 import { CredentialsService } from './account/credentials.service.js';
+import { PasswordHistoryService } from './account/password-history.service.js';
 import { SignInPasswordCheck } from './account/sign-in-password-check.js';
 import {
   boundedPasswordHasher,
@@ -117,7 +118,12 @@ import { DrizzleAuthenticationStore } from './auth/drizzle-authentication.store.
 import { JwtAuth } from './auth/jwt-auth.provider.js';
 import { PrincipalGuard } from './auth/principal.guard.js';
 import { AuthPolicyService } from './auth/auth-policy.service.js';
+import {
+  ACCESS_TOKEN_TTL_MS,
+  SessionLifetime,
+} from './auth/session-lifetime.js';
 import { MfaEnrollmentGuard } from './auth/mfa-enrollment.guard.js';
+import { OnboardingGuard } from './auth/onboarding.guard.js';
 import { SsoRequiredGuard } from './sso/sso-required.guard.js';
 import { SessionAuth } from './auth/session-auth.provider.js';
 import { UsersRepository } from './auth/users.repository.js';
@@ -219,8 +225,10 @@ export class IamModule {
               };
               return {
                 session: {
-                  absoluteTtl: '12h', // a user session ends after a working day
-                  idleTtl: '2h', // or after two hours without a request
+                  // The deployment's ceiling (a tenant's auth.sessionMaxHours /
+                  // auth.sessionIdleMinutes only shorten it: SessionLifetime).
+                  absoluteTtl: `${config.get('SESSION_MAX_HOURS', { infer: true })}h`,
+                  idleTtl: `${config.get('SESSION_IDLE_MINUTES', { infer: true })}m`,
                   // Without Secure (tests only), the cookie is named "sid", not "__Host-sid".
                   cookie,
                   // The web app on another origin may use the cookie (same list as CSRF).
@@ -256,7 +264,7 @@ export class IamModule {
                   key: await loadOrCreateSecret(db, 'JWT_SECRET', random256),
                   issuer: api,
                   audience: config.get('SERVICE_NAME', { infer: true }),
-                  ttl: '15m',
+                  ttl: ACCESS_TOKEN_TTL_MS,
                 },
                 // The pages of the web app the emails link to; each POSTs the token back.
                 passwordReset: { url: `${web}/reset-password` },
@@ -335,6 +343,9 @@ export class IamModule {
         // two-factor of, without one, reaches only the enrollment routes
         // (auth.requireMfa, docs/auth.md "Policies").
         { provide: APP_GUARD, useClass: MfaEnrollmentGuard },
+        // And the first administrator's onboarding: a placeholder address or
+        // a generated password first (docs/auth.md, "Administrator onboarding").
+        { provide: APP_GUARD, useClass: OnboardingGuard },
         // After it: "SSO required" (docs/auth.md), on the principal's own
         // session and tenant: before a break-glass grant moves the request.
         { provide: APP_GUARD, useClass: SsoRequiredGuard },
@@ -344,6 +355,8 @@ export class IamModule {
         BreakGlassService,
         // The auth policies: the platform's settings (AUTH_POLICY) under the env's ceiling.
         AuthPolicyService,
+        // A tenant's session limits on top of it (SessionAuth, token refresh).
+        SessionLifetime,
         // Authentication: the credential providers and the store of everything they keep.
         DrizzleAuthenticationStore,
         SessionAuth,
@@ -352,6 +365,8 @@ export class IamModule {
         UsersRepository,
         CredentialsService,
         BreachedPasswordsService,
+        // auth.passwordHistory: hashes of the last passwords, refusing a reused one.
+        PasswordHistoryService,
         // Sign-in passwords against the breaches, off the sign-in's path.
         SignInPasswordCheck,
         // At most PASSWORD_HASH_CONCURRENCY password hashes at once (password-hashing.ts).

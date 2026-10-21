@@ -10,6 +10,11 @@ import {
   Histogram,
   Registry,
 } from 'prom-client';
+import {
+  COUNTED_TARGETS,
+  onTelemetryRejected,
+  REFUSAL_STATUSES,
+} from '../observability/telemetry-health.js';
 
 /** A collector that takes longer (Redis or PostgreSQL away) is given up: the scrape goes on without it. */
 const COLLECT_TIMEOUT_MS = 2_000;
@@ -53,6 +58,18 @@ export class MetricsService {
     registers: [this.registry],
   });
 
+  /**
+   * Telemetry the collector turned away (401, 403, 429), by pipeline: a
+   * dead export that the app itself would never notice
+   * (observability/telemetry-health.ts, the TelemetryRejected alert).
+   */
+  readonly telemetryRejected = new Counter({
+    name: 'telemetry_rejected_total',
+    help: 'Telemetry uploads refused by the collector, by target (observe, otlp, sentry) and HTTP status.',
+    labelNames: ['target', 'status'] as const,
+    registers: [this.registry],
+  });
+
   /** Calls to routes marked `@Deprecated()`: when it stops rising, the route can go. */
   readonly deprecatedCalls = new Counter({
     name: 'deprecated_route_calls_total',
@@ -63,6 +80,18 @@ export class MetricsService {
 
   constructor() {
     collectDefaultMetrics({ register: this.registry });
+    // Every series a refusal can make, at 0 from the start: Prometheus'
+    // increase() needs a sample before the first count, and a refusal that
+    // happens once (NestJS Observe pauses its uploads after the first 401 or
+    // 429) would otherwise show up already at 1 and never raise the alert.
+    for (const target of COUNTED_TARGETS) {
+      for (const status of REFUSAL_STATUSES) {
+        this.telemetryRejected.inc({ target, status: String(status) }, 0);
+      }
+    }
+    onTelemetryRejected((target, status) =>
+      this.telemetryRejected.inc({ target, status: String(status) }),
+    );
     // Not among prom-client's defaults: what the heap alert compares the used heap with.
     this.collect(
       'nodejs_heap_size_limit_bytes',

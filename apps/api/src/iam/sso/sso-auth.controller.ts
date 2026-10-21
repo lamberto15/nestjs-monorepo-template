@@ -32,6 +32,7 @@ import type { Request, Response } from 'express';
 import { ClsServiceManager } from 'nestjs-cls';
 import { z } from 'zod';
 import { type CoreEnv, webUrl } from '../../core/config/core.env.js';
+import { AllowInMaintenance } from '../../core/http/maintenance.js';
 import { redirectPath, webAppUrl } from '../../core/http/redirect-path.js';
 import { TENANT_SCOPE, tenantScope } from '../../core/tenancy/tenant-scope.js';
 import type { IamEnv } from '../iam.env.js';
@@ -118,6 +119,7 @@ const acsBodySchema = z.object({
  */
 @ApiTags('auth')
 @Public()
+@AllowInMaintenance()
 @UseGuards(SsoConnectionGuard)
 @Controller('auth/sso/:tenantId/:connectionId')
 export class SsoAuthController {

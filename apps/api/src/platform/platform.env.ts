@@ -54,8 +54,27 @@ export const platformEnv = z.object({
   /** The socket.io gateway at /realtime and its Redis adapter. */
   REALTIME: flag('on'),
 
+  /**
+   * Forces the app mode (docs/settings.md, "Maintenance and read-only
+   * mode"): `normal`, `read-only` or `maintenance`. Unset: the operators'
+   * `platform.mode` setting decides. Set, it wins and the setting can't be
+   * changed (`setting_not_allowed`).
+   */
+  APP_MODE: z.preprocess(
+    (value) =>
+      typeof value === 'string' && value.trim() === '' ? undefined : value,
+    z.enum(['normal', 'read-only', 'maintenance']).optional(),
+  ),
+
   /** The hour (0–23, in each user's time zone) daily notification digests are mailed. */
   NOTIFICATIONS_DIGEST_HOUR: z.coerce.number().int().min(0).max(23).default(8),
+  /**
+   * A mailbox for `List-Unsubscribe` (`mailto:`), added to notification mail
+   * beside the https link (RFC 8058). Empty: no mailto; the https one-click
+   * link is what Gmail and Yahoo require. Nothing in the app reads this
+   * mailbox: set it only when your mail setup does.
+   */
+  MAIL_UNSUBSCRIBE_MAILTO: optional(),
   /** Read notifications older than this many days are deleted every night. */
   NOTIFICATIONS_RETENTION_DAYS: z.coerce.number().int().min(1).default(90),
   /** Any notification older than this many days is deleted, read or not. */
@@ -114,12 +133,34 @@ export const platformEnv = z.object({
   TWILIO_WEBHOOK_URL: optional(),
   /** Twilio's REST API (a stub on loopback in tests). */
   TWILIO_API_URL: baseUrl('https://api.twilio.com'),
-  /** Push provider: `off`, `web-push` (VAPID), or `memory` (tests). */
-  PUSH_PROVIDER: choice(['off', 'web-push', 'memory'], 'off'),
+  /**
+   * Push providers, comma-separated: `off` (default), `web-push` (VAPID),
+   * `apns` (iOS), `fcm` (Android), `memory` (tests). `web-push,apns,fcm`
+   * serves all three platforms; each device goes to the provider of its platform.
+   */
+  PUSH_PROVIDER: list().pipe(
+    z
+      .array(z.enum(['off', 'web-push', 'apns', 'fcm', 'memory']))
+      .transform((values) => values.filter((value) => value !== 'off')),
+  ),
   WEB_PUSH_VAPID_PUBLIC_KEY: optional(),
   WEB_PUSH_VAPID_PRIVATE_KEY: secret(optional()),
   /** The VAPID contact: `mailto:ops@example.com` or an https URL. */
   WEB_PUSH_SUBJECT: optional(),
+  /** APNs (token-based auth): the .p8 key's id and contents (PEM; `\n` for newlines), the Apple team id, the app's bundle id. */
+  APNS_KEY_ID: optional(),
+  APNS_PRIVATE_KEY: secret(optional()),
+  APNS_TEAM_ID: optional(),
+  APNS_BUNDLE_ID: optional(),
+  /** APNs' host: production by default; `https://api.sandbox.push.apple.com` for development builds (a stub on loopback in tests). */
+  APNS_API_URL: baseUrl('https://api.push.apple.com'),
+  /** FCM (HTTP v1): the Firebase project id and the service account's `client_email` and `private_key` (PEM; `\n` for newlines). */
+  FCM_PROJECT_ID: optional(),
+  FCM_CLIENT_EMAIL: optional(),
+  FCM_PRIVATE_KEY: secret(optional()),
+  FCM_API_URL: baseUrl('https://fcm.googleapis.com'),
+  /** Google's OAuth2 token endpoint (a stub on loopback in tests). */
+  FCM_TOKEN_URL: baseUrl('https://oauth2.googleapis.com/token'),
   /**
    * Toll fraud: the destination country-calling-code prefixes SMS may go to
    * (`+1,+44,+49`). Empty: none, so no SMS is sent until the deployment
@@ -132,6 +173,32 @@ export const platformEnv = z.object({
   SMS_DAILY_LIMIT_PER_PREFIX: z.coerce.number().int().min(0).default(100),
   /** SMS one user may be sent per day (codes included). */
   SMS_DAILY_LIMIT_PER_USER: z.coerce.number().int().min(0).default(10),
+  /** Codes one client IP may have texted per day in a tenant (the route also has its own throttle). */
+  SMS_DAILY_LIMIT_PER_IP: z.coerce.number().int().min(0).default(20),
+  /** A tenant's SMS spend cap per UTC month, in minor units of one currency; 0 is no cap. Sending stops at the cap; 80 % is logged as an error and shown by `sms_budget_used_ratio`. */
+  SMS_MONTHLY_BUDGET_MINOR: z.coerce.number().int().min(0).default(0),
+  /** The price of one SMS segment per prefix, minor units: `+1=79,+44=120`. */
+  SMS_PRICES: list().transform((entries, ctx) => {
+    const prices: Record<string, number> = {};
+    for (const entry of entries) {
+      const [prefix, price] = entry.split('=').map((part) => part.trim());
+      if (
+        !prefix ||
+        !/^\+[1-9]\d{0,5}$/.test(prefix) ||
+        !/^\d+$/.test(price ?? '')
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `"${entry}" is not <+prefix>=<minor units>`,
+        });
+        return z.NEVER;
+      }
+      prices[prefix] = Number(price);
+    }
+    return prices;
+  }),
+  /** The price of one SMS segment to a prefix SMS_PRICES does not list. */
+  SMS_PRICE_DEFAULT_MINOR: z.coerce.number().int().min(0).default(0),
   /** The longest SMS text, in characters; a longer one is cut. */
   SMS_MAX_LENGTH: z.coerce.number().int().min(1).max(1600).default(320),
   /** The longest push payload, in bytes (web push allows about 4 KB); a longer body is cut. */
@@ -191,6 +258,56 @@ export const platformEnv = z.object({
   ATTACHMENT_ALLOWED_TYPES: list().transform((types) =>
     types.length > 0 ? types : DEFAULT_ATTACHMENT_TYPES,
   ),
+
+  /** Users' pictures (PUT /v1/account/avatar): the largest, in MB. */
+  AVATAR_MAX_MB: z.coerce.number().int().min(1).max(50).default(2),
+
+  /**
+   * Malware scanning of uploads (platform/attachments, docs/attachments.md).
+   * `off` (default): files are served as soon as they are stored. `clamav`:
+   * a queue job streams each upload to clamd (CLAMAV_HOST); it is `pending`
+   * (not downloadable) until clean, and an infected one is deleted.
+   * `memory`: tests (flags the EICAR test string).
+   */
+  MALWARE_SCANNER: choice(['off', 'clamav', 'memory'], 'off'),
+  /** clamd's host (`clamav` in Compose); required with MALWARE_SCANNER=clamav. */
+  CLAMAV_HOST: optional(),
+  CLAMAV_PORT: z.coerce.number().int().min(1).max(65535).default(3310),
+  /** One scan's limit, in milliseconds (connect, stream and answer); a scan that takes longer is tried again. */
+  CLAMAV_TIMEOUT_MS: z.coerce.number().int().min(1000).default(60_000),
+  /** Tries per scan, the first included (exponential backoff from 5 s), before the attachment stays pending for the retry job (every 5 minutes) to queue again. */
+  MALWARE_SCAN_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(5),
+
+  /**
+   * Image attachments (platform/images, docs/attachments.md, "Image
+   * renditions"): a queue job makes a thumbnail and a preview of each
+   * uploaded JPEG, PNG, WebP or GIF, after the malware scan found it clean,
+   * and removes the metadata (EXIF, GPS…) of the original. `off`: images
+   * are stored as uploaded, with no renditions.
+   */
+  IMAGE_PROCESSING: flag('on'),
+  /**
+   * Pixels of one frame (width × height) an image may have to be processed;
+   * more is refused from its header, before a pixel is decoded (a decompression
+   * bomb: 50 KB of PNG can claim gigapixels). The image stays as uploaded.
+   * Memory is about 4 bytes per pixel while one image is converted: raise it
+   * with WORKER_MEMORY.
+   */
+  IMAGE_MAX_PIXELS: z.coerce
+    .number()
+    .int()
+    .min(1_000)
+    .max(268_402_689)
+    .default(50_000_000),
+  /** One conversion's limit, in milliseconds; an image that takes longer stays as uploaded. */
+  IMAGE_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30_000),
+  /**
+   * `on`: an original that carries metadata (EXIF, GPS, XMP, IPTC) is
+   * replaced by a copy without it (re-encoded: JPEG and WebP at quality 90,
+   * upright). `off`: originals stay byte for byte as uploaded; only the
+   * renditions are stripped.
+   */
+  IMAGE_STRIP_ORIGINALS: flag('on'),
 
   /**
    * PDF documents (platform/documents): Gotenberg's URL, `http://gotenberg:3000`

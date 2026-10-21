@@ -39,6 +39,7 @@ export type RealtimeEventDeclaration = ReturnType<typeof defineRealtimeEvent>;
  * `defineRealtimeEvent(id, description, schema)`: `id` names the payload's
  * OpenAPI component (`Realtime…Event`, unique). Names must not repeat a
  * platform event's.
+ * @public
  */
 export const defineRealtimeEvents = <
   const T extends Record<string, RealtimeEventDeclaration>,
@@ -239,11 +240,11 @@ export const REALTIME_EVENTS = {
   ),
   'record.attachments.changed': event(
     'RealtimeRecordAttachmentsChangedEvent',
-    'A file on a record you watch was uploaded, removed or issued (a PDF): ids only.',
+    "A file on a record you watch was uploaded, removed, issued (a PDF), scanned clean (it can be downloaded now; MALWARE_SCANNER) or processed (an image's thumbnail and preview are made, or it could not be; IMAGE_PROCESSING): ids only.",
     z.object({
       ...subjectRecord,
       attachmentId: z.string(),
-      action: z.enum(['added', 'removed']),
+      action: z.enum(['added', 'removed', 'scanned', 'processed']),
     }),
   ),
 } as const;

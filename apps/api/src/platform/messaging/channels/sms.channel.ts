@@ -51,6 +51,7 @@ export class SmsChannel implements NotificationChannel<boolean> {
     recipient,
     setting,
     rendered,
+    quietUntil,
   }: NotificationDelivery) {
     if (recipient.kind !== 'user' || setting !== true) return;
     if (!(await this.messaging.hasSendablePhone(recipient.id))) return;
@@ -64,6 +65,12 @@ export class SmsChannel implements NotificationChannel<boolean> {
       notificationId: notification.id,
       text: clip(`${rendered.title}: ${rendered.body}`, 1600),
     };
-    await this.queue.add('sms', job, { jobId: `sms-${notification.id}` });
+    await this.queue.add('sms', job, {
+      jobId: `sms-${notification.id}`,
+      // Quiet hours: texted when they end.
+      ...(quietUntil
+        ? { delay: Math.max(0, quietUntil.getTime() - Date.now()) }
+        : {}),
+    });
   }
 }

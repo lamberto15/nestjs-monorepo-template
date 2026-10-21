@@ -6,9 +6,18 @@
 pnpm setup --target production          # asks, writes .env (chmod 600), every secret generated
 # or by hand:
 cp env.example .env && chmod 600 .env   # then fill it (below)
+pnpm env:check                    # names missing from .env, REQUIRED ones empty (exits 1)
 docker compose up -d --build      # .env sets COMPOSE_FILE=compose.yaml:compose.prod.yaml
 docker compose ps
 ```
+
+`pnpm env:check` compares `.env` with `env.example` by name, and reads nothing
+else: Compose has defaults for most variables, so `docker compose config`
+passes with a stale `.env` and the app then runs with values you never saw.
+Run it before every `docker compose up` that follows an update of the
+template; a re-run of `pnpm setup --target production` adds the missing
+variables with the template's defaults
+([configuration.md](configuration.md#first-setup-pnpm-setup)).
 
 Filling `.env` (each step is commented in `env.example`):
 
@@ -45,7 +54,7 @@ Filling `.env` (each step is commented in `env.example`):
   (the API's responses keep helmet's own): `Content-Security-Policy`
   (`default-src 'self'`; scripts and frames also from `https://challenges.cloudflare.com`,
   Turnstile's only needs; `connect-src 'self'` covers the API and socket.io;
-  `img-src 'self' data:`; `style-src` keeps `'unsafe-inline'` because sonner and the theme
+  `img-src 'self' data:`; both also name the origins of files, below; `style-src` keeps `'unsafe-inline'` because sonner and the theme
   provider inject `<style>` elements; no `'unsafe-eval'`, so `apps/web` imports `z` from `@/lib/zod`, which sets zod to
   `jitless`; `frame-ancestors 'none'`), `X-Frame-Options: DENY`, `X-Content-Type-Options`,
   `Referrer-Policy: strict-origin-when-cross-origin` and a `Permissions-Policy` that turns
@@ -55,6 +64,78 @@ Filling `.env` (each step is commented in `env.example`):
   `<script>`, no `eval`. Check a change by loading the built app through Caddy (`docker
 build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviolation`
   events: there must be none.
+- **The origins of files** (`STORAGE_DRIVER=s3`). The browser reaches the bucket itself
+  twice: it PUTs a direct upload straight to it
+  ([attachments](attachments.md#direct-uploads-s3)), and the attachments panel's `<img>`
+  for an image's thumbnail and preview
+  (`GET /v1/attachments/{id}/download?rendition=thumb|preview`) follows a 302 to the
+  bucket's signed link ([attachments](attachments.md#image-renditions)). The policy
+  blocks a request to an origin it does not name before any CORS check (the web app
+  still works without it, less directly: uploads go through the API, a thumbnail that
+  cannot load shows the file icon, and the original still downloads, a download being a
+  navigation, which neither directive governs). With `STORAGE_DRIVER=local` there is
+  nothing to add: the files' links are `https://<APP_DOMAIN>/files…`, the app's own
+  origin (`/files/*` goes to the API above), which `'self'` covers. So `connect-src` and
+  `img-src` both name one list of origins, which `caddy/entrypoint.sh` makes at each
+  start (`WEB_FILES_ORIGINS`, the one value the Caddyfile reads for them; after changing
+  the settings, recreate Caddy: `docker compose up -d caddy`). The Helm chart's web
+  Caddy makes the same list from `env` and `web.filesOrigin` (`app.webFilesOrigins`,
+  which fails the render on a value it cannot read). The list holds:
+  - **the bucket's origin**, derived from the app's own `S3_BUCKET`, `S3_ENDPOINT`,
+    `S3_REGION` (or `AWS_REGION`) and `S3_FORCE_PATH_STYLE` as the API's S3 disk signs its
+    URLs (`https://<bucket>.s3.<region>.amazonaws.com`; R2's
+    `https://<bucket>.<account>.r2.cloudflarestorage.com`; with path style, the endpoint
+    with the bucket's path, `https://s3.<region>.amazonaws.com/<bucket>/`, never the
+    bare host, which on AWS and other shared stores serves every customer's buckets;
+    the upload's `PUT` matches the path, and a source's path does not count after a
+    redirect, so the thumbnail's 302 still loads), which `compose.prod.yaml` hands to
+    `caddy`. Settings it cannot make an origin of leave it out, with a warning in
+    Caddy's log;
+  - then **`FILES_ORIGIN`**, set in `.env`: space-separated `https://host[:port]` origins
+    the settings can't tell, such as a custom domain or a CDN in front of the bucket.
+    Empty (the default), nothing is added. It goes into the policy as written, so
+    `caddy/entrypoint.sh` refuses to start with anything else (a path, a wildcard, a
+    quote or a semicolon).
+- **Security contact** (`/.well-known/security.txt`, RFC 9116). Caddy answers that one
+  path itself (its handle comes before the `@api` matcher); `caddy/entrypoint.sh` writes
+  the file to `/srv/security` at each start from `SECURITY_CONTACT` (one or more
+  `mailto:`/`https:` URIs, comma-separated; the RFC requires it, and unset means no file,
+  a 404), `SECURITY_EXPIRES` (RFC 3339 UTC; unset, a year from the start, so pin it to
+  keep one date), `SECURITY_POLICY` (the `SECURITY.md` URL; the default is this template's
+  on GitHub, so set your own) and `SECURITY_PREFERRED_LANGUAGES` (`en`). Check it after a
+  deploy: `curl -i https://<APP_DOMAIN>/.well-known/security.txt`.
+- **Maintenance page** (`MAINTENANCE_PAGE=on`). Maintenance and read-only mode
+  ([settings](settings.md), "Maintenance and read-only mode") stops the API taking
+  requests, but the web app's files are still Caddy's to serve. With the flag on,
+  every path of the web app (`/`, its routes, `/assets/*`, the manifest) answers the
+  static `caddy/maintenance.html` instead: status 503, `Retry-After: 30`,
+  `Cache-Control: no-store` and the web app's security headers, so not even the shell
+  is served. The page has no script and makes no request; it carries the five
+  languages and reloads itself every 30 seconds, so it turns into the app when the
+  flag goes off. Nothing else changes: the API's paths (`@api` below), `/metrics`
+  (404) and `security.txt` answer as before, so a client or a probe still sees the
+  API's own 503 `maintenance`. Caddyfile: a `handle @maintenance` first in the web
+  app's block, a `file_server { status 503 }` on a rewrite to the page, the flag read
+  as `{env.MAINTENANCE_PAGE}` at each request ([Caddyfile
+  concepts](https://caddyserver.com/docs/caddyfile/concepts#environment-variables),
+  the `expression` matcher). Exactly `on` turns it on; unset or anything else is off.
+  - **Planned maintenance:** set `APP_MODE=maintenance` and `MAINTENANCE_PAGE=on` in
+    `.env` and `docker compose up -d` (it recreates `api`, `worker` and `caddy`; a
+    flag changed alone: `docker compose up -d caddy`, a few seconds without the web
+    app). To end it, remove both and run it again. The two are separate on
+    purpose: the page alone is for when the API is gone altogether (a restore), the
+    mode alone keeps the web app up and shows its notice. An operator can end only a
+    mode set by the `platform.mode` setting from that notice; one forced by `APP_MODE`
+    (as here) ends when it is removed from `.env`.
+  - **An installed web app** (the service worker) still opens its cached shell, and
+    then shows its own notice: the API answers 503 `maintenance`, which the app turns
+    into a full-page notice ([monorepo](monorepo.md), "Maintenance and read-only
+    mode"). Only first visits and other clients see Caddy's page.
+  - **Swarm** gets the flag through the same service environment. The Kubernetes
+    chart's `web` does not have it (its Ingress is where that is done).
+  - **Test:** `CADDY_BIN=/path/to/caddy node --test caddy/caddyfile.test.mjs` runs
+    the real Caddyfile (the TLS block and Docker names edited out) under a real Caddy;
+    CI's `caddy-image` job runs it with the image's own binary.
 - **Replacing an earlier deployment's Caddy?** Its token and email:
   `docker inspect --format '{{json .Config.Env}}' <caddy container>`.
 
@@ -80,6 +161,10 @@ build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviol
   Secure cookie and `trust proxy` rely on that.
 - Local file storage is a volume shared by the replicas of one host. More hosts:
   `STORAGE_DRIVER=s3`.
+  With S3 the web app uploads straight to the bucket (presigned PUT): the
+  bucket needs a CORS rule for the web app's origin
+  ([attachments](attachments.md#direct-uploads-s3)); without one it uploads
+  through the API instead.
 - Logs are JSON on stdout (`docker compose logs`). `X-Request-Id` follows a
   request through Caddy, the logs and NestJS Observe. Credentials are
   masked before a line is written ([Log redaction](#log-redaction)).
@@ -173,6 +258,7 @@ reads.
 | `POSTGRES_REPORTING_PASSWORD_FILE` | `migrate` only (creates the reporting role with it) | `POSTGRES_REPORTING_PASSWORD` |
 | `CLOUDFLARE_API_TOKEN_FILE`                                                                                                                                                                                                                                                                                                                                                                   | Caddy (`caddy/entrypoint.sh`)                                                                                                                         | `CLOUDFLARE_API_TOKEN`                              |
 | `BACKUP_S3_SECRET_ACCESS_KEY_FILE`                                                                                                                                                                                                                                                                                                                                                            | the backup                                                                                                                                            | `BACKUP_S3_SECRET_ACCESS_KEY`                       |
+| `BACKUP_ENCRYPTION_KEY_FILE` | the backup (the age recipients, public keys, one per line) | `BACKUP_ENCRYPTION_KEY` |
 | `SMTP_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                               | the app, and Alertmanager (its default `ALERT_SMTP_URL`)                                                                                              | `SMTP_URL`                                          |
 | `ANTHROPIC_API_KEY_FILE` | the app (api, worker; not `migrate`) | `ANTHROPIC_API_KEY` |
 | `JWT_SECRET_FILE`, `MFA_ENCRYPTION_KEYS_FILE`, `STORAGE_SIGNING_KEYS_FILE`, `IDEMPOTENCY_KEYS_FILE`, `CURSOR_KEYS_FILE`, `WEBHOOKS_ENCRYPTION_KEYS_FILE`, `DATA_ENCRYPTION_KEYS_FILE`, `BLIND_INDEX_KEYS_FILE`, `ADMIN_PASSWORD_FILE`, `MAIL_API_KEY_FILE`, `AWS_SECRET_ACCESS_KEY_FILE`, `GOOGLE_CLIENT_SECRET_FILE`, `MICROSOFT_CLIENT_SECRET_FILE`, `GITHUB_CLIENT_SECRET_FILE`, `TURNSTILE_SECRET_KEY_FILE`, `OBSERVE_APP_SECRET_FILE`, `EXAMPLE_SENDER_WEBHOOK_SECRET_FILE` | the app (api, worker, migrate)                                                                                                                        | the variable without `_FILE`                        |
@@ -360,6 +446,124 @@ at 5 sign-ins/s (the load test); every sign-in queued on it failed. So:
   `password_hashes_rejected_total{reason="full|queue-timeout"}` on
   `/metrics`; the `PasswordHashingSaturated` alert fires after 10 minutes of
   refusals. `AppRestarting` catches a process still killed at its limit.
+- **Images** ([attachments](attachments.md#image-renditions)): the worker
+  converts one uploaded image at a time, with sharp (libvips), whose memory is
+  outside the V8 heap and outside the formula above. A 48-megapixel JPEG that
+  needs rotating kept the whole process near 140 MB resident, with no
+  temporary file; the budget is about 4 bytes per pixel of
+  `IMAGE_MAX_PIXELS` (50 million: 200 MB) on top of the file itself (at most
+  64 MiB). The worker's 128 MiB "rest outside the heap" and the 768 MiB heap
+  seldom peak together, and it hashes at most one password at a time, so the
+  default limits hold; raise `WORKER_MEMORY` with `IMAGE_MAX_PIXELS`, and
+  `/tmp` if libvips spills a very large image there (`Read-only file system`
+  or `No space left` in the worker's log). A worker killed at its limit
+  while converting gets the job back once (BullMQ's stalled-job check);
+  killed on it again, the image ends `failed`, as uploaded, so one image
+  can't take the worker down over and over.
+  sharp brings libvips prebuilt (the `@img/sharp-*` package for the platform
+  and libc, an optional dependency with no install script): the glibc image
+  (`apps/api/Dockerfile`) needs no extra package and no `allowBuilds` entry.
+
+### Container hardening
+
+Every service of compose.prod.yaml, and of the optional overlays
+`compose.clamav.yaml` and `compose.monitoring.yaml` (log shipping included),
+runs with `read_only: true`, `cap_drop: [ALL]` and `no-new-privileges`, and a
+`tmpfs` for what it writes (Gotenberg's were the first). A compromised
+process then can't change the image, plant a binary, or gain privileges.
+What each one may write, and the capabilities it gets back:
+
+| Service | Writable (besides the image: none) | Capabilities added back |
+| --- | --- | --- |
+| `api`, `worker`, `migrate` | `/tmp` (64m tmpfs); `api` and `worker` also the `app_storage` volume | none |
+| `postgres` | the `postgres_data` volume, `/tmp` (64m) and `/run/postgresql` (the socket) in memory | `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, `SETUID`: the image's entrypoint starts as root, fixes the data directory and drops to `postgres` |
+| `redis` | the `redis_data` volume, `/tmp` (16m) | `DAC_OVERRIDE`: the command is `sh redis.sh`, not `redis-server`, so the image's entrypoint never drops to `redis`; the server runs as root on a volume that is `redis`'s, which root can't write without it |
+| `caddy` | the `caddy_data` and `caddy_config` volumes, `/tmp` (16m) | `NET_BIND_SERVICE`: ports 80 and 443 |
+| `backup` | the `backups` volume, `/tmp` (16m); `app_storage` stays read only | none (a files restore adds three: [Restoring](#restoring), step 4) |
+| `gotenberg` | `/tmp` and its home, in memory (see above) | none |
+| `clamav` ([ClamAV](#clamav-malware-scanning)) | the `clamav_db` volume; `/tmp` (512m, `CLAMAV_TMP_SIZE`) and `/var/log/clamav` (8m) in memory | none: it runs as `clamav`, started by `clamav/entrypoint.sh` instead of the image's `/init` (see below) |
+| `prometheus` | the `prometheus_data` volume, `/tmp` (16m) in memory; **the root filesystem is writable: the one exception** (see below) | none |
+| `alertmanager` | the `alertmanager_data` volume, `/tmp` (16m) in memory: `render-config.sh` writes the configuration, with the SMTP password, there | none |
+| `postgres-exporter`, `redis-exporter`, `node-exporter` | `/tmp` (16m), unused | none |
+| `blackbox-exporter` | `/tmp` (16m): `render-config.sh` writes the module there | none: its HTTP probe needs no `NET_RAW` |
+| `backup-metrics` | `/www` (the metrics file) and `/tmp` (1m) in memory; `backups` is read only | none |
+| `loki` | the `loki_data` volume, `/tmp` (64m) in memory, unused | none |
+| `alloy` | the `alloy_data` volume (the read positions), `/tmp` (16m) in memory, unused | `DAC_OVERRIDE`: the process is root (it reads the Docker socket) and the volume's directory belongs to the image's `alloy` user, mode 770; root without it is neither owner nor in the group |
+| `grafana` | the `grafana_data` volume (the database, the plugins it downloads), `/tmp` (64m) in memory | none (`GF_PLUGINS_PREINSTALL_AUTO_UPDATE=false`, below) |
+
+- **The tmpfs counts against the container's memory limit** once used, so
+  `/tmp` is small. Raise it in the service's `tmpfs:` line if a feature
+  writes large temporary files (nothing in the app does today: exports and
+  attachments go through the storage driver, and the image library works in
+  memory at the default `IMAGE_MAX_PIXELS`).
+- **Adding a service or a write path:** give the service the same keys, mount
+  a volume or tmpfs on every path it writes, and start it with the stack up
+  (`docker compose logs <service>`): a `Read-only file system` error names
+  the path to add. Add a capability only when the service fails without it,
+  and say why in a comment.
+- **The exception:** `prometheus` keeps a writable root filesystem. Its
+  bearer token for the app's `/metrics` is a Compose secret made from the
+  `METRICS_TOKEN` variable, and Compose creates such a secret (one that is
+  not a file) by copying it into the container, which it refuses for a
+  read-only service (`cannot create secret "metrics_token" in read-only
+  service`). Everything else applies: it runs as `nobody`, writes
+  `/prometheus` only, has no capability and no way to gain one. A token in a
+  file (`secrets: file:`, as every other secret of the stack) would lift the
+  exception. CI's list of exceptions is in the "Every service is hardened"
+  step; it fails when an exception is no longer needed.
+- **ClamAV** can't run read-only as the image starts it: its `/init`
+  chowns the signatures, creates `/run/clamav` and edits `/etc/clamav/*.conf`
+  with `sed -i` from `CLAMD_CONF_*`. The image's `/init-unprivileged`
+  ([ClamAV's Docker documentation](https://docs.clamav.net/manual/Installing/Docker.html),
+  "Running ClamD using non-root user") does none of that, and none of the
+  variables either, so `clamav/entrypoint.sh` does what it does, after
+  applying `CLAMD_CONF_*` and `FRESHCLAM_CONF_*` to copies of the
+  configuration in `/tmp` (`--config-file`): the settings in
+  `compose.clamav.yaml` work as before. clamd writes every stream it scans to
+  `/tmp` first (and unpacks archives there): size `CLAMAV_TMP_SIZE` for the
+  largest attachment (`ATTACHMENT_MAX_MB`), with `CLAMAV_MEMORY` to match, as
+  a tmpfs counts against the memory limit once used. Its `/var/log/clamav`
+  tmpfs names the owner (`uid=100,gid=101`, the image's `clamav`): a tmpfs
+  belongs to root otherwise, and clamd cannot open its log.
+- **Grafana** installs a set of plugins when it starts (Explore Logs and
+  the like, into the `grafana_data` volume) and, by default, also replaces
+  the ones its image bundles (OpenTSDB, Elasticsearch, Cloud Monitoring)
+  with newer builds: it stops each, then fails to delete its directory from
+  the read-only image (`Failed to install plugin ... read-only file
+  system`). `GF_PLUGINS_PREINSTALL_AUTO_UPDATE=false` skips plugins that are
+  already there, so the image's version of a bundled plugin stays (the image
+  is the unit of update), and the ones in the volume stay at the version
+  first downloaded: remove `/var/lib/grafana/plugins` from the volume to get
+  newer ones.
+- **Not covered:** `compose.pgbouncer.yaml` and `compose.pitr.yaml` (their
+  services keep the images' defaults, and CI doesn't render them), and
+  `compose.yaml` / `compose.dev.yaml` alone (development).
+- **Swarm** ([deploy-swarm.md](deploy-swarm.md)) renders these files, so it
+  inherits `read_only` and the capabilities. `docker stack deploy` ignores a
+  service's `tmpfs:` list, so `tools/deploy/render.mjs` turns each entry into
+  a `type: tmpfs` volume (the size only: Gotenberg's `uid` and `gid` have no
+  Swarm equivalent, the mount is writable by anyone). `security_opt` is
+  dropped there.
+- **CI** (`.github/workflows/ci.yml`): `compose-secrets` fails when a service
+  lacks the keys (`read_only`, `cap_drop`, `no-new-privileges`, a `/tmp`
+  tmpfs), whichever service it is. It renders `compose.yaml` +
+  `compose.prod.yaml` alone, then with each overlay on top (`clamav`,
+  `monitoring` with every profile, `blue-green`), and checks that the overlay's
+  services are in the render. The exceptions are a list in that step, by
+  service and key. `hardened-stack` starts the stack on new volumes and fails
+  when a container exits, restarts, is unhealthy or logs `Read-only file
+  system`. Not started there: the production Caddy (its certificate needs a
+  public name; the job runs the stock Caddy image on plain HTTP, with the
+  `caddy_data` and `caddy_config` volumes `compose.loadtest.yaml` names: the
+  stock image has no `VOLUME` there, so under `read_only` they would be
+  read-only) and Gotenberg. The overlays are started where they change:
+  `.github/workflows/monitoring.yml` starts every service of
+  `compose.monitoring.yaml` (Loki, Alloy and Grafana included) and checks
+  that none restarts, logs `Read-only file system`, and that Alloy's lines
+  reach Loki; `.github/workflows/clamav.yml` starts `clamav`, checks its
+  user, capabilities and read-only image, and scans the EICAR test file and a
+  stream over `StreamMaxLength`. Both run only on pull requests and pushes
+  that touch the overlay or its files.
 
 ## Staging
 
@@ -706,6 +910,9 @@ that masks:
 - **NestJS Observe** (when configured) gets the same keys and patterns as
   `redaction.keys` / `redaction.patterns`, on top of its own defaults, for
   the errors and requests it captures and the log lines it forwards.
+- **Sentry** (when `SENTRY_DSN` is set) gets every event, breadcrumb and
+  transaction through `logRedaction.redactValue()` in its `beforeSend`
+  ([Telemetry](#telemetry)).
 
 Where that applies: the request log (method, path, status, never headers or
 bodies), the problem-details filter's 5xx report (message and stack), every
@@ -726,6 +933,51 @@ encrypted column's property with `declareFields()` ([encryption](encryption.md))
 
 What it is not: a guarantee. A secret logged under an innocent name, in a
 shape no pattern knows, is written as is. Log ids, not payloads.
+
+### ClamAV (malware scanning)
+
+Optional: [attachments](attachments.md) can be scanned for malware.
+`compose.clamav.yaml` adds a `clamav` service (the official `clamav/clamav`
+image, pinned, which runs clamd and freshclam) and turns the scanner on for
+`api` and `worker`:
+
+```bash
+# .env
+COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.clamav.yaml
+docker compose up -d
+```
+
+- **The network:** `scanning`, its own; only `worker` joins it (besides
+  `default`) and clamd's port 3310 is not published. It is not `internal`:
+  freshclam downloads the signatures (the first start takes a minute or
+  two; `clamav_db` keeps them across restarts). Until clamd answers, scans
+  fail and are tried again, and uploads stay `pending`.
+- **Size:** clamd refuses a stream over `StreamMaxLength`; the file sets it
+  (and `MaxFileSize`) to `CLAMAV_STREAM_MAX_MB`, default `ATTACHMENT_MAX_MB`.
+  Raise `ATTACHMENT_MAX_MB` and it follows. Limits: `CLAMAV_CPUS` (1),
+  `CLAMAV_MEMORY` (3G: the loaded signatures are about 1.5 GB).
+- **Hardened** like the rest of the stack ([Container
+  hardening](#container-hardening)): read-only, as the user `clamav`, no
+  capability. `clamav/entrypoint.sh` starts freshclam and clamd (the image's
+  `/init-unprivileged`, with the settings above applied). clamd writes every
+  stream it scans, and the files it unpacks from an archive, to `/tmp`, a
+  tmpfs of `CLAMAV_TMP_SIZE` (512m) that counts against `CLAMAV_MEMORY`:
+  raise both with `ATTACHMENT_MAX_MB`, or the scan of a large upload fails
+  for lack of space and the file stays `pending`. An existing `clamav_db`
+  volume is used as it is. `.github/workflows/clamav.yml` starts
+  the container and scans the EICAR test file whenever the overlay changes.
+- **Blue-green:** the colours (`api-blue`, `api-green`) extend
+  `compose.prod.yaml`'s `api`, so they never get what the file sets on `api`.
+  Put `MALWARE_SCANNER=clamav` and `CLAMAV_HOST=clamav` in `.env` as well:
+  every service reads them from there (CI renders the combination and checks
+  both colours). Forgotten, the colours run with the scanner off: their
+  uploads are `clean` at once, unscanned, and nothing says so.
+- **Off:** leave the file out of `COMPOSE_FILE` (`MALWARE_SCANNER=off`, the
+  default): no scan and no `pending` state, as without this feature. Turning
+  it on later leaves existing attachments `clean` (unscanned); turning it
+  back off releases the uploads still `pending` as `clean` within minutes
+  (nothing will scan them), audited as `attachments.released`.
+- **Metric:** `attachments_scanned_total{result}` ([below](#metrics)).
 
 ## Metrics
 
@@ -748,9 +1000,10 @@ a counter per process: `rate()` and sum it), password hashing (`password_hashes_
 `password_hashes_queued`, `password_hashes_rejected_total{reason}`: per
 process, [Resource limits](#resource-limits)), mail (`mail_sent_total`,
 `mail_suppressed_total{reason}`, `mail_events_total{provider,type}`:
-[deliverability](deliverability.md)), `deprecated_route_calls_total{route}` (calls to `@Deprecated()` routes: [api-conventions](api-conventions.md), "Deprecation"), `encrypted_rows_on_old_key{column}`
+[deliverability](deliverability.md)), `deprecated_route_calls_total{route}` (calls to `@Deprecated()` routes: [api-conventions](api-conventions.md), "Deprecation"), `attachments_scanned_total{result="clean|infected|error"}` (malware scans of uploads, a counter per worker: [attachments](attachments.md)), `attachment_images_processed_total{result="ready|failed|error"}` (uploaded images processed, a counter per worker: [attachments](attachments.md#image-renditions)), `encrypted_rows_on_old_key{column}`
 ([encryption](encryption.md)), `exchange_rates_age_seconds`
-([money](money.md)), Node's defaults (`process_cpu_seconds_total`,
+([money](money.md)), `telemetry_rejected_total{target,status}` (uploads a
+collector refused: 401, 403, 429; [Telemetry](#telemetry)), Node's defaults (`process_cpu_seconds_total`,
 heap, event loop lag, GC) and the heap's limit (`nodejs_heap_size_limit_bytes`).
 Queue, outbox, webhook and approval gauges are shared state: every process reports the
 same values, so aggregate them with `max()`, not `sum()`. A gauge whose read
@@ -803,7 +1056,9 @@ volume: 30 days, at most 4 GB (`monitoring/prometheus/prometheus.yml`).
 Limits: `PROMETHEUS_CPUS`, `PROMETHEUS_MEMORY`, `ALERTMANAGER_CPUS`,
 `ALERTMANAGER_MEMORY`; the exporters get 0.25 CPU and 128 MB each (the
 blackbox exporter 0.1 CPU and 64 MB). Logs are
-bounded like the rest of the stack (`DOCKER_LOG_*`).
+bounded like the rest of the stack (`DOCKER_LOG_*`). Every service runs
+hardened ([Container hardening](#container-hardening)): read-only (Prometheus
+excepted, and why is there), no capabilities, `no-new-privileges`.
 
 **The alerts** (46 rules in `monitoring/prometheus/alerts.yml`; critical: look now,
 warning: look today):
@@ -828,7 +1083,9 @@ warning: look today):
 | `TenantStorageNearLimit` | a tenant stores over 90% of its storage limit for 15 min (`tenant_storage_bytes` / `tenant_storage_limit_bytes`; [Quotas](tenancy.md#quotas)) | warning |
 | `ApprovalsOverdue`                                           | an approval stage is 15 min past its deadline (its workflow should have escalated or expired it)                                                                                    | warning           |
 | `ApprovalsNotApplied`                                        | an approved request's outcome hasn't been applied (or failed) after an hour: its record stays locked                                                                                | warning           |
+| `TelemetryRejected` | OTLP or Observe uploads were refused (401, 403, 429) for 5 min: a dead pipeline ([Telemetry](#telemetry)) | warning |
 | `ExchangeRatesStale`                                         | the newest stored ECB rates are more than six days old (or none was ever fetched), for 2 h ([money.md](money.md))                                                                   | warning           |
+| `SmsBlocked`, `SmsBudgetNearCap`                             | SMS refused today by a toll-fraud cap, the allowlist or the spend cap (any, by reason, for 5 min); a tenant used 80% of its monthly SMS budget ([notifications.md](notifications.md#push-and-sms)) | warning           |
 | `DatabaseUnreachableFromApp`, `RedisUnreachableFromApp`      | a process answers but can't read PostgreSQL / Redis, for 2 min (works with managed services too)                                                                                    | critical          |
 | `MailBounceRateHigh`, `MailComplaints`                       | over 5% of the mail sent in an hour bounced hard (at least 20 sent, for 15 min); any spam complaint in the last hour ([deliverability.md](deliverability.md))                       | warning           |
 | `CaptchaProviderUnavailable`                                 | challenge verifications fail (timeout, error, open circuit) for 5 min: the sign-in routes run fail-open under the strict tier, or answer 503 ([auth.md](auth.md), "Bot protection") | warning           |
@@ -1010,6 +1267,75 @@ and `REDIS_URL`. With Redis
 Sentinel, remove `redis-exporter` and its scrape job; the app's own
 `RedisUnreachableFromApp` still covers Redis.
 
+### Logs
+
+Logs live in Docker's files, bounded by `DOCKER_LOG_*`. To search them
+across containers, `compose.monitoring.yaml` has an optional log pipeline:
+**Loki** (storage and queries) and **Grafana Alloy** (the collector), plus
+**Grafana** as the UI. All three have Compose profiles, so they are off even
+when the file is in `COMPOSE_FILE`:
+
+```bash
+# .env: COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.monitoring.yaml
+#       COMPOSE_PROFILES=logs            # Loki + Alloy
+#       COMPOSE_PROFILES=logs,grafana    # and Grafana (GRAFANA_ADMIN_PASSWORD required)
+docker compose up -d
+```
+
+- **Alloy, not Promtail.** Grafana ended Promtail's life on 2026-03-02; Alloy
+  is its documented successor. `monitoring/alloy/config.alloy` discovers this
+  Compose project's containers (`discovery.docker`, filtered by the project
+  label), reads them with `loki.source.docker` and pushes to Loki. Labels:
+  `service` (api, worker, caddy, ...), `container`, `job="docker"`, `level`.
+- **The log driver.** Alloy reads through the Docker API (the socket,
+  mounted read only), so it works with the default `local` driver and with
+  `json-file`: anything `docker logs` can print. Drivers Docker can't read
+  back (`syslog`, `gelf`, `awslogs`, `fluentd`, `none`) leave Alloy with
+  nothing, and then the shipper belongs to that driver, not here. Set
+  `DOCKER_LOG_DRIVER=json-file` only for a collector that tails the files in
+  `/var/lib/docker/containers` (Promtail-style, or Vector); Alloy doesn't
+  need it. The socket gives Alloy the whole Docker API, even read only, so it
+  runs as root (with `DAC_OVERRIDE` as its one capability, to write its
+  volume: [Container hardening](#container-hardening)); it is not published.
+- **Retention.** `LOKI_RETENTION` (default `720h`, 30 days), enforced by
+  Loki's compactor (`retention_enabled`, `monitoring/loki/loki.yml`). The
+  chunks live in the `loki_data` volume; budget the disk for it. Change the
+  value and `docker compose up -d loki`.
+- **Redaction is unchanged.** The app masks secrets before it writes a line
+  ([Log redaction](#log-redaction)); Alloy ships those lines as they are and
+  adds no parsing that could un-mask anything. Anything Caddy or PostgreSQL
+  log is shipped as written.
+- **Loki is not published** (no authentication: `auth_enabled: false`);
+  Alloy and Grafana reach it as `loki:3100`. Grafana listens on
+  `127.0.0.1:${GRAFANA_PORT:-3001}`: reach it through an SSH tunnel, like
+  Prometheus (`ssh -L 3001:127.0.0.1:3001 <host>`), sign in as `admin` with
+  `GRAFANA_ADMIN_PASSWORD`, open Explore. The Loki data source is
+  provisioned (`monitoring/grafana/provisioning/datasources/loki.yml`).
+- **Limits:** `LOKI_CPUS`/`LOKI_MEMORY` (0.5, 512 MB), `ALLOY_*` (0.25, 256
+  MB), `GRAFANA_*` (0.5, 256 MB).
+
+**Querying by `requestId`.** In production the app writes one JSON object per
+line (`LOG_FORMAT=json`), and every request carries an id: the
+`X-Request-Id` header, which the response returns and an error body's
+`requestId` repeats. Alloy turns `requestId` into structured metadata
+`request_id` (not a label: it is unbounded), and `level` into a label.
+In Grafana's Explore (LogQL):
+
+```logql
+{service=~"api|worker"} | request_id = "7c1b0f0e-6e0f-4a43-9d3c-2f1d0a9c1e55"
+{service="api", level="error"} | json | status >= 500
+{service="api"} |= "7c1b0f0e" | json
+```
+
+Without Grafana the UI is missing, not the data: it stays in Loki, and
+`logcli` works against an SSH tunnel to a port you publish yourself.
+
+**Checks.** `.github/workflows/monitoring.yml` verifies `loki.yml`
+(`loki -verify-config`) and parses `config.alloy` (`alloy fmt`) on every
+change, with the images `compose.monitoring.yaml` pins, then starts every
+service of the file under its hardening and checks that Alloy's lines reach
+Loki.
+
 ## Redis
 
 **Redis 7.0 or newer** (Compose runs 8). The bot-protection counters
@@ -1028,8 +1354,9 @@ pointing `REDIS_URL` at it.
 
 **Hosted instead:** NestJS Observe (`OBSERVE_APP_KEY`, `OBSERVE_APP_SECRET`)
 is the hosted alternative: traces, metrics and errors go to the service, and
-alerting is set up there, with nothing to run on the host. The two can run
-side by side.
+alerting is set up there, with nothing to run on the host. It is one option
+of three, none required and all able to run side by side: Observe, your own
+collector over OpenTelemetry, and Sentry for errors ([Telemetry](#telemetry)).
 
 Observe wraps every provider in a proxy, which breaks code keyed by the real
 instance. `core/observability/observe.ts` (`skipObserve`, Observe's
@@ -1043,6 +1370,104 @@ instance decorator. Both are upstream defects (`@nestjs/observe` should treat
 downleveled private fields and wrapped receivers like native `#` members;
 `@nestjs/locks` shouldn't key by instance identity): file them, then drop the
 exclusion.
+
+## Telemetry
+
+Three independent switches, each off until its variable is set, so a project
+is not tied to one hosted vendor:
+
+- **`OBSERVE_APP_KEY` and `OBSERVE_APP_SECRET`:** NestJS Observe (above),
+  hosted traces, metrics and errors.
+- **`OTEL_EXPORTER_OTLP_ENDPOINT`** (and `OTEL_EXPORTER_OTLP_HEADERS` for the
+  collector's credential, e.g. `x-honeycomb-team=KEY`): OpenTelemetry through
+  `@opentelemetry/sdk-node`. Traces and metrics go over OTLP/HTTP to any
+  collector (Grafana Tempo, Jaeger, Honeycomb, Datadog): spans for HTTP,
+  Express, PostgreSQL and Redis (the commands of a request), and runtime
+  metrics. The SDK reads the standard `OTEL_*` variables too
+  (`OTEL_SERVICE_NAME`, defaulting to `SERVICE_NAME`; `OTEL_TRACES_SAMPLER`,
+  …).
+- **`SENTRY_DSN`** (and `SENTRY_TRACES_SAMPLE_RATE`, 0 to 1): Sentry
+  (`@sentry/nestjs`) gets the 5xx the problem-details filter answers, with
+  the request id and error code as tags. Errors only unless the sample rate
+  is set.
+
+`main.ts` awaits `core/observability/instrument.ts` (after the development
+settings) before it loads anything else: the SDKs patch `http`, Express and
+the database and Redis clients as they load, so they start first. The app's
+modules are imported with `await import()` after it, not as static imports
+below it: a module's top-level `await` holds back only the modules that
+import it, so static imports would load Nest, Express and `pg` while the SDKs
+were still starting, and nothing would be traced. The packages are imported
+only when their variable is set. Libraries loaded through `require` or a CJS
+`import` (Express, `pg`, `ioredis`) are instrumented. NestJS's own
+instrumentation (`@opentelemetry/instrumentation-nestjs-core`) does not
+support Nest 12 yet, so there are no spans of controllers and providers.
+
+The SDKs start before the environment is validated, so they read their `_FILE`
+secrets themselves (`SENTRY_DSN_FILE`, `OTEL_EXPORTER_OTLP_HEADERS_FILE`,
+[Secrets in files](#secrets-in-files)); a file that can't be read is reported
+by the validation, which stops the app.
+
+- **The trace id is in every log line** while a span is active: `traceId` in
+  JSON lines, `[trace <id>]` in text lines. It finds the trace in the
+  collector from a log line, and the request's logs from a trace.
+- **Secrets stay out.** Sentry events, breadcrumbs and transactions are
+  scrubbed in `beforeSend` by the log-redaction registry
+  ([Log redaction](#log-redaction)): the same names and patterns, nothing
+  declared twice, and Sentry collects no user, cookies, bodies or query strings (`dataCollection`). Spans carry the route
+  pattern and status, not headers or bodies, and the values of the query
+  parameters the registry names (`code` and `state` of an OIDC callback,
+  `token`, `password`, …) are masked in `url.query` and `url.full`, on top of
+  the instrumentation's own (`sig`, `X-Amz-Signature`, …). The list is read
+  when the SDK starts: a name a feature declares later is not in it.
+- **Error tracking is an adapter.** `ErrorTracker`
+  (`core/observability/error-tracker.ts`) is the interface the filter
+  reports to: Sentry when `SENTRY_DSN` is set, otherwise nothing. Inject it
+  to report an error you handled; another vendor is one subclass and a line
+  in `errorTracker()`. Sentry's own `SentryGlobalFilter` is not used: the one
+  problem-details filter owns every error response.
+- **A dead pipeline is noticed.** An exporter the collector turns away (HTTP
+  401/403 or 429: a revoked key, an exhausted plan) is counted as
+  `telemetry_rejected_total{target="otlp|observe",status}` on `/metrics`
+  (OTLP: the exporters' answers; Observe: its refusal log lines, "Telemetry
+  rate-limited (429)", because it has no hook), and the `TelemetryRejected`
+  alert fires after 5 minutes ([Alerting](#alerting)). The OTLP exporters
+  report a 429, 502, 503 or 504 whose retries ran out as one "retryable"
+  failure without the status, counted as 429; other timeouts and 5xx are left
+  to the exporters' retries. Every series starts at 0 (Prometheus' `increase()`
+  needs a sample before the first count: Observe refuses once, then pauses its
+  uploads until the app restarts, so its alert is that one event). Sentry's
+  SDK drops events it is rate-limited on without telling the app: watch its
+  quota page.
+- **Crashes still crash.** Sentry's default `OnUnhandledRejection`
+  integration is left out (`LEFT_OUT` in `sentry.ts`): with a listener for
+  `unhandledRejection` Node no longer ends the process on a floating
+  rejection, which is how a project without `SENTRY_DSN` is restarted by
+  Compose, and the integration only logs. Without it Node raises the
+  rejection as an uncaught exception, which Sentry's `OnUncaughtException`
+  integration reports before the process exits: the same behaviour with or
+  without Sentry.
+- **Compatibility with the instrumentation.** Observe's proxies broke the
+  mail transports and lock-decorated jobs (`skipObserve`, above).
+  OpenTelemetry and Sentry patch module functions, not provider instances,
+  so they need no such exclusion, and CI proves it: the `e2e-telemetry` job
+  runs a shard of the e2e suite with `OTEL_EXPORTER_OTLP_ENDPOINT` and
+  `SENTRY_DSN` pointing at a stub collector
+  (`apps/api/test/telemetry-stub.mjs`) and fails if no span of a request the
+  app served reached it. `apps/api/test/setup-env.ts` starts the SDKs when
+  either variable is set, before it loads the app: the order that works, so
+  the suite alone cannot show a wrong one in `main.ts`. The job ends by
+  building the API and starting `node dist/main` against a collector of its
+  own (`node apps/api/test/telemetry-stub.mjs boot`, with `DATABASE_URL`,
+  `DATABASE_OWNER_URL`, `DATABASE_MAINTENANCE_URL` and `REDIS_URL` set, as for
+  the browser tests): the credentials are `_FILE` secrets, and it fails unless
+  the request it sent was traced (HTTP, Express and `pg` spans) with the
+  secrets of its query string masked. Locally, run the stub
+  (`node apps/api/test/telemetry-stub.mjs serve`) or Jaeger
+  (`jaegertracing/all-in-one`, OTLP on 4318) and point the variables at it.
+- **Not covered:** logs over OTLP, and ESM-only libraries (they need Node's
+  `--import` hook, `module.register`). Add them when a library you use needs
+  it.
 
 ## Operator CLI
 
@@ -1155,10 +1580,12 @@ copies only: a lost disk loses them too, so set it.
   first backup at once instead of at the next schedule. With a less frequent schedule,
   raise `BACKUP_MAX_AGE_HOURS` to match.
 - **The image** (`backup/Dockerfile`): `postgres:18.6-alpine` without `gosu`
-  (never used: it runs as `postgres`), rclone, and supercronic built from
-  its release tag with a current Go, so Go's fixes reach it. CI scans it
-  like the app image. Dependabot raises the base images;
-  `SUPERCRONIC_VERSION` is raised by hand.
+  (never used: it runs as `postgres`), and rclone and supercronic, both
+  built from their release tags with a current Go, so Go's fixes reach them
+  (the official rclone image's binary carries the Go of its release, which
+  a scan can flag before a new release exists). CI scans it like the app
+  image. Dependabot raises the base images, the Go builder stages included;
+  `SUPERCRONIC_VERSION` and `RCLONE_TAG` are raised by hand.
 - **Kept:** `BACKUP_RETENTION_DAYS` (14) in the volume, older ones removed
   after each complete run (never after a failed one). Off the host, nothing
   is deleted: give the bucket a lifecycle rule (delete after 90 days, say).
@@ -1193,10 +1620,13 @@ copies only: a lost disk loses them too, so set it.
   yourself) needs the same two flags, or the app role created first.
 - **Why pg_dump** (not pgBackRest or WAL-G): one host, one database. A dump is
   one file that restores into any PostgreSQL 18 or newer, and the server
-  needs no change (no WAL archiving, no restart). The price: no
-  point-in-time recovery; a restore loses what happened since the last
-  dump. To lose less, back up more often (`0 */6 * * *`), or move to a
-  managed PostgreSQL with point-in-time recovery (Scaling further).
+  needs no change (no WAL archiving, no restart). The price: a restore
+  loses what happened since the last dump. To lose less, back up more often
+  (`0 */6 * * *`), turn on [point-in-time recovery](#point-in-time-recovery)
+  (off by default), or move to a managed PostgreSQL with its own (Scaling
+  further).
+- **Encrypted**, optionally: [Encryption](#encryption-of-backups) (`age`), so
+  the bucket never holds plaintext.
 - **Managed database** (`DATABASE_URL` elsewhere): use its backups and drop
   `backup` from the stack (with `STORAGE_DRIVER=s3`, nothing else is on the
   host).
@@ -1231,9 +1661,16 @@ BACKUP_S3_ACCESS_KEY_ID=… -e BACKUP_S3_SECRET_ACCESS_KEY=…`).
    files keep the app's owner):
 
    ```bash
-   docker compose run --rm --user root -v app_storage:/restore \
-     -e BACKUP_STORAGE_DIR=/restore backup restore files-<time>.tar.gz
+   docker compose run --rm --user root \
+     --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER \
+     -v app_storage:/restore -e BACKUP_STORAGE_DIR=/restore \
+     backup restore files-<time>.tar.gz
    ```
+
+   The `--cap-add`s: the service drops every capability, and root without
+   them can't write into a directory the app owns, nor read a backup that is
+   mode 600 and the `postgres` user's (`DAC_OVERRIDE`), keep the files'
+   owner (`CHOWN`) or set their modes and times (`FOWNER`).
 
    They are extracted over what the volume holds; files no row points to
    are removed later by the orphan sweep.
@@ -1250,6 +1687,122 @@ exec backup sh -c 'PGDATABASE=restore_check restore db-<time>.dump --yes'`
 loads it into a database `restore_check` beside the app's. Look at it
 (`docker compose exec backup psql -d restore_check -c '\dt'`), then
 `docker compose exec backup dropdb restore_check`.
+
+### Encryption of backups
+
+Off by default. With `BACKUP_ENCRYPTION_KEY` set, every dump, files archive,
+base backup and WAL segment is encrypted with [age](https://age-encryption.org)
+before it is kept or uploaded: the volume and the bucket hold `…​.age` files
+only (checksums are of the encrypted file). The key is a **public** recipient,
+so the server can encrypt and never decrypt: a stolen host or bucket gives
+away no backup. It is `age1…` (several on one line, separated by spaces, so a
+second person can decrypt too) or an SSH public key, a whole line
+(`BACKUP_ENCRYPTION_KEY="ssh-ed25519 AAAA… me@laptop"`). To mix them, or give
+several SSH keys, use `BACKUP_ENCRYPTION_KEY_FILE`: one recipient per line.
+
+```bash
+age-keygen -o backup.key        # keep it OFF the server (password manager, safe)
+# Public key: ... age1xxxxxxxx   -> BACKUP_ENCRYPTION_KEY in .env
+```
+
+Losing the identity (`AGE-SECRET-KEY-…` in `backup.key`) makes every encrypted
+backup unreadable: store it somewhere that outlives the host, and try a
+restore from the bucket now and then. Existing plaintext backups stay as they
+are (old ones age out by `BACKUP_RETENTION_DAYS`; the bucket's lifecycle rule
+removes the rest). `BACKUP_ENCRYPTION_KEY_FILE` is read too, for a mounted
+file (a Docker secret, [Secrets in files](#secrets-in-files)). To restore,
+give the identity for that one command only:
+
+```bash
+docker compose run --rm -e BACKUP_DECRYPTION_KEY="$(cat backup.key)" backup restore db-<time>.dump.age
+```
+
+(`BACKUP_DECRYPTION_KEY_FILE` names a file in the container instead.) `restore`
+decrypts into a private, temporary directory of the volume and removes it
+afterwards. `backup-fetch` copies encrypted names like any other.
+
+### Point-in-time recovery
+
+Off by default. A dump restores to the moment it was taken (up to a day
+back); with point-in-time recovery (PITR) a restore can stop at any moment
+after the oldest base backup kept, e.g. the minute before a bad deploy
+deleted rows. It uses what PostgreSQL itself documents (continuous
+archiving, `pg_basebackup`, `recovery_target_time`), not extra daemons:
+
+- **WAL archiving:** PostgreSQL's `archive_command` copies each finished WAL
+  segment to the `wal_archive` volume (`archive_timeout` 300 s,
+  `BACKUP_WAL_ARCHIVE_TIMEOUT`: a quiet database still closes a segment every
+  five minutes, the most a lost disk can cost besides the last minute).
+- **Base backups:** each scheduled `backup` run adds `base-<time>.tar.gz`
+  (`pg_basebackup`, plain tar of the cluster) and `base-<time>.walstart` (the
+  first segment it needs). Retention (`BACKUP_RETENTION_DAYS`) removes old base
+  backups, and the WAL before the oldest one kept.
+- **Off the host:** with `BACKUP_S3_BUCKET`, `backup-wal-ship` sends new segments
+  to `<prefix>/wal/` every minute (encrypted when the key is set); the
+  service turns `unhealthy` after 30 minutes without a pass.
+  Without a bucket the archive lives on the same disk as the database.
+
+Turn it on (needs a PostgreSQL restart, a few seconds of downtime):
+
+```bash
+# .env
+COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.pitr.yaml
+docker compose up -d --build
+docker compose exec postgres sh -c 'cat "$PGDATA/pg_hba.conf"'   # compare with backup/pg_hba.pitr.conf
+docker compose exec backup backup                                 # the first base backup, now
+```
+
+`compose.pitr.yaml` adds the volume, `archive_mode`/`archive_command`, a
+`wal-init` helper (it makes the volume writable for `postgres`), and a
+`pg_hba.conf` that also lets the backup service connect for base backups
+(the replication protocol, password-protected, on the stack's network only).
+**Compare that file with the running server's before relying on it**: it
+replaces the image's. It repeats compose.prod.yaml's `postgres` command
+(only `max_connections`): keep the two in step. WAL adds disk use: size the
+volume for `archive_timeout`'s segments (16 MB each) times the days kept, or
+more under write load, and watch `docker system df -v`.
+
+**Restoring to a moment** replaces the whole cluster (every database, not one),
+so it is the last resort after a dump restore isn't enough:
+
+1. **Pick the moment** (UTC) just before the damage, and the newest base backup
+   before it: `docker compose exec backup ls -l /backups | grep base-`. On a new host,
+   fetch it first (`backup-fetch base-<time>.tar.gz[.age]`).
+2. **Stop the stack:** `docker compose stop api worker postgres backup`.
+3. **Keep the old data, prepare the new** (as root, with the PostgreSQL volume
+   mounted; the recovered WAL goes beside the data, in the same volume):
+
+   ```bash
+   docker compose run --rm --no-deps --user root -v postgres_data:/var/lib/postgresql \
+     -e BACKUP_DECRYPTION_KEY="$(cat backup.key)" --entrypoint sh backup -c '
+       mv /var/lib/postgresql/18/docker /var/lib/postgresql/18/docker.before-pitr &&
+       restore-pitr base-<time>.tar.gz.age --pgdata /var/lib/postgresql/18/docker \
+         --wal-dir /var/lib/postgresql/pitr-wal --target-time "2026-10-21 09:30:00+00" --offsite'
+   ```
+
+   (Without encryption, drop the key and the `.age`; keep the key when the
+   bucket's WAL is encrypted, even for a plaintext base backup taken before
+   encryption was turned on. Without `--offsite`, the WAL comes from the
+   `wal_archive` volume: add `-v wal_archive:/wal`.)
+   `restore-pitr` unpacks the base backup, puts the WAL where the server
+   reads it, and writes `restore_command`, `recovery_target_time` and
+   `recovery.signal`.
+4. **Start PostgreSQL:** `docker compose up -d postgres`. It replays the WAL up
+   to the target (`docker compose logs postgres`: `recovery stopping before
+   commit of transaction …`), then opens.
+5. **Check the data, then start the app** (`docker compose up -d`) and take a
+   base backup at once (`docker compose exec backup backup`): the recovered
+   database runs on a new timeline, which older base backups don't follow.
+   Remove `docker.before-pitr` and `pitr-wal` (in the volume) when all is well.
+
+`recovery_target_action` is `promote`: a target after the last archived
+segment, or none, replays everything and opens. A target earlier than the base
+backup fails (use an older base backup).
+
+**Try it** like a dump restore, now and then: `scripts/test-backup-pitr.sh`
+runs the whole round trip (encrypted base backup and WAL, a target between two
+writes, a plaintext base backup with encrypted WAL, an encrypted dump) against a throwaway PostgreSQL in the backup image; CI
+runs it in `backup-image`.
 
 ### Restore drill
 
@@ -1303,14 +1856,15 @@ merged migration fails it already):
 
 | Job                      | What                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `check`                  | lint, build, `client:check`, `db:check`, migrations and the app role's bootstrap on a real PostgreSQL (twice: the second run changes nothing); lint and build are every package's (`turbo run`), the web app's included. The Caddy image, which carries the web app, is `caddy-image`'s |
+| `check`                  | lint, build, `client:check`, `db:check`, migrations and the app role's bootstrap on a real PostgreSQL (twice: the second run changes nothing), `pnpm env:check --templates` (the env templates: no variable set twice, the REQUIRED ones named); lint and build are every package's (`turbo run`), the web app's included. The Caddy image, which carries the web app, is `caddy-image`'s |
 | `changes`                | what a pull request touched (the API's file list), so every other job runs only for the paths it reads: docs-only pull requests run `security` alone, web-only ones skip the API's unit and e2e shards and the app image, API-only ones skip the web app's unit shards and Caddy's image. Main, tags and the nightly run skip nothing. The runner pool is shared by every open pull request, so a job with nothing to prove costs every other run its wait in the queue |
 | `unit-api`, `unit-web`   | the unit tests beside `check`: the API's in 3 shards (`--shard=1/3`..`3/3`, when the API changed), the web app's in 3 and the packages' in one job (when the web app or the packages changed) |
 | `e2e`                    | the e2e tests in 6 shards (`--shard=1/6`..`6/6`), each on its own runner with PostgreSQL and Redis, beside `check`; every app runs as the app role, made by an owner that is no superuser ([Database roles](#database-roles)) |
 | `e2e-web` | the web app's browser tests (`pnpm test:e2e:web`, Playwright on the built API and web app, with an axe accessibility scan), with its own PostgreSQL and Redis; not a dependency of `publish` (development.md, "Browser tests") |
-| `compose-secrets`        | the production stack's secrets with the values in `.env` and with every one in a file, as Compose renders them (the monitoring stack too); then the shell readers in their images (`scripts/test-secret-readers.sh`)                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `compose-secrets`        | the production stack's secrets with the values in `.env` and with every one in a file, as Compose renders them (the monitoring stack too); that every service of the stack and of each overlay (`clamav`, `monitoring`, `blue-green`) is hardened ([Container hardening](#container-hardening)); then the shell readers in their images (`scripts/test-secret-readers.sh`)                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `swarm-stack`            | `compose.swarm.yaml` rendered with dummy values and accepted by `docker stack config` (`pnpm deploy:swarm check`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `feature-smoke`          | the feature generator's tests, then two features generated with every option, which must build, lint, migrate and pass their generated e2e tests ([adding a feature](adding-a-feature.md))                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `e2e-telemetry` | one shard of the e2e suite (`--shard=1/6`) with OpenTelemetry and Sentry on, against a stub collector (`apps/api/test/telemetry-stub.mjs`), then the built app (`node dist/main`) against one of its own; fails if the instrumentation breaks the app or no span of a request served arrives ([Telemetry](#telemetry)) |
 | `template-without-notes` | `pnpm feature:remove notes` (the API's and the web app's part), no `notes` left in `apps/api` or `apps/web`, then lint, build, `db:check`, `client:generate` and the build again on that client: the core and the web app stand without the example. On main, tags and the nightly run (03:17 UTC) also its unit and web tests and the whole e2e suite, in 6 shards like the `e2e` job's (each runs a sixth of the e2e suite and a third of the API's or the web app's unit tests), so the run lasts as long as a pull request's; a pull request skips those (they are the `unit-*` and `e2e` jobs' tests with a feature fewer) |
 | `security`               | `pnpm audit --prod --audit-level high`; Trivy: any secret in the repository, high or critical misconfigurations in the Dockerfiles                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `image`                  | builds the production image; Trivy: fixable high or critical vulnerabilities in it (OS packages and `node_modules`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |

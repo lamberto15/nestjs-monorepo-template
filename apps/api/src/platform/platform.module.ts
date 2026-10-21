@@ -6,7 +6,7 @@ import {
   type Type,
 } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { getDrizzleToken } from '@nestjs/drizzle';
 import { ConfigService } from '@nestjs/config';
 import { IdempotencyModule } from '@nestjs/idempotency';
@@ -110,6 +110,9 @@ import {
   NotificationMail,
 } from './notifications/notification.mails.js';
 import { NotificationsController } from './notifications/notifications.controller.js';
+import { NotificationUnsubscribeController } from './notifications/notification-unsubscribe.controller.js';
+import { NotificationUnsubscribeService } from './notifications/notification-unsubscribe.service.js';
+import { notificationUnsubscribeLinksProvider } from './notifications/notification-unsubscribe.js';
 import {
   inDevelopment,
   TEST_NOTIFICATIONS,
@@ -134,9 +137,19 @@ import { ConsentKinds } from './account/consent-kinds.js';
 import { AccountDeletionJob } from './account/account-deletion.job.js';
 import { AccountDeletionMail } from './account/account.mails.js';
 import { AccountLifecycleService } from './account/account.service.js';
+import { AvatarController } from './account/avatar.controller.js';
+import { AvatarService } from './account/avatar.service.js';
 import { deletionCancelLinksProvider } from './account/deletion-cancel-links.js';
 import { AccountTransfer } from './account/account.transfer.js';
 import { TenantCleanup } from './tenants/tenant-cleanup.js';
+import {
+  BrandingController,
+  PublicBrandingController,
+} from './branding/branding.controller.js';
+import { BrandingService } from './branding/branding.service.js';
+import { BrandingLogoUpload } from './branding/branding-logo-upload.interceptor.js';
+import { BRANDING_SETTINGS } from './branding/branding.settings.js';
+import { MAIL_BRANDING } from '../core/mail/mail-branding.js';
 import { QuotaMetrics } from './quotas/quota.metrics.js';
 import { QUOTA_SETTINGS } from './quotas/quota.settings.js';
 import {
@@ -166,6 +179,22 @@ import { NamingSeriesService } from './sequences/naming-series.service.js';
 import { NamingVariables } from './sequences/naming-variables.js';
 import { NUMBERING_SETTINGS } from './sequences/numbering-settings.js';
 import { SequencesService } from './sequences/sequences.service.js';
+import { AttachmentImagesProcessor } from './attachments/attachment-images.processor.js';
+import { AttachmentImagesRetryJob } from './attachments/attachment-images-retry.job.js';
+import { AttachmentImagesQueue } from './attachments/attachment-images.queue.js';
+import { AttachmentImagesService } from './attachments/attachment-images.service.js';
+import { AttachmentScanProcessor } from './attachments/attachment-scan.processor.js';
+import { AttachmentScanRetryJob } from './attachments/attachment-scan-retry.job.js';
+import {
+  ATTACHMENT_NOTIFICATIONS,
+  AttachmentScanQueue,
+} from './attachments/attachment-scan.queue.js';
+import { AttachmentScanService } from './attachments/attachment-scan.service.js';
+import { MalwareScanner } from './attachments/malware-scanner.js';
+import { malwareScanner } from './attachments/malware-scanner.factory.js';
+import { ImageProcessor } from './images/image-processor.js';
+import { imageProcessor } from './images/image-processor.factory.js';
+import { AttachmentUploadsService } from './attachments/attachment-uploads.service.js';
 import { AttachmentsController } from './attachments/attachments.controller.js';
 import { AttachmentsRegistry } from './attachments/attachments.registry.js';
 import { AttachmentsService } from './attachments/attachments.service.js';
@@ -197,6 +226,9 @@ import {
 } from './approvals/approval-admin.controllers.js';
 import { ApprovalDelegationsService } from './approvals/approval-delegations.service.js';
 import { ApprovalEngine } from './approvals/approval-engine.service.js';
+import { ModeGuard } from './mode/mode.guard.js';
+import { ModeService } from './mode/mode.service.js';
+import { MODE_SETTINGS } from './mode/mode.setting.js';
 import { APPROVAL_NOTIFICATIONS } from './approvals/approval-events.js';
 import { APPROVAL_SETTINGS } from './approvals/approval-settings.js';
 import { ApprovalPoliciesService } from './approvals/approval-policies.service.js';
@@ -395,6 +427,7 @@ export class PlatformModule {
         BulkController,
         CustomFieldsController,
         NotificationsController,
+        NotificationUnsubscribeController,
         // Push devices and the SMS number; the provider's inbound STOP/START webhook.
         MessagingController,
         SmsInboundController,
@@ -402,6 +435,8 @@ export class PlatformModule {
         ...inDevelopment<Type>(NotificationTestController),
         SettingsController,
         AccountController,
+        // The user's picture (PUT, DELETE /v1/account/avatar).
+        AvatarController,
         AccountDeletionLinkController,
         ConsentKindsController,
         // The operators' export of a tenant (POST /v1/tenants/{id}/export).
@@ -409,6 +444,9 @@ export class PlatformModule {
         // Tenants' use and limits (GET /v1/tenants/{id}/usage, PUT …/quotas, GET /v1/tenant/usage).
         TenantQuotasController,
         OwnQuotasController,
+        // The tenant's colour, mail sender name and logo (docs/branding.md).
+        BrandingController,
+        PublicBrandingController,
         SubscriptionsController,
         SearchController,
         ListsController,
@@ -441,6 +479,7 @@ export class PlatformModule {
             notifications: [
               ...COMMENT_NOTIFICATIONS,
               ...APPROVAL_NOTIFICATIONS,
+              ...ATTACHMENT_NOTIFICATIONS,
               // Development only, with the route that sends it.
               ...inDevelopment(...TEST_NOTIFICATIONS),
               ...(options.notifications ?? []),
@@ -448,10 +487,12 @@ export class PlatformModule {
             // And its own settings (IAM's auth policies, numbering's, approvals' delegation limit).
             settings: [
               ...AUTH_SETTINGS,
+              ...MODE_SETTINGS,
               ...NUMBERING_SETTINGS,
               ...APPROVAL_SETTINGS,
               ...MESSAGING_SETTINGS,
               ...QUOTA_SETTINGS,
+              ...BRANDING_SETTINGS,
               ...AI_SETTINGS,
               ...(options.settings ?? []),
             ],
@@ -501,6 +542,9 @@ export class PlatformModule {
         OpsPolicy,
         // Which switches are on, for clients (GET /v1/features).
         FeaturesService,
+        // platform.mode / APP_MODE: read-only and maintenance (docs/settings.md).
+        ModeService,
+        { provide: APP_GUARD, useClass: ModeGuard },
         // socket.io gateway at /realtime; features inject it to push events.
         // REALTIME=off: the same token, pushes that do nothing, no gateway.
         switchedOn('REALTIME')
@@ -528,6 +572,8 @@ export class PlatformModule {
         NotificationChannelRegistry,
         NotificationCatalog,
         NotificationsService,
+        NotificationUnsubscribeService,
+        notificationUnsubscribeLinksProvider,
         // IAM's security notifications go through it (iam can't import the platform).
         { provide: IAM_NOTIFIER, useExisting: NotificationsService },
         // The audit log's actor names (iam/audit, `actorName`): the people directory's.
@@ -560,6 +606,7 @@ export class PlatformModule {
         // A person's own account: their data (features register PersonalDataSources), its deletion, consents.
         PersonalDataRegistry,
         AccountLifecycleService,
+        AvatarService,
         ConsentKinds,
         deletionCancelLinksProvider,
         AccountTransfer,
@@ -598,7 +645,29 @@ export class PlatformModule {
         NamingSeriesService,
         // Files attached to records: features register an AttachmentTarget.
         AttachmentsRegistry,
+        // Malware scanning of uploads (MALWARE_SCANNER, off by default): a queue job per upload.
+        {
+          provide: MalwareScanner,
+          inject: [ConfigService],
+          useFactory: malwareScanner,
+        },
+        AttachmentScanQueue,
+        AttachmentScanService,
+        AttachmentScanProcessor,
+        AttachmentScanRetryJob,
+        // Thumbnails, previews and stripped metadata of uploaded images (IMAGE_PROCESSING, on by default): a queue job per image, once it is clean.
+        {
+          provide: ImageProcessor,
+          inject: [ConfigService],
+          useFactory: imageProcessor,
+        },
+        AttachmentImagesQueue,
+        AttachmentImagesService,
+        AttachmentImagesProcessor,
+        AttachmentImagesRetryJob,
         AttachmentsService,
+        // Uploads straight to the object store (STORAGE_DRIVER=s3): presign, then complete through AttachmentsService.upload().
+        AttachmentUploadsService,
         AttachmentSweepJob,
         // PDF documents of records: features register a DocumentSource and call DocumentsService.request().
         DocumentsRegistry,
@@ -680,6 +749,10 @@ export class PlatformModule {
         SendGridIntake,
         SuppressionsService,
         { provide: MAIL_SUPPRESSION, useExisting: SuppressionsService },
+        // The tenant's name and logo in its mail, asked by the core's mail queue.
+        BrandingService,
+        BrandingLogoUpload,
+        { provide: MAIL_BRANDING, useExisting: BrandingService },
         MailSuppressionPolicy,
         // Encrypted columns onto the current keys (docs/encryption.md):
         // hourly scheduling, one batch per queue job, the stale rows on /metrics.
@@ -717,6 +790,7 @@ export class PlatformModule {
         NamingSeriesService,
         AttachmentsRegistry,
         AttachmentsService,
+        AttachmentUploadsService,
         DocumentsRegistry,
         DocumentsService,
         AiRegistry,
@@ -732,6 +806,8 @@ export class PlatformModule {
         // ExchangeRatesService, to the features.
         MoneyModule,
         MAIL_SUPPRESSION,
+        MAIL_BRANDING,
+        BrandingService,
         MailEventIntakeRegistry,
         IncomingEventHandlers,
       ],

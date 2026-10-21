@@ -79,6 +79,8 @@ export function OutboxPanel() {
         {canManage && stats.deadLetters > 0 && (
           <>
             <ConfirmButton
+              // /v1/ops answers in read-only and maintenance mode too.
+              allowInMaintenance
               onOpen={() => void outbox.refetch()}
               title={t('outbox.requeueAllTitle')}
               description={t('outbox.requeueAllDescription', {
@@ -93,6 +95,7 @@ export function OutboxPanel() {
             </ConfirmButton>
             <ConfirmButton
               variant="destructive"
+              allowInMaintenance
               onOpen={() => void outbox.refetch()}
               title={t('outbox.purgeAllTitle')}
               description={t('outbox.purgeAllDescription', {
@@ -153,6 +156,7 @@ export function OutboxPanel() {
                       <div className="flex justify-end gap-2">
                         <ConfirmButton
                           size="sm"
+                          allowInMaintenance
                           title={t('outbox.requeueOneTitle')}
                           description={t('outbox.requeueOneDescription', {
                             topic: letter.topic,
@@ -169,6 +173,7 @@ export function OutboxPanel() {
                         <ConfirmButton
                           size="sm"
                           variant="destructive"
+                          allowInMaintenance
                           title={t('outbox.purgeOneTitle')}
                           description={t('outbox.purgeOneDescription', {
                             topic: letter.topic,

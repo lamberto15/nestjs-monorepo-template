@@ -1,0 +1,16 @@
+{
+  "readOnly": {
+    "banner": "The service is read-only right now. You can look around, but changes can't be saved until it's back."
+  },
+  "maintenance": {
+    "title": "Down for maintenance",
+    "description": "The service is being worked on and will be back shortly. This page checks again by itself, so you don't need to do anything.",
+    "check": "Check again",
+    "operator": {
+      "end": "End maintenance",
+      "ended": "Maintenance mode is off.",
+      "stillOn": "The mode is still on. It is set in the deployment's environment (APP_MODE), so it can only be changed there.",
+      "hint": "Operators only. If the mode is set in the deployment's environment (APP_MODE), it can only be changed there."
+    }
+  }
+}

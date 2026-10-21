@@ -1,7 +1,10 @@
 <!DOCTYPE html>
 <html>
   <body style="margin:0;padding:24px;background:#f6f7f9;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1f2328;">
-    <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;padding:32px;">
+    <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;border-top:4px solid {{ brand.color }};padding:32px;">
+      {{#if brand.logoUrl}}
+      <img src="{{ brand.logoUrl }}" alt="{{ brand.name }}" height="40" style="display:block;max-height:40px;width:auto;margin-bottom:24px;border:0;">
+      {{/if}}
       {{{ body }}}
       {{> signature}}
     </div>

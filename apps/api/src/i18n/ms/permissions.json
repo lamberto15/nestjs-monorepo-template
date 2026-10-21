@@ -132,7 +132,15 @@
     },
     "attachment-sweep": {
       "label": "Pembersihan lampiran",
-      "description": "Memadam fail dan baris lampiran yang rekodnya tidak lagi wujud, setiap malam."
+      "description": "Memadam fail dan baris lampiran yang rekodnya tidak lagi wujud, dan fail muat naik terus yang tidak pernah disiapkan, setiap malam."
+    },
+    "attachment-scan": {
+      "label": "Imbasan perisian hasad lampiran",
+      "description": "Mengimbas fail yang dimuat naik untuk perisian hasad dan membuang yang dijangkiti."
+    },
+    "attachment-images": {
+      "label": "Pemprosesan imej lampiran",
+      "description": "Menjana imej kecil dan pratonton imej yang dimuat naik serta membuang metadata (EXIF, GPS) imej asal."
     },
     "revisions-retention": {
       "label": "Penyimpanan semakan",
