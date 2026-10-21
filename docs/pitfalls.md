@@ -182,6 +182,17 @@
   writable** (the service's `:ro` wins): mount the volume again at another
   path (`-v app_storage:/restore`, as the file restore does).
 
+- **A `read_only: true` service takes only file secrets and configs.**
+  Compose mounts a secret or config that is a `file:` and *copies* one that
+  comes from a variable (`environment:`) or inline text (`content:`) into the
+  container, which Compose refuses for a read-only service (Docker would
+  too: `docker cp` into a read-only root filesystem fails): `docker compose
+  up` stops with "cannot create secret … in read-only service …: `file` is
+  the sole supported option", and `docker compose config` doesn't show it. That is why Prometheus (its token comes from `METRICS_TOKEN`) is
+  the one hardened service that is not read-only
+  ([deployment.md](deployment.md#container-hardening)). A new hardened
+  service takes its secrets as files, or its settings from a mounted file.
+
 - **`/metrics` behind the rate limiter went dark with Redis.** The limiter
   counts in Redis, and ioredis queues commands while Redis is away, so every
   scrape hung until Prometheus gave up: the alerts saw the app down

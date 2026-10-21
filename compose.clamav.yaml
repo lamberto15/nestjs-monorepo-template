@@ -31,6 +31,27 @@ services:
     image: clamav/clamav:1.4.3
     restart: unless-stopped
     logging: *logging
+    # Hardened (docs/deployment.md, "Container hardening"): read-only, as the
+    # user `clamav`, no capability. The image's /init can't run like that (it
+    # chowns the signatures, creates /run/clamav and edits /etc/clamav/*.conf
+    # with sed -i), so clamav/entrypoint.sh does what the image's
+    # /init-unprivileged does, and applies the CLAMD_CONF_* variables below to
+    # copies of the configuration in /tmp (the tini the image ships stays
+    # PID 1). Writable: clamav_db (the signatures, freshclam's state), /tmp (the
+    # copies, clamd's socket and the file of every stream it scans) and
+    # /var/log/clamav (clamd's and freshclam's logs), the last two in memory.
+    user: clamav
+    entrypoint: ['/sbin/tini', '--', 'sh', '/etc/clamav-scripts/entrypoint.sh']
+    read_only: true
+    tmpfs:
+      # clamd writes each INSTREAM stream to a file here before it scans it,
+      # and unpacks archives here: at least the largest attachment
+      # (ATTACHMENT_MAX_MB), and it counts against CLAMAV_MEMORY once used.
+      - /tmp:size=${CLAMAV_TMP_SIZE:-512m}
+      # Both logs stop growing at 1 MB (LogFileMaxSize).
+      - /var/log/clamav:size=8m
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
     environment:
       # clamd refuses a stream longer than StreamMaxLength: keep it at least
       # ATTACHMENT_MAX_MB (INSTREAM size limit exceeded is a failed scan).
@@ -41,6 +62,7 @@ services:
     networks:
       - scanning
     volumes:
+      - ./clamav:/etc/clamav-scripts:ro
       - clamav_db:/var/lib/clamav
     healthcheck:
       # The image's own check: clamd answers PING.

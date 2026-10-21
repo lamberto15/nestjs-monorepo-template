@@ -1,0 +1,115 @@
+# The ClamAV overlay, started (docs/deployment.md, "ClamAV (malware
+# scanning)"): compose.clamav.yaml runs clamd and freshclam read-only, as the
+# user `clamav`, without capabilities, through clamav/entrypoint.sh
+# ("Container hardening"). ci.yml's "Every service is hardened" reads the
+# keys; only a start shows that the image runs under them and that the
+# entrypoint's configuration reaches clamd. One image and one container, and
+# only when the overlay, its entrypoint or this file change.
+name: ClamAV
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - compose.clamav.yaml
+      - clamav/**
+      - .github/workflows/clamav.yml
+  pull_request:
+    paths:
+      - compose.clamav.yaml
+      - clamav/**
+      - .github/workflows/clamav.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clamav-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clamav:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      COMPOSE_FILE: compose.yaml:compose.prod.yaml:compose.clamav.yaml
+      COMPOSE_PROJECT_NAME: clamav-ci
+      # Only to render the files; nothing but clamav starts.
+      APP_DOMAIN: ci.example.com
+      ACME_EMAIL: ci@example.com
+      CLOUDFLARE_API_TOKEN: ci
+      POSTGRES_PASSWORD: ci
+      POSTGRES_APP_PASSWORD: ci
+      # 1 MB: the entrypoint must apply it to clamd (a 2 MB stream is refused below).
+      CLAMAV_STREAM_MAX_MB: '1'
+    steps:
+      - uses: actions/checkout@v7
+
+      # Returns once clamd answers PING (the healthcheck). The image carries
+      # a set of signatures, so clamd starts without freshclam's download.
+      - name: Start clamav
+        run: docker compose up --detach --no-deps --wait --wait-timeout 300 clamav
+
+      - name: It runs as clamav, with no capability, on a read-only filesystem
+        run: |
+          id=$(docker compose ps -q clamav)
+          test "$(docker compose exec -T clamav id -un)" = clamav
+          test "$(docker inspect -f '{{.HostConfig.ReadonlyRootfs}}' "$id")" = true
+          # PID 1 is tini, the image's: its status is the container's.
+          status=$(docker compose exec -T clamav cat /proc/1/status)
+          echo "$status" | grep -E '^(CapEff|NoNewPrivs)'
+          echo "$status" | grep -qx 'CapEff:[[:space:]]*0000000000000000'
+          echo "$status" | grep -qx 'NoNewPrivs:[[:space:]]*1'
+          # Not even root can write the image.
+          if docker compose exec -u 0 -T clamav touch /etc/clamav/probe 2> "$RUNNER_TEMP/readonly.err"; then
+            echo "::error::the image is writable"
+            exit 1
+          fi
+          grep -F 'Read-only file system' "$RUNNER_TEMP/readonly.err"
+
+      - name: clamd scans a stream, and applies CLAMD_CONF_* (the entrypoint's copy of its configuration)
+        run: |
+          # The container's own environment, in a directory of its own.
+          docker compose exec -T -e CLAMAV_CONF_DIR=/tmp/render clamav sh /etc/clamav-scripts/entrypoint.sh --render | tee "$RUNNER_TEMP/render.txt"
+          grep -qx 'StreamMaxLength 1M' "$RUNNER_TEMP/render.txt"
+          # The standard EICAR test file, which every antivirus detects.
+          # shellcheck disable=SC2016 # single quotes on purpose: the string has a literal $
+          printf '%s' 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*' \
+            | docker compose exec -T clamav sh -c 'cat > /tmp/eicar.com'
+          out=$(docker compose exec -T clamav clamdscan --stream --no-summary /tmp/eicar.com || true)
+          echo "$out"
+          echo "$out" | grep -q 'EICAR.* FOUND'
+          # A clean file, then one over StreamMaxLength: "INSTREAM size limit
+          # exceeded" is what the app's scanner reports as a failed scan.
+          docker compose exec -T clamav sh -c 'echo clean > /tmp/clean.txt'
+          docker compose exec -T clamav clamdscan --stream --no-summary /tmp/clean.txt
+          docker compose exec -T clamav sh -c 'head -c 2097152 /dev/zero > /tmp/big.bin'
+          out=$(docker compose exec -T clamav clamdscan --stream --no-summary /tmp/big.bin || true)
+          echo "$out"
+          echo "$out" | grep -q 'INSTREAM size limit exceeded'
+
+      - name: freshclam runs, nothing was restarted, nothing wrote to the image
+        run: |
+          id=$(docker compose ps -q clamav)
+          docker compose logs --no-color clamav | grep -F 'Starting Freshclamd'
+          # freshclam's first check starts at once; it is logged to stdout.
+          for _ in $(seq 1 30); do
+            docker compose logs --no-color clamav | grep -q 'ClamAV update process started' && break
+            sleep 2
+          done
+          docker compose logs --no-color clamav
+          docker compose logs --no-color clamav | grep -q 'ClamAV update process started'
+          test "$(docker inspect -f '{{.RestartCount}} {{.State.Status}}' "$id")" = '0 running'
+          if docker compose logs --no-color clamav | grep -i -E 'read-only file system|permission denied'; then
+            echo "::error::clamav hit a read-only or unwritable path"
+            exit 1
+          fi
+
+      - name: The container's log on failure
+        if: failure()
+        run: docker compose logs --no-color --tail 100 clamav
+
+      - name: Remove the container and its volume
+        if: always()
+        run: docker compose down --volumes

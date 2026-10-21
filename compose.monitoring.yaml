@@ -16,6 +16,11 @@
 # Log shipping (Loki, Alloy, Grafana) is a second, separate opt-in inside this
 # file: its services have Compose profiles, so they stay off until
 # COMPOSE_PROFILES=logs (or logs,grafana) is set. docs/deployment.md, "Logs".
+#
+# Every service is hardened like compose.prod.yaml's: read_only, cap_drop: [ALL]
+# (a capability added back, or the one service that isn't read_only, says why
+# where it is), no-new-privileges, a /tmp tmpfs. docs/deployment.md,
+# "Container hardening"; CI fails on a service without them.
 
 # Bounded logs, as in compose.yaml (an anchor can't cross files).
 x-logging: &logging
@@ -47,6 +52,17 @@ services:
       - prometheus_data:/prometheus
     ports:
       - 127.0.0.1:${PROMETHEUS_PORT:-9090}:9090
+    # Hardened (docs/deployment.md, "Container hardening") except for
+    # read_only: Compose refuses to create a secret that comes from a
+    # variable (metrics_token, from METRICS_TOKEN) in a read-only service
+    # ("`file` is the sole supported option"), so the root filesystem stays
+    # writable. The image runs as `nobody` and writes /prometheus (the volume)
+    # only; no capability, no way to gain one. The exception is explicit in
+    # CI's "Every service is hardened" step.
+    tmpfs:
+      - /tmp:size=16m
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9090/-/ready']
       interval: 30s
@@ -89,9 +105,14 @@ services:
       # (url_file). By default an empty file: no dead man's switch.
       - alert_watchdog_url
       - smtp_url
-    # The rendered configuration (it holds the SMTP password) stays in memory.
+    # Hardened (docs/deployment.md, "Container hardening"): the image runs as
+    # `nobody` and writes /alertmanager (the volume) and /tmp. The rendered
+    # configuration (it holds the SMTP password) stays in memory.
+    read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:size=16m
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
     volumes:
       - ./monitoring/alertmanager:/etc/alertmanager/scripts:ro
       # Silences and notification state survive a restart.
@@ -140,6 +161,14 @@ services:
       DATA_SOURCE_PASS_FILE: /run/secrets/postgres_monitor_password
     secrets:
       - postgres_monitor_password
+    # Hardened (docs/deployment.md, "Container hardening"): the image runs as
+    # `nobody` and writes nothing; /tmp is there for the rule that every
+    # service has one.
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
     deploy:
       resources:
         limits:
@@ -163,6 +192,14 @@ services:
       - redis_password
     volumes:
       - ./redis:/etc/redis-scripts:ro
+    # Hardened (docs/deployment.md, "Container hardening"): the image runs as
+    # 59000:59000 and writes nothing (redis.sh reads the password, it makes no
+    # file); /tmp is there for the rule that every service has one.
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
     deploy:
       resources:
         limits:
@@ -181,8 +218,15 @@ services:
     command: ['sh', '/etc/backup-metrics/serve.sh']
     environment:
       BACKUP_MAX_AGE_HOURS: ${BACKUP_MAX_AGE_HOURS:-25}
+    # Hardened (docs/deployment.md, "Container hardening"): serve.sh writes
+    # /www (the metrics file it serves) and nothing else; /tmp is there for the
+    # rule that every service has one.
+    read_only: true
     tmpfs:
       - /www
+      - /tmp:size=1m
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
     volumes:
       - ./monitoring/backup-metrics:/etc/backup-metrics:ro
       - backups:/backups:ro
@@ -207,8 +251,15 @@ services:
     entrypoint: ['sh', '/etc/blackbox/render-config.sh']
     environment:
       PROBE_HOST: ${PROBE_HOST:-${APP_DOMAIN:-}}
+    # Hardened (docs/deployment.md, "Container hardening"): it writes only
+    # the module render-config.sh makes in /tmp. The binary carries no file
+    # capability, so dropping them all breaks nothing (an ICMP probe would
+    # need CAP_NET_RAW; the HTTP one doesn't).
+    read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:size=16m
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
     volumes:
       - ./monitoring/blackbox:/etc/blackbox:ro
     healthcheck:
@@ -239,6 +290,14 @@ services:
     pid: host
     volumes:
       - /:/host:ro,rslave
+    # Hardened (docs/deployment.md, "Container hardening"): the image runs as
+    # `nobody` and writes nothing (it reads /proc and /sys through /host);
+    # /tmp is there for the rule that every service has one.
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
     deploy:
       resources:
         limits:
@@ -264,6 +323,16 @@ services:
       # Chunks, index and the compactor's work files (/loki is the image's
       # own directory, owned by its user).
       - loki_data:/loki
+    # Hardened (docs/deployment.md, "Container hardening"): the image runs as
+    # 10001 and every path loki.yml names (and the ones Loki derives from
+    # common.path_prefix: the WAL, the TSDB index and its cache, the rules)
+    # sits under /loki, the volume; /tmp is there for the rule that every
+    # service has one.
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
     healthcheck:
       # The image is distroless (no shell, no wget): the binary checks itself
       # (GET http://localhost:3100/ready), as in Grafana's own Compose file.
@@ -304,6 +373,19 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # The read positions: a restart resumes where it stopped.
       - alloy_data:/var/lib/alloy/data
+    # Hardened (docs/deployment.md, "Container hardening"): it writes the
+    # volume above and nothing else; /tmp is there for the rule that every
+    # service has one. The volume's directory belongs to the image's `alloy`
+    # user (473, mode 770) and the process is root (the socket, above), who
+    # without DAC_OVERRIDE is neither its owner nor in its group and can't
+    # write there: that one capability, and no more (it also keeps the socket
+    # reachable, whoever owns it on the host).
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    cap_drop: [ALL]
+    cap_add: [DAC_OVERRIDE]
+    security_opt: ['no-new-privileges:true']
     deploy:
       resources:
         limits:
@@ -333,6 +415,16 @@ services:
       - grafana_data:/var/lib/grafana
     ports:
       - 127.0.0.1:${GRAFANA_PORT:-3001}:3000
+    # Hardened (docs/deployment.md, "Container hardening"): the image runs as
+    # 472 and /run.sh starts Grafana with its log mode forced to the console,
+    # so it writes /var/lib/grafana (the volume: the SQLite database, the
+    # plugins it downloads) and /tmp (those downloads, SQLite's temporary
+    # files). The tmpfs counts against GRAFANA_MEMORY once used.
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3000/api/health']
       interval: 30s
