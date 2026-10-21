@@ -293,6 +293,10 @@ jobs:
       # runs in `pnpm lint`.
       - name: The i18n check's tests
         run: node --test tools/i18n/check.test.mjs
+      # Guards on this workflow's artifact uploads (tools/ci/): a run of the
+      # workflow is the only other way to learn a blob report went missing.
+      - name: The workflow's tests
+        run: node --test tools/ci/workflow.test.mjs
 
   # The unit tests in parallel (Vitest's --shard): the API's in 3 shards, the
   # web app's in 3 (jsdom, the run's longest at 3 min whole), the packages'
@@ -374,11 +378,10 @@ jobs:
         with:
           name: coverage-${{ matrix.blob }}
           # One app's directory, so the files keep their bare names (a glob
-          # over apps/* nests them under api/.vitest/blob, which Vitest's
+          # over apps/* would nest them one level down, which Vitest's
           # --merge-reports does not read). .vitest is hidden, which
-          # upload-artifact skips unless told otherwise (and warns only); with
-          # no files it fails, so the coverage job is never left with nothing
-          # to merge.
+          # upload-artifact skips unless told otherwise; with no files it
+          # fails, so the coverage job is never left with nothing to merge.
           path: apps/${{ matrix.app }}/.vitest/blob/
           include-hidden-files: true
           if-no-files-found: error
