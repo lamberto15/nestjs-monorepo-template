@@ -33,15 +33,21 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOTOOLCHAIN=local \
 # RCLONE_VERSION: rclone reads RCLONE_<FLAG> variables, and that one is its
 # --version flag). The build is rclone's own release build (its Makefile and
 # bin/cross-compile.go: no build tags, -trimpath, CGO off, and fs.Version set
-# to the tag, which is what `rclone version` reports).
+# to the tag, which is what `rclone version` reports). Its sources come through
+# the Go module proxy (checked against Go's checksum database) and build with
+# the versions its own go.sum locks, as gotenberg/Dockerfile does.
 FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine3.24 AS rclone
 ARG TARGETOS
 ARG TARGETARCH
 # https://github.com/rclone/rclone/releases
 ARG RCLONE_TAG=v1.75.2
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOTOOLCHAIN=local \
-    go install -trimpath -ldflags="-s -w -X github.com/rclone/rclone/fs.Version=$RCLONE_TAG" "github.com/rclone/rclone@$RCLONE_TAG" \
- && install -m 755 "$(find /go/bin -type f -name rclone)" /rclone
+WORKDIR /src
+RUN dir=$(go mod download -json "github.com/rclone/rclone@$RCLONE_TAG" | grep '"Dir"' | cut -d'"' -f4) \
+ && test -n "$dir" \
+ && cp -r "$dir" rclone \
+ && cd rclone \
+ && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOTOOLCHAIN=local \
+    go build -mod=readonly -trimpath -ldflags="-s -w -X github.com/rclone/rclone/fs.Version=$RCLONE_TAG" -o /rclone .
 
 FROM postgres:18.6-alpine
 ENV TZ=UTC BACKUP_DIR=/backups BACKUP_STORAGE_DIR=/storage
