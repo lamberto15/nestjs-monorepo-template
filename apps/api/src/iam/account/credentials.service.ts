@@ -63,7 +63,9 @@ export class CredentialsService {
     // address would sign in as them. Told only to whoever knows the
     // password. Custom: @nestjs/authentication's `verifiedEmail` guards
     // routes for a signed-in user, not the password check that signs in.
-    if (!found.user.emailVerified) {
+    // The first administrator mid-onboarding may sign in with an address
+    // not proved yet: a mistyped replacement must not lock the only admin out.
+    if (!found.user.emailVerified && !found.user.onboarding?.email) {
       throw new ForbiddenException({
         code: 'email_unverified',
         message: t('auth.emailUnverified'),

@@ -29,6 +29,7 @@ import { RequiresSwitch } from '../auth/deployment-switch.js';
 import { RecentAuthentication } from '../auth/recent-authentication.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
 import { DuringMfaEnrollment } from '../auth/mfa-enrollment.guard.js';
+import { DuringOnboarding } from '../auth/onboarding.js';
 import { notWhileImpersonating, verifiedEmailOnly } from './account.schemas.js';
 import { AccountService } from './account.service.js';
 
@@ -59,6 +60,7 @@ const recoveryCodesSchema = z.object({
 @ApiBearerAuth('user-token')
 @Can.Anyone()
 @DuringMfaEnrollment()
+@DuringOnboarding()
 @Controller('auth/mfa')
 export class MfaController {
   constructor(

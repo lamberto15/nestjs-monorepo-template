@@ -443,5 +443,23 @@
     "searching": "Suche läuft…",
     "none": "Niemand passt.",
     "failed": "Die Suche ist fehlgeschlagen."
+  },
+  "onboarding": {
+    "title": "Konto fertig einrichten",
+    "description": "Dieses Administratorkonto hat noch die Platzhalter-E-Mail oder das generierte Passwort. Ersetzen Sie sie, um fortzufahren.",
+    "emailTitle": "Eine echte E-Mail-Adresse",
+    "emailDescription": "Hierhin gehen Zurücksetzen-Links und Sicherheitswarnungen. Wir senden einen Bestätigungslink.",
+    "email": "Neue E-Mail-Adresse",
+    "currentPassword": "Aktuelles Passwort",
+    "emailSubmit": "Bestätigungslink senden",
+    "emailSent": "Wir haben einen Link an {{email}} gesendet. Öffnen Sie ihn und kehren Sie dann hierher zurück.",
+    "emailWaiting": "Warten auf die Bestätigung von {{email}}.",
+    "check": "Ich habe bestätigt",
+    "resend": "Link erneut senden",
+    "optionalTitle": "Optional: mehr Schutz",
+    "optionalDescription": "Richten Sie jetzt Zwei-Faktor oder einen Passkey ein, oder später unter Konto, Sicherheit.",
+    "done": "Weiter zur App",
+    "doneHint": "Alle nötigen Schritte sind erledigt.",
+    "redirected": "Schließen Sie zuerst die Einrichtung des Administratorkontos ab."
   }
 }

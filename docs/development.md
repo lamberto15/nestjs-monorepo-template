@@ -39,7 +39,11 @@ through Turborepo or `pnpm --filter` ([monorepo](monorepo.md)).
 - **Floci** is AWS on http://localhost:4566: files go to its S3, mail through
   its SES (then on to Mailpit), so development runs the code production runs.
 - The first start creates the administrator (`ADMIN_EMAIL`); without
-  `ADMIN_PASSWORD`, the password is logged once.
+  `ADMIN_PASSWORD`, the password is logged once. With the default
+  `admin@example.com` or a generated password, the first sign-in is blocked
+  until a real address and a new password are set (docs/auth.md,
+  "Administrator onboarding"); `ADMIN_ONBOARDING=off` (in
+  `env.development.example`) skips that locally.
 - Swagger UI at `/api`: sign in with `POST /v1/auth/sign-in`, then try the routes.
 
 ## Floci (AWS locally)
