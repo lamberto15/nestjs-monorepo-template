@@ -3,7 +3,7 @@
 # tests in monitoring/prometheus/tests), the Alertmanager configuration that
 # render-config.sh writes (amtool, with the Watchdog's route; its inhibition
 # rules against a running Alertmanager), the blackbox
-# exporter's module, and the Compose file. The images are the
+# exporter's module, Loki's and Alloy's (log shipping) and the Compose file. The images are the
 # ones compose.monitoring.yaml pins, so a version bump is checked here too.
 name: Monitoring
 
@@ -41,12 +41,27 @@ jobs:
           prometheus=$(grep -oE 'prom/prometheus:v[0-9][^[:space:]]*' compose.monitoring.yaml)
           alertmanager=$(grep -oE 'prom/alertmanager:v[0-9][^[:space:]]*' compose.monitoring.yaml)
           blackbox=$(grep -oE 'prom/blackbox-exporter:v[0-9][^[:space:]]*' compose.monitoring.yaml)
+          loki=$(grep -oE 'grafana/loki:[0-9][^[:space:]]*' compose.monitoring.yaml)
+          alloy=$(grep -oE 'grafana/alloy:v[0-9][^[:space:]]*' compose.monitoring.yaml)
           {
             echo "PROMETHEUS_IMAGE=$prometheus"
             echo "ALERTMANAGER_IMAGE=$alertmanager"
             echo "BLACKBOX_IMAGE=$blackbox"
+            echo "LOKI_IMAGE=$loki"
+            echo "ALLOY_IMAGE=$alloy"
           } >> "$GITHUB_ENV"
           echo "$prometheus, $alertmanager, $blackbox"
+
+      - name: Loki configuration (loki -verify-config)
+        run: |
+          docker run --rm -v "$PWD/monitoring/loki:/etc/loki:ro" "$LOKI_IMAGE" \
+            -config.file=/etc/loki/loki.yml -config.expand-env=true -verify-config
+
+      - name: Alloy configuration parses (alloy fmt)
+        run: |
+          # fmt parses the file and prints it; an error exits non-zero.
+          docker run --rm -v "$PWD/monitoring/alloy:/etc/alloy:ro" "$ALLOY_IMAGE" \
+            fmt /etc/alloy/config.alloy > "$RUNNER_TEMP/config.alloy.formatted"
 
       - name: The outside probe workflow is valid YAML and off without its variable
         run: |
@@ -178,3 +193,19 @@ jobs:
           ALERT_WATCHDOG_URL_FILE="$RUNNER_TEMP/alert_watchdog_url" \
             docker compose -f compose.yaml -f compose.prod.yaml -f compose.monitoring.yaml config --format json \
             | jq -e --arg f "$RUNNER_TEMP/alert_watchdog_url" '.secrets.alert_watchdog_url.file == $f'
+
+      - name: Loki becomes healthy through Compose (its healthcheck runs inside the distroless image)
+        run: |
+          # The image has no shell and no wget; a healthcheck that needs either
+          # never passes, and alloy (depends_on: loki: service_healthy) would
+          # never start. Only loki is started.
+          export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
+          export CLOUDFLARE_API_TOKEN=ci
+          POSTGRES_PASSWORD=$(openssl rand -hex 24)
+          POSTGRES_APP_PASSWORD=$(openssl rand -hex 24)
+          METRICS_TOKEN=$(openssl rand -hex 24)
+          export POSTGRES_PASSWORD POSTGRES_APP_PASSWORD METRICS_TOKEN
+          export COMPOSE_PROJECT_NAME=monitoring-ci
+          compose="docker compose -f compose.yaml -f compose.prod.yaml -f compose.monitoring.yaml --profile logs"
+          trap '$compose logs loki; $compose down --volumes' EXIT
+          $compose up --detach --wait --wait-timeout 120 loki
