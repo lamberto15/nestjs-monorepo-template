@@ -1,0 +1,32 @@
+{
+  "nav": "品牌",
+  "title": "品牌",
+  "description": "您的颜色、徽标和发件人名称：网页应用、您发送的邮件和 PDF 文档都会显示它们。",
+  "locked": "运营方已锁定此租户的品牌设置，无法在此更改。",
+  "saved": "品牌设置已保存。",
+  "save": "保存",
+  "color": {
+    "label": "品牌颜色",
+    "hint": "网页应用、邮件和文档中按钮与链接的强调色。",
+    "set": "选择颜色",
+    "remove": "使用默认颜色"
+  },
+  "mailName": {
+    "label": "邮件发件人名称",
+    "hint": "邮件发送和署名所用的名称。发件地址仍为部署的地址。"
+  },
+  "logo": {
+    "label": "徽标",
+    "hint": "PNG、JPEG 或 WebP 图片。显示在菜单、邮件和文档中。",
+    "alt": "当前徽标",
+    "drop": "将徽标拖放到此处",
+    "limit": "PNG、JPEG 或 WebP，最大 512 KB",
+    "choose": "选择文件",
+    "saved": "徽标已保存。",
+    "remove": "移除徽标",
+    "removed": "徽标已移除。",
+    "rejected": "{{name}}：{{reason}}",
+    "tooLarge": "文件超过 {{max}} KB。",
+    "typeRefused": "请使用 PNG、JPEG 或 WebP 图片。"
+  }
+}

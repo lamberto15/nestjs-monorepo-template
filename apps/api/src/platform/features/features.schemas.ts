@@ -47,6 +47,11 @@ export const featuresSchema = z.object({
   tenancy: z
     .enum(['multi', 'single'])
     .describe('`single`: the first tenant is the only one.'),
+  mode: z
+    .enum(['normal', 'read-only', 'maintenance'])
+    .describe(
+      "`platform.mode` / `APP_MODE`. `read-only`: writes answer 503 `read_only`. `maintenance`: everything but health, sign-in and the operators' routes answers 503 `maintenance`. Both carry `Retry-After`.",
+    ),
   locales: z
     .array(z.string())
     .describe('The languages the API answers in; the first is the default.'),

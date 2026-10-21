@@ -52,8 +52,17 @@ services:
     ports: !reset []
     secrets: !reset []
     environment: !reset {}
+    # compose.prod.yaml's Caddy is read_only (docs/deployment.md, "Container
+    # hardening") and writes /data and /config on volumes. The stock image
+    # declares no VOLUME there, so without these two the paths sit on the
+    # read-only root filesystem and Caddy logs "read-only file system"
+    # (instance ID, storage clean lock). The list replaces the production
+    # one (its Caddyfile), so they are named again; `down --volumes` removes
+    # them.
     volumes: !override
       - ./loadtest/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
 
   # Not in the request path; its image would only lengthen the run.
   backup:

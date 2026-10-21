@@ -41,6 +41,7 @@ import {
 import { SsoPolicyService } from '../sso/sso-policy.service.js';
 import { SignInContext } from '../auth/sign-in-context.js';
 import { BreachedPasswordsService } from './breached-passwords.service.js';
+import { PasswordHistoryService } from './password-history.service.js';
 import { AuthPolicyService } from '../auth/auth-policy.service.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { SignUpTenant } from '../access/sign-up-tenant.js';
@@ -101,6 +102,7 @@ export class AccountService {
     private readonly tenancy: Tenancy,
     private readonly signUpTenant: SignUpTenant,
     private readonly authPolicy: AuthPolicyService,
+    private readonly passwordHistory: PasswordHistoryService,
     private readonly ssoPolicy: SsoPolicyService,
   ) {}
 
@@ -252,6 +254,7 @@ export class AccountService {
       await this.authPolicy.assertPasswordLength(password, 'password', {
         userId,
       });
+      await this.passwordHistory.assertNotReused(userId, password, 'password');
     }
     await this.breachedPasswords.assertNotBreached(password, 'password');
     const result = await this.hashLimiter.run(() =>
@@ -571,12 +574,19 @@ export class AccountService {
       'newPassword',
       { userId: user.id },
     );
+    await this.passwordHistory.assertNotReused(
+      user.id,
+      passwords.newPassword,
+      'newPassword',
+    );
     await this.breachedPasswords.assertNotBreached(
       passwords.newPassword,
       'newPassword',
     );
     const hash = await this.passwordHasher.hash(passwords.newPassword);
+    const history = await this.passwordHistory.count(user.id);
     const told = await inTransaction(this.txHost, async (tx) => {
+      await this.passwordHistory.replaced(user.id, history);
       await this.users.replacePassword(user.id, hash, tx);
       return this.securityAlerts.credentialsChanged(tx, user, user.id, {
         action: 'auth.password-changed',

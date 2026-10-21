@@ -1,5 +1,5 @@
 {
-  "id": "32a1024d-7fc7-45a0-b859-b0303f0b7d40",
+  "id": "3832b0f4-b0d8-4909-b551-32be33f83e58",
   "prevId": "c42e1a07-913f-4a3e-b2b2-689da1f0a549",
   "version": "7",
   "dialect": "postgresql",
@@ -3119,19 +3119,11 @@
           "notNull": true,
           "default": true
         },
-        "onboarding_email": {
-          "name": "onboarding_email",
-          "type": "boolean",
+        "avatar_key": {
+          "name": "avatar_key",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "onboarding_password": {
-          "name": "onboarding_password",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
+          "notNull": false
         },
         "deprovisioned_at": {
           "name": "deprovisioned_at",

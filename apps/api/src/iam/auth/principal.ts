@@ -10,6 +10,11 @@ export interface UserPrincipal {
   /** Their IANA time zone, or null (APP_TIMEZONE). */
   timezone: string | null;
   /**
+   * Their picture's address (`/v1/people/<id>/avatar?v=…`, avatarUrl()), or
+   * null for none. Optional so a principal made in code needs not name it.
+   */
+  avatarUrl?: string | null;
+  /**
    * The tenant this user acts in (docs/tenancy.md): the session's (or the
    * token's) tenant, while the membership in it is active; null when there
    * is none (no membership, or the one the session was in ended). Every

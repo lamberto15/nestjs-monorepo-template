@@ -10,6 +10,28 @@ export function shortHash(content) {
   return createHash('sha256').update(content).digest('hex').slice(0, 8);
 }
 
+const SIZE_UNITS = { '': 1, k: 1024, m: 1024 ** 2, g: 1024 ** 3 };
+
+/**
+ * A Compose `tmpfs:` entry ("/tmp:size=64m", "/run/postgresql") as the long
+ * `volumes:` form of a tmpfs mount. Only the size carries over: Swarm's tmpfs
+ * mount takes no uid, gid or other options, and the kernel's default mode
+ * (1777) lets any user write there.
+ */
+function tmpfsMount(entry) {
+  const colon = entry.indexOf(':');
+  const target = colon < 0 ? entry : entry.slice(0, colon);
+  const mount = { type: 'tmpfs', target };
+  for (const option of (colon < 0 ? '' : entry.slice(colon + 1)).split(',')) {
+    const [key, value] = option.split('=');
+    if (key !== 'size') continue;
+    const size = /^(\d+)([kmg]?)b?$/i.exec(value ?? '');
+    if (!size) throw new Error(`tmpfs ${entry}: can't read the size`);
+    mount.tmpfs = { size: Number(size[1]) * SIZE_UNITS[size[2].toLowerCase()] };
+  }
+  return mount;
+}
+
 /**
  * @param {object} rendered  the parsed `docker compose config --format json`
  * @param {object} options
@@ -34,6 +56,17 @@ export function toStack(rendered, { stack, readFile, placeholder }) {
         delete service[key];
     }
     delete service.profiles;
+    // `docker stack deploy` ignores a service's `tmpfs:` list (docker/cli's
+    // Compose conversion reads only `volumes:`) yet keeps `read_only: true`,
+    // which would leave the service with no writable /tmp. A `type: tmpfs`
+    // volume is the form a Swarm service takes.
+    if (Array.isArray(service.tmpfs)) {
+      service.volumes = [
+        ...(service.volumes ?? []),
+        ...service.tmpfs.map(tmpfsMount),
+      ];
+      delete service.tmpfs;
+    }
     // `docker stack config` wants the CPU limits as strings.
     for (const kind of ['limits', 'reservations']) {
       const resources = service.deploy?.resources?.[kind];

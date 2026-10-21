@@ -63,6 +63,7 @@ import {
   PWNED_PASSWORDS,
 } from './account/breached-passwords.service.js';
 import { CredentialsService } from './account/credentials.service.js';
+import { PasswordHistoryService } from './account/password-history.service.js';
 import { SignInPasswordCheck } from './account/sign-in-password-check.js';
 import {
   boundedPasswordHasher,
@@ -364,6 +365,8 @@ export class IamModule {
         UsersRepository,
         CredentialsService,
         BreachedPasswordsService,
+        // auth.passwordHistory: hashes of the last passwords, refusing a reused one.
+        PasswordHistoryService,
         // Sign-in passwords against the breaches, off the sign-in's path.
         SignInPasswordCheck,
         // At most PASSWORD_HASH_CONCURRENCY password hashes at once (password-hashing.ts).

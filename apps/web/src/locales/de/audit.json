@@ -23,5 +23,9 @@
     "switch": "Untermandanten einbeziehen",
     "included": "Eingeschlossen: {{names}}",
     "none": "Unter diesem Mandanten gibt es keine Untermandanten."
+  },
+  "dashboard": {
+    "title": "Letzte Aktivität",
+    "empty": "Noch keine Aktivität."
   }
 }

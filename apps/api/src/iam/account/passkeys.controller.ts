@@ -41,6 +41,7 @@ import type {
 } from '@simplewebauthn/server';
 import type { Response } from 'express';
 import { z } from 'zod';
+import { AllowInMaintenance } from '../../core/http/maintenance.js';
 import { listSchema } from '../../core/http/pagination.js';
 import { authenticationOf } from '../auth/authentication-method.js';
 import type { UserPrincipal } from '../auth/principal.js';
@@ -283,6 +284,7 @@ export class PasskeysController {
   @Public()
   @CEREMONIES
   @Post('sign-in/options')
+  @AllowInMaintenance()
   @HttpCode(200)
   @ApiOperation({
     summary: 'Start signing in with a passkey: the options for the browser',
@@ -309,6 +311,7 @@ export class PasskeysController {
   // Below @Captcha, so this limit runs first: a flood is refused before any token is verified.
   @CEREMONIES
   @Post('sign-in')
+  @AllowInMaintenance()
   @HttpCode(200)
   @ApiOperation({
     summary: 'Sign in with a passkey: sets the session cookie',
@@ -349,6 +352,7 @@ export class PasskeysController {
   // Below @Captcha, so this limit runs first: a flood is refused before any token is verified.
   @CEREMONIES
   @Post('token')
+  @AllowInMaintenance()
   @HttpCode(200)
   @ApiOperation({
     summary: 'Sign in a token client with a passkey (native apps)',

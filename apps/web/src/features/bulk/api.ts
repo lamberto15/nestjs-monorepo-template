@@ -21,7 +21,6 @@ export interface BulkBody {
 }
 
 export type BulkResult = NonNullable<GetResponse<'/v1/bulk/{id}'>['result']>;
-export type BulkJob = GetResponse<'/v1/bulk/{id}'>;
 
 /** At most this many ids in one run; more is a `filter` run (docs/bulk-operations.md). */
 export const MAX_BULK_IDS = 500;

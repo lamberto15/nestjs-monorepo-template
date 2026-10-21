@@ -134,6 +134,26 @@ acceptance (`POST /v1/auth/invitations/accept`) and
 - **`ADMIN_PASSWORD`** is only warned about (an error in the log on the
   first start): refusing it would leave the deployment without an
   administrator. A generated one isn't checked.
+- **Password history** (`auth.passwordHistory`, a tenant setting, 0 to 24,
+  `0` = off, the default): a new password may not repeat the account's
+  last N, the current one included: 422 `password_reused` (`history`, the
+  field in `errors`: `newPassword` on a change, `password` on a reset),
+  translated. Checked on a change and a reset link (before the link is
+  spent, so a refused password leaves it working), after the length and
+  before the breach check; sign-up and invitations make a first password and
+  have nothing to compare. A person in several tenants meets the strictest
+  (like the minimum length). Only **hashes** are kept, never a password:
+  `password_history` (`iam/iam.tables.ts`, global like the account, deleted
+  with it, never in the data export) takes the hash a change or reset
+  replaces, in the same transaction, and is pruned to N - 1 rows. While no
+  tenant asks for a history nothing is kept, and the next change drops what
+  was (so turning it on starts from the current password, and the account
+  gets the full history only as it changes passwords). The comparison is a
+  scrypt verification per kept hash, **all under one hashing slot** in
+  turn (`PasswordHistoryService`, `iam/account/password-history.service.ts`,
+  `limiter.run()`; the limit of 24 bounds the work): never N parallel
+  hashes, and a full queue answers 503 `server_busy` before anything is
+  spent. A sign-in's rehash and an operator's `ops` reset don't touch it.
 - **Hashing:** scrypt from @nestjs/authentication's `PasswordHasher`
   (N = 2^17, r = 8, p = 1: 128 MiB and ~0.4 s of CPU per hash; stored as
   `$scrypt$ln=17,r=8,p=1$…`, so a hash keeps verifying when the parameters
@@ -239,7 +259,8 @@ the job runs), or use the mail's link. Asking again while one is pending
 returns that request as is: no new mail, nothing signed out.
 
 The nightly job anonymizes a due account (`UsersRepository.anonymize`):
-placeholder address and name, no password, sign-in methods, sessions,
+placeholder address and name, no password (nor its history,
+`password_history`), sign-in methods, sessions,
 tokens, memberships (with their roles and units); its notifications,
 preferences and settings go;
 its audit entries keep the actor key, labelled "Deleted user". Records
@@ -1356,6 +1377,7 @@ never loosen it. Unset, every policy is today's behaviour.
 | --- | --- | --- | --- |
 | `auth.requireMfa` | tenant, team | users it applies to who have no authenticator must set one up before anything else (below) | `AUTH_MFA=off`: refused when set (400 `setting_not_allowed`); a stored `true` has no effect |
 | `auth.allowBreakGlass` | tenant | whether the deployment's operators may open the tenant with break-glass (default `true`; `false`: new grants are refused, running ones stop: [tenancy](tenancy.md#break-glass)) | none |
+| `auth.passwordHistory` | tenant | the last N passwords of the account (0 to 24, `0` off) can't be used again on a change or a reset link: 422 `password_reused`; hashes only ([Passwords](#passwords)) | the upper limit of 24; none else |
 | `auth.passwordMinLength` | tenant | a new password (change, reset link, an invitation's acceptance, a sign-up with `TENANCY=single`) is at least this long: 400 `password_too_short` (`minLength`, the field in `errors`), checked before the breach check | never under 12 (the floor) nor over 64; 128 stays the maximum |
 | `auth.sessionIdleMinutes` | tenant | a browser session ends after this many minutes without a request (5 to 10080; [below](#session-lifetime)) | `SESSION_IDLE_MINUTES` (120): a longer value is refused (400 `setting_not_allowed`) |
 | `auth.sessionMaxHours` | tenant | a browser session, and a token client's refresh-token family, ends this many hours after the sign-in, however active (1 to 720) | `SESSION_MAX_HOURS` (12): a longer value is refused |

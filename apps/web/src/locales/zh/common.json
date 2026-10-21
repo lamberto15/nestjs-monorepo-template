@@ -6,10 +6,6 @@
     "platform": "平台",
     "dashboard": "仪表盘"
   },
-  "dashboard": {
-    "title": "仪表盘",
-    "description": "您的概览将显示在这里。"
-  },
   "auth": {
     "signIn": {
       "title": "登录",
@@ -122,6 +118,14 @@
       "submit": "取消删除",
       "done": "删除已取消：您的账户将保留。"
     },
+    "unsubscribe": {
+      "title": "退订邮件",
+      "description": "确认不再接收此类邮件",
+      "hint": "您将不再收到此类邮件。我们必须就您的账户及其安全发送的邮件仍会送达；您可以在通知设置中选择要接收的内容。",
+      "submit": "退订",
+      "done": "已退订：我们不会再向您发送此类邮件。",
+      "invalid": "此链接无效或已过期。请从邮件中重新打开，或在通知设置中选择要接收的内容。"
+    },
     "links": {
       "missingToken": "此链接不完整。请从邮件中重新打开。",
       "backToSignIn": "返回登录"
@@ -172,6 +176,16 @@
       "emailHint": "您的登录地址。",
       "timezone": "时区",
       "saved": "个人资料已保存。"
+    },
+    "avatar": {
+      "title": "头像",
+      "choose": "选择头像",
+      "change": "更换头像",
+      "remove": "移除",
+      "hint": "PNG、JPEG、WebP 或 GIF。您所在组织的成员可以看到。",
+      "saved": "头像已保存。",
+      "removed": "头像已移除。",
+      "rejected": "未使用 {{name}}：{{reason}}"
     },
     "security": {
       "title": "安全"

@@ -100,6 +100,10 @@ expect_output "backup: PGPASSWORD from a CRLF file" "$secret" "${backup[@]}" \
   -e PGPASSWORD_FILE=/secrets/crlf "$postgres_image" -c '. /lib.sh; printf %s "$PGPASSWORD${PGPASSWORD_FILE:-}"'
 expect_output "backup: the S3 key from a file" "$secret" "${backup[@]}" \
   -e BACKUP_S3_SECRET_ACCESS_KEY_FILE=/secrets/lf "$postgres_image" -c '. /lib.sh; printf %s "$BACKUP_S3_SECRET_ACCESS_KEY"'
+expect_output "backup: the encryption recipients from a file" "$secret" "${backup[@]}" \
+  -e BACKUP_ENCRYPTION_KEY_FILE=/secrets/lf "$postgres_image" -c '. /lib.sh; printf %s "$BACKUP_ENCRYPTION_KEY"'
+expect_exit "backup refuses both encryption recipients set" 2 "${backup[@]}" -e BACKUP_ENCRYPTION_KEY=x \
+  -e BACKUP_ENCRYPTION_KEY_FILE=/secrets/lf "$postgres_image" -c '. /lib.sh'
 expect_exit "backup refuses both set" 2 "${backup[@]}" -e PGPASSWORD=x \
   -e PGPASSWORD_FILE=/secrets/lf "$postgres_image" -c '. /lib.sh'
 expect_exit "backup refuses an empty file" 2 "${backup[@]}" \

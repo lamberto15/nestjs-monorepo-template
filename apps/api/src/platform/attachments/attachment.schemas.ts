@@ -22,6 +22,11 @@ export const attachmentSchema = z
       .describe(
         'An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record.',
       ),
+    scanStatus: z
+      .enum(['pending', 'clean'])
+      .describe(
+        '`pending`: the malware scan has not finished (MALWARE_SCANNER is on) and the file cannot be downloaded yet (409 `attachment_scan_pending`). `clean` otherwise, always when scanning is off. An infected file is rejected: the attachment is deleted and its uploader notified.',
+      ),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
   })

@@ -23,5 +23,9 @@
     "switch": "Include sub-tenants",
     "included": "Including: {{names}}",
     "none": "No sub-tenants below this tenant."
+  },
+  "dashboard": {
+    "title": "Recent activity",
+    "empty": "No activity yet."
   }
 }

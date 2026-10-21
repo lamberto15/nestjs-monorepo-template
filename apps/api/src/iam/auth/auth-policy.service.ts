@@ -13,6 +13,7 @@ import {
   AUTH_POLICY,
   type AuthPolicyCeiling,
   type AuthPolicySource,
+  effectivePasswordHistory,
   effectivePasswordMinLength,
   effectiveSessionLimit,
   SESSION_IDLE_MINUTES_LIMIT,
@@ -135,22 +136,45 @@ export class AuthPolicyService {
     if (!source) {
       return effectivePasswordMinLength([]);
     }
-    let tenantIds: readonly string[];
-    if ('userId' in owner) {
-      tenantIds = (await this.users.memberships(owner.userId)).map(
-        (membership) => membership.id,
-      );
-    } else if ('tenantIds' in owner) {
-      tenantIds = owner.tenantIds;
-    } else {
-      tenantIds = this.singleTenant.enabled
-        ? [(await this.singleTenant.tenant()).id]
-        : [];
-    }
     const chosen = await Promise.all(
-      tenantIds.map((tenantId) => source.passwordMinLength(tenantId)),
+      (await this.tenantIds(owner)).map((tenantId) =>
+        source.passwordMinLength(tenantId),
+      ),
     );
     return effectivePasswordMinLength(chosen);
+  }
+
+  /**
+   * How many of an account's last passwords (the current one included) a
+   * new one may not repeat: the strictest of its tenants' `auth.passwordHistory`,
+   * 0 (off) without a provider or a choice.
+   */
+  async passwordHistory(owner: PasswordOwner): Promise<number> {
+    const source = this.source;
+    if (!source) {
+      return effectivePasswordHistory([]);
+    }
+    const chosen = await Promise.all(
+      (await this.tenantIds(owner)).map((tenantId) =>
+        source.passwordHistory(tenantId),
+      ),
+    );
+    return effectivePasswordHistory(chosen);
+  }
+
+  /** The tenants whose policies bind this password's owner. */
+  private async tenantIds(owner: PasswordOwner): Promise<readonly string[]> {
+    if ('userId' in owner) {
+      return (await this.users.memberships(owner.userId)).map(
+        (membership) => membership.id,
+      );
+    }
+    if ('tenantIds' in owner) {
+      return owner.tenantIds;
+    }
+    return this.singleTenant.enabled
+      ? [(await this.singleTenant.tenant()).id]
+      : [];
   }
 
   /**

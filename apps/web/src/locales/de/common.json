@@ -6,10 +6,6 @@
     "platform": "Plattform",
     "dashboard": "Dashboard"
   },
-  "dashboard": {
-    "title": "Dashboard",
-    "description": "Hier erscheint Ihre Übersicht."
-  },
   "auth": {
     "signIn": {
       "title": "Anmelden",
@@ -122,6 +118,14 @@
       "submit": "Löschung abbrechen",
       "done": "Die Löschung ist abgebrochen: Ihr Konto bleibt bestehen."
     },
+    "unsubscribe": {
+      "title": "E-Mails abbestellen",
+      "description": "Bestätigen Sie, dass Sie diese E-Mail nicht mehr erhalten möchten",
+      "hint": "Sie erhalten diese Art von E-Mail nicht mehr. E-Mails, die wir zu Ihrem Konto und dessen Sicherheit senden müssen, erreichen Sie weiterhin. Was Sie erhalten, legen Sie in Ihren Benachrichtigungseinstellungen fest.",
+      "submit": "Abbestellen",
+      "done": "Sie haben die E-Mails abbestellt: Wir senden Ihnen diese Art von E-Mail nicht mehr.",
+      "invalid": "Dieser Link ist ungültig oder abgelaufen. Öffnen Sie ihn erneut aus der E-Mail oder legen Sie in Ihren Benachrichtigungseinstellungen fest, was Sie erhalten."
+    },
     "links": {
       "missingToken": "Dieser Link ist unvollständig. Öffnen Sie ihn erneut aus der E-Mail.",
       "backToSignIn": "Zurück zur Anmeldung"
@@ -172,6 +176,16 @@
       "emailHint": "Ihre Anmeldeadresse.",
       "timezone": "Zeitzone",
       "saved": "Profil gespeichert."
+    },
+    "avatar": {
+      "title": "Bild",
+      "choose": "Bild auswählen",
+      "change": "Bild ändern",
+      "remove": "Entfernen",
+      "hint": "PNG, JPEG, WebP oder GIF. Sichtbar für die Mitglieder Ihrer Organisationen.",
+      "saved": "Bild gespeichert.",
+      "removed": "Bild entfernt.",
+      "rejected": "{{name}} wurde nicht verwendet: {{reason}}"
     },
     "security": {
       "title": "Sicherheit"

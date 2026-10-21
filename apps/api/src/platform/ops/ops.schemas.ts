@@ -481,4 +481,3 @@ export const opsEventSchema = z.union([
 ]);
 
 export type OpsEvent = z.infer<typeof opsEventSchema>;
-export type OpsEventSource = OpsEvent['source'];

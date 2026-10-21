@@ -39,6 +39,10 @@ x-app: &app
     CORS_ORIGINS: ${CORS_ORIGINS:-}
     SERVICE_NAME: ${SERVICE_NAME:-${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}}
     APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
+    # Forces the mode (normal, read-only, maintenance) over the operators'
+    # platform.mode setting (docs/settings.md). This file lists the variables
+    # the containers get (no env_file), so a variable missing here never arrives.
+    APP_MODE: ${APP_MODE:-}
     LOCALES: ${LOCALES:-en,de,ar,zh,ms}
     LOG_FORMAT: ${LOG_FORMAT:-}
     LOG_LEVEL: ${LOG_LEVEL:-log}
@@ -156,6 +160,18 @@ x-app: &app
     # Encrypted columns and their blind indexes (docs/encryption.md)
     DATA_ENCRYPTION_KEYS: ${DATA_ENCRYPTION_KEYS:-}
     BLIND_INDEX_KEYS: ${BLIND_INDEX_KEYS:-}
+    # Malware scanning of uploads (docs/attachments.md, "Malware scanning"):
+    # off unless .env says clamav; compose.clamav.yaml adds clamd and sets it
+    # for api and worker. Here, in x-app, so every service built from it
+    # reads .env alike: the blue-green colours extend `api` as it is in this
+    # file, without any overlay's changes to it (docs/deployment.md, "ClamAV
+    # (malware scanning)"), and api needs it as much as the worker (it stores
+    # an upload `pending` and queues the scan, with the attempts below).
+    MALWARE_SCANNER: ${MALWARE_SCANNER:-off}
+    CLAMAV_HOST: ${CLAMAV_HOST:-}
+    CLAMAV_PORT: ${CLAMAV_PORT:-3310}
+    CLAMAV_TIMEOUT_MS: ${CLAMAV_TIMEOUT_MS:-60000}
+    MALWARE_SCAN_ATTEMPTS: ${MALWARE_SCAN_ATTEMPTS:-5}
     # PDF documents (docs/documents.md): the gotenberg service below. Empty: documents off.
     GOTENBERG_URL: ${GOTENBERG_URL-http://gotenberg:3000}
     GOTENBERG_TIMEOUT_MS: ${GOTENBERG_TIMEOUT_MS:-30000}
@@ -226,6 +242,14 @@ x-app: &app
     - example_sender_webhook_secret
     - anthropic_api_key
   logging: *logging
+  # Hardened (docs/deployment.md, "Container hardening"): the image is
+  # read-only, /tmp is the only place the process writes besides the files
+  # volume (api, worker), and it needs no Linux capability, nor a way to gain one.
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m
+  cap_drop: [ALL]
+  security_opt: ['no-new-privileges:true']
 
 services:
   # Once per deploy, before the app: the app's and the stores' migrations, as
@@ -389,6 +413,17 @@ services:
       - postgres_password
     # Explicit, so the pools' sum can be checked against it (docs/deployment.md).
     command: ['postgres', '-c', 'max_connections=${POSTGRES_MAX_CONNECTIONS:-100}']
+    # Hardened (docs/deployment.md, "Container hardening"): the data volume,
+    # /tmp and the socket directory are the only writable paths. The image's
+    # entrypoint starts as root, fixes the data directory's owner and drops to
+    # `postgres` (gosu), hence these five capabilities and no more.
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+      - /run/postgresql
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    security_opt: ['no-new-privileges:true']
     deploy:
       resources:
         limits:
@@ -401,6 +436,19 @@ services:
       REDIS_PASSWORD_FILE: ${REDIS_PASSWORD_FILE:+/run/secrets/redis_password}
     secrets:
       - redis_password
+    # Hardened (docs/deployment.md, "Container hardening"): /data (the
+    # volume) and /tmp (redis.sh's here-document) are the only writable
+    # paths. The command is `sh redis.sh`, not `redis-server`, so the image's
+    # entrypoint never chowns /data or drops to `redis`: the server runs as
+    # root, on a volume the image made `redis`'s. Root without DAC_OVERRIDE
+    # can't write there (no appendonlydir on a new volume, no RDB save
+    # later): that one capability, and no more.
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    cap_drop: [ALL]
+    cap_add: [DAC_OVERRIDE]
+    security_opt: ['no-new-privileges:true']
     deploy:
       resources:
         limits:
@@ -437,6 +485,16 @@ services:
       - '80:80'
       - '443:443'
       - '443:443/udp'
+    # Hardened (docs/deployment.md, "Container hardening"): Caddy writes
+    # /data (certificates) and /config (autosaved configuration), both
+    # volumes, and /tmp. It runs as root and owns what it writes; it only
+    # needs to bind ports 80 and 443.
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ['no-new-privileges:true']
     secrets:
       - cloudflare_api_token
     environment:
@@ -548,9 +606,15 @@ services:
       BACKUP_S3_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:-}
       BACKUP_S3_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:-}
       BACKUP_S3_SECRET_ACCESS_KEY_FILE: ${BACKUP_S3_SECRET_ACCESS_KEY_FILE:+/run/secrets/backup_s3_secret_access_key}
+      # age recipients (public keys): dumps, files and WAL are encrypted before
+      # they are kept or uploaded. Empty: plaintext. Restoring needs the identity.
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
+      # Or from the file (lib.sh reads it), like the S3 key above.
+      BACKUP_ENCRYPTION_KEY_FILE: ${BACKUP_ENCRYPTION_KEY_FILE:+/run/secrets/backup_encryption_key}
     secrets:
       - postgres_password
       - backup_s3_secret_access_key
+      - backup_encryption_key
     deploy:
       resources:
         limits:
@@ -558,6 +622,14 @@ services:
           memory: ${BACKUP_MEMORY:-512M}
     # A running backup finishes first (supercronic waits for it on SIGTERM).
     stop_grace_period: 2m
+    # Hardened (docs/deployment.md, "Container hardening"): it runs as
+    # `postgres` and writes /backups (volume) and /tmp (the crontab, the
+    # health marker).
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
     volumes:
       - backups:/backups
       # Read only: the backup never changes the files.
@@ -625,6 +697,8 @@ secrets:
     file: ${POSTGRES_PASSWORD_FILE:-./secret.empty}
   backup_s3_secret_access_key:
     file: ${BACKUP_S3_SECRET_ACCESS_KEY_FILE:-./secret.empty}
+  backup_encryption_key:
+    file: ${BACKUP_ENCRYPTION_KEY_FILE:-./secret.empty}
   cloudflare_api_token:
     file: ${CLOUDFLARE_API_TOKEN_FILE:-./secret.empty}
 

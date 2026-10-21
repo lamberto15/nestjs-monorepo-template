@@ -107,7 +107,7 @@ jobs:
       - name: Secrets as variables, as an existing .env has them
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
-          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci
+          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci BACKUP_ENCRYPTION_KEY=age1ci
           docker compose config --format json > env.json
           # The app role for api and worker; the owner on migrate only (docs/deployment.md, "Database roles").
           test "$(jq -r .services.api.environment.DATABASE_URL env.json)" = 'postgres://app_runtime:app-ci@postgres:5432/app'
@@ -146,15 +146,53 @@ jobs:
           done
           test "$(jq -r .services.postgres.environment.POSTGRES_PASSWORD env.json)" = pg-ci
           test "$(jq -r .services.backup.environment.PGPASSWORD env.json)" = pg-ci
+          # The backup's encryption recipients: the variable reaches the backup, the file variable stays empty.
+          test "$(jq -r .services.backup.environment.BACKUP_ENCRYPTION_KEY env.json)" = age1ci
+          test "$(jq -r .services.backup.environment.BACKUP_ENCRYPTION_KEY_FILE env.json)" = ''
           test "$(jq -r .services.caddy.environment.CLOUDFLARE_API_TOKEN env.json)" = ci
           test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_NAME' env.json)" = 'postgresql://app_monitor:mon-ci@postgres:5432/app?sslmode=disable'
           test "$(jq -r '.services["postgres-exporter"].secrets | map(.source) | join(",")' env.json)" = postgres_monitor_password
           test "$(jq -r '.services["redis-exporter"].environment.REDIS_PASSWORD' env.json)" = redis-ci
+      - name: Every service is hardened
+        # docs/deployment.md, "Container hardening": every service of the
+        # rendered config is checked, so a new one without these keys fails
+        # here. Only compose.yaml + compose.prod.yaml are rendered: the job's
+        # COMPOSE_FILE adds the monitoring stack, which is not hardened.
+        env:
+          COMPOSE_FILE: compose.yaml:compose.prod.yaml
+        run: |
+          export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
+          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci
+          docker compose --profile '*' config --format json > hardened.json
+          test "$(jq '.services | length' hardened.json)" -gt 0
+          problems=$(jq -r '
+            .services | to_entries[] | .key as $service | .value |
+            (if .read_only != true then "\($service) is not read_only" else empty end),
+            (if ((.cap_drop // []) | index("ALL")) == null then "\($service) does not drop ALL capabilities" else empty end),
+            (if ((.security_opt // []) | index("no-new-privileges:true")) == null then "\($service) lacks no-new-privileges" else empty end),
+            (if ((.tmpfs // []) | map(select(startswith("/tmp"))) | length) != 1 then "\($service) has no /tmp tmpfs" else empty end)
+          ' hardened.json)
+          if [ -n "$problems" ]; then
+            while IFS= read -r problem; do echo "::error::$problem"; done <<< "$problems"
+            exit 1
+          fi
+      # The containers get the variables compose.prod.yaml lists (no env_file):
+      # APP_MODE (docs/settings.md, "Maintenance and read-only mode") must be one.
+      - name: APP_MODE reaches the api and the worker
+        run: |
+          export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
+          export POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci CLOUDFLARE_API_TOKEN=ci
+          APP_MODE=read-only docker compose config --format json > mode.json
+          for service in api worker; do
+            test "$(jq -r ".services.$service.environment.APP_MODE" mode.json)" = read-only
+          done
+          docker compose config --format json > mode-unset.json
+          test "$(jq -r '.services.api.environment.APP_MODE' mode-unset.json)" = ''
       - name: Secrets in files
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
           dir=$(mktemp -d)
-          for name in POSTGRES_PASSWORD DATABASE_URL DATABASE_OWNER_URL POSTGRES_MONITOR_PASSWORD POSTGRES_REPORTING_PASSWORD REDIS_PASSWORD CLOUDFLARE_API_TOKEN JWT_SECRET SMTP_URL ANTHROPIC_API_KEY; do
+          for name in POSTGRES_PASSWORD DATABASE_URL DATABASE_OWNER_URL POSTGRES_MONITOR_PASSWORD POSTGRES_REPORTING_PASSWORD REDIS_PASSWORD CLOUDFLARE_API_TOKEN JWT_SECRET SMTP_URL ANTHROPIC_API_KEY BACKUP_ENCRYPTION_KEY; do
             echo ci > "$dir/$name"
             export "${name}_FILE=$dir/$name"
           done
@@ -188,6 +226,11 @@ jobs:
           test "$(jq -r .services.postgres.environment.POSTGRES_PASSWORD files.json)" = ''
           test "$(jq -r .services.postgres.environment.POSTGRES_PASSWORD_FILE files.json)" = /run/secrets/postgres_password
           test "$(jq -r .services.backup.environment.PGPASSWORD_FILE files.json)" = /run/secrets/postgres_password
+          # The backup's encryption recipients from a file (BACKUP_ENCRYPTION_KEY_FILE).
+          test "$(jq -r .services.backup.environment.BACKUP_ENCRYPTION_KEY files.json)" = ''
+          test "$(jq -r .services.backup.environment.BACKUP_ENCRYPTION_KEY_FILE files.json)" = /run/secrets/backup_encryption_key
+          test "$(jq -r '.services.backup.secrets | map(.source) | index("backup_encryption_key") != null' files.json)" = true
+          test "$(jq -r .secrets.backup_encryption_key.file files.json)" = "$dir/BACKUP_ENCRYPTION_KEY"
           test "$(jq -r .services.redis.environment.REDIS_PASSWORD_FILE files.json)" = /run/secrets/redis_password
           test "$(jq -r .services.caddy.environment.CLOUDFLARE_API_TOKEN_FILE files.json)" = /run/secrets/cloudflare_api_token
           test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_NAME' files.json)" = ''
@@ -209,6 +252,30 @@ jobs:
           done
           test "$(jq -r '.services["redis-exporter"].environment.REDIS_PASSWORD_FILE' files.json)" = /run/secrets/redis_password
           test "$(jq -r .services.alertmanager.environment.SMTP_URL_FILE files.json)" = /run/secrets/smtp_url
+      # Malware scanning (docs/deployment.md, "ClamAV (malware scanning)"):
+      # compose.clamav.yaml turns it on for api and worker; the blue-green
+      # colours extend compose.prod.yaml's api and never see an overlay's
+      # change to it, so they read .env (x-app) like every service.
+      - name: Malware scanning reaches every app service
+        run: |
+          export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
+          setting() { jq -r ".services[\"$1\"].environment.$2" "$3"; }
+          COMPOSE_FILE=compose.yaml:compose.prod.yaml docker compose config --format json > scan-off.json
+          for service in api worker; do
+            test "$(setting $service MALWARE_SCANNER scan-off.json)" = off
+          done
+          COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.clamav.yaml docker compose config --format json > scan-clamav.json
+          for service in api worker; do
+            test "$(setting $service MALWARE_SCANNER scan-clamav.json)" = clamav
+            test "$(setting $service CLAMAV_HOST scan-clamav.json)" = clamav
+          done
+          test "$(jq -r '.services.clamav.image | startswith("clamav/clamav:")' scan-clamav.json)" = true
+          # Blue-green: the colours, with the two settings in .env as the docs say.
+          MALWARE_SCANNER=clamav CLAMAV_HOST=clamav COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.blue-green.yaml:compose.clamav.yaml docker compose config --format json > scan-blue-green.json
+          for service in api-blue api-green worker; do
+            test "$(setting $service MALWARE_SCANNER scan-blue-green.json)" = clamav
+            test "$(setting $service CLAMAV_HOST scan-blue-green.json)" = clamav
+          done
       - name: The shell readers of the files, in their images
         run: scripts/test-secret-readers.sh
 
@@ -267,6 +334,8 @@ jobs:
           path: .turbo/cache
           key: turbo-${{ runner.os }}-${{ github.sha }}
           restore-keys: turbo-${{ runner.os }}-
+      # Oxlint in every package, the translation parity check, then knip:
+      # unused files, exports and dependencies (knip.jsonc).
       - run: pnpm lint
       - run: pnpm build
       # The typed client's OpenAPI document and types must match the routes.
@@ -291,11 +360,21 @@ jobs:
       # runs in `pnpm lint`.
       - name: The i18n check's tests
         run: node --test tools/i18n/check.test.mjs
+      # Guards on this workflow's artifact uploads (tools/ci/): a run of the
+      # workflow is the only other way to learn a blob report went missing.
+      - name: The workflow's tests
+        run: node --test tools/ci/workflow.test.mjs
 
   # The unit tests in parallel (Vitest's --shard): the API's in 3 shards, the
   # web app's in 3 (jsdom, the run's longest at 3 min whole), the packages'
   # (the client's) in one job. Turborepo builds what they depend on, replayed
   # from its cache when nothing changed.
+  # They also measure coverage (`test:cov`, the same run: no second one). A
+  # shard writes a blob report (Vitest's .vitest/blob) with its coverage and
+  # no threshold of its own: a share of the tests covers only a share of the
+  # code. The `coverage` job below merges the shards' blobs and enforces the
+  # thresholds in each package's vitest.config.ts. The packages job runs
+  # whole, so it enforces its own.
   unit:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -304,21 +383,33 @@ jobs:
       matrix:
         include:
           - name: api 1/3
+            blob: api-1
+            app: api
             filter: --filter=@nestjs-monorepo-template/api
             args: --shard=1/3
           - name: api 2/3
+            blob: api-2
+            app: api
             filter: --filter=@nestjs-monorepo-template/api
             args: --shard=2/3
           - name: api 3/3
+            blob: api-3
+            app: api
             filter: --filter=@nestjs-monorepo-template/api
             args: --shard=3/3
           - name: web 1/3
+            blob: web-1
+            app: web
             filter: --filter=@nestjs-monorepo-template/web
             args: --shard=1/3
           - name: web 2/3
+            blob: web-2
+            app: web
             filter: --filter=@nestjs-monorepo-template/web
             args: --shard=2/3
           - name: web 3/3
+            blob: web-3
+            app: web
             filter: --filter=@nestjs-monorepo-template/web
             args: --shard=3/3
           - name: packages
@@ -338,7 +429,60 @@ jobs:
           path: .turbo/cache
           key: turbo-${{ runner.os }}-${{ github.sha }}
           restore-keys: turbo-${{ runner.os }}-
-      - run: pnpm exec turbo run test ${{ matrix.filter }} -- ${{ matrix.args }}
+      - name: A shard (blob report, coverage; thresholds are checked when merged)
+        if: matrix.blob
+        run: >-
+          pnpm exec turbo run test:cov ${{ matrix.filter }} --
+          ${{ matrix.args }} --reporter=default --reporter=blob
+          --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
+          --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
+      - name: Whole (coverage and its thresholds)
+        if: ${{ !matrix.blob }}
+        run: pnpm exec turbo run test:cov ${{ matrix.filter }}
+      - name: The shard's blob report
+        if: matrix.blob
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ matrix.blob }}
+          # One app's directory, so the files keep their bare names (a glob
+          # over apps/* would nest them one level down, which Vitest's
+          # --merge-reports does not read). .vitest is hidden, which
+          # upload-artifact skips unless told otherwise; with no files it
+          # fails, so the coverage job is never left with nothing to merge.
+          path: apps/${{ matrix.app }}/.vitest/blob/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  # The coverage thresholds (each package's vitest.config.ts): the unit
+  # shards' blob reports merged, no test run again.
+  coverage:
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - name: The API's shards
+        uses: actions/download-artifact@v7
+        with:
+          pattern: coverage-api-*
+          path: apps/api/.vitest/blob
+          merge-multiple: true
+      - name: The web app's shards
+        uses: actions/download-artifact@v7
+        with:
+          pattern: coverage-web-*
+          path: apps/web/.vitest/blob
+          merge-multiple: true
+      - name: The API's coverage
+        run: pnpm --filter @nestjs-monorepo-template/api exec vitest --merge-reports --coverage
+      - name: The web app's coverage
+        run: pnpm --filter @nestjs-monorepo-template/web exec vitest --merge-reports --coverage
 
   # The e2e tests in shards, each on its own runner with its own Redis and
   # PostgreSQL: the slowest step of CI, split (Vitest's --shard). They run
@@ -530,7 +674,9 @@ jobs:
           pnpm feature:sync
           pnpm feature:sync --check
           pnpm db:generate
-      - run: pnpm lint
+      # Without knip: it checks this repository's own code (knip.jsonc), not a
+      # generated one.
+      - run: pnpm lint:code
       - run: pnpm build
       - run: pnpm db:check
       - run: pnpm client:generate
@@ -594,7 +740,7 @@ jobs:
           fi
       - name: 'Lint (once: shard 1)'
         if: matrix.shard == 1
-        run: pnpm lint
+        run: pnpm lint:code
       - run: pnpm build
       - run: pnpm db:check
       - run: pnpm client:generate
@@ -816,6 +962,10 @@ jobs:
           tags: backup:ci
           cache-from: type=gha,scope=backup
           cache-to: type=gha,scope=backup,mode=max
+      # Encryption (age) and point-in-time recovery, end to end in the image,
+      # on a throwaway PostgreSQL (backup/test-pitr.sh).
+      - name: Encryption and point-in-time recovery work
+        run: scripts/test-backup-pitr.sh backup:ci
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
@@ -831,6 +981,101 @@ jobs:
           exit-code: '1'
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
+
+  # The hardened production stack starts (docs/deployment.md, "Container
+  # hardening"). compose-secrets sees the keys; only a start shows whether the
+  # containers run under them: a missing tmpfs or capability is a container
+  # that exits, restarts or never becomes healthy. It is the load test's
+  # stack (loadtest/run.sh: PostgreSQL, Redis, migrate, api ×2, worker, the
+  # stock Caddy on plain HTTP) with the backup service, on new volumes as a
+  # first deployment has them. Not started: the production Caddy (its
+  # certificate needs a public name) and Gotenberg.
+  hardened-stack:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      # loadtest/run.sh's names only: its `down` removes the project's volumes.
+      LOADTEST_PROJECT: loadtest-hardened
+      # run.sh's default; ignored by git.
+      LOADTEST_OUT: loadtest/results
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build the production image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          load: true
+          tags: app:hardened
+          build-args: GIT_SHA=${{ github.sha }}
+          cache-from: type=gha
+      # Returns once the API answers behind Caddy; otherwise prints the logs
+      # and fails.
+      - name: Start the stack
+        env:
+          APP_IMAGE: app:hardened
+        run: loadtest/run.sh up
+      - name: Every container runs, healthy and never restarted
+        run: |
+          # The files and the environment run.sh starts the stack with.
+          compose() {
+            API_REPLICAS=2 LOADTEST_CAPTCHA=off docker compose \
+              --project-name "$LOADTEST_PROJECT" --env-file "$LOADTEST_OUT/stack.env" \
+              -f compose.yaml -f compose.prod.yaml -f compose.loadtest.yaml \
+              --profile backup "$@"
+          }
+          # The backup service writes /backups as `postgres`: its first run
+          # (the scheduler takes one at once on an empty volume) proves it can.
+          compose up -d --build --no-deps backup
+          for _ in $(seq 1 45); do
+            compose exec -T backup test -s /backups/.last-success && break
+            sleep 2
+          done
+          compose exec -T backup test -s /backups/.last-success || { echo "::error::the backup service made no backup"; exit 1; }
+          # Redis writes /data as root: a save must work (MISCONF otherwise).
+          compose exec -T redis sh -c 'export REDISCLI_AUTH="$REDIS_PASSWORD"; redis-cli bgsave | grep -q "Background saving"; sleep 3; redis-cli info persistence | tr -d "\r" | grep -qx rdb_last_bgsave_status:ok' \
+            || { echo "::error::redis can't save its data"; exit 1; }
+          state() {
+            for id in $(compose ps -aq); do
+              docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}} {{.State.Status}} exit={{.State.ExitCode}} restarts={{.RestartCount}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$id"
+            done | sort
+          }
+          # migrate ran once and exited 0; the others run, healthy or without
+          # a healthcheck, and none was restarted.
+          settled() {
+            state | awk '
+              { seen[$1] = 1 }
+              $1 == "migrate" { if ($2 != "exited" || $3 != "exit=0") bad = 1; next }
+              $2 != "running" || $4 != "restarts=0" || ($5 != "health=healthy" && $5 != "health=none") { bad = 1 }
+              END {
+                n = split("postgres redis migrate api worker caddy backup", want, " ")
+                for (i = 1; i <= n; i++) if (!(want[i] in seen)) bad = 1
+                exit bad + 0
+              }'
+          }
+          for _ in $(seq 1 30); do
+            settled && break
+            sleep 2
+          done
+          state
+          settled || { echo "::error::a container exited, was restarted or is unhealthy"; exit 1; }
+          # A missing tmpfs or volume is named in the logs.
+          if compose logs --no-color 2>&1 | grep -i 'read-only file system'; then
+            echo "::error::a container wrote to the read-only filesystem"
+            exit 1
+          fi
+      - name: The containers' logs
+        if: failure()
+        run: |
+          for id in $(docker ps -aq --filter "label=com.docker.compose.project=$LOADTEST_PROJECT"); do
+            echo "::group::$(docker inspect -f '{{.Name}} {{.State.Status}} {{.State.Error}}' "$id")"
+            docker logs --tail 80 "$id" 2>&1 || true
+            echo "::endgroup::"
+          done
+      - name: Remove the stack and its volumes
+        if: always()
+        run: loadtest/run.sh down
 
   # Caddy's image (caddy/Dockerfile, built from the repository root as
   # compose.prod.yaml does; caddy/Dockerfile.dockerignore picks what goes

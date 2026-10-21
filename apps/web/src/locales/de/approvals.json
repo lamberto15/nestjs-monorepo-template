@@ -324,5 +324,10 @@
         "payload": "Ein Wert der vorgeschlagenen Änderung"
       }
     }
+  },
+  "dashboard": {
+    "title": "Wartet auf deine Freigabe",
+    "count": "Dir zugewiesen: {{count}}",
+    "empty": "Nichts wartet auf dich."
   }
 }

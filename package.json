@@ -8,7 +8,8 @@
   "scripts": {
     "build": "turbo run build",
     "format": "prettier --write \"apps/*/{src,test}/**/*.{ts,tsx}\" \"packages/*/src/**/*.{ts,tsx}\" \"tools/**/*.mjs\"",
-    "lint": "turbo run lint && pnpm i18n:check",
+    "lint": "turbo run lint && pnpm i18n:check && knip",
+    "lint:code": "turbo run lint && pnpm i18n:check",
     "i18n:check": "node tools/i18n/check.mjs",
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e --",
@@ -40,12 +41,14 @@
     "feature:remove": "node tools/feature/remove.mjs",
     "feature:sync": "node tools/feature/sync.mjs",
     "deploy:blue-green": "node tools/deploy/blue-green.mjs",
-    "deploy:swarm": "node tools/deploy/swarm.mjs"
+    "deploy:swarm": "node tools/deploy/swarm.mjs",
+    "knip": "knip"
   },
   "devDependencies": {
     "@changesets/cli": "3.0.3",
     "@commitlint/cli": "21.2.3",
     "@commitlint/config-conventional": "21.2.3",
+    "knip": "6.42.1",
     "lefthook": "2.2.2",
     "oxlint": "^1.58.0",
     "oxlint-tsgolint": "^7.0.2001",

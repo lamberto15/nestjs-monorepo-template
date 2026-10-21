@@ -1283,6 +1283,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/account/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set your picture
+         * @description Multipart, the field `file`: a PNG, JPEG, WebP or GIF, recognized from its bytes (not the name or the declared type), at most AVATAR_MAX_MB (2). Replaces the one you had. The answer is the `avatarUrl` to show it by (also on GET /v1/auth/me and GET /v1/people). Audited (account.avatar-changed). Never while acting as another user.
+         */
+        put: operations["AvatarController_set_v1"];
+        post?: never;
+        /**
+         * Remove your picture
+         * @description The file goes too. Without a picture, nothing happens. Audited (account.avatar-removed). Never while acting as another user.
+         */
+        delete: operations["AvatarController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/account/deletion/cancel": {
         parameters: {
             query?: never;
@@ -1403,6 +1427,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/branding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The branding of your tenant
+         * @description The brand colour (`#rrggbb`), the name mail is sent under, the logo’s path, whether the operators locked it and whether you may change it.
+         */
+        get: operations["BrandingController_get_v1"];
+        /**
+         * Change the branding of your tenant
+         * @description Who manages settings. Sets the colour and the sender name (the settings `branding.primaryColor` and `branding.mailFromName`, so audited as `setting.updated`): `null` removes one, an absent key stays. The colour is `#rrggbb` only. Answers 409 `branding_locked` while the operators have it locked.
+         */
+        put: operations["BrandingController_update_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set the logo of your tenant
+         * @description Who manages settings. Multipart, the field `file`: a PNG, JPEG or WebP of at most 512 KB, recognized by its bytes (never SVG). Replaces the logo. Audited (`branding.logo-changed`). 409 `branding_locked` while locked.
+         */
+        post: operations["BrandingController_upload_v1"];
+        /**
+         * Remove the logo of your tenant
+         * @description Who manages settings. The file goes too. Audited (`branding.logo-removed`). 409 `branding_locked` while locked.
+         */
+        delete: operations["BrandingController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/{tenantId}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The logo of a tenant
+         * @description No sign-in needed. The image itself (PNG, JPEG or WebP, the type its bytes say), cached for five minutes, with `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox` and `Cross-Origin-Resource-Policy: cross-origin` (other sites' mail pages and apps may show it).
+         */
+        get: operations["PublicBrandingController_logo_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/subscriptions": {
         parameters: {
             query?: never;
@@ -1492,6 +1584,26 @@ export interface paths {
          * @description With `q` (or nothing): the active members of your tenant whose name contains `q`, by name. With `key=user:<id>,client:<id>`: the names of these keys, in the order asked: a member, or a former member (they still own records), or an API client of your tenant; a key your tenant has no one for is left out (no error). Each item is a key (`user:<id>`, what `@user:<id>` mentions and `ownerId` holds) and a name, nothing else. For any member. A mention still reaches only those who may read the record (docs/comments.md).
          */
         get: operations["PeopleController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/people/{id}/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A person's picture
+         * @description The picture itself (what `avatarUrl` of a person points at), streamed by this API rather than redirected to the disk's signed link: an `<img>` then loads it from the page's own origin, whatever the storage (a redirect to another origin, the bucket with S3, is refused by the browser's cross-origin and Content-Security-Policy rules). `Content-Disposition: inline`, `Cache-Control: private` (the address changes with the picture), `nosniff`. For a member (or former member) of your tenant, or yourself. 404 when they have none, or are no one of your tenant: the two are not told apart.
+         */
+        get: operations["PeopleController_avatar_v1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4957,6 +5069,11 @@ export interface components {
             uploadedBy: string;
             /** @description An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record. */
             locked: boolean;
+            /**
+             * @description `pending`: the malware scan has not finished (MALWARE_SCANNER is on) and the file cannot be downloaded yet (409 `attachment_scan_pending`). `clean` otherwise, always when scanning is off. An infected file is rejected: the attachment is deleted and its uploader notified.
+             * @enum {string}
+             */
+            scanStatus: "pending" | "clean";
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -5263,7 +5380,7 @@ export interface components {
             recordId: string;
             attachmentId: string;
             /** @enum {string} */
-            action: "added" | "removed";
+            action: "added" | "removed" | "scanned";
         };
     };
     responses: never;
@@ -8028,6 +8145,11 @@ export interface operations {
                          * @enum {string}
                          */
                         tenancy: "multi" | "single";
+                        /**
+                         * @description `platform.mode` / `APP_MODE`. `read-only`: writes answer 503 `read_only`. `maintenance`: everything but health, sign-in and the operators' routes answers 503 `maintenance`. Both carry `Retry-After`.
+                         * @enum {string}
+                         */
+                        mode: "normal" | "read-only" | "maintenance";
                         /** @description The languages the API answers in; the first is the default. */
                         locales: string[];
                     };
@@ -11262,6 +11384,94 @@ export interface operations {
             };
         };
     };
+    AvatarController_set_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Where the picture is shown from (a path on this API, for an `<img>`). */
+                        avatarUrl: string;
+                    };
+                };
+            };
+            /** @description No file (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not signed in as a user. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Larger than AVATAR_MAX_MB (payload_too_large). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a PNG, JPEG, WebP or GIF, or not the type declared (unsupported_media_type). */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AvatarController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not signed in as a user. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     AccountDeletionLinkController_cancel_v1: {
         parameters: {
             query?: never;
@@ -11594,6 +11804,227 @@ export interface operations {
                         };
                     };
                 };
+            };
+        };
+    };
+    BrandingController_get_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description `#rrggbb`, or null: the default theme. */
+                        primaryColor: string | null;
+                        /** @description The name mail is sent under, or null: the deployment’s. */
+                        mailFromName: string | null;
+                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
+                        logoUrl: string | null;
+                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
+                        locked: boolean;
+                        /** @description The caller may change it (and it is not locked). */
+                        canEdit: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    primaryColor?: string | null;
+                    mailFromName?: string | null;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description `#rrggbb`, or null: the default theme. */
+                        primaryColor: string | null;
+                        /** @description The name mail is sent under, or null: the deployment’s. */
+                        mailFromName: string | null;
+                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
+                        logoUrl: string | null;
+                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
+                        locked: boolean;
+                        /** @description The caller may change it (and it is not locked). */
+                        canEdit: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked by the operators (branding_locked). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingController_upload_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description Required. A PNG, JPEG or WebP image of at most 512 KB, recognized by its bytes.
+                     */
+                    file?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description `#rrggbb`, or null: the default theme. */
+                        primaryColor: string | null;
+                        /** @description The name mail is sent under, or null: the deployment’s. */
+                        mailFromName: string | null;
+                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
+                        logoUrl: string | null;
+                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
+                        locked: boolean;
+                        /** @description The caller may change it (and it is not locked). */
+                        canEdit: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked by the operators (branding_locked). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Larger than 512 KB (payload_too_large). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a PNG, JPEG or WebP (unsupported_media_type). */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description There is no logo. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked by the operators (branding_locked). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PublicBrandingController_logo_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The tenant has no logo. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -11976,6 +12407,8 @@ export interface operations {
                             key: string;
                             /** @example Maya Patel */
                             name: string;
+                            /** @description Their picture: a path on this API for an `<img>` (GET /v1/people/{id}/avatar; sign-in required); null: none, and always for an API client. A new picture is a new address. */
+                            avatarUrl: string | null;
                         }[];
                     };
                 };
@@ -11996,6 +12429,54 @@ export interface operations {
             };
             /** @description Your session acts in no tenant (tenant_required). */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PeopleController_avatar_v1: {
+        parameters: {
+            query?: {
+                /** @description The version in `avatarUrl`: it only tells a new picture from the one a browser kept, and is not read. */
+                v?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The picture: a PNG, JPEG, WebP or GIF. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                    "image/webp": string;
+                    "image/gif": string;
+                };
+            };
+            /** @description No valid session or user token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Your session acts in no tenant (tenant_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12101,6 +12582,13 @@ export interface operations {
                 content?: never;
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The malware scan has not finished (attachment_scan_pending): try again shortly. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -17480,6 +17968,8 @@ export interface operations {
                         emailVerified: boolean;
                         locale: string | null;
                         timezone: string | null;
+                        /** @description Their picture (PUT /v1/account/avatar): a path on this API to put in an `<img>` (sign-in required, the same session or token); null: none. A new picture is a new address. */
+                        avatarUrl?: string | null;
                         /** @description The tenant this session or token acts in (GET /auth/tenants, POST /auth/tenant); null: none (no membership yet). */
                         tenantId: string | null;
                         /** @description Set while an administrator acts as this user. */
@@ -17609,6 +18099,8 @@ export interface operations {
                             emailVerified: boolean;
                             locale: string | null;
                             timezone: string | null;
+                            /** @description Their picture (PUT /v1/account/avatar): a path on this API to put in an `<img>` (sign-in required, the same session or token); null: none. A new picture is a new address. */
+                            avatarUrl?: string | null;
                             /** @description The tenant this session or token acts in (GET /auth/tenants, POST /auth/tenant); null: none (no membership yet). */
                             tenantId: string | null;
                             /** @description Set while an administrator acts as this user. */
@@ -17724,6 +18216,8 @@ export interface operations {
                         emailVerified: boolean;
                         locale: string | null;
                         timezone: string | null;
+                        /** @description Their picture (PUT /v1/account/avatar): a path on this API to put in an `<img>` (sign-in required, the same session or token); null: none. A new picture is a new address. */
+                        avatarUrl?: string | null;
                         /** @description The tenant this session or token acts in (GET /auth/tenants, POST /auth/tenant); null: none (no membership yet). */
                         tenantId: string | null;
                         /** @description Set while an administrator acts as this user. */
@@ -17842,6 +18336,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description `password_reused`: one of the account's last passwords (`auth.passwordHistory`); the link still works. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     PasswordController_change_v1: {
@@ -17880,6 +18381,13 @@ export interface operations {
              *     `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user.
              */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `password_reused`: the current password or one of the last ones (`auth.passwordHistory`). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -19737,6 +20245,8 @@ export interface operations {
                             locale: string | null;
                             /** @description Their IANA time zone, or null (APP_TIMEZONE). */
                             timezone: string | null;
+                            /** @description Their picture (an `<img>` path, GET /v1/people/{id}/avatar); null: none. */
+                            avatarUrl?: string | null;
                             /** @description The membership in this tenant and the account, together. */
                             active: boolean;
                             /** @description false: invited, or signs in only with a provider. */
@@ -19872,6 +20382,8 @@ export interface operations {
                         locale: string | null;
                         /** @description Their IANA time zone, or null (APP_TIMEZONE). */
                         timezone: string | null;
+                        /** @description Their picture (an `<img>` path, GET /v1/people/{id}/avatar); null: none. */
+                        avatarUrl?: string | null;
                         /** @description The membership in this tenant and the account, together. */
                         active: boolean;
                         /** @description false: invited, or signs in only with a provider. */
@@ -25333,6 +25845,8 @@ export interface operations {
                 "contentType.in"?: string;
                 /** @description Filter: contentType startsWith */
                 "contentType.startsWith"?: string;
+                /** @description Filter: scanStatus = */
+                scanStatus?: string;
                 /** @description Filter: size gte */
                 "size.gte"?: number;
                 /** @description Filter: size lte */
@@ -25349,11 +25863,11 @@ export interface operations {
                 "updatedAt.lt"?: string;
                 /** @description Filter: updatedAt between */
                 "updatedAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"name","op":"eq","value":…},{…}]}. Fields and operators: name (eq, contains); contentType (eq, in, startsWith); size (gte, lte); createdAt (gte, lt, between); updatedAt (gte, lt, between). */
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"name","op":"eq","value":…},{…}]}. Fields and operators: name (eq, contains); contentType (eq, in, startsWith); scanStatus (eq); size (gte, lte); createdAt (gte, lt, between); updatedAt (gte, lt, between). */
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, size, createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;

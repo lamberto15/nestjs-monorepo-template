@@ -38,6 +38,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { z } from 'zod';
+import { AllowInMaintenance } from '../../core/http/maintenance.js';
 import { listSchema } from '../../core/http/pagination.js';
 import { redirectPath, webAppUrl } from '../../core/http/redirect-path.js';
 import { AccountService } from './account.service.js';
@@ -134,6 +135,7 @@ export class OidcController {
   @Authenticate({ optional: true, providers: [SessionAuth] })
   @Can.Anyone()
   @Get('oidc/:provider/login')
+  @AllowInMaintenance()
   @Redirect()
   @ApiOperation({
     summary: 'Start signing in with a provider (navigate the browser here)',
@@ -212,6 +214,7 @@ export class OidcController {
 
   @Public()
   @Get('oidc/:provider/callback')
+  @AllowInMaintenance()
   @Redirect()
   @ApiOperation({ summary: 'Where the provider sends the browser back' })
   @ApiFoundResponse({

@@ -4,8 +4,10 @@
 #   restore db-<time>.dump [--yes]        the database PGDATABASE
 #   restore files-<time>.tar.gz [--yes]   the uploaded files, into BACKUP_STORAGE_DIR
 #
-# A name without a path is looked up in /backups. The checksum is checked
-# first. The database is loaded into a new database, and only once that
+# A name without a path is looked up in /backups. An encrypted backup (a
+# .age suffix: db-<time>.dump.age) needs the age identity, BACKUP_DECRYPTION_KEY
+# or BACKUP_DECRYPTION_KEY_FILE (docs/deployment.md, "Encryption"). The
+# checksum is checked first. The database is loaded into a new database, and only once that
 # worked are the two swapped: the previous one stays, renamed
 # <name>_before_restore_<time>, until you drop it. Files are extracted over
 # what the volume holds (nothing is deleted).
@@ -19,6 +21,9 @@ STORAGE_DIR=${BACKUP_STORAGE_DIR:-/storage}
 on_exit() {
   code=$?
   if [ "$code" -ne 0 ] && [ "$code" -ne 3 ]; then log error "restore failed" file="${name:-}" exit_code="$code"; fi
+  # The decrypted copy and a temporary identity never stay behind.
+  if [ -n "${plain_dir:-}" ]; then rm -f "$plain_dir"/* && rmdir "$plain_dir"; fi
+  if [ -n "${IDENTITY_TMP:-}" ]; then rm -f "$IDENTITY_TMP"; fi
 }
 trap on_exit EXIT
 
@@ -45,6 +50,21 @@ if [ -f "$file.sha256" ]; then
 else
   log warn "no checksum file next to the backup: not verified" file="$file"
 fi
+
+# An encrypted backup is decrypted (checksum first, above) into a private
+# directory of the backups volume, and restored from there.
+case $name in
+  *.age)
+    age_identity
+    plain_dir=$(umask 077 && mktemp -d "$BACKUP_DIR/.restore.XXXXXX")
+    name=${name%.age}
+    if ! age --decrypt --identity "$IDENTITY" --output "$plain_dir/$name" "$file"; then
+      echo "Can't decrypt $file with the given identity" >&2
+      exit 1
+    fi
+    file="$plain_dir/$name"
+    ;;
+esac
 
 confirm() {
   [ "$yes" = --yes ] && return 0
