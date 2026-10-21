@@ -132,12 +132,16 @@ export function panelHandlers(
       contentType: string;
       uploadedBy: string;
       locked?: boolean;
+      /** `pending` while the malware scan runs; `clean` unless given. */
+      scanStatus?: 'pending' | 'clean';
     }[];
     tags?: { id: string; name: string; color: string | null }[];
     revisions?: TestRevision[];
     /** The ETag the restore must carry; another is a 412. */
     restoreEtag?: string;
     uploadStatus?: number;
+    /** What an upload is stored as: `pending` as with MALWARE_SCANNER on. */
+    uploadScanStatus?: 'pending' | 'clean';
   } = {},
 ) {
   const { subject, path } = options.record ?? TEST_RECORD;
@@ -157,6 +161,19 @@ export function panelHandlers(
     peopleQueries: [] as string[],
     /** How often the test-only subject's `GET /v1/lists/{subject}` was asked. */
     described: 0,
+    /** How often the attachments were listed. */
+    attachmentListings: 0,
+    /** The scan of a pending file ends clean (the next listing shows it). */
+    scanClean(id: string) {
+      attachments.find((a) => a.id === id)!.scanStatus = 'clean';
+    },
+    /** The scan flags it: the API deletes the file and its row. */
+    scanInfected(id: string) {
+      attachments.splice(
+        attachments.findIndex((a) => a.id === id),
+        1,
+      );
+    },
   };
   const comments: Comment[] = (options.comments ?? []).map((c, i) => ({
     id: `c${i}`,
@@ -269,18 +286,20 @@ export function panelHandlers(
       );
       return new HttpResponse(null, { status: 204 });
     }),
-    http.get(`${route}/attachments`, () =>
-      page(
+    http.get(`${route}/attachments`, () => {
+      calls.attachmentListings += 1;
+      return page(
         attachments.map((a) => ({
           subject,
           recordId: 'x',
           locked: false,
+          scanStatus: 'clean',
           createdAt: '2026-10-17T09:40:00.000Z',
           updatedAt: '2026-10-17T09:40:00.000Z',
           ...a,
         })),
-      ),
-    ),
+      );
+    }),
     http.post(`${route}/attachments`, async ({ request }) => {
       if (options.uploadStatus && options.uploadStatus >= 400) {
         return problem(options.uploadStatus, 'unsupported_media_type');
@@ -299,6 +318,7 @@ export function panelHandlers(
         size: file.size,
         contentType: file.type,
         uploadedBy: `user:${signedInUser.user.id}`,
+        scanStatus: options.uploadScanStatus ?? 'clean',
       };
       attachments.push(added);
       return HttpResponse.json(added, { status: 201 });

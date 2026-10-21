@@ -372,9 +372,17 @@ fields value onChange errors />` is a typed input per field (the drafts and
   `GET /v1/people?q=` (any member) and write `@user:<id>`; authors are the
   API's `authorName` and `changedByName`. Comments and files reload on the
   realtime events `record.commented` and `record.attachments.changed`
-  (polled only without realtime). Texts are in the `records` namespace. Pass
-  `canUpdate` (the record's own `can.update`) when the page has it: the
-  panels' writes take the record's PATCH check, conditions included. Tests:
+  (polled only without realtime). A file whose malware scan is not done
+  (`scanStatus: 'pending'`, [attachments](attachments.md)) shows a
+  "Scanning…" badge and a disabled download (the API answers 409
+  `attachment_scan_pending`); the list is read again on the `scanned` event
+  (every 30 s as a safety net, every 5 s without a connected socket) and the
+  download link appears. An infected file is deleted by the API, so there is
+  no rejected row: it leaves the list on `removed` and a toast shows the
+  `attachment.rejected` notification's text. Texts are in the `records`
+  namespace. Pass `canUpdate` (the record's own `can.update`) when the page
+  has it: the panels' writes take the record's PATCH check, conditions
+  included. Tests:
   `usePanelsApi()` (`test/panels-api.ts`) serves the panels' routes for a
   test-only subject; a feature's test description spreads
   `panelsDescription()`.

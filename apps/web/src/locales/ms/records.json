@@ -46,6 +46,8 @@
     "locked": "Dokumen yang dikeluarkan",
     "download": "Muat turun {{name}}",
     "downloadShort": "Muat turun",
+    "scanning": "Sedang diimbas…",
+    "downloadScanning": "Muat turun {{name}}: tersedia selepas imbasan selesai",
     "delete": "Padam",
     "deleteTitle": "Padam fail ini?",
     "deleteDescription": "“{{name}}” dibuang daripada rekod, bersama failnya."

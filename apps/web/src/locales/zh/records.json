@@ -46,6 +46,8 @@
     "locked": "已签发的文档",
     "download": "下载 {{name}}",
     "downloadShort": "下载",
+    "scanning": "正在扫描…",
+    "downloadScanning": "下载 {{name}}：扫描完成后可用",
     "delete": "删除",
     "deleteTitle": "删除此文件？",
     "deleteDescription": "“{{name}}”及其文件将从记录中移除。"

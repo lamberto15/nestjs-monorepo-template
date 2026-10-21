@@ -365,6 +365,109 @@ describe('attachments', () => {
     await screen.findByText('No files attached.');
     expect(document.querySelector('input[type="file"]')).toBeNull();
   });
+
+  describe('malware scan', () => {
+    const files = [
+      {
+        id: 'a1',
+        name: 'incoming.pdf',
+        size: 2048,
+        contentType: 'application/pdf',
+        uploadedBy: ME,
+        scanStatus: 'pending' as const,
+      },
+      {
+        id: 'a2',
+        name: 'checked.pdf',
+        size: 2048,
+        contentType: 'application/pdf',
+        uploadedBy: ME,
+        scanStatus: 'clean' as const,
+      },
+    ];
+
+    it('marks a file still being scanned and offers no download for it', async () => {
+      usePanelsApi({ attachments: files });
+      await mountPanels(ALL);
+      await open('Attachments');
+      const pending = (await screen.findByText('incoming.pdf')).closest('li')!;
+      expect(within(pending).getByRole('status')).toHaveTextContent(
+        'Scanning…',
+      );
+      // No link to follow (the API answers 409 until the scan is done): a
+      // disabled button that says why.
+      expect(within(pending).queryByRole('link')).toBeNull();
+      expect(
+        within(pending).getByRole('button', {
+          name: 'Download incoming.pdf: available when the scan is done',
+        }),
+      ).toBeDisabled();
+      // It can still be removed, as the API allows.
+      expect(
+        within(pending).getByRole('button', { name: 'Delete' }),
+      ).toBeEnabled();
+      // A clean file is as before: a link, no badge.
+      const clean = screen.getByText('checked.pdf').closest('li')!;
+      expect(within(clean).queryByRole('status')).toBeNull();
+      expect(
+        within(clean).getByRole('link', { name: 'Download checked.pdf' }),
+      ).toHaveAttribute('href', '/v1/attachments/a2/download');
+    });
+
+    it('lists a new upload as being scanned', async () => {
+      usePanelsApi({ uploadScanStatus: 'pending' });
+      await mountPanels(ALL);
+      const user = await open('Attachments');
+      await user.upload(
+        document.querySelector('input[type="file"]') as HTMLInputElement,
+        new File(['hello'], 'plan.txt', { type: 'text/plain' }),
+      );
+      const list = await screen.findByRole('list', { name: 'Attachments' });
+      expect(within(list).getByText('plan.txt')).toBeVisible();
+      expect(within(list).getByRole('status')).toHaveTextContent('Scanning…');
+      expect(within(list).queryByRole('link')).toBeNull();
+    });
+
+    it('polls for the scan while there is no connected socket', async () => {
+      vi.useFakeTimers({
+        toFake: ['setInterval', 'clearInterval'],
+        shouldAdvanceTime: true,
+      });
+      try {
+        const calls = usePanelsApi({ attachments: files });
+        await mountPanels(ALL);
+        await open('Attachments');
+        const pending = (await screen.findByText('incoming.pdf')).closest(
+          'li',
+        )!;
+        expect(within(pending).getByRole('status')).toBeVisible();
+        const listed = calls.attachmentListings;
+        // The worker finishes; the page notices on its next read.
+        calls.scanClean('a1');
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(5000);
+        });
+        await waitFor(() =>
+          expect(
+            within(screen.getByText('incoming.pdf').closest('li')!).getByRole(
+              'link',
+              { name: 'Download incoming.pdf' },
+            ),
+          ).toBeVisible(),
+        );
+        expect(calls.attachmentListings).toBeGreaterThan(listed);
+        expect(screen.queryByText('Scanning…')).toBeNull();
+        // Nothing left to scan: no more reads.
+        const settled = calls.attachmentListings;
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(10_000);
+        });
+        expect(calls.attachmentListings).toBe(settled);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
 });
 
 describe('tags', () => {
@@ -591,6 +694,112 @@ describe('realtime', () => {
       }),
     );
     expect(await screen.findByText('issued.pdf')).toBeVisible();
+  });
+
+  it('turns a scanned file downloadable on record.attachments.changed (scanned)', async () => {
+    const calls = usePanelsApi({
+      attachments: [
+        {
+          id: 'a1',
+          name: 'incoming.pdf',
+          size: 2048,
+          contentType: 'application/pdf',
+          uploadedBy: ME,
+          scanStatus: 'pending',
+        },
+      ],
+    });
+    await mountPanels(ALL);
+    await open('Attachments');
+    const row = (await screen.findByText('incoming.pdf')).closest('li')!;
+    expect(within(row).getByRole('status')).toHaveTextContent('Scanning…');
+    const fake = await socket();
+    act(() => fake.emit('connect'));
+    calls.scanClean('a1');
+    act(() =>
+      fake.emit('record.attachments.changed', {
+        subject: TEST_RECORD.subject,
+        recordId: ID,
+        attachmentId: 'a1',
+        action: 'scanned',
+      }),
+    );
+    expect(
+      await screen.findByRole('link', { name: 'Download incoming.pdf' }),
+    ).toHaveAttribute('href', '/v1/attachments/a1/download');
+    expect(screen.queryByText('Scanning…')).toBeNull();
+  });
+
+  it('drops a file the scan rejected and tells its uploader why', async () => {
+    const calls = usePanelsApi({
+      attachments: [
+        {
+          id: 'a1',
+          name: 'virus.pdf',
+          size: 2048,
+          contentType: 'application/pdf',
+          uploadedBy: ME,
+          scanStatus: 'pending',
+        },
+      ],
+    });
+    await mountPanels(ALL);
+    await open('Attachments');
+    await screen.findByText('virus.pdf');
+    const fake = await socket();
+    // The API deletes an infected file: its row is gone, then it says so.
+    calls.scanInfected('a1');
+    act(() =>
+      fake.emit('record.attachments.changed', {
+        subject: TEST_RECORD.subject,
+        recordId: ID,
+        attachmentId: 'a1',
+        action: 'removed',
+      }),
+    );
+    await screen.findByText('No files attached.');
+    expect(screen.queryByText('virus.pdf')).toBeNull();
+    const notification = {
+      id: '0199a3f2-0000-7000-8000-000000000701',
+      type: 'attachment.rejected',
+      title: 'Your file was rejected',
+      body: '“virus.pdf” was removed from TestItem: the malware scan flagged it (Eicar-Test-Signature).',
+      data: {
+        name: 'virus.pdf',
+        subject: 'Elsewhere',
+        signature: 'Eicar-Test-Signature',
+      },
+      link: null,
+      key: null,
+      count: 1,
+      read: false,
+      readAt: null,
+      createdAt: '2026-10-21T10:00:00.000Z',
+      updatedAt: '2026-10-21T10:00:00.000Z',
+    };
+    // Another subject's file is none of this page's business.
+    act(() => fake.emit('notification', notification));
+    await act(() => Promise.resolve());
+    expect(screen.queryByText('Your file was rejected')).toBeNull();
+    act(() =>
+      fake.emit('notification', {
+        ...notification,
+        data: { ...notification.data, subject: TEST_RECORD.subject },
+      }),
+    );
+    await findToast('Your file was rejected');
+    expect(screen.getByText(/the malware scan flagged it/)).toBeVisible();
+    // Other notifications are not toasted here.
+    act(() =>
+      fake.emit('notification', {
+        ...notification,
+        type: 'note.published',
+        title: 'A note was published',
+        data: { subject: TEST_RECORD.subject },
+      }),
+    );
+    await act(() => Promise.resolve());
+    expect(screen.queryByText('A note was published')).toBeNull();
   });
 });
 
