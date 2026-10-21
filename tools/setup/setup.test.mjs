@@ -99,6 +99,22 @@ async function setup(root, out, args, io = {}) {
 const read = (out, target) =>
   readFileSync(path.join(out, FILES[target]), 'utf8');
 
+/** Sets these values in the production file of `out`, as its owner would. */
+function edit(out, values) {
+  const file = path.join(out, FILES.production);
+  writeFileSync(file, applyValues(readFileSync(file, 'utf8'), new Map(values)));
+}
+
+/** A production re-run with no flags, which must succeed: its variables. */
+async function rerun(root, out) {
+  const { code, text, errors } = await setup(root, out, [
+    '--target',
+    'production',
+  ]);
+  assert.equal(code, 0, `${text}\n${errors}`);
+  return parseEnv(read(out, 'production'));
+}
+
 /**
  * The template as an older one: without the given variables, each with the
  * comment right above it and the blank line that opened its paragraph.
@@ -1370,27 +1386,18 @@ describe('questions for observability, the AI key, push and SMS', () => {
     const root = fixture();
     const out = temp();
     await setup(root, out, PRODUCTION);
-    const file = path.join(out, '.env');
     // The documented Docker or Swarm secrets setup: the secrets are in files.
-    writeFileSync(
-      file,
-      applyValues(
-        readFileSync(file, 'utf8'),
-        new Map([
-          ['OBSERVE_APP_KEY', 'k1'],
-          ['OBSERVE_APP_SECRET_FILE', '/run/secrets/observe'],
-          ['SMS_PROVIDER', 'twilio'],
-          ['TWILIO_ACCOUNT_SID', 'AC1'],
-          ['TWILIO_AUTH_TOKEN_FILE', '/run/secrets/twilio'],
-          ['TWILIO_FROM', '+15551234567'],
-        ]),
-      ),
-    );
+    edit(out, [
+      ['OBSERVE_APP_KEY', 'k1'],
+      ['OBSERVE_APP_SECRET_FILE', '/run/secrets/observe'],
+      ['SMS_PROVIDER', 'twilio'],
+      ['TWILIO_ACCOUNT_SID', 'AC1'],
+      ['TWILIO_AUTH_TOKEN_FILE', '/run/secrets/twilio'],
+      ['TWILIO_FROM', '+15551234567'],
+    ]);
     // Without the fix this re-run threw: "A value is needed for
     // --observe-app-secret, --twilio-auth-token".
-    const { code, text } = await setup(root, out, ['--target', 'production']);
-    assert.equal(code, 0, text);
-    const env = parseEnv(read(out, 'production'));
+    const env = await rerun(root, out);
     assert.equal(env.get('OBSERVE_APP_KEY'), 'k1');
     assert.equal(env.get('OBSERVE_APP_SECRET'), '');
     assert.equal(env.get('OBSERVE_APP_SECRET_FILE'), '/run/secrets/observe');
@@ -1411,24 +1418,12 @@ describe('questions for observability, the AI key, push and SMS', () => {
       '--mail-from',
       'no-reply@example.com',
     ]);
-    const file = path.join(out, '.env');
-    writeFileSync(
-      file,
-      applyValues(
-        readFileSync(file, 'utf8'),
-        new Map([
-          ['SMTP_URL', ''],
-          ['SMTP_URL_FILE', '/run/secrets/smtp'],
-        ]),
-      ),
-    );
-    // Before: this threw "A value is needed for --smtp-url".
-    const { code, text, errors } = await setup(root, out, [
-      '--target',
-      'production',
+    edit(out, [
+      ['SMTP_URL', ''],
+      ['SMTP_URL_FILE', '/run/secrets/smtp'],
     ]);
-    assert.equal(code, 0, `${text}\n${errors}`);
-    const env = parseEnv(read(out, 'production'));
+    // Before: this threw "A value is needed for --smtp-url".
+    const env = await rerun(root, out);
     assert.equal(env.get('MAIL_TRANSPORT'), 'smtp');
     assert.equal(env.get('SMTP_URL'), '');
     assert.equal(env.get('SMTP_URL_FILE'), '/run/secrets/smtp');
@@ -1446,21 +1441,12 @@ describe('questions for observability, the AI key, push and SMS', () => {
       '--social-client-secret',
       'gsecret-value',
     ]);
-    const file = path.join(out, '.env');
-    writeFileSync(
-      file,
-      applyValues(
-        readFileSync(file, 'utf8'),
-        new Map([
-          ['GOOGLE_CLIENT_SECRET', ''],
-          ['GOOGLE_CLIENT_SECRET_FILE', '/run/secrets/google'],
-        ]),
-      ),
-    );
+    edit(out, [
+      ['GOOGLE_CLIENT_SECRET', ''],
+      ['GOOGLE_CLIENT_SECRET_FILE', '/run/secrets/google'],
+    ]);
     // Before: this threw "A value is needed for --social-client-secret".
-    const again = await setup(root, out, ['--target', 'production']);
-    assert.equal(again.code, 0, `${again.text}\n${again.errors}`);
-    let env = parseEnv(read(out, 'production'));
+    let env = await rerun(root, out);
     assert.equal(env.get('GOOGLE_CLIENT_ID'), 'gid');
     assert.equal(env.get('GOOGLE_CLIENT_SECRET'), '');
     assert.equal(env.get('GOOGLE_CLIENT_SECRET_FILE'), '/run/secrets/google');
@@ -1541,25 +1527,14 @@ describe('questions for observability, the AI key, push and SMS', () => {
       assert.equal(first.get(name), value, `${name} is written on a first run`);
     }
     // Every one of them moved to a file.
-    const file = path.join(out, '.env');
-    writeFileSync(
-      file,
-      applyValues(
-        readFileSync(file, 'utf8'),
-        new Map(
-          Object.keys(kept).flatMap((name) => [
-            [name, ''],
-            [`${name}_FILE`, `/run/secrets/${name.toLowerCase()}`],
-          ]),
-        ),
-      ),
+    edit(
+      out,
+      Object.keys(kept).flatMap((name) => [
+        [name, ''],
+        [`${name}_FILE`, `/run/secrets/${name.toLowerCase()}`],
+      ]),
     );
-    const { code, text, errors } = await setup(root, out, [
-      '--target',
-      'production',
-    ]);
-    assert.equal(code, 0, `${text}\n${errors}`);
-    const env = parseEnv(read(out, 'production'));
+    const env = await rerun(root, out);
     for (const name of Object.keys(kept)) {
       assert.equal(env.get(name), '', `${name} stays empty`);
       assert.equal(
