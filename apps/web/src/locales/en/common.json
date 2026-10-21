@@ -122,6 +122,14 @@
       "submit": "Cancel the deletion",
       "done": "The deletion is cancelled: your account stays."
     },
+    "unsubscribe": {
+      "title": "Unsubscribe from email",
+      "description": "Confirm that you no longer want this email",
+      "hint": "You will stop getting this kind of email. Emails we must send about your account and its security still reach you, and you choose what you receive in your notification settings.",
+      "submit": "Unsubscribe",
+      "done": "You are unsubscribed: we won't send you this kind of email again.",
+      "invalid": "This link is invalid or has expired. Open it again from the email, or choose what you receive in your notification settings."
+    },
     "links": {
       "missingToken": "This link is incomplete. Open it again from the email.",
       "backToSignIn": "Back to sign in"
