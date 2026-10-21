@@ -1,5 +1,6 @@
 import { createHmac, randomBytes } from 'node:crypto';
 import { getQueueToken } from '@nestjs/bullmq';
+import { ConfigService } from '@nestjs/config';
 import { OutboxRelay } from '@nestjs/outbox';
 import type { Queue } from 'bullmq';
 import { and, eq } from 'drizzle-orm';
@@ -616,20 +617,25 @@ describe('push and SMS (e2e)', () => {
   });
 
   describe('the per-IP allowance and the spend cap', () => {
-    /** Reboots the app with other limits (the environment is read at boot). */
-    async function rebootWith(env: Record<string, string>) {
-      await node.close();
-      Object.assign(process.env, env);
-      node = await bootApp();
+    /**
+     * Other limits for this app: the environment is validated once, when the
+     * modules load, so the values the services read from ConfigService are
+     * replaced on it (restored with the mocks).
+     */
+    function configure(values: Record<string, unknown>) {
+      const config = node.app.get(ConfigService);
+      const original = config.get.bind(config) as (
+        ...args: unknown[]
+      ) => unknown;
+      vi.spyOn(config, 'get').mockImplementation(((
+        key: string,
+        ...rest: unknown[]
+      ) => (key in values ? values[key] : original(key, ...rest))) as never);
     }
-    afterEach(() => {
-      delete process.env.SMS_DAILY_LIMIT_PER_IP;
-      delete process.env.SMS_MONTHLY_BUDGET_MINOR;
-      delete process.env.SMS_PRICES;
-    });
+    afterEach(() => vi.restoreAllMocks());
 
     it('refuses a number past the day’s codes for one client IP (429 sms_ip_limit), and counts it', async () => {
-      await rebootWith({ SMS_DAILY_LIMIT_PER_IP: '2' });
+      configure({ SMS_DAILY_LIMIT_PER_IP: 2 });
       const user = await node.user(['editor']);
       await user.agent
         .put('/v1/messaging/phone')
@@ -661,9 +667,9 @@ describe('push and SMS (e2e)', () => {
 
     it('stops sending at the month’s budget, by the price of the prefix', async () => {
       // +49 costs 100 a segment; the budget is 250: two SMS, the third is refused.
-      await rebootWith({
-        SMS_MONTHLY_BUDGET_MINOR: '250',
-        SMS_PRICES: '+49=100,+44=500',
+      configure({
+        SMS_MONTHLY_BUDGET_MINOR: 250,
+        SMS_PRICES: { '+49': 100, '+44': 500 },
       });
       const user = await userWithPhone(); // the code: 100
       await enable(user.agent, { sms: true });
