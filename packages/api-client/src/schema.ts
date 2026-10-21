@@ -8052,6 +8052,11 @@ export interface operations {
                          * @enum {string}
                          */
                         tenancy: "multi" | "single";
+                        /**
+                         * @description `platform.mode` / `APP_MODE`. `read-only`: writes answer 503 `read_only`. `maintenance`: everything but health, sign-in and the operators' routes answers 503 `maintenance`. Both carry `Retry-After`.
+                         * @enum {string}
+                         */
+                        mode: "normal" | "read-only" | "maintenance";
                         /** @description The languages the API answers in; the first is the default. */
                         locales: string[];
                     };

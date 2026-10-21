@@ -153,6 +153,18 @@ jobs:
           test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_NAME' env.json)" = 'postgresql://app_monitor:mon-ci@postgres:5432/app?sslmode=disable'
           test "$(jq -r '.services["postgres-exporter"].secrets | map(.source) | join(",")' env.json)" = postgres_monitor_password
           test "$(jq -r '.services["redis-exporter"].environment.REDIS_PASSWORD' env.json)" = redis-ci
+      # The containers get the variables compose.prod.yaml lists (no env_file):
+      # APP_MODE (docs/settings.md, "Maintenance and read-only mode") must be one.
+      - name: APP_MODE reaches the api and the worker
+        run: |
+          export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
+          export POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci CLOUDFLARE_API_TOKEN=ci
+          APP_MODE=read-only docker compose config --format json > mode.json
+          for service in api worker; do
+            test "$(jq -r ".services.$service.environment.APP_MODE" mode.json)" = read-only
+          done
+          docker compose config --format json > mode-unset.json
+          test "$(jq -r '.services.api.environment.APP_MODE' mode-unset.json)" = ''
       - name: Secrets in files
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
