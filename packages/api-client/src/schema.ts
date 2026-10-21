@@ -3230,7 +3230,7 @@ export interface paths {
         delete: operations["AccessController_deleteClient_v1"];
         options?: never;
         head?: never;
-        /** Revoke (active: false) or reactivate a client; change its roles or daily quota */
+        /** Revoke (active: false) or reactivate a client; change its roles, daily quota or IP allowlist */
         patch: operations["AccessController_updateClient_v1"];
         trace?: never;
     };
@@ -19874,6 +19874,8 @@ export interface operations {
                             active: boolean;
                             /** @description Requests a UTC day (GET /v1/access/clients/{id}/usage); null: none. */
                             dailyQuota: number | null;
+                            /** @description CIDRs its keys may be used from; empty: any address. */
+                            allowedCidrs: string[];
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -19944,6 +19946,8 @@ export interface operations {
                     name: string;
                     /** @description Requests a UTC day; past it, 429 quota_exceeded until midnight UTC. null: no quota. */
                     dailyQuota?: number | null;
+                    /** @description IPv4/IPv6 CIDRs (a bare address is /32 or /128) the client’s keys may be used from; a request from elsewhere gets 403 client_ip_not_allowed. Empty: any address. A malformed one: 400 invalid_cidr. */
+                    allowedCidrs?: string[];
                     /**
                      * @description Roles on top of what every client may do (clientPermissions).
                      * @default []
@@ -19974,6 +19978,8 @@ export interface operations {
                         active: boolean;
                         /** @description Requests a UTC day (GET /v1/access/clients/{id}/usage); null: none. */
                         dailyQuota: number | null;
+                        /** @description CIDRs its keys may be used from; empty: any address. */
+                        allowedCidrs: string[];
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -20062,6 +20068,8 @@ export interface operations {
                         active: boolean;
                         /** @description Requests a UTC day (GET /v1/access/clients/{id}/usage); null: none. */
                         dailyQuota: number | null;
+                        /** @description CIDRs its keys may be used from; empty: any address. */
+                        allowedCidrs: string[];
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -20174,6 +20182,8 @@ export interface operations {
                     active?: boolean;
                     /** @description Requests a UTC day; past it, 429 quota_exceeded until midnight UTC. null: no quota. */
                     dailyQuota?: number | null;
+                    /** @description IPv4/IPv6 CIDRs (a bare address is /32 or /128) the client’s keys may be used from; a request from elsewhere gets 403 client_ip_not_allowed. Empty: any address. A malformed one: 400 invalid_cidr. */
+                    allowedCidrs?: string[];
                     roleIds?: string[];
                     /** @description When each grant ends, by role id (temporary access); the others never do. */
                     roleExpiresAt?: {
@@ -20195,6 +20205,8 @@ export interface operations {
                         active: boolean;
                         /** @description Requests a UTC day (GET /v1/access/clients/{id}/usage); null: none. */
                         dailyQuota: number | null;
+                        /** @description CIDRs its keys may be used from; empty: any address. */
+                        allowedCidrs: string[];
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -20289,6 +20301,8 @@ export interface operations {
                         active: boolean;
                         /** @description Requests a UTC day (GET /v1/access/clients/{id}/usage); null: none. */
                         dailyQuota: number | null;
+                        /** @description CIDRs its keys may be used from; empty: any address. */
+                        allowedCidrs: string[];
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */

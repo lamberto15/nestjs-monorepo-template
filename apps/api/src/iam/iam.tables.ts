@@ -37,6 +37,8 @@ export const apiClients = pgTable(
     active: boolean('active').notNull().default(true),
     /** Requests a UTC day (platform/usage); past it, 429 quota_exceeded. Null: no quota. */
     dailyQuota: integer('daily_quota'),
+    /** CIDRs (normalized, auth/client-ip.ts) the client's keys may be used from; empty: any address. */
+    allowedCidrs: text('allowed_cidrs').array().notNull().default([]),
     ...timestamps(),
   },
   (table) => [
