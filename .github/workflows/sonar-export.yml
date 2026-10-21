@@ -21,9 +21,9 @@ jobs:
       - name: Duplicated new lines per file on the pull request
         run: |
           curl -fsS --retry 3 "$API/measures/component_tree?component=$KEY&pullRequest=$PR&metricKeys=new_duplicated_lines,new_lines&qualifiers=FIL&ps=500" > tree.json
-          jq -r '.components[] | [.path, (.measures | map("\(.metric)=\(.period.value // .value)") | join(" "))] | join(" | ")' tree.json
-          for f in $(jq -r '.components[] | select(any(.measures[]; .metric=="new_duplicated_lines" and ((.period.value // .value) | tonumber) > 0)) | .key' tree.json); do
+          jq -c '.components[] | {path, measures}' tree.json
+          for f in $(jq -r '.components[].key' tree.json); do
             echo "=== DUPLICATIONS $f"
-            curl -fsS --retry 3 -G "$API/duplications/show" --data-urlencode "key=$f" --data-urlencode "pullRequest=$PR" \
-              | jq -r '.files as $files | .duplications[] | [.blocks[] | "\($files[.["_ref"]].name // .["_ref"]):\(.from)+\(.size)"] | join("  ==  ")'
+            curl -fsS --retry 3 -G "$API/duplications/show" --data-urlencode "key=$f" --data-urlencode "pullRequest=$PR" > dup.json || continue
+            jq -r '.files as $files | .duplications[] | [.blocks[] | "\($files[.["_ref"]].name // .["_ref"]):\(.from)+\(.size)"] | join("  ==  ")' dup.json
           done
