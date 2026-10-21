@@ -52,7 +52,11 @@ describe('GET /v1/people (e2e)', () => {
       { key: maya.key, name: `Maya ${t} Patel`, avatarUrl: null },
     ]);
     for (const person of found.body.items as object[]) {
-      expect(Object.keys(person).sort()).toEqual(['avatarUrl', 'key', 'name']);
+      expect(Object.keys(person).sort((a, b) => a.localeCompare(b))).toEqual([
+        'avatarUrl',
+        'key',
+        'name',
+      ]);
     }
 
     // `%` and `_` are themselves, not wildcards.
