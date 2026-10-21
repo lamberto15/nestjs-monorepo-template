@@ -1210,3 +1210,45 @@ roles](#database-roles), "Rolling back past this release").
   (`docker compose up -d --build caddy`), as before.
 - **Unset `APP_IMAGE`** (or leave it out): `docker compose up -d --build`
   builds from the checkout, as before.
+
+### Signing and verifying images
+
+Each publish job (app, Gotenberg, Caddy) signs what it pushed, by digest, with
+the composite action `.github/actions/sign-image`:
+
+- **Signature:** `cosign sign`, keyless (GitHub OIDC: no key to keep). The
+  certificate names the workflow that signed, `ci.yml` on `main` or a `v*`
+  tag, and is logged in the public Rekor log.
+- **Provenance:** a SLSA build provenance attestation
+  (`actions/attest-build-provenance`), pushed to the registry next to the
+  image and listed under the repository's Attestations.
+- **SBOM:** a CycloneDX SBOM of the pushed image (Trivy, which CI already
+  installs), signed as an attestation (`cosign attest --type cyclonedx`).
+
+Only the publishing jobs get `id-token: write` and `attestations: write`;
+every other job keeps read-only permissions. Signatures and attestations are
+stored as extra tags in the same package (`sha256-<digest>.sig`, `.att`).
+
+Verify before pulling (needs [cosign](https://docs.sigstore.dev/cosign/system_config/installation/)
+and, for provenance, the `gh` CLI):
+
+```bash
+scripts/verify-image.sh                # APP_IMAGE, GOTENBERG_IMAGE, CADDY_IMAGE
+scripts/verify-image.sh ghcr.io/<owner>/<repo>:<full commit SHA>
+
+# what it runs, per image:
+cosign verify <image> \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/<owner>/<repo>/\.github/workflows/ci\.yml@refs/(heads/main|tags/v.+)$'
+cosign verify-attestation <image> --type cyclonedx  # same two flags
+gh attestation verify oci://<image> --owner <owner>
+```
+
+Set `VERIFY_IDENTITY_REGEXP` to accept a different signer (a fork's workflow, say). A failure exits
+non-zero and prints cosign's reason; do not deploy that image.
+
+**In the deploy scripts:** `VERIFY_IMAGES=1` makes `pnpm deploy:rolling`
+(before it pulls `APP_IMAGE`), `deploy:blue-green` (with `--image`) and
+`deploy:swarm deploy` run the script first and stop when it fails. Off by
+default, because it needs cosign on the deploy host; the plain
+`docker compose pull` path above is unchanged.

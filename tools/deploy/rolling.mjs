@@ -17,6 +17,7 @@
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
+import { verifyIfEnabled } from './verify.mjs';
 
 export const DEFAULTS = {
   services: ['api', 'worker'],
@@ -119,6 +120,11 @@ export async function rollingDeploy(o, deps) {
   if (o.build) {
     // A published image (APP_IMAGE, set by CI) is pulled, a local one built.
     if (env.APP_IMAGE) {
+      // VERIFY_IMAGES=1: signature, SBOM and provenance first (off by default).
+      await verifyIfEnabled(
+        { env, log, verify: deps.verify },
+        (m) => new DeployError(m),
+      );
       log(`Pulling ${env.APP_IMAGE}`);
       await ok(compose('pull', ...buildServices), 'pull');
     } else {

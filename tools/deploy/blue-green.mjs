@@ -22,6 +22,7 @@
 import { spawn } from 'node:child_process';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { verifyEnabled, runVerify } from './verify.mjs';
 
 export const COLOURS = ['blue', 'green'];
 const other = (colour) => (colour === 'blue' ? 'green' : 'blue');
@@ -64,6 +65,8 @@ export function createDeployer({
   now = () => Date.now(),
   log = (line) => console.error(line),
   compose: composeFlags = [],
+  processEnv = process.env,
+  verify = runVerify,
 } = {}) {
   const docker = async (args, options = {}) => {
     const result = await run('docker', args, options);
@@ -329,6 +332,15 @@ export function createDeployer({
     const live = state.live;
     const idle = live ? other(live) : 'blue';
     log(`live: ${live ?? 'none'}; deploying to ${idle}`);
+    // VERIFY_IMAGES=1: the published image's signature, SBOM and provenance
+    // (scripts/verify-image.sh) before anything starts; off by default.
+    if (!options.build && options.image && verifyEnabled(processEnv)) {
+      log(`verifying ${options.image}`);
+      const code = await verify(processEnv, [options.image]);
+      if (code !== 0) {
+        throw new DeployError(`image verification failed (exit ${code})`);
+      }
+    }
     const image = await resolveImage(config, idle, state, options);
 
     if (!options.noMigrate) {
@@ -496,7 +508,11 @@ export async function main(argv, deps = {}) {
     log_help();
     return 0;
   }
-  const deployer = createDeployer({ ...deps, compose: flags });
+  const deployer = createDeployer({
+    ...deps,
+    processEnv: deps.env,
+    compose: flags,
+  });
   try {
     if (command === 'status') {
       const result = await deployer.status({ json: options.json });
