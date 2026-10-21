@@ -1,12 +1,13 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { appPath } from './app-dir.js';
+import { dirname } from 'node:path';
+import { dumpTarget } from './openapi-dump-target.js';
 
 /**
  * Writes the OpenAPI document to a file without serving it (`pnpm
  * openapi:dump`, which builds first: `node dist/openapi-dump [file]`), for
  * the typed client in packages/api-client: its openapi.json by default, two
- * levels above this app in the repository (`apps/api` → the root).
+ * levels above this app in the repository (`apps/api` → the root). Another
+ * file is a .json in the repository or the temp directory (dumpTarget).
  *
  * The app is created in NestJS's preview mode: modules and routes are
  * scanned, nothing is instantiated, so no database, Redis or port is needed.
@@ -27,9 +28,13 @@ Object.assign(process.env, {
   OPENAPI: 'on',
 });
 
-const target = resolve(
-  process.argv[2] ?? appPath('../../packages/api-client/openapi.json'),
-);
+let target: string;
+try {
+  target = dumpTarget(process.argv[2]);
+} catch (error) {
+  console.error((error as Error).message);
+  process.exit(2);
+}
 
 // After the environment: AppModule's ConfigModule validates it on import.
 const { VersioningType } = await import('@nestjs/common');
