@@ -1,0 +1,117 @@
+# The Helm chart's checks (docs/deploy-kubernetes.md): helm lint and template,
+# the rules copy against monitoring/prometheus/alerts.yml, then a smoke test
+# on a kind cluster: the image is built, the migrate hook runs against
+# PostgreSQL, api becomes ready. Helm, kind and kubectl are the ones the
+# runner image ships (no third-party action to pin); the versions are
+# printed in the log.
+name: Helm
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - deploy/helm/**
+      - monitoring/prometheus/alerts.yml
+      - .github/workflows/helm.yml
+  pull_request:
+    paths:
+      - deploy/helm/**
+      - monitoring/prometheus/alerts.yml
+      - .github/workflows/helm.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: helm-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chart:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Tool versions
+        run: helm version --short && kind version && kubectl version --client
+
+      - name: The rules copy matches monitoring/prometheus/alerts.yml
+        run: |
+          diff -u monitoring/prometheus/alerts.yml deploy/helm/app/files/alerts.yml ||
+            { echo "run deploy/helm/sync-rules.sh"; exit 1; }
+
+      - name: helm lint
+        run: helm lint deploy/helm/app --strict -f deploy/helm/ci/values.yaml
+
+      - name: helm template
+        run: |
+          helm template ci deploy/helm/app -f deploy/helm/ci/values.yaml > "$RUNNER_TEMP/all.yaml"
+          grep -c '^kind:' "$RUNNER_TEMP/all.yaml"
+          # The migrate Job is a pre-upgrade hook, and no manifest says :latest.
+          grep -q 'helm.sh/hook": pre-install,pre-upgrade' "$RUNNER_TEMP/all.yaml"
+          if grep -q ':latest' "$RUNNER_TEMP/all.yaml"; then exit 1; fi
+
+      - name: An image without a tag is refused
+        run: |
+          if helm template ci deploy/helm/app -f deploy/helm/ci/values.yaml --set image.tag= 2>err.txt; then
+            echo "expected a failure"; exit 1
+          fi
+          grep -q 'latest is refused' err.txt
+
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: kind cluster
+        run: kind create cluster --wait 120s
+
+      - name: Build the API image and load it into the cluster
+        run: |
+          docker build -f apps/api/Dockerfile -t app:ci .
+          kind load docker-image app:ci
+
+      - name: PostgreSQL and Redis
+        run: |
+          kubectl apply -f deploy/helm/ci/deps.yaml
+          kubectl rollout status deploy/postgres deploy/redis --timeout=180s
+
+      - name: Test keys for the encrypted columns (required in production)
+        run: |
+          {
+            echo "MFA_KEY=$(openssl rand -base64 32)"
+            echo "DATA_KEY=$(openssl rand -base64 32)"
+            echo "BLIND_KEY=$(openssl rand -base64 32)"
+          } >> "$GITHUB_ENV"
+
+      - name: Install the chart (the migrate hook runs first)
+        run: |
+          helm upgrade --install ci deploy/helm/app --wait --timeout 8m \
+            -f deploy/helm/ci/values.yaml -f deploy/helm/ci/smoke.values.yaml \
+            --set-string secret.data.mfa_encryption_keys="$MFA_KEY" \
+            --set-string secret.data.data_encryption_keys="$DATA_KEY" \
+            --set-string secret.data.blind_index_keys="$BLIND_KEY"
+
+      - name: api answers its readiness check
+        run: |
+          kubectl port-forward svc/ci-app-api 3000:3000 &
+          sleep 5
+          curl -fsS http://127.0.0.1:3000/health
+
+      - name: Upgrade again (the hook reruns against a migrated database)
+        run: |
+          helm upgrade ci deploy/helm/app --wait --timeout 8m \
+            -f deploy/helm/ci/values.yaml -f deploy/helm/ci/smoke.values.yaml \
+            --set-string secret.data.mfa_encryption_keys="$MFA_KEY" \
+            --set-string secret.data.data_encryption_keys="$DATA_KEY" \
+            --set-string secret.data.blind_index_keys="$BLIND_KEY"
+
+      - name: Diagnostics
+        if: failure()
+        run: |
+          kubectl get pods,jobs,serviceaccounts,secrets -o wide
+          kubectl get events --sort-by=.lastTimestamp | tail -40
+          kubectl describe pods | tail -80
+          kubectl logs -l app.kubernetes.io/instance=ci --all-containers --tail=100 || true
