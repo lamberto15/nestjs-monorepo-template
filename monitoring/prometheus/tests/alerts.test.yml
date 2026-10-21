@@ -942,3 +942,27 @@ tests:
             exp_annotations:
               summary: 'The host CPU is 95% busy'
               description: The CPUs have been over 90% busy for 15 minutes. `docker stats` says which container; scale out or raise the host.
+
+  - name: a tenant nears its storage limit
+    interval: 1m
+    input_series:
+      - series: 'tenant_storage_bytes{job="worker",instance="10.0.0.4:3000",tenant="acme"}'
+        values: '50x30 95x30'
+      - series: 'tenant_storage_limit_bytes{job="worker",instance="10.0.0.4:3000",tenant="acme"}'
+        values: '100x60'
+      - series: 'tenant_storage_bytes{job="worker",instance="10.0.0.4:3000",tenant="globex"}'
+        values: '95x60'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: TenantStorageNearLimit
+        exp_alerts: []
+      # 95% since minute 30; firing after 15 minutes. globex has no limit: no alert.
+      - eval_time: 50m
+        alertname: TenantStorageNearLimit
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              tenant: acme
+            exp_annotations:
+              summary: 'Tenant acme stores 95% of its storage limit'
+              description: "The tenant's attachments and issued documents are over 90% of its limit; past it, uploads answer 422 quota_exceeded. Raise it (PUT /v1/tenants/{id}/quotas, or the quotas.maxStorageBytes platform setting) or have the tenant free some (docs/tenancy.md, Quotas)."

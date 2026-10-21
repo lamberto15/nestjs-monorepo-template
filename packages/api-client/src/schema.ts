@@ -1348,6 +1348,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenants/{id}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What a tenant uses against its limits (operators)
+         * @description Members, API clients, stored bytes and each feature’s records: `used` and `limit` (null: unlimited), and the limits the operators set for it.
+         */
+        get: operations["TenantQuotasController_usage_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenants/{id}/quotas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the limits of a tenant (operators)
+         * @description Merged into its limits: a number sets one, `null` removes the tenant’s own (the deployment’s default, the `quotas.*` platform settings, holds again), an absent key stays. A limit below the current use refuses what is made next; nothing existing is deleted. Past a limit, creating answers 422 `quota_exceeded` with `quota: { resource, limit, used }`. Audited (`tenant.quotas-changed`) in your tenant and in that one.
+         */
+        put: operations["TenantQuotasController_update_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What your tenant uses against its limits
+         * @description Members, API clients, stored bytes and each feature’s records: `used` and `limit` (null: unlimited). Past a limit, creating answers 422 `quota_exceeded`.
+         */
+        get: operations["OwnQuotasController_usage_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/subscriptions": {
         parameters: {
             query?: never;
@@ -11411,6 +11471,216 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    TenantQuotasController_usage_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        tenantId: string;
+                        /** @description Active memberships. */
+                        members: {
+                            used: number;
+                            /** @description Null: unlimited. The tenant’s own limit, else the default. */
+                            limit: number | null;
+                        };
+                        apiClients: {
+                            used: number;
+                            /** @description Null: unlimited. The tenant’s own limit, else the default. */
+                            limit: number | null;
+                        };
+                        /** @description Attachments and issued documents. */
+                        storageBytes: {
+                            used: number;
+                            /** @description Null: unlimited. The tenant’s own limit, else the default. */
+                            limit: number | null;
+                        };
+                        /** @description Per feature, by the record’s subject. */
+                        records: {
+                            [key: string]: {
+                                used: number;
+                                /** @description Null: unlimited. The tenant’s own limit, else the default. */
+                                limit: number | null;
+                            };
+                        };
+                        /** @description What the operators set for this tenant (the rest is default). */
+                        limits: {
+                            maxMembers?: number;
+                            maxApiClients?: number;
+                            maxStorageBytes?: number;
+                            maxRecords?: {
+                                [key: string]: number;
+                            };
+                        };
+                    };
+                };
+            };
+            /** @description operator_required: the caller does not act in the operator tenant. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TenantQuotasController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    maxMembers?: number | null;
+                    maxApiClients?: number | null;
+                    maxStorageBytes?: number | null;
+                    /** @description Per feature, by the record’s subject (`Note`). */
+                    maxRecords?: {
+                        [key: string]: number | null;
+                    };
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        tenantId: string;
+                        /** @description Active memberships. */
+                        members: {
+                            used: number;
+                            /** @description Null: unlimited. The tenant’s own limit, else the default. */
+                            limit: number | null;
+                        };
+                        apiClients: {
+                            used: number;
+                            /** @description Null: unlimited. The tenant’s own limit, else the default. */
+                            limit: number | null;
+                        };
+                        /** @description Attachments and issued documents. */
+                        storageBytes: {
+                            used: number;
+                            /** @description Null: unlimited. The tenant’s own limit, else the default. */
+                            limit: number | null;
+                        };
+                        /** @description Per feature, by the record’s subject. */
+                        records: {
+                            [key: string]: {
+                                used: number;
+                                /** @description Null: unlimited. The tenant’s own limit, else the default. */
+                                limit: number | null;
+                            };
+                        };
+                        /** @description What the operators set for this tenant (the rest is default). */
+                        limits: {
+                            maxMembers?: number;
+                            maxApiClients?: number;
+                            maxStorageBytes?: number;
+                            maxRecords?: {
+                                [key: string]: number;
+                            };
+                        };
+                    };
+                };
+            };
+            /** @description operator_required: the caller does not act in the operator tenant. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OwnQuotasController_usage_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        tenantId: string;
+                        /** @description Active memberships. */
+                        members: {
+                            used: number;
+                            /** @description Null: unlimited. The tenant’s own limit, else the default. */
+                            limit: number | null;
+                        };
+                        apiClients: {
+                            used: number;
+                            /** @description Null: unlimited. The tenant’s own limit, else the default. */
+                            limit: number | null;
+                        };
+                        /** @description Attachments and issued documents. */
+                        storageBytes: {
+                            used: number;
+                            /** @description Null: unlimited. The tenant’s own limit, else the default. */
+                            limit: number | null;
+                        };
+                        /** @description Per feature, by the record’s subject. */
+                        records: {
+                            [key: string]: {
+                                used: number;
+                                /** @description Null: unlimited. The tenant’s own limit, else the default. */
+                                limit: number | null;
+                            };
+                        };
+                        /** @description What the operators set for this tenant (the rest is default). */
+                        limits: {
+                            maxMembers?: number;
+                            maxApiClients?: number;
+                            maxStorageBytes?: number;
+                            maxRecords?: {
+                                [key: string]: number;
+                            };
+                        };
+                    };
+                };
             };
         };
     };

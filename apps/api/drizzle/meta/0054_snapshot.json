@@ -1,5 +1,5 @@
 {
-  "id": "2a912979-4856-4133-98f0-9d0c6a811c22",
+  "id": "c42e1a07-913f-4a3e-b2b2-689da1f0a549",
   "prevId": "80def971-e4bf-437d-b6e6-92ce1462d01d",
   "version": "7",
   "dialect": "postgresql",
@@ -224,6 +224,13 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
+        },
+        "quotas": {
+          "name": "quotas",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
         },
         "created_at": {
           "name": "created_at",
@@ -5301,12 +5308,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::jsonb"
-        },
-        "quiet_hours": {
-          "name": "quiet_hours",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
         },
         "created_at": {
           "name": "created_at",

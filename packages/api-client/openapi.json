@@ -14715,6 +14715,567 @@
         ]
       }
     },
+    "/v1/tenants/{id}/usage": {
+      "get": {
+        "description": "Members, API clients, stored bytes and each feature’s records: `used` and `limit` (null: unlimited), and the limits the operators set for it.",
+        "operationId": "TenantQuotasController_usage_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tenantId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "members": {
+                      "type": "object",
+                      "properties": {
+                        "used": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "limit": {
+                          "nullable": true,
+                          "description": "Null: unlimited. The tenant’s own limit, else the default.",
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "used",
+                        "limit"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Active memberships."
+                    },
+                    "apiClients": {
+                      "type": "object",
+                      "properties": {
+                        "used": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "limit": {
+                          "nullable": true,
+                          "description": "Null: unlimited. The tenant’s own limit, else the default.",
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "used",
+                        "limit"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "storageBytes": {
+                      "type": "object",
+                      "properties": {
+                        "used": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "limit": {
+                          "nullable": true,
+                          "description": "Null: unlimited. The tenant’s own limit, else the default.",
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "used",
+                        "limit"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Attachments and issued documents."
+                    },
+                    "records": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "used": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "limit": {
+                            "nullable": true,
+                            "description": "Null: unlimited. The tenant’s own limit, else the default.",
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "used",
+                          "limit"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Per feature, by the record’s subject."
+                    },
+                    "limits": {
+                      "type": "object",
+                      "properties": {
+                        "maxMembers": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "maxApiClients": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "maxStorageBytes": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "maxRecords": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        }
+                      },
+                      "additionalProperties": false,
+                      "description": "What the operators set for this tenant (the rest is default)."
+                    }
+                  },
+                  "required": [
+                    "tenantId",
+                    "members",
+                    "apiClients",
+                    "storageBytes",
+                    "records",
+                    "limits"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "operator_required: the caller does not act in the operator tenant."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "summary": "What a tenant uses against its limits (operators)",
+        "tags": [
+          "tenants"
+        ]
+      }
+    },
+    "/v1/tenants/{id}/quotas": {
+      "put": {
+        "description": "Merged into its limits: a number sets one, `null` removes the tenant’s own (the deployment’s default, the `quotas.*` platform settings, holds again), an absent key stays. A limit below the current use refuses what is made next; nothing existing is deleted. Past a limit, creating answers 422 `quota_exceeded` with `quota: { resource, limit, used }`. Audited (`tenant.quotas-changed`) in your tenant and in that one.",
+        "operationId": "TenantQuotasController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "maxMembers": {
+                    "nullable": true,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "maxApiClients": {
+                    "nullable": true,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "maxStorageBytes": {
+                    "nullable": true,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "maxRecords": {
+                    "description": "Per feature, by the record’s subject (`Note`).",
+                    "type": "object",
+                    "additionalProperties": {
+                      "nullable": true,
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  }
+                },
+                "additionalProperties": false,
+                "description": "The limits of the tenant. A number sets it (0: none allowed), `null` removes the tenant’s own limit (the deployment’s default holds again), an absent key is left as it is."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tenantId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "members": {
+                      "type": "object",
+                      "properties": {
+                        "used": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "limit": {
+                          "nullable": true,
+                          "description": "Null: unlimited. The tenant’s own limit, else the default.",
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "used",
+                        "limit"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Active memberships."
+                    },
+                    "apiClients": {
+                      "type": "object",
+                      "properties": {
+                        "used": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "limit": {
+                          "nullable": true,
+                          "description": "Null: unlimited. The tenant’s own limit, else the default.",
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "used",
+                        "limit"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "storageBytes": {
+                      "type": "object",
+                      "properties": {
+                        "used": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "limit": {
+                          "nullable": true,
+                          "description": "Null: unlimited. The tenant’s own limit, else the default.",
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "used",
+                        "limit"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Attachments and issued documents."
+                    },
+                    "records": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "used": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "limit": {
+                            "nullable": true,
+                            "description": "Null: unlimited. The tenant’s own limit, else the default.",
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "used",
+                          "limit"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Per feature, by the record’s subject."
+                    },
+                    "limits": {
+                      "type": "object",
+                      "properties": {
+                        "maxMembers": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "maxApiClients": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "maxStorageBytes": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "maxRecords": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        }
+                      },
+                      "additionalProperties": false,
+                      "description": "What the operators set for this tenant (the rest is default)."
+                    }
+                  },
+                  "required": [
+                    "tenantId",
+                    "members",
+                    "apiClients",
+                    "storageBytes",
+                    "records",
+                    "limits"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "operator_required: the caller does not act in the operator tenant."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "summary": "Set the limits of a tenant (operators)",
+        "tags": [
+          "tenants"
+        ]
+      }
+    },
+    "/v1/tenant/usage": {
+      "get": {
+        "description": "Members, API clients, stored bytes and each feature’s records: `used` and `limit` (null: unlimited). Past a limit, creating answers 422 `quota_exceeded`.",
+        "operationId": "OwnQuotasController_usage_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tenantId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "members": {
+                      "type": "object",
+                      "properties": {
+                        "used": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "limit": {
+                          "nullable": true,
+                          "description": "Null: unlimited. The tenant’s own limit, else the default.",
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "used",
+                        "limit"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Active memberships."
+                    },
+                    "apiClients": {
+                      "type": "object",
+                      "properties": {
+                        "used": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "limit": {
+                          "nullable": true,
+                          "description": "Null: unlimited. The tenant’s own limit, else the default.",
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "used",
+                        "limit"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "storageBytes": {
+                      "type": "object",
+                      "properties": {
+                        "used": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "limit": {
+                          "nullable": true,
+                          "description": "Null: unlimited. The tenant’s own limit, else the default.",
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "used",
+                        "limit"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Attachments and issued documents."
+                    },
+                    "records": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "used": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "limit": {
+                            "nullable": true,
+                            "description": "Null: unlimited. The tenant’s own limit, else the default.",
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "used",
+                          "limit"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Per feature, by the record’s subject."
+                    },
+                    "limits": {
+                      "type": "object",
+                      "properties": {
+                        "maxMembers": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "maxApiClients": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "maxStorageBytes": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "maxRecords": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        }
+                      },
+                      "additionalProperties": false,
+                      "description": "What the operators set for this tenant (the rest is default)."
+                    }
+                  },
+                  "required": [
+                    "tenantId",
+                    "members",
+                    "apiClients",
+                    "storageBytes",
+                    "records",
+                    "limits"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "summary": "What your tenant uses against its limits",
+        "tags": [
+          "tenants"
+        ]
+      }
+    },
     "/v1/subscriptions": {
       "get": {
         "description": "Filter with `?subject=Note`; newest first; cursor pages.",

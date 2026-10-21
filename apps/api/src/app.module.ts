@@ -2,6 +2,7 @@ import { Module, type Type } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FEATURES } from './app.tokens.js';
 import { CoreModule } from './core/core.module.js';
+import { opsPermissions } from './cli/ops.jobs.js';
 import { demoPermissions } from './demo/demo.jobs.js';
 import { DEV_ENV_FILE, ignoreDevEnvFile } from './dev-env.js';
 import { envSchema } from './env.js';
@@ -88,6 +89,8 @@ export function createAppModule(list: readonly FeatureDefinition[]): Type {
           PLATFORM_PERMISSIONS,
           ...features.permissions,
           demoPermissions(list),
+          // opsPermissions: the operator CLI's system job (src/cli, pnpm ops).
+          opsPermissions,
         ],
         // Resources the platform acts on (soft delete: the recycle bin, the purge).
         resources: features.resources,

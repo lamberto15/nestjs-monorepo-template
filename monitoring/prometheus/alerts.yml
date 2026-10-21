@@ -227,6 +227,15 @@ groups:
           summary: Webhook deliveries fail for good
           description: "About {{ $value | humanize }} deliveries failed for good in the last hour (after about two days of retries, or a blocked destination). Usually the receiver's endpoint; GET /v1/webhook-deliveries?status=failed shows them, and they can be retried."
 
+      - alert: TenantStorageNearLimit
+        expr: max by (tenant) (tenant_storage_bytes) / max by (tenant) (tenant_storage_limit_bytes) > 0.9
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Tenant {{ $labels.tenant }} stores {{ $value | humanizePercentage }} of its storage limit'
+          description: "The tenant's attachments and issued documents are over 90% of its limit; past it, uploads answer 422 quota_exceeded. Raise it (PUT /v1/tenants/{id}/quotas, or the quotas.maxStorageBytes platform setting) or have the tenant free some (docs/tenancy.md, Quotas)."
+
   - name: dependencies
     rules:
       # From the app's own gauges: they go absent when their read fails, so
