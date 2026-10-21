@@ -1,0 +1,35 @@
+{
+  "title": "Pembantu AI",
+  "description": "Tanya model tentang rekod ini. Medan yang boleh anda baca dihantar kepada pembekal AI.",
+  "actions": {
+    "summarize": "Ringkaskan",
+    "classify": "Klasifikasikan"
+  },
+  "pending": {
+    "summarize": "Sedang meringkaskan…",
+    "classify": "Sedang mengklasifikasikan…"
+  },
+  "result": {
+    "summary": "Ringkasan",
+    "keyPoints": "Perkara utama",
+    "sentiment": "Sentimen",
+    "topic": "Topik",
+    "notice": "Ditulis oleh model AI: semak sebelum bergantung padanya."
+  },
+  "sentiment": {
+    "positive": "Positif",
+    "neutral": "Neutral",
+    "negative": "Negatif"
+  },
+  "run": {
+    "error": "Status permintaan tidak dapat dimuatkan.",
+    "failed": "Pembantu AI tidak dapat menjawab.",
+    "expired": "Jawapan tidak lagi disimpan. Tanya semula."
+  },
+  "errors": {
+    "disabled": "Pembantu AI dimatikan untuk ruang kerja ini. Pentadbir boleh menghidupkannya dalam tetapan.",
+    "unavailable": "Pembantu AI tidak tersedia pada pelayan ini buat masa ini.",
+    "pending": "Permintaan ini sedang berjalan. Cuba lagi sebentar lagi.",
+    "quota": "Had harian pembantu AI telah dicapai. Cuba lagi esok."
+  }
+}

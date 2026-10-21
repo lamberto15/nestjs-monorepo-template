@@ -1,0 +1,35 @@
+{
+  "title": "KI-Assistent",
+  "description": "Fragen Sie ein Modell zu diesem Datensatz. Die Felder, die Sie lesen dürfen, werden an den KI-Anbieter gesendet.",
+  "actions": {
+    "summarize": "Zusammenfassen",
+    "classify": "Klassifizieren"
+  },
+  "pending": {
+    "summarize": "Wird zusammengefasst…",
+    "classify": "Wird klassifiziert…"
+  },
+  "result": {
+    "summary": "Zusammenfassung",
+    "keyPoints": "Kernpunkte",
+    "sentiment": "Stimmung",
+    "topic": "Thema",
+    "notice": "Von einem KI-Modell geschrieben: Bitte prüfen Sie es, bevor Sie sich darauf verlassen."
+  },
+  "sentiment": {
+    "positive": "Positiv",
+    "neutral": "Neutral",
+    "negative": "Negativ"
+  },
+  "run": {
+    "error": "Der Status der Anfrage konnte nicht geladen werden.",
+    "failed": "Der KI-Assistent konnte nicht antworten.",
+    "expired": "Die Antwort wird nicht mehr aufbewahrt. Fragen Sie erneut."
+  },
+  "errors": {
+    "disabled": "Der KI-Assistent ist für diesen Arbeitsbereich ausgeschaltet. Ein Administrator kann ihn in den Einstellungen einschalten.",
+    "unavailable": "Der KI-Assistent ist auf diesem Server gerade nicht verfügbar.",
+    "pending": "Diese Anfrage läuft bereits. Versuchen Sie es gleich noch einmal.",
+    "quota": "Das Tageslimit des KI-Assistenten ist erreicht. Versuchen Sie es morgen erneut."
+  }
+}
