@@ -74,6 +74,10 @@ export function messagesOf(catalog, tree) {
   return found;
 }
 
+// An explicit compare function: Array.prototype.sort/toSorted without one
+// orders by UTF-16 code unit (Sonar S2871); every name here is a string.
+const byName = (a, b) => a.localeCompare(b);
+
 const sameSet = (a, b) => a.size === b.size && [...a].every((x) => b.has(x));
 
 /** Problems of one locale's namespace against English (a list of strings). */
@@ -117,7 +121,7 @@ export function compare(locale, english, translated, tree) {
     }
     if (!sameSet(want, have)) {
       problems.push(
-        `${key}: placeholders {${[...have].sort()}} differ from en {${[...want].sort()}}`,
+        `${key}: placeholders {${[...have].sort(byName)}} differ from en {${[...want].sort(byName)}}`,
       );
     }
   }
@@ -131,13 +135,13 @@ const subdirs = (dir) =>
 const jsonFiles = (dir) =>
   readdirSync(dir)
     .filter((f) => f.endsWith('.json'))
-    .toSorted();
+    .toSorted(byName);
 const load = (file) => JSON.parse(readFileSync(file, 'utf8'));
 
 /** Every problem of a tree as `tree/locale/namespace.json: problem`. */
 export function checkTree(tree) {
   const report = [];
-  const locales = subdirs(tree.dir).toSorted();
+  const locales = subdirs(tree.dir).toSorted(byName);
   const namespaces = jsonFiles(join(tree.dir, 'en'));
   for (const locale of locales) {
     const files = jsonFiles(join(tree.dir, locale));

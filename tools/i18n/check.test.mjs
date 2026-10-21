@@ -42,12 +42,17 @@ test('plural forms follow the language, not English', () => {
     n_other: 'f',
   };
   assert.deepEqual(run('ar', en, ar), []);
-  assert.deepEqual(run('ar', en, { n_one: 'b', n_other: 'f' }).toSorted(), [
-    'n: missing plural form few',
-    'n: missing plural form many',
-    'n: missing plural form two',
-    'n: missing plural form zero',
-  ]);
+  assert.deepEqual(
+    run('ar', en, { n_one: 'b', n_other: 'f' }).toSorted((a, b) =>
+      a.localeCompare(b),
+    ),
+    [
+      'n: missing plural form few',
+      'n: missing plural form many',
+      'n: missing plural form two',
+      'n: missing plural form zero',
+    ],
+  );
 });
 
 test('the API plural objects are checked the same way', () => {
