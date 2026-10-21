@@ -111,10 +111,27 @@ template's text, keeping its comments, order and unknown keys).
   (a privileged support tool, default off; development's template turns it on and
   that is its default); in production also `APP_DOMAIN`, `ACME_EMAIL`,
   `CLOUDFLARE_API_TOKEN`, `WEB_URL`, `CORS_ORIGINS`, the administrator and the
-  first tenant. It asks only what the target's template has variables for.
+  first tenant, and what is off until a key is given: NestJS Observe
+  (`OBSERVE_APP_KEY`, `OBSERVE_APP_SECRET`), an OpenTelemetry collector
+  (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`), Sentry
+  (`SENTRY_DSN`), the AI helper (`ANTHROPIC_API_KEY`), Web Push
+  (`PUSH_PROVIDER`, `WEB_PUSH_SUBJECT`) and SMS through Twilio (`SMS_PROVIDER`,
+  `TWILIO_*`, `SMS_ALLOWED_PREFIXES`; with none listed no SMS is sent, and
+  the wizard warns). APNs and FCM are set in the file
+  ([notifications.md](notifications.md#push-and-sms)); a re-run keeps what the
+  file names for `PUSH_PROVIDER`. It asks only what the target's template has
+  variables for.
 - **Secrets are generated** as `env.example` says (passwords `openssl rand
 -hex 24`, keys `-base64 32`) and never printed: the first
-  administrator's password is `ADMIN_PASSWORD` in the file it wrote.
+  administrator's password is `ADMIN_PASSWORD` in the file it wrote. The
+  reporting role's password (`POSTGRES_REPORTING_PASSWORD`) is one of them,
+  and Web Push's VAPID key pair comes from the `web-push` package's own
+  generator (what `npx web-push generate-vapid-keys` runs; before
+  `pnpm install` the package is not there, and the wizard says to run that
+  command). The pair is made once and `--rotate` leaves it: every browser
+  subscription is bound to the public key, so a new pair ends them all (empty
+  both lines to start over). A secret whose `<NAME>_FILE` is set is not made
+  again in the variable.
 - **The example feature:** the last question removes `notes`
   (`pnpm feature:remove notes`, the API's and the web app's part; default
   yes in production); then run `pnpm db:generate`, `pnpm client:generate`
@@ -124,6 +141,26 @@ template's text, keeping its comments, order and unknown keys).
   data stays readable), shows the changes masked, asks before writing and
   keeps the old file as `<file>.bak`. A changed `TENANCY` or `PASSKEY_RP_ID`
   is warned about.
+- **It also merges the template.** Every variable the template gained since
+  the file was written is added with the template's default and comment, at
+  the place the template puts it, and listed in the diff as `+ NAME=default`
+  (a secret made now is masked). Without this a re-run left the new variables
+  out, silently: Compose has defaults, so `docker compose config` passed and
+  the app ran with values the owner never saw. A variable the file already
+  names, active or as a commented example, is left as it is; the example
+  feature's block (`# feature:notes`) is not brought back once removed.
+- **Checking a file: `pnpm env:check`** compares `.env` and
+  `apps/api/.env.development` (whichever exist; `--target`, `--file`) with the
+  template by name: the variables the file lacks, the ones the template does
+  not name (a typo, a removed variable, or an optional one it does not list),
+  and the REQUIRED ones that are empty, which is the one thing that exits 1
+  (`APP_DOMAIN` still the placeholder, `ACME_EMAIL`, `CLOUDFLARE_API_TOKEN`,
+  the two database passwords, `MFA_ENCRYPTION_KEYS`, `DATA_ENCRYPTION_KEYS` and
+  `BLIND_INDEX_KEYS`; a `_FILE` or a managed database's URL stands in for
+  its variable). `--strict` fails on missing variables too. It writes
+  nothing; `pnpm setup` adds what is missing. Run it before `docker compose
+  up`. CI runs `pnpm env:check --templates` (no variable set twice in a
+  template, the REQUIRED ones named) and the wizard's tests.
 - **Without a terminal:** `--yes` takes the defaults and the flags (one per
   question, `pnpm setup --help`; a required one missing is an error naming
   it), `--dry-run` prints the plan and writes nothing.

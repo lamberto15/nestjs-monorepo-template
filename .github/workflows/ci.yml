@@ -364,6 +364,10 @@ jobs:
       # workflow is the only other way to learn a blob report went missing.
       - name: The workflow's tests
         run: node --test tools/ci/workflow.test.mjs
+      # The env templates (tools/setup/envcheck.mjs): no variable set twice,
+      # the REQUIRED ones named. The wizard's tests run in feature-smoke.
+      - name: The env templates
+        run: pnpm env:check --templates
 
   # The unit tests in parallel (Vitest's --shard): the API's in 3 shards, the
   # web app's in 3 (jsdom, the run's longest at 3 min whole), the packages'
