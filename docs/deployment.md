@@ -63,6 +63,38 @@ build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviol
   keep one date), `SECURITY_POLICY` (the `SECURITY.md` URL; the default is this template's
   on GitHub, so set your own) and `SECURITY_PREFERRED_LANGUAGES` (`en`). Check it after a
   deploy: `curl -i https://<APP_DOMAIN>/.well-known/security.txt`.
+- **Maintenance page** (`MAINTENANCE_PAGE=on`). Maintenance and read-only mode
+  ([settings](settings.md), "Maintenance and read-only mode") stops the API taking
+  requests, but the web app's files are still Caddy's to serve. With the flag on,
+  every path of the web app (`/`, its routes, `/assets/*`, the manifest) answers the
+  static `caddy/maintenance.html` instead: status 503, `Retry-After: 30`,
+  `Cache-Control: no-store` and the web app's security headers, so not even the shell
+  is served. The page has no script and makes no request; it carries the five
+  languages and reloads itself every 30 seconds, so it turns into the app when the
+  flag goes off. Nothing else changes: the API's paths (`@api` below), `/metrics`
+  (404) and `security.txt` answer as before, so a client or a probe still sees the
+  API's own 503 `maintenance`. Caddyfile: a `handle @maintenance` first in the web
+  app's block, a `file_server { status 503 }` on a rewrite to the page, the flag read
+  as `{env.MAINTENANCE_PAGE}` at each request ([Caddyfile
+  concepts](https://caddyserver.com/docs/caddyfile/concepts#environment-variables),
+  the `expression` matcher). Exactly `on` turns it on; unset or anything else is off.
+  - **Planned maintenance:** set `APP_MODE=maintenance` and `MAINTENANCE_PAGE=on` in
+    `.env` and `docker compose up -d` (it recreates `api`, `worker` and `caddy`; a
+    flag changed alone: `docker compose up -d caddy`, a few seconds without the web
+    app). To end it, remove both and run it again. The two are separate on
+    purpose: the page alone is for when the API is gone altogether (a restore), the
+    mode alone keeps the web app up and shows its notice. An operator can end only a
+    mode set by the `platform.mode` setting from that notice; one forced by `APP_MODE`
+    (as here) ends when it is removed from `.env`.
+  - **An installed web app** (the service worker) still opens its cached shell, and
+    then shows its own notice: the API answers 503 `maintenance`, which the app turns
+    into a full-page notice ([monorepo](monorepo.md), "Maintenance and read-only
+    mode"). Only first visits and other clients see Caddy's page.
+  - **Swarm** gets the flag through the same service environment. The Kubernetes
+    chart's `web` does not have it (its Ingress is where that is done).
+  - **Test:** `CADDY_BIN=/path/to/caddy node --test caddy/caddyfile.test.mjs` runs
+    the real Caddyfile (the TLS block and Docker names edited out) under a real Caddy;
+    CI's `caddy-image` job runs it with the image's own binary.
 - **Replacing an earlier deployment's Caddy?** Its token and email:
   `docker inspect --format '{{json .Config.Env}}' <caddy container>`.
 

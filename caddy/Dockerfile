@@ -32,5 +32,8 @@ COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 COPY --chmod=755 caddy/entrypoint.sh /usr/local/bin/caddy-entrypoint
 # The static files the Caddyfile serves for every path that isn't the API's.
 COPY --from=web /app/apps/web/dist /srv/web
+# The page the Caddyfile answers (503) for the web app's paths while
+# MAINTENANCE_PAGE=on: static, one file (docs/deployment.md, "Maintenance page").
+COPY caddy/maintenance.html /srv/maintenance/index.html
 ENTRYPOINT ["caddy-entrypoint"]
 CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
