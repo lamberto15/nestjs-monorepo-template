@@ -920,6 +920,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notifications/unsubscribe/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * One-click unsubscribe from notification mail
+         * @description No sign-in: the token of the mail's `List-Unsubscribe` link (RFC 8058). Switches the mail of that notification type (or of that digest's types) off in the user's preferences; mandatory types are never switched off. Repeating it changes nothing. The body is the form `List-Unsubscribe=One-Click` mail clients post (JSON with the same field works too). Audited (`notificationPreferences.updated`, `via: unsubscribe`).
+         */
+        post: operations["NotificationUnsubscribeController_unsubscribeByLink_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/devices": {
         parameters: {
             query?: never;
@@ -9484,6 +9504,42 @@ export interface operations {
             };
             /** @description Not yours, or gone. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotificationUnsubscribeController_unsubscribeByLink_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description Always `One-Click` (RFC 8058).
+                     * @enum {string}
+                     */
+                    "List-Unsubscribe": "One-Click";
+                };
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The link is invalid or expired, the account is gone, or the body is not `List-Unsubscribe=One-Click`: the link errors share one answer. */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

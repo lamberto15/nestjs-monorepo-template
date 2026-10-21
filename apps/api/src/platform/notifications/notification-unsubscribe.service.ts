@@ -62,9 +62,10 @@ export class NotificationUnsubscribeService {
             from[declaration.type],
             user,
           ).email;
-          const named = claims.type
-            ? declaration.type === claims.type
-            : claims.digests.includes(mode as 'hourly' | 'daily');
+          const named =
+            claims.type !== undefined
+              ? declaration.type === claims.type
+              : (claims.digests ?? []).includes(mode as 'hourly' | 'daily');
           if (!named || !mode) continue;
           to[declaration.type] = { ...from[declaration.type], email: false };
           switched.push(declaration.type);

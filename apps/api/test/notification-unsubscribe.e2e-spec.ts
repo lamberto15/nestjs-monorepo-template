@@ -36,20 +36,24 @@ describe('notification mail: one-click unsubscribe (RFC 8058, e2e)', () => {
       .type('form')
       .send(body);
 
-  async function notify(to: string, type: string) {
+  async function notify(
+    to: string,
+    type: string,
+    data: Record<string, unknown> = {
+      recordId: randomUUID(),
+      commentId: randomUUID(),
+      title: 'Direct',
+      by: 'Ada',
+      excerpt: 'Looks good.',
+    },
+  ) {
     const txHost = node.app.get(TransactionHost);
     await node.inTenant(() =>
       inTransaction(txHost, (tx) =>
         node.app.get(NotificationsService).notify(tx, {
           type: type as NotificationType,
           to,
-          data: {
-            recordId: randomUUID(),
-            commentId: randomUUID(),
-            title: 'Direct',
-            by: 'Ada',
-            excerpt: 'Looks good.',
-          },
+          data,
         }),
       ),
     );
@@ -185,7 +189,10 @@ describe('notification mail: one-click unsubscribe (RFC 8058, e2e)', () => {
     });
 
     // A mandatory type (immediate by default): no link.
-    await notify(`user:${editor.id}`, 'security.passwordChanged');
+    await notify(`user:${editor.id}`, 'security.passwordChanged', {
+      via: 'change',
+      ip: '203.0.113.7',
+    });
     await deliver();
     for (const sent of node.mailbox.filter({ to: email })) {
       if (/password/i.test(sent.message.subject)) {
