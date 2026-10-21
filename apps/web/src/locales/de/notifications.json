@@ -101,5 +101,10 @@
     "removed": "Gerät entfernt.",
     "removeTitle": "Dieses Gerät entfernen?",
     "removeDescription": "{{name}} erhält keine Push-Benachrichtigungen mehr, bis die App es erneut registriert."
+  },
+  "dashboard": {
+    "title": "Ungelesene Benachrichtigungen",
+    "count": "Ungelesen: {{count}}",
+    "empty": "Alles gelesen."
   }
 }

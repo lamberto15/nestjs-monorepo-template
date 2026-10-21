@@ -2,37 +2,7 @@
   "title": "仪表盘",
   "description": "需要你处理的事项和最近的变化。",
   "viewAll": "查看全部",
-  "approvals": {
-    "title": "等待你审批",
-    "stat": "待审批",
-    "statHint": "分配给你的请求",
-    "empty": "没有等待你处理的事项。"
-  },
-  "notifications": {
-    "title": "未读通知",
-    "stat": "未读通知",
-    "statHint": "在你的收件箱中",
-    "empty": "已全部读完。"
-  },
-  "activity": {
-    "title": "最近活动",
-    "empty": "暂无活动。"
-  },
-  "records": {
-    "title": "最近修改的笔记",
-    "empty": "暂无笔记。"
-  },
-  "chart": {
-    "title": "每周笔记数",
-    "description": "最近 8 周创建的笔记(每周从周一开始,UTC)。",
-    "series": "笔记",
-    "empty": "最近 8 周没有创建笔记。"
-  },
   "quick": {
-    "title": "快捷操作",
-    "newNote": "新建笔记",
-    "approvals": "审批",
-    "notifications": "通知",
-    "audit": "审计日志"
+    "title": "快捷操作"
   }
 }

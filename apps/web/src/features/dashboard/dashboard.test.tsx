@@ -1,22 +1,11 @@
 import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useSignedIn } from '@/test/signed-in';
+import { describe, expect, it } from 'vitest';
+import { FilePlusIcon } from 'lucide-react';
 import { renderApp } from '@/test/render-app';
 import { server } from '@/test/server';
-import { weekRanges, weekStart } from './api';
-
-beforeEach(() => {
-  // jsdom has no ResizeObserver, which recharts' container needs.
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    },
-  );
-});
+import { useSignedIn } from '@/test/signed-in';
+import { mergeDashboard } from './registry';
 
 const approval = {
   id: '0199a3f2-0000-7000-8000-0000000000b1',
@@ -26,7 +15,7 @@ const approval = {
   status: 'pending',
 };
 
-/** Answers every route the dashboard asks, with a little data. */
+/** Answers the routes of the cards that need no permission, and the audit's. */
 function useData(seen: string[] = []) {
   server.use(
     http.get('/v1/approvals', ({ request }) => {
@@ -72,72 +61,41 @@ function useData(seen: string[] = []) {
         nextCursor: null,
       });
     }),
-    http.get('/v1/notes', ({ request }) => {
-      const url = new URL(request.url);
-      seen.push(`notes ${url.search}`);
-      if (url.searchParams.has('createdAt.between')) {
-        return HttpResponse.json({ items: [], nextCursor: null, total: 2 });
-      }
-      return HttpResponse.json({
-        items: [
-          {
-            id: '0199a3f2-0000-7000-8000-0000000000c1',
-            number: 'NOTE-2026-1',
-            title: 'Kickoff notes',
-            status: 'draft',
-            updatedAt: new Date().toISOString(),
-          },
-        ],
-        nextCursor: null,
-      });
-    }),
   );
 }
 
+const cardOf = (name: string) =>
+  screen.getByRole('heading', { name }).closest('[data-slot="card"]');
+
 describe('the dashboard', () => {
-  it('shows every card to a user who may see them all', async () => {
+  it('shows the cards of the features to a user who may see them', async () => {
     const seen: string[] = [];
-    useSignedIn(['Access.readAudit', 'Note.read', 'Note.create']);
+    useSignedIn(['Access.readAudit']);
     useData(seen);
     await renderApp('/');
 
     expect(
       await screen.findByRole('heading', { name: 'Dashboard' }),
     ).toBeVisible();
-    const waiting = await screen.findByRole('heading', {
-      name: 'Waiting for your approval',
-    });
-    expect(waiting).toBeVisible();
     expect(
       await screen.findByRole('link', { name: 'Publish the Q4 plan' }),
     ).toBeVisible();
+    // The approvals' total, from `count=true`.
+    expect(await screen.findByText('Assigned to you: 3')).toBeVisible();
     expect(await screen.findByText('Welcome aboard')).toBeVisible();
+    expect(await screen.findByText('Unread: 7')).toBeVisible();
     expect(await screen.findByText('Noah Kim')).toBeVisible();
+    expect(seen.some((entry) => entry.includes('assignedToMe=true'))).toBe(
+      true,
+    );
+
+    const quick = cardOf('Quick actions') as HTMLElement;
     expect(
-      await screen.findByRole('link', { name: 'Kickoff notes' }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole('heading', { name: 'Notes per week' }),
-    ).toBeVisible();
-    // The stats: the approvals' total and the bell's unread count.
-    expect(await screen.findByText('7')).toBeVisible();
-    expect(await screen.findAllByText('3')).not.toHaveLength(0);
-    const quick = screen
-      .getByRole('heading', { name: 'Quick actions' })
-      .closest('[data-slot="card"]') as HTMLElement;
-    expect(
-      within(quick).getByRole('button', { name: 'New note' }),
+      within(quick).getByRole('button', { name: 'Approvals' }),
     ).toBeVisible();
     expect(
       within(quick).getByRole('button', { name: 'Audit log' }),
     ).toBeVisible();
-    // One count request per week of the chart.
-    expect(
-      seen.filter((entry) => entry.includes('createdAt.between')),
-    ).toHaveLength(8);
-    expect(seen.some((entry) => entry.includes('assignedToMe=true'))).toBe(
-      true,
-    );
   });
 
   it('hides the cards the user has no permission for, and asks nothing for them', async () => {
@@ -150,27 +108,14 @@ describe('the dashboard', () => {
     expect(
       screen.queryByRole('heading', { name: 'Recent activity' }),
     ).toBeNull();
-    expect(
-      screen.queryByRole('heading', { name: 'Recently changed notes' }),
-    ).toBeNull();
-    expect(
-      screen.queryByRole('heading', { name: 'Notes per week' }),
-    ).toBeNull();
-    const quick = screen
-      .getByRole('heading', { name: 'Quick actions' })
-      .closest('[data-slot="card"]') as HTMLElement;
-    expect(
-      within(quick).queryByRole('button', { name: 'New note' }),
-    ).toBeNull();
+    const quick = cardOf('Quick actions') as HTMLElement;
     expect(
       within(quick).queryByRole('button', { name: 'Audit log' }),
     ).toBeNull();
     expect(
-      within(quick).getByRole('button', { name: 'Approvals' }),
+      within(quick).getByRole('button', { name: 'Notifications' }),
     ).toBeVisible();
-    expect(
-      seen.filter((entry) => entry === 'audit' || entry.startsWith('notes')),
-    ).toEqual([]);
+    expect(seen).not.toContain('audit');
   });
 
   it('says so when nothing waits', async () => {
@@ -183,19 +128,26 @@ describe('the dashboard', () => {
   });
 });
 
-describe('the weeks of the chart', () => {
-  it('start on Monday (UTC) and end on the Sunday before the next', () => {
-    const wednesday = new Date('2026-10-21T10:00:00Z');
-    expect(weekStart(wednesday).toISOString()).toBe('2026-10-19T00:00:00.000Z');
-    const ranges = weekRanges(wednesday, 3);
-    expect(ranges.map((r) => r.week)).toEqual([
-      '2026-10-05',
-      '2026-10-12',
-      '2026-10-19',
+describe('the dashboard registry', () => {
+  it('sorts the cards and actions of every feature by order', () => {
+    const component = () => null;
+    const { cards, actions } = mergeDashboard([
+      {
+        cards: [
+          { id: 'b', order: 20, component },
+          { id: 'a', order: 20, component },
+        ],
+        actions: [
+          { to: '/notes/new', order: 2, label: 'x', icon: FilePlusIcon },
+        ],
+      },
+      {
+        cards: [{ id: 'c', order: 10, component }],
+        actions: [{ to: '/audit', order: 1, label: 'y', icon: FilePlusIcon }],
+      },
+      {},
     ]);
-    expect(ranges[2]?.to).toBe('2026-10-25T23:59:59.999Z');
-    expect(weekStart(new Date('2026-10-25T23:59:59Z')).toISOString()).toBe(
-      '2026-10-19T00:00:00.000Z',
-    );
+    expect(cards.map((c) => c.id)).toEqual(['c', 'a', 'b']);
+    expect(actions.map((a) => a.to)).toEqual(['/audit', '/notes/new']);
   });
 });
