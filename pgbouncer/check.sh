@@ -51,11 +51,11 @@ compose exec -T api node --input-type=module -e '
   // Transaction-local settings (the tenant wall, core/tenancy) end with the transaction.
   const client = await pool.connect();
   await client.query("BEGIN");
-  await client.query("SELECT set_config('app.tenant_id', 'drill', true)");
-  const inside = (await client.query("SELECT current_setting('app.tenant_id', true) AS v")).rows[0].v;
+  await client.query("SELECT set_config($1, $2, true)", ["app.tenant_id", "drill"]);
+  const inside = (await client.query("SELECT current_setting($1, true) AS v", ["app.tenant_id"])).rows[0].v;
   expect(inside, "drill", "tenant setting inside the transaction");
   await client.query("COMMIT");
-  const after = (await client.query("SELECT coalesce(current_setting('app.tenant_id', true), '') AS v")).rows[0].v;
+  const after = (await client.query("SELECT coalesce(current_setting($1, true), $2) AS v", ["app.tenant_id", ""])).rows[0].v;
   expect(after, "", "tenant setting after COMMIT");
   client.release();
 
@@ -64,7 +64,7 @@ compose exec -T api node --input-type=module -e '
   await locker.query("BEGIN");
   await locker.query("SELECT pg_advisory_xact_lock(4120412)");
   await locker.query("COMMIT");
-  const held = await locker.query("SELECT count(*)::int AS n FROM pg_locks WHERE locktype = 'advisory' AND objid = 4120412 AND pid = pg_backend_pid()");
+  const held = await locker.query("SELECT count(*)::int AS n FROM pg_locks WHERE locktype = $1 AND objid = 4120412 AND pid = pg_backend_pid()", ["advisory"]);
   expect(held.rows[0].n, 0, "advisory locks held after COMMIT");
   locker.release();
   await pool.end();
