@@ -7,6 +7,7 @@ import {
   collectDefaultMetrics,
   Counter,
   Gauge,
+  type GaugeConfiguration,
   Histogram,
   Registry,
 } from 'prom-client';
@@ -123,8 +124,7 @@ export class MetricsService {
       return;
     }
     const logger = this.logger;
-    // Kept by the registry (`registers`), not by us: `void` says it is meant.
-    void new Gauge<Label>({
+    const gauge: GaugeConfiguration<Label> = {
       name,
       help,
       labelNames,
@@ -154,7 +154,8 @@ export class MetricsService {
           logger.warn(`${name} not collected: ${(error as Error).message}`);
         }
       },
-    });
+    };
+    new Gauge<Label>(gauge); // NOSONAR S1848: `registers` hands it to the registry when it is made; nothing needs the instance
   }
 
   /** The exposition (text format) and its content type. */
