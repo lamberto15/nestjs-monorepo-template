@@ -1,0 +1,9 @@
+# Grafana's Loki data source (compose.monitoring.yaml, profile "grafana").
+apiVersion: 1
+datasources:
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: true
+    editable: false

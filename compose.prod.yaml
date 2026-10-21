@@ -78,6 +78,8 @@ x-app: &app
     INVITATION_TTL_HOURS: ${INVITATION_TTL_HOURS:-168}
     IMPERSONATION_TTL_MINUTES: ${IMPERSONATION_TTL_MINUTES:-60}
     REAUTHENTICATION_MAX_AGE_MINUTES: ${REAUTHENTICATION_MAX_AGE_MINUTES:-10}
+    SESSION_IDLE_MINUTES: ${SESSION_IDLE_MINUTES:-120}
+    SESSION_MAX_HOURS: ${SESSION_MAX_HOURS:-12}
     # Passkeys (docs/auth.md, "Passkeys"): the relying party is WEB_URL's
     # host (else APP_DOMAIN) unless PASSKEY_RP_ID says otherwise; it never
     # changes once passkeys exist. The app refuses inconsistent values.
@@ -448,6 +450,12 @@ services:
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
       CLOUDFLARE_API_TOKEN_FILE: ${CLOUDFLARE_API_TOKEN_FILE:+/run/secrets/cloudflare_api_token}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+      # /.well-known/security.txt (RFC 9116; caddy/entrypoint.sh writes it at
+      # each start). No file while SECURITY_CONTACT is empty.
+      SECURITY_CONTACT: ${SECURITY_CONTACT:-}
+      SECURITY_EXPIRES: ${SECURITY_EXPIRES:-}
+      SECURITY_POLICY: ${SECURITY_POLICY:-https://github.com/lamberto15/nestjs-monorepo-template/blob/main/SECURITY.md}
+      SECURITY_PREFERRED_LANGUAGES: ${SECURITY_PREFERRED_LANGUAGES:-en}
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

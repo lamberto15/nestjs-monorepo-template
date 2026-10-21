@@ -199,6 +199,8 @@ through its `AUTH_POLICY` port under the environment's ceiling
 | ------------------------ | ----------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `auth.requireMfa`        | boolean           | `tenant`, `team` (never `user`: nobody exempts themselves) | `false`                                                                                                                   |
 | `auth.passwordMinLength` | integer, 12 to 64 | `tenant`                                                   | `12`                                                                                                                      |
+| `auth.sessionIdleMinutes` | integer, 5 to 10080 | `tenant` | `10080` (no limit of its own: the deployment's `SESSION_IDLE_MINUTES` applies; a longer value is refused) |
+| `auth.sessionMaxHours` | integer, 1 to 720 | `tenant` | `720` (the deployment's `SESSION_MAX_HOURS` applies; a longer value is refused) |
 | `auth.allowBreakGlass`   | boolean           | `tenant`                                                   | `true` (`false`: the operators' break-glass grants are refused, and running ones stop: [tenancy](tenancy.md#break-glass)) |
 
 - **`true` wins for `auth.requireMfa`**: it applies to a user when the
@@ -207,7 +209,8 @@ through its `AUTH_POLICY` port under the environment's ceiling
   usual precedence.
 - **The ceiling at set**: a value the deployment doesn't allow is refused
   with 400 `setting_not_allowed` (`detail` says why; `errors[0].path:
-value`): `auth.requireMfa: true` with `AUTH_MFA=off`. A value stored
+value`): `auth.requireMfa: true` with `AUTH_MFA=off`, a session limit over
+  `SESSION_IDLE_MINUTES`/`SESSION_MAX_HOURS`. A value stored
   before the env changed stays stored and has no effect. Any declaration
   can be limited so (`SettingsService.restrict(declaration, check)`).
 
