@@ -109,12 +109,12 @@
     "@types/supertest": "^7.0.0",
     "@types/web-push": "3.6.4",
     "@types/xml-encryption": "1.2.4",
-    "@vitest/coverage-v8": "^5.0.4",
+    "@vitest/coverage-v8": "^5.0.5",
     "drizzle-kit": "^0.31.11",
     "socket.io-client": "^4.8.4",
     "supertest": "^7.0.0",
     "typescript": "^6.0.2",
-    "vitest": "^5.0.4",
+    "vitest": "^5.0.5",
     "xml-crypto": "6.4.0",
     "xml-encryption": "4.0.0"
   }
