@@ -1857,8 +1857,9 @@ merged migration fails it already):
 | Job                      | What                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `check`                  | lint, build, `client:check`, `db:check`, migrations and the app role's bootstrap on a real PostgreSQL (twice: the second run changes nothing), `pnpm env:check --templates` (the env templates: no variable set twice, the REQUIRED ones named); lint and build are every package's (`turbo run`), the web app's included. The Caddy image, which carries the web app, is `caddy-image`'s |
-| `changes`                | what a pull request touched (the API's file list), so every other job runs only for the paths it reads: docs-only pull requests run `security` alone, web-only ones skip the API's unit and e2e shards and the app image, API-only ones skip the web app's unit shards and Caddy's image. Main, tags and the nightly run skip nothing. The runner pool is shared by every open pull request, so a job with nothing to prove costs every other run its wait in the queue |
-| `unit-api`, `unit-web`   | the unit tests beside `check`: the API's in 3 shards (`--shard=1/3`..`3/3`, when the API changed), the web app's in 3 and the packages' in one job (when the web app or the packages changed) |
+| `changes`                | what a pull request touched (the API's file list), so every other job runs only for the paths it reads ([Which jobs a pull request runs](#which-jobs-a-pull-request-runs)); main, tags and the nightly run skip nothing |
+| `unit-api`, `unit-web`   | the unit tests beside `check`, with coverage: the API's in 3 shards (`--shard=1/3`..`3/3`), the web app's in 3 and the packages' in one job; two jobs so a pull request runs each side only when its paths changed |
+| `coverage`               | the unit shards' blob reports merged (`vitest --merge-reports --coverage`) and the coverage thresholds enforced (development.md, "Coverage"); on a pull request, the side(s) whose unit job ran |
 | `e2e`                    | the e2e tests in 6 shards (`--shard=1/6`..`6/6`), each on its own runner with PostgreSQL and Redis, beside `check`; every app runs as the app role, made by an owner that is no superuser ([Database roles](#database-roles)) |
 | `e2e-web` | the web app's browser tests (`pnpm test:e2e:web`, Playwright on the built API and web app, with an axe accessibility scan), with its own PostgreSQL and Redis; not a dependency of `publish` (development.md, "Browser tests") |
 | `compose-secrets`        | the production stack's secrets with the values in `.env` and with every one in a file, as Compose renders them (the monitoring stack too); that every service of the stack and of each overlay (`clamav`, `monitoring`, `blue-green`) is hardened ([Container hardening](#container-hardening)); then the shell readers in their images (`scripts/test-secret-readers.sh`)                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -1921,6 +1922,64 @@ merged migration fails it already):
   workflow), oasdiff's (`OASDIFF_IMAGE`) and squawk's (`SQUAWK_IMAGE` in
   `tools/migration-lint/lint.mjs`; its tests run in the job) and k6's
   (`K6_IMAGE` in `loadtest/run.sh`) are raised by hand.
+
+### Which jobs a pull request runs
+
+The runner pool is shared by every open pull request (GitHub's limit on
+concurrent jobs is the account's), so a job with nothing to prove costs every
+other run its wait in the queue: with ~19 open pull requests, runs whose jobs
+take 0.5–3 min waited up to 30 min for runners. So on a pull request each job
+runs only when a path it reads changed. The `changes` job sorts the pull
+request's files (a renamed file at its old path too) into outputs, leaving
+out the paths no job reads (`code`'s row); main, `v*` tags and the nightly
+run set every output, and so does a change to `.github/workflows/ci.yml` (a
+change to a job must run it) or a list of 3000 files (the API's limit: it
+may hide any path).
+
+| Output      | Paths                                                                                                                                                                                                                                                                          |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `code`      | anything but what no job of `ci.yml` reads: `docs/`, Markdown at the root and at a package's root, `.claude/`, the changesets' notes, `.devcontainer/` and `deploy/helm/` (their own workflows check them), `.github/ISSUE_TEMPLATE/`, `CODEOWNERS`, `dependabot.yml`, the pull request template, `LICENSE`, `.editorconfig`. The other workflows and `lefthook.yml` count: knip reads them |
+| `api`       | `apps/api/`, `packages/api-client/`, `.dockerignore`, `.trivyignore.yaml` and the workspace's roots: `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `turbo.json`, `tsconfig*.json`, `.oxlintrc.json`, `.npmrc`, `.nvmrc` |
+| `web`       | `apps/web/`, `apps/web-e2e/`, `packages/`, `caddy/Caddyfile` (`apps/web/pwa-paths.test.ts` reads it) and the roots |
+| `tools`     | `tools/`, and the files its tests read: `env.example`, `.prettierrc`, `.prettierignore` |
+| `stack`     | `compose*.yaml`, `secret.empty`, `swarm.placeholder`, `scripts/`, `loadtest/`, `redis/`, `caddy/`, `backup/`, `gotenberg/`, `monitoring/`, `clamav/`, `pgbouncer/`, `tools/deploy/` |
+| `backup`    | `backup/`, `scripts/test-backup-pitr.sh`, `.trivyignore.yaml` |
+| `gotenberg` | `gotenberg/`, `compose.dev.yaml`, `compose.prod.yaml`, `.trivyignore.yaml` |
+| `caddy`     | `caddy/`, `apps/web/`, `packages/`, `apps/api/package.json` (Caddy's image builds the web app from the repository root), the roots, `.trivyignore.yaml` |
+
+| Job                                                         | Runs on a pull request when                                       |
+| ----------------------------------------------------------- | ----------------------------------------------------------------- |
+| `changes`, `compose-images`, `security`                     | always                                                            |
+| `check`                                                     | `code`                                                            |
+| `unit-api`, `e2e`, `e2e-telemetry`, `image`, `openapi-diff` | `api`                                                             |
+| `unit-web`                                                  | `web`                                                             |
+| `coverage`                                                  | a unit job ran and none failed (it merges the sides that ran)     |
+| `e2e-web`                                                   | `api` or `web`                                                    |
+| `feature-smoke`                                             | `api` or `tools` (the generator writes into the API only)         |
+| `template-without-notes`                                    | `api`, `web` or `tools`                                           |
+| `compose-secrets`, `swarm-stack`                            | `stack`                                                           |
+| `hardened-stack`                                            | `api` or `stack`                                                  |
+| `backup-image`                                              | `backup`                                                          |
+| `caddy-image`                                               | `caddy`                                                           |
+| `gotenberg-image`                                           | `gotenberg`                                                       |
+| `publish`, `publish-gotenberg`, `publish-caddy`, `release`  | never (`main` and `v*` tags only)                                 |
+
+So a docs-only pull request runs `changes`, `compose-images` and `security`;
+a web-only one 9 jobs (no API unit, e2e or image job); an API-only one 14
+(no web unit tests, no stack checks, no Caddy, backup or Gotenberg image).
+`tools/ci/changes.test.mjs` (run by `check`) runs the `changes` step on
+sample pull requests, applies every job's `needs` and `if` as GitHub does,
+and prints the jobs each one runs.
+
+- **A new job** gets `needs: changes` and an `if` on the outputs whose
+  paths it reads (broader when unsure); the test fails a job that has
+  neither. A job that needs a gated one is skipped with it, unless its `if`
+  calls a status function, as `coverage`'s does (`!cancelled()`).
+- **Required checks:** a skipped job counts as passed. `main`'s ruleset
+  requires none of this workflow's checks today; before requiring one, pick
+  a job without a matrix: a matrix job skipped by its `if` is skipped before
+  its matrix expands, so it never reports the names of its entries (such as
+  `unit (api 1/3)`), and a required one would wait for ever.
 
 ## The image
 

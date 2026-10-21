@@ -39,7 +39,12 @@ jobs:
   # nothing to prove costs every other run its wait in the queue. Main, tags
   # and the nightly run skip nothing. The files come from the API (no
   # checkout, no history to fetch). The workflow itself counts everywhere: a
-  # change to a job must run it.
+  # change to a job must run it. Each job's `if` names the outputs it reads
+  # (docs/deployment.md, "Which jobs a pull request runs"), and
+  # tools/ci/changes.test.mjs runs this step on sample pull requests. `gh`
+  # and grep rather than a paths-filter action: no third-party action to pin
+  # and trust with the token, and "anything but these paths" (`code`) is one
+  # grep.
   changes:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -47,15 +52,23 @@ jobs:
       contents: read
       pull-requests: read
     outputs:
-      # Anything but docs, Markdown and Claude's files: lint, build, the
-      # browser tests and the template check.
+      # Anything but the paths no job here reads (docs, Markdown, Claude's
+      # files, the Helm chart...): lint and knip, the build, the migrations.
       code: ${{ steps.paths.outputs.code }}
-      # The API, its client, the tools and the workspace's roots: the API's
-      # unit and e2e tests, the feature generator, the app image.
+      # The API, its client, the workspace's roots, the image's build
+      # context: the API's unit and e2e tests, the app image, the OpenAPI
+      # diff.
       api: ${{ steps.paths.outputs.api }}
-      # The web app, the UI package, the browser tests' package: the web
-      # app's unit tests, Caddy's image.
+      # The web app, the packages, the browser tests, the Caddyfile (a web
+      # unit test reads it): the web app's unit tests, the browser tests.
       web: ${{ steps.paths.outputs.web }}
+      # The repository's scripts (tools/) and the root files their tests
+      # read: the feature generator, the setup wizard, the deploy scripts.
+      tools: ${{ steps.paths.outputs.tools }}
+      # The production stack's files: the Compose files, what they build or
+      # mount, the shell scripts, the load test's stack, the deploy scripts:
+      # the secrets and hardening checks, the Swarm render, the started stack.
+      stack: ${{ steps.paths.outputs.stack }}
       backup: ${{ steps.paths.outputs.backup }}
       gotenberg: ${{ steps.paths.outputs.gotenberg }}
       caddy: ${{ steps.paths.outputs.caddy }}
@@ -63,29 +76,46 @@ jobs:
       - id: paths
         env:
           GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
-          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
-            for key in code api web backup gotenberg caddy; do
-              echo "$key=true" >> "$GITHUB_OUTPUT"
-            done
+          keys='code api web tools stack backup gotenberg caddy'
+          all() {
+            for key in $keys; do echo "$key=true"; done | tee -a "$GITHUB_OUTPUT"
             exit 0
-          fi
-          files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/${{ github.event.pull_request.number }}/files" --paginate --jq '.[].filename')
+          }
+          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then all; fi
+          # A renamed file counts at both paths: its old place changed too.
+          files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')
           echo "$files"
-          # touched <key> <regex>: true when any changed path matches.
+          # The API lists 3000 files at most: a longer list may hide any path.
+          if [ "$(wc -l <<< "$files")" -ge 3000 ]; then all; fi
+          # Read by no job here: the docs, Markdown at the root and at a
+          # package's root, Claude's files, the changesets' notes, GitHub's
+          # repository settings, the Helm chart and the devcontainer (their
+          # own workflows check those two). Not the other workflows: knip
+          # reads them (its GitHub Actions plugin), as it reads lefthook.yml.
+          inert='^(docs/|\.claude/|\.changeset/[^/]*\.md$|\.devcontainer/|deploy/helm/|\.github/(ISSUE_TEMPLATE/|CODEOWNERS$|dependabot\.yml$|PULL_REQUEST_TEMPLATE\.md$)|LICENSE$|\.editorconfig$|[^/]*\.md$|packages/[^/]+/[^/]*\.md$)'
+          read=$(grep -vE "$inert" <<< "$files" || true)
+          # code: any path a job reads.
+          if [ -n "$read" ]; then echo code=true; else echo code=false; fi | tee -a "$GITHUB_OUTPUT"
+          # touched <key> <regex>: true when a path a job reads matches.
           touched() {
-            if grep -qE "$2" <<< "$files"; then echo "$1=true"; else echo "$1=false"; fi >> "$GITHUB_OUTPUT"
-            tail -1 "$GITHUB_OUTPUT"
+            if grep -qE "$2" <<< "$read"; then echo "$1=true"; else echo "$1=false"; fi | tee -a "$GITHUB_OUTPUT"
           }
           workflow='\.github/workflows/ci\.yml$'
-          roots='package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|tsconfig[^/]*\.json$|\.oxlintrc\.json$|\.npmrc$'
-          touched code "^(apps/|packages/|tools/|backup/|caddy/|gotenberg/|dev/|compose[^/]*\.yaml$|env\.example$|Dockerfile|\.dockerignore$|$roots|$workflow)"
-          touched api "^(apps/api/|packages/api-client/|tools/|compose[^/]*\.yaml$|env\.example$|$roots|$workflow)"
-          touched web "^(apps/web/|apps/web-e2e/|packages/|$roots|$workflow)"
-          touched backup "^(backup/|$workflow)"
-          touched gotenberg "^(gotenberg/|compose\.(dev|prod)\.yaml$|$workflow)"
-          # Caddy's image builds the web app from the repository root.
-          touched caddy "^(caddy/|apps/web/|packages/|$roots|$workflow)"
+          roots='package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|tsconfig[^/]*\.json$|\.oxlintrc\.json$|\.npmrc$|\.nvmrc$'
+          # The images' scans read it.
+          scan='\.trivyignore\.yaml$'
+          touched api "^(apps/api/|packages/api-client/|\.dockerignore$|$roots|$scan|$workflow)"
+          touched web "^(apps/web/|apps/web-e2e/|packages/|caddy/Caddyfile$|$roots|$workflow)"
+          # The tools' tests read env.example and Prettier's config too.
+          touched tools "^(tools/|env\.example$|\.prettierrc$|\.prettierignore$|$workflow)"
+          touched stack "^(compose[^/]*\.yaml$|secret\.empty$|swarm\.placeholder$|scripts/|loadtest/|redis/|caddy/|backup/|gotenberg/|monitoring/|clamav/|pgbouncer/|tools/deploy/|$workflow)"
+          touched backup "^(backup/|scripts/test-backup-pitr\.sh$|$scan|$workflow)"
+          touched gotenberg "^(gotenberg/|compose\.(dev|prod)\.yaml$|$scan|$workflow)"
+          # Caddy's image builds the web app from the repository root
+          # (caddy/Dockerfile.dockerignore: the API's package.json too).
+          touched caddy "^(caddy/|apps/web/|packages/|apps/api/package\.json$|$roots|$scan|$workflow)"
 
   # CI's PostgreSQL and Redis are compose.yaml's images, read from it: they
   # can't drift apart, and Dependabot's compose.yaml updates reach CI too.
@@ -116,7 +146,7 @@ jobs:
   # in their images. The app booting on files: secret-files.e2e-spec.ts.
   compose-secrets:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.stack == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
@@ -343,7 +373,7 @@ jobs:
   # (which needs no Swarm). The script's unit tests run in feature-smoke.
   swarm-stack:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.stack == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -422,10 +452,11 @@ jobs:
       # runs in `pnpm lint`.
       - name: The i18n check's tests
         run: node --test tools/i18n/check.test.mjs
-      # Guards on this workflow's artifact uploads (tools/ci/): a run of the
-      # workflow is the only other way to learn a blob report went missing.
+      # Guards on this workflow (tools/ci/): its artifact uploads (a run of
+      # the workflow is the only other way to learn a blob report went
+      # missing) and which jobs a pull request's paths run.
       - name: The workflow's tests
-        run: node --test tools/ci/workflow.test.mjs
+        run: node --test 'tools/ci/*.test.mjs'
       # The env templates (tools/setup/envcheck.mjs): no variable set twice,
       # the REQUIRED ones named. The wizard's tests run in feature-smoke.
       - name: The env templates
@@ -572,9 +603,18 @@ jobs:
           retention-days: 1
 
   # The coverage thresholds (each package's vitest.config.ts): the unit
-  # shards' blob reports merged, no test run again.
+  # shards' blob reports merged, no test run again. On a pull request a unit
+  # job whose paths didn't change is skipped, which would skip this job too
+  # (a skipped `needs` skips its dependents): so it runs once neither unit
+  # job failed or was cancelled and one of them ran, and merges the side(s)
+  # that ran. Main, tags and the nightly run have both.
   coverage:
     needs: [unit-api, unit-web]
+    if: >-
+      !cancelled() &&
+      (needs.unit-api.result == 'success' || needs.unit-api.result == 'skipped') &&
+      (needs.unit-web.result == 'success' || needs.unit-web.result == 'skipped') &&
+      (needs.unit-api.result == 'success' || needs.unit-web.result == 'success')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -585,20 +625,24 @@ jobs:
           runtime: node@24
           cache: true
       - name: The API's shards
+        if: needs.unit-api.result == 'success'
         uses: actions/download-artifact@v7
         with:
           pattern: coverage-api-*
           path: apps/api/.vitest/blob
           merge-multiple: true
       - name: The web app's shards
+        if: needs.unit-web.result == 'success'
         uses: actions/download-artifact@v7
         with:
           pattern: coverage-web-*
           path: apps/web/.vitest/blob
           merge-multiple: true
       - name: The API's coverage
+        if: needs.unit-api.result == 'success'
         run: pnpm --filter @nestjs-monorepo-template/api exec vitest --merge-reports --coverage
       - name: The web app's coverage
+        if: needs.unit-web.result == 'success'
         run: pnpm --filter @nestjs-monorepo-template/web exec vitest --merge-reports --coverage
 
   # The e2e tests in shards, each on its own runner with its own Redis and
@@ -658,7 +702,8 @@ jobs:
   # vendors need credentials CI doesn't have, so NestJS Observe's own path is
   # covered by observe.spec.ts.
   e2e-telemetry:
-    needs: compose-images
+    needs: [compose-images, changes]
+    if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
@@ -725,7 +770,7 @@ jobs:
   # summary; serious and critical ones fail the tests.
   e2e-web:
     needs: [compose-images, changes]
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
@@ -803,10 +848,12 @@ jobs:
   # The feature generator (tools/feature, `pnpm feature:add`): its tests, then
   # two features generated with every field type and option, which must
   # build, lint, migrate and pass their own generated e2e tests on today's
-  # core. Nothing generated is committed: the checkout is thrown away.
+  # core. Nothing generated is committed: the checkout is thrown away. On a
+  # pull request, for the API and tools/ (the generator writes into the API
+  # only; the web app's build and lint are check's).
   feature-smoke:
     needs: [compose-images, changes]
-    if: needs.changes.outputs.api == 'true'
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.tools == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
@@ -884,7 +931,9 @@ jobs:
   # on the test-only record, test/fixtures). Thrown away like feature-smoke's.
   template-without-notes:
     needs: [compose-images, changes]
-    if: needs.changes.outputs.code == 'true'
+    if: >-
+      needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true' ||
+      needs.changes.outputs.tools == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     # A pull request runs shard 1's cheap steps only (the example removed, then
@@ -893,7 +942,7 @@ jobs:
     # run's length. Main, tags and the nightly run do all of it, in six shards
     # like e2e's, so they last as long as a pull request: each shard runs its
     # sixth of the e2e suite and a sixth of the unit tests (shards 1-3 the
-    # API's third, 4-6 the web app's, as the unit job splits them); each
+    # API's third, 4-6 the web app's, as the unit jobs split them); each
     # repeats the cheap steps before. Raise the list and the totals together.
     strategy:
       fail-fast: false
@@ -942,7 +991,7 @@ jobs:
       - name: 'Build on the regenerated client (once: shard 1)'
         if: matrix.shard == 1
         run: pnpm build
-      # The unit job's split (3 API shards, 3 web shards), over this job's six;
+      # The unit jobs' split (3 API shards, 3 web shards), over this job's six;
       # the small packages' tests ride on shard 1.
       - name: Unit and web tests (a share per shard; not on pull requests)
         if: github.event_name != 'pull_request'
@@ -971,7 +1020,8 @@ jobs:
   # OASDIFF_FAIL_ON to ERR (or WARN) to fail the pull request on them
   # (docs/development.md, "Typed client").
   openapi-diff:
-    if: github.event_name == 'pull_request'
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.api == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:
@@ -1186,8 +1236,11 @@ jobs:
   # stack (loadtest/run.sh: PostgreSQL, Redis, migrate, api ×2, worker, the
   # stock Caddy on plain HTTP) with the backup service, on new volumes as a
   # first deployment has them. Not started: the production Caddy (its
-  # certificate needs a public name) and Gotenberg.
+  # certificate needs a public name) and Gotenberg. On a pull request, for
+  # the app image's paths and the stack's.
   hardened-stack:
+    needs: changes
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.stack == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
