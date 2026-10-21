@@ -7,6 +7,7 @@ import { TestItemPolicy } from './test-item.policy.js';
 import { TestItemAi } from './test-item-ai.js';
 import { TEST_ITEM } from './test-item.record.js';
 import { TEST_ITEM_SCHEMAS } from './test-item.schemas.js';
+import { TestDeprecatedController } from './test-deprecated.controller.js';
 import { TestItemsController } from './test-items.controller.js';
 import { TestItemsService } from './test-items.service.js';
 import { testItems } from './test-items.tables.js';
@@ -23,7 +24,11 @@ const parts = recordParts(TEST_ITEM, {
 
 /** Test items. */
 @Module({
-  controllers: [TestItemsController, ...parts.controllers],
+  controllers: [
+    TestItemsController,
+    TestDeprecatedController,
+    ...parts.controllers,
+  ],
   providers: [
     TestItemsService,
     TestItemPolicy,

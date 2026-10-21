@@ -57,5 +57,5 @@
     "vitest": "5.0.5"
   },
   "description": "The web app: a React single-page app (Vite, TanStack Router and Query) on the typed client.",
-  "license": "UNLICENSED"
+  "license": "MIT"
 }

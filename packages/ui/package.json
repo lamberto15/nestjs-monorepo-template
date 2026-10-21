@@ -46,5 +46,5 @@
     "./hooks/*": "./src/hooks/*.ts"
   },
   "description": "The frontends' shared components: shadcn/ui (Base UI) and Dice UI, as source, styled by Tailwind.",
-  "license": "UNLICENSED"
+  "license": "MIT"
 }

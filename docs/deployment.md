@@ -628,7 +628,7 @@ a counter per process: `rate()` and sum it), password hashing (`password_hashes_
 `password_hashes_queued`, `password_hashes_rejected_total{reason}`: per
 process, [Resource limits](#resource-limits)), mail (`mail_sent_total`,
 `mail_suppressed_total{reason}`, `mail_events_total{provider,type}`:
-[deliverability](deliverability.md)), `encrypted_rows_on_old_key{column}`
+[deliverability](deliverability.md)), `deprecated_route_calls_total{route}` (calls to `@Deprecated()` routes: [api-conventions](api-conventions.md), "Deprecation"), `encrypted_rows_on_old_key{column}`
 ([encryption](encryption.md)), `exchange_rates_age_seconds`
 ([money](money.md)), Node's defaults (`process_cpu_seconds_total`,
 heap, event loop lag, GC) and the heap's limit (`nodejs_heap_size_limit_bytes`).
