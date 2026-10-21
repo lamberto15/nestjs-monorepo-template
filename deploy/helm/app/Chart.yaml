@@ -1,0 +1,7 @@
+apiVersion: v2
+name: app
+description: The NestJS template's production stack on Kubernetes (api, worker, migrate hook, web, Gotenberg)
+type: application
+version: 0.1.0
+appVersion: "0.0.0"
+kubeVersion: ">=1.29.0-0"

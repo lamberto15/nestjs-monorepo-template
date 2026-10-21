@@ -55,6 +55,14 @@ Filling `.env` (each step is commented in `env.example`):
   `<script>`, no `eval`. Check a change by loading the built app through Caddy (`docker
 build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviolation`
   events: there must be none.
+- **Security contact** (`/.well-known/security.txt`, RFC 9116). Caddy answers that one
+  path itself (its handle comes before the `@api` matcher); `caddy/entrypoint.sh` writes
+  the file to `/srv/security` at each start from `SECURITY_CONTACT` (one or more
+  `mailto:`/`https:` URIs, comma-separated; the RFC requires it, and unset means no file,
+  a 404), `SECURITY_EXPIRES` (RFC 3339 UTC; unset, a year from the start, so pin it to
+  keep one date), `SECURITY_POLICY` (the `SECURITY.md` URL; the default is this template's
+  on GitHub, so set your own) and `SECURITY_PREFERRED_LANGUAGES` (`en`). Check it after a
+  deploy: `curl -i https://<APP_DOMAIN>/.well-known/security.txt`.
 - **Replacing an earlier deployment's Caddy?** Its token and email:
   `docker inspect --format '{{json .Config.Env}}' <caddy container>`.
 
@@ -107,6 +115,7 @@ rollback is one command).
 | Rolling (Compose)    | `pnpm deploy:rolling`    | deploy the previous `APP_IMAGE`                                      | one host, the default: new replicas start beside the old, which stop once the new are healthy ([deploy-rolling.md](deploy-rolling.md))   |
 | Blue-green (Compose) | `pnpm deploy:blue-green` | `pnpm deploy:blue-green rollback`: instant while the old colour runs | one host, an instant switch back matters, 2× the API's resources during a deploy are fine ([deploy-blue-green.md](deploy-blue-green.md)) |
 | Docker Swarm         | `pnpm deploy:swarm`      | automatic on a failed health check, or `pnpm deploy:swarm rollback`  | one or more nodes, updates and rollback by the orchestrator ([deploy-swarm.md](deploy-swarm.md))                                         |
+| Kubernetes (Helm)    | `helm upgrade --install` | `helm rollback`; the migrate Job is a pre-upgrade hook               | a managed cluster ([deploy-kubernetes.md](deploy-kubernetes.md))                                                                         |
 
 A plain `docker compose up -d --build` is not one of them: it recreates the
 replicas in place (below, what Caddy does about that).
@@ -172,6 +181,7 @@ reads.
 | `POSTGRES_REPORTING_PASSWORD_FILE` | `migrate` only (creates the reporting role with it) | `POSTGRES_REPORTING_PASSWORD` |
 | `CLOUDFLARE_API_TOKEN_FILE`                                                                                                                                                                                                                                                                                                                                                                   | Caddy (`caddy/entrypoint.sh`)                                                                                                                         | `CLOUDFLARE_API_TOKEN`                              |
 | `BACKUP_S3_SECRET_ACCESS_KEY_FILE`                                                                                                                                                                                                                                                                                                                                                            | the backup                                                                                                                                            | `BACKUP_S3_SECRET_ACCESS_KEY`                       |
+| `BACKUP_ENCRYPTION_KEY_FILE` | the backup (the age recipients, public keys, one per line) | `BACKUP_ENCRYPTION_KEY` |
 | `SMTP_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                               | the app, and Alertmanager (its default `ALERT_SMTP_URL`)                                                                                              | `SMTP_URL`                                          |
 | `ANTHROPIC_API_KEY_FILE` | the app (api, worker; not `migrate`) | `ANTHROPIC_API_KEY` |
 | `JWT_SECRET_FILE`, `MFA_ENCRYPTION_KEYS_FILE`, `STORAGE_SIGNING_KEYS_FILE`, `IDEMPOTENCY_KEYS_FILE`, `CURSOR_KEYS_FILE`, `WEBHOOKS_ENCRYPTION_KEYS_FILE`, `DATA_ENCRYPTION_KEYS_FILE`, `BLIND_INDEX_KEYS_FILE`, `ADMIN_PASSWORD_FILE`, `MAIL_API_KEY_FILE`, `AWS_SECRET_ACCESS_KEY_FILE`, `GOOGLE_CLIENT_SECRET_FILE`, `MICROSOFT_CLIENT_SECRET_FILE`, `GITHUB_CLIENT_SECRET_FILE`, `TURNSTILE_SECRET_KEY_FILE`, `OBSERVE_APP_SECRET_FILE`, `EXAMPLE_SENDER_WEBHOOK_SECRET_FILE` | the app (api, worker, migrate)                                                                                                                        | the variable without `_FILE`                        |
@@ -376,12 +386,42 @@ Compose scales on one host. Beyond it:
   `DATABASE_OWNER_URL` for the admin account that owns the database:
   [Database roles](#database-roles)), with backups and point-in-time
   recovery; drop `postgres` and `backup` from the stack.
+- **Read replicas:** not built in ([Read replicas](#read-replicas)).
 - **Redis:** managed, or Sentinel (`REDIS_SENTINELS=host:26379,…`,
   `REDIS_SENTINEL_NAME`); drop `redis` from the stack.
 - **Files:** S3 or R2 (`STORAGE_DRIVER=s3`, `S3_*`).
 - **Hosts:** an orchestrator (Swarm, Kubernetes, a managed platform) runs the
   same image with the same three commands. socket.io across hosts needs
   `transports: ['websocket']` on clients, or sticky sessions.
+
+### Read replicas
+
+**The app has no read/write split: every query, lists and reports included,
+goes to the primary** (`DATABASE_URL`). A `DATABASE_READ_URL` is not
+implemented, on purpose, because the part that makes it sound is not small:
+
+- Drizzle supports it (`withReplicas(primary, [replica])` from
+  `drizzle-orm/pg-core`, reads to a replica, writes and `transaction()` to the
+  primary), but the app's pool is `TenantPool` (`core/tenancy`), which sends the
+  tenant's settings with every `begin`. A replica needs its own `TenantPool`
+  (and the maintenance role's pool beside it), and the services run their
+  queries through the transaction host (`database(this.txHost)`), so each one
+  would have to be told, query by query, which pool it may read from.
+- **Replication lag breaks read-your-writes:** a user creates a record, the
+  list that follows reads a replica that has not seen it. Lists and reports
+  would each need a decision: read the primary after a write by the same user,
+  or accept the lag (a report, an export, an analytics aggregate usually can).
+- Row-level security works on a replica (the policies replicate, and
+  `set_config(…, true)` is allowed in a read-only transaction), so the tenant
+  wall is not the obstacle.
+
+**When you need it today:** a managed PostgreSQL's read replica, pointed at by
+the scheduled reports and exports only (the heavy, lag-tolerant reads), is the
+change to make: a second pool for the services behind them, with
+`DATABASE_READ_URL` unset meaning the primary. Not built here because it needs a
+replica to test against and a decision per query that only a real workload can
+make. For more reads before that: PgBouncer ([above](#pgbouncer)), indexes
+(`EXPLAIN` the slow list), a larger primary.
 
 ## Database roles
 
@@ -548,10 +588,99 @@ When a process's pool runs short:
   requests are refused; `pg_stat_activity.application_name` names the process
   (`<SERVICE_NAME>:api`, `:worker`).
 
-Raising the pools: more API replicas need a smaller pool each, or PgBouncer
-(transaction mode) in front of PostgreSQL, or a larger `max_connections`
-(each connection costs PostgreSQL memory). Workers need a pool at least as
-large as what they run at once (workflow steps, job concurrency).
+Raising the pools: more API replicas need a smaller pool each, or
+[PgBouncer](#pgbouncer) (transaction mode) in front of PostgreSQL, or a larger
+`max_connections` (each connection costs PostgreSQL memory). Workers need a
+pool at least as large as what they run at once (workflow steps, job
+concurrency).
+
+### PgBouncer
+
+Optional, off by default: `compose.pgbouncer.yaml` puts PgBouncer between
+the app and PostgreSQL, in **transaction pooling** mode, so the apps' many
+client connections share a few server connections. Worth it when
+`API_REPLICAS × API_DATABASE_POOL_MAX + WORKER_REPLICAS × WORKER_DATABASE_POOL_MAX`
+no longer fits under `max_connections` (the sum above), or many replicas each
+keep a mostly idle pool. One host with two replicas does not need it.
+
+```bash
+# .env: add the file to COMPOSE_FILE
+COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.pgbouncer.yaml
+docker compose up -d
+```
+
+- **What goes through it:** `api` and `worker` (`DATABASE_URL`, and the
+  worker's `DATABASE_MAINTENANCE_URL`): the overlay points both at host
+  `pgbouncer`. **What does not:** `migrate` (the owner: DDL, the role
+  grants), `backup` (`pg_dump` holds one snapshot across statements, which a
+  transaction-pooled connection cannot) and the monitoring exporter. They
+  keep their direct connections, and count against `max_connections` as
+  before.
+- **Pool sizes per role** (`pgbouncer/entrypoint.sh` writes the
+  configuration from the environment): `PGBOUNCER_POOL_SIZE` (20) server
+  connections for the app role, `PGBOUNCER_MAINTENANCE_POOL_SIZE` (3) for the
+  maintenance role, `PGBOUNCER_MAX_CLIENT_CONN` (400) client connections,
+  `PGBOUNCER_QUERY_WAIT_TIMEOUT` (10 s: how long a client waits for a server
+  connection). The new sum: `PGBOUNCER_POOL_SIZE +
+PGBOUNCER_MAINTENANCE_POOL_SIZE + migrate/backup/exporter < POSTGRES_MAX_CONNECTIONS − 10`.
+  The apps' own pools (`API_DATABASE_POOL_MAX`, `WORKER_DATABASE_POOL_MAX`)
+  now size how many requests run at once, no longer how many PostgreSQL
+  connections they cost; `max_client_conn` must hold their sum, workers'
+  maintenance pools (3 each) included.
+- **The image:** `edoburu/pgbouncer` (Alpine, rebuilt for each PgBouncer
+  release; PgBouncer publishes no image of its own), pinned by tag and digest;
+  Dependabot's `docker-compose` updater raises both. Resources:
+  `PGBOUNCER_CPUS` (0.5) and `PGBOUNCER_MEMORY` (128M).
+- **Passwords in the environment only:** the overlay builds the URLs from
+  `POSTGRES_APP_PASSWORD` and `POSTGRES_MAINTENANCE_PASSWORD`, as
+  compose.prod.yaml does. With `DATABASE_URL_FILE` secrets, change the host in
+  those files to `pgbouncer` yourself (and give the `pgbouncer` service the
+  passwords). A managed PostgreSQL behind it: `PGBOUNCER_DB_HOST` and
+  `PGBOUNCER_DB_PORT`, and leave `DATABASE_URL` pointing at `pgbouncer`.
+
+**What transaction pooling takes away, and what the app does about it**
+(read from the code, and exercised by `pgbouncer/check.sh`):
+
+| Session feature                                                                         | In this app                                                                                                         | Through PgBouncer                                                                                                                                                                                                                   |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tenant settings (`app.tenant_id`, `app.read_tenants`, [tenancy.md](tenancy.md))         | `set_config(…, true)`: local to the transaction, sent with `begin` (`core/tenancy/tenant-pool.ts`)                  | Works, and it is the reason it can: nothing survives `COMMIT`, so a server connection never carries a tenant to the next client. A plain `SET` or `set_config(…, false)` would leak between clients: never add one                  |
+| Advisory locks (views, approvals, revisions, sequences, tags, the seeders, migrations…) | all `pg_advisory_xact_lock`: released at `COMMIT`                                                                   | Works. A session-level `pg_advisory_lock` would not (it stays on a server connection another client reuses): use the `xact` form                                                                                                    |
+| `LocksModule` (`@nestjs/locks`)                                                         | rows in a `locks` table with an owner and an expiry (`core/locks/drizzle-lock.store.ts`), not advisory locks        | Works                                                                                                                                                                                                                               |
+| Prepared statements                                                                     | node-postgres sends parameterized queries unnamed; the app prepares nothing by name                                 | Works. PgBouncer 1.21+ also rewrites named protocol-level statements (`max_prepared_statements`, 200); SQL-level `PREPARE` is not supported                                                                                         |
+| `statement_timeout`, `idle_in_transaction_session_timeout`                              | node-postgres sends both as **startup parameters** (`DATABASE_STATEMENT_TIMEOUT_MS`, `DATABASE_IDLE_TX_TIMEOUT_MS`) | PgBouncer refuses unknown startup parameters. `track_extra_parameters` lists both, so PgBouncer sets them on whichever server connection serves the client. Without that line the limits would be dropped or the connection refused |
+| `application_name`                                                                      | `<SERVICE_NAME>:api`, `:worker` in `pg_stat_activity`                                                               | Tracked by default, but `pg_stat_activity` shows the **PgBouncer** connections: the name of whoever used it last, not a per-process count                                                                                           |
+| `LISTEN`/`NOTIFY`, `WITH HOLD` cursors, session-level `SET`                             | not used (queues are in Redis; the outbox relay polls)                                                              | Would not work in transaction mode; a feature needing them connects to PostgreSQL directly                                                                                                                                          |
+
+**Caveats, honestly:**
+
+- **Errors when the pool is full differ.** The app's own pool answers
+  `503 database_busy` after `DATABASE_POOL_TIMEOUT_MS`. A request that gets
+  past it but waits at PgBouncer longer than `PGBOUNCER_QUERY_WAIT_TIMEOUT`
+  fails with a database error the app does not map to `database_busy` (a 500).
+  Keep `PGBOUNCER_POOL_SIZE` large enough for the apps' pools' busy peak, and
+  watch PgBouncer's log for `query_wait_timeout`.
+- **`GET /health`'s `databasePool` and the pool metrics** describe the
+  apps' pools, not PgBouncer's; PgBouncer's own statistics (`SHOW POOLS`)
+  are not exported by this stack (its admin console is off: `admin_users` is
+  empty).
+- **One more hop:** a few hundred microseconds per query, and a service that
+  must be up: the apps wait for it (`depends_on`) and fail their queries while
+  it restarts.
+- **No TLS inside the Compose network** between the apps, PgBouncer and
+  PostgreSQL, as without it. Across hosts, configure `client_tls_*` and
+  `server_tls_*` in `pgbouncer/entrypoint.sh`.
+- **A schema change that alters a result's type** can make PgBouncer's cached
+  statements fail with "cached plan must not change result type"; the
+  app prepares nothing by name, so it does not apply today. If you add a
+  driver that does, `RECONNECT` on the admin console clears it.
+- **Tested once, in CI** (`.github/workflows/pgbouncer.yml`, on changes to
+  these files and the database code, and on demand): the load test's
+  stack with the overlay on, the k6 scenarios (sign-in, tenant-scoped list,
+  create, export) through PgBouncer, then `pgbouncer/check.sh`: the server
+  connections stay inside the pool, the two limits take effect, a tenant
+  setting and an advisory lock are gone after `COMMIT`. Locally:
+  `LOADTEST_PGBOUNCER=on loadtest/run.sh up && pgbouncer/check.sh` after
+  `loadtest/run.sh run`, then `LOADTEST_PGBOUNCER=on loadtest/run.sh down`.
 
 ## Log redaction
 
@@ -925,6 +1054,72 @@ and `REDIS_URL`. With Redis
 Sentinel, remove `redis-exporter` and its scrape job; the app's own
 `RedisUnreachableFromApp` still covers Redis.
 
+### Logs
+
+Logs live in Docker's files, bounded by `DOCKER_LOG_*`. To search them
+across containers, `compose.monitoring.yaml` has an optional log pipeline:
+**Loki** (storage and queries) and **Grafana Alloy** (the collector), plus
+**Grafana** as the UI. All three have Compose profiles, so they are off even
+when the file is in `COMPOSE_FILE`:
+
+```bash
+# .env: COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.monitoring.yaml
+#       COMPOSE_PROFILES=logs            # Loki + Alloy
+#       COMPOSE_PROFILES=logs,grafana    # and Grafana (GRAFANA_ADMIN_PASSWORD required)
+docker compose up -d
+```
+
+- **Alloy, not Promtail.** Grafana ended Promtail's life on 2026-03-02; Alloy
+  is its documented successor. `monitoring/alloy/config.alloy` discovers this
+  Compose project's containers (`discovery.docker`, filtered by the project
+  label), reads them with `loki.source.docker` and pushes to Loki. Labels:
+  `service` (api, worker, caddy, ...), `container`, `job="docker"`, `level`.
+- **The log driver.** Alloy reads through the Docker API (the socket,
+  mounted read only), so it works with the default `local` driver and with
+  `json-file`: anything `docker logs` can print. Drivers Docker can't read
+  back (`syslog`, `gelf`, `awslogs`, `fluentd`, `none`) leave Alloy with
+  nothing, and then the shipper belongs to that driver, not here. Set
+  `DOCKER_LOG_DRIVER=json-file` only for a collector that tails the files in
+  `/var/lib/docker/containers` (Promtail-style, or Vector); Alloy doesn't
+  need it. The socket gives Alloy the whole Docker API, even read only, so it
+  runs as root; it is not published.
+- **Retention.** `LOKI_RETENTION` (default `720h`, 30 days), enforced by
+  Loki's compactor (`retention_enabled`, `monitoring/loki/loki.yml`). The
+  chunks live in the `loki_data` volume; budget the disk for it. Change the
+  value and `docker compose up -d loki`.
+- **Redaction is unchanged.** The app masks secrets before it writes a line
+  ([Log redaction](#log-redaction)); Alloy ships those lines as they are and
+  adds no parsing that could un-mask anything. Anything Caddy or PostgreSQL
+  log is shipped as written.
+- **Loki is not published** (no authentication: `auth_enabled: false`);
+  Alloy and Grafana reach it as `loki:3100`. Grafana listens on
+  `127.0.0.1:${GRAFANA_PORT:-3001}`: reach it through an SSH tunnel, like
+  Prometheus (`ssh -L 3001:127.0.0.1:3001 <host>`), sign in as `admin` with
+  `GRAFANA_ADMIN_PASSWORD`, open Explore. The Loki data source is
+  provisioned (`monitoring/grafana/provisioning/datasources/loki.yml`).
+- **Limits:** `LOKI_CPUS`/`LOKI_MEMORY` (0.5, 512 MB), `ALLOY_*` (0.25, 256
+  MB), `GRAFANA_*` (0.5, 256 MB).
+
+**Querying by `requestId`.** In production the app writes one JSON object per
+line (`LOG_FORMAT=json`), and every request carries an id: the
+`X-Request-Id` header, which the response returns and an error body's
+`requestId` repeats. Alloy turns `requestId` into structured metadata
+`request_id` (not a label: it is unbounded), and `level` into a label.
+In Grafana's Explore (LogQL):
+
+```logql
+{service=~"api|worker"} | request_id = "7c1b0f0e-6e0f-4a43-9d3c-2f1d0a9c1e55"
+{service="api", level="error"} | json | status >= 500
+{service="api"} |= "7c1b0f0e" | json
+```
+
+Without Grafana the UI is missing, not the data: it stays in Loki, and
+`logcli` works against an SSH tunnel to a port you publish yourself.
+
+**Checks.** `.github/workflows/monitoring.yml` verifies `loki.yml`
+(`loki -verify-config`) and parses `config.alloy` (`alloy fmt`) on every
+change, with the images `compose.monitoring.yaml` pins.
+
 ## Redis
 
 **Redis 7.0 or newer** (Compose runs 8). The bot-protection counters
@@ -1108,10 +1303,13 @@ copies only: a lost disk loses them too, so set it.
   yourself) needs the same two flags, or the app role created first.
 - **Why pg_dump** (not pgBackRest or WAL-G): one host, one database. A dump is
   one file that restores into any PostgreSQL 18 or newer, and the server
-  needs no change (no WAL archiving, no restart). The price: no
-  point-in-time recovery; a restore loses what happened since the last
-  dump. To lose less, back up more often (`0 */6 * * *`), or move to a
-  managed PostgreSQL with point-in-time recovery (Scaling further).
+  needs no change (no WAL archiving, no restart). The price: a restore
+  loses what happened since the last dump. To lose less, back up more often
+  (`0 */6 * * *`), turn on [point-in-time recovery](#point-in-time-recovery)
+  (off by default), or move to a managed PostgreSQL with its own (Scaling
+  further).
+- **Encrypted**, optionally: [Encryption](#encryption-of-backups) (`age`), so
+  the bucket never holds plaintext.
 - **Managed database** (`DATABASE_URL` elsewhere): use its backups and drop
   `backup` from the stack (with `STORAGE_DRIVER=s3`, nothing else is on the
   host).
@@ -1165,6 +1363,162 @@ exec backup sh -c 'PGDATABASE=restore_check restore db-<time>.dump --yes'`
 loads it into a database `restore_check` beside the app's. Look at it
 (`docker compose exec backup psql -d restore_check -c '\dt'`), then
 `docker compose exec backup dropdb restore_check`.
+
+### Encryption of backups
+
+Off by default. With `BACKUP_ENCRYPTION_KEY` set, every dump, files archive,
+base backup and WAL segment is encrypted with [age](https://age-encryption.org)
+before it is kept or uploaded: the volume and the bucket hold `…​.age` files
+only (checksums are of the encrypted file). The key is a **public** recipient,
+so the server can encrypt and never decrypt: a stolen host or bucket gives
+away no backup. It is `age1…` (several on one line, separated by spaces, so a
+second person can decrypt too) or an SSH public key, a whole line
+(`BACKUP_ENCRYPTION_KEY="ssh-ed25519 AAAA… me@laptop"`). To mix them, or give
+several SSH keys, use `BACKUP_ENCRYPTION_KEY_FILE`: one recipient per line.
+
+```bash
+age-keygen -o backup.key        # keep it OFF the server (password manager, safe)
+# Public key: ... age1xxxxxxxx   -> BACKUP_ENCRYPTION_KEY in .env
+```
+
+Losing the identity (`AGE-SECRET-KEY-…` in `backup.key`) makes every encrypted
+backup unreadable: store it somewhere that outlives the host, and try a
+restore from the bucket now and then. Existing plaintext backups stay as they
+are (old ones age out by `BACKUP_RETENTION_DAYS`; the bucket's lifecycle rule
+removes the rest). `BACKUP_ENCRYPTION_KEY_FILE` is read too, for a mounted
+file (a Docker secret, [Secrets in files](#secrets-in-files)). To restore,
+give the identity for that one command only:
+
+```bash
+docker compose run --rm -e BACKUP_DECRYPTION_KEY="$(cat backup.key)" backup restore db-<time>.dump.age
+```
+
+(`BACKUP_DECRYPTION_KEY_FILE` names a file in the container instead.) `restore`
+decrypts into a private, temporary directory of the volume and removes it
+afterwards. `backup-fetch` copies encrypted names like any other.
+
+### Point-in-time recovery
+
+Off by default. A dump restores to the moment it was taken (up to a day
+back); with point-in-time recovery (PITR) a restore can stop at any moment
+after the oldest base backup kept, e.g. the minute before a bad deploy
+deleted rows. It uses what PostgreSQL itself documents (continuous
+archiving, `pg_basebackup`, `recovery_target_time`), not extra daemons:
+
+- **WAL archiving:** PostgreSQL's `archive_command` copies each finished WAL
+  segment to the `wal_archive` volume (`archive_timeout` 300 s,
+  `BACKUP_WAL_ARCHIVE_TIMEOUT`: a quiet database still closes a segment every
+  five minutes, the most a lost disk can cost besides the last minute).
+- **Base backups:** each scheduled `backup` run adds `base-<time>.tar.gz`
+  (`pg_basebackup`, plain tar of the cluster) and `base-<time>.walstart` (the
+  first segment it needs). Retention (`BACKUP_RETENTION_DAYS`) removes old base
+  backups, and the WAL before the oldest one kept.
+- **Off the host:** with `BACKUP_S3_BUCKET`, `backup-wal-ship` sends new segments
+  to `<prefix>/wal/` every minute (encrypted when the key is set); the
+  service turns `unhealthy` after 30 minutes without a pass.
+  Without a bucket the archive lives on the same disk as the database.
+
+Turn it on (needs a PostgreSQL restart, a few seconds of downtime):
+
+```bash
+# .env
+COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.pitr.yaml
+docker compose up -d --build
+docker compose exec postgres sh -c 'cat "$PGDATA/pg_hba.conf"'   # compare with backup/pg_hba.pitr.conf
+docker compose exec backup backup                                 # the first base backup, now
+```
+
+`compose.pitr.yaml` adds the volume, `archive_mode`/`archive_command`, a
+`wal-init` helper (it makes the volume writable for `postgres`), and a
+`pg_hba.conf` that also lets the backup service connect for base backups
+(the replication protocol, password-protected, on the stack's network only).
+**Compare that file with the running server's before relying on it**: it
+replaces the image's. It repeats compose.prod.yaml's `postgres` command
+(only `max_connections`): keep the two in step. WAL adds disk use: size the
+volume for `archive_timeout`'s segments (16 MB each) times the days kept, or
+more under write load, and watch `docker system df -v`.
+
+**Restoring to a moment** replaces the whole cluster (every database, not one),
+so it is the last resort after a dump restore isn't enough:
+
+1. **Pick the moment** (UTC) just before the damage, and the newest base backup
+   before it: `docker compose exec backup ls -l /backups | grep base-`. On a new host,
+   fetch it first (`backup-fetch base-<time>.tar.gz[.age]`).
+2. **Stop the stack:** `docker compose stop api worker postgres backup`.
+3. **Keep the old data, prepare the new** (as root, with the PostgreSQL volume
+   mounted; the recovered WAL goes beside the data, in the same volume):
+
+   ```bash
+   docker compose run --rm --no-deps --user root -v postgres_data:/var/lib/postgresql \
+     -e BACKUP_DECRYPTION_KEY="$(cat backup.key)" --entrypoint sh backup -c '
+       mv /var/lib/postgresql/18/docker /var/lib/postgresql/18/docker.before-pitr &&
+       restore-pitr base-<time>.tar.gz.age --pgdata /var/lib/postgresql/18/docker \
+         --wal-dir /var/lib/postgresql/pitr-wal --target-time "2026-10-21 09:30:00+00" --offsite'
+   ```
+
+   (Without encryption, drop the key and the `.age`; keep the key when the
+   bucket's WAL is encrypted, even for a plaintext base backup taken before
+   encryption was turned on. Without `--offsite`, the WAL comes from the
+   `wal_archive` volume: add `-v wal_archive:/wal`.)
+   `restore-pitr` unpacks the base backup, puts the WAL where the server
+   reads it, and writes `restore_command`, `recovery_target_time` and
+   `recovery.signal`.
+4. **Start PostgreSQL:** `docker compose up -d postgres`. It replays the WAL up
+   to the target (`docker compose logs postgres`: `recovery stopping before
+   commit of transaction …`), then opens.
+5. **Check the data, then start the app** (`docker compose up -d`) and take a
+   base backup at once (`docker compose exec backup backup`): the recovered
+   database runs on a new timeline, which older base backups don't follow.
+   Remove `docker.before-pitr` and `pitr-wal` (in the volume) when all is well.
+
+`recovery_target_action` is `promote`: a target after the last archived
+segment, or none, replays everything and opens. A target earlier than the base
+backup fails (use an older base backup).
+
+**Try it** like a dump restore, now and then: `scripts/test-backup-pitr.sh`
+runs the whole round trip (encrypted base backup and WAL, a target between two
+writes, a plaintext base backup with encrypted WAL, an encrypted dump) against a throwaway PostgreSQL in the backup image; CI
+runs it in `backup-image`.
+
+### Restore drill
+
+A backup nobody has restored is a hope. `scripts/restore-drill.sh` proves the
+whole chain on a throwaway stack, with the same scripts and the same
+procedure a real recovery uses (the load test's stack: `loadtest/run.sh`,
+`compose.loadtest.yaml` on top, its own Compose project and generated
+settings; the repository's `.env` is never read):
+
+1. start the production stack and the `backup` service; sign in as the seeded
+   administrator and write 12 notes;
+2. stop `api` and `worker`, count the rows of **every table**, take a backup
+   (`backup`, the scheduled run's own script);
+3. destroy PostgreSQL's volume: a new, empty cluster;
+4. `restore` the dump into it ([Restoring](#restoring)), then count again: the
+   two lists must be identical;
+5. start the stack (`migrate` grants the app role what the dump skipped), sign
+   in again and read the notes back through the API;
+6. report the durations and remove the stack.
+
+It fails loudly at the first step that does not work (the stack's logs are
+printed first) and when backup plus restore take longer than
+`RESTORE_DRILL_MAX_SECONDS` (600). `RESTORE_DRILL_PROJECT` names the Compose
+project (`loadtest-<name>` only: it removes the project's volumes),
+`RESTORE_DRILL_KEEP=on` leaves the stack running, `APP_IMAGE` skips the build.
+It needs Docker: `scripts/restore-drill.sh` locally, from the repository root.
+
+**In CI** (`.github/workflows/restore-drill.yml`): weekly (Mondays 03:17 UTC),
+on demand (`workflow_dispatch`), and on pull requests that touch `backup/`,
+the drill or the load test's stack. The durations are in the job summary. A
+failed run is the alert: GitHub mails the repository's watchers and the run
+shows red.
+
+**What it does not prove:** the off-host copy (no `BACKUP_S3_BUCKET` in a
+throwaway stack: `backup-fetch` from your bucket needs your keys, so try it
+by hand now and then), the uploaded files' archive (written, not extracted
+and compared), or a restore of **your** data's size: the drill's database is
+a few hundred rows, so its durations show the procedure works, not how long
+yours takes. Time a restore of a real dump once and set
+`RESTORE_DRILL_MAX_SECONDS` and your own expectations from that.
 
 ## CI
 

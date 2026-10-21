@@ -108,6 +108,11 @@ export const users = pgTable('users', {
   timezone: text('timezone'),
   active: boolean('active').notNull().default(true),
   /**
+   * The picture's file on the private disk (`accounts/<id>/avatar/<uuid>.<ext>`,
+   * PUT /v1/account/avatar); null: none. Read as `avatarUrl`, never as a key.
+   */
+  avatarKey: text('avatar_key'),
+  /**
    * When an identity provider's deprovisioning (SCIM) ended the account's
    * last active membership and so deactivated it; null otherwise. Only an
    * account deactivated this way comes back when a membership does

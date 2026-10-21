@@ -1,0 +1,107 @@
+{{- if .Values.gotenberg.enabled }}
+# The flags of compose.prod.yaml's gotenberg (CI's gotenberg-image job compares those with dev's).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "app.fullname" . }}-gotenberg
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gotenberg
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "app.selector" (dict "ctx" . "component" "gotenberg") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "app.selector" (dict "ctx" . "component" "gotenberg") | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "app.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: gotenberg
+          image: {{ include "app.imageRef" (dict "img" .Values.gotenberg.image) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - gotenberg
+            - --chromium-allow-list=^file:///tmp/
+            - --chromium-deny-private-ips
+            - --chromium-deny-public-ips
+            - --chromium-disable-javascript
+            - --chromium-max-queue-size=20
+            - --api-disable-download-from
+            - --webhook-disable
+            - --api-timeout=60s
+            - --log-format=json
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.gotenberg.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: home, mountPath: /home/gotenberg }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 512Mi }
+        - name: home
+          emptyDir: { sizeLimit: 64Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "app.fullname" . }}-gotenberg
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gotenberg
+spec:
+  selector:
+    {{- include "app.selector" (dict "ctx" . "component" "gotenberg") | nindent 4 }}
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+{{- if .Values.networkPolicy.enabled }}
+---
+# Only the worker renders PDFs: nothing else may reach Chromium.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "app.fullname" . }}-gotenberg
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "app.selector" (dict "ctx" . "component" "gotenberg") | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "app.selector" (dict "ctx" . "component" "worker") | nindent 14 }}
+      ports:
+        - port: 3000
+{{- end }}
+{{- end }}

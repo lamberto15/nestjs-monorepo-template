@@ -78,6 +78,8 @@ x-app: &app
     INVITATION_TTL_HOURS: ${INVITATION_TTL_HOURS:-168}
     IMPERSONATION_TTL_MINUTES: ${IMPERSONATION_TTL_MINUTES:-60}
     REAUTHENTICATION_MAX_AGE_MINUTES: ${REAUTHENTICATION_MAX_AGE_MINUTES:-10}
+    SESSION_IDLE_MINUTES: ${SESSION_IDLE_MINUTES:-120}
+    SESSION_MAX_HOURS: ${SESSION_MAX_HOURS:-12}
     # Passkeys (docs/auth.md, "Passkeys"): the relying party is WEB_URL's
     # host (else APP_DOMAIN) unless PASSKEY_RP_ID says otherwise; it never
     # changes once passkeys exist. The app refuses inconsistent values.
@@ -455,6 +457,12 @@ services:
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
       CLOUDFLARE_API_TOKEN_FILE: ${CLOUDFLARE_API_TOKEN_FILE:+/run/secrets/cloudflare_api_token}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+      # /.well-known/security.txt (RFC 9116; caddy/entrypoint.sh writes it at
+      # each start). No file while SECURITY_CONTACT is empty.
+      SECURITY_CONTACT: ${SECURITY_CONTACT:-}
+      SECURITY_EXPIRES: ${SECURITY_EXPIRES:-}
+      SECURITY_POLICY: ${SECURITY_POLICY:-https://github.com/lamberto15/nestjs-monorepo-template/blob/main/SECURITY.md}
+      SECURITY_PREFERRED_LANGUAGES: ${SECURITY_PREFERRED_LANGUAGES:-en}
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -551,9 +559,15 @@ services:
       BACKUP_S3_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:-}
       BACKUP_S3_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:-}
       BACKUP_S3_SECRET_ACCESS_KEY_FILE: ${BACKUP_S3_SECRET_ACCESS_KEY_FILE:+/run/secrets/backup_s3_secret_access_key}
+      # age recipients (public keys): dumps, files and WAL are encrypted before
+      # they are kept or uploaded. Empty: plaintext. Restoring needs the identity.
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
+      # Or from the file (lib.sh reads it), like the S3 key above.
+      BACKUP_ENCRYPTION_KEY_FILE: ${BACKUP_ENCRYPTION_KEY_FILE:+/run/secrets/backup_encryption_key}
     secrets:
       - postgres_password
       - backup_s3_secret_access_key
+      - backup_encryption_key
     deploy:
       resources:
         limits:
@@ -628,6 +642,8 @@ secrets:
     file: ${POSTGRES_PASSWORD_FILE:-./secret.empty}
   backup_s3_secret_access_key:
     file: ${BACKUP_S3_SECRET_ACCESS_KEY_FILE:-./secret.empty}
+  backup_encryption_key:
+    file: ${BACKUP_ENCRYPTION_KEY_FILE:-./secret.empty}
   cloudflare_api_token:
     file: ${CLOUDFLARE_API_TOKEN_FILE:-./secret.empty}
 

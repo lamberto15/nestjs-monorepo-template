@@ -155,6 +155,11 @@
       "cancel": "Abbrechen",
       "none": "Single Sign-on ist für diese Adresse nicht verfügbar. Melden Sie sich anders an oder fragen Sie Ihre Administration.",
       "failed": "Wir konnten die Adresse nicht prüfen. Versuchen Sie es gleich noch einmal."
+    },
+    "idle": {
+      "title": "Ihre Sitzung läuft gleich ab",
+      "description": "Sie waren inaktiv. Sie werden in {{time}} abgemeldet.",
+      "stay": "Angemeldet bleiben"
     }
   },
   "account": {
@@ -167,6 +172,16 @@
       "emailHint": "Ihre Anmeldeadresse.",
       "timezone": "Zeitzone",
       "saved": "Profil gespeichert."
+    },
+    "avatar": {
+      "title": "Bild",
+      "choose": "Bild auswählen",
+      "change": "Bild ändern",
+      "remove": "Entfernen",
+      "hint": "PNG, JPEG, WebP oder GIF. Sichtbar für die Mitglieder Ihrer Organisationen.",
+      "saved": "Bild gespeichert.",
+      "removed": "Bild entfernt.",
+      "rejected": "{{name}} wurde nicht verwendet: {{reason}}"
     },
     "security": {
       "title": "Sicherheit"
@@ -262,6 +277,12 @@
     "title": "Seite nicht gefunden",
     "description": "Die gesuchte Seite existiert nicht.",
     "back": "Zurück zum Dashboard"
+  },
+  "routeError": {
+    "title": "Etwas ist schiefgelaufen",
+    "description": "Diese Seite konnte nicht geladen werden. Der Rest der App funktioniert weiterhin.",
+    "reportId": "Meldungs-ID: {{id}}",
+    "retry": "Erneut versuchen"
   },
   "preferences": {
     "open": "Präferenzen",

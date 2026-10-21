@@ -91,7 +91,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Human-readable numbers (gapless sequences); naming series: the number formats administrators define (`INV-.YYYY.-.{region}.-.#####`: dates, the record's fields, variables like `FY`, `ABBR`; rules with conditions and priority) | [docs/sequences.md](docs/sequences.md) |
 | Money: minor-unit amounts, rounding, allocation, formatting; ECB exchange rates and conversion | [docs/money.md](docs/money.md) |
 | Comments and @mentions on records | [docs/comments.md](docs/comments.md) |
-| Files attached to records (uploads, downloads, the orphan sweep) | [docs/attachments.md](docs/attachments.md) |
+| Files attached to records (uploads, downloads, the orphan sweep); users' pictures (avatars) | [docs/attachments.md](docs/attachments.md) |
 | AI helper: summarize or classify a record on a queue worker (`POST /v1/ai/runs`), sources, provider, quota, cache, prompt injection | [docs/ai.md](docs/ai.md) |
 | PDF documents of records (templates, RTL, Gotenberg, the queue job, issued attachments) | [docs/documents.md](docs/documents.md) |
 | Saved views of lists (a list's filters, sort and columns by name; private, team, tenant) | [docs/saved-views.md](docs/saved-views.md) |
@@ -111,6 +111,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Rolling deploys with Compose (`pnpm deploy:rolling`), graceful shutdown | [docs/deploy-rolling.md](docs/deploy-rolling.md) |
 | Blue-green deploys: two api colours, switching the traffic, instant rollback (`pnpm deploy:blue-green`, `compose.blue-green.yaml`) | [docs/deploy-blue-green.md](docs/deploy-blue-green.md) |
 | Docker Swarm: the stack, rolling updates, automatic rollback, nodes and secrets (`pnpm deploy:swarm`, `compose.swarm.yaml`) | [docs/deploy-swarm.md](docs/deploy-swarm.md) |
+| Kubernetes: the Helm chart (`deploy/helm/app`): api, worker, migrate hook, HPA, Ingress, secret files, PrometheusRule; the kind smoke test | [docs/deploy-kubernetes.md](docs/deploy-kubernetes.md) |
 | Template releases (`v*` tags, generated notes, migrations section), the typed client's changesets (`pnpm changeset`, the version PR, npm publishing off) | [docs/releases.md](docs/releases.md) |
 | Projects built on the template pulling its updates (upstream remote, merging a tag, conflicts, the migrations caveat) | [docs/upgrading.md](docs/upgrading.md) |
 | Log redaction (secret headers and fields, text patterns; `logRedaction.declare*()` at import time, the registry item 5 extends) | [docs/deployment.md](docs/deployment.md), "Log redaction" |

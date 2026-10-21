@@ -3,12 +3,13 @@
   "version": "0.0.1",
   "description": "NestJS 12 REST backend template: accounts (passwords, two-factor, OAuth, magic links, tokens, impersonation), roles with CASL, API keys, audit log, idempotency, outbox, webhooks, workflows, queues, mail, storage, realtime, i18n, Docker Compose for dev and production.",
   "private": true,
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "scripts": {
     "build": "turbo run build",
     "format": "prettier --write \"apps/*/{src,test}/**/*.{ts,tsx}\" \"packages/*/src/**/*.{ts,tsx}\" \"tools/**/*.mjs\"",
-    "lint": "turbo run lint",
+    "lint": "turbo run lint && pnpm i18n:check",
+    "i18n:check": "node tools/i18n/check.mjs",
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e --",
     "test:e2e:web": "turbo run test:browser --env-mode=loose --",
@@ -50,6 +51,9 @@
     "oxlint-tsgolint": "^7.0.2001",
     "prettier": "^3.4.2",
     "turbo": "2.11.8"
+  },
+  "engines": {
+    "node": "^24.0.0"
   },
   "devEngines": {
     "packageManager": {

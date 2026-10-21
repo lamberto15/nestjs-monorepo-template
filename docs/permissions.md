@@ -271,12 +271,13 @@ without a role too), for @mention autocomplete and the like
 
 ```
 GET /v1/people?q=may&limit=10
-{ "items": [{ "key": "user:…", "name": "Maya Patel" }] }
+{ "items": [{ "key": "user:…", "name": "Maya Patel", "avatarUrl": null }] }
 ```
 
 - **What:** a key (`user:<id>`, what `@user:<id>` mentions and what
-  `author`, `changedBy`, `ownerId` hold) and a name, nothing else: no
-  address, no role, no status. Managing people stays on the access API.
+  `author`, `changedBy`, `ownerId` hold), a name and the `avatarUrl` of their
+  picture (null for none; [attachments.md](attachments.md), "Avatars"),
+  nothing else: no address, no role, no status. Managing people stays on the access API.
 - **Whose:** the current tenant's active members (an active account and an
   active membership in it), by name; never another tenant's, never an API
   client. `q` is a part of the name, whatever the case (1 to 100

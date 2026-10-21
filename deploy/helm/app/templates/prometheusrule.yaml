@@ -1,0 +1,16 @@
+{{- if .Values.prometheusRule.enabled }}
+# files/alerts.yml is a copy of monitoring/prometheus/alerts.yml (CI compares
+# them; deploy/helm/sync-rules.sh refreshes it).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+    {{- with .Values.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    {{- (.Files.Get "files/alerts.yml" | fromYaml).groups | toYaml | nindent 4 }}
+{{- end }}

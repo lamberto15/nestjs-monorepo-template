@@ -71,7 +71,27 @@ export const personSchema = z.object({
     )
     .meta({ example: 'user:0198c2a4-6f1e-7c3a-9d2b-5e8f1a2b3c4d' }),
   name: z.string().meta({ example: 'Maya Patel' }),
+  avatarUrl: z
+    .string()
+    .nullable()
+    .describe(
+      'Their picture: a path on this API for an `<img>` (GET /v1/people/{id}/avatar; sign-in required); null: none, and always for an API client. A new picture is a new address.',
+    ),
 });
+
+/** The query of GET /v1/people/{id}/avatar. */
+export const avatarQuerySchema = z
+  .object({
+    v: z
+      .string()
+      .max(100)
+      .optional()
+      .describe(
+        'The version in `avatarUrl`: it only tells a new picture from the one a browser kept, and is not read.',
+      ),
+  })
+  .strict();
+export type AvatarQuery = z.infer<typeof avatarQuerySchema>;
 
 /** The query of GET /v1/teams. */
 export const teamsQuerySchema = z

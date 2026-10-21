@@ -1,5 +1,5 @@
 {
-  "id": "8fdacdd2-a08c-45ca-9671-9c385a9ddd24",
+  "id": "3832b0f4-b0d8-4909-b551-32be33f83e58",
   "prevId": "c42e1a07-913f-4a3e-b2b2-689da1f0a549",
   "version": "7",
   "dialect": "postgresql",
@@ -3118,6 +3118,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": true
+        },
+        "avatar_key": {
+          "name": "avatar_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "deprovisioned_at": {
           "name": "deprovisioned_at",
@@ -7070,13 +7076,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "scan_status": {
-          "name": "scan_status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'clean'"
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -7125,22 +7124,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "attachments_pending_idx": {
-          "name": "attachments_pending_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"attachments\".\"scan_status\" = 'pending'",
           "concurrently": false,
           "method": "btree",
           "with": {}

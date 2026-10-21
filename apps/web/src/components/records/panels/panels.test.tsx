@@ -519,8 +519,12 @@ describe('realtime', () => {
     await screen.findByText('First');
     const fake = await socket();
     // Another record's, then another subject's: nothing to reload.
+    // Only the comments' own requests: an author's picture is looked up
+    // beside them (GET /v1/people?key=), at a time of its own.
     let requests = 0;
-    const count = () => (requests += 1);
+    const count = ({ request }: { request: Request }) => {
+      if (new URL(request.url).pathname.endsWith('/comments')) requests += 1;
+    };
     server.events.on('request:start', count);
     act(() => {
       fake.emit('record.commented', {

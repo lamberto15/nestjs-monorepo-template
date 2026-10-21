@@ -20,6 +20,13 @@ export const userViewSchema = z.object({
     .string()
     .nullable()
     .describe('Their IANA time zone, or null (APP_TIMEZONE).'),
+  avatarUrl: z
+    .string()
+    .nullable()
+    .optional()
+    .describe(
+      'Their picture (an `<img>` path, GET /v1/people/{id}/avatar); null: none.',
+    ),
   active: z
     .boolean()
     .describe('The membership in this tenant and the account, together.'),
