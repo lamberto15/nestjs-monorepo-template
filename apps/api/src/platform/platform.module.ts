@@ -142,6 +142,14 @@ import { AvatarService } from './account/avatar.service.js';
 import { deletionCancelLinksProvider } from './account/deletion-cancel-links.js';
 import { AccountTransfer } from './account/account.transfer.js';
 import { TenantCleanup } from './tenants/tenant-cleanup.js';
+import {
+  BrandingController,
+  PublicBrandingController,
+} from './branding/branding.controller.js';
+import { BrandingService } from './branding/branding.service.js';
+import { BrandingLogoUpload } from './branding/branding-logo-upload.interceptor.js';
+import { BRANDING_SETTINGS } from './branding/branding.settings.js';
+import { MAIL_BRANDING } from '../core/mail/mail-branding.js';
 import { QuotaMetrics } from './quotas/quota.metrics.js';
 import { QUOTA_SETTINGS } from './quotas/quota.settings.js';
 import {
@@ -429,6 +437,9 @@ export class PlatformModule {
         // Tenants' use and limits (GET /v1/tenants/{id}/usage, PUT …/quotas, GET /v1/tenant/usage).
         TenantQuotasController,
         OwnQuotasController,
+        // The tenant's colour, mail sender name and logo (docs/branding.md).
+        BrandingController,
+        PublicBrandingController,
         SubscriptionsController,
         SearchController,
         ListsController,
@@ -474,6 +485,7 @@ export class PlatformModule {
               ...APPROVAL_SETTINGS,
               ...MESSAGING_SETTINGS,
               ...QUOTA_SETTINGS,
+              ...BRANDING_SETTINGS,
               ...AI_SETTINGS,
               ...(options.settings ?? []),
             ],
@@ -718,6 +730,10 @@ export class PlatformModule {
         SendGridIntake,
         SuppressionsService,
         { provide: MAIL_SUPPRESSION, useExisting: SuppressionsService },
+        // The tenant's name and logo in its mail, asked by the core's mail queue.
+        BrandingService,
+        BrandingLogoUpload,
+        { provide: MAIL_BRANDING, useExisting: BrandingService },
         MailSuppressionPolicy,
         // Encrypted columns onto the current keys (docs/encryption.md):
         // hourly scheduling, one batch per queue job, the stale rows on /metrics.
@@ -770,6 +786,8 @@ export class PlatformModule {
         // ExchangeRatesService, to the features.
         MoneyModule,
         MAIL_SUPPRESSION,
+        MAIL_BRANDING,
+        BrandingService,
         MailEventIntakeRegistry,
         IncomingEventHandlers,
       ],

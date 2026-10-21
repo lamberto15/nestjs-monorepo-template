@@ -78,6 +78,16 @@ export const handlers = [
   http.get('/v1/approvals', () =>
     HttpResponse.json({ items: [], nextCursor: null, total: 0 }),
   ),
+  // The tenant's branding (docs/branding.md), read on every signed-in page: none, unless a test says so.
+  http.get('/v1/branding', () =>
+    HttpResponse.json({
+      primaryColor: null,
+      mailFromName: null,
+      logoUrl: null,
+      locked: false,
+      canEdit: false,
+    }),
+  ),
   // The dashboard's unread-notifications card asks on the home page.
   http.get('/v1/notifications', () =>
     HttpResponse.json({ items: [], nextCursor: null }),

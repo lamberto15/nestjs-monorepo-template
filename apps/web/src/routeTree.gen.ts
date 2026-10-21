@@ -20,6 +20,7 @@ import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
+import { Route as AppBrandingRouteImport } from './routes/_app/branding'
 import { Route as AppCustomFieldsRouteImport } from './routes/_app/custom-fields'
 import { Route as AppExchangeRatesRouteImport } from './routes/_app/exchange-rates'
 import { Route as AppLegalHoldsRouteImport } from './routes/_app/legal-holds'
@@ -118,6 +119,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppAuditRoute = AppAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBrandingRoute = AppBrandingRouteImport.update({
+  id: '/branding',
+  path: '/branding',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCustomFieldsRoute = AppCustomFieldsRouteImport.update({
@@ -359,6 +365,7 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
   '/audit': typeof AppAuditRoute
+  '/branding': typeof AppBrandingRoute
   '/custom-fields': typeof AppCustomFieldsRoute
   '/exchange-rates': typeof AppExchangeRatesRoute
   '/legal-holds': typeof AppLegalHoldsRoute
@@ -415,6 +422,7 @@ export interface FileRoutesByTo {
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
   '/audit': typeof AppAuditRoute
+  '/branding': typeof AppBrandingRoute
   '/custom-fields': typeof AppCustomFieldsRoute
   '/exchange-rates': typeof AppExchangeRatesRoute
   '/legal-holds': typeof AppLegalHoldsRoute
@@ -474,6 +482,7 @@ export interface FileRoutesById {
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
   '/_app/audit': typeof AppAuditRoute
+  '/_app/branding': typeof AppBrandingRoute
   '/_app/custom-fields': typeof AppCustomFieldsRoute
   '/_app/exchange-rates': typeof AppExchangeRatesRoute
   '/_app/legal-holds': typeof AppLegalHoldsRoute
@@ -534,6 +543,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/verify-email'
     | '/audit'
+    | '/branding'
     | '/custom-fields'
     | '/exchange-rates'
     | '/legal-holds'
@@ -590,6 +600,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/verify-email'
     | '/audit'
+    | '/branding'
     | '/custom-fields'
     | '/exchange-rates'
     | '/legal-holds'
@@ -648,6 +659,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/verify-email'
     | '/_app/audit'
+    | '/_app/branding'
     | '/_app/custom-fields'
     | '/_app/exchange-rates'
     | '/_app/legal-holds'
@@ -785,6 +797,13 @@ declare module '@tanstack/react-router' {
       path: '/audit'
       fullPath: '/audit'
       preLoaderRoute: typeof AppAuditRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/branding': {
+      id: '/_app/branding'
+      path: '/branding'
+      fullPath: '/branding'
+      preLoaderRoute: typeof AppBrandingRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/custom-fields': {
@@ -1107,6 +1126,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
+  AppBrandingRoute: typeof AppBrandingRoute
   AppCustomFieldsRoute: typeof AppCustomFieldsRoute
   AppExchangeRatesRoute: typeof AppExchangeRatesRoute
   AppLegalHoldsRoute: typeof AppLegalHoldsRoute
@@ -1157,6 +1177,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
+  AppBrandingRoute: AppBrandingRoute,
   AppCustomFieldsRoute: AppCustomFieldsRoute,
   AppExchangeRatesRoute: AppExchangeRatesRoute,
   AppLegalHoldsRoute: AppLegalHoldsRoute,

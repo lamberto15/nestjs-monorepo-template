@@ -18,6 +18,12 @@ import { type Job, type Queue, UnrecoverableError } from 'bullmq';
 import { Counter } from 'prom-client';
 import { MetricsService } from '../metrics/metrics.service.js';
 import {
+  DEFAULT_MAIL_BRAND,
+  MAIL_BRANDING,
+  type MailBranding,
+  withMailBrand,
+} from './mail-branding.js';
+import {
   isEssentialMail,
   MAIL_SUPPRESSION,
   type MailSuppression,
@@ -64,9 +70,14 @@ export interface MailJobResult {
  */
 @Injectable()
 export class MailQueue {
+  private readonly logger = new Logger('MailQueue');
+
   constructor(
     @InjectQueue(MAIL_QUEUE) private readonly queue: Queue<QueuedMail>,
     private readonly mailer: Mailer,
+    @Optional()
+    @Inject(MAIL_BRANDING)
+    private readonly branding?: MailBranding,
   ) {}
 
   async send<M extends Mailable<any>>(
@@ -75,7 +86,14 @@ export class MailQueue {
     /** Your own job id when the call may repeat (a retried handler): the mail goes once. */
     { jobId = randomUUID() }: { jobId?: string } = {},
   ) {
-    const message = await this.mailer.render(mail, options);
+    // The tenant's logo and colour in the templates, its name on the sender
+    // (unless the mail class sets its own `from`: options.from).
+    // Cosmetic: a failed lookup (the settings, the object store) never keeps
+    // a mail back, a sign-in link's or a reset's included.
+    const brand = await this.brand();
+    const message = await withMailBrand(brand, () =>
+      this.mailer.render(mail, options),
+    );
     if (message.attachments.length > 0) {
       throw new Error(
         'Queued mail carries no attachments: store the file and link to it.',
@@ -84,7 +102,10 @@ export class MailQueue {
     await this.queue.add(
       mail.name,
       {
-        from: message.from,
+        from:
+          brand.name && !options.from
+            ? { ...message.from, name: brand.name }
+            : message.from,
         replyTo: [...message.replyTo],
         to: [...message.to],
         cc: [...message.cc],
@@ -102,6 +123,18 @@ export class MailQueue {
         backoff: { type: 'exponential', delay: 30_000 },
       },
     );
+  }
+
+  /** The tenant's brand, or the default when there is none or it can't be read (logged). */
+  private async brand() {
+    try {
+      return (await this.branding?.current()) ?? DEFAULT_MAIL_BRAND;
+    } catch (error) {
+      this.logger.warn('Mail sent unbranded: the brand could not be read', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return DEFAULT_MAIL_BRAND;
+    }
   }
 }
 
