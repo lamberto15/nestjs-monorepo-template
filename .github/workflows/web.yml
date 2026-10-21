@@ -1,0 +1,108 @@
+# The web app's developer checks (docs/monorepo.md, "The web app"): the bundle
+# budget (size-limit; fails a pull request over its limits), Storybook for
+# packages/ui (built, published as an artifact) and Lighthouse CI (a report,
+# never a failure). Only for pull requests that touch the frontend.
+#
+# Third-party actions are pinned by commit SHA (the comment names the
+# release); Dependabot proposes newer ones.
+name: Web
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'turbo.json'
+      - '.github/workflows/web.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  bundle-size:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      # `turbo run size` builds the web app first (turbo.json).
+      - name: Bundle budget
+        run: |
+          pnpm exec turbo run size --filter=@nestjs-monorepo-template/web
+      - name: Sizes in the job summary
+        if: ${{ !cancelled() }}
+        working-directory: apps/web
+        run: |
+          {
+            echo '### Bundle size (brotli) against the budget'
+            echo
+            echo '| Entry | Size | Limit | |'
+            echo '| --- | --- | --- | --- |'
+            pnpm exec size-limit --json | jq -r '.[] | "| \(.name) | \(.size) B | \(.sizeLimit) B | \(if .passed then "ok" else "over" end) |"'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  storybook:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - run: pnpm exec turbo run build-storybook --filter=@nestjs-monorepo-template/ui
+      - name: Storybook
+        uses: actions/upload-artifact@v7
+        with:
+          name: storybook
+          path: packages/ui/storybook-static/
+          retention-days: 14
+
+  # A report first (assertions are warnings): the scores are in the summary and
+  # the reports in the artifact; nothing fails.
+  lighthouse:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - name: Lighthouse CI on the built app
+        run: pnpm exec turbo run lighthouse --filter=@nestjs-monorepo-template/web
+      - name: Scores in the job summary
+        if: ${{ !cancelled() }}
+        working-directory: apps/web/.lighthouseci
+        run: |
+          {
+            echo '### Lighthouse (non-blocking)'
+            echo
+            echo '| Performance | Accessibility | Best practices |'
+            echo '| --- | --- | --- |'
+            for f in lhr-*.json; do
+              jq -r '[.categories.performance.score, .categories.accessibility.score, .categories["best-practices"].score] | map(. * 100 | round) | "| \(.[0]) | \(.[1]) | \(.[2]) |"' "$f"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Lighthouse reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse
+          path: apps/web/.lighthouseci/
+          retention-days: 14
