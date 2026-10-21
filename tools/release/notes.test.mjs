@@ -2,11 +2,19 @@
 // throwaway repository with releases, read the way CI reads the real one.
 // git only: the migration lint (Docker) has its own tests.
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
+import { fileURLToPath } from 'node:url';
 import {
   breakingChanges,
   clientVersions,
@@ -17,6 +25,7 @@ import {
   migrationChanges,
   previousTag,
   render,
+  TAG,
 } from './notes.mjs';
 
 let cwd;
@@ -354,5 +363,97 @@ describe('render', () => {
       client: { name: 'c', before: '0.1.0', after: '0.1.0' },
     });
     assert.doesNotMatch(notes, /## Typed client/);
+  });
+});
+
+// Claude runs it too: a tag never reaches git as an option, a file never
+// lands outside the checkout or a temp directory (#471).
+describe('the command', () => {
+  const script = fileURLToPath(new URL('./notes.mjs', import.meta.url));
+  const notes = (...args) =>
+    spawnSync(process.execPath, [script, ...args], {
+      cwd,
+      encoding: 'utf8',
+      env: { ...process.env, GITHUB_REPOSITORY: '', RUNNER_TEMP: '' },
+    });
+
+  it('takes release tags only', () => {
+    for (const tag of ['v1.2.0', 'v1.2.0-rc.1', 'v10.0.0-beta.2.x']) {
+      assert.ok(TAG.test(tag), tag);
+    }
+    for (const tag of [
+      '1.2.0',
+      'v1.2',
+      '--output=x',
+      'v1.2.0..v1.3.0',
+      'v1.2.0 x',
+    ]) {
+      assert.ok(!TAG.test(tag), tag);
+    }
+  });
+
+  it('refuses a tag or a previous release that is not a tag', () => {
+    const bad = notes('--tag=--output=x', '--print-previous');
+    assert.equal(bad.status, 2);
+    assert.match(bad.stderr, /^Usage:/);
+    const previous = notes(
+      '--tag',
+      'v0.2.0',
+      '--previous=--output=/tmp/x',
+      '--repository',
+      'o/r',
+      '--no-lint',
+    );
+    assert.equal(previous.status, 2);
+    assert.match(
+      previous.stderr,
+      /--previous --output=\/tmp\/x: a release tag/,
+    );
+    assert.equal(
+      notes('--tag', 'v0.2.0', '--print-previous').stdout,
+      'v0.1.0\n',
+    );
+  });
+
+  it('refuses --changes or --out outside the checkout and the temp directories', () => {
+    for (const option of ['--changes', '--out']) {
+      const run = notes(
+        '--tag',
+        'v0.2.0',
+        '--repository',
+        'o/r',
+        '--no-lint',
+        option,
+        '/etc/hosts',
+      );
+      assert.equal(run.status, 2, option);
+      assert.match(run.stderr, /--changes and --out name files under/);
+    }
+  });
+
+  it('reads --changes and writes --out in a temp directory', () => {
+    const changes = path.join(cwd, 'changes.md');
+    const out = path.join(cwd, 'out', 'notes.md');
+    mkdirSync(path.dirname(out), { recursive: true });
+    writeFileSync(changes, "## What's Changed\n* a pull request\n");
+    const run = notes(
+      '--tag',
+      'v0.2.0',
+      '--previous',
+      'v0.1.0',
+      '--repository',
+      'o/r',
+      '--no-lint',
+      '--changes',
+      changes,
+      '--out',
+      out,
+    );
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, '');
+    assert.ok(existsSync(out));
+    const text = readFileSync(out, 'utf8');
+    assert.match(text, /## Breaking changes/);
+    assert.ok(text.endsWith("## What's Changed\n* a pull request\n"));
   });
 });
