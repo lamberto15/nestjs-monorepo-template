@@ -12366,6 +12366,9 @@
           },
           "404": {
             "description": "No such setting, team or principal."
+          },
+          "409": {
+            "description": "Would lock the caller out: `auth.requireMfa` on for the caller while they have no authenticator (409 `mfa_enroll_first`; set up two-factor first)."
           }
         },
         "security": [
@@ -13285,6 +13288,9 @@
           },
           "404": {
             "description": ""
+          },
+          "409": {
+            "description": "Would lock the caller out: `auth.requireMfa` on for the caller while they have no authenticator (409 `mfa_enroll_first`; set up two-factor first)."
           }
         },
         "security": [

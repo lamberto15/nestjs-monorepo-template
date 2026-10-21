@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Inject,
   Injectable,
   Logger,
@@ -78,6 +79,18 @@ export interface SettingView extends SettingValueSchema {
   canEditPlatform: boolean;
 }
 
+/** A write about to be stored: who, at which scope, which value. */
+interface PendingWrite {
+  actor: Principal;
+  scope: SettingScope | 'platform';
+  scopeId: string | undefined;
+  value: unknown;
+}
+/** A refusal (409 `code`) or nothing (`guardWrite()`). */
+type WriteGuard = (
+  write: PendingWrite,
+) => Promise<{ code: string; message: string } | undefined>;
+
 type Row = typeof settingOverrides.$inferSelect;
 type PlatformRow = typeof platformSettingValues.$inferSelect;
 
@@ -125,6 +138,8 @@ export class SettingsService {
     string,
     ((value: unknown) => string | undefined)[]
   >();
+  /** Checks on who may store which value (`guardWrite()`), by key. */
+  private readonly writeGuards = new Map<string, WriteGuard[]>();
   /** Per tenant, the least recently loaded first (dropped past MAX_CACHED_TENANTS). */
   private readonly caches = new Map<string, Cached>();
   private static readonly MAX_CACHED_TENANTS = 1_000;
@@ -193,6 +208,35 @@ export class SettingsService {
     const checks = this.restrictions.get(declaration.key) ?? [];
     checks.push(check as (value: unknown) => string | undefined);
     this.restrictions.set(declaration.key, checks);
+  }
+
+  /**
+   * Refuses a write of `key` by this caller when `check` answers a
+   * refusal (a 409 with that stable `code`): for values that would lock the
+   * writer out (`auth.requireMfa` for an administrator with no
+   * authenticator, platform/auth-policy). Unlike `restrict()`, it knows
+   * who writes and at which scope.
+   */
+  guardWrite<T>(declaration: SettingDeclaration<T>, check: WriteGuard) {
+    this.declaration(declaration.key);
+    const checks = this.writeGuards.get(declaration.key) ?? [];
+    checks.push(check);
+    this.writeGuards.set(declaration.key, checks);
+  }
+
+  private async assertWriter(
+    actor: Principal,
+    key: string,
+    scope: SettingScope | 'platform',
+    scopeId: string | undefined,
+    value: unknown,
+  ) {
+    for (const check of this.writeGuards.get(key) ?? []) {
+      const refusal = await check({ actor, scope, scopeId, value });
+      if (refusal) {
+        throw new ConflictException(refusal);
+      }
+    }
   }
 
   /** A 400 `setting_not_allowed` when a restriction refuses the value. */
@@ -503,6 +547,7 @@ export class SettingsService {
     }
     if (dto.value !== undefined) {
       this.assertAllowed(key, value);
+      await this.assertWriter(actor, key, scope, scopeId, value);
     }
     await this.assertRolesExist(rules ?? []);
     return this.write(
@@ -603,6 +648,7 @@ export class SettingsService {
     }
     if (dto.value !== undefined) {
       this.assertAllowed(key, value);
+      await this.assertWriter(actor, key, 'platform', undefined, value);
     }
     const row = await inTransaction(this.txHost, async (tx) => {
       const [before] = await tx
@@ -914,7 +960,7 @@ export class SettingsService {
     if (removed) await this.bump();
   }
 
-  private async teamsOf(userId: string) {
+  async teamsOf(userId: string) {
     const rows = await this.db
       .select({ id: userTeams.teamId })
       .from(userTeams)

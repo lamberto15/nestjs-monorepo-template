@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { MfaService } from '@nestjs/authentication';
 import { ConfigService } from '@nestjs/config';
+import { t } from '@nestjs/i18n';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import {
   type AuthPolicySource,
@@ -27,6 +29,7 @@ export class SettingsAuthPolicy implements AuthPolicySource {
   constructor(
     private readonly settings: SettingsService,
     private readonly tenancy: Tenancy,
+    private readonly mfa: MfaService,
     config: ConfigService<IamEnv, true>,
   ) {
     // IAM's ceiling, on the env as it is when the value is set. Not through
@@ -38,6 +41,41 @@ export class SettingsAuthPolicy implements AuthPolicySource {
         value,
       ),
     );
+    // Turning it on for a scope that covers a caller who has no
+    // authenticator locks that caller out of the settings they are using
+    // (MfaEnrollmentGuard): refused until they enrol. Custom: the guard
+    // knows the writer, `restrict()` only the value.
+    settings.guardWrite(AUTH_REQUIRE_MFA, async (write) => {
+      const actor = write.actor;
+      if (
+        write.value !== true ||
+        actor.kind !== 'user' ||
+        actor.impersonator ||
+        !config.get('AUTH_MFA', { infer: true }) ||
+        !(await this.covers(write, actor.id)) ||
+        (await this.mfa.isEnrolled(actor.id))
+      ) {
+        return undefined;
+      }
+      return {
+        code: 'mfa_enroll_first',
+        message: t('auth.mfaEnrollFirst'),
+      };
+    });
+  }
+
+  /** Whether the written scope would require two-factor of this user. */
+  private async covers(
+    write: { scope: string; scopeId: string | undefined },
+    userId: string,
+  ) {
+    if (write.scope === 'team') {
+      return (
+        write.scopeId !== undefined &&
+        (await this.settings.teamsOf(userId)).includes(write.scopeId)
+      );
+    }
+    return write.scope === 'tenant' || write.scope === 'platform';
   }
 
   requireMfa(user: UserPrincipal): Promise<boolean> {
