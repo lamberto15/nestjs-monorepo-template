@@ -89,6 +89,17 @@ describe('AI helper (e2e)', () => {
     throw new Error('The run did not finish');
   }
 
+  it('tells every signed-in user whether the helper is on: the provider in /v1/features, the opt-in in /v1/settings', async () => {
+    const viewer = await node.user(['viewer']);
+    const features = await viewer.agent.get('/v1/features').expect(200);
+    expect(features.body.ai).toBe(true);
+    const settings = await viewer.agent.get('/v1/settings').expect(200);
+    const entry = settings.body.items.find(
+      (item: { key: string }) => item.key === 'ai.enabled',
+    );
+    expect(entry).toMatchObject({ public: true, value: expect.any(Boolean) });
+  });
+
   it('is off until the tenant opts in, then answers on a worker with a validated structured output', async () => {
     const record = await item();
     const admin = node.admin();

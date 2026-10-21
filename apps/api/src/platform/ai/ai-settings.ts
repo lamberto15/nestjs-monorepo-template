@@ -12,7 +12,7 @@ export const AI_ENABLED = setting({
     'Let people ask the AI helper to summarize records. Their fields (only those the person may read) are sent to the provider (Anthropic) for each request. Off until you turn it on.',
   schema: z.boolean(),
   default: false,
-  public: false,
+  public: true, // Everyone signed in may read it, so the web app can hide the helper.
 });
 
 /** The helper's own settings, added by the platform to the features'. */

@@ -22,6 +22,7 @@ import {
   type AiTask,
 } from '@/features/ai/api';
 import { errorMessage } from '@/lib/errors';
+import { useFeature } from '@/lib/features';
 import { useRealtime, useRealtimeEvent } from '@/lib/realtime';
 
 /** One run: pending while it is queued or running, then its answer or why it failed. */
@@ -130,13 +131,14 @@ function AiRunView(props: { id: string; task: AiTask }) {
  * followed over realtime (`ai.ready`, `ai.failed`) and a slow poll. The
  * documented errors are handled here: 403 `ai_disabled` and 503
  * `ai_unavailable` replace the buttons with a notice, 409 `ai_pending` and
- * 429 `ai_quota_exceeded` are toasts. Hidden when an administrator's view of
- * `GET /v1/settings` shows `ai.enabled` off.
+ * 429 `ai_quota_exceeded` are toasts. Hidden up front when the server has no
+ * provider (`GET /v1/features` `ai`) or the tenant's `ai.enabled` is off.
  *
  *   <AiPanel source="note" recordId={note.id} />
  */
 export function AiPanel(props: { source: string; recordId: string }) {
   const { t } = useTranslation('ai');
+  const providerOn = useFeature('ai');
   const off = useQuery(aiOffQuery).data === true;
   const [runs, setRuns] = useState<Partial<Record<AiTask, string>>>({});
   const [blocked, setBlocked] = useState<'disabled' | 'unavailable'>();
@@ -166,7 +168,7 @@ export function AiPanel(props: { source: string; recordId: string }) {
     },
   });
 
-  if (off) {
+  if (off || !providerOn) {
     return null;
   }
   const buttons: { task: AiTask; icon: typeof SparklesIcon }[] = [

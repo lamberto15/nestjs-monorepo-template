@@ -1,11 +1,16 @@
 import type { ConfigService } from '@nestjs/config';
 import type { PdfRenderer } from '../documents/pdf-renderer.js';
+import type { AiProvider } from '../ai/ai-provider.js';
 import { FeaturesService } from './features.service.js';
 
 const SWITCHES = ['REALTIME', 'WEBHOOKS', 'REPORTS', 'USAGE'] as const;
 
 /** A service over `env` (what ConfigService returns) and a renderer that is `documents` or not. */
-function service(env: Record<string, unknown> = {}, documents = false) {
+function service(
+  env: Record<string, unknown> = {},
+  documents = false,
+  ai = false,
+) {
   const values: Record<string, unknown> = {
     IMPERSONATION: false,
     AUTH_MFA: true,
@@ -20,9 +25,13 @@ function service(env: Record<string, unknown> = {}, documents = false) {
   const config = {
     get: (key: string) => values[key],
   } as unknown as ConfigService<never, true>;
-  return new FeaturesService(config, {
-    enabled: documents,
-  } as unknown as PdfRenderer);
+  return new FeaturesService(
+    config,
+    {
+      enabled: documents,
+    } as unknown as PdfRenderer,
+    { enabled: ai } as unknown as AiProvider,
+  );
 }
 
 describe('FeaturesService', () => {
@@ -53,6 +62,7 @@ describe('FeaturesService', () => {
       signUp: false,
       magicLink: true,
       documents: false,
+      ai: false,
       tenancy: 'multi',
       locales: ['en', 'de'],
     });
@@ -99,5 +109,10 @@ describe('FeaturesService', () => {
   it('says documents are on while the PDF renderer is (GOTENBERG_URL is set)', () => {
     expect(service({}, true).current().documents).toBe(true);
     expect(service({}, false).current().documents).toBe(false);
+  });
+
+  it('says ai is on while the AI provider is (ANTHROPIC_API_KEY is set)', () => {
+    expect(service({}, false, true).current().ai).toBe(true);
+    expect(service({}, false, false).current().ai).toBe(false);
   });
 });

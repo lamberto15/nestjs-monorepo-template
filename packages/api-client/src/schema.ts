@@ -541,7 +541,7 @@ export interface paths {
         };
         /**
          * Which switches are on in this deployment
-         * @description The deployment switches (`REALTIME`, `WEBHOOKS`, `REPORTS`, `USAGE`, `IMPERSONATION`, `AUTH_MFA`, `API_CLIENTS`), the sign-in options (`PASSKEYS`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`), whether PDF documents are set up, `TENANCY` and `LOCALES`. A switch that is off leaves its routes out (404) or refuses them (404 `feature_off`, 503 `documents_unavailable`). Read at startup: a change needs a restart.
+         * @description The deployment switches (`REALTIME`, `WEBHOOKS`, `REPORTS`, `USAGE`, `IMPERSONATION`, `AUTH_MFA`, `API_CLIENTS`), the sign-in options (`PASSKEYS`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`), whether PDF documents are set up, whether the AI helper has a provider (`ai`; a tenant opts in with the public setting `ai.enabled`), `TENANCY` and `LOCALES`. A switch that is off leaves its routes out (404) or refuses them (404 `feature_off`, 503 `documents_unavailable`). Read at startup: a change needs a restart.
          */
         get: operations["FeaturesController_list_v1"];
         put?: never;
@@ -7879,6 +7879,8 @@ export interface operations {
                         magicLink: boolean;
                         /** @description PDF documents of records. Off: they answer 503 `documents_unavailable` (no Gotenberg is configured). */
                         documents: boolean;
+                        /** @description The AI helper has a provider (`ANTHROPIC_API_KEY`). Off: `POST /v1/ai/runs` answers 503 `ai_unavailable`. On, a tenant still opts in with the public setting `ai.enabled` (403 `ai_disabled`). */
+                        ai: boolean;
                         /**
                          * @description `single`: the first tenant is the only one.
                          * @enum {string}

@@ -34,6 +34,11 @@ export const featuresSchema = z.object({
     .describe(
       'PDF documents of records. Off: they answer 503 `documents_unavailable` (no Gotenberg is configured).',
     ),
+  ai: z
+    .boolean()
+    .describe(
+      'The AI helper has a provider (`ANTHROPIC_API_KEY`). Off: `POST /v1/ai/runs` answers 503 `ai_unavailable`. On, a tenant still opts in with the public setting `ai.enabled` (403 `ai_disabled`).',
+    ),
   tenancy: z
     .enum(['multi', 'single'])
     .describe('`single`: the first tenant is the only one.'),
