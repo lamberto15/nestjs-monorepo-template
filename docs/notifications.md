@@ -254,6 +254,20 @@ its token is dead (Web Push 404/410), after `DEVICES_RETENTION_DAYS` without bei
 seen (nightly), and with the account (a `PersonalDataSource`: both devices and
 number are in the data export).
 
+**Quiet hours.** A user may set a window (`PUT /v1/notifications/quiet-hours
+{ "start": "22:00", "end": "07:00" }`, `GET` to read it, `DELETE` to remove it;
+audited as `notificationQuietHours.updated`) on the clock of their time zone
+(`PATCH /v1/auth/me { timezone }`, else `APP_TIMEZONE`;
+[i18n-and-time.md](i18n-and-time.md)). The window may run past midnight and follows
+daylight-saving changes. A push or SMS whose notification is delivered inside
+it is not dropped: its job is queued with a delay and goes when the window ends
+(the other channels, the bell and mail, are unaffected). A type declared
+`urgent: true` goes through at once; the security notifications of IAM
+(`security.newSignIn`, password and two-factor changes, passkeys, break-glass)
+are urgent, and so is the verification code, which is not a notification.
+Code: `platform/notifications/quiet-hours.ts` (`quietUntil`), the delivery handler
+sets `NotificationDelivery.quietUntil` and the two channels read it.
+
 **Preferences.** `sms` and `push` are booleans per type in
 `PUT /notifications/preferences`, off unless a declaration's `channels` says
 `{ sms: true }`. SMS also needs a verified number that has not opted out; push needs a
@@ -271,17 +285,30 @@ included), so they hold whatever queued it:
   incremented in one transaction with an atomic upsert, which rolls back when a cap
   is hit, so a refused SMS uses none of the allowance and concurrent workers cannot
   overshoot;
-- per client IP, the routes that text a code are throttled (5 per 10 minutes);
+- per client IP, the routes that text a code are throttled (5 per 10 minutes),
+  and `PUT /v1/messaging/phone` also takes a daily allowance per IP and tenant
+  (`SMS_DAILY_LIMIT_PER_IP`, 20): past it, 429 `sms_ip_limit`. The IP is kept only as
+  a hash in the counter (`ip:<hash>`), swept with the other daily counters;
+- per UTC month, a **spend cap** per tenant: `SMS_MONTHLY_BUDGET_MINOR` (minor
+  units of one currency; 0, the default, is no cap). An SMS costs its segments
+  (160 characters, 153 when split; 70 and 67 with any non-ASCII character) times the price of
+  its prefix, `SMS_PRICES` (`+1=79,+44=120`), else `SMS_PRICE_DEFAULT_MINOR`; the prices
+  are yours to keep right (they are not the provider's invoice). The cost is
+  added to the month's `spend` counter in the same transaction as the others and
+  rolled back at the cap, so sending stops at it (reason `budget_exceeded`) until the
+  next month. The send that crosses 80 % logs an error ("SMS spend passed 80 % of the
+  monthly budget"), and the gauge `sms_budget_used_ratio` is at 0.8;
 - a refusal is counted (`blocked:<reason>`), logged as an error and shown by the
-  gauges `sms_sent_today` and `sms_blocked_today{reason}` on the workers'
-  `/metrics`; alert on a rising `sms_blocked_today` or on `sms_sent_today` beyond what
-  you expect (no rule ships yet);
+  gauges `sms_sent_today`, `sms_blocked_today{reason}`, `sms_spend_month_minor` and
+  `sms_budget_used_ratio` on the workers' `/metrics`. The rules `SmsBlocked` (any
+  `sms_blocked_today`, by reason) and `SmsBudgetNearCap` (80 %) ship in
+  `monitoring/prometheus/alerts.yml`, with their tests ([deployment.md](deployment.md), "Alerting");
 - the **kill switch** is the flag `messaging.sms` (on by default). The operators
   switch it off for every tenant with `PUT /v1/settings/messaging.sms/platform
   { "value": false, "enforced": true }`; a tenant's administrator can switch off
   their own tenant. A job meeting it is skipped (`switched_off`), not retried.
 
-The caps count messages, not money: a spend ceiling would need the provider's prices.
+The daily caps count messages; the monthly cap counts money, by the price table you configure.
 
 **STOP and START.** Point the provider's inbound webhook at
 `https://<APP_DOMAIN>/v1/webhooks/sms/twilio`. The adapter verifies Twilio's
@@ -301,9 +328,32 @@ opt-out row and its audit entry.
 `messaging/providers/`) chosen by the environment; `memory` keeps what it would send
 (tests; never receives inbound). Twilio is written over `fetch` and `node:crypto`
 (two calls, as the SendGrid intake does for its signature), Web Push uses the pinned
-`web-push` library (VAPID, payload encryption). APNs and FCM are further adapters of
-`PushProvider` (iOS and Android devices are stored but have no provider yet); another
-SMS provider implements `SmsProvider.send` and `parseInbound`.
+`web-push` library (VAPID, payload encryption). `PUSH_PROVIDER` takes several,
+comma-separated (`web-push,apns,fcm`): each device goes to the provider of its
+platform (`web`, `ios`, `android`), and a device whose platform nobody serves is skipped.
+
+- **APNs** (`apns`, iOS): token-based authentication. An ES256 JWT (`kid` =
+  `APNS_KEY_ID`, `iss` = `APNS_TEAM_ID`), signed with the `.p8` key
+  (`APNS_PRIVATE_KEY`, PEM; write the newlines as `\n` in an env file) and reused for
+  40 minutes, goes in `authorization: bearer`; `apns-topic` is `APNS_BUNDLE_ID`.
+  APNs needs HTTP/2, which `fetch` does not speak, so the adapter keeps one
+  `node:http2` session open and reopens it when it drops. `APNS_API_URL` is production
+  (`https://api.push.apple.com`); use `https://api.sandbox.push.apple.com` for
+  development builds. A 410 or a `BadDeviceToken`, `DeviceTokenNotForTopic` or
+  `Unregistered` reason deletes the device; 429, 5xx, a connection failure and
+  `ExpiredProviderToken` (a new JWT is signed) are retried; anything else fails the job.
+- **FCM** (`fcm`, Android): the HTTP v1 API, authorised with a service account
+  (`FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY`). An RS256 JWT is
+  exchanged at `FCM_TOKEN_URL` for an access token, cached until a minute before it
+  ends, and the message is posted to `FCM_API_URL/v1/projects/<id>/messages:send`. A 404
+  (`UNREGISTERED`) or an invalid registration token deletes the device; 401 (the token
+  is dropped), 429 and 5xx are retried; anything else fails the job.
+- Both are written over `node:crypto` (and `node:http2` for APNs), like the Twilio
+  adapter, and are tested against stubs of the two services (`providers/*.spec.ts`);
+  no real credential has exercised them. Neither is on unless `PUSH_PROVIDER` names it
+  and its variables are set (the app refuses to start with one missing).
+
+Another SMS provider implements `SmsProvider.send` and `parseInbound`.
 
 **Limits.** An SMS is cut to `SMS_MAX_LENGTH` characters; a push payload to
 `PUSH_MAX_PAYLOAD_BYTES` (the body gives way).

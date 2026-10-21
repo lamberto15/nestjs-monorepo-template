@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  ForbiddenException,
   HttpStatus,
   Ip,
   Param,
@@ -30,18 +31,29 @@ import type { z } from 'zod';
 import type { ListQuery } from '../../core/http/list-query.js';
 import { notWhileImpersonating } from '../../iam/account/account.schemas.js';
 import { listSchema, pageSchema } from '../../core/http/pagination.js';
-import type { Principal } from '../../iam/auth/principal.js';
+import type { Principal, UserPrincipal } from '../../iam/auth/principal.js';
 import { NOTIFICATION_LIST } from './notification.list.js';
 import {
   notificationSchema,
   notificationTypeSchema,
   preferencesInputSchema,
   preferencesViewSchema,
+  quietHoursInputSchema,
+  quietHoursViewSchema,
   readAllResultSchema,
   readAllSchema,
   unreadCountSchema,
 } from './notification.schemas.js';
 import { NotificationsService } from './notifications.service.js';
+
+/** The signed-in person: quiet hours are theirs alone (not an API client's, not while an administrator acts as them). */
+function person(principal: Principal): UserPrincipal {
+  if (principal.kind !== 'user') {
+    throw new ForbiddenException('Quiet hours belong to people.');
+  }
+  notWhileImpersonating(principal);
+  return principal;
+}
 
 /**
  * The caller's notifications (a user's or an API client's): what they were
@@ -150,6 +162,46 @@ export class NotificationsController {
     // The person's own: an administrator acting as them changes none of it.
     notWhileImpersonating(user);
     return this.notifications.updatePreferences(user, body, ip);
+  }
+
+  @Get('quiet-hours')
+  @Can.Anyone()
+  @ApiOperation({
+    summary: 'Your quiet hours',
+    description:
+      'While the clock of your time zone is inside the window, push and SMS wait for it to end (types marked `urgent` do not). In-app, realtime and email are unaffected.',
+  })
+  @ApiOkResponse({ standardSchema: quietHoursViewSchema })
+  @ApiForbiddenResponse({ description: 'An API client has no quiet hours.' })
+  quietHours(@CurrentUser() user: Principal) {
+    return this.notifications.quietHours(person(user));
+  }
+
+  @Put('quiet-hours')
+  @Can.Anyone()
+  @ApiOperation({
+    summary: 'Set your quiet hours',
+    description:
+      'A window on the clock of your time zone (`PATCH /auth/me { timezone }`, else the deployment’s), as `HH:MM`; one past midnight (`22:00` to `07:00`) is fine. Push and SMS of a non-urgent notification arriving inside it are sent when it ends. Audited.',
+  })
+  @ApiOkResponse({ standardSchema: quietHoursViewSchema })
+  @ApiBadRequestResponse({ description: 'validation_failed.' })
+  setQuietHours(
+    @CurrentUser() user: Principal,
+    @Body({ schema: quietHoursInputSchema })
+    body: z.infer<typeof quietHoursInputSchema>,
+    @Ip() ip: string,
+  ) {
+    return this.notifications.setQuietHours(person(user), body, ip);
+  }
+
+  @Delete('quiet-hours')
+  @HttpCode(HttpStatus.OK)
+  @Can.Anyone()
+  @ApiOperation({ summary: 'Remove your quiet hours' })
+  @ApiOkResponse({ standardSchema: quietHoursViewSchema })
+  clearQuietHours(@CurrentUser() user: Principal, @Ip() ip: string) {
+    return this.notifications.setQuietHours(person(user), null, ip);
   }
 
   @Post(':id/read')

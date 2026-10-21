@@ -13,6 +13,7 @@ import {
   tenantTable,
 } from '../../core/tenancy/tenant-scope.js';
 import type { DigestMode, PreferenceOverrides } from './notification.types.js';
+import type { QuietHours } from './quiet-hours.js';
 
 /**
  * What a recipient was told: the in-app notification, kept until the
@@ -99,6 +100,8 @@ export const notificationPreferences = pgTable(
       .$type<PreferenceOverrides>()
       .notNull()
       .default({}),
+    /** Push and SMS wait while the clock of the user's time zone is in this window (urgent types go through); null: none. */
+    quietHours: jsonb('quiet_hours').$type<QuietHours>(),
     ...timestamps(),
   },
   (table) => [
