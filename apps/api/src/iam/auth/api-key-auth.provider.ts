@@ -120,9 +120,10 @@ export class ApiKeyAuth extends ApiKeyProvider<Principal> {
     context: ExecutionContext,
     client: Principal & { kind: 'client' },
   ) {
-    const cidrs = this.allowlists.get(client) ?? [];
+    const cidrs = this.allowlists.get(client);
     const ip = context.switchToHttp().getRequest<Request>().ip;
-    if (ipAllowed(ip, cidrs)) {
+    // A principal findKey didn't return has no known allowlist: refused, never waved through.
+    if (cidrs !== undefined && ipAllowed(ip, cidrs)) {
       return;
     }
     await this.auditDenied(client, ip);
