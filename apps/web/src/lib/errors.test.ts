@@ -18,6 +18,7 @@ const target = (inApp = true) => ({
   inApp: () => inApp,
   toSignIn: vi.fn(),
   toMfaSetup: vi.fn(),
+  toOnboarding: vi.fn(),
 });
 
 describe('the global error handler', () => {
@@ -93,6 +94,19 @@ describe('the global error handler', () => {
     );
     expect(to.toMfaSetup).toHaveBeenCalledOnce();
     expect(toast.info).toHaveBeenCalledOnce();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('sends the first administrator mid-onboarding to the onboarding page', () => {
+    const to = target();
+    const queryClient = createQueryClient(() => to);
+    handleApiError(
+      queryClient,
+      to,
+      new ApiError({ status: 403, code: 'onboarding_required' }),
+      undefined,
+    );
+    expect(to.toOnboarding).toHaveBeenCalledOnce();
     expect(toast.error).not.toHaveBeenCalled();
   });
 

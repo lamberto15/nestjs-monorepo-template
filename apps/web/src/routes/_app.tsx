@@ -35,9 +35,20 @@ export const Route = createFileRoute('/_app')({
         search: { redirect: location.href },
       });
     }
+    // The first administrator must replace the placeholder email and the
+    // generated password first (403 `onboarding_required` elsewhere). The
+    // onboarding page also offers two-factor, so it comes before the next
+    // rule: both pending, it is where the user is, not sent back and forth.
+    if (me.onboardingRequired && location.pathname !== '/onboarding') {
+      throw redirect({ to: '/onboarding' });
+    }
     // A tenant that requires two-factor restricts the session until the
     // user sets it up (403 `mfa_enrollment_required` elsewhere).
-    if (me.mfaEnrollmentRequired && location.pathname !== '/account/security') {
+    if (
+      me.mfaEnrollmentRequired &&
+      location.pathname !== '/account/security' &&
+      location.pathname !== '/onboarding'
+    ) {
       throw redirect({ to: '/account/security' });
     }
     // The deployment's mode comes with the switches: known before the first

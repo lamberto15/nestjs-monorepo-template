@@ -718,6 +718,17 @@ export function buildPlan({
   const was = (key) => existing?.get(key) ?? '';
   const changes = (key) =>
     was(key) !== '' && values.has(key) && was(key) !== (values.get(key) ?? '');
+  const adminEmail = values.get('ADMIN_EMAIL') ?? was('ADMIN_EMAIL');
+  if (
+    ctx.target === 'production' &&
+    /@(example\.(com|net|org)|[^@]*\.(invalid|test|localhost))$/i.test(
+      adminEmail,
+    )
+  ) {
+    warnings.push(
+      `ADMIN_EMAIL is the placeholder ${adminEmail}: no mail can reach the only administrator. The first sign-in forces a real, verified address and a new password (ADMIN_ONBOARDING, docs/auth.md); set a real one now to skip the address step.`,
+    );
+  }
   if (changes('TENANCY')) {
     warnings.push(
       `TENANCY changes from ${was('TENANCY')} to ${values.get('TENANCY')}: the deployment shape is chosen once; read docs/tenancy.md before switching a database that has data.`,

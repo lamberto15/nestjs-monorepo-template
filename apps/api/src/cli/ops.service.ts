@@ -302,7 +302,7 @@ export class OpsService {
         const told = await this.system.run(
           OPS_JOB,
           async (system, tx) => {
-            await this.users.updatePasswordHash(user.id, hash, tx);
+            await this.users.replacePassword(user.id, hash, tx);
             return this.alerts().credentialsChanged(tx, system, user.id, {
               action: 'ops.password-reset',
               ip: '',

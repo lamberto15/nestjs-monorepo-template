@@ -27,6 +27,8 @@ export type ErrorHandlerTarget = {
   toSignIn(redirect: string): void;
   /** To the two-factor setup page (a no-op when already there). */
   toMfaSetup(): void;
+  /** The first administrator's onboarding page. */
+  toOnboarding(): void;
 };
 
 /**
@@ -59,6 +61,8 @@ export function endSession(
  * - 503 `read_only` / `maintenance` (the deployment's mode, docs/settings.md):
  *   the mode is asked again at once, so the banner or the full-page notice
  *   shows; one toast however many requests were refused (the id dedupes).
+ * - 403 `onboarding_required` (the first administrator still has the
+ *   placeholder email or generated password): to the onboarding page, explained.
  * - Anything else: a toast with the problem's `detail` (in the request's
  *   language), unless the caller shows it (`meta: { errorToast: false }`).
  */
@@ -97,6 +101,15 @@ export function handleApiError(
       );
       if (meta?.errorToast !== false) {
         toast.error(errorMessage(error), { id: 'deployment-mode' });
+      }
+      return;
+    }
+    if (error.code === 'onboarding_required') {
+      if (target?.inApp()) {
+        toast.info(i18n.t('onboarding.redirected'), {
+          id: 'onboarding-required',
+        });
+        target.toOnboarding();
       }
       return;
     }

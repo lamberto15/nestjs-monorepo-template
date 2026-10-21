@@ -10967,6 +10967,92 @@
       }
     },
     "/v1/notifications/unsubscribe/{token}": {
+      "get": {
+        "description": "No sign-in, and read-only: it changes and records nothing, so a mail scanner that follows the link does no harm. Answers what the token of the mail's unsubscribe link stops: a notification type (`kind: type`, its `label` in the request's language) or a digest (`kind: digest`, its `modes`). Never the person's email or id. A forged, expired or foreign token, or a gone account, is the same 400 the POST gives.",
+        "operationId": "NotificationUnsubscribeController_describe_v1",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "type"
+                          ]
+                        },
+                        "label": {
+                          "nullable": true,
+                          "description": "What the notification type is called, in the request's language. Null when the link would change nothing (the type is gone, or mandatory): the client then speaks generally.",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "label"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "digest"
+                          ]
+                        },
+                        "modes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "hourly",
+                              "daily"
+                            ]
+                          },
+                          "description": "The digests the link stands for: every type the person gets in these modes."
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "modes"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ],
+                  "example": {
+                    "kind": "type",
+                    "label": "Mentioned in a comment"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The link is invalid or expired, or the account is gone: the link errors share one answer, the POST included."
+          }
+        },
+        "summary": "Which mail an unsubscribe link stops",
+        "tags": [
+          "notifications"
+        ]
+      },
       "post": {
         "description": "No sign-in: the token of the mail's `List-Unsubscribe` link (RFC 8058). Switches the mail of that notification type (or of that digest's types) off in the user's preferences; mandatory types are never switched off. Repeating it changes nothing. The body is the form `List-Unsubscribe=One-Click` mail clients post (JSON with the same field works too). Audited (`notificationPreferences.updated`, `via: unsubscribe`).",
         "operationId": "NotificationUnsubscribeController_unsubscribeByLink_v1",
@@ -29102,6 +29188,24 @@
                       "type": "boolean",
                       "description": "true: this tenant requires two-factor (auth.requireMfa) and you have none: set it up (POST /auth/mfa/enroll, then /confirm); until then other routes answer 403 `mfa_enrollment_required`."
                     },
+                    "onboardingRequired": {
+                      "nullable": true,
+                      "description": "Not null: the first administrator still has to replace the placeholder email (POST /auth/email/change, then the link mailed to it) and/or the generated password (POST /auth/password/change); until then other routes answer 403 `onboarding_required`. Null: nothing to do.",
+                      "type": "object",
+                      "properties": {
+                        "email": {
+                          "type": "boolean"
+                        },
+                        "password": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "email",
+                        "password"
+                      ],
+                      "additionalProperties": false
+                    },
                     "authentication": {
                       "nullable": true,
                       "type": "object",
@@ -29203,6 +29307,7 @@
                     "mfaEnabled",
                     "hasPassword",
                     "mfaEnrollmentRequired",
+                    "onboardingRequired",
                     "authentication",
                     "can"
                   ],
@@ -29662,6 +29767,80 @@
           }
         ],
         "summary": "Send the verification link again",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/v1/auth/email/change": {
+      "post": {
+        "description": "Only while onboarding asks for it (`GET /auth/me` `onboardingRequired.email`): 409 otherwise. Wants the current password. The address changes at once and is unproved until its link (WEB_URL/verify-email?token=…) is opened; signing in stays possible meanwhile, so a typo can be corrected by calling this again.",
+        "operationId": "EmailController_change_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "example": "ada@example.com",
+                    "type": "string"
+                  },
+                  "currentPassword": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  }
+                },
+                "required": [
+                  "email",
+                  "currentPassword"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accepted": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "accepted"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`placeholder_email`: the address is a placeholder."
+          },
+          "409": {
+            "description": "No email onboarding pending, or the address is taken."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Replace the first administrator's placeholder email",
         "tags": [
           "account"
         ]

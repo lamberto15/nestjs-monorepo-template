@@ -122,6 +122,12 @@
       "title": "Berhenti melanggan e-mel",
       "description": "Sahkan bahawa anda tidak mahu menerima e-mel ini lagi",
       "hint": "Anda tidak akan menerima jenis e-mel ini lagi. E-mel yang wajib kami hantar tentang akaun dan keselamatannya tetap sampai kepada anda, dan anda memilih apa yang diterima dalam tetapan pemberitahuan.",
+      "hintType": "Anda tidak akan menerima e-mel “{{label}}” lagi. E-mel yang wajib kami hantar tentang akaun dan keselamatannya tetap sampai kepada anda, dan anda memilih apa yang diterima dalam tetapan pemberitahuan.",
+      "hintDigest": "Anda tidak akan menerima e-mel yang diterima sebagai ringkasan ({{modes, list}}) lagi. E-mel yang wajib kami hantar tentang akaun dan keselamatannya tetap sampai kepada anda, dan anda memilih apa yang diterima dalam tetapan pemberitahuan.",
+      "modes": {
+        "hourly": "setiap jam",
+        "daily": "harian"
+      },
       "submit": "Berhenti melanggan",
       "done": "Anda telah berhenti melanggan: kami tidak akan menghantar jenis e-mel ini kepada anda lagi.",
       "invalid": "Pautan ini tidak sah atau telah tamat tempoh. Buka semula daripada e-mel, atau pilih apa yang anda terima dalam tetapan pemberitahuan."
@@ -438,5 +444,23 @@
     "searching": "Mencari…",
     "none": "Tiada yang sepadan.",
     "failed": "Carian gagal."
+  },
+  "onboarding": {
+    "title": "Siapkan akaun anda",
+    "description": "Akaun pentadbir ini masih menggunakan e-mel pemegang tempat atau kata laluan yang dijana. Gantikannya untuk meneruskan.",
+    "emailTitle": "Alamat e-mel sebenar",
+    "emailDescription": "Pautan tetapan semula dan amaran keselamatan dihantar ke sini. Kami menghantar pautan untuk mengesahkannya.",
+    "email": "Alamat e-mel baharu",
+    "currentPassword": "Kata laluan semasa",
+    "emailSubmit": "Hantar pautan pengesahan",
+    "emailSent": "Kami menghantar pautan ke {{email}}. Bukanya, kemudian kembali ke sini.",
+    "emailWaiting": "Menunggu {{email}} disahkan.",
+    "check": "Saya telah mengesahkannya",
+    "resend": "Hantar pautan lagi",
+    "optionalTitle": "Pilihan: perlindungan tambahan",
+    "optionalDescription": "Sediakan dua faktor atau passkey sekarang, atau kemudian di Akaun, Keselamatan.",
+    "done": "Teruskan ke aplikasi",
+    "doneHint": "Semua langkah yang diperlukan telah selesai.",
+    "redirected": "Siapkan akaun pentadbir dahulu sebelum meneruskan."
   }
 }

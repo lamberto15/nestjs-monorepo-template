@@ -8,7 +8,8 @@ import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { PasswordHasher } from '@nestjs/authentication';
 import { ConfigService } from '@nestjs/config';
 import type { IamEnv } from '../iam.env.js';
-import { count, eq, sql } from 'drizzle-orm';
+import { and, count, eq, sql } from 'drizzle-orm';
+import { isPlaceholderEmail } from '../auth/onboarding.js';
 import { normalizeEmail } from '../auth/users.repository.js';
 import { AuditService } from '../audit/audit.service.js';
 import { BreachedPasswordsService } from '../account/breached-passwords.service.js';
@@ -26,7 +27,9 @@ import { SystemContext } from './system-context.js';
  * `ADMIN_EMAIL` and `ADMIN_PASSWORD` (a password is generated and logged once
  * when it isn't set). Later starts change nothing, so edits through the access API
  * stay. It runs as the system principal (`system:seed`, SEED_JOB), the
- * actor of its `user.seeded` audit entry.
+ * actor of its `user.seeded` audit entry. Later starts do change one thing:
+ * an administrator still on the placeholder `ADMIN_EMAIL` (seeded before
+ * onboarding existed) is flagged for it (`requirePlaceholderOnboarding()`).
  */
 @Injectable()
 export class AccessSeeder implements OnModuleInit {
@@ -51,6 +54,7 @@ export class AccessSeeder implements OnModuleInit {
   async onModuleInit() {
     // Every start after the first: seeded already, no lock taken.
     if ((await this.count(tenants)) > 0 && (await this.count(users)) > 0) {
+      await this.requirePlaceholderOnboarding();
       return;
     }
     // The first start of a deployment runs this in every process at once
@@ -64,6 +68,7 @@ export class AccessSeeder implements OnModuleInit {
     const email = normalizeEmail(
       this.config.get('ADMIN_EMAIL', { infer: true }),
     );
+    const onboarding = this.config.get('ADMIN_ONBOARDING', { infer: true });
     const tenantName = this.config.get('ADMIN_TENANT_NAME', { infer: true });
     // The first tenant: the operators' (docs/tenancy.md), with every role
     // and the first administrator, made in its own scope (TenantsService).
@@ -83,6 +88,10 @@ export class AccessSeeder implements OnModuleInit {
                   name: 'Administrator',
                   passwordHash,
                   emailVerified: true,
+                  // The first sign-in must replace a placeholder address
+                  // and a generated password (OnboardingGuard).
+                  onboardingEmail: onboarding && isPlaceholderEmail(email),
+                  onboardingPassword: onboarding && !configured,
                 })
                 .returning({ id: users.id });
               await tx
@@ -147,6 +156,66 @@ export class AccessSeeder implements OnModuleInit {
         configured
           ? `Created the first administrator ${email} (password from ADMIN_PASSWORD).`
           : `Created the first administrator ${email} with password ${password} (shown once; set ADMIN_PASSWORD to choose it, and change it after signing in).`,
+      );
+    }
+  }
+
+  /**
+   * The administrator seeded before onboarding existed (or with
+   * `ADMIN_ONBOARDING=off`, since turned on) still holds the placeholder
+   * `ADMIN_EMAIL`, and the seed above never runs again for them: flagged here
+   * so their next request asks for a real address (docs/auth.md,
+   * "Administrator onboarding"). Only the verified account on exactly that
+   * address (the seeded one: an unverified self sign-up on it must not get
+   * the flag, which lets an unproved address sign in); once the address is
+   * changed nothing matches, so a finished onboarding is never reopened. One
+   * idempotent statement, safe in every process at once. The generated
+   * password can't be told from a chosen one afterwards, so only the address
+   * is flagged.
+   */
+  private async requirePlaceholderOnboarding() {
+    const email = normalizeEmail(
+      this.config.get('ADMIN_EMAIL', { infer: true }),
+    );
+    if (
+      !this.config.get('ADMIN_ONBOARDING', { infer: true }) ||
+      !isPlaceholderEmail(email)
+    ) {
+      return;
+    }
+    const flagged = await this.system.run(
+      SEED_JOB,
+      async (system, tx) => {
+        const rows = await tx
+          .update(users)
+          .set({ onboardingEmail: true })
+          .where(
+            and(
+              eq(users.email, email),
+              eq(users.emailVerified, true),
+              eq(users.onboardingEmail, false),
+            ),
+          )
+          .returning({ id: users.id });
+        for (const { id } of rows) {
+          await this.audit.record(
+            system,
+            {
+              action: 'user.onboarding-required',
+              targetType: 'user',
+              targetId: id,
+              details: { email },
+            },
+            tx,
+          );
+        }
+        return rows.length;
+      },
+      { tenantId: null },
+    );
+    if (flagged > 0) {
+      this.logger.warn(
+        `The administrator ${email} still has the placeholder address: its next sign-in asks for a real one (ADMIN_ONBOARDING=off to skip).`,
       );
     }
   }
