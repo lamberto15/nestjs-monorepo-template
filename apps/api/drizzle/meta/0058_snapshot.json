@@ -1,5 +1,5 @@
 {
-  "id": "3bec9964-016e-4724-8a3c-a89258aeccb9",
+  "id": "e806bb29-6621-42ea-8d15-6293f032f721",
   "prevId": "3198a444-7be6-44aa-8b0e-580615c72aae",
   "version": "7",
   "dialect": "postgresql",
@@ -3193,6 +3193,20 @@
           "primaryKey": false,
           "notNull": true,
           "default": true
+        },
+        "onboarding_email": {
+          "name": "onboarding_email",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "onboarding_password": {
+          "name": "onboarding_password",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "avatar_key": {
           "name": "avatar_key",
@@ -7158,19 +7172,6 @@
           "notNull": true,
           "default": "'clean'"
         },
-        "rendition_status": {
-          "name": "rendition_status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "renditions": {
-          "name": "renditions",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -7235,22 +7236,6 @@
           ],
           "isUnique": false,
           "where": "\"attachments\".\"scan_status\" = 'pending'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "attachments_rendition_pending_idx": {
-          "name": "attachments_rendition_pending_idx",
-          "columns": [
-            {
-              "expression": "updated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"attachments\".\"rendition_status\" = 'pending'",
           "concurrently": false,
           "method": "btree",
           "with": {}

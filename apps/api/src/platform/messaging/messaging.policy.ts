@@ -70,3 +70,48 @@ export function maskPhone(phone: string): string {
 
 /** The UTC calendar day, `YYYY-MM-DD`: what the daily caps count by. */
 export const utcDay = (now: Date) => now.toISOString().slice(0, 10);
+
+/** The UTC month's first day, `YYYY-MM-01`: the row the monthly spend counts in. */
+export const utcMonthStart = (now: Date) =>
+  `${now.toISOString().slice(0, 7)}-01`;
+
+/** The first day of the month before `now`'s, `YYYY-MM-01`. */
+export const previousMonthStart = (now: Date) =>
+  utcMonthStart(
+    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)),
+  );
+
+/**
+ * How many SMS segments (the unit carriers bill) a text takes: 160 characters
+ * in one segment, 153 each when split, or 70 and 67 when any character is
+ * outside ASCII (UCS-2). Conservative for the GSM extras (£, €), which it
+ * counts as non-ASCII.
+ */
+export function smsSegments(text: string): number {
+  // Code points, and whether any is beyond ASCII.
+  let length = 0;
+  let unicode = false;
+  for (const char of text) {
+    length += 1;
+    if (char.charCodeAt(0) > 0x7f) unicode = true;
+  }
+  const [single, multi] = unicode ? [70, 67] : [160, 153];
+  return length <= single ? 1 : Math.ceil(length / multi);
+}
+
+/**
+ * What one SMS costs, in minor units: the segments times the prefix's price
+ * (`prices`), else `fallback`.
+ */
+export function smsCost(
+  text: string,
+  prefix: string,
+  prices: Readonly<Record<string, number>>,
+  fallback: number,
+): number {
+  return smsSegments(text) * (prices[prefix] ?? fallback);
+}
+
+/** The text of a verification code (also what the cost of the code job is estimated from). */
+export const verificationText = (code: string) =>
+  `Your verification code is ${code}. It expires in 10 minutes.`;

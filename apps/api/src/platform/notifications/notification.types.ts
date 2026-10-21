@@ -66,6 +66,11 @@ export interface NotificationTypeDeclaration<
   channels?: Partial<NotificationChannelSettings>;
   /** The recipient may change a channel's frequency, never switch it off. */
   mandatory?: boolean;
+  /**
+   * Urgent (a sign-in code, a new-device alert): push and SMS go at once,
+   * through the recipient's quiet hours. Others wait for them to end.
+   */
+  urgent?: boolean;
   /** `notify()` without a `key` collapses on the type: one row per recipient, counted up. */
   collapse?: boolean;
   /** Checked by `notify()`; its keys are the placeholders of the title and body. */
@@ -89,6 +94,12 @@ export interface NotificationDelivery {
   /** The channel's effective setting for this recipient and type. */
   setting: unknown;
   rendered: { locale: string; title: string; body: string };
+  /**
+   * Set while the recipient's quiet hours cover now and the type is not
+   * `urgent`: when they end. A channel that disturbs (push, SMS) delays
+   * until then; the others ignore it.
+   */
+  quietUntil?: Date;
 }
 
 /**

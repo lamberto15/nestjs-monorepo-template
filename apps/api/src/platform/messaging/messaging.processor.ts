@@ -8,7 +8,7 @@ import { MESSAGING_JOB } from '../platform.jobs.js';
 import type { PlatformEnv } from '../platform.env.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { MessagingLimits } from './messaging-limits.service.js';
-import { clip, clipBytes } from './messaging.policy.js';
+import { clip, clipBytes, verificationText } from './messaging.policy.js';
 import {
   MESSAGING,
   type CodeJob,
@@ -101,18 +101,24 @@ export class MessagingProcessor extends TenantWorkerHost<
     if (!phone) {
       return { status: 'skipped', reason: 'no_sendable_number' };
     }
-    const reserved = await this.limits.reserve(data.userId, phone);
+    const max = this.config.get('SMS_MAX_LENGTH', { infer: true });
+    // The code is made only once the caps allow the SMS; its cost is that of any six digits.
+    const reserved = await this.limits.reserve(
+      data.userId,
+      phone,
+      clip(data.kind === 'code' ? verificationText('000000') : data.text, max),
+    );
     if (!reserved.ok) {
       return { status: 'blocked', reason: reserved.reason };
     }
     const text =
       data.kind === 'code'
-        ? `Your verification code is ${await this.messaging.issueCode(data.userId)}. It expires in 10 minutes.`
+        ? verificationText(await this.messaging.issueCode(data.userId))
         : data.text;
     try {
       await this.sms.send({
         to: phone,
-        body: clip(text, this.config.get('SMS_MAX_LENGTH', { infer: true })),
+        body: clip(text, max),
         idempotencyKey: id,
       });
     } catch (error) {
@@ -154,7 +160,11 @@ export class MessagingProcessor extends TenantWorkerHost<
       payload.body = clipBytes(data.body, Math.max(0, budget));
     }
     try {
-      const result = await this.push.send(device.token, payload);
+      const result = await this.push.send(
+        device.token,
+        payload,
+        device.platform,
+      );
       if (result === 'gone') {
         await this.messaging.dropDevice(data.deviceId);
         return { status: 'skipped', reason: 'device_gone' };

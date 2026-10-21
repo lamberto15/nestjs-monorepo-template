@@ -344,54 +344,67 @@ describe('security notifications (e2e)', () => {
       .expect(200);
 
     const types = (await agent.get('/v1/notifications/types').expect(200)).body
-      .items as { type: string; mandatory: boolean; channels: object }[];
+      .items as {
+      type: string;
+      mandatory: boolean;
+      urgent: boolean;
+      channels: object;
+    }[];
     expect(types.filter((t) => t.type.startsWith('security.'))).toEqual([
       {
         type: 'security.newSignIn',
         label: 'New sign-in',
         mandatory: true,
+        urgent: true,
         channels: { email: 'immediate' },
       },
       {
         type: 'security.passwordChanged',
         label: 'Password changed',
         mandatory: true,
+        urgent: true,
         channels: { email: 'immediate' },
       },
       {
         type: 'security.passwordBreached',
         label: 'Password found in a data breach',
         mandatory: true,
+        urgent: true,
         channels: { email: 'immediate' },
       },
       {
         type: 'security.mfaChanged',
         label: 'Two-factor sign-in changed',
         mandatory: true,
+        urgent: true,
         channels: { email: 'immediate' },
       },
       {
         type: 'security.passkeyAdded',
         label: 'Passkey added',
         mandatory: true,
+        urgent: true,
         channels: { email: 'immediate' },
       },
       {
         type: 'security.passkeyRemoved',
         label: 'Passkey removed',
         mandatory: true,
+        urgent: true,
         channels: { email: 'immediate' },
       },
       {
         type: 'security.apiKeyRotated',
         label: 'API key rotated',
         mandatory: true,
+        urgent: false,
         channels: { email: false },
       },
       {
         type: 'security.breakGlassStarted',
         label: 'Break-glass access to your tenant',
         mandatory: true,
+        urgent: true,
         channels: { email: 'immediate' },
       },
     ]);

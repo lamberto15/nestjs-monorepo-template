@@ -30,6 +30,7 @@ import { SIGN_IN_METHODS } from '../auth/authentication-method.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
 import { DuringMfaEnrollment } from '../auth/mfa-enrollment.guard.js';
+import { DuringOnboarding } from '../auth/onboarding.js';
 import { AccountService } from './account.service.js';
 import { notWhileImpersonating } from './account.schemas.js';
 import { WithoutSso } from '../sso/sso-required.guard.js';
@@ -105,6 +106,7 @@ export class SessionsController {
   }
 
   @DuringMfaEnrollment()
+  @DuringOnboarding()
   @WithoutSso()
   @Post('sign-out-everywhere')
   @HttpCode(204)
