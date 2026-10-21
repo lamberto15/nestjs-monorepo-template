@@ -1,4 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import { SsoProcessor } from '../src/iam/sso/sso.processor.js';
@@ -365,6 +367,76 @@ describe('enterprise SSO (e2e)', () => {
         .expect(303);
       expectFailed(acs.headers.location);
       await browser.get('/v1/auth/me').expect(401);
+    });
+
+    it('imports an IdP from its metadata URL (Access.manageSso, https, nothing stored)', async () => {
+      const idpCert = idp.cert.replace(/-----[A-Z ]+-----|\s+/g, '');
+      const xml =
+        `<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" entityID="${idp.entityId}">` +
+        `<md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">` +
+        `<md:KeyDescriptor use="signing"><ds:KeyInfo><ds:X509Data><ds:X509Certificate>${idpCert}</ds:X509Certificate></ds:X509Data></ds:KeyInfo></md:KeyDescriptor>` +
+        `<md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.acme.test/sso"/>` +
+        `</md:IDPSSODescriptor></md:EntityDescriptor>`;
+      const server = createServer((_request, response) => response.end(xml));
+      await new Promise<void>((resolve) =>
+        server.listen(0, '127.0.0.1', resolve),
+      );
+      try {
+        const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/metadata`;
+        const member = await node.user(['viewer']);
+        await member.agent
+          .post('/v1/sso/saml/metadata')
+          .send({ url })
+          .expect(403);
+        const before = await node
+          .admin()
+          .get('/v1/sso/connections')
+          .expect(200);
+        const imported = await node
+          .admin()
+          .post('/v1/sso/saml/metadata')
+          .send({ url })
+          .expect(200);
+        expect(imported.body).toMatchObject({
+          idpEntityId: idp.entityId,
+          idpSsoUrl: 'https://idp.acme.test/sso',
+        });
+        // What it answers creates a connection as it is.
+        const created = await node
+          .admin()
+          .post('/v1/sso/connections')
+          .send({
+            protocol: 'saml',
+            name: `imported-${randomUUID().slice(0, 8)}`,
+            ...imported.body,
+          })
+          .expect(201);
+        expect(created.body.saml.idpEntityId).toBe(idp.entityId);
+        const after = await node.admin().get('/v1/sso/connections').expect(200);
+        expect(after.body.items).toHaveLength(before.body.items.length + 1);
+      } finally {
+        await new Promise((resolve) => server.close(resolve));
+      }
+      // Refused destinations answer 422, never what they hold.
+      for (const refused of [
+        'https://169.254.169.254/latest/meta-data',
+        'https://10.0.0.1/metadata',
+      ]) {
+        const answer = await node
+          .admin()
+          .post('/v1/sso/saml/metadata')
+          .send({ url: refused })
+          .expect(422);
+        // Loopback is allowed in this suite; link-local never is.
+        if (refused.includes('169.254')) {
+          expect(answer.body.code).toBe('saml_metadata_url_refused');
+        }
+      }
+      await node
+        .admin()
+        .post('/v1/sso/saml/metadata')
+        .send({ url: 'not a url' })
+        .expect(400);
     });
   });
 

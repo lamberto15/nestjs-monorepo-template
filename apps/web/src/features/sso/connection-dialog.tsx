@@ -13,6 +13,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from '@nestjs-monorepo-template/ui/components/field';
+import { Input } from '@nestjs-monorepo-template/ui/components/input';
 import { Switch } from '@nestjs-monorepo-template/ui/components/switch';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +22,7 @@ import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
 import {
   useCreateConnection,
+  useImportSamlMetadata,
   useUpdateConnection,
   type Connection,
   type ConnectionChanges,
@@ -51,6 +53,8 @@ export function ConnectionDialog(props: {
   const { connection } = props;
   const create = useCreateConnection();
   const update = useUpdateConnection();
+  const importMetadata = useImportSamlMetadata();
+  const [metadataUrl, setMetadataUrl] = useState('');
   const [error, setError] = useState<string>();
 
   const form = useAppForm({
@@ -127,6 +131,21 @@ export function ConnectionDialog(props: {
       }
     },
   });
+
+  // Fills the SAML fields from the provider's metadata (nothing is saved).
+  const importFromUrl = async () => {
+    setError(undefined);
+    try {
+      const imported = await importMetadata.mutateAsync(metadataUrl.trim());
+      form.setFieldValue('idpEntityId', imported.idpEntityId);
+      form.setFieldValue('idpSsoUrl', imported.idpSsoUrl);
+      form.setFieldValue('certificate', imported.idpCertificates[0] ?? '');
+      form.setFieldValue('nextCertificate', imported.idpCertificates[1] ?? '');
+      toast.success(t('form.metadataImported'));
+    } catch (caught) {
+      setError(errorMessage(caught));
+    }
+  };
 
   const required = (message: string) => ({
     onSubmit: ({ value }: { value: string }) =>
@@ -242,6 +261,36 @@ export function ConnectionDialog(props: {
                   </>
                 ) : (
                   <>
+                    <Field>
+                      <FieldLabel htmlFor="field-metadataUrl">
+                        {t('form.metadataUrl')}
+                      </FieldLabel>
+                      <div className="flex gap-2">
+                        <Input
+                          id="field-metadataUrl"
+                          value={metadataUrl}
+                          onChange={(event) =>
+                            setMetadataUrl(event.target.value)
+                          }
+                          placeholder="https://idp.example.com/metadata"
+                          inputMode="url"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={
+                            !isUrl(metadataUrl.trim()) ||
+                            importMetadata.isPending
+                          }
+                          onClick={() => void importFromUrl()}
+                        >
+                          {t('form.metadataImport')}
+                        </Button>
+                      </div>
+                      <FieldDescription>
+                        {t('form.metadataUrlHint')}
+                      </FieldDescription>
+                    </Field>
                     <form.AppField
                       name="idpEntityId"
                       validators={required(t('form.required'))}

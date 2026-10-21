@@ -133,6 +133,18 @@ const samlFields = {
     ),
 };
 
+export const importSamlMetadataSchema = z.object({
+  url: httpsUrl.describe("The IdP's SAML metadata URL."),
+});
+
+export const importedSamlMetadataSchema = z.object({
+  idpEntityId: z.string(),
+  idpSsoUrl: z.string(),
+  idpCertificates: z
+    .array(z.string())
+    .describe('PEM, the signing certificates (one or two).'),
+});
+
 export const createConnectionSchema = z.discriminatedUnion('protocol', [
   z.object({ protocol: z.literal('oidc'), ...common, ...oidcFields }),
   z.object({ protocol: z.literal('saml'), ...common, ...samlFields }),

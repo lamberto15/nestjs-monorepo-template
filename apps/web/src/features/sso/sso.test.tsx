@@ -133,6 +133,44 @@ describe('connections', () => {
     });
   });
 
+  it('fills a SAML connection from its metadata URL', async () => {
+    const { calls } = useSsoApi({ can: ADMIN, connections: [] });
+    const user = userEvent.setup();
+    await renderApp('/sso');
+    await user.click(
+      await screen.findByRole('button', { name: 'Add a connection' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    await user.click(
+      within(dialog).getByRole('combobox', { name: 'Protocol' }),
+    );
+    await user.click(await screen.findByRole('option', { name: 'SAML 2.0' }));
+    await user.type(within(dialog).getByLabelText('Name'), 'Entra');
+    const importButton = within(dialog).getByRole('button', { name: 'Import' });
+    expect(importButton).toBeDisabled();
+    await user.type(
+      within(dialog).getByLabelText('Provider metadata URL (optional)'),
+      'https://meta.example.com/metadata',
+    );
+    await user.click(importButton);
+    await waitFor(() =>
+      expect(within(dialog).getByLabelText('Provider entity ID')).toHaveValue(
+        'https://meta.example.com/idp',
+      ),
+    );
+    expect(calls.metadataImports).toEqual([
+      'https://meta.example.com/metadata',
+    ]);
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(calls.created).toHaveLength(1));
+    expect(calls.created[0]).toMatchObject({
+      protocol: 'saml',
+      idpEntityId: 'https://meta.example.com/idp',
+      idpSsoUrl: 'https://meta.example.com/sso',
+      idpCertificates: ['PEM-A', 'PEM-B'],
+    });
+  });
+
   it('edits one, keeping the secret unless a new one is typed', async () => {
     const { calls } = useSsoApi({ can: ADMIN });
     const user = userEvent.setup();
