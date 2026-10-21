@@ -36,14 +36,17 @@ export function SessionIdleWarning() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const idleMs = me?.session ? me.session.idleMinutes * 60_000 : null;
-  const lastInput = useRef(Date.now());
-  const lastPing = useRef(Date.now());
+  const lastInput = useRef(0);
+  const lastPing = useRef(0);
   const [remaining, setRemaining] = useState<number | null>(null);
 
   useEffect(() => {
     if (idleMs === null) {
       return;
     }
+    // The page was just shown or the policy just read: counted from now.
+    lastInput.current = Date.now();
+    lastPing.current = Date.now();
     const ping = async () => {
       lastPing.current = Date.now();
       await queryClient.fetchQuery({ ...meQuery, staleTime: 0 });
