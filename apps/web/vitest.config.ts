@@ -24,7 +24,7 @@ export default defineConfig({
         'src/routeTree.gen.ts',
       ],
       reporter: ['text-summary', 'json-summary'],
-      thresholds: { statements: 0, branches: 0, functions: 0, lines: 0 },
+      thresholds: { statements: 82, branches: 72, functions: 84, lines: 83 },
     },
     // Vitest 5 persists transformed modules on disk but skips a module only
     // when it contains the text `import.meta.glob(`. Ours are typed

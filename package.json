@@ -8,7 +8,8 @@
   "scripts": {
     "build": "turbo run build",
     "format": "prettier --write \"apps/*/{src,test}/**/*.{ts,tsx}\" \"packages/*/src/**/*.{ts,tsx}\" \"tools/**/*.mjs\"",
-    "lint": "turbo run lint",
+    "lint": "turbo run lint && knip",
+    "lint:code": "turbo run lint",
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e --",
     "test:e2e:web": "turbo run test:browser --env-mode=loose --",
@@ -39,7 +40,8 @@
     "feature:remove": "node tools/feature/remove.mjs",
     "feature:sync": "node tools/feature/sync.mjs",
     "deploy:blue-green": "node tools/deploy/blue-green.mjs",
-    "deploy:swarm": "node tools/deploy/swarm.mjs"
+    "deploy:swarm": "node tools/deploy/swarm.mjs",
+    "knip": "knip"
   },
   "devDependencies": {
     "@changesets/cli": "3.0.3",

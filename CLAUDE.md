@@ -129,6 +129,11 @@ pnpm test:e2e:web                                       # after web changes: Pla
 pnpm client:check                                       # after route changes (pnpm client:generate fixes it)
 ```
 
+`pnpm lint` ends with knip (unused files, exports, dependencies; `knip.jsonc`),
+and CI enforces coverage thresholds per package (`vitest.config.ts`; ratchet
+them up, never down): [docs/development.md](docs/development.md), "Coverage"
+and "Dead code (knip)".
+
 Current state: CI on `main` is green (unit, web and e2e tests, lint, the image,
 the scans). Edge cases live in `apps/api/test/edge-*.e2e-spec.ts`, security
 regressions in `apps/api/test/security.e2e-spec.ts`. Test counts are not kept

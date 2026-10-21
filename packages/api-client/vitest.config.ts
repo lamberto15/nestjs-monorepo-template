@@ -10,7 +10,7 @@ export default defineConfig({
       // schema.ts is generated (openapi-typescript): nothing to test.
       exclude: ['src/**/*.spec.ts', 'src/schema.ts'],
       reporter: ['text-summary', 'json-summary'],
-      thresholds: { statements: 0, branches: 0, functions: 0, lines: 0 },
+      thresholds: { statements: 67, branches: 77, functions: 47, lines: 68 },
     },
   },
 });
