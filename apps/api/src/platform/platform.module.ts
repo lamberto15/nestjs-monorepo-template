@@ -158,6 +158,14 @@ import { NamingSeriesService } from './sequences/naming-series.service.js';
 import { NamingVariables } from './sequences/naming-variables.js';
 import { NUMBERING_SETTINGS } from './sequences/numbering-settings.js';
 import { SequencesService } from './sequences/sequences.service.js';
+import { AttachmentScanProcessor } from './attachments/attachment-scan.processor.js';
+import {
+  ATTACHMENT_NOTIFICATIONS,
+  AttachmentScanQueue,
+} from './attachments/attachment-scan.queue.js';
+import { AttachmentScanService } from './attachments/attachment-scan.service.js';
+import { MalwareScanner } from './attachments/malware-scanner.js';
+import { malwareScanner } from './attachments/malware-scanner.factory.js';
 import { AttachmentsController } from './attachments/attachments.controller.js';
 import { AttachmentsRegistry } from './attachments/attachments.registry.js';
 import { AttachmentsService } from './attachments/attachments.service.js';
@@ -430,6 +438,7 @@ export class PlatformModule {
             notifications: [
               ...COMMENT_NOTIFICATIONS,
               ...APPROVAL_NOTIFICATIONS,
+              ...ATTACHMENT_NOTIFICATIONS,
               // Development only, with the route that sends it.
               ...inDevelopment(...TEST_NOTIFICATIONS),
               ...(options.notifications ?? []),
@@ -583,6 +592,15 @@ export class PlatformModule {
         NamingSeriesService,
         // Files attached to records: features register an AttachmentTarget.
         AttachmentsRegistry,
+        // Malware scanning of uploads (MALWARE_SCANNER, off by default): a queue job per upload.
+        {
+          provide: MalwareScanner,
+          inject: [ConfigService],
+          useFactory: malwareScanner,
+        },
+        AttachmentScanQueue,
+        AttachmentScanService,
+        AttachmentScanProcessor,
         AttachmentsService,
         AttachmentSweepJob,
         // PDF documents of records: features register a DocumentSource and call DocumentsService.request().

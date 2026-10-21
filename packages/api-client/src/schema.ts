@@ -4857,6 +4857,11 @@ export interface components {
             uploadedBy: string;
             /** @description An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record. */
             locked: boolean;
+            /**
+             * @description `pending`: the malware scan has not finished (MALWARE_SCANNER is on) and the file cannot be downloaded yet (409 `attachment_scan_pending`). `clean` otherwise, always when scanning is off. An infected file is rejected: the attachment is deleted and its uploader notified.
+             * @enum {string}
+             */
+            scanStatus: "pending" | "clean";
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -5163,7 +5168,7 @@ export interface components {
             recordId: string;
             attachmentId: string;
             /** @enum {string} */
-            action: "added" | "removed";
+            action: "added" | "removed" | "scanned";
         };
     };
     responses: never;
@@ -11755,6 +11760,13 @@ export interface operations {
                 content?: never;
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The malware scan has not finished (attachment_scan_pending): try again shortly. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -24909,6 +24921,8 @@ export interface operations {
                 "contentType.in"?: string;
                 /** @description Filter: contentType startsWith */
                 "contentType.startsWith"?: string;
+                /** @description Filter: scanStatus = */
+                scanStatus?: string;
                 /** @description Filter: size gte */
                 "size.gte"?: number;
                 /** @description Filter: size lte */
@@ -24925,11 +24939,11 @@ export interface operations {
                 "updatedAt.lt"?: string;
                 /** @description Filter: updatedAt between */
                 "updatedAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"name","op":"eq","value":…},{…}]}. Fields and operators: name (eq, contains); contentType (eq, in, startsWith); size (gte, lte); createdAt (gte, lt, between); updatedAt (gte, lt, between). */
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"name","op":"eq","value":…},{…}]}. Fields and operators: name (eq, contains); contentType (eq, in, startsWith); scanStatus (eq); size (gte, lte); createdAt (gte, lt, between); updatedAt (gte, lt, between). */
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, size, createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;

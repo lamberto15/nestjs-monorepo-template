@@ -383,7 +383,7 @@ service it calls that does check refuses it. `GET /v1/access/catalog`
 lists every job (`systemJobs`: key, actor, label, permissions). The
 template's: `seed`, `audit-retention`, `soft-delete-purge`, `sign-up-tenant-sweep`, `tenant-deletion`, `sso` (IAM,
 `iam/iam.jobs.ts`); `account-deletion`, `usage-rollup`,
-`attachment-sweep`, `revisions-retention`, `notification-retention`,
+`attachment-sweep`, `attachment-scan`, `revisions-retention`, `notification-retention`,
 `notification-digests`, `notification-delivery`, `report-runner`,
 `approvals`, `exchange-rates`, `mail-intake`, `mail-events-retention`, `webhook-delivery-retention`, `platform-analytics`,
 `reencryption`, `retention`, `messaging`, `messaging-inbound`, `messaging-retention` (platform,
@@ -422,6 +422,7 @@ transaction of the job carries `app.tenant_id` ([tenancy](tenancy.md)).
 | Recycle bin purge | `system:soft-delete-purge` | each tenant in turn | `records.purged` per batch (the ids), with the purge |
 | Account deletion | `system:account-deletion` | each tenant the person belonged to (their data there), then none (the account) | `account.deleted` (no tenant), with the anonymization |
 | Attachment sweep | `system:attachment-sweep` | each tenant in turn | `attachments.swept` per round (the ids), with the rows |
+| Attachment malware scan | `system:attachment-scan` | the upload's (the job's tenant) | `attachment.rejected` (signature) when the file is infected, with the deletion |
 | Scheduled reports | `system:report-runner` | each tenant in turn | `report.skipped`, `report.deactivated`, `report.finished`; the export itself runs, and is audited, as the report's owner |
 | Approvals workflow | `system:approvals` | the request's (the workflow's input) | the workflow's own (`approval.escalated`, `.expired`, `.failed`…); its outcome handlers get it as `outcome.actor` |
 | Note publication workflow | `system:note-publication` | the note's (the workflow's input) | `note.updated` (draft → published); an approval it asks for is on the owner's behalf |

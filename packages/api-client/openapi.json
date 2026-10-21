@@ -15650,6 +15650,9 @@
           },
           "404": {
             "description": ""
+          },
+          "409": {
+            "description": "The malware scan has not finished (attachment_scan_pending): try again shortly."
           }
         },
         "security": [
@@ -44539,6 +44542,18 @@
             }
           },
           {
+            "name": "scanStatus",
+            "required": false,
+            "in": "query",
+            "description": "Filter: scanStatus =",
+            "schema": {
+              "description": "Filter: scanStatus =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
             "name": "size.gte",
             "required": false,
             "in": "query",
@@ -44630,9 +44645,9 @@
             "name": "filter",
             "required": false,
             "in": "query",
-            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains); contentType (eq, in, startsWith); size (gte, lte); createdAt (gte, lt, between); updatedAt (gte, lt, between).",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains); contentType (eq, in, startsWith); scanStatus (eq); size (gte, lte); createdAt (gte, lt, between); updatedAt (gte, lt, between).",
             "schema": {
-              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains); contentType (eq, in, startsWith); size (gte, lte); createdAt (gte, lt, between); updatedAt (gte, lt, between).",
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains); contentType (eq, in, startsWith); scanStatus (eq); size (gte, lte); createdAt (gte, lt, between); updatedAt (gte, lt, between).",
               "type": "string",
               "maxLength": 20000
             }
@@ -44652,9 +44667,9 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, createdAt, updatedAt.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, createdAt, updatedAt.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, createdAt, updatedAt.",
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, createdAt, updatedAt.",
               "type": "string"
             }
           }
@@ -47446,6 +47461,14 @@
             "type": "boolean",
             "description": "An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record."
           },
+          "scanStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "clean"
+            ],
+            "description": "`pending`: the malware scan has not finished (MALWARE_SCANNER is on) and the file cannot be downloaded yet (409 `attachment_scan_pending`). `clean` otherwise, always when scanning is off. An infected file is rejected: the attachment is deleted and its uploader notified."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -47466,6 +47489,7 @@
           "contentType",
           "uploadedBy",
           "locked",
+          "scanStatus",
           "createdAt",
           "updatedAt"
         ],
@@ -48465,7 +48489,8 @@
             "type": "string",
             "enum": [
               "added",
-              "removed"
+              "removed",
+              "scanned"
             ]
           }
         },
@@ -48601,7 +48626,7 @@
       }
     },
     "record.attachments.changed": {
-      "description": "A file on a record you watch was uploaded, removed or issued (a PDF): ids only.",
+      "description": "A file on a record you watch was uploaded, removed, issued (a PDF) or scanned clean (it can be downloaded now; MALWARE_SCANNER): ids only.",
       "payload": {
         "$ref": "#/components/schemas/RealtimeRecordAttachmentsChangedEvent"
       }

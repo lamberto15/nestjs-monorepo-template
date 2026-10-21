@@ -3,7 +3,7 @@ import { TransactionHost } from '@nestjs-cls/transactional';
 import { OnOneInstance, WithoutOverlapping } from '@nestjs/locks';
 import { Cron } from '@nestjs/schedule';
 import { StorageDisk } from '@nestjs/storage';
-import { and, asc, eq, gt, inArray } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, lt } from 'drizzle-orm';
 import {
   database,
   type DrizzleTransactions,
@@ -13,6 +13,7 @@ import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { SystemContext } from '../../iam/access/system-context.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import { ATTACHMENT_SWEEP_JOB } from '../platform.jobs.js';
+import { AttachmentScanQueue } from './attachment-scan.queue.js';
 import { AttachmentsRegistry } from './attachments.registry.js';
 import { attachments } from './attachments.tables.js';
 
@@ -46,6 +47,7 @@ export class AttachmentSweepJob {
     private readonly system: SystemContext,
     private readonly audit: AuditService,
     private readonly tenancy: Tenancy,
+    private readonly scans: AttachmentScanQueue,
   ) {}
 
   @Cron('5 4 * * *', {
@@ -62,6 +64,30 @@ export class AttachmentSweepJob {
       { includeInactive: true },
     );
     return [...swept.values()].reduce((sum, deleted) => sum + deleted, 0);
+  }
+
+  /**
+   * Queues again the scans that never finished: an upload still pending an
+   * hour on (its job was lost, or every attempt failed while the scanner
+   * was away). A job of its own name per night, so a failed job BullMQ
+   * still keeps doesn't block it. Nothing while scanning is off.
+   */
+  private async requeueScans() {
+    if (!this.scans.enabled) return;
+    const stale = await this.db
+      .select({ id: attachments.id })
+      .from(attachments)
+      .where(
+        and(
+          eq(attachments.scanStatus, 'pending'),
+          lt(attachments.createdAt, new Date(Date.now() - 60 * 60 * 1000)),
+        ),
+      )
+      .limit(BATCH);
+    const night = new Date().toISOString().slice(0, 10);
+    for (const { id } of stale) {
+      await this.scans.enqueue(id, night);
+    }
   }
 
   /** One tenant's orphans (run in its scope). */
@@ -123,6 +149,7 @@ export class AttachmentSweepJob {
             deleted += orphans.length;
           }
         }
+        await this.requeueScans();
         this.logger.log('Attachments of deleted records removed', {
           tenant: tenantId,
           deleted,

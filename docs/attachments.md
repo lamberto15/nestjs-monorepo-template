@@ -45,9 +45,49 @@ upload(…, @UploadedFile() file: StoredUpload) { return this.attachments.upload
   in `GET /v1/lists/{subject}` (`attachmentLimits: { maxBytes, maxMb,
   types }`, read as the upload reads them: `attachmentLimits()`), so a
   client checks a file before sending it.
+- **Malware scanning** (`MALWARE_SCANNER`, `platform/attachments/malware-scanner.ts`):
+  `off` (the default) changes nothing: no scan, no pending state, an upload
+  is downloadable at once, as before. `clamav` scans every upload on the
+  queue (`attachment-scan`, workers), `memory` is the test double (flags the
+  EICAR test string). The state is one column, `scanStatus`
+  (`pending` | `clean`, shown on the attachment and filterable with
+  `?scanStatus=`); there is no `rejected` state, because an infected file
+  is deleted:
+  - **Upload:** the row is stored `pending` (`clean` with the scanner off)
+    and a scan job is queued after the commit. Files the app writes itself
+    (issued PDFs, `attachStored()`) are `clean`: they are not user bytes.
+  - **Pending:** `GET /v1/attachments/{id}/download` answers 409
+    `attachment_scan_pending`; the row can be listed and removed. Anything
+    that serves attachment bytes (a rendition, a preview, a mail
+    attachment) must check `scanStatus === 'clean'` first, as `download()`
+    does.
+  - **Clean:** the job sets `clean` and sends `record.attachments.changed`
+    with `action: 'scanned'`.
+  - **Infected:** the job deletes the file and the row, audits
+    `attachment.rejected` (details: the signature, name, uploader) as
+    `system:attachment-scan`, sends `action: 'removed'`, and notifies the
+    uploader (`attachment.rejected`: in-app, realtime, mail, webhook).
+  - **Scanner failing:** clamd away, a timeout or an error answer
+    (`INSTREAM size limit exceeded`) is never "clean": the job is tried again
+    (`MALWARE_SCAN_ATTEMPTS`, exponential backoff from 5 s) and the file stays
+    `pending`. The nightly sweep queues scans of files still pending after an
+    hour (a lost job, or every attempt failed).
+  - **Metric:** `attachments_scanned_total{result="clean|infected|error"}`
+    (a counter per worker process: `rate()` and sum it).
+  - **ClamAV:** `compose.clamav.yaml` adds the `clamav` service (the
+    official image, signatures kept current by freshclam, a network of its
+    own that only the workers join) and sets `MALWARE_SCANNER=clamav` and
+    `CLAMAV_HOST=clamav`: [deployment](deployment.md), "ClamAV". The worker
+    speaks clamd's `INSTREAM` over TCP (`clamav-scanner.ts`), streaming the
+    file from the disk, never loading it. It is custom code because the npm
+    clients are unmaintained (`clamdjs` last released 2022, `clamscan` 2024
+    and built around callbacks and local binaries) and the protocol is a
+    handful of lines. A deployment that scans elsewhere (an API, another
+    engine) provides its own `MalwareScanner` (`scan(stream)` returns
+    `{ infected, signature? }` or throws).
 - **Realtime**: an upload, a removal or an issued PDF sends
   `record.attachments.changed` (`{ subject, recordId, attachmentId,
-  action }`) to the record's watchers and the uploader's other tabs who
+  action }`, `action` `added`, `removed` or `scanned`) to the record's watchers and the uploader's other tabs who
   may read it ([webhooks-and-realtime.md](webhooks-and-realtime.md),
   "Record events"); a feature that calls `attachStored()` in its own
   transaction calls `attachments.changed()` after the commit.

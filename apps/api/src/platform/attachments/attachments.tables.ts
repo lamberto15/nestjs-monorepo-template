@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
@@ -8,6 +9,14 @@ import {
 } from 'drizzle-orm/pg-core';
 import { timestamps, uuidPk } from '../../core/database/columns.js';
 import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
+
+/**
+ * Whether the file may be served: `clean` (scanned and found clean, or never
+ * scanned because MALWARE_SCANNER is off, the default) or `pending` (stored,
+ * its scan queued; downloads are refused until it is clean). An infected
+ * file is not a state: the attachment is deleted (docs/attachments.md).
+ */
+export type AttachmentScanStatus = 'pending' | 'clean';
 
 /**
  * Files attached to records: a record (its permission subject and id), the
@@ -43,11 +52,20 @@ export const attachments = pgTable(
      * the record would (field-level permissions). Null for uploads.
      */
     fields: text('fields').array(),
+    /** `pending` only while a malware scan is queued (MALWARE_SCANNER); `clean` otherwise. */
+    scanStatus: text('scan_status')
+      .$type<AttachmentScanStatus>()
+      .notNull()
+      .default('clean'),
     ...timestamps(),
   },
   (table) => [
     index('attachments_record_idx').on(table.subject, table.recordId),
     index('attachments_uploaded_by_idx').on(table.uploadedBy),
+    // The sweep queues the scans that never ran (a pending file is rare).
+    index('attachments_pending_idx')
+      .on(table.createdAt)
+      .where(sql`${table.scanStatus} = 'pending'`),
     ...tenantTable('attachments', table, { referenced: true }),
   ],
 ).enableRLS();

@@ -41,6 +41,7 @@ import {
 import { RECORD_EVENTS, RecordActivity } from '../realtime/record-activity.js';
 import { isTenantFileKey, tenantFileKey } from '../storage/storage.config.js';
 import type { RecordRef } from '../subscriptions/subscriptions.service.js';
+import { AttachmentScanQueue } from './attachment-scan.queue.js';
 import { ATTACHMENT_LIST } from './attachment.list.js';
 import type { AttachmentView } from './attachment.schemas.js';
 import { AttachmentsRegistry } from './attachments.registry.js';
@@ -117,6 +118,7 @@ export class AttachmentsService implements PersonalDataSource {
     private readonly audit: AuditService,
     private readonly registry: AttachmentsRegistry,
     private readonly activity: RecordActivity,
+    private readonly scans: AttachmentScanQueue,
     personalData: PersonalDataRegistry,
   ) {
     personalData.register(this);
@@ -204,6 +206,8 @@ export class AttachmentsService implements PersonalDataSource {
             size: file.size,
             contentType: file.contentType,
             uploadedBy: principalKey(principal),
+            // Off (the default): clean at once, as ever. Otherwise it waits for its scan.
+            scanStatus: this.scans.enabled ? 'pending' : 'clean',
           })
           .returning();
         await this.audit.record(
@@ -219,6 +223,9 @@ export class AttachmentsService implements PersonalDataSource {
         );
         return row!;
       });
+      if (row.scanStatus === 'pending') {
+        await this.scans.enqueue(row.id);
+      }
       this.changed(principal, row, row.id, 'added');
       return view(row);
     } catch (error) {
@@ -287,6 +294,13 @@ export class AttachmentsService implements PersonalDataSource {
     { inline = false }: { inline?: boolean } = {},
   ) {
     const row = await this.findReadable(principal, id);
+    if (row.scanStatus === 'pending') {
+      throw new ConflictException({
+        code: 'attachment_scan_pending',
+        message:
+          'This file is still being scanned for malware: try again in a moment.',
+      });
+    }
     const url = await this.disk.signedUrl(row.key, {
       expiresIn: DOWNLOAD_LINK_TTL,
       filename: row.name,
@@ -357,7 +371,7 @@ export class AttachmentsService implements PersonalDataSource {
     by: Principal,
     record: RecordRef,
     attachmentId: string,
-    action: 'added' | 'removed',
+    action: 'added' | 'removed' | 'scanned',
   ) {
     const target = this.registry.get(record.subject);
     if (!target) return;

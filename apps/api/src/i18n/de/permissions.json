@@ -134,6 +134,10 @@
       "label": "Anhänge aufräumen",
       "description": "Löscht jede Nacht die Dateien und Zeilen von Anhängen, deren Datensatz nicht mehr existiert."
     },
+    "attachment-scan": {
+      "label": "Malware-Scan von Anhängen",
+      "description": "Prüft hochgeladene Dateien auf Schadsoftware und entfernt infizierte."
+    },
     "revisions-retention": {
       "label": "Aufbewahrung der Revisionen",
       "description": "Löscht jede Nacht Revisionen von Datensätzen, die älter als REVISIONS_RETENTION_DAYS sind (nie die neueste eines Datensatzes)."

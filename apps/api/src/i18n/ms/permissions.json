@@ -134,6 +134,10 @@
       "label": "Pembersihan lampiran",
       "description": "Memadam fail dan baris lampiran yang rekodnya tidak lagi wujud, setiap malam."
     },
+    "attachment-scan": {
+      "label": "Imbasan perisian hasad lampiran",
+      "description": "Mengimbas fail yang dimuat naik untuk perisian hasad dan membuang yang dijangkiti."
+    },
     "revisions-retention": {
       "label": "Penyimpanan semakan",
       "description": "Memadam semakan rekod yang lebih lama daripada REVISIONS_RETENTION_DAYS (tidak sekali-kali yang terkini bagi sesuatu rekod), setiap malam."
