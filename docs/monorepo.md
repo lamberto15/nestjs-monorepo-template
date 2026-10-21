@@ -190,16 +190,19 @@ web app needs the API, so `dev:web` alone suits an API already running.
   `useLivePoll()` makes the poll a fallback: 1 s (2 s in lists) without one
   (`useRealtimeConnected()`), and fast again for a job whose end event came
   but which the queue still reports running. Tests play it with `fake.emit('connect')` / `emit('disconnect')`.
-- **The dashboard** (`features/dashboard`, the home page `/`): two stats
-  (approvals waiting, unread notifications) and cards for the approvals
-  assigned to the user, their unread notifications, the latest audit entries
-  (`Access.readAudit`), the notes changed last and a bar chart of notes created
-  per week over eight weeks (both `Note.read`), and quick actions. A card
-  without its permission or switch is not rendered and asks for nothing; each
-  asks only the existing routes (`/v1/approvals`, `/v1/notifications`,
-  `/v1/access/audit`, `/v1/notes` with `count=true` per week, as there is no
-  aggregate route). Their failures are quiet (no toast). Texts: the `dashboard`
-  namespace. To add a card, add a component there and gate it in `Dashboard`.
+- **The dashboard** (`features/dashboard`, the home page `/`): cards for the
+  approvals assigned to the user, their unread notifications, the latest audit
+  entries (`Access.readAudit`), the notes changed last and a bar chart of notes
+  created per week over eight weeks (`Note.read`), and a quick-actions card.
+  Like the menu, the features contribute them: `features/<feature>/dashboard.ts`
+  (default export `{ cards, actions }`; a card has an `id`, an `order`, optional
+  `feature`, `permission` and `wide`, and a lazy `component`; an action a `to`,
+  an i18n `label`, an `icon`), collected by `features/dashboard/registry.ts`,
+  so removing a feature takes its cards. A card without its permission or switch
+  is not rendered and asks for nothing; each asks only the existing routes
+  (`/v1/notes` with `count=true` per week, as there is no aggregate route), its
+  failures are quiet (no toast), and its texts are the feature's own namespace
+  (`dashboard.*`). The frame, rows and spinner are `features/dashboard/card.tsx`.
 
 - **Lists** (`components/list-page.tsx`): `<ListPage subject path columns
 title …>` is a server-paginated, filterable, sortable list of any subject;
