@@ -1,0 +1,32 @@
+{
+  "nav": "Branding",
+  "title": "Branding",
+  "description": "Ihre Farbe, Ihr Logo und der Absendername: Die Web-App, Ihre E-Mails und Ihre PDF-Dokumente zeigen sie an.",
+  "locked": "Die Betreiber haben das Branding dieses Mandanten gesperrt. Es kann hier nicht geändert werden.",
+  "saved": "Branding gespeichert.",
+  "save": "Speichern",
+  "color": {
+    "label": "Markenfarbe",
+    "hint": "Der Akzent von Schaltflächen und Links in der Web-App, in E-Mails und Dokumenten.",
+    "set": "Farbe wählen",
+    "remove": "Standardfarbe verwenden"
+  },
+  "mailName": {
+    "label": "Absendername für E-Mails",
+    "hint": "Der Name, unter dem E-Mails gesendet und signiert werden. Die Adresse bleibt die der Installation."
+  },
+  "logo": {
+    "label": "Logo",
+    "hint": "Ein Bild als PNG, JPEG oder WebP. Es erscheint im Menü, in E-Mails und auf Dokumenten.",
+    "alt": "Das aktuelle Logo",
+    "drop": "Logo hier ablegen",
+    "limit": "PNG, JPEG oder WebP, bis 512 KB",
+    "choose": "Datei wählen",
+    "saved": "Logo gespeichert.",
+    "remove": "Logo entfernen",
+    "removed": "Logo entfernt.",
+    "rejected": "{{name}}: {{reason}}",
+    "tooLarge": "Die Datei ist größer als {{max}} KB.",
+    "typeRefused": "Verwenden Sie ein PNG-, JPEG- oder WebP-Bild."
+  }
+}

@@ -571,13 +571,10 @@ export class SettingsService {
     ip?: string,
   ) {
     const declaration = this.declaration(key);
-    await this.remove(
-      actor,
-      key,
-      scope,
-      await this.scopeId(declaration, scope, scopeId),
-      ip,
-    );
+    const id = await this.scopeId(declaration, scope, scopeId);
+    // A removal is a write too (no value): a lock on the setting holds for it.
+    await this.assertWriter(actor, key, scope, id, undefined);
+    await this.remove(actor, key, scope, id, ip);
   }
 
   /**

@@ -259,7 +259,7 @@ Split into **1a** (core) and **1b** (per-tenant product features).
 
 ### 1b
 
-- Per-tenant settings, flags, quotas and branding.
+- Per-tenant settings, flags, quotas and branding (branding: **done**, #432, docs/branding.md).
 - The tenant switcher UX.
 - Tenant export and deletion: **done** (#226): the operators' export (a data
   transfer, step-up) and deletion (deactivated, a grace period, then a worker erases

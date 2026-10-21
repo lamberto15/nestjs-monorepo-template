@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { AppSidebar } from '@/components/app-sidebar';
 import { BreachedPasswordBanner } from '@/components/breached-password-banner';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
+import { BrandTheme } from '@/lib/branding';
 import { UnverifiedBanner } from '@/components/unverified-banner';
 import { SearchPalette } from '@/features/search/palette';
 import { NotificationsBell } from '@/features/notifications/bell';
@@ -43,6 +44,8 @@ function AppLayout() {
   useSavedLanguage();
   return (
     <TooltipProvider>
+      {/* The tenant's colour on the theme; read again after a tenant switch. */}
+      <BrandTheme />
       <RealtimeProvider>
         <SidebarProvider>
           <AppSidebar />
