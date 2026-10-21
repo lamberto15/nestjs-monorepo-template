@@ -271,12 +271,13 @@ without a role too), for @mention autocomplete and the like
 
 ```
 GET /v1/people?q=may&limit=10
-{ "items": [{ "key": "user:…", "name": "Maya Patel" }] }
+{ "items": [{ "key": "user:…", "name": "Maya Patel", "avatarUrl": null }] }
 ```
 
 - **What:** a key (`user:<id>`, what `@user:<id>` mentions and what
-  `author`, `changedBy`, `ownerId` hold) and a name, nothing else: no
-  address, no role, no status. Managing people stays on the access API.
+  `author`, `changedBy`, `ownerId` hold), a name and the `avatarUrl` of their
+  picture (null for none; [attachments.md](attachments.md), "Avatars"),
+  nothing else: no address, no role, no status. Managing people stays on the access API.
 - **Whose:** the current tenant's active members (an active account and an
   active membership in it), by name; never another tenant's, never an API
   client. `q` is a part of the name, whatever the case (1 to 100
@@ -383,7 +384,7 @@ service it calls that does check refuses it. `GET /v1/access/catalog`
 lists every job (`systemJobs`: key, actor, label, permissions). The
 template's: `seed`, `audit-retention`, `soft-delete-purge`, `sign-up-tenant-sweep`, `tenant-deletion`, `sso` (IAM,
 `iam/iam.jobs.ts`); `account-deletion`, `usage-rollup`,
-`attachment-sweep`, `revisions-retention`, `notification-retention`,
+`attachment-sweep`, `attachment-scan`, `revisions-retention`, `notification-retention`,
 `notification-digests`, `notification-delivery`, `report-runner`,
 `approvals`, `exchange-rates`, `mail-intake`, `mail-events-retention`, `webhook-delivery-retention`, `platform-analytics`,
 `reencryption`, `retention`, `messaging`, `messaging-inbound`, `messaging-retention` (platform,
@@ -422,6 +423,7 @@ transaction of the job carries `app.tenant_id` ([tenancy](tenancy.md)).
 | Recycle bin purge | `system:soft-delete-purge` | each tenant in turn | `records.purged` per batch (the ids), with the purge |
 | Account deletion | `system:account-deletion` | each tenant the person belonged to (their data there), then none (the account) | `account.deleted` (no tenant), with the anonymization |
 | Attachment sweep | `system:attachment-sweep` | each tenant in turn | `attachments.swept` per round (the ids), with the rows |
+| Attachment malware scan (and its retry job, every five minutes) | `system:attachment-scan` | the upload's (the job's tenant); the retry job: each tenant in turn | `attachment.rejected` (signature) when the file is infected, with the deletion; `attachments.released` (the ids) when scanning is switched off and pending files are released |
 | Scheduled reports | `system:report-runner` | each tenant in turn | `report.skipped`, `report.deactivated`, `report.finished`; the export itself runs, and is audited, as the report's owner |
 | Approvals workflow | `system:approvals` | the request's (the workflow's input) | the workflow's own (`approval.escalated`, `.expired`, `.failed`…); its outcome handlers get it as `outcome.actor` |
 | Note publication workflow | `system:note-publication` | the note's (the workflow's input) | `note.updated` (draft → published); an approval it asks for is on the owner's behalf |

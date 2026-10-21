@@ -1,5 +1,5 @@
 {
-  "id": "bb87313c-cff6-4185-bf90-e84fa6be61d6",
+  "id": "3832b0f4-b0d8-4909-b551-32be33f83e58",
   "prevId": "c42e1a07-913f-4a3e-b2b2-689da1f0a549",
   "version": "7",
   "dialect": "postgresql",
@@ -3119,6 +3119,12 @@
           "notNull": true,
           "default": true
         },
+        "avatar_key": {
+          "name": "avatar_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "deprovisioned_at": {
           "name": "deprovisioned_at",
           "type": "timestamp with time zone",
@@ -5308,12 +5314,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::jsonb"
-        },
-        "quiet_hours": {
-          "name": "quiet_hours",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
         },
         "created_at": {
           "name": "created_at",

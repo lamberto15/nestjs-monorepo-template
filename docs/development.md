@@ -39,7 +39,11 @@ through Turborepo or `pnpm --filter` ([monorepo](monorepo.md)).
 - **Floci** is AWS on http://localhost:4566: files go to its S3, mail through
   its SES (then on to Mailpit), so development runs the code production runs.
 - The first start creates the administrator (`ADMIN_EMAIL`); without
-  `ADMIN_PASSWORD`, the password is logged once.
+  `ADMIN_PASSWORD`, the password is logged once. With the default
+  `admin@example.com` or a generated password, the first sign-in is blocked
+  until a real address and a new password are set (docs/auth.md,
+  "Administrator onboarding"); `ADMIN_ONBOARDING=off` (in
+  `env.development.example`) skips that locally.
 - Swagger UI at `/api`: sign in with `POST /v1/auth/sign-in`, then try the routes.
 
 ## Floci (AWS locally)
@@ -226,6 +230,7 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 | `pnpm dev:web` | the web app's dev server alone, http://localhost:5173; it proxies `/v1`, `/health` and `/socket.io` to the API on :3000, so the session cookie is same-origin |
 | `pnpm build && pnpm lint && pnpm test && pnpm test:e2e` | the check before every commit (Turborepo: a task whose inputs didn't change is replayed from `.turbo/cache`) |
 | `pnpm i18n:check` | the translation parity check (also run by `pnpm lint`): every locale's keys, placeholders and plural forms against `en`, web and API ([i18n](i18n-and-time.md)) |
+| `pnpm lint` | oxlint in every package (Turborepo), the translation parity check, then knip: unused files, exports and dependencies across the workspaces ([Dead code](#dead-code-knip)); `pnpm lint:code` is the first two, `pnpm knip` knip alone |
 | `pnpm format` | Prettier on the TypeScript of every package (not on Markdown, nor `packages/ui`: the shadcn CLI writes it) |
 | `pnpm db:generate` | a migration from the tables (after any `*.tables.ts` change) |
 | `pnpm db:generate:fixtures` | the test-only record's migrations (`apps/api/test/fixtures/drizzle`), after changing `test/fixtures/test-items` |
@@ -303,6 +308,49 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 - **Store contracts** (`apps/api/test/stores.e2e-spec.ts`): the lock and
   authentication stores against the suites their packages ship.
 - `TEST_LOGS=1 pnpm test:e2e` shows the app's errors and warnings.
+
+## Coverage
+
+Each package that has unit tests sets coverage thresholds in its
+`vitest.config.ts` (`test.coverage.thresholds`): `apps/api`, `apps/web` and
+`packages/api-client`. They sit at the levels measured when they were added
+(the API's is low because its unit tests are the small share; the e2e suite
+carries the rest and isn't measured), so main never fails on day one. They
+only ratchet: when a change lifts the numbers, raise the thresholds with it;
+a drop fails CI.
+
+- **Locally:** `pnpm --filter @nestjs-monorepo-template/web test:cov` (or
+  `api`, `api-client`); `pnpm test` stays without coverage.
+- **In CI:** the unit job's shards run `test:cov` (the same run, not a second
+  one): each writes a blob report (`.vitest/blob`) and checks no threshold
+  of its own, since a share of the tests covers a share of the code. The
+  `coverage` job merges the blobs (`vitest --merge-reports --coverage`) and
+  enforces the thresholds. The packages job runs whole and enforces its own.
+- **Measure again** before raising: run `test:cov` and read the summary; set
+  each threshold to the figure rounded down.
+
+## Dead code (knip)
+
+`pnpm lint` ends with [knip](https://knip.dev) (`knip.jsonc`, one entry per
+workspace, as its monorepo guide describes): files nothing imports, unused
+exports and types, and dependencies that are unused or not listed. CI runs it
+in the `check` job. The generated-template jobs run `pnpm lint:code`, since
+knip checks this repository's own code.
+
+- **Entry points** knip can't find on its own are listed in `knip.jsonc`
+  (the worker, `migrate`, `seed-demo`, `openapi-dump` and the CLI, started
+  by `node dist/<name>`; the `tools/` scripts; the load test).
+- **An unused export:** remove the `export` (or the code). A helper meant
+  for the projects built on the template stays exported with a `@public`
+  JSDoc tag, which knip leaves alone (`isEncrypted`, `withCan`, ...).
+- **Ignored on purpose**, each with its reason in `knip.jsonc` or here:
+  Dice UI's data table (`components/data-table/`, `lib/data-table-*.ts`:
+  registry output the CLI writes, left whole so `shadcn add` updates apply),
+  `react-day-picker` and `tailwindcss` (used by that registry code and the
+  stylesheet's `@import`), `@types/multer` (the global `Express.Multer`
+  types), `k6` (the load test runs in k6's container) and `redis-server` (the
+  e2e tests start it).
+- Ignoring is the last resort: prefer removing the dead code.
 
 ## Browser tests
 

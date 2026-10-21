@@ -125,6 +125,13 @@
       "body": "{by} telah menarik balik \"{title}\": keputusan tidak diperlukan lagi."
     }
   },
+  "attachment": {
+    "rejected": {
+      "label": "Fail ditolak",
+      "title": "Fail anda ditolak",
+      "body": "\"{name}\" telah dibuang daripada {subject}: imbasan perisian hasad menandakannya ({signature})."
+    }
+  },
   "system": {
     "test": {
       "label": "Pemberitahuan ujian",

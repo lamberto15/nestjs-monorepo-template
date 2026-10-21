@@ -21,7 +21,8 @@
     "build": "tsc -p tsconfig.json",
     "generate": "node scripts/generate.mjs",
     "lint": "oxlint --type-aware src/",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:cov": "vitest run --coverage"
   },
   "peerDependencies": {
     "socket.io-client": "^4.8.4"
@@ -35,6 +36,7 @@
     "openapi-fetch": "0.17.0"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "5.0.4",
     "openapi-typescript": "7.13.0",
     "socket.io-client": "4.8.4",
     "typescript": "6.0.3",

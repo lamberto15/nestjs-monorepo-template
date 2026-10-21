@@ -1,0 +1,80 @@
+# Optional malware scanning for attachments (docs/attachments.md, "Malware
+# scanning"): a ClamAV daemon (clamd) the workers stream each upload to.
+# Nothing in the default stack needs it (MALWARE_SCANNER=off). Add it to
+# COMPOSE_FILE in .env:
+#
+#   COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.clamav.yaml
+#   docker compose up -d
+#
+# It turns the scanner on for api and worker (MALWARE_SCANNER=clamav,
+# CLAMAV_HOST=clamav). Uploads then wait `pending` until clean; pending
+# files can't be downloaded. docs/deployment.md, "ClamAV (malware scanning)".
+#
+# With compose.blue-green.yaml, also set MALWARE_SCANNER=clamav and
+# CLAMAV_HOST=clamav in .env: the colours (api-blue, api-green) extend
+# compose.prod.yaml's `api` and never see what this file sets on `api`, but
+# they read .env like every service (compose.prod.yaml, x-app).
+
+# Bounded logs, as in compose.yaml (an anchor can't cross files).
+x-logging: &logging
+  driver: ${DOCKER_LOG_DRIVER:-local}
+  options:
+    max-size: ${DOCKER_LOG_MAX_SIZE:-20m}
+    max-file: '${DOCKER_LOG_MAX_FILE:-5}'
+    compress: 'true'
+
+services:
+  clamav:
+    # The official image, pinned (Dependabot proposes the update). It runs
+    # clamd (port 3310, not published) and freshclam, which keeps the
+    # signatures current: the first start downloads them (a minute or two).
+    image: clamav/clamav:1.4.3
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      # clamd refuses a stream longer than StreamMaxLength: keep it at least
+      # ATTACHMENT_MAX_MB (INSTREAM size limit exceeded is a failed scan).
+      CLAMD_CONF_StreamMaxLength: ${CLAMAV_STREAM_MAX_MB:-${ATTACHMENT_MAX_MB:-25}}M
+      CLAMD_CONF_MaxFileSize: ${CLAMAV_STREAM_MAX_MB:-${ATTACHMENT_MAX_MB:-25}}M
+    # Its own network: only the workers join it (below). Not `internal`:
+    # freshclam needs the internet for signature updates.
+    networks:
+      - scanning
+    volumes:
+      - clamav_db:/var/lib/clamav
+    healthcheck:
+      # The image's own check: clamd answers PING.
+      test: ['CMD', '/usr/local/bin/clamdcheck.sh']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      # Loading the signatures takes a while.
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          cpus: '${CLAMAV_CPUS:-1}'
+          # clamd keeps the signatures in memory (about 1.5 GB loaded).
+          memory: ${CLAMAV_MEMORY:-3G}
+
+  api:
+    environment:
+      MALWARE_SCANNER: clamav
+      CLAMAV_HOST: clamav
+
+  worker:
+    environment:
+      MALWARE_SCANNER: clamav
+      CLAMAV_HOST: clamav
+    networks:
+      - default
+      - scanning
+    depends_on:
+      clamav:
+        condition: service_started
+
+networks:
+  scanning:
+
+volumes:
+  clamav_db:

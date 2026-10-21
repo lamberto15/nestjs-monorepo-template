@@ -88,5 +88,18 @@
   "bulk": {
     "delete": "Padam",
     "restore": "Pulihkan"
+  },
+  "dashboard": {
+    "newNote": "Nota baharu",
+    "recent": {
+      "title": "Nota yang baru diubah",
+      "empty": "Belum ada nota."
+    },
+    "chart": {
+      "title": "Nota seminggu",
+      "description": "Nota yang dicipta dalam 8 minggu lepas (minggu bermula Isnin, UTC).",
+      "series": "Nota",
+      "empty": "Tiada nota dicipta dalam 8 minggu lepas."
+    }
   }
 }

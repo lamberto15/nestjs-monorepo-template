@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FileTemplateEngine } from '@nestjs/mail';
 import type { CoreEnv } from '../../core/config/core.env.js';
+import { BrandingService } from '../branding/branding.service.js';
 
 /** The documents' templates: `layout.html` wraps each one (copied to dist by nest-cli.json). */
 export const DOCUMENT_TEMPLATES_DIR = join(
@@ -46,6 +47,9 @@ export const textDirection = (locale: string): 'rtl' | 'ltr' =>
  * helpers, so templates can't run code. `{{{ raw }}}` exists for the
  * layout's body only: templates.spec.ts refuses it anywhere else.
  *
+ * The tenant's branding (`brand`: name, `#rrggbb` colour, logo as a
+ * `data:` URL, BrandingService) is added to every context.
+ *
  * Nothing remote: the layout's Content-Security-Policy allows inline
  * styles and `data:` images and fonts only, and Gotenberg's Chromium is
  * allowed `file:///tmp/` and nothing else (compose.prod.yaml), on a
@@ -55,7 +59,10 @@ export const textDirection = (locale: string): 'rtl' | 'ltr' =>
 export class DocumentTemplates {
   private readonly engine: FileTemplateEngine;
 
-  constructor(config: ConfigService<CoreEnv, true>) {
+  constructor(
+    config: ConfigService<CoreEnv, true>,
+    private readonly branding: BrandingService,
+  ) {
     this.engine = new FileTemplateEngine({
       dir: DOCUMENT_TEMPLATES_DIR,
       layout: 'layout',
@@ -71,7 +78,14 @@ export class DocumentTemplates {
   ): Promise<string> {
     const { html } = await this.engine.render(
       template,
-      { ...context, lang: locale, dir: textDirection(locale), title },
+      {
+        ...context,
+        // The tenant's name, colour and logo (a data: URL): the layout shows them.
+        brand: await this.branding.forDocument(),
+        lang: locale,
+        dir: textDirection(locale),
+        title,
+      },
       { locale },
     );
     return html;

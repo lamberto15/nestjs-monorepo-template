@@ -2,15 +2,24 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ConfigService } from '@nestjs/config';
 import type { CoreEnv } from '../../core/config/core.env.js';
+import type { BrandingService } from '../branding/branding.service.js';
 import {
   DOCUMENT_TEMPLATES_DIR,
   DocumentTemplates,
   textDirection,
 } from './document-templates.js';
 
-const templates = new DocumentTemplates({
-  get: () => 'test',
-} as unknown as ConfigService<CoreEnv, true>);
+const brand = {
+  name: null,
+  color: '#1f2328',
+  logo: null,
+} as { name: string | null; color: string; logo: string | null };
+const templates = new DocumentTemplates(
+  {
+    get: () => 'test',
+  } as unknown as ConfigService<CoreEnv, true>,
+  { forDocument: async () => brand } as unknown as BrandingService,
+);
 
 /** The shared `record` template with these values, as a record's document fills it. */
 const note = (
@@ -89,6 +98,26 @@ describe('document templates', () => {
     expect(body(html)).toContain('{{{ dir }}}');
   });
 
+  it('shows the tenant’s colour, name and logo, escaped, and nothing when it has none', async () => {
+    const plain = body(await note());
+    expect(plain).not.toContain('<img');
+    expect(plain).toContain('border-top: 4pt solid #1f2328');
+    Object.assign(brand, {
+      name: 'Acme <b>&</b>',
+      color: '#0a84ff',
+      logo: 'data:image/png;base64,iVBORw0KGgo=',
+    });
+    try {
+      const branded = body(await note());
+      expect(branded).toContain('border-top: 4pt solid #0a84ff');
+      expect(branded).toContain('src="data:image/png;base64,iVBORw0KGgo="');
+      expect(branded).toContain('Acme &lt;b&gt;&amp;&lt;/b&gt;');
+      expect(branded).not.toContain('<b>');
+    } finally {
+      Object.assign(brand, { name: null, color: '#1f2328', logo: null });
+    }
+  });
+
   it('leaves out the rows without a value', async () => {
     const html = await note({ body: null, number: null });
     expect(html).not.toContain('INV-2026');
@@ -148,7 +177,10 @@ describe('document templates', () => {
         const text = read(file);
         expect(text).not.toMatch(/\b(https?|ftp|wss?):|\/\/[a-z0-9]/i);
         expect(text).not.toMatch(/<(script|link|iframe|object|embed|base)\b/i);
-        expect(text).not.toMatch(/\b(src|href|srcset|action)\s*=/i);
+        // The one image is the tenant's logo, a data: URL made by BrandingService.
+        expect(text.replaceAll('src="{{ brand.logo }}"', '')).not.toMatch(
+          /\b(src|href|srcset|action)\s*=/i,
+        );
         expect(text).not.toMatch(/url\(|@import/i);
       },
     );

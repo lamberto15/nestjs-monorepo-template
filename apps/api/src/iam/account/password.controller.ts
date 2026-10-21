@@ -1,3 +1,5 @@
+import { DuringMfaEnrollment } from '../auth/mfa-enrollment.guard.js';
+import { DuringOnboarding } from '../auth/onboarding.js';
 import { Body, Controller, HttpCode, Ip, Post } from '@nestjs/common';
 import { AccountService } from './account.service.js';
 import {
@@ -17,6 +19,7 @@ import {
   ApiNoContentResponse,
   ApiOperation,
   ApiTags,
+  ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { Throttle, minutes } from '@nestjs/throttler';
 import { z } from 'zod';
@@ -86,6 +89,10 @@ export class PasswordController {
     description:
       'Unknown, used or expired link; or `password_breached`: the password is in known data breaches (the link still works).',
   })
+  @ApiUnprocessableEntityResponse({
+    description:
+      "`password_reused`: one of the account's last passwords (`auth.passwordHistory`); the link still works.",
+  })
   async reset(
     @Body({ schema: resetSchema }) body: z.infer<typeof resetSchema>,
     @Ip() ip: string,
@@ -98,6 +105,9 @@ export class PasswordController {
   @UserOnly()
   @Can.Anyone()
   @RecentAuthentication()
+  // The first administrator's onboarding changes the generated password here.
+  @DuringOnboarding()
+  @DuringMfaEnrollment()
   @Throttle({ default: { limit: 5, ttl: minutes(15) } })
   @Post('change')
   @HttpCode(204)
@@ -115,6 +125,10 @@ export class PasswordController {
   })
   @ApiForbiddenResponse({
     description: 'Wrong current password, or an administrator acting as you.',
+  })
+  @ApiUnprocessableEntityResponse({
+    description:
+      '`password_reused`: the current password or one of the last ones (`auth.passwordHistory`).',
   })
   async change(
     @CurrentUser() user: UserPrincipal,

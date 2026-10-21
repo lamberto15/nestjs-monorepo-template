@@ -227,6 +227,19 @@ groups:
           summary: Webhook deliveries fail for good
           description: "About {{ $value | humanize }} deliveries failed for good in the last hour (after about two days of retries, or a blocked destination). Usually the receiver's endpoint; GET /v1/webhook-deliveries?status=failed shows them, and they can be retried."
 
+      # A hosted collector that turns the uploads away (401 a revoked key, 403,
+      # 429 out of credits) leaves the app running and blind: nothing else
+      # notices. Counted from the OTLP exporters' answers and from NestJS
+      # Observe's refusal log lines (core/observability/telemetry-health.ts).
+      - alert: TelemetryRejected
+        expr: sum by (job, target, status) (increase(telemetry_rejected_total[10m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Telemetry is rejected by {{ $labels.target }} ({{ $labels.status }})'
+          description: 'The {{ $labels.job }} uploads to {{ $labels.target }} were refused with HTTP {{ $labels.status }} for 5 minutes: 401/403 a wrong or revoked key, 429 the plan is out of credits. Traces, metrics and errors are being dropped. Check OBSERVE_APP_KEY, OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_EXPORTER_OTLP_HEADERS, and the collector''s quota (docs/deployment.md, "Telemetry").'
+
       - alert: TenantStorageNearLimit
         expr: max by (tenant) (tenant_storage_bytes) / max by (tenant) (tenant_storage_limit_bytes) > 0.9
         for: 15m

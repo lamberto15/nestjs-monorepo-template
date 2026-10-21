@@ -129,6 +129,13 @@
       "body": "{by} withdrew \"{title}\": no decision is needed any more."
     }
   },
+  "attachment": {
+    "rejected": {
+      "label": "File rejected",
+      "title": "Your file was rejected",
+      "body": "\"{name}\" was removed from {subject}: the malware scan flagged it ({signature})."
+    }
+  },
   "system": {
     "test": {
       "label": "Test notification",

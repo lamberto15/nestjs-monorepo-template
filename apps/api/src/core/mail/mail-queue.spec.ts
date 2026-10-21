@@ -1,0 +1,72 @@
+import { Logger } from '@nestjs/common';
+import type { Queue } from 'bullmq';
+import type { Mailer } from '@nestjs/mail';
+import { DEFAULT_MAIL_BRAND, type MailBranding } from './mail-branding.js';
+import { MailQueue } from './mail-queue.js';
+
+class Hello {}
+
+describe('MailQueue', () => {
+  const rendered = {
+    from: { address: 'noreply@example.com', name: 'My API' },
+    replyTo: [],
+    to: [{ address: 'a@example.com' }],
+    cc: [],
+    bcc: [],
+    subject: 'Hello',
+    html: '<p>Hi</p>',
+    text: 'Hi',
+    headers: {},
+    attachments: [],
+  };
+
+  function queueWith(branding?: MailBranding) {
+    const add = vi.fn(async () => undefined);
+    const render = vi.fn(async () => rendered);
+    const queue = new MailQueue(
+      { add } as unknown as Queue,
+      { render } as unknown as Mailer,
+      branding,
+    );
+    return { queue, add, render };
+  }
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('signs the mail with the tenant’s sender name', async () => {
+    const { queue, add } = queueWith({
+      current: async () => ({ ...DEFAULT_MAIL_BRAND, name: 'Acme' }),
+    });
+    await queue.send(Hello, { to: 'a@example.com' } as never);
+    expect(add).toHaveBeenCalledWith(
+      'Hello',
+      expect.objectContaining({
+        from: { address: 'noreply@example.com', name: 'Acme' },
+      }),
+      expect.anything(),
+    );
+  });
+
+  it('queues the mail unbranded when the brand can’t be read, and says so', async () => {
+    const warn = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
+    const { queue, add, render } = queueWith({
+      current: async () => {
+        throw new Error('object store down');
+      },
+    });
+    await queue.send(Hello, { to: 'a@example.com' } as never);
+    expect(render).toHaveBeenCalledTimes(1);
+    expect(add).toHaveBeenCalledTimes(1);
+    expect(add).toHaveBeenCalledWith(
+      'Hello',
+      expect.objectContaining({ from: rendered.from }),
+      expect.anything(),
+    );
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('unbranded'),
+      expect.objectContaining({ error: 'object store down' }),
+    );
+  });
+});

@@ -7318,6 +7318,15 @@
                       ],
                       "description": "`single`: the first tenant is the only one."
                     },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "normal",
+                        "read-only",
+                        "maintenance"
+                      ],
+                      "description": "`platform.mode` / `APP_MODE`. `read-only`: writes answer 503 `read_only`. `maintenance`: everything but health, sign-in and the operators' routes answers 503 `maintenance`. Both carry `Retry-After`."
+                    },
                     "locales": {
                       "type": "array",
                       "items": {
@@ -7341,6 +7350,7 @@
                     "ai",
                     "exchangeRates",
                     "tenancy",
+                    "mode",
                     "locales"
                   ],
                   "additionalProperties": false
@@ -14577,6 +14587,90 @@
         ]
       }
     },
+    "/v1/account/avatar": {
+      "put": {
+        "description": "Multipart, the field `file`: a PNG, JPEG, WebP or GIF, recognized from its bytes (not the name or the declared type), at most AVATAR_MAX_MB (2). Replaces the one you had. The answer is the `avatarUrl` to show it by (also on GET /v1/auth/me and GET /v1/people). Audited (account.avatar-changed). Never while acting as another user.",
+        "operationId": "AvatarController_set_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "avatarUrl": {
+                      "type": "string",
+                      "description": "Where the picture is shown from (a path on this API, for an `<img>`)."
+                    }
+                  },
+                  "required": [
+                    "avatarUrl"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No file (validation_failed)."
+          },
+          "401": {
+            "description": "Not signed in as a user."
+          },
+          "403": {
+            "description": "Acting as another user."
+          },
+          "413": {
+            "description": "Larger than AVATAR_MAX_MB (payload_too_large)."
+          },
+          "415": {
+            "description": "Not a PNG, JPEG, WebP or GIF, or not the type declared (unsupported_media_type)."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Set your picture",
+        "tags": [
+          "account"
+        ]
+      },
+      "delete": {
+        "description": "The file goes too. Without a picture, nothing happens. Audited (account.avatar-removed). Never while acting as another user.",
+        "operationId": "AvatarController_remove_v1",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "Not signed in as a user."
+          },
+          "403": {
+            "description": "Acting as another user."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Remove your picture",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/v1/account/deletion/cancel": {
       "post": {
         "description": "No sign-in: the token of the link in the deletion mail. It works once, for the request it was sent for, until the deletion is carried out. Audited (`account.deletion-cancelled`, `via: link`).",
@@ -15323,6 +15417,331 @@
         "summary": "What your tenant uses against its limits",
         "tags": [
           "tenants"
+        ]
+      }
+    },
+    "/v1/branding": {
+      "get": {
+        "description": "The brand colour (`#rrggbb`), the name mail is sent under, the logo’s path, whether the operators locked it and whether you may change it.",
+        "operationId": "BrandingController_get_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "primaryColor": {
+                      "nullable": true,
+                      "description": "`#rrggbb`, or null: the default theme.",
+                      "type": "string"
+                    },
+                    "mailFromName": {
+                      "nullable": true,
+                      "description": "The name mail is sent under, or null: the deployment’s.",
+                      "type": "string"
+                    },
+                    "logoUrl": {
+                      "nullable": true,
+                      "description": "The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null.",
+                      "type": "string"
+                    },
+                    "locked": {
+                      "type": "boolean",
+                      "description": "The operators locked it: `PUT` and the logo routes answer 409."
+                    },
+                    "canEdit": {
+                      "type": "boolean",
+                      "description": "The caller may change it (and it is not locked)."
+                    }
+                  },
+                  "required": [
+                    "primaryColor",
+                    "mailFromName",
+                    "logoUrl",
+                    "locked",
+                    "canEdit"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The branding of your tenant",
+        "tags": [
+          "branding"
+        ]
+      },
+      "put": {
+        "description": "Who manages settings. Sets the colour and the sender name (the settings `branding.primaryColor` and `branding.mailFromName`, so audited as `setting.updated`): `null` removes one, an absent key stays. The colour is `#rrggbb` only. Answers 409 `branding_locked` while the operators have it locked.",
+        "operationId": "BrandingController_update_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "primaryColor": {
+                    "nullable": true,
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "mailFromName": {
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "pattern": "^[^\\p{C}<>\"\\\\@;,:]+$"
+                  }
+                },
+                "additionalProperties": false,
+                "description": "A value sets it, `null` removes it (the default holds again), an absent key stays."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "primaryColor": {
+                      "nullable": true,
+                      "description": "`#rrggbb`, or null: the default theme.",
+                      "type": "string"
+                    },
+                    "mailFromName": {
+                      "nullable": true,
+                      "description": "The name mail is sent under, or null: the deployment’s.",
+                      "type": "string"
+                    },
+                    "logoUrl": {
+                      "nullable": true,
+                      "description": "The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null.",
+                      "type": "string"
+                    },
+                    "locked": {
+                      "type": "boolean",
+                      "description": "The operators locked it: `PUT` and the logo routes answer 409."
+                    },
+                    "canEdit": {
+                      "type": "boolean",
+                      "description": "The caller may change it (and it is not locked)."
+                    }
+                  },
+                  "required": [
+                    "primaryColor",
+                    "mailFromName",
+                    "logoUrl",
+                    "locked",
+                    "canEdit"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "409": {
+            "description": "Locked by the operators (branding_locked)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Change the branding of your tenant",
+        "tags": [
+          "branding"
+        ]
+      }
+    },
+    "/v1/branding/logo": {
+      "post": {
+        "description": "Who manages settings. Multipart, the field `file`: a PNG, JPEG or WebP of at most 512 KB, recognized by its bytes (never SVG). Replaces the logo. Audited (`branding.logo-changed`). 409 `branding_locked` while locked.",
+        "operationId": "BrandingController_upload_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Required. A PNG, JPEG or WebP image of at most 512 KB, recognized by its bytes."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "primaryColor": {
+                      "nullable": true,
+                      "description": "`#rrggbb`, or null: the default theme.",
+                      "type": "string"
+                    },
+                    "mailFromName": {
+                      "nullable": true,
+                      "description": "The name mail is sent under, or null: the deployment’s.",
+                      "type": "string"
+                    },
+                    "logoUrl": {
+                      "nullable": true,
+                      "description": "The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null.",
+                      "type": "string"
+                    },
+                    "locked": {
+                      "type": "boolean",
+                      "description": "The operators locked it: `PUT` and the logo routes answer 409."
+                    },
+                    "canEdit": {
+                      "type": "boolean",
+                      "description": "The caller may change it (and it is not locked)."
+                    }
+                  },
+                  "required": [
+                    "primaryColor",
+                    "mailFromName",
+                    "logoUrl",
+                    "locked",
+                    "canEdit"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "409": {
+            "description": "Locked by the operators (branding_locked)."
+          },
+          "413": {
+            "description": "Larger than 512 KB (payload_too_large)."
+          },
+          "415": {
+            "description": "Not a PNG, JPEG or WebP (unsupported_media_type)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Set the logo of your tenant",
+        "tags": [
+          "branding"
+        ]
+      },
+      "delete": {
+        "description": "Who manages settings. The file goes too. Audited (`branding.logo-removed`). 409 `branding_locked` while locked.",
+        "operationId": "BrandingController_remove_v1",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "There is no logo."
+          },
+          "409": {
+            "description": "Locked by the operators (branding_locked)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Remove the logo of your tenant",
+        "tags": [
+          "branding"
+        ]
+      }
+    },
+    "/v1/branding/{tenantId}/logo": {
+      "get": {
+        "description": "No sign-in needed. The image itself (PNG, JPEG or WebP, the type its bytes say), cached for five minutes, with `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox` and `Cross-Origin-Resource-Policy: cross-origin` (other sites' mail pages and apps may show it).",
+        "operationId": "PublicBrandingController_logo_v1",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The image."
+          },
+          "404": {
+            "description": "The tenant has no logo."
+          }
+        },
+        "summary": "The logo of a tenant",
+        "tags": [
+          "branding"
         ]
       }
     },
@@ -16272,11 +16691,17 @@
                           "name": {
                             "type": "string",
                             "example": "Maya Patel"
+                          },
+                          "avatarUrl": {
+                            "nullable": true,
+                            "description": "Their picture: a path on this API for an `<img>` (GET /v1/people/{id}/avatar; sign-in required); null: none, and always for an API client. A new picture is a new address.",
+                            "type": "string"
                           }
                         },
                         "required": [
                           "key",
-                          "name"
+                          "name",
+                          "avatarUrl"
                         ],
                         "additionalProperties": false
                       }
@@ -16309,6 +16734,85 @@
           }
         ],
         "summary": "Your tenant's people, by name or by key: for @mentions and pickers",
+        "tags": [
+          "people"
+        ]
+      }
+    },
+    "/v1/people/{id}/avatar": {
+      "get": {
+        "description": "The picture itself (what `avatarUrl` of a person points at), streamed by this API rather than redirected to the disk's signed link: an `<img>` then loads it from the page's own origin, whatever the storage (a redirect to another origin, the bucket with S3, is refused by the browser's cross-origin and Content-Security-Policy rules). `Content-Disposition: inline`, `Cache-Control: private` (the address changes with the picture), `nosniff`. For a member (or former member) of your tenant, or yourself. 404 when they have none, or are no one of your tenant: the two are not told apart.",
+        "operationId": "PeopleController_avatar_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "v",
+            "required": false,
+            "in": "query",
+            "description": "The version in `avatarUrl`: it only tells a new picture from the one a browser kept, and is not read.",
+            "schema": {
+              "description": "The version in `avatarUrl`: it only tells a new picture from the one a browser kept, and is not read.",
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The picture: a PNG, JPEG, WebP or GIF.",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/gif": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session or user token."
+          },
+          "403": {
+            "description": "Your session acts in no tenant (tenant_required)."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          }
+        ],
+        "summary": "A person's picture",
         "tags": [
           "people"
         ]
@@ -16500,6 +17004,9 @@
           },
           "404": {
             "description": ""
+          },
+          "409": {
+            "description": "The malware scan has not finished (attachment_scan_pending): try again shortly."
           }
         },
         "security": [
@@ -28562,6 +29069,11 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "avatarUrl": {
+                      "description": "Their picture (PUT /v1/account/avatar): a path on this API to put in an `<img>` (sign-in required, the same session or token); null: none. A new picture is a new address.",
+                      "nullable": true,
+                      "type": "string"
+                    },
                     "tenantId": {
                       "nullable": true,
                       "description": "The tenant this session or token acts in (GET /auth/tenants, POST /auth/tenant); null: none (no membership yet).",
@@ -28751,6 +29263,11 @@
                           "nullable": true,
                           "type": "string"
                         },
+                        "avatarUrl": {
+                          "description": "Their picture (PUT /v1/account/avatar): a path on this API to put in an `<img>` (sign-in required, the same session or token); null: none. A new picture is a new address.",
+                          "nullable": true,
+                          "type": "string"
+                        },
                         "tenantId": {
                           "nullable": true,
                           "description": "The tenant this session or token acts in (GET /auth/tenants, POST /auth/tenant); null: none (no membership yet).",
@@ -28823,6 +29340,24 @@
                     "mfaEnrollmentRequired": {
                       "type": "boolean",
                       "description": "true: this tenant requires two-factor (auth.requireMfa) and you have none: set it up (POST /auth/mfa/enroll, then /confirm); until then other routes answer 403 `mfa_enrollment_required`."
+                    },
+                    "onboardingRequired": {
+                      "nullable": true,
+                      "description": "Not null: the first administrator still has to replace the placeholder email (POST /auth/email/change, then the link mailed to it) and/or the generated password (POST /auth/password/change); until then other routes answer 403 `onboarding_required`. Null: nothing to do.",
+                      "type": "object",
+                      "properties": {
+                        "email": {
+                          "type": "boolean"
+                        },
+                        "password": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "email",
+                        "password"
+                      ],
+                      "additionalProperties": false
                     },
                     "authentication": {
                       "nullable": true,
@@ -28925,6 +29460,7 @@
                     "mfaEnabled",
                     "hasPassword",
                     "mfaEnrollmentRequired",
+                    "onboardingRequired",
                     "authentication",
                     "can"
                   ],
@@ -29017,6 +29553,11 @@
                       "type": "string"
                     },
                     "timezone": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "avatarUrl": {
+                      "description": "Their picture (PUT /v1/account/avatar): a path on this API to put in an `<img>` (sign-in required, the same session or token); null: none. A new picture is a new address.",
                       "nullable": true,
                       "type": "string"
                     },
@@ -29206,6 +29747,9 @@
           },
           "400": {
             "description": "Unknown, used or expired link; or `password_breached`: the password is in known data breaches (the link still works)."
+          },
+          "422": {
+            "description": "`password_reused`: one of the account's last passwords (`auth.passwordHistory`); the link still works."
           }
         },
         "summary": "Set a new password with a reset or invitation link",
@@ -29253,6 +29797,9 @@
           },
           "403": {
             "description": "Wrong current password, or an administrator acting as you.\n\n`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "422": {
+            "description": "`password_reused`: the current password or one of the last ones (`auth.passwordHistory`)."
           }
         },
         "security": [
@@ -29373,6 +29920,80 @@
           }
         ],
         "summary": "Send the verification link again",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/v1/auth/email/change": {
+      "post": {
+        "description": "Only while onboarding asks for it (`GET /auth/me` `onboardingRequired.email`): 409 otherwise. Wants the current password. The address changes at once and is unproved until its link (WEB_URL/verify-email?token=…) is opened; signing in stays possible meanwhile, so a typo can be corrected by calling this again.",
+        "operationId": "EmailController_change_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "example": "ada@example.com",
+                    "type": "string"
+                  },
+                  "currentPassword": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  }
+                },
+                "required": [
+                  "email",
+                  "currentPassword"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accepted": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "accepted"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`placeholder_email`: the address is a placeholder."
+          },
+          "409": {
+            "description": "No email onboarding pending, or the address is taken."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Replace the first administrator's placeholder email",
         "tags": [
           "account"
         ]
@@ -33025,6 +33646,11 @@
                             "description": "Their IANA time zone, or null (APP_TIMEZONE).",
                             "type": "string"
                           },
+                          "avatarUrl": {
+                            "description": "Their picture (an `<img>` path, GET /v1/people/{id}/avatar); null: none.",
+                            "nullable": true,
+                            "type": "string"
+                          },
                           "active": {
                             "type": "boolean",
                             "description": "The membership in this tenant and the account, together."
@@ -33328,6 +33954,11 @@
                     "timezone": {
                       "nullable": true,
                       "description": "Their IANA time zone, or null (APP_TIMEZONE).",
+                      "type": "string"
+                    },
+                    "avatarUrl": {
+                      "description": "Their picture (an `<img>` path, GET /v1/people/{id}/avatar); null: none.",
+                      "nullable": true,
                       "type": "string"
                     },
                     "active": {
@@ -45480,6 +46111,18 @@
             }
           },
           {
+            "name": "scanStatus",
+            "required": false,
+            "in": "query",
+            "description": "Filter: scanStatus =",
+            "schema": {
+              "description": "Filter: scanStatus =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
             "name": "size.gte",
             "required": false,
             "in": "query",
@@ -45571,9 +46214,9 @@
             "name": "filter",
             "required": false,
             "in": "query",
-            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains); contentType (eq, in, startsWith); size (gte, lte); createdAt (gte, lt, between); updatedAt (gte, lt, between).",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains); contentType (eq, in, startsWith); scanStatus (eq); size (gte, lte); createdAt (gte, lt, between); updatedAt (gte, lt, between).",
             "schema": {
-              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains); contentType (eq, in, startsWith); size (gte, lte); createdAt (gte, lt, between); updatedAt (gte, lt, between).",
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains); contentType (eq, in, startsWith); scanStatus (eq); size (gte, lte); createdAt (gte, lt, between); updatedAt (gte, lt, between).",
               "type": "string",
               "maxLength": 20000
             }
@@ -45593,9 +46236,9 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, createdAt, updatedAt.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, createdAt, updatedAt.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, createdAt, updatedAt.",
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, createdAt, updatedAt.",
               "type": "string"
             }
           }
@@ -48387,6 +49030,14 @@
             "type": "boolean",
             "description": "An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record."
           },
+          "scanStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "clean"
+            ],
+            "description": "`pending`: the malware scan has not finished (MALWARE_SCANNER is on) and the file cannot be downloaded yet (409 `attachment_scan_pending`). `clean` otherwise, always when scanning is off. An infected file is rejected: the attachment is deleted and its uploader notified."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -48407,6 +49058,7 @@
           "contentType",
           "uploadedBy",
           "locked",
+          "scanStatus",
           "createdAt",
           "updatedAt"
         ],
@@ -49406,7 +50058,8 @@
             "type": "string",
             "enum": [
               "added",
-              "removed"
+              "removed",
+              "scanned"
             ]
           }
         },
@@ -49542,7 +50195,7 @@
       }
     },
     "record.attachments.changed": {
-      "description": "A file on a record you watch was uploaded, removed or issued (a PDF): ids only.",
+      "description": "A file on a record you watch was uploaded, removed, issued (a PDF) or scanned clean (it can be downloaded now; MALWARE_SCANNER): ids only.",
       "payload": {
         "$ref": "#/components/schemas/RealtimeRecordAttachmentsChangedEvent"
       }

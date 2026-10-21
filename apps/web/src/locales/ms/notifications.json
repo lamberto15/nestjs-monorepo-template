@@ -99,5 +99,10 @@
     "removed": "Peranti dibuang.",
     "removeTitle": "Buang peranti ini?",
     "removeDescription": "{{name}} tidak akan menerima pemberitahuan tolak sehingga aplikasi mendaftarkannya semula."
+  },
+  "dashboard": {
+    "title": "Pemberitahuan belum dibaca",
+    "count": "Belum dibaca: {{count}}",
+    "empty": "Semuanya sudah dibaca."
   }
 }

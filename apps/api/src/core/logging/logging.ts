@@ -7,7 +7,12 @@ import {
   type LogLevel,
   type NestMiddleware,
 } from '@nestjs/common';
+import { trace } from '@opentelemetry/api';
 import type { NextFunction, Request, Response } from 'express';
+import {
+  observeRefusalStatus,
+  recordTelemetryFailure,
+} from '../observability/telemetry-health.js';
 import { type LogRedaction, logRedaction } from './redaction.js';
 
 const LEVELS: LogLevel[] = [
@@ -38,6 +43,36 @@ export class RedactingConsoleLogger extends ConsoleLogger {
     super({ ...options, redact: redaction.paths() });
   }
 
+  /**
+   * The trace the line belongs to: the active OpenTelemetry span's id, so a
+   * log line finds its trace in Tempo, Jaeger or Honeycomb. Undefined
+   * outside a span, and always when no SDK is started (the API's no-op).
+   */
+  private traceId() {
+    const context = trace.getActiveSpan()?.spanContext();
+    return context && trace.isSpanContextValid(context)
+      ? context.traceId
+      : undefined;
+  }
+
+  /**
+   * NestJS Observe's agent reports a refused upload ("Telemetry rate-limited
+   * (429)") only as an error line: count it (telemetry-health.ts).
+   */
+  private countRefusal(message: unknown) {
+    recordTelemetryFailure('observe', observeRefusalStatus(message));
+  }
+
+  override error(message: unknown, ...optionalParams: unknown[]) {
+    this.countRefusal(message);
+    super.error(message, ...optionalParams);
+  }
+
+  override warn(message: unknown, ...optionalParams: unknown[]) {
+    this.countRefusal(message);
+    super.warn(message, ...optionalParams);
+  }
+
   protected override formatMessage(
     logLevel: LogLevel,
     message: unknown,
@@ -47,13 +82,14 @@ export class RedactingConsoleLogger extends ConsoleLogger {
     timestampDiff: string,
     params?: Record<string, unknown>,
   ): string {
+    const traceId = this.traceId();
     return this.redaction.redactText(
       super.formatMessage(
         logLevel,
         message,
         pidMessage,
         formattedLogLevel,
-        contextMessage,
+        traceId ? `${contextMessage}[trace ${traceId}] ` : contextMessage,
         timestampDiff,
         params,
       ),
@@ -63,7 +99,12 @@ export class RedactingConsoleLogger extends ConsoleLogger {
   protected override stringifyJsonLogObject(
     logObject: Record<string, unknown>,
   ): string {
-    return this.redaction.redactText(super.stringifyJsonLogObject(logObject));
+    const traceId = this.traceId();
+    return this.redaction.redactText(
+      super.stringifyJsonLogObject(
+        traceId ? { ...logObject, traceId } : logObject,
+      ),
+    );
   }
 
   protected override printStackTrace(stack: string) {

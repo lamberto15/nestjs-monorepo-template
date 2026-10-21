@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FieldGroup } from '@nestjs-monorepo-template/ui/components/field';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -9,15 +9,20 @@ import { api } from '@/lib/api';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { useSettleBreachAlerts } from '@/features/notifications/breach-alert';
 import { FormAlert, useAppForm } from '@/lib/form';
+import { meQuery } from '@/lib/session';
 
 /**
  * `POST /v1/auth/password/change`: wants a recent sign-in (the dialog asks
- * when it isn't); the account's other sessions are signed out.
+ * when it isn't); the account's other sessions are signed out. The cached
+ * `me` is refreshed: it says whether the first administrator's password step
+ * (`onboardingRequired.password`) is done, which the onboarding page and the
+ * `_app` guard read.
  */
 export function PasswordSection() {
   const { t } = useTranslation();
   const [error, setError] = useState<string>();
   const settleBreachAlerts = useSettleBreachAlerts();
+  const queryClient = useQueryClient();
   const change = useMutation({
     mutationFn: async (body: {
       currentPassword?: string;
@@ -58,6 +63,8 @@ export function PasswordSection() {
         toast.success(t('account.password.changed'));
         // A new password answers the breached-password alert (and its banner).
         void settleBreachAlerts();
+        // Last: the onboarding page leaves this section once `me` says so.
+        await queryClient.invalidateQueries({ queryKey: meQuery.queryKey });
       } catch (caught) {
         if (!applyFieldErrors(form, caught)) {
           setError(errorMessage(caught));

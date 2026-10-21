@@ -88,10 +88,11 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Custom fields (runtime fields, JSONB values) | [docs/custom-fields.md](docs/custom-fields.md) |
 | Notifications (in-app, realtime, mail, webhook, push, SMS; preferences, digests, devices, toll-fraud caps, STOP) | [docs/notifications.md](docs/notifications.md) |
 | Settings and feature flags (runtime values, scopes, rollouts) | [docs/settings.md](docs/settings.md) |
+| Tenant branding: colour, logo, mail sender name (web theme, mail, PDFs; the operators' lock) | [docs/branding.md](docs/branding.md) |
 | Human-readable numbers (gapless sequences); naming series: the number formats administrators define (`INV-.YYYY.-.{region}.-.#####`: dates, the record's fields, variables like `FY`, `ABBR`; rules with conditions and priority) | [docs/sequences.md](docs/sequences.md) |
 | Money: minor-unit amounts, rounding, allocation, formatting; ECB exchange rates and conversion | [docs/money.md](docs/money.md) |
 | Comments and @mentions on records | [docs/comments.md](docs/comments.md) |
-| Files attached to records (uploads, downloads, the orphan sweep) | [docs/attachments.md](docs/attachments.md) |
+| Files attached to records (uploads, downloads, the orphan sweep); users' pictures (avatars) | [docs/attachments.md](docs/attachments.md) |
 | AI helper: summarize or classify a record on a queue worker (`POST /v1/ai/runs`), sources, provider, quota, cache, prompt injection | [docs/ai.md](docs/ai.md) |
 | PDF documents of records (templates, RTL, Gotenberg, the queue job, issued attachments) | [docs/documents.md](docs/documents.md) |
 | Saved views of lists (a list's filters, sort and columns by name; private, team, tenant) | [docs/saved-views.md](docs/saved-views.md) |
@@ -128,6 +129,11 @@ pnpm db:check                                           # after table changes
 pnpm test:e2e:web                                       # after web changes: Playwright on the built API and web app (CI's e2e-web)
 pnpm client:check                                       # after route changes (pnpm client:generate fixes it)
 ```
+
+`pnpm lint` ends with knip (unused files, exports, dependencies; `knip.jsonc`),
+and CI enforces coverage thresholds per package (`vitest.config.ts`; ratchet
+them up, never down): [docs/development.md](docs/development.md), "Coverage"
+and "Dead code (knip)".
 
 Current state: CI on `main` is green (unit, web and e2e tests, lint, the image,
 the scans). Edge cases live in `apps/api/test/edge-*.e2e-spec.ts`, security

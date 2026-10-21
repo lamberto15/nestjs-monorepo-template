@@ -218,7 +218,10 @@ export function TagDialog(props: {
  * count from the first pointer, key or input event on it, and it starts from
  * `value` (uncontrolled: the parent remounts it for another color).
  */
-function HexPicker(props: { value: string; onChange: (hex: string) => void }) {
+export function HexPicker(props: {
+  value: string;
+  onChange: (hex: string) => void;
+}) {
   const touched = useRef(false);
   const touch = () => {
     touched.current = true;

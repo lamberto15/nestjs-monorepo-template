@@ -58,6 +58,12 @@ It replaces the single `api` service with `api-blue` and `api-green` (both
 `API_REPLICAS` replicas, the same limits and settings), and puts Caddy on a
 network of its own, `edge`. `caddy/Caddyfile` stays as it is.
 
+The colours extend `compose.prod.yaml`'s `api`: what another override file
+sets on `api` does not reach them, only `.env` does. With
+`compose.clamav.yaml` ([deployment](deployment.md), "ClamAV (malware
+scanning)") set `MALWARE_SCANNER=clamav` and `CLAMAV_HOST=clamav` in `.env`
+too, else the colours store uploads unscanned.
+
 Starting from a running rolling stack, take `api` down first (`docker compose
 stop api`); the first `deploy` starts blue, and the site is down in between.
 After that, deploys never are.

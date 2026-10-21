@@ -3,6 +3,8 @@ import tailwindcss from '@tailwindcss/vite';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
+import { apiPathPattern } from './pwa-paths.ts';
 
 // The API is same-origin in development too (a proxy), as behind Caddy in
 // production: the __Host-sid session cookie needs it.
@@ -20,6 +22,47 @@ export default defineConfig({
     tanstackRouter({ target: 'react', autoCodeSplitting: true }),
     react(),
     tailwindcss(),
+    // vite-plugin-pwa's documented setup (generateSW, Workbox). The worker
+    // precaches the built shell only (scripts, styles, icons); there is no
+    // runtime caching, so no API response (user data) is ever stored by it.
+    // Navigations fall back to the shell except for the API's own paths.
+    VitePWA({
+      registerType: 'prompt',
+      includeAssets: [
+        'favicon.ico',
+        'favicon.svg',
+        'apple-touch-icon-180x180.png',
+      ],
+      manifest: {
+        name: 'App',
+        short_name: 'App',
+        description: 'The web app',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        theme_color: '#863bff',
+        background_color: '#ffffff',
+        icons: [
+          { src: 'pwa-64x64.png', sizes: '64x64', type: 'image/png' },
+          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+          {
+            src: 'maskable-icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        cleanupOutdatedCaches: true,
+        navigateFallback: 'index.html',
+        // What Caddy sends to the API (routes, Swagger UI and its documents,
+        // stored files, the socket) is never the shell: pwa-paths.ts.
+        navigateFallbackDenylist: [apiPathPattern],
+      },
+    }),
   ],
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },

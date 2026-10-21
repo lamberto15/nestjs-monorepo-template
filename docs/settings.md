@@ -112,6 +112,53 @@ The deployment's default tenant limits are settings of this kind
 `quotas.maxRecords`: no tenant scope, so only the operators' platform value
 sets them; [tenancy](tenancy.md#quotas)).
 
+## Maintenance and read-only mode (`platform.mode`, `APP_MODE`)
+
+During a risky migration, a restore or an incident the deployment can be
+told to stop taking writes. `platform.mode` is a platform-only setting
+(`scopes: []`: no tenant has a value of its own) with three values; the
+operators set it like any platform value, `PUT /v1/settings/platform.mode/platform
+{ "value": "read-only" }` (audited as `setting.updated`, `scope: platform`),
+and `DELETE` of the same path returns to `normal`. Code: `apps/api/src/platform/mode/`.
+
+| Mode          | Requests                                                                | Queues and cron |
+| ------------- | ----------------------------------------------------------------------- | --------------- |
+| `normal`      | Everything works.                                                       | Run.            |
+| `read-only`   | GET, HEAD and OPTIONS work; every other method answers 503 `read_only`. | Paused, skipped |
+| `maintenance` | Everything answers 503 `maintenance`, but the routes below.             | Paused, skipped |
+
+Both refusals are problem documents with `Retry-After: 30`. Always working,
+in both modes (`@AllowInMaintenance()`, `core/http/maintenance.ts`):
+`/health`, `/metrics`, `GET /v1/features` (it carries `mode`, for a client to
+show a banner), signing in and out by every method (`/v1/auth`: `methods`,
+`sign-in`, `mfa/verify`, `sign-out`, `me`; `token`, `token/refresh` and
+`token/revoke`; `passkeys/sign-in/options`, `passkeys/sign-in` and
+`passkeys/token`; `oidc/{provider}/login` and `callback`; `sso/discover` and
+every SSO connection's login, callbacks and SAML routes; `magic-link/verify`),
+`/v1/ops` and the two operator routes
+`PUT`/`DELETE /v1/settings/{key}/platform`, so the operators can always turn
+the mode off again, however they sign in, and token clients keep renewing
+their tokens. Asking for a magic link (`POST /v1/auth/magic-link`) is
+refused: its mail waits in the paused mail queue. Mark a route of your own
+the same way when it must keep working. A POST that only reads is refused in
+`read-only`.
+
+- **`APP_MODE`** forces the mode from the environment (`env.example`) and
+  wins over the setting, which then refuses a new value
+  (`setting_not_allowed`). Use it when the API cannot be reached to set it.
+- **Cheap per request**: `ModeGuard`, a global guard, asks `ModeService`,
+  which keeps the mode for a second and refreshes at once when the
+  instance writes it; other instances see a change within a second or so.
+  A failed read keeps the mode last known.
+- **Queues and cron**: where workers run (`APP_ROLE` `worker` or `all`),
+  a restricted mode calls BullMQ's `pause()` on every queue (jobs wait in
+  Redis; running ones finish) and stops the `@Cron` jobs
+  (`CronJob.stop()`); `normal` resumes both. A worker started in `normal`
+  resumes queues a crash left paused.
+- **Metric** `app_mode{mode}`: 1 for the current mode, on `/metrics`.
+- Not covered: WebSocket messages, a running job, and Caddy's maintenance
+  page for the web app (a follow-up).
+
 ## Targeting rules (flags)
 
 A flag may be switched by attribute: an ordered list of rules at the tenant
@@ -199,6 +246,7 @@ through its `AUTH_POLICY` port under the environment's ceiling
 | ------------------------ | ----------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `auth.requireMfa`        | boolean           | `tenant`, `team` (never `user`: nobody exempts themselves) | `false`                                                                                                                   |
 | `auth.passwordMinLength` | integer, 12 to 64 | `tenant`                                                   | `12`                                                                                                                      |
+| `auth.passwordHistory`   | integer, 0 to 24  | `tenant`                                                   | `0` (off; N: the account's last N passwords, the current one included, can't be reused: [auth.md](auth.md#passwords))   |
 | `auth.sessionIdleMinutes` | integer, 5 to 10080 | `tenant` | `10080` (no limit of its own: the deployment's `SESSION_IDLE_MINUTES` applies; a longer value is refused) |
 | `auth.sessionMaxHours` | integer, 1 to 720 | `tenant` | `720` (the deployment's `SESSION_MAX_HOURS` applies; a longer value is refused) |
 | `auth.allowBreakGlass`   | boolean           | `tenant`                                                   | `true` (`false`: the operators' break-glass grants are refused, and running ones stop: [tenancy](tenancy.md#break-glass)) |

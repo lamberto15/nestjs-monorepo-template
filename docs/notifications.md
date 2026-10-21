@@ -136,8 +136,9 @@ same tenant only (or among the account's own).
 - **Unsubscribe** (RFC 8058, which Gmail and Yahoo require of bulk senders):
   every notification and digest mail carries `List-Unsubscribe: <https://…/v1/notifications/unsubscribe/{token}>`
   (and a `mailto:` when `MAIL_UNSUBSCRIBE_MAILTO` is set), `List-Unsubscribe-Post: List-Unsubscribe=One-Click`,
-  and an "Unsubscribe" link in the footer (to `WEB_URL/unsubscribe?token=…`, a page that
-  POSTs the token; a GET changes nothing, since mail scanners follow links). The mail client
+  and an "Unsubscribe" link in the footer (to `WEB_URL/unsubscribe?token=…`, the web app's
+  `unsubscribe` page, no sign-in: a button POSTs the token; a GET changes nothing, since mail
+  scanners follow links). The mail client
   POSTs the form `List-Unsubscribe=One-Click` to the https URL, with no sign-in: the
   `{token}` is a JWT (`notification-unsubscribe.ts`) signed with a key derived
   from `JWT_SECRET` (HKDF, labelled, own audience and `typ`), naming the user and

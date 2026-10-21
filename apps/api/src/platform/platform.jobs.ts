@@ -188,10 +188,20 @@ export const MESSAGING_RETENTION_JOB = defineSystemJob({
   permissions: [],
 });
 
+/** AttachmentScanService: the malware scan of an upload, on a worker. */
+export const ATTACHMENT_SCAN_JOB = defineSystemJob({
+  key: 'attachment-scan',
+  label: 'Attachment malware scan',
+  description:
+    'Scans uploaded files for malware (MALWARE_SCANNER) and removes the infected ones.',
+  permissions: [],
+});
+
 export const PLATFORM_SYSTEM_JOBS = [
   ACCOUNT_DELETION_JOB,
   USAGE_ROLLUP_JOB,
   ATTACHMENT_SWEEP_JOB,
+  ATTACHMENT_SCAN_JOB,
   REVISION_RETENTION_JOB,
   NOTIFICATION_RETENTION_JOB,
   NOTIFICATION_DIGEST_JOB,

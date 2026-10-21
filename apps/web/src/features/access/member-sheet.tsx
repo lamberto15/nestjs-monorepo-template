@@ -1,3 +1,4 @@
+import { UserAvatar } from '@/components/user-avatar';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -68,6 +69,11 @@ export function MemberSheet(props: {
         {member ? (
           <>
             <SheetHeader>
+              <UserAvatar
+                size="lg"
+                name={member.name || member.email}
+                src={member.avatarUrl}
+              />
               <SheetTitle>{member.name || member.email}</SheetTitle>
               <SheetDescription>{member.email}</SheetDescription>
             </SheetHeader>
