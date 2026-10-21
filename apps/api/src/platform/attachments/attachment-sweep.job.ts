@@ -12,6 +12,7 @@ import {
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { SystemContext } from '../../iam/access/system-context.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
+import { renditionKeys } from '../images/renditions.js';
 import { ATTACHMENT_SWEEP_JOB } from '../platform.jobs.js';
 import { AttachmentsRegistry } from './attachments.registry.js';
 import { attachments } from './attachments.tables.js';
@@ -78,6 +79,7 @@ export class AttachmentSweepJob {
                 id: attachments.id,
                 recordId: attachments.recordId,
                 key: attachments.key,
+                renditions: attachments.renditions,
               })
               .from(attachments)
               .where(
@@ -98,7 +100,12 @@ export class AttachmentSweepJob {
             const orphans = rows.filter((row) => !existing.has(row.recordId));
             if (orphans.length === 0) continue;
             // The files first: a failure leaves the rows, and the next night tries again.
-            await this.disk.delete(orphans.map((row) => row.key));
+            await this.disk.delete(
+              orphans.flatMap((row) => [
+                row.key,
+                ...renditionKeys(row.renditions),
+              ]),
+            );
             await inTransaction(this.txHost, async (tx) => {
               await tx.delete(attachments).where(
                 inArray(

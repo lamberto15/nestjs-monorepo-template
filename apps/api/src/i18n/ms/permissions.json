@@ -138,6 +138,10 @@
       "label": "Imbasan perisian hasad lampiran",
       "description": "Mengimbas fail yang dimuat naik untuk perisian hasad dan membuang yang dijangkiti."
     },
+    "attachment-images": {
+      "label": "Pemprosesan imej lampiran",
+      "description": "Menjana imej kecil dan pratonton imej yang dimuat naik serta membuang metadata (EXIF, GPS) imej asal."
+    },
     "revisions-retention": {
       "label": "Penyimpanan semakan",
       "description": "Memadam semakan rekod yang lebih lama daripada REVISIONS_RETENTION_DAYS (tidak sekali-kali yang terkini bagi sesuatu rekod), setiap malam."

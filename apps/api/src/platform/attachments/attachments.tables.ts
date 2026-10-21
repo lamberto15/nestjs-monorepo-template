@@ -3,12 +3,17 @@ import {
   bigint,
   boolean,
   index,
+  jsonb,
   pgTable,
   text,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { timestamps, uuidPk } from '../../core/database/columns.js';
 import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
+import type {
+  RenditionStatus,
+  StoredRenditions,
+} from '../images/renditions.js';
 
 /**
  * Whether the file may be served: `clean` (scanned and found clean, or never
@@ -57,6 +62,23 @@ export const attachments = pgTable(
       .$type<AttachmentScanStatus>()
       .notNull()
       .default('clean'),
+    /**
+     * Where an uploaded image is in its processing (platform/images,
+     * IMAGE_PROCESSING): `pending` from the upload until the queue job has
+     * made its renditions and stripped its metadata (`ready`), or could not
+     * (`failed`: the file stays as uploaded). Null for what is not processed:
+     * other types, and everything stored while processing was off.
+     */
+    renditionStatus: text('rendition_status').$type<RenditionStatus>(),
+    /**
+     * The thumbnail and the preview of an image, `thumb` and `preview`: their
+     * keys on the private disk (next to the original's) and sizes. `{}`
+     * until `renditionStatus` is `ready`, and for what has none.
+     */
+    renditions: jsonb('renditions')
+      .$type<StoredRenditions>()
+      .notNull()
+      .default({}),
     ...timestamps(),
   },
   (table) => [
@@ -66,6 +88,10 @@ export const attachments = pgTable(
     index('attachments_pending_idx')
       .on(table.createdAt)
       .where(sql`${table.scanStatus} = 'pending'`),
+    // AttachmentImagesRetryJob looks for the images stuck pending (a pending image is rare).
+    index('attachments_rendition_pending_idx')
+      .on(table.updatedAt)
+      .where(sql`${table.renditionStatus} = 'pending'`),
     ...tenantTable('attachments', table, { referenced: true }),
   ],
 ).enableRLS();

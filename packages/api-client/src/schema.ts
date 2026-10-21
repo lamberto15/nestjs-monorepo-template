@@ -1641,7 +1641,7 @@ export interface paths {
         };
         /**
          * Download an attachment
-         * @description Whoever may read its record. Redirects to a signed link to the file, valid for 5m: it needs no credentials, so a browser can follow it (a link, an image). The file comes as `Content-Disposition: attachment` (a download), with `X-Content-Type-Options: nosniff`; `?inline=true` shows a PDF in the browser instead (a preview in a new tab), under `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox` (nothing loads, nothing runs, no page may frame it). Any other type stays a download.
+         * @description Whoever may read its record. Redirects to a signed link to the file, valid for 5m: it needs no credentials, so a browser can follow it (a link, an image). The file comes as `Content-Disposition: attachment` (a download), with `X-Content-Type-Options: nosniff`; `?inline=true` shows a PDF in the browser instead (a preview in a new tab), under `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox` (nothing loads, nothing runs, no page may frame it). Any other type stays a download. `?rendition=thumb` or `preview` links to an image's smaller WebP copy instead, inline.
          */
         get: operations["AttachmentsController_download_v1"];
         put?: never;
@@ -5054,10 +5054,30 @@ export interface components {
              * @enum {string}
              */
             scanStatus: "pending" | "clean";
+            /**
+             * @description Only for JPEG, PNG, WebP and GIF uploads while IMAGE_PROCESSING is on, else null. `pending`: the thumbnail and preview are being made (after the malware scan, when it is on); the original can be downloaded meanwhile. `ready`: `renditions` has them. `failed`: the image could not be processed (more than IMAGE_MAX_PIXELS, damaged, over the time limit); the file stays as it was uploaded.
+             * @enum {string|null}
+             */
+            renditionStatus: "pending" | "ready" | "failed" | null;
+            /** @description Smaller WebP copies of an image, upright and without metadata: `thumb` fits in 256 × 256 pixels, `preview` in 1600 × 1600 (neither enlarges). Empty until `renditionStatus` is `ready`. Download one with `GET /v1/attachments/{id}/download?rendition=thumb|preview`. */
+            renditions: {
+                thumb?: components["schemas"]["AttachmentRendition"];
+                preview?: components["schemas"]["AttachmentRendition"];
+            };
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        AttachmentRendition: {
+            /** @description Pixels, upright. */
+            width: number;
+            /** @description Pixels, upright. */
+            height: number;
+            /** @description Bytes. */
+            size: number;
+            /** @example image/webp */
+            contentType: string;
         };
         AttachmentPage: {
             items: components["schemas"]["Attachment"][];
@@ -5360,7 +5380,7 @@ export interface components {
             recordId: string;
             attachmentId: string;
             /** @enum {string} */
-            action: "added" | "removed" | "scanned";
+            action: "added" | "removed" | "scanned" | "processed";
         };
     };
     responses: never;
@@ -12538,6 +12558,8 @@ export interface operations {
             query?: {
                 /** @description `true`: a PDF is shown in the browser (`Content-Disposition: inline`); any other type is still a download. */
                 inline?: "true" | "false";
+                /** @description An image attachment's smaller copy instead of the file: `thumb` (fits in 256 × 256 pixels) or `preview` (1600 × 1600), WebP, upright, without metadata. Shown inline whatever `inline` says. 404 (`attachment_rendition_not_found`) when there is none: not an image, not made yet (`renditionStatus` `pending`), or it could not be processed. */
+                rendition?: "thumb" | "preview";
             };
             header?: never;
             path: {
@@ -12561,6 +12583,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description No such attachment, or with `rendition`: it has no such copy (attachment_rendition_not_found). */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -25798,7 +25821,7 @@ export interface operations {
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, size, createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, renditionStatus, renditions, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;

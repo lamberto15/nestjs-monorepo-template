@@ -399,9 +399,14 @@ describe('attachments (e2e)', () => {
       heard.push(data),
     );
     try {
+      // Not an image: an image also tells that its renditions are made
+      // (action `processed`, attachments-images.e2e-spec.ts).
       const added = await editor.agent
         .post(`/v1/test-items/${note.id}/attachments`)
-        .attach('file', PNG, { filename: 'dot.png', contentType: 'image/png' })
+        .attach('file', TEXT, {
+          filename: 'notes.txt',
+          contentType: 'text/plain',
+        })
         .expect(201);
       await editor.agent.delete(`/v1/attachments/${added.body.id}`).expect(204);
       await vi.waitFor(() => expect(heard).toHaveLength(2), { timeout: 5000 });
