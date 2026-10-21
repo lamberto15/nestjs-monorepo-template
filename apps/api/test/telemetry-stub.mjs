@@ -16,8 +16,12 @@ if (mode === 'check') {
   const stats = await fetch(`http://127.0.0.1:${port}/stats`).then((r) =>
     r.json(),
   );
-  console.log(`Collector received: ${JSON.stringify(stats)}`);
-  if (!stats.traces) {
+  // Only the counts, as numbers: nothing the response carries reaches the log.
+  const count = (key) => Number(stats[key]) || 0;
+  console.log(
+    `Collector received: traces=${count('traces')} metrics=${count('metrics')} sentryEnvelopes=${count('sentryEnvelopes')} other=${count('other')}`,
+  );
+  if (count('traces') === 0) {
     console.error(
       'No trace reached the collector: the instrumentation did not run.',
     );
