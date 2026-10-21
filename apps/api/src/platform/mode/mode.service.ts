@@ -5,6 +5,7 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ModuleRef } from '@nestjs/core';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { runsWorkers } from '../../core/config/core.env.js';
 import { MetricsService } from '../../core/metrics/metrics.service.js';
@@ -49,7 +50,7 @@ export class ModeService implements OnModuleInit, OnApplicationShutdown {
     private readonly settings: SettingsService,
     private readonly config: ConfigService<PlatformEnv, true>,
     private readonly queues: OpsQueues,
-    private readonly schedule: SchedulerRegistry,
+    private readonly moduleRef: ModuleRef,
     private readonly metrics: MetricsService,
   ) {
     this.mode = this.forced() ?? PLATFORM_MODE.default;
@@ -124,16 +125,33 @@ export class ModeService implements OnModuleInit, OnApplicationShutdown {
     return this.mode;
   }
 
+  /**
+   * The scheduler, where ScheduleModule is loaded (a worker; not with
+   * SCHEDULER=off or APP_ROLE=api). Looked up, not injected: the module is
+   * registered conditionally (core.module.ts) and isn't visible to a
+   * provider's constructor.
+   */
+  private scheduler(): SchedulerRegistry | undefined {
+    try {
+      return this.moduleRef.get(SchedulerRegistry, { strict: false });
+    } catch {
+      return undefined;
+    }
+  }
+
   private async apply(mode: AppMode) {
     if (!runsWorkers()) {
       return;
     }
     // Cron jobs: stopped every time (one registered late is caught too).
-    if (mode === 'normal') {
+    const schedule = this.scheduler();
+    if (!schedule) {
+      // nothing to stop or start
+    } else if (mode === 'normal') {
       for (const job of this.stopped) job.start();
       this.stopped.clear();
     } else {
-      for (const job of this.schedule.getCronJobs().values()) {
+      for (const job of schedule.getCronJobs().values()) {
         if (job.isActive) {
           await job.stop();
           this.stopped.add(job);

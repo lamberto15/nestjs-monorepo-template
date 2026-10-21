@@ -1,12 +1,12 @@
 import type { ConfigService } from '@nestjs/config';
-import type { SchedulerRegistry } from '@nestjs/schedule';
+import type { ModuleRef } from '@nestjs/core';
 import type { MetricsService } from '../../core/metrics/metrics.service.js';
 import type { OpsQueues } from '../ops/ops-queues.service.js';
 import type { SettingsService } from '../settings/settings.service.js';
 import { ModeService } from './mode.service.js';
 import type { AppMode } from './mode.setting.js';
 
-function setup(stored: AppMode, forced?: AppMode) {
+function setup(stored: AppMode, forced?: AppMode, withSchedule = true) {
   const state = { stored };
   const settings = {
     get: vi.fn(() => Promise.resolve(state.stored)),
@@ -25,7 +25,12 @@ function setup(stored: AppMode, forced?: AppMode) {
     settings as unknown as SettingsService,
     { get: () => forced } as unknown as ConfigService<never, true>,
     queues as unknown as OpsQueues,
-    schedule as unknown as SchedulerRegistry,
+    {
+      get: () => {
+        if (!withSchedule) throw new Error('not found');
+        return schedule;
+      },
+    } as unknown as ModuleRef,
     {} as MetricsService,
   );
   return { service, state, settings, queues, job };
@@ -65,5 +70,12 @@ describe('ModeService', () => {
     await service.refresh();
     settings.get.mockRejectedValueOnce(new Error('redis away'));
     expect(await service.refresh()).toBe('read-only');
+  });
+
+  it('works without a scheduler (SCHEDULER=off, APP_ROLE=api): queues only', async () => {
+    const { service, queues, job } = setup('read-only', undefined, false);
+    await service.refresh();
+    expect(queues.pauseAll).toHaveBeenCalledTimes(1);
+    expect(job.stop).not.toHaveBeenCalled();
   });
 });
