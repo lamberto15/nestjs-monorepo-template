@@ -13,6 +13,7 @@ import {
 import { and, asc, eq, gt, inArray, isNull, or } from 'drizzle-orm';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { apiKeyId, generateApiKey, hashApiKey } from '../auth/api-keys.js';
+import { normalizeCidr } from '../auth/client-ip.js';
 import { principalKey, type UserPrincipal } from '../auth/principal.js';
 import { SecurityAlertsService } from '../account/security-alerts.service.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -37,6 +38,8 @@ export interface ApiClientView {
   active: boolean;
   /** Requests a UTC day; null: no quota. */
   dailyQuota: number | null;
+  /** IPv4/IPv6 CIDRs its keys may be used from; empty: any address. */
+  allowedCidrs: string[];
   createdAt: Date;
   updatedAt: Date;
   keys: ApiKeyView[];
@@ -99,12 +102,21 @@ export class ApiClientsService {
   async create(
     tx: Transaction,
     actor: UserPrincipal,
-    input: { name: string; keyExpiresAt?: string; dailyQuota?: number | null },
+    input: {
+      name: string;
+      keyExpiresAt?: string;
+      dailyQuota?: number | null;
+      allowedCidrs?: string[];
+    },
     ip?: string,
   ) {
     const [client] = await tx
       .insert(apiClients)
-      .values({ name: input.name, dailyQuota: input.dailyQuota ?? null })
+      .values({
+        name: input.name,
+        dailyQuota: input.dailyQuota ?? null,
+        allowedCidrs: normalizeCidrs(input.allowedCidrs ?? []),
+      })
       .returning()
       .catch((error: unknown) => {
         throw uniqueToConflict(error, 'An API client with this name exists.');
@@ -120,6 +132,9 @@ export class ApiClientsService {
           name: client.name,
           keyId: apiKeyId(key),
           ...(client.dailyQuota !== null && { dailyQuota: client.dailyQuota }),
+          ...(client.allowedCidrs.length > 0 && {
+            allowedCidrs: client.allowedCidrs,
+          }),
         },
         ip,
       },
@@ -323,6 +338,42 @@ export class ApiClientsService {
     );
   }
 
+  /** Replaces the client's IP allowlist (empty: any address); 400 for a malformed CIDR. */
+  async setAllowedCidrs(
+    tx: Transaction,
+    actor: UserPrincipal,
+    id: string,
+    allowedCidrs: string[],
+    ip?: string,
+  ) {
+    const to = normalizeCidrs(allowedCidrs);
+    const [before] = await tx
+      .select({ allowedCidrs: apiClients.allowedCidrs })
+      .from(apiClients)
+      .where(eq(apiClients.id, id));
+    if (!before) {
+      throw new NotFoundException(`API client ${id} not found.`);
+    }
+    if (before.allowedCidrs.join() === to.join()) {
+      return;
+    }
+    await tx
+      .update(apiClients)
+      .set({ allowedCidrs: to })
+      .where(eq(apiClients.id, id));
+    await this.audit.record(
+      actor,
+      {
+        action: 'client.allowlist-changed',
+        targetType: 'client',
+        targetId: id,
+        details: { allowedCidrs: { from: before.allowedCidrs, to } },
+        ip,
+      },
+      tx,
+    );
+  }
+
   private async addKey(tx: Transaction, clientId: string, expiresAt?: string) {
     if (expiresAt && Date.parse(expiresAt) <= Date.now()) {
       throw new BadRequestException('A key can’t end in the past.');
@@ -379,6 +430,7 @@ export class ApiClientsService {
       name: client.name,
       active: client.active,
       dailyQuota: client.dailyQuota,
+      allowedCidrs: client.allowedCidrs,
       createdAt: client.createdAt,
       updatedAt: client.updatedAt,
       keys: keys
@@ -399,6 +451,21 @@ export class ApiClientsService {
       }),
     }));
   }
+}
+
+/** CIDRs in canonical form, duplicates dropped; a malformed one is a 400 `invalid_cidr`. */
+function normalizeCidrs(cidrs: string[]) {
+  const normalized = cidrs.map((cidr) => {
+    const result = normalizeCidr(cidr);
+    if (typeof result !== 'string') {
+      throw new BadRequestException({
+        code: 'invalid_cidr',
+        message: result.error,
+      });
+    }
+    return result;
+  });
+  return [...new Set(normalized)];
 }
 
 /** A unique-constraint violation as a 409 with a message; anything else as is. */
