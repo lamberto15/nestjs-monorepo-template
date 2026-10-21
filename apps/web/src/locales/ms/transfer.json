@@ -19,7 +19,6 @@
     "format": "Format",
     "start": "Mulakan eksport",
     "mine": "Eksport dan import anda",
-    "done_one": "{{count}} baris dieksport.",
     "done_other": "{{count}} baris dieksport.",
     "download": "Muat turun ({{format}})"
   },
@@ -86,13 +85,11 @@
     "row": "Baris",
     "field": "Medan",
     "message": "Sebab",
-    "moreErrors_one": "Dan {{count}} lagi dalam laporan.",
     "moreErrors_other": "Dan {{count}} lagi dalam laporan.",
     "downloadErrors": "Muat turun baris yang ditolak (CSV)"
   },
   "status": {
     "queued": "Menunggu pekerja…",
-    "running_one": "Sedang berjalan… {{count}} baris setakat ini.",
     "running_other": "Sedang berjalan… {{count}} baris setakat ini.",
     "progressLabel": "Kemajuan",
     "failed": "Ia gagal. Cuba lagi.",

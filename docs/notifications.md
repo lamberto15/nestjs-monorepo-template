@@ -100,6 +100,7 @@ same tenant only (or among the account's own).
 | `DELETE /v1/notifications/{id}` | removes one |
 | `GET /v1/notifications/types` | the types: label, `mandatory`, the defaults of the channels the caller may set |
 | `GET /v1/notifications/preferences` | the caller's effective settings per type |
+| `POST /v1/notifications/unsubscribe/{token}` | public; the one-click unsubscribe of a mail's `List-Unsubscribe` link (below); 204 |
 | `PUT /v1/notifications/preferences` | replaces the caller's overrides: `{ "note.published": { "email": "daily" } }`; a type or channel left out goes back to its default; a mandatory type refuses `false`; audited (`notificationPreferences.updated`) |
 | `POST /v1/notifications/test` | development and tests only: sends the caller a `system.test` notification, answers `{ id }` |
 
@@ -132,6 +133,24 @@ same tenant only (or among the account's own).
   and `daily` bundle them (one mail listing them, times in the user's
   zone), the daily one at `NOTIFICATIONS_DIGEST_HOUR` in the user's time
   zone. After downtime, everything due goes in the next run.
+- **Unsubscribe** (RFC 8058, which Gmail and Yahoo require of bulk senders):
+  every notification and digest mail carries `List-Unsubscribe: <https://…/v1/notifications/unsubscribe/{token}>`
+  (and a `mailto:` when `MAIL_UNSUBSCRIBE_MAILTO` is set), `List-Unsubscribe-Post: List-Unsubscribe=One-Click`,
+  and an "Unsubscribe" link in the footer (to `WEB_URL/unsubscribe?token=…`, a page that
+  POSTs the token; a GET changes nothing, since mail scanners follow links). The mail client
+  POSTs the form `List-Unsubscribe=One-Click` to the https URL, with no sign-in: the
+  `{token}` is a JWT (`notification-unsubscribe.ts`) signed with a key derived
+  from `JWT_SECRET` (HKDF, labelled, own audience and `typ`), naming the user and
+  what to switch off, valid for a year, so it can't be forged, changed or
+  taken from another kind of token. It turns the preference `email` of that type off
+  (a digest's token: of every type the user gets in that digest's modes), audited
+  (`notificationPreferences.updated`, `via: unsubscribe`); repeating it changes
+  nothing. **Essential mail is excluded**: a `mandatory` type's mail carries
+  no headers and no link, and its token would not switch it off. Every refusal
+  (forged, expired, account gone) is the same 400, as a wrong body is a 400
+  `validation_failed`. The headers need an https `APP_URL` (the RFC says so);
+  with http (development) mail has the footer link only. See
+  [deliverability.md](deliverability.md), "Unsubscribe headers (RFC 8058)".
 - **Export**: `POST /v1/data/exports { name: 'notifications' }` (CSV, JSON
   or Excel of the caller's own; see [data-transfer.md](data-transfer.md)).
 

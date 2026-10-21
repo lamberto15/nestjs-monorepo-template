@@ -142,3 +142,14 @@ export const preferencesInputSchema = z
 export const testNotificationResultSchema = z.object({
   id: z.uuid().describe('The notification, delivered to you shortly.'),
 });
+
+/**
+ * The body of the one-click unsubscribe (RFC 8058 §3.1): a mail client posts
+ * the form `List-Unsubscribe=One-Click`. The web page's JSON body with the
+ * same field is read the same.
+ */
+export const unsubscribeSchema = z.object({
+  'List-Unsubscribe': z
+    .literal('One-Click')
+    .describe('Always `One-Click` (RFC 8058).'),
+});
