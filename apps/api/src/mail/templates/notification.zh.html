@@ -2,4 +2,4 @@
 <h2 style="font-size:18px;margin:16px 0 8px;">{{ title }}</h2>
 <p>{{ body }}</p>
 {{#if url}}<p><a href="{{ url }}">在 {{ app }} 中打开</a></p>{{/if}}
-<p style="color:#59636e;font-size:13px;">您收到此邮件是因为您在 {{ app }} 中的通知设置。</p>
+<p style="color:#59636e;font-size:13px;">您收到此邮件是因为您在 {{ app }} 中的通知设置。{{#if unsubscribeUrl}} <a href="{{ unsubscribeUrl }}">退订</a>{{/if}}</p>
