@@ -120,7 +120,7 @@ function activeNames(text) {
   return names;
 }
 
-/** The names that have more than one active line (the first wins when read: the others are dead). */
+/** The names that have more than one active line (parseEnv reads the first; the readers of a real file may not agree). */
 export function duplicateKeys(text) {
   const seen = new Set();
   const repeated = new Set();
