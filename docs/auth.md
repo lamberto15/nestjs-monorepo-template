@@ -958,9 +958,28 @@ details.
 - **Deprovisioning.** `active: false` (Azure's `"False"` too) or `DELETE`
   deactivates the membership as an administrator would: that tenant's
   sessions and tokens end, what waits on the person moves on (approvals,
-  delegations), and at least one administrator remains. `DELETE` also
-  forgets the link: a later `POST` provisions them again. The account and
-  its other tenants are untouched.
+  delegations), and at least one administrator remains. `DELETE` answers
+  204 and also forgets the link: the user is then a 404 (RFC 7644 §3.6:
+  a resource kept after a DELETE answers 404 and leaves query results),
+  and a later `POST` provisions them again. After `active: false` the user
+  is still the SCIM client's: `GET` answers it with `active: false`.
+  Their other tenants are untouched.
+- **The account when no membership remains** (the owner's decision:
+  deactivated, never deleted). When deprovisioning leaves the account no
+  active membership in any tenant, the account is deactivated in the same
+  transaction (`users.active` off, `users.deprovisioned_at` set, audited
+  as `scim.account-deactivated`): every session and token family it has,
+  in any tenant or none, ends, and it can't sign in by any method. Nothing
+  is deleted: its memberships and roles (inactive), the records it owns,
+  its audit history and any legal hold stay. A membership active again
+  brings back the same account, its password, passkeys and data: the IdP
+  provisioning it again (`POST`) or `active: true`
+  (`scim.account-reactivated`), or an administrator turning a membership
+  back on (`user.account-reactivated`). Only an account deprovisioning
+  deactivated comes back this way; a deleted one never does. An
+  administrator deactivating a membership leaves the account as it is.
+  The account's lock and its memberships read `for update` keep two
+  tenants' changes from both missing the other.
 - **Groups** are teams: a group the IdP creates is a top-level team, its
   members those of the team. Only the teams it created and the users it
   provisioned are the SCIM client's: it never reaches the teams and members
@@ -976,10 +995,6 @@ details.
 
 Every change is audited with the API client as actor (`scim.user-*`,
 `scim.group-*`).
-
-Not built yet (roadmap item 2): deactivating an account when its last
-membership ends (an account is the person's own, in every tenant: an
-owner's decision first).
 
 ## Bot protection
 

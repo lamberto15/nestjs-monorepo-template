@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "deprovisioned_at" timestamp with time zone;

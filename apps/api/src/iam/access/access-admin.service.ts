@@ -539,6 +539,24 @@ export class AccessAdminService {
           id,
           changes.active,
         );
+        // An account its identity provider's deprovisioning deactivated
+        // (no active membership was left) comes back with this one.
+        if (
+          changes.active &&
+          (await this.accounts.reactivateDeprovisioned(tx, id))
+        ) {
+          await this.audit.record(
+            actor,
+            {
+              action: 'user.account-reactivated',
+              targetType: 'user',
+              targetId: id,
+              details: { email: before.email, reason: 'membership' },
+              ip,
+            },
+            tx,
+          );
+        }
       }
       if (changes.roleIds && grants) {
         // Ended grants not given again are deleted here, never rewritten.

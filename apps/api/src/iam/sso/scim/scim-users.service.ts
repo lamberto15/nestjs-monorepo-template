@@ -101,7 +101,9 @@ interface Row {
  * - `active: false` or DELETE deprovisions: the membership is deactivated,
  *   that tenant's sessions and tokens end, and what waits on the person
  *   moves on (the user lifecycle listeners), as an administrator's
- *   deactivation does. The account and its other tenants are untouched.
+ *   deactivation does. Its other tenants are untouched; when no active
+ *   membership remains anywhere, the account is deactivated (never
+ *   deleted), and provisioning or `active: true` brings it back.
  * - Only users the SCIM client provisioned (a `scim_users` row) are its:
  *   others' members are neither listed nor changed.
  * - SCIM never changes an account's address or name: they are the
@@ -191,7 +193,11 @@ export class ScimUsersService {
           });
           created = true;
         } else {
-          if (!(await this.users.lockAccount(tx, account.id))) {
+          if (
+            !(await this.users.lockAccount(tx, account.id)) &&
+            // Deactivated by deprovisioning: provisioning brings it back.
+            !(await this.users.isDeprovisioned(tx, account.id))
+          ) {
             throw new ScimException(
               409,
               'The account with this address is deactivated.',
@@ -235,6 +241,7 @@ export class ScimUsersService {
           await this.setActive(tx, actor, tenantId, account.id, active);
           deactivated = !active;
         }
+        await this.settleAccount(tx, actor, account.id, active, ip);
         await this.audit.record(
           actor,
           {
@@ -270,6 +277,9 @@ export class ScimUsersService {
     let deactivated = false;
     await this.unique(() =>
       inTransaction(this.txHost, async (tx) => {
+        // The account's lock first, as a creation takes it: never the
+        // other way round (a deadlock).
+        await this.users.lockAccount(tx, id);
         await this.users.lockMembership(tx, tenantId, id);
         const before = await this.find(tx, id);
         if (input.externalId && input.externalId !== before.externalId) {
@@ -287,6 +297,7 @@ export class ScimUsersService {
         if (active !== before.active) {
           await this.setActive(tx, actor, tenantId, id, active);
           deactivated = !active;
+          await this.settleAccount(tx, actor, id, active, ip);
         }
         await this.audit.record(
           actor,
@@ -366,12 +377,14 @@ export class ScimUsersService {
     const tenantId = this.tenancy.tenantId();
     let deactivated = false;
     await inTransaction(this.txHost, async (tx) => {
+      await this.users.lockAccount(tx, id);
       await this.users.lockMembership(tx, tenantId, id);
       const before = await this.find(tx, id);
       if (before.active) {
         await this.setActive(tx, actor, tenantId, id, false);
         deactivated = true;
       }
+      await this.settleAccount(tx, actor, id, false, ip);
       await tx.delete(scimUsers).where(eq(scimUsers.userId, id));
       await this.audit.record(
         actor,
@@ -426,6 +439,40 @@ export class ScimUsersService {
       for (const listener of this.lifecycle.all()) {
         await listener.deactivated?.(tx, userId, actor);
       }
+    }
+  }
+
+  /**
+   * The account follows its memberships (the owner's decision, docs/auth.md,
+   * "SCIM provisioning"): deactivated, never deleted, when deprovisioning
+   * leaves it no active membership in any tenant (every session and token
+   * family ends); reactivated, the same account with its data, when one is
+   * active again. Audited in the change's transaction.
+   */
+  private async settleAccount(
+    tx: Transaction,
+    actor: ClientPrincipal,
+    userId: string,
+    active: boolean,
+    ip?: string,
+  ) {
+    const changed = active
+      ? await this.users.reactivateDeprovisioned(tx, userId)
+      : await this.users.deactivateIfNoMembership(tx, userId);
+    if (changed) {
+      await this.audit.record(
+        actor,
+        {
+          action: active
+            ? 'scim.account-reactivated'
+            : 'scim.account-deactivated',
+          targetType: 'user',
+          targetId: userId,
+          details: { reason: active ? 'membership' : 'no-active-membership' },
+          ip,
+        },
+        tx,
+      );
     }
   }
 
