@@ -6,10 +6,6 @@
     "platform": "المنصة",
     "dashboard": "لوحة التحكم"
   },
-  "dashboard": {
-    "title": "لوحة التحكم",
-    "description": "ستظهر نظرتك العامة هنا."
-  },
   "auth": {
     "signIn": {
       "title": "تسجيل الدخول",

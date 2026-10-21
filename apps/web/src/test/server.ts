@@ -87,6 +87,10 @@ export const handlers = [
       canEdit: false,
     }),
   ),
+  // The dashboard's unread-notifications card asks on the home page.
+  http.get('/v1/notifications', () =>
+    HttpResponse.json({ items: [], nextCursor: null }),
+  ),
   http.get('/v1/auth/tenants', () =>
     HttpResponse.json({
       items: [

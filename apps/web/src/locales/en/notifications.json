@@ -101,5 +101,10 @@
     "removed": "Device removed.",
     "removeTitle": "Remove this device?",
     "removeDescription": "{{name}} will stop receiving push notifications until the app registers it again."
+  },
+  "dashboard": {
+    "title": "Unread notifications",
+    "count": "Unread: {{count}}",
+    "empty": "You are all caught up."
   }
 }

@@ -23,5 +23,9 @@
     "switch": "包含子租户",
     "included": "包含:{{names}}",
     "none": "此租户下没有子租户。"
+  },
+  "dashboard": {
+    "title": "最近活动",
+    "empty": "暂无活动。"
   }
 }

@@ -61,6 +61,24 @@ export const breachAlertQuery = queryOptions({
     ),
 });
 
+/**
+ * The dashboard's card: the latest unread notifications. Under the `list`
+ * key like the breach alert's, so the live events and every mark-read update
+ * it; the card shows the items still unread.
+ */
+export const unreadPreviewQuery = queryOptions({
+  queryKey: [...root, 'list', 'dashboard'],
+  staleTime: 60_000,
+  queryFn: () =>
+    unwrap(
+      api.GET('/v1/notifications', {
+        params: { query: { limit: 5, read: 'false' } },
+      }),
+    ),
+  // A hint on the home page: a failure is not worth a toast.
+  meta: { errorToast: false },
+});
+
 export type InboxFilter = { read?: 'true' | 'false'; type?: string };
 
 /** The inbox: cursor pages, newest first (`nextCursor` null: the end). */

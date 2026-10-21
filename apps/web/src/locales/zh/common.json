@@ -6,10 +6,6 @@
     "platform": "平台",
     "dashboard": "仪表盘"
   },
-  "dashboard": {
-    "title": "仪表盘",
-    "description": "您的概览将显示在这里。"
-  },
   "auth": {
     "signIn": {
       "title": "登录",
