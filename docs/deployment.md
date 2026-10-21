@@ -910,6 +910,19 @@ is the hosted alternative: traces, metrics and errors go to the service, and
 alerting is set up there, with nothing to run on the host. The two can run
 side by side.
 
+Observe wraps every provider in a proxy, which breaks code keyed by the real
+instance. `core/observability/observe.ts` (`skipObserve`, Observe's
+`skipInstrumentation`) leaves two kinds of provider unproxied: the
+`@nestjs/mail` transports (downleveled `#fields` throw "Cannot read private
+member") and every class with a `@OnOneInstance()`/`@WithoutOverlapping()`
+method (`@nestjs/locks` looks the job up by instance), the latter found by
+the marker the decorators leave, so new jobs need no listing. They get no
+spans of their own methods. `observe.spec.ts` runs them through Observe's real
+instance decorator. Both are upstream defects (`@nestjs/observe` should treat
+downleveled private fields and wrapped receivers like native `#` members;
+`@nestjs/locks` shouldn't key by instance identity): file them, then drop the
+exclusion.
+
 ## Migrations
 
 `node dist/migrate` connects as the owner (`DATABASE_OWNER_URL`), applies
