@@ -25,6 +25,7 @@ import { AuditService } from '../audit/audit.service.js';
 import type { Principal, UserPrincipal } from '../auth/principal.js';
 import type { IamEnv } from '../iam.env.js';
 import type { CreateConnection, UpdateConnection } from './sso.schemas.js';
+import { endpointProblem, presetDefaults } from './oauth2-mapping.js';
 import { SSO_QUEUE, type SsoJob } from './sso.queue.js';
 import { ssoConnections, ssoRoleMappings } from './sso.tables.js';
 import { describeCertificate, newSpKeyPair } from './sp-keys.js';
@@ -39,14 +40,35 @@ interface RoleSetup {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const OIDC_FIELDS = ['issuer', 'clientId', 'clientSecret'] as const;
-const SAML_FIELDS = [
-  'idpEntityId',
-  'idpSsoUrl',
-  'idpCertificates',
-  'allowIdpInitiated',
-  'requireEncryptedAssertions',
-] as const;
+type CreateOauth2 = Extract<CreateConnection, { protocol: 'oauth2' }>;
+
+/** The fields of each protocol: a change naming another protocol's is a 400. */
+const PROTOCOL_FIELDS = {
+  oidc: ['issuer', 'clientId', 'clientSecret'],
+  saml: [
+    'idpEntityId',
+    'idpSsoUrl',
+    'idpCertificates',
+    'allowIdpInitiated',
+    'requireEncryptedAssertions',
+  ],
+  oauth2: [
+    'authorizationEndpoint',
+    'tokenEndpoint',
+    'userinfoEndpoint',
+    'clientId',
+    'clientSecret',
+    'tokenEndpointAuthMethod',
+    'scopes',
+    'mapping',
+  ],
+} as const satisfies Record<
+  SsoConnection['protocol'],
+  readonly (keyof UpdateConnection)[]
+>;
+const ALL_PROTOCOL_FIELDS = [
+  ...new Set(Object.values(PROTOCOL_FIELDS).flat()),
+] as (keyof UpdateConnection)[];
 
 /**
  * A tenant's SSO connections (docs/auth.md, "Enterprise SSO"): created off,
@@ -87,25 +109,30 @@ export class SsoConnectionsService {
 
   async create(actor: UserPrincipal, input: CreateConnection, ip?: string) {
     await this.checkRoles(actor, input);
+    if (input.protocol === 'oauth2' && input.groupsAttribute) {
+      throw fieldsRefused('oauth2', ['groupsAttribute']);
+    }
     const values =
-      input.protocol === 'oidc'
-        ? {
-            issuer: this.checkUrl(input.issuer, 'issuer'),
-            clientId: input.clientId,
-            clientSecret: this.encryption.encrypt(
-              ssoConnections.clientSecret,
-              input.clientSecret,
-            ),
-          }
-        : {
-            idpEntityId: input.idpEntityId,
-            idpSsoUrl: this.checkUrl(input.idpSsoUrl, 'idpSsoUrl'),
-            idpCertificates: input.idpCertificates,
-            allowIdpInitiated: input.allowIdpInitiated ?? false,
-            requireEncryptedAssertions:
-              input.requireEncryptedAssertions ?? false,
-            ...(await this.newSpKeys()),
-          };
+      input.protocol === 'oauth2'
+        ? this.oauth2Values(input)
+        : input.protocol === 'oidc'
+          ? {
+              issuer: this.checkUrl(input.issuer, 'issuer'),
+              clientId: input.clientId,
+              clientSecret: this.encryption.encrypt(
+                ssoConnections.clientSecret,
+                input.clientSecret,
+              ),
+            }
+          : {
+              idpEntityId: input.idpEntityId,
+              idpSsoUrl: this.checkUrl(input.idpSsoUrl, 'idpSsoUrl'),
+              idpCertificates: input.idpCertificates,
+              allowIdpInitiated: input.allowIdpInitiated ?? false,
+              requireEncryptedAssertions:
+                input.requireEncryptedAssertions ?? false,
+              ...(await this.newSpKeys()),
+            };
     const row = await inTransaction(this.txHost, async (tx) => {
       const [created] = await tx
         .insert(ssoConnections)
@@ -131,6 +158,7 @@ export class SsoConnectionsService {
           details: {
             name: created.name,
             protocol: created.protocol,
+            ...(created.preset && { preset: created.preset.name }),
             enabled: created.enabled,
             jitProvisioning: created.jitProvisioning,
             ...roleDetails(input),
@@ -154,17 +182,27 @@ export class SsoConnectionsService {
     ip?: string,
   ) {
     const before = await this.find(id);
-    const other = before.protocol === 'oidc' ? SAML_FIELDS : OIDC_FIELDS;
-    const wrong = other.filter((field) => changes[field] !== undefined);
+    const own: readonly string[] = PROTOCOL_FIELDS[before.protocol];
+    const wrong: string[] = ALL_PROTOCOL_FIELDS.filter(
+      (field) => !own.includes(field) && changes[field] !== undefined,
+    );
+    // An OAuth 2.0 connection's groups are `mapping.groups`.
+    if (before.protocol === 'oauth2' && changes.groupsAttribute) {
+      wrong.push('groupsAttribute');
+    }
     if (wrong.length > 0) {
-      throw new BadRequestException({
-        code: 'validation_failed',
-        message: `A ${before.protocol} connection has no ${wrong.join(', ')}.`,
-        errors: wrong.map((path) => ({
-          path,
-          message: `Not a field of a ${before.protocol} connection.`,
-        })),
-      });
+      throw fieldsRefused(before.protocol, wrong);
+    }
+    if (before.protocol === 'oauth2') {
+      const method =
+        changes.tokenEndpointAuthMethod ?? before.tokenEndpointAuthMethod;
+      if (
+        method !== 'none' &&
+        changes.clientSecret === undefined &&
+        !before.clientSecret
+      ) {
+        throw missingFields(['clientSecret']);
+      }
     }
     await this.checkRoles(actor, changes);
     const issuerChanged =
@@ -212,6 +250,29 @@ export class SsoConnectionsService {
           ...(changes.groupsAttribute !== undefined && {
             groupsAttribute: changes.groupsAttribute,
           }),
+          ...(changes.authorizationEndpoint !== undefined && {
+            authorizationEndpoint: this.checkEndpoint(
+              changes.authorizationEndpoint,
+              'authorizationEndpoint',
+            ),
+          }),
+          ...(changes.tokenEndpoint !== undefined && {
+            tokenEndpoint: this.checkEndpoint(
+              changes.tokenEndpoint,
+              'tokenEndpoint',
+            ),
+          }),
+          ...(changes.userinfoEndpoint !== undefined && {
+            userinfoEndpoint: this.checkEndpoint(
+              changes.userinfoEndpoint,
+              'userinfoEndpoint',
+            ),
+          }),
+          ...(changes.tokenEndpointAuthMethod !== undefined && {
+            tokenEndpointAuthMethod: changes.tokenEndpointAuthMethod,
+          }),
+          ...(changes.scopes !== undefined && { scopes: changes.scopes }),
+          ...(changes.mapping !== undefined && { mapping: changes.mapping }),
         })
         .where(eq(ssoConnections.id, id))
         .returning()
@@ -271,9 +332,20 @@ export class SsoConnectionsService {
     });
   }
 
-  /** Fetches an OIDC connection's discovery document again (202: on the queue). */
+  /**
+   * Fetches an OIDC connection's discovery document again (202: on the
+   * queue). An OAuth 2.0 connection has none (409): its endpoints are its
+   * own fields.
+   */
   async refreshMetadata(id: string) {
     const row = await this.find(id);
+    if (row.protocol === 'oauth2') {
+      throw new ConflictException({
+        code: 'sso_no_discovery',
+        message:
+          'An OAuth 2.0 connection has no discovery document: its endpoints are its own fields.',
+      });
+    }
     if (row.protocol !== 'oidc') {
       throw new BadRequestException(
         'Only an OpenID Connect connection has a discovery document.',
@@ -370,7 +442,7 @@ export class SsoConnectionsService {
     return row ?? null;
   }
 
-  /** The OIDC client secret, for the token request (in the connection's tenant). */
+  /** The OIDC or OAuth 2.0 client secret, for the token request (in the connection's tenant). */
   clientSecret(connection: SsoConnection) {
     return this.encryption.decrypt(
       ssoConnections.clientSecret,
@@ -428,10 +500,84 @@ export class SsoConnectionsService {
     return {
       login: `${base}/login`,
       oidcCallback: `${base}/oidc/callback`,
+      oauth2Callback: `${base}/oauth2/callback`,
       samlAcs: `${base}/saml/acs`,
       samlComplete: `${base}/saml/complete`,
       samlMetadata: `${base}/saml/metadata`,
     };
+  }
+
+  /**
+   * An OAuth 2.0 connection's fields: the preset's defaults (Lark), each
+   * overridden by what was sent, then checked complete. Its endpoints are
+   * usable as soon as it is on: no discovery.
+   */
+  private oauth2Values(input: CreateOauth2) {
+    const defaults = input.preset ? presetDefaults(input.preset) : undefined;
+    const merged = {
+      authorizationEndpoint:
+        input.authorizationEndpoint ?? defaults?.authorizationEndpoint,
+      tokenEndpoint: input.tokenEndpoint ?? defaults?.tokenEndpoint,
+      userinfoEndpoint: input.userinfoEndpoint ?? defaults?.userinfoEndpoint,
+      tokenEndpointAuthMethod:
+        input.tokenEndpointAuthMethod ??
+        defaults?.tokenEndpointAuthMethod ??
+        ('client_secret_basic' as const),
+      scopes: input.scopes ?? defaults?.scopes ?? [],
+      mapping: input.mapping ?? defaults?.mapping,
+    };
+    const missing: string[] = (
+      [
+        'authorizationEndpoint',
+        'tokenEndpoint',
+        'userinfoEndpoint',
+        'mapping',
+      ] as const
+    ).filter((field) => !merged[field]);
+    if (merged.tokenEndpointAuthMethod !== 'none' && !input.clientSecret) {
+      missing.push('clientSecret');
+    }
+    if (missing.length > 0) {
+      throw missingFields(missing);
+    }
+    return {
+      authorizationEndpoint: this.checkEndpoint(
+        merged.authorizationEndpoint!,
+        'authorizationEndpoint',
+      ),
+      tokenEndpoint: this.checkEndpoint(merged.tokenEndpoint!, 'tokenEndpoint'),
+      userinfoEndpoint: this.checkEndpoint(
+        merged.userinfoEndpoint!,
+        'userinfoEndpoint',
+      ),
+      clientId: input.clientId,
+      clientSecret: input.clientSecret
+        ? this.encryption.encrypt(
+            ssoConnections.clientSecret,
+            input.clientSecret,
+          )
+        : null,
+      tokenEndpointAuthMethod: merged.tokenEndpointAuthMethod,
+      scopes: merged.scopes,
+      mapping: merged.mapping!,
+      preset: input.preset ?? null,
+    };
+  }
+
+  /** An OAuth 2.0 endpoint, or a 400 saying what is wrong with it (`endpointProblem()`). */
+  private checkEndpoint(value: string, field: string) {
+    const problem = endpointProblem(
+      value,
+      this.config.get('SSO_ALLOW_LOOPBACK', { infer: true }),
+    );
+    if (problem) {
+      throw new BadRequestException({
+        code: 'validation_failed',
+        message: `${field}: ${problem}`,
+        errors: [{ path: field, message: problem }],
+      });
+    }
+    return value;
   }
 
   /** A new SP key pair, its key encrypted for the column. */
@@ -599,6 +745,21 @@ export class SsoConnectionsService {
               metadataError: row.metadataError,
             }
           : null,
+      oauth2:
+        row.protocol === 'oauth2'
+          ? {
+              authorizationEndpoint: row.authorizationEndpoint ?? '',
+              tokenEndpoint: row.tokenEndpoint ?? '',
+              userinfoEndpoint: row.userinfoEndpoint ?? '',
+              clientId: row.clientId ?? '',
+              tokenEndpointAuthMethod:
+                row.tokenEndpointAuthMethod ?? 'client_secret_basic',
+              scopes: row.scopes ?? [],
+              mapping: row.mapping!,
+              preset: row.preset ?? null,
+              redirectUri: urls.oauth2Callback,
+            }
+          : null,
       saml:
         row.protocol === 'saml'
           ? {
@@ -638,6 +799,25 @@ const roleDetails = (
 
 const isUniqueViolation = (error: unknown) =>
   pgErrorCode(error) === UNIQUE_VIOLATION;
+
+/** Fields that aren't the connection's protocol's. */
+const fieldsRefused = (protocol: string, fields: string[]) =>
+  new BadRequestException({
+    code: 'validation_failed',
+    message: `A ${protocol} connection has no ${fields.join(', ')}.`,
+    errors: fields.map((path) => ({
+      path,
+      message: `Not a field of a ${protocol} connection.`,
+    })),
+  });
+
+/** Fields a connection can't do without. */
+const missingFields = (fields: readonly string[]) =>
+  new BadRequestException({
+    code: 'validation_failed',
+    message: `Missing: ${fields.join(', ')}.`,
+    errors: fields.map((path) => ({ path, message: 'Required.' })),
+  });
 
 const notFound = (id: string) =>
   new NotFoundException(`SSO connection ${id} not found.`);

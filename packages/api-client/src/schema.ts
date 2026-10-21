@@ -3687,7 +3687,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Fetch an OpenID Connect connection's discovery document again */
+        /**
+         * Fetch an OpenID Connect connection's discovery document again
+         * @description Only an OpenID Connect connection has one: a SAML connection gets 400, an OAuth 2.0 one 409 `sso_no_discovery` (its endpoints are its own fields, usable as soon as it is on).
+         */
         post: operations["SsoController_refreshConnection_v1"];
         delete?: never;
         options?: never;
@@ -3832,6 +3835,23 @@ export interface paths {
         };
         /** Where an OpenID Connect IdP sends the browser back */
         get: operations["SsoAuthController_oidcCallback_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sso/{tenantId}/{connectionId}/oauth2/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Where an OAuth 2.0 provider sends the browser back */
+        get: operations["SsoAuthController_oauth2Callback_v1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -21879,7 +21899,7 @@ export interface operations {
                             id: string;
                             name: string;
                             /** @enum {string} */
-                            protocol: "oidc" | "saml";
+                            protocol: "oidc" | "saml" | "oauth2";
                             enabled: boolean;
                             jitProvisioning: boolean;
                             groupsAttribute?: string | null;
@@ -21927,6 +21947,54 @@ export interface operations {
                                 /** @description Our SP metadata (XML) for the IdP. */
                                 metadataUrl: string;
                             } | null;
+                            oauth2?: {
+                                authorizationEndpoint: string;
+                                tokenEndpoint: string;
+                                userinfoEndpoint: string;
+                                clientId: string;
+                                /** @enum {string} */
+                                tokenEndpointAuthMethod: "client_secret_post" | "client_secret_basic" | "none";
+                                scopes: string[];
+                                mapping: {
+                                    /** @description Where the user object is in the answer (`data` for Lark); the whole answer when absent. */
+                                    root?: string;
+                                    /** @description The provider's stable id of the person (a string or a number), in the user object. */
+                                    subject: string;
+                                    /** @description The address, in the user object. */
+                                    email?: string;
+                                    name?: string;
+                                    /** @description Read, not stored yet: accounts have no picture. */
+                                    picture?: string;
+                                    /** @description An array of strings, in the user object: the groups `roleMappings` read. None when absent. */
+                                    groups?: string;
+                                    /**
+                                     * @description Whether the provider vouches for the address: `{ "path" }` (a field that must be `true`), `"verified-domains"` (trusted because its domain is one the tenant verified, as a SAML assertion is), or `"never"` (a first sign-in is refused, `email_unverified`).
+                                     * @default never
+                                     */
+                                    emailVerified: {
+                                        /** @description A field of the user object that must be the boolean `true`. */
+                                        path: string;
+                                    } | "verified-domains" | "never";
+                                    /** @description A field of the whole answer that marks a failure (Lark answers 200 with `code` not 0): a non-zero number or any other truthy value refuses the sign-in. */
+                                    errorCode?: string;
+                                };
+                                /** @description The preset that filled the fields at creation, if any. */
+                                preset: {
+                                    /**
+                                     * @description Lark (Feishu) v2. More presets may come for providers whose code exchange is not standard OAuth 2.0.
+                                     * @enum {string}
+                                     */
+                                    name: "lark";
+                                    /**
+                                     * @description `lark` (larksuite.com) or `feishu` (feishu.cn).
+                                     * @default lark
+                                     * @enum {string}
+                                     */
+                                    region: "lark" | "feishu";
+                                } | null;
+                                /** @description The redirect URI to register at the provider. */
+                                redirectUri: string;
+                            } | null;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -21950,7 +22018,7 @@ export interface operations {
                     /** @enum {string} */
                     protocol: "oidc";
                     name: string;
-                    /** @description Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null. */
+                    /** @description Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null. Not for an OAuth 2.0 connection: its `mapping.groups` says. */
                     groupsAttribute?: string | null;
                     /** @description The roles a group gives: at each sign-in, the person gets the roles of the groups the IdP lists, and loses those a mapping gave that it no longer lists. Roles you give or take yourself stay yours. You must be able to grant each role. */
                     roleMappings?: {
@@ -21977,7 +22045,7 @@ export interface operations {
                     /** @enum {string} */
                     protocol: "saml";
                     name: string;
-                    /** @description Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null. */
+                    /** @description Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null. Not for an OAuth 2.0 connection: its `mapping.groups` says. */
                     groupsAttribute?: string | null;
                     /** @description The roles a group gives: at each sign-in, the person gets the roles of the groups the IdP lists, and loses those a mapping gave that it no longer lists. Roles you give or take yourself stay yours. You must be able to grant each role. */
                     roleMappings?: {
@@ -22005,6 +22073,88 @@ export interface operations {
                     allowIdpInitiated?: boolean;
                     /** @description Refuse an assertion not encrypted to `saml.spCertificate`. Off by default: an encrypted one is decrypted, a plain one accepted (both must be signed). */
                     requireEncryptedAssertions?: boolean;
+                } | {
+                    /** @enum {string} */
+                    protocol: "oauth2";
+                    name: string;
+                    /** @description Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null. Not for an OAuth 2.0 connection: its `mapping.groups` says. */
+                    groupsAttribute?: string | null;
+                    /** @description The roles a group gives: at each sign-in, the person gets the roles of the groups the IdP lists, and loses those a mapping gave that it no longer lists. Roles you give or take yourself stay yours. You must be able to grant each role. */
+                    roleMappings?: {
+                        /** @description The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids). */
+                        group: string;
+                        /** Format: uuid */
+                        roleId: string;
+                    }[];
+                    /** @description The roles a member provisioned just in time gets at their first sign-in (once). You must be able to grant each. */
+                    defaultRoleIds?: string[];
+                    /** @description Off by default: the connection signs nobody in until on. */
+                    enabled?: boolean;
+                    /** @description A person of a verified domain who is not a member yet becomes one at their first sign-in. Off by default. */
+                    jitProvisioning?: boolean;
+                    /** @description A provider's defaults for the fields below (each field given overrides its default): `lark` fills Lark/Feishu v2's endpoints, `client_secret_post` and the mapping. Only when creating. */
+                    preset?: {
+                        /**
+                         * @description Lark (Feishu) v2. More presets may come for providers whose code exchange is not standard OAuth 2.0.
+                         * @enum {string}
+                         */
+                        name: "lark";
+                        /**
+                         * @description `lark` (larksuite.com) or `feishu` (feishu.cn).
+                         * @default lark
+                         * @enum {string}
+                         */
+                        region?: "lark" | "feishu";
+                    };
+                    /**
+                     * Format: uri
+                     * @description Where the browser is sent to sign in. Required without a preset.
+                     */
+                    authorizationEndpoint?: string;
+                    /**
+                     * Format: uri
+                     * @description Where the code is exchanged (RFC 6749, PKCE). Required without a preset.
+                     */
+                    tokenEndpoint?: string;
+                    /**
+                     * Format: uri
+                     * @description Read once per sign-in with the access token; `mapping` reads its answer. Required without a preset.
+                     */
+                    userinfoEndpoint?: string;
+                    clientId: string;
+                    /** @description Stored encrypted, never returned. Required unless `tokenEndpointAuthMethod` is `none`. */
+                    clientSecret?: string;
+                    /**
+                     * @description How the client authenticates at the token endpoint: `client_secret_basic` by default (RFC 6749), `client_secret_post`, or `none` (a public client). PKCE is always on.
+                     * @enum {string}
+                     */
+                    tokenEndpointAuthMethod?: "client_secret_post" | "client_secret_basic" | "none";
+                    /** @description The scopes asked for (none by default). */
+                    scopes?: string[];
+                    /** @description Where the user-info answer holds the person. Required without a preset. Paths are dots between names (`data.open_id`), read in the user object at `root`; `errorCode` in the whole answer. */
+                    mapping?: {
+                        /** @description Where the user object is in the answer (`data` for Lark); the whole answer when absent. */
+                        root?: string;
+                        /** @description The provider's stable id of the person (a string or a number), in the user object. */
+                        subject: string;
+                        /** @description The address, in the user object. */
+                        email?: string;
+                        name?: string;
+                        /** @description Read, not stored yet: accounts have no picture. */
+                        picture?: string;
+                        /** @description An array of strings, in the user object: the groups `roleMappings` read. None when absent. */
+                        groups?: string;
+                        /**
+                         * @description Whether the provider vouches for the address: `{ "path" }` (a field that must be `true`), `"verified-domains"` (trusted because its domain is one the tenant verified, as a SAML assertion is), or `"never"` (a first sign-in is refused, `email_unverified`).
+                         * @default never
+                         */
+                        emailVerified?: {
+                            /** @description A field of the user object that must be the boolean `true`. */
+                            path: string;
+                        } | "verified-domains" | "never";
+                        /** @description A field of the whole answer that marks a failure (Lark answers 200 with `code` not 0): a non-zero number or any other truthy value refuses the sign-in. */
+                        errorCode?: string;
+                    };
                 };
             };
         };
@@ -22019,7 +22169,7 @@ export interface operations {
                         id: string;
                         name: string;
                         /** @enum {string} */
-                        protocol: "oidc" | "saml";
+                        protocol: "oidc" | "saml" | "oauth2";
                         enabled: boolean;
                         jitProvisioning: boolean;
                         groupsAttribute?: string | null;
@@ -22066,6 +22216,54 @@ export interface operations {
                             acsUrl: string;
                             /** @description Our SP metadata (XML) for the IdP. */
                             metadataUrl: string;
+                        } | null;
+                        oauth2?: {
+                            authorizationEndpoint: string;
+                            tokenEndpoint: string;
+                            userinfoEndpoint: string;
+                            clientId: string;
+                            /** @enum {string} */
+                            tokenEndpointAuthMethod: "client_secret_post" | "client_secret_basic" | "none";
+                            scopes: string[];
+                            mapping: {
+                                /** @description Where the user object is in the answer (`data` for Lark); the whole answer when absent. */
+                                root?: string;
+                                /** @description The provider's stable id of the person (a string or a number), in the user object. */
+                                subject: string;
+                                /** @description The address, in the user object. */
+                                email?: string;
+                                name?: string;
+                                /** @description Read, not stored yet: accounts have no picture. */
+                                picture?: string;
+                                /** @description An array of strings, in the user object: the groups `roleMappings` read. None when absent. */
+                                groups?: string;
+                                /**
+                                 * @description Whether the provider vouches for the address: `{ "path" }` (a field that must be `true`), `"verified-domains"` (trusted because its domain is one the tenant verified, as a SAML assertion is), or `"never"` (a first sign-in is refused, `email_unverified`).
+                                 * @default never
+                                 */
+                                emailVerified: {
+                                    /** @description A field of the user object that must be the boolean `true`. */
+                                    path: string;
+                                } | "verified-domains" | "never";
+                                /** @description A field of the whole answer that marks a failure (Lark answers 200 with `code` not 0): a non-zero number or any other truthy value refuses the sign-in. */
+                                errorCode?: string;
+                            };
+                            /** @description The preset that filled the fields at creation, if any. */
+                            preset: {
+                                /**
+                                 * @description Lark (Feishu) v2. More presets may come for providers whose code exchange is not standard OAuth 2.0.
+                                 * @enum {string}
+                                 */
+                                name: "lark";
+                                /**
+                                 * @description `lark` (larksuite.com) or `feishu` (feishu.cn).
+                                 * @default lark
+                                 * @enum {string}
+                                 */
+                                region: "lark" | "feishu";
+                            } | null;
+                            /** @description The redirect URI to register at the provider. */
+                            redirectUri: string;
                         } | null;
                         /** Format: date-time */
                         createdAt: string;
@@ -22111,7 +22309,7 @@ export interface operations {
                         id: string;
                         name: string;
                         /** @enum {string} */
-                        protocol: "oidc" | "saml";
+                        protocol: "oidc" | "saml" | "oauth2";
                         enabled: boolean;
                         jitProvisioning: boolean;
                         groupsAttribute?: string | null;
@@ -22158,6 +22356,54 @@ export interface operations {
                             acsUrl: string;
                             /** @description Our SP metadata (XML) for the IdP. */
                             metadataUrl: string;
+                        } | null;
+                        oauth2?: {
+                            authorizationEndpoint: string;
+                            tokenEndpoint: string;
+                            userinfoEndpoint: string;
+                            clientId: string;
+                            /** @enum {string} */
+                            tokenEndpointAuthMethod: "client_secret_post" | "client_secret_basic" | "none";
+                            scopes: string[];
+                            mapping: {
+                                /** @description Where the user object is in the answer (`data` for Lark); the whole answer when absent. */
+                                root?: string;
+                                /** @description The provider's stable id of the person (a string or a number), in the user object. */
+                                subject: string;
+                                /** @description The address, in the user object. */
+                                email?: string;
+                                name?: string;
+                                /** @description Read, not stored yet: accounts have no picture. */
+                                picture?: string;
+                                /** @description An array of strings, in the user object: the groups `roleMappings` read. None when absent. */
+                                groups?: string;
+                                /**
+                                 * @description Whether the provider vouches for the address: `{ "path" }` (a field that must be `true`), `"verified-domains"` (trusted because its domain is one the tenant verified, as a SAML assertion is), or `"never"` (a first sign-in is refused, `email_unverified`).
+                                 * @default never
+                                 */
+                                emailVerified: {
+                                    /** @description A field of the user object that must be the boolean `true`. */
+                                    path: string;
+                                } | "verified-domains" | "never";
+                                /** @description A field of the whole answer that marks a failure (Lark answers 200 with `code` not 0): a non-zero number or any other truthy value refuses the sign-in. */
+                                errorCode?: string;
+                            };
+                            /** @description The preset that filled the fields at creation, if any. */
+                            preset: {
+                                /**
+                                 * @description Lark (Feishu) v2. More presets may come for providers whose code exchange is not standard OAuth 2.0.
+                                 * @enum {string}
+                                 */
+                                name: "lark";
+                                /**
+                                 * @description `lark` (larksuite.com) or `feishu` (feishu.cn).
+                                 * @default lark
+                                 * @enum {string}
+                                 */
+                                region: "lark" | "feishu";
+                            } | null;
+                            /** @description The redirect URI to register at the provider. */
+                            redirectUri: string;
                         } | null;
                         /** Format: date-time */
                         createdAt: string;
@@ -22240,7 +22486,53 @@ export interface operations {
                     idpCertificates?: string[];
                     allowIdpInitiated?: boolean;
                     requireEncryptedAssertions?: boolean;
-                    /** @description Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null. */
+                    /**
+                     * Format: uri
+                     * @description Where the browser is sent to sign in. Required without a preset.
+                     */
+                    authorizationEndpoint?: string;
+                    /**
+                     * Format: uri
+                     * @description Where the code is exchanged (RFC 6749, PKCE). Required without a preset.
+                     */
+                    tokenEndpoint?: string;
+                    /**
+                     * Format: uri
+                     * @description Read once per sign-in with the access token; `mapping` reads its answer. Required without a preset.
+                     */
+                    userinfoEndpoint?: string;
+                    /**
+                     * @description How the client authenticates at the token endpoint: `client_secret_basic` by default (RFC 6749), `client_secret_post`, or `none` (a public client). PKCE is always on.
+                     * @enum {string}
+                     */
+                    tokenEndpointAuthMethod?: "client_secret_post" | "client_secret_basic" | "none";
+                    /** @description The scopes asked for (none by default). */
+                    scopes?: string[];
+                    /** @description Replaces the whole mapping. */
+                    mapping?: {
+                        /** @description Where the user object is in the answer (`data` for Lark); the whole answer when absent. */
+                        root?: string;
+                        /** @description The provider's stable id of the person (a string or a number), in the user object. */
+                        subject: string;
+                        /** @description The address, in the user object. */
+                        email?: string;
+                        name?: string;
+                        /** @description Read, not stored yet: accounts have no picture. */
+                        picture?: string;
+                        /** @description An array of strings, in the user object: the groups `roleMappings` read. None when absent. */
+                        groups?: string;
+                        /**
+                         * @description Whether the provider vouches for the address: `{ "path" }` (a field that must be `true`), `"verified-domains"` (trusted because its domain is one the tenant verified, as a SAML assertion is), or `"never"` (a first sign-in is refused, `email_unverified`).
+                         * @default never
+                         */
+                        emailVerified?: {
+                            /** @description A field of the user object that must be the boolean `true`. */
+                            path: string;
+                        } | "verified-domains" | "never";
+                        /** @description A field of the whole answer that marks a failure (Lark answers 200 with `code` not 0): a non-zero number or any other truthy value refuses the sign-in. */
+                        errorCode?: string;
+                    };
+                    /** @description Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null. Not for an OAuth 2.0 connection: its `mapping.groups` says. */
                     groupsAttribute?: string | null;
                     /** @description The roles a group gives: at each sign-in, the person gets the roles of the groups the IdP lists, and loses those a mapping gave that it no longer lists. Roles you give or take yourself stay yours. You must be able to grant each role. */
                     roleMappings?: {
@@ -22265,7 +22557,7 @@ export interface operations {
                         id: string;
                         name: string;
                         /** @enum {string} */
-                        protocol: "oidc" | "saml";
+                        protocol: "oidc" | "saml" | "oauth2";
                         enabled: boolean;
                         jitProvisioning: boolean;
                         groupsAttribute?: string | null;
@@ -22312,6 +22604,54 @@ export interface operations {
                             acsUrl: string;
                             /** @description Our SP metadata (XML) for the IdP. */
                             metadataUrl: string;
+                        } | null;
+                        oauth2?: {
+                            authorizationEndpoint: string;
+                            tokenEndpoint: string;
+                            userinfoEndpoint: string;
+                            clientId: string;
+                            /** @enum {string} */
+                            tokenEndpointAuthMethod: "client_secret_post" | "client_secret_basic" | "none";
+                            scopes: string[];
+                            mapping: {
+                                /** @description Where the user object is in the answer (`data` for Lark); the whole answer when absent. */
+                                root?: string;
+                                /** @description The provider's stable id of the person (a string or a number), in the user object. */
+                                subject: string;
+                                /** @description The address, in the user object. */
+                                email?: string;
+                                name?: string;
+                                /** @description Read, not stored yet: accounts have no picture. */
+                                picture?: string;
+                                /** @description An array of strings, in the user object: the groups `roleMappings` read. None when absent. */
+                                groups?: string;
+                                /**
+                                 * @description Whether the provider vouches for the address: `{ "path" }` (a field that must be `true`), `"verified-domains"` (trusted because its domain is one the tenant verified, as a SAML assertion is), or `"never"` (a first sign-in is refused, `email_unverified`).
+                                 * @default never
+                                 */
+                                emailVerified: {
+                                    /** @description A field of the user object that must be the boolean `true`. */
+                                    path: string;
+                                } | "verified-domains" | "never";
+                                /** @description A field of the whole answer that marks a failure (Lark answers 200 with `code` not 0): a non-zero number or any other truthy value refuses the sign-in. */
+                                errorCode?: string;
+                            };
+                            /** @description The preset that filled the fields at creation, if any. */
+                            preset: {
+                                /**
+                                 * @description Lark (Feishu) v2. More presets may come for providers whose code exchange is not standard OAuth 2.0.
+                                 * @enum {string}
+                                 */
+                                name: "lark";
+                                /**
+                                 * @description `lark` (larksuite.com) or `feishu` (feishu.cn).
+                                 * @default lark
+                                 * @enum {string}
+                                 */
+                                region: "lark" | "feishu";
+                            } | null;
+                            /** @description The redirect URI to register at the provider. */
+                            redirectUri: string;
                         } | null;
                         /** Format: date-time */
                         createdAt: string;
@@ -22405,6 +22745,12 @@ export interface operations {
                 };
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -22838,6 +23184,44 @@ export interface operations {
         responses: {
             /** @description To the web app: signed in, or `?error=sso_failed` (the reason is audited). */
             302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such tenant or connection, it is off, or it is not an OpenID Connect connection. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SsoAuthController_oauth2Callback_v1: {
+        parameters: {
+            query?: {
+                code?: string;
+                state?: string;
+                error?: string;
+                iss?: string;
+                session_state?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description To the web app: signed in, or `?error=sso_failed` (the reason is audited). */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such tenant or connection, it is off, or it is not an OAuth 2.0 connection. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

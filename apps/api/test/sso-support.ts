@@ -368,3 +368,137 @@ function jwt(key: KeyObject, claims: Record<string, unknown>) {
   const input = `${part({ alg: 'RS256', kid: 'k1', typ: 'JWT' })}.${part(claims)}`;
   return `${input}.${sign('sha256', Buffer.from(input), key).toString('base64url')}`;
 }
+
+/** What the OAuth 2.0 provider's user-info endpoint answers for a code's token. */
+export interface UserinfoAnswer {
+  /** JSON (the default: `{}`). */
+  body?: unknown;
+  /** Sent as is, instead of `body`'s JSON (malformed JSON). */
+  raw?: string;
+  status?: number;
+  /** A redirect to this path of the provider (never to be followed). */
+  redirect?: string;
+}
+
+/**
+ * A plain OAuth 2.0 provider on loopback, shaped like Lark/Feishu v2 (no
+ * discovery, no ID token): `/authorize`, an RFC 6749 token endpoint answering
+ * the codes a test plants (`issue()`), and `/user_info` answering, for that
+ * code's access token, what the test said. `/elsewhere` counts the requests
+ * a redirect would lead to.
+ */
+export async function oauth2Idp() {
+  const codes = new Map<string, UserinfoAnswer>();
+  const tokens = new Map<string, UserinfoAnswer>();
+  const tokenRequests: { form: URLSearchParams; authorization?: string }[] = [];
+  const userinfoRequests: { authorization?: string }[] = [];
+  let elsewhere = 0;
+  let base = '';
+  const server: Server = createServer((req, res) => {
+    const url = new URL(req.url ?? '/', base);
+    const json = (status: number, body: unknown) => {
+      res.writeHead(status, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(body));
+    };
+    if (url.pathname === '/token' && req.method === 'POST') {
+      let body = '';
+      req.on('data', (chunk: Buffer) => (body += chunk.toString()));
+      req.on('end', () => {
+        const form = new URLSearchParams(body);
+        tokenRequests.push({ form, authorization: req.headers.authorization });
+        const answer = codes.get(form.get('code') ?? '');
+        codes.delete(form.get('code') ?? '');
+        if (!answer || !form.get('code_verifier')) {
+          return json(400, {
+            code: 20003,
+            error: 'invalid_grant',
+            error_description: 'The code is invalid.',
+          });
+        }
+        const accessToken = randomUUID();
+        tokens.set(accessToken, answer);
+        // Lark's v2 token answer: its own `code` beside RFC 6749's fields.
+        json(200, {
+          code: 0,
+          access_token: accessToken,
+          token_type: 'Bearer',
+          expires_in: 7200,
+          refresh_token: randomUUID(),
+          scope: '',
+        });
+      });
+      return;
+    }
+    if (url.pathname === '/user_info' && req.method === 'GET') {
+      userinfoRequests.push({ authorization: req.headers.authorization });
+      const token = /^Bearer (.+)$/.exec(req.headers.authorization ?? '')?.[1];
+      const answer = token ? tokens.get(token) : undefined;
+      if (!answer) {
+        return json(401, { code: 99991663, msg: 'invalid access token' });
+      }
+      if (answer.redirect) {
+        res.writeHead(302, { location: `${base}${answer.redirect}` });
+        return res.end();
+      }
+      if (answer.raw !== undefined) {
+        res.writeHead(answer.status ?? 200, {
+          'content-type': 'application/json',
+        });
+        return res.end(answer.raw);
+      }
+      return json(answer.status ?? 200, answer.body ?? {});
+    }
+    if (url.pathname.startsWith('/elsewhere')) {
+      elsewhere += 1;
+      return json(200, { code: 0, data: { open_id: 'someone-else' } });
+    }
+    json(404, {});
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  return {
+    get base() {
+      return base;
+    },
+    /** The connection's endpoints at this provider. */
+    get endpoints() {
+      return {
+        authorizationEndpoint: `${base}/authorize`,
+        tokenEndpoint: `${base}/token`,
+        userinfoEndpoint: `${base}/user_info`,
+      };
+    },
+    tokenRequests,
+    userinfoRequests,
+    get elsewhere() {
+      return elsewhere;
+    },
+    /** A code for the authorization request at `location`, whose user info answers `answer`. */
+    issue(location: string, answer: UserinfoAnswer) {
+      const code = randomUUID();
+      codes.set(code, answer);
+      return { code, state: new URL(location).searchParams.get('state')! };
+    },
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
+}
+
+/** A Lark `user_info` answer (`{ code, msg, data }`) for this person. */
+export function larkUser(
+  data: Record<string, unknown>,
+  code = 0,
+): UserinfoAnswer {
+  return {
+    body: {
+      code,
+      msg: code === 0 ? 'success' : 'failed',
+      data: {
+        union_id: `on_${randomUUID().slice(0, 8)}`,
+        tenant_key: 'tenant-key',
+        name: 'Lark Person',
+        avatar_url: 'https://example.com/avatar.png',
+        ...data,
+      },
+    },
+  };
+}

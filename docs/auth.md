@@ -332,7 +332,9 @@ signInOptions('passkey'))` (or `sso:<id>`), or runs the package's call in
   (the resolver) takes the ID token's `auth_time` (OpenID Connect; Google
   and Microsoft send it) as `authenticatedAt`, through
   `SignInContext.authenticatedAt()`. A provider without it (GitHub: OAuth
-  2.0, no ID token) records now: a weaker guarantee. A step-up through
+  2.0, no ID token) records now: a weaker guarantee. So does a tenant's
+  OAuth 2.0 SSO connection (Lark and the like, [OAuth 2.0
+  connections](#oauth-20-connections)). A step-up through
   a provider asks it for a fresh login (`?reauthenticate=true`, below).
 - **An impersonation** session never counts as recent, whatever its
   metadata says (`isRecent()`, `authentication-method.ts`): nobody signed
@@ -529,7 +531,10 @@ linking; with `link=true` too: 400):
 **SSO** re-authenticates by signing in again
 (`sso:<connection>` in `methods`); "SSO required" refuses (403
 `sso_required`) the sessions whose method is not `sso`, on every request
-([SSO required](#sso-required)).
+([SSO required](#sso-required)). A sign-in through an OAuth 2.0 connection
+has no `auth_time`: it counts as authenticated at the callback, the weaker
+guarantee above (the provider may have signed the person in silently from
+its own session), and it satisfies "SSO required" as any connection's.
 
 ## Security notifications
 
@@ -749,8 +754,9 @@ default (`PASSKEYS`); `GET /v1/auth/methods` says `passkeys: true`.
 
 ## Enterprise SSO
 
-A tenant signs its people in through its own identity provider: SAML 2.0
-or OpenID Connect, one or more **connections** per tenant
+A tenant signs its people in through its own identity provider: SAML 2.0,
+OpenID Connect, or plain OAuth 2.0 (providers without OpenID Connect, such as
+Lark/Feishu), one or more **connections** per tenant
 (`iam/sso`). Nothing is set in the environment: an administrator with
 `Access.manageSso` sets it up over the API, and every connection starts
 **off**.
@@ -770,6 +776,10 @@ or OpenID Connect, one or more **connections** per tenant
      `oidc.redirectUri` at the IdP. The discovery document is fetched on
      the queue (`oidc.metadataFetchedAt`, `oidc.metadataError`; `POST
      …/{id}/refresh` again).
+   - `protocol: "oauth2"`: the provider's endpoints, client id and secret,
+     and a `mapping` of its user-info answer, or a `preset` (`lark`) that
+     fills them. Register `oauth2.redirectUri` at the provider. No discovery:
+     usable as soon as it is on ([OAuth 2.0 connections](#oauth-20-connections)).
    - `jitProvisioning`: a person of a verified domain who isn't a member
      becomes one at their first sign-in, with the connection's
      `defaultRoleIds` (none by default). Off by default.
@@ -784,7 +794,114 @@ or OpenID Connect, one or more **connections** per tenant
 
 The session records `method: sso`, `provider: <connection id>` and the
 IdP's `auth_time` or `AuthnInstant` as `authenticatedAt` (step-up reads
-them), and it acts in the connection's tenant.
+them; an OAuth 2.0 provider tells none, so the sign-in's own time), and it
+acts in the connection's tenant.
+
+### OAuth 2.0 connections
+
+For a provider that speaks OAuth 2.0 but not OpenID Connect: no
+`/.well-known/openid-configuration`, no ID token, the person read from a
+separate user-info call (Lark/Feishu, GitHub, GitLab, Slack, an in-house
+OAuth server). The connection holds the endpoints and a declarative
+**mapping** of the user-info answer, so a provider needs no code
+(`iam/sso/oauth2-mapping.ts`, `oauth2-sso.service.ts`).
+
+```json
+{
+  "protocol": "oauth2",
+  "name": "Lark",
+  "preset": { "name": "lark", "region": "lark" },
+  "clientId": "cli_a1b2c3",
+  "clientSecret": "…",
+  "jitProvisioning": true
+}
+```
+
+- **Fields.** `authorizationEndpoint`, `tokenEndpoint`, `userinfoEndpoint`:
+  https only (http, and loopback hosts, only with `SSO_ALLOW_LOOPBACK=on`);
+  an IP address that is private, link-local, a cloud metadata address or
+  reserved is refused when saved (400), and every host is checked where it
+  resolves to at each request (see "What is checked"). `clientId`,
+  `clientSecret` (encrypted, never answered), `tokenEndpointAuthMethod`:
+  `client_secret_basic` (the default, RFC 6749), `client_secret_post`, or
+  `none` (a public client, no secret). PKCE (S256) is always on. `scopes`:
+  asked for as given (none by default).
+- **The mapping.** Dot paths (`data.open_id`; a numeric segment indexes an
+  array; never `__proto__`, `prototype` or `constructor`; own fields only):
+  - `root`: where the user object is in the answer (the whole answer when
+    absent). `subject` (required), `email`, `name`, `picture` (read, not
+    stored: accounts have no picture), `groups` are read in it.
+  - `subject` must be a non-empty string or a finite number (made a
+    string); none: refused, `no_stable_subject`. It keys the identity
+    (`sso:<connection id>` + subject), so map the provider's stable id,
+    never an address.
+  - `errorCode`: a field of the whole answer that marks a failure (Lark
+    answers 200 with `code` not 0): a non-zero number or any other truthy
+    value refuses the sign-in (`userinfo_error:<value>`).
+  - `groups`: an array of strings, read for `roleMappings` ("Roles from the
+    IdP"); anything else counts as no groups. `groupsAttribute` is not an
+    OAuth 2.0 connection's (400): its groups are `mapping.groups`. Without
+    it, a member provisioned just in time gets `defaultRoleIds` only.
+  - `emailVerified`, whether the provider vouches for the address:
+    `{ "path": "…" }` (a field of the user object that must be the boolean
+    `true`; a string `"true"` is not), `"verified-domains"` (the address is
+    trusted because its domain is one the tenant verified, the trust a SAML
+    assertion gets), or `"never"`, the default: a first sign-in is then
+    refused (`email_unverified`), as an OpenID Connect one without
+    `email_verified`. Every mode still needs a verified domain, and an
+    existing account is linked only when it proved its own address ("What
+    is checked").
+- **A preset** fills these fields at creation (each field sent overrides
+  its default); it is data, not a code path, and is shown on the connection
+  (`oauth2.preset`). `PATCH` changes the fields themselves, never the
+  protocol nor the preset.
+- **The sign-in.** `login` sends the browser to `authorizationEndpoint`
+  with `state` (bound to the browser, `__Host-sso_tx`), the PKCE challenge
+  and the scopes, no `nonce`; the provider sends it back to
+  `/v1/auth/sso/{tenantId}/{connectionId}/oauth2/callback`. There
+  openid-client exchanges the code (the configured client authentication,
+  the verifier) and the app makes **one** GET of `userinfoEndpoint` with the
+  access token as bearer, then applies the mapping. A non-2xx (a redirect
+  included: never followed), malformed JSON, an `errorCode` hit, no subject,
+  a refused destination, a timeout (10 s) or more than 512 KiB: no sign-in,
+  `?error=sso_failed`, and the reason in the audit log
+  (`auth.sign-in-failed`: `token_rejected:<why>`, `userinfo_failed:<status
+  or why>`, `userinfo_malformed`, `userinfo_error:<code>`,
+  `no_stable_subject`), never in the URL.
+- **Weaker than OpenID Connect**, and said so: no ID token (nothing signed
+  by the provider; the user info is trusted because it came over TLS from
+  the endpoint the administrator named, with our access token), no
+  `auth_time` (the session counts from the callback: step-up's weaker
+  guarantee), no `nonce`, no `iss` check (each connection has its own
+  redirect URI, so a code can't be replayed through another one), and
+  groups only if the provider lists them and the mapping names them.
+- **No discovery.** `POST …/{id}/refresh` answers 409 `sso_no_discovery`:
+  the endpoints are the connection's own fields.
+- **Lark/Feishu (v2), the worked example.** The `lark` preset
+  (`region: "lark"`, larksuite.com, or `"feishu"`, feishu.cn) sets
+  `https://accounts.larksuite.com/open-apis/authen/v1/authorize`,
+  `https://open.larksuite.com/open-apis/authen/v2/oauth/token` (RFC 6749,
+  `client_secret_post`, PKCE) and
+  `https://open.larksuite.com/open-apis/authen/v1/user_info`, which answers
+  `{ code, msg, data: { open_id, union_id, user_id, tenant_key, name,
+  avatar_url, email, enterprise_email } }`. The mapping: `root: data`,
+  `subject: open_id`, `email: enterprise_email` (the address the Lark
+  tenant's administrator assigns, in the tenant's own domain),
+  `emailVerified: "verified-domains"`, `errorCode: code`. The personal
+  `email` is never taken as verified. Give the Lark app the permission to
+  read the enterprise address, verify that address's domain here, and add
+  the redirect URI to the app's security settings. The provider's docs:
+  [token](https://open.larksuite.com/document/uAjLw4CM/ukTMukTMukTM/authentication-management/access-token/get-user-access-token),
+  [user info](https://open.larksuite.com/document/uAjLw4CM/ukTMukTMukTM/reference/authen-v1/user_info/get),
+  [login flow](https://open.larksuite.com/document/common-capabilities/sso/web-application-sso/web-app-overview?lang=en-US).
+- **Not built**: providers whose code exchange isn't standard OAuth 2.0
+  need a coded preset (the `preset` enum is open for them): WeCom (a
+  corporate token, then a user lookup), WeChat (credentials in the query
+  string, `openid` in the token answer), Lark's old v1 flow (an
+  `app_access_token` header).
+- **Proof:** `iam/sso/oauth2-mapping.spec.ts`, `test/sso.e2e-spec.ts`
+  (a Lark-shaped provider), `test/security.e2e-spec.ts` ("OAuth 2.0 SSO
+  connections").
 
 ### Importing an IdP's metadata
 
@@ -822,7 +939,8 @@ and `PATCH /v1/sso/connections/{id}`):
 - `defaultRoleIds`: the roles a member it provisions just in time gets at
   their first sign-in, once. Theirs to keep, as an invitation's roles.
 - `roleMappings` (`[{ group, roleId }]`) with `groupsAttribute` (the SAML
-  attribute or ID token claim listing the groups; `groups` when null, and
+  attribute or ID token claim listing the groups, or an OAuth 2.0
+  connection's `mapping.groups`; `groups` when null, and
   for SAML also Entra ID's `http://schemas.microsoft.com/ws/2008/06/identity/claims/groups`):
   at **each** sign-in the person gets the roles of the groups the IdP
   lists (compared exactly: Entra ID sends group ids), and loses those a
@@ -913,19 +1031,26 @@ verification; a domain verified before it existed is added at its next
 - **OpenID Connect** (openid-client): the authorization code flow with
   PKCE, `state` (the browser's binding) and `nonce`; the ID token's
   signature, `iss`, `aud`, `exp`; `email_verified` must be `true`.
+- **OAuth 2.0** (openid-client, no discovery): the authorization code flow
+  with PKCE and `state` (the browser's binding), the configured client
+  authentication; one user-info GET, mapped by the connection
+  ([OAuth 2.0 connections](#oauth-20-connections)): a stable subject, and
+  the address vouched for as its `emailVerified` says. No ID token, so
+  nothing the provider signed: what is weaker is listed there.
 - **No account takeover.** An identity is keyed by the IdP's subject under
   `sso:<connection id>` (never shared between tenants). A first sign-in
   links an existing account only when its address is in a domain the tenant
   verified and the account proved its address (else whoever registered it
   first, with a password of their choosing, would get the person's
   sign-ins); a deactivated account or membership is refused.
-- **SSRF.** The issuer, its discovery document, keys and token endpoint are
+- **SSRF.** The issuer, its discovery document, keys and token endpoint,
+  and an OAuth 2.0 connection's token and user-info endpoints, are
   fetched through `core/http/safe-fetch.ts`: https only, every resolved
   address checked in the socket's own lookup (link-local, metadata,
   private and reserved ranges refused), no redirects, 10 s and 512 KiB.
   `SSO_ALLOW_LOOPBACK=on` (development and tests only) allows `http://` on
   loopback and private networks.
-- **Secrets.** The OIDC client secret is an encrypted column
+- **Secrets.** The OIDC or OAuth 2.0 client secret is an encrypted column
   (docs/encryption.md: `DATA_ENCRYPTION_KEYS` is required at boot), never
   answered. Requests' PKCE verifiers and bindings live ten minutes;
   bindings are stored as their SHA-256.

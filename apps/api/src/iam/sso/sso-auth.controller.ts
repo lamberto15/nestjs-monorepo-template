@@ -35,6 +35,7 @@ import { type CoreEnv, webUrl } from '../../core/config/core.env.js';
 import { redirectPath, webAppUrl } from '../../core/http/redirect-path.js';
 import { TENANT_SCOPE, tenantScope } from '../../core/tenancy/tenant-scope.js';
 import type { IamEnv } from '../iam.env.js';
+import { Oauth2Sso } from './oauth2-sso.service.js';
 import { OidcSso } from './oidc-sso.service.js';
 import { SamlSso } from './saml-sso.service.js';
 import { SsoAccounts, SsoRefused } from './sso-accounts.service.js';
@@ -92,7 +93,7 @@ const loginQuerySchema = z.object({
     ),
 });
 
-/** What an OpenID Connect IdP sends back: each a string (a repeated one is a 400, not a 500). */
+/** What an OpenID Connect or OAuth 2.0 provider sends back: each a string (a repeated one is a 400, not a 500). */
 const callbackQuerySchema = z.object({
   code: z.string().optional(),
   state: z.string().optional(),
@@ -110,7 +111,7 @@ const acsBodySchema = z.object({
 /**
  * Signing in through a tenant's SSO connection (docs/auth.md, "Enterprise
  * SSO"). The browser navigates to `login`; the IdP sends it back to the
- * OIDC callback, or POSTs its SAML response to the ACS, which hands over to
+ * OIDC or OAuth 2.0 callback, or POSTs its SAML response to the ACS, which hands over to
  * `saml/complete`. Every outcome lands on the web app: its `redirectTo`
  * when signed in, else its root with `?error=sso_failed` (why is in the
  * tenant's audit log, never in the URL).
@@ -122,6 +123,7 @@ const acsBodySchema = z.object({
 export class SsoAuthController {
   constructor(
     private readonly oidc: OidcSso,
+    private readonly oauth2: Oauth2Sso,
     private readonly saml: SamlSso,
     private readonly accounts: SsoAccounts,
     private readonly config: ConfigService<IamEnv & CoreEnv, true>,
@@ -152,7 +154,9 @@ export class SsoAuthController {
       const { url, binding } =
         connection.protocol === 'oidc'
           ? await this.oidc.start(connection, redirectTo)
-          : await this.saml.start(connection, redirectTo);
+          : connection.protocol === 'oauth2'
+            ? await this.oauth2.start(connection, redirectTo)
+            : await this.saml.start(connection, redirectTo);
       res.append('Set-Cookie', this.cookie().set(binding));
       return { url };
     } catch (error) {
@@ -172,7 +176,11 @@ export class SsoAuthController {
     description:
       'To the web app: signed in, or `?error=sso_failed` (the reason is audited).',
   })
-  async oidcCallback(
+  @ApiNotFoundResponse({
+    description:
+      'No such tenant or connection, it is off, or it is not an OpenID Connect connection.',
+  })
+  oidcCallback(
     @Req() request: Request,
     @Query({ schema: callbackQuerySchema })
     query: z.infer<typeof callbackQuerySchema>,
@@ -180,12 +188,53 @@ export class SsoAuthController {
     @Headers('user-agent') userAgent: string | undefined,
     @Res({ passthrough: true }) res: Response,
   ) {
+    return this.codeCallback('oidc', request, query, ip, userAgent, res);
+  }
+
+  @Get('oauth2/callback')
+  @Redirect()
+  @ApiOperation({
+    summary: 'Where an OAuth 2.0 provider sends the browser back',
+  })
+  @ApiFoundResponse({
+    description:
+      'To the web app: signed in, or `?error=sso_failed` (the reason is audited).',
+  })
+  @ApiNotFoundResponse({
+    description:
+      'No such tenant or connection, it is off, or it is not an OAuth 2.0 connection.',
+  })
+  oauth2Callback(
+    @Req() request: Request,
+    @Query({ schema: callbackQuerySchema })
+    query: z.infer<typeof callbackQuerySchema>,
+    @Ip() ip: string,
+    @Headers('user-agent') userAgent: string | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.codeCallback('oauth2', request, query, ip, userAgent, res);
+  }
+
+  /** The authorization code flow's return (OpenID Connect or OAuth 2.0), to the connection's own protocol only. */
+  private async codeCallback(
+    protocol: 'oidc' | 'oauth2',
+    request: Request,
+    query: z.infer<typeof callbackQuerySchema>,
+    ip: string,
+    userAgent: string | undefined,
+    res: Response,
+  ) {
     const connection = connectionOf(request);
+    if (connection.protocol !== protocol) {
+      throw new NotFoundException(`Not an ${protocol} connection.`);
+    }
     const cookie = this.cookie();
     res.append('Set-Cookie', cookie.clear());
     let label = 'sso';
     try {
-      const { identity, redirectTo } = await this.oidc.finish(
+      const { identity, redirectTo } = await (
+        protocol === 'oidc' ? this.oidc : this.oauth2
+      ).finish(
         connection,
         Object.fromEntries(
           Object.entries(query).filter(([, value]) => value !== undefined),

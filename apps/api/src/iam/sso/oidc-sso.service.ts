@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { and, eq, gt, isNull, lt } from 'drizzle-orm';
 import * as client from 'openid-client';
 import { safeFetch } from '../../core/http/safe-fetch.js';
 import {
@@ -15,12 +14,11 @@ import {
   SsoConnectionsService,
 } from './sso-connections.service.js';
 import { type SsoIdentity, SsoRefused } from './sso-accounts.service.js';
-import { bindingHash, newBinding, SSO_REQUEST_TTL_MS } from './sso-browser.js';
-import { ssoRequests } from './sso.tables.js';
+import { openCodeRequest, takeCodeRequest } from './sso-requests.js';
 
 /** Time and size limits of every request to a tenant's IdP. */
-const FETCH_TIMEOUT_MS = 10_000;
-const FETCH_MAX_BYTES = 512 * 1024;
+export const FETCH_TIMEOUT_MS = 10_000;
+export const FETCH_MAX_BYTES = 512 * 1024;
 
 /**
  * OpenID Connect sign-in through a tenant's own IdP, with openid-client
@@ -95,20 +93,12 @@ export class OidcSso {
    */
   async start(connection: SsoConnection, redirectTo: string | undefined) {
     const configuration = this.configuration(connection);
-    const binding = newBinding();
-    const state = bindingHash(binding);
     const codeVerifier = client.randomPKCECodeVerifier();
     const nonce = client.randomNonce();
-    await this.db
-      .delete(ssoRequests)
-      .where(lt(ssoRequests.expiresAt, new Date()));
-    await this.db.insert(ssoRequests).values({
-      connectionId: connection.id,
-      bindingHash: state,
+    const { binding, state } = await openCodeRequest(this.db, connection.id, {
       codeVerifier,
       nonce,
-      redirectTo: redirectTo ?? null,
-      expiresAt: new Date(Date.now() + SSO_REQUEST_TTL_MS),
+      redirectTo,
     });
     const url = client.buildAuthorizationUrl(configuration, {
       redirect_uri: this.connections.urls(connection).oidcCallback,
@@ -132,29 +122,12 @@ export class OidcSso {
     query: Record<string, string>,
     binding: string | undefined,
   ): Promise<{ identity: SsoIdentity; redirectTo: string | null }> {
-    if (!binding || query.state !== bindingHash(binding)) {
-      throw new SsoRefused('state_mismatch');
-    }
-    // One use: the first callback takes it, a replay finds nothing.
-    const [request] = await this.db
-      .update(ssoRequests)
-      .set({ consumedAt: new Date() })
-      .where(
-        and(
-          eq(ssoRequests.connectionId, connection.id),
-          eq(ssoRequests.bindingHash, query.state),
-          isNull(ssoRequests.consumedAt),
-          isNull(ssoRequests.samlRequestId),
-          gt(ssoRequests.expiresAt, new Date()),
-        ),
-      )
-      .returning();
-    if (!request?.codeVerifier) {
-      throw new SsoRefused('request_unknown');
-    }
-    if (query.error) {
-      throw new SsoRefused(`idp_error:${query.error.slice(0, 100)}`);
-    }
+    const request = await takeCodeRequest(
+      this.db,
+      connection.id,
+      query,
+      binding,
+    );
     const configuration = this.configuration(connection);
     const callback = new URL(this.connections.urls(connection).oidcCallback);
     for (const [key, value] of Object.entries(query)) {

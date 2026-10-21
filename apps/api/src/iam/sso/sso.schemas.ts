@@ -1,5 +1,10 @@
 import { X509Certificate } from 'node:crypto';
 import { z } from 'zod';
+import {
+  OAUTH2_AUTH_METHODS,
+  oauth2MappingSchema,
+  oauth2PresetSchema,
+} from './oauth2-mapping.js';
 
 const name = z.string().trim().min(1).max(120);
 const httpsUrl = z
@@ -57,7 +62,7 @@ const roleFields = {
     .nullable()
     .optional()
     .describe(
-      'Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null.',
+      'Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null. Not for an OAuth 2.0 connection: its `mapping.groups` says.',
     ),
   roleMappings: z
     .array(roleMapping)
@@ -100,6 +105,59 @@ const oidcFields = {
     .min(1)
     .max(4096)
     .describe('Stored encrypted, never returned.'),
+};
+
+/** An RFC 6749 scope token: printable ASCII, no space, quote or backslash. */
+const scope = z
+  .string()
+  .trim()
+  .min(1)
+  .max(256)
+  .regex(/^[\x21\x23-\x5B\x5D-\x7E]+$/, 'A scope token (no spaces).');
+
+const oauth2Fields = {
+  preset: oauth2PresetSchema
+    .optional()
+    .describe(
+      "A provider's defaults for the fields below (each field given overrides its default): `lark` fills Lark/Feishu v2's endpoints, `client_secret_post` and the mapping. Only when creating.",
+    ),
+  authorizationEndpoint: httpsUrl
+    .optional()
+    .describe(
+      'Where the browser is sent to sign in. Required without a preset.',
+    ),
+  tokenEndpoint: httpsUrl
+    .optional()
+    .describe(
+      'Where the code is exchanged (RFC 6749, PKCE). Required without a preset.',
+    ),
+  userinfoEndpoint: httpsUrl
+    .optional()
+    .describe(
+      'Read once per sign-in with the access token; `mapping` reads its answer. Required without a preset.',
+    ),
+  clientId: oidcFields.clientId,
+  clientSecret: oidcFields.clientSecret
+    .optional()
+    .describe(
+      'Stored encrypted, never returned. Required unless `tokenEndpointAuthMethod` is `none`.',
+    ),
+  tokenEndpointAuthMethod: z
+    .enum(OAUTH2_AUTH_METHODS)
+    .optional()
+    .describe(
+      'How the client authenticates at the token endpoint: `client_secret_basic` by default (RFC 6749), `client_secret_post`, or `none` (a public client). PKCE is always on.',
+    ),
+  scopes: z
+    .array(scope)
+    .max(50)
+    .optional()
+    .describe('The scopes asked for (none by default).'),
+  mapping: oauth2MappingSchema
+    .optional()
+    .describe(
+      'Where the user-info answer holds the person. Required without a preset. Paths are dots between names (`data.open_id`), read in the user object at `root`; `errorCode` in the whole answer.',
+    ),
 };
 
 const samlFields = {
@@ -148,6 +206,7 @@ export const importedSamlMetadataSchema = z.object({
 export const createConnectionSchema = z.discriminatedUnion('protocol', [
   z.object({ protocol: z.literal('oidc'), ...common, ...oidcFields }),
   z.object({ protocol: z.literal('saml'), ...common, ...samlFields }),
+  z.object({ protocol: z.literal('oauth2'), ...common, ...oauth2Fields }),
 ]);
 export type CreateConnection = z.infer<typeof createConnectionSchema>;
 
@@ -166,6 +225,14 @@ export const updateConnectionSchema = z.object({
   idpCertificates: samlFields.idpCertificates.optional(),
   allowIdpInitiated: z.boolean().optional(),
   requireEncryptedAssertions: z.boolean().optional(),
+  authorizationEndpoint: oauth2Fields.authorizationEndpoint,
+  tokenEndpoint: oauth2Fields.tokenEndpoint,
+  userinfoEndpoint: oauth2Fields.userinfoEndpoint,
+  tokenEndpointAuthMethod: oauth2Fields.tokenEndpointAuthMethod,
+  scopes: oauth2Fields.scopes,
+  mapping: oauth2MappingSchema
+    .optional()
+    .describe('Replaces the whole mapping.'),
   ...roleFields,
 });
 export type UpdateConnection = z.infer<typeof updateConnectionSchema>;
@@ -173,7 +240,7 @@ export type UpdateConnection = z.infer<typeof updateConnectionSchema>;
 export const connectionSchema = z.object({
   id: z.uuid(),
   name: z.string(),
-  protocol: z.enum(['oidc', 'saml']),
+  protocol: z.enum(['oidc', 'saml', 'oauth2']),
   enabled: z.boolean(),
   jitProvisioning: z.boolean(),
   // Part 2's fields are always sent; optional in the schema only, so
@@ -233,6 +300,25 @@ export const connectionSchema = z.object({
       metadataUrl: z.string().describe('Our SP metadata (XML) for the IdP.'),
     })
     .nullable(),
+  // Optional in the schema only (always sent), as Part 2's fields above.
+  oauth2: z
+    .object({
+      authorizationEndpoint: z.string(),
+      tokenEndpoint: z.string(),
+      userinfoEndpoint: z.string(),
+      clientId: z.string(),
+      tokenEndpointAuthMethod: z.enum(OAUTH2_AUTH_METHODS),
+      scopes: z.array(z.string()),
+      mapping: oauth2MappingSchema,
+      preset: oauth2PresetSchema
+        .nullable()
+        .describe('The preset that filled the fields at creation, if any.'),
+      redirectUri: z
+        .string()
+        .describe('The redirect URI to register at the provider.'),
+    })
+    .nullable()
+    .optional(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });

@@ -10,6 +10,8 @@ import {
   authnRequestId,
   fakeDns,
   local,
+  larkUser,
+  oauth2Idp,
   oidcIdp,
   samlIdp,
   samlResponse,
@@ -566,6 +568,278 @@ describe('enterprise SSO (e2e)', () => {
       await browser.get('/v1/auth/me').expect(200);
       // The callback clears the binding cookie: a replay has no binding.
       expectFailed((await callback(browser, params)).headers.location);
+    });
+  });
+
+  describe('OAuth 2.0 (a Lark-shaped provider)', () => {
+    let idp: Awaited<ReturnType<typeof oauth2Idp>>;
+    const secret = newSecret();
+    let connection: {
+      id: string;
+      loginUrl: string;
+      oauth2: { redirectUri: string };
+    };
+
+    beforeAll(async () => {
+      idp = await oauth2Idp();
+      // The Lark preset (mapping, client_secret_post), its endpoints here.
+      const created = await node
+        .admin()
+        .post('/v1/sso/connections')
+        .send({
+          protocol: 'oauth2',
+          name: `lark-${randomUUID().slice(0, 8)}`,
+          preset: { name: 'lark', region: 'feishu' },
+          ...idp.endpoints,
+          clientId: 'cli_lark',
+          clientSecret: secret,
+          jitProvisioning: true,
+          enabled: true,
+        })
+        .expect(201);
+      connection = created.body;
+    });
+    afterAll(() => idp.close());
+
+    const start = async () => {
+      const browser = request.agent(node.app.getHttpServer());
+      const login = await browser.get(local(connection.loginUrl)).expect(302);
+      return { browser, location: login.headers.location as string };
+    };
+
+    const callback = (browser: request.Agent, params: Record<string, string>) =>
+      browser
+        .get(
+          `/v1/auth/sso/${node.tenantId}/${connection.id}/oauth2/callback?${new URLSearchParams(params)}`,
+        )
+        .expect(302);
+
+    /** A sign-in through the provider whose user info answers `answer`: where it landed, and the browser. */
+    const signIn = async (answer: Parameters<typeof idp.issue>[1]) => {
+      const { browser, location } = await start();
+      const landed = await callback(browser, idp.issue(location, answer));
+      return { browser, location: landed.headers.location as string };
+    };
+
+    it('shows its endpoints and mapping, never the secret; has no discovery', async () => {
+      const shown = await node
+        .admin()
+        .get(`/v1/sso/connections/${connection.id}`)
+        .expect(200);
+      expect(shown.body).toMatchObject({
+        protocol: 'oauth2',
+        oidc: null,
+        saml: null,
+        oauth2: {
+          ...idp.endpoints,
+          clientId: 'cli_lark',
+          tokenEndpointAuthMethod: 'client_secret_post',
+          scopes: [],
+          preset: { name: 'lark', region: 'feishu' },
+          mapping: {
+            root: 'data',
+            subject: 'open_id',
+            email: 'enterprise_email',
+            emailVerified: 'verified-domains',
+            errorCode: 'code',
+          },
+        },
+      });
+      expect(shown.body.oauth2.redirectUri).toMatch(/\/oauth2\/callback$/);
+      expect(JSON.stringify(shown.body)).not.toContain(secret);
+      const list = await node.admin().get('/v1/sso/connections').expect(200);
+      expect(JSON.stringify(list.body)).not.toContain(secret);
+      const refresh = await node
+        .admin()
+        .post(`/v1/sso/connections/${connection.id}/refresh`)
+        .expect(409);
+      expect(refresh.body.code).toBe('sso_no_discovery');
+    });
+
+    it('validates per protocol', async () => {
+      const admin = node.admin();
+      // Neither a preset nor the endpoints and mapping.
+      const missing = await admin
+        .post('/v1/sso/connections')
+        .send({
+          protocol: 'oauth2',
+          name: `bare-${randomUUID().slice(0, 8)}`,
+          clientId: 'x',
+          clientSecret: newSecret(),
+        })
+        .expect(400);
+      expect(
+        missing.body.errors.map((error: { path: string }) => error.path),
+      ).toEqual(
+        expect.arrayContaining([
+          'authorizationEndpoint',
+          'tokenEndpoint',
+          'userinfoEndpoint',
+          'mapping',
+        ]),
+      );
+      // A confidential client needs its secret.
+      await admin
+        .post('/v1/sso/connections')
+        .send({
+          protocol: 'oauth2',
+          name: `nosecret-${randomUUID().slice(0, 8)}`,
+          preset: { name: 'lark' },
+          clientId: 'x',
+        })
+        .expect(400);
+      // A public one doesn't.
+      await admin
+        .post('/v1/sso/connections')
+        .send({
+          protocol: 'oauth2',
+          name: `public-${randomUUID().slice(0, 8)}`,
+          preset: { name: 'lark' },
+          tokenEndpointAuthMethod: 'none',
+          clientId: 'x',
+        })
+        .expect(201);
+      // An OIDC field, a groups attribute (its groups are `mapping.groups`).
+      for (const change of [
+        { issuer: 'https://login.acme.test' },
+        { groupsAttribute: 'groups' },
+        { idpSsoUrl: 'https://idp.acme.test/sso' },
+      ]) {
+        await admin
+          .patch(`/v1/sso/connections/${connection.id}`)
+          .send(change)
+          .expect(400);
+      }
+      // A mapping is no OIDC field.
+      const oidc = await admin
+        .post('/v1/sso/connections')
+        .send({
+          protocol: 'oidc',
+          name: `oidc-${randomUUID().slice(0, 8)}`,
+          issuer: 'https://login.acme.test',
+          clientId: 'app',
+          clientSecret: newSecret(),
+        })
+        .expect(201);
+      await admin
+        .patch(`/v1/sso/connections/${oidc.body.id}`)
+        .send({ mapping: { subject: 'id' } })
+        .expect(400);
+      // Its OIDC callback isn't this connection's.
+      await node
+        .http()
+        .get(
+          `/v1/auth/sso/${node.tenantId}/${connection.id}/oidc/callback?code=x&state=y`,
+        )
+        .expect(404);
+    });
+
+    it('signs a person in and provisions them just in time (PKCE, state, no nonce)', async () => {
+      const { browser, location } = await start();
+      const authorize = new URL(location);
+      expect(`${authorize.origin}${authorize.pathname}`).toBe(
+        idp.endpoints.authorizationEndpoint,
+      );
+      expect(authorize.searchParams.get('client_id')).toBe('cli_lark');
+      expect(authorize.searchParams.get('code_challenge_method')).toBe('S256');
+      expect(authorize.searchParams.get('code_challenge')).toBeTruthy();
+      expect(authorize.searchParams.get('redirect_uri')).toBe(
+        connection.oauth2.redirectUri,
+      );
+      expect(authorize.searchParams.has('nonce')).toBe(false);
+      expect(authorize.searchParams.has('scope')).toBe(false);
+      const email = `${randomUUID().slice(0, 8)}@${DOMAIN}`;
+      const openId = `ou_${randomUUID().slice(0, 12)}`;
+      const landed = await callback(
+        browser,
+        idp.issue(
+          location,
+          larkUser({
+            open_id: openId,
+            enterprise_email: email,
+            email: 'personal@gmail.test',
+          }),
+        ),
+      );
+      expect(
+        new URL(landed.headers.location).searchParams.get('error'),
+      ).toBeNull();
+      const me = await browser.get('/v1/auth/me').expect(200);
+      expect(me.body.user.email).toBe(email);
+      expect(me.body.user.tenantId).toBe(node.tenantId);
+      // client_secret_post, the PKCE verifier; the token as bearer for user info.
+      const token = idp.tokenRequests.at(-1)!;
+      expect(token.form.get('client_id')).toBe('cli_lark');
+      expect(token.form.get('client_secret')).toBe(secret);
+      expect(token.form.get('code_verifier')).toBeTruthy();
+      expect(token.authorization).toBeUndefined();
+      expect(idp.userinfoRequests.at(-1)!.authorization).toMatch(/^Bearer /);
+      // No auth_time: the sign-in counts from now (step-up).
+      const sessions = await browser.get('/v1/auth/sessions').expect(200);
+      const current = sessions.body.items.find(
+        (session: { current: boolean }) => session.current,
+      );
+      expect(current).toMatchObject({ method: 'sso', provider: connection.id });
+      expect(
+        Math.abs(Date.parse(current.authenticatedAt) - Date.now()),
+      ).toBeLessThan(60_000);
+      // The same open_id again, whatever the address now: the same account.
+      const again = await signIn(
+        larkUser({ open_id: openId, enterprise_email: `x-${email}` }),
+      );
+      const meAgain = await again.browser.get('/v1/auth/me').expect(200);
+      expect(meAgain.body.user.id).toBe(me.body.user.id);
+    });
+
+    it('links an existing, verified account of a verified domain', async () => {
+      const email = `${randomUUID().slice(0, 8)}@${DOMAIN}`;
+      const password = await node.acceptAsNew(
+        await node.invite(node.admin(), { email, name: email }),
+      );
+      const existing = await node.signIn(email, password);
+      const id = (await existing.get('/v1/auth/me').expect(200)).body.user.id;
+      const { browser } = await signIn(
+        larkUser({ open_id: `ou_${randomUUID()}`, enterprise_email: email }),
+      );
+      expect((await browser.get('/v1/auth/me').expect(200)).body.user.id).toBe(
+        id,
+      );
+    });
+
+    it('refuses, auditing why: a failed answer, no subject, malformed JSON, an error status, too large, a bad code, no address', async () => {
+      const cases: [Parameters<typeof idp.issue>[1], string][] = [
+        [
+          larkUser(
+            { open_id: 'ou_x', enterprise_email: `a@${DOMAIN}` },
+            99991663,
+          ),
+          'userinfo_error:99991663',
+        ],
+        [larkUser({ enterprise_email: `b@${DOMAIN}` }), 'no_stable_subject'],
+        [{ raw: '{"code":0,"data":' }, 'userinfo_malformed'],
+        [{ status: 500, body: { code: 0 } }, 'userinfo_failed:500'],
+        // Past 512 KiB, the rest is never read.
+        [{ raw: `"${'x'.repeat(600 * 1024)}"` }, 'userinfo_failed:too_large'],
+        [
+          larkUser({ open_id: `ou_${randomUUID()}`, email: `c@${DOMAIN}` }),
+          'no_email',
+        ],
+      ];
+      for (const [answer, reason] of cases) {
+        const { browser, location } = await signIn(answer);
+        expectFailed(location);
+        expect(location).not.toContain(reason);
+        expect((await refusals())[0]).toBe(reason);
+        await browser.get('/v1/auth/me').expect(401);
+      }
+      // A code the provider doesn't know.
+      const { browser, location } = await start();
+      const landed = await callback(browser, {
+        code: 'unknown',
+        state: new URL(location).searchParams.get('state')!,
+      });
+      expectFailed(landed.headers.location);
+      expect((await refusals())[0]).toMatch(/^token_rejected:/);
     });
   });
 });
