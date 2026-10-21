@@ -54,6 +54,39 @@ describe('the idle timeout warning', () => {
     );
   });
 
+  it('warns again when the session outlived the countdown (another tab kept it alive)', async () => {
+    let asked = 0;
+    server.use(
+      http.get('/v1/auth/me', () => {
+        asked += 1;
+        return HttpResponse.json(withSession(5));
+      }),
+    );
+    await renderApp('/');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3 * 60_000 + 2000);
+    });
+    await screen.findByRole('alertdialog');
+
+    // Zero: the page asks, the session is still there, the dialog goes.
+    const before = asked;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2 * 60_000);
+    });
+    await waitFor(() => expect(asked).toBeGreaterThan(before));
+    await waitFor(() =>
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument(),
+    );
+
+    // The clock restarted: the next warning comes two minutes short of five.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3 * 60_000 + 2000);
+    });
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      /signed out in 1:5\d/,
+    );
+  });
+
   it('says nothing for a session without a lifetime (a token, an impersonation)', async () => {
     server.use(
       http.get('/v1/auth/me', () =>

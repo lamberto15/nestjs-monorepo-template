@@ -28,7 +28,8 @@ const PING_EVERY_MS = 60_000;
  * (a request is what the server counts); with no input for
  * `idleMinutes - 2`, a dialog counts down. "Stay signed in" is such a
  * request. At zero the session is over: `me` answers 401 and the route
- * guard goes to sign-in.
+ * guard goes to sign-in. If it answers instead (another tab or a background
+ * request kept the session alive), the count starts again.
  */
 export function SessionIdleWarning() {
   const { t } = useTranslation();
@@ -49,8 +50,9 @@ export function SessionIdleWarning() {
     lastPing.current = Date.now();
     const ping = async () => {
       lastPing.current = Date.now();
-      await queryClient.fetchQuery({ ...meQuery, staleTime: 0 });
+      return queryClient.fetchQuery({ ...meQuery, staleTime: 0 });
     };
+    let asking = false;
     const onInput = () => {
       lastInput.current = Date.now();
       if (Date.now() - lastPing.current >= PING_EVERY_MS) {
@@ -68,12 +70,26 @@ export function SessionIdleWarning() {
         return;
       }
       setRemaining(Math.max(0, left));
-      if (left <= 0) {
-        // Over: ask again; the 401 clears `me` and the guard signs out.
-        clearInterval(timer);
+      if (left <= 0 && !asking) {
+        // Over: ask again. A 401 clears `me` and the guard signs out. An
+        // answer means the session lives on (another tab or a background
+        // request kept it alive): count from now, or this page would never
+        // warn again.
+        asking = true;
         void ping()
-          .catch(() => undefined)
-          .finally(() => router.invalidate());
+          .catch(() => null)
+          .then((current) => {
+            if (current) {
+              lastInput.current = Date.now();
+              setRemaining(null);
+              return;
+            }
+            clearInterval(timer);
+            void router.invalidate();
+          })
+          .finally(() => {
+            asking = false;
+          });
       }
     }, 1000);
     return () => {
