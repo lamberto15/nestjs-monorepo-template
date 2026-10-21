@@ -1399,7 +1399,186 @@ describe('questions for observability, the AI key, push and SMS', () => {
     assert.equal(env.get('TWILIO_AUTH_TOKEN_FILE'), '/run/secrets/twilio');
   });
 
-  test('the secret questions are asked when the _FILE line is empty or the file is new', () => {
+  test('SMTP_URL kept in SMTP_URL_FILE: a re-run does not ask for the URL, and writes no second source', async () => {
+    const root = fixture();
+    const out = temp();
+    await setup(root, out, [
+      ...PRODUCTION,
+      '--mail',
+      'smtp',
+      '--smtp-url',
+      'smtp://relay.example.com:587',
+      '--mail-from',
+      'no-reply@example.com',
+    ]);
+    const file = path.join(out, '.env');
+    writeFileSync(
+      file,
+      applyValues(
+        readFileSync(file, 'utf8'),
+        new Map([
+          ['SMTP_URL', ''],
+          ['SMTP_URL_FILE', '/run/secrets/smtp'],
+        ]),
+      ),
+    );
+    // Before: this threw "A value is needed for --smtp-url".
+    const { code, text, errors } = await setup(root, out, [
+      '--target',
+      'production',
+    ]);
+    assert.equal(code, 0, `${text}\n${errors}`);
+    const env = parseEnv(read(out, 'production'));
+    assert.equal(env.get('MAIL_TRANSPORT'), 'smtp');
+    assert.equal(env.get('SMTP_URL'), '');
+    assert.equal(env.get('SMTP_URL_FILE'), '/run/secrets/smtp');
+  });
+
+  test('a social provider whose client secret is in a file is not asked for it; another provider still is', async () => {
+    const root = fixture();
+    const out = temp();
+    await setup(root, out, [
+      ...PRODUCTION,
+      '--social',
+      'google',
+      '--social-client-id',
+      'gid',
+      '--social-client-secret',
+      'gsecret-value',
+    ]);
+    const file = path.join(out, '.env');
+    writeFileSync(
+      file,
+      applyValues(
+        readFileSync(file, 'utf8'),
+        new Map([
+          ['GOOGLE_CLIENT_SECRET', ''],
+          ['GOOGLE_CLIENT_SECRET_FILE', '/run/secrets/google'],
+        ]),
+      ),
+    );
+    // Before: this threw "A value is needed for --social-client-secret".
+    const again = await setup(root, out, ['--target', 'production']);
+    assert.equal(again.code, 0, `${again.text}\n${again.errors}`);
+    let env = parseEnv(read(out, 'production'));
+    assert.equal(env.get('GOOGLE_CLIENT_ID'), 'gid');
+    assert.equal(env.get('GOOGLE_CLIENT_SECRET'), '');
+    assert.equal(env.get('GOOGLE_CLIENT_SECRET_FILE'), '/run/secrets/google');
+    // The file keeps Google's secret only: GitHub's is asked, and written.
+    await assert.rejects(
+      setup(root, out, [
+        '--target',
+        'production',
+        '--social',
+        'github',
+        '--social-client-id',
+        'ghid',
+      ]),
+      /--social-client-secret/,
+    );
+    const github = await setup(root, out, [
+      '--target',
+      'production',
+      '--social',
+      'github',
+      '--social-client-id',
+      'ghid',
+      '--social-client-secret',
+      'ghsecret-value',
+    ]);
+    assert.equal(github.code, 0, `${github.text}\n${github.errors}`);
+    env = parseEnv(read(out, 'production'));
+    assert.equal(env.get('GITHUB_CLIENT_SECRET'), 'ghsecret-value');
+    assert.equal(env.get('GITHUB_CLIENT_SECRET_FILE'), '');
+    assert.equal(env.get('GOOGLE_CLIENT_SECRET_FILE'), '/run/secrets/google');
+  });
+
+  test('every other credential kept in a file is skipped the same way, and none is written beside it', async () => {
+    const root = fixture();
+    const out = temp();
+    const kept = {
+      CLOUDFLARE_API_TOKEN: 'cf-test-value',
+      MAIL_API_KEY: 'mail-key-value',
+      AWS_SECRET_ACCESS_KEY: 'aws-secret-value',
+      TURNSTILE_SECRET_KEY: 'turnstile-secret-value',
+      ANTHROPIC_API_KEY: 'sk-ant-value',
+      OTEL_EXPORTER_OTLP_HEADERS: 'x-team=key-value',
+      SENTRY_DSN: 'https://key@o1.ingest.sentry.io/1',
+    };
+    await setup(root, out, [
+      ...PRODUCTION,
+      '--mail',
+      'resend',
+      '--mail-api-key',
+      kept.MAIL_API_KEY,
+      '--mail-from',
+      'no-reply@example.com',
+      '--storage',
+      's3',
+      '--s3-bucket',
+      'files',
+      '--aws-access-key-id',
+      'AKIA1',
+      '--aws-secret-access-key',
+      kept.AWS_SECRET_ACCESS_KEY,
+      '--captcha',
+      'turnstile',
+      '--turnstile-site-key',
+      'site-key',
+      '--turnstile-secret-key',
+      kept.TURNSTILE_SECRET_KEY,
+      '--anthropic-api-key',
+      kept.ANTHROPIC_API_KEY,
+      '--otel-endpoint',
+      'https://otel.example.com',
+      '--otel-headers',
+      kept.OTEL_EXPORTER_OTLP_HEADERS,
+      '--sentry-dsn',
+      kept.SENTRY_DSN,
+    ]);
+    const first = parseEnv(read(out, 'production'));
+    for (const [name, value] of Object.entries(kept)) {
+      assert.equal(first.get(name), value, `${name} is written on a first run`);
+    }
+    // Every one of them moved to a file.
+    const file = path.join(out, '.env');
+    writeFileSync(
+      file,
+      applyValues(
+        readFileSync(file, 'utf8'),
+        new Map(
+          Object.keys(kept).flatMap((name) => [
+            [name, ''],
+            [`${name}_FILE`, `/run/secrets/${name.toLowerCase()}`],
+          ]),
+        ),
+      ),
+    );
+    const { code, text, errors } = await setup(root, out, [
+      '--target',
+      'production',
+    ]);
+    assert.equal(code, 0, `${text}\n${errors}`);
+    const env = parseEnv(read(out, 'production'));
+    for (const name of Object.keys(kept)) {
+      assert.equal(env.get(name), '', `${name} stays empty`);
+      assert.equal(
+        env.get(`${name}_FILE`),
+        `/run/secrets/${name.toLowerCase()}`,
+        `${name}_FILE stays`,
+      );
+    }
+    // Their questions are skipped; what they belong to is kept.
+    assert.equal(env.get('MAIL_TRANSPORT'), 'resend');
+    assert.equal(env.get('AWS_ACCESS_KEY_ID'), 'AKIA1');
+    assert.equal(env.get('TURNSTILE_SITE_KEY'), 'site-key');
+    assert.equal(
+      env.get('OTEL_EXPORTER_OTLP_ENDPOINT'),
+      'https://otel.example.com',
+    );
+  });
+
+  test('every secret question is skipped when its variable is kept in a _FILE, and asked when the line is empty or the file is new', () => {
     const text = readFileSync(path.join(REPO, 'env.example'), 'utf8');
     const tpl = parseEnv(text);
     const base = {
@@ -1414,22 +1593,66 @@ describe('questions for observability, the AI key, push and SMS', () => {
         answers,
         { ...base, existing, current: existing ?? tpl },
       );
-    for (const [id, answers, name] of [
+    const cases = [
+      ['cloudflareApiToken', {}, 'CLOUDFLARE_API_TOKEN'],
+      ['smtpUrl', { mail: 'smtp' }, 'SMTP_URL'],
+      ['mailApiKey', { mail: 'resend' }, 'MAIL_API_KEY'],
+      ['mailApiKey', { mail: 'postmark' }, 'MAIL_API_KEY'],
+      ['awsSecretAccessKey', { storage: 's3' }, 'AWS_SECRET_ACCESS_KEY'],
+      ['awsSecretAccessKey', { mail: 'ses' }, 'AWS_SECRET_ACCESS_KEY'],
+      ['turnstileSecretKey', { captcha: 'turnstile' }, 'TURNSTILE_SECRET_KEY'],
+      ['socialClientSecret', { social: 'google' }, 'GOOGLE_CLIENT_SECRET'],
+      [
+        'socialClientSecret',
+        { social: 'microsoft' },
+        'MICROSOFT_CLIENT_SECRET',
+      ],
+      ['socialClientSecret', { social: 'github' }, 'GITHUB_CLIENT_SECRET'],
       ['observeAppSecret', { observe: true }, 'OBSERVE_APP_SECRET'],
+      [
+        'otelHeaders',
+        { otelEndpoint: 'https://otel.example.com' },
+        'OTEL_EXPORTER_OTLP_HEADERS',
+      ],
+      ['sentryDsn', {}, 'SENTRY_DSN'],
+      ['anthropicApiKey', {}, 'ANTHROPIC_API_KEY'],
       ['twilioAuthToken', { sms: true }, 'TWILIO_AUTH_TOKEN'],
-    ]) {
-      assert.equal(asked(id, answers, null), true, `${id}: first run`);
+    ];
+    // A secret question added later must be listed here.
+    assert.deepEqual(
+      [...new Set(cases.map(([id]) => id))].sort(),
+      QUESTIONS.filter((q) => q.secret)
+        .map((q) => q.id)
+        .sort(),
+    );
+    for (const [id, answers, name] of cases) {
+      const label = `${id} (${name})`;
+      assert.equal(asked(id, answers, null), true, `${label}: first run`);
+      assert.equal(
+        asked(id, answers, new Map([[`${name}`, 'old-value']])),
+        true,
+        `${label}: the variable is set`,
+      );
       assert.equal(
         asked(id, answers, new Map([[`${name}_FILE`, '']])),
         true,
-        `${id}: empty ${name}_FILE`,
+        `${label}: empty ${name}_FILE`,
       );
       assert.equal(
         asked(id, answers, new Map([[`${name}_FILE`, '/run/secrets/x']])),
         false,
-        `${id}: ${name}_FILE set`,
+        `${label}: ${name}_FILE set`,
       );
     }
+    // A provider's secret is kept in its own file only.
+    assert.equal(
+      asked(
+        'socialClientSecret',
+        { social: 'github' },
+        new Map([['GOOGLE_CLIENT_SECRET_FILE', '/run/secrets/x']]),
+      ),
+      true,
+    );
   });
 
   test('development is not asked these: its template keeps its own lines', async () => {

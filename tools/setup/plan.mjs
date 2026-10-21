@@ -88,8 +88,9 @@ const usesAws = (a) => a.storage === 's3' || a.mail === 'ses';
 
 /**
  * The existing file keeps the credential in a file (`<key>_FILE`, Docker or
- * Swarm secrets): its question is not asked and the variable is not written,
- * since the app refuses to start with both set.
+ * Swarm secrets): the variable is not made or written here, since the app
+ * refuses to start with both set. For a secret question, applies() is where
+ * this is decided.
  */
 const keptInFile = (key, ctx) => Boolean(ctx.existing?.get(`${key}_FILE`));
 
@@ -105,7 +106,9 @@ const keptInFile = (key, ctx) => Boolean(ctx.existing?.get(`${key}_FILE`));
  *   write    (value, answers, ctx) => { KEY: value | null } to set (null: empty);
  *   required an empty answer is an error (--yes names the flag);
  *   validate (value) => null, or what the answer must be;
- *   secret   a credential: never shown, kept by default on a re-run;
+ *   secret   a credential: never shown, kept by default on a re-run; not
+ *            asked (and its variable not written) when the existing file keeps
+ *            it in `<NAME>_FILE`, whichever variable `write` sets (applies());
  *   hint     said before the question.
  * The context: { target, tpl (the template's values), keys (the names it
  * has), current (the file's values now), existing (a Map, or null),
@@ -567,7 +570,7 @@ export const QUESTIONS = [
     secret: true,
     keys: ['OBSERVE_APP_SECRET'],
     target: 'production',
-    when: (a, ctx) => a.observe && !keptInFile('OBSERVE_APP_SECRET', ctx),
+    when: (a) => a.observe,
     read: (env) => env.OBSERVE_APP_SECRET,
     required: true,
     write: (v) => ({ OBSERVE_APP_SECRET: v }),
@@ -705,7 +708,7 @@ export const QUESTIONS = [
     secret: true,
     keys: ['TWILIO_AUTH_TOKEN'],
     target: 'production',
-    when: (a, ctx) => a.sms && !keptInFile('TWILIO_AUTH_TOKEN', ctx),
+    when: (a) => a.sms,
     read: (env) => env.TWILIO_AUTH_TOKEN,
     required: true,
     write: (v) => ({ TWILIO_AUTH_TOKEN: v }),
@@ -790,12 +793,27 @@ function providerInTemplate(name, ctx) {
   return Object.values(SOCIAL[name]).every((key) => ctx.keys.has(key));
 }
 
+/**
+ * A secret question whose variable the existing file keeps in `<NAME>_FILE`.
+ * The variable is the one the question writes (a social provider's depends on
+ * the answers), so no question names it a second time.
+ */
+function secretKept(q, answers, ctx) {
+  if (!q.secret || !ctx.existing) return false;
+  return Object.keys(q.write('', answers, ctx)).some((key) =>
+    keptInFile(key, ctx),
+  );
+}
+
 /** Whether the question is asked, given the answers so far. */
 export function applies(q, answers, ctx) {
   if (q.target && q.target !== ctx.target) return false;
   if (!q.keys.every((key) => ctx.keys.has(key))) return false;
   if (q.available && !q.available(ctx)) return false;
-  return q.when ? !!q.when(answers, ctx) : true;
+  if (q.when && !q.when(answers, ctx)) return false;
+  // Not asked, so not required and not written: a value made here would be a
+  // second source next to the file.
+  return !secretKept(q, answers, ctx);
 }
 
 /** The accepted values of a choice question. */
@@ -953,7 +971,7 @@ export function buildPlan({
     }
     // Kept in a file (KEY_FILE): a value made here would be a second source,
     // and the services refuse to start with both.
-    if (existing?.get(`${secret.key}_FILE`)) continue;
+    if (keptInFile(secret.key, ctx)) continue;
     const old = existing?.get(secret.key) ?? '';
     if (old && !rotate) continue;
     const made = generate(secret, random);
@@ -975,7 +993,7 @@ export function buildPlan({
   if (answers.push === true) {
     const [publicKey, privateKey] = VAPID_KEYS;
     const kept =
-      Boolean(was(`${privateKey}_FILE`)) ||
+      keptInFile(privateKey, ctx) ||
       (Boolean(was(publicKey)) && Boolean(was(privateKey)));
     if (!kept) {
       const pair = vapid();
