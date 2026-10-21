@@ -390,6 +390,14 @@ describe('the web app started by caddy/entrypoint.sh', { skip }, () => {
     });
   });
 
+  it("scopes a path-style bucket to its path in both, not the shared host's every bucket", async () => {
+    const pathStyle = 'https://s3.eu-west-1.amazonaws.com/my.files/';
+    assert.deepEqual(await policyWith({ ...s3, S3_BUCKET: 'my.files' }), {
+      connect: ["'self'", pathStyle],
+      img: ["'self'", 'data:', pathStyle],
+    });
+  });
+
   it('adds nothing with the local driver, whatever WEB_FILES_ORIGINS the environment held', async () => {
     assert.deepEqual(
       await policyWith({
@@ -441,8 +449,10 @@ describe("the bucket origin caddy/entrypoint.sh derives from the app's S3 settin
     );
   });
 
-  // The origins S3Disk (@nestjs/storage) signs its URLs for: the bucket in
-  // front of the host, unless it uses path style.
+  // The sources S3Disk (@nestjs/storage) signs its URLs for: the bucket in
+  // front of the host, or, with path style, the host and the bucket's path
+  // (never the bare host: on AWS and other shared stores it serves every
+  // customer's buckets).
   const cases = [
     [
       'AWS, from S3_REGION',
@@ -474,34 +484,39 @@ describe("the bucket origin caddy/entrypoint.sh derives from the app's S3 settin
       'https://files.acct.r2.cloudflarestorage.com',
     ],
     [
-      'MinIO: path style, the endpoint itself',
+      "MinIO: path style, the endpoint and the bucket's path",
       { ...s3, S3_ENDPOINT: 'http://minio:9000', S3_FORCE_PATH_STYLE: 'on' },
-      'http://minio:9000',
+      'http://minio:9000/files/',
     ],
     [
       'an IPv4 host: path style by itself',
       { ...s3, S3_ENDPOINT: 'http://10.0.0.5:9000' },
-      'http://10.0.0.5:9000',
+      'http://10.0.0.5:9000/files/',
     ],
     [
       'an IPv6 host: path style by itself',
       { ...s3, S3_ENDPOINT: 'http://[::1]:9000' },
-      'http://[::1]:9000',
+      'http://[::1]:9000/files/',
     ],
     [
       'a name that is not a DNS label (a dot, over https): path style',
       { ...s3, S3_BUCKET: 'my.files', S3_REGION: 'eu-west-1' },
-      'https://s3.eu-west-1.amazonaws.com',
+      'https://s3.eu-west-1.amazonaws.com/my.files/',
     ],
     [
       'a name with a capital: path style',
       { ...s3, S3_BUCKET: 'Files', S3_REGION: 'eu-west-1' },
-      'https://s3.eu-west-1.amazonaws.com',
+      'https://s3.eu-west-1.amazonaws.com/Files/',
     ],
     [
       'a dotted name over http: still a label',
       { ...s3, S3_BUCKET: 'my.files', S3_ENDPOINT: 'http://store.test:9000' },
       'http://my.files.store.test:9000',
+    ],
+    [
+      'S3_FORCE_PATH_STYLE=on with AWS: the shared host, scoped to the bucket',
+      { ...s3, S3_REGION: 'eu-west-1', S3_FORCE_PATH_STYLE: 'on' },
+      'https://s3.eu-west-1.amazonaws.com/files/',
     ],
     [
       'S3_FORCE_PATH_STYLE=off',
@@ -524,6 +539,7 @@ describe("the bucket origin caddy/entrypoint.sh derives from the app's S3 settin
       { ...s3, S3_ENDPOINT: 'ftp://store.test' },
       { ...s3, S3_ENDPOINT: "https://store.test; script-src 'unsafe-inline'" }, // would end the directive
       { ...s3, S3_BUCKET: "files'", S3_REGION: 'eu-west-1' },
+      { ...s3, S3_BUCKET: 'fi:les[1]', S3_REGION: 'eu-west-1' }, // a host's characters, not a bucket's
     ]) {
       const { value, warning } = derive(env);
       assert.equal(value, '', JSON.stringify(env));

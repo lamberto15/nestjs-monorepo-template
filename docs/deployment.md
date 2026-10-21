@@ -85,8 +85,12 @@ build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviol
     `S3_REGION` (or `AWS_REGION`) and `S3_FORCE_PATH_STYLE` as the API's S3 disk signs its
     URLs (`https://<bucket>.s3.<region>.amazonaws.com`; R2's
     `https://<bucket>.<account>.r2.cloudflarestorage.com`; with path style, the endpoint
-    itself), which `compose.prod.yaml` hands to `caddy`. Settings it cannot make an
-    origin of leave it out, with a warning in Caddy's log;
+    with the bucket's path, `https://s3.<region>.amazonaws.com/<bucket>/`, never the
+    bare host, which on AWS and other shared stores serves every customer's buckets;
+    the upload's `PUT` matches the path, and a source's path does not count after a
+    redirect, so the thumbnail's 302 still loads), which `compose.prod.yaml` hands to
+    `caddy`. Settings it cannot make an origin of leave it out, with a warning in
+    Caddy's log;
   - then **`FILES_ORIGIN`**, set in `.env`: space-separated `https://host[:port]` origins
     the settings can't tell, such as a custom domain or a CDN in front of the bucket.
     Empty (the default), nothing is added. It goes into the policy as written, so

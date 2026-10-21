@@ -90,8 +90,12 @@ which a policy without the origin blocks. Each origin once, from two sources:
 - With env.STORAGE_DRIVER=s3 and env.S3_BUCKET, the bucket's origin, the one the
   API's S3 disk signs its URLs for: env.S3_ENDPOINT, or
   https://s3.<env.S3_REGION or AWS_REGION>.amazonaws.com, with the bucket in front
-  of the host (virtual-hosted style), or not (path style: env.S3_FORCE_PATH_STYLE
-  "on", an IP address as the host, or a bucket name that is not a DNS label).
+  of the host (virtual-hosted style), or else the host with the bucket's path,
+  <scheme>://<host>/<bucket>/ (path style: env.S3_FORCE_PATH_STYLE "on", an IP
+  address as the host, or a bucket name that is not a DNS label). Never the bare
+  host: on AWS and other shared stores it serves every customer's buckets. The
+  PUT goes to /<bucket>/<key>, which the path matches, and CSP ignores a source's
+  path after a redirect, so the thumbnail's 302 to the signed link still loads.
   Settings it cannot read fail the render.
 - web.filesOrigin: https origins the settings can't tell (a custom domain or a CDN
   in front of the bucket). They go into the policy as written: anything but
@@ -119,7 +123,7 @@ which a policy without the origin blocks. Each origin once, from two sources:
 {{- $ip := or (regexMatch "^\\[" $host) (regexMatch "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+(:[0-9]+)?$" $host) -}}
 {{- $label := or (regexMatch "^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$" $bucket) (and (eq $scheme "http") (regexMatch "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$" $bucket) (not (contains ".." $bucket))) -}}
 {{- if or $forced $ip (not $label) -}}
-{{- $origins = append $origins (printf "%s://%s" $scheme $host) -}}
+{{- $origins = append $origins (printf "%s://%s/%s/" $scheme $host $bucket) -}}
 {{- else -}}
 {{- $origins = append $origins (printf "%s://%s.%s" $scheme $bucket $host) -}}
 {{- end -}}

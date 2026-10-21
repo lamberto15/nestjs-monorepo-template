@@ -34,10 +34,14 @@ fi
 # - The bucket's origin, derived from the app's own S3 settings as the API's S3
 #   disk (@nestjs/storage's S3Disk) signs its URLs: S3_ENDPOINT, or
 #   https://s3.<S3_REGION or AWS_REGION>.amazonaws.com, with the bucket in
-#   front of the host (virtual-hosted style), or without it (path style:
-#   S3_FORCE_PATH_STYLE=on, an IP address as the host, or a bucket name that is
-#   not a DNS label). Settings it can't make an origin of leave it out, with a
-#   warning: uploads then go through the API, thumbnails show the file icon.
+#   front of the host (virtual-hosted style), or else the host with the
+#   bucket's path, <scheme>://<host>/<bucket>/ (path style: S3_FORCE_PATH_STYLE=on,
+#   an IP address as the host, or a bucket name that is not a DNS label). Never
+#   the bare host: on AWS and other shared stores it serves every customer's
+#   buckets. The PUT goes to /<bucket>/<key>, which the path matches, and CSP
+#   ignores a source's path after a redirect, so the thumbnail's 302 to the
+#   signed link still loads. Settings it can't make an origin of leave it out,
+#   with a warning: uploads then go through the API, thumbnails show the file icon.
 # - FILES_ORIGIN, the operator's: what the settings can't tell (a custom domain
 #   or a CDN in front of the bucket). Space-separated https origins
 #   (https://host[:port]), nothing else: it goes into the policy as written, and
@@ -68,9 +72,14 @@ if [ "${STORAGE_DRIVER:-}" = s3 ] && [ -n "${S3_BUCKET:-}" ]; then
   host=${endpoint#*://}
   host=${host%%/*}
   case $scheme in http | https) ;; *) host= ;; esac
-  # Only what a host and a bucket name are made of: nothing that could end the directive.
-  case $host$bucket in
+  # Only what a host and a bucket name are made of: nothing that could end the
+  # directive. The bucket, which can become a source's path, gets the narrower
+  # set Helm's helper uses too.
+  case $host in
     *[!]A-Za-z0-9._:[-]*) host= ;;
+  esac
+  case $bucket in
+    *[!A-Za-z0-9._-]*) host= ;;
   esac
   if [ -z "$host" ]; then
     echo 'STORAGE_DRIVER=s3: no bucket origin from S3_ENDPOINT, S3_REGION and S3_BUCKET; the web app'"'"'s Content-Security-Policy leaves it out (FILES_ORIGIN can name it)' >&2
@@ -92,7 +101,7 @@ if [ "${STORAGE_DRIVER:-}" = s3 ] && [ -n "${S3_BUCKET:-}" ]; then
       case $bucket in *[!a-z0-9-]*) path_style=yes ;; esac
     fi
     if [ "$path_style" = yes ]; then
-      bucket_origin=$scheme://$host
+      bucket_origin=$scheme://$host/$bucket/
     else
       bucket_origin=$scheme://$bucket.$host
     fi
