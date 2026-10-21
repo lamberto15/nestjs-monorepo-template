@@ -54,7 +54,7 @@ Filling `.env` (each step is commented in `env.example`):
   (the API's responses keep helmet's own): `Content-Security-Policy`
   (`default-src 'self'`; scripts and frames also from `https://challenges.cloudflare.com`,
   Turnstile's only needs; `connect-src 'self'` covers the API and socket.io;
-  `img-src 'self' data:` (and `FILES_ORIGIN`, below); `style-src` keeps `'unsafe-inline'` because sonner and the theme
+  `img-src 'self' data:`; both also name the origins of files, below; `style-src` keeps `'unsafe-inline'` because sonner and the theme
   provider inject `<style>` elements; no `'unsafe-eval'`, so `apps/web` imports `z` from `@/lib/zod`, which sets zod to
   `jitless`; `frame-ancestors 'none'`), `X-Frame-Options: DENY`, `X-Content-Type-Options`,
   `Referrer-Policy: strict-origin-when-cross-origin` and a `Permissions-Policy` that turns
@@ -64,23 +64,38 @@ Filling `.env` (each step is commented in `env.example`):
   `<script>`, no `eval`. Check a change by loading the built app through Caddy (`docker
 build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviolation`
   events: there must be none.
-- **`FILES_ORIGIN`: images from the bucket** (`STORAGE_DRIVER=s3`). The attachments panel
-  shows an image's thumbnail and preview with an `<img>` on
-  `GET /v1/attachments/{id}/download?rendition=thumb|preview`, which answers 302 to a
-  signed link ([attachments](attachments.md), "Image renditions"). With
-  `STORAGE_DRIVER=local` the link is `https://<APP_DOMAIN>/files…`, the app's own origin
-  (`/files/*` goes to the API above), and `'self'` covers it. With S3 it is the
-  bucket's host, and an image may load only from an origin `img-src` names: set
-  `FILES_ORIGIN` in `.env` to it, space-separated for more than one
-  (`https://<bucket>.s3.<region>.amazonaws.com`, R2's
-  `https://<account>.r2.cloudflarestorage.com`, the CDN in front of the bucket), and
-  recreate Caddy (`docker compose up -d caddy`; the Caddyfile reads it at each request,
-  like `MAINTENANCE_PAGE`). Empty, nothing is added; a thumbnail that cannot load shows the
-  file icon, and the original still downloads (a download is a navigation, which
-  `img-src` does not govern). `caddy/entrypoint.sh` refuses to start with a value that is
-  not `https://host[:port]` origins (no path, wildcard, quote or semicolon: it goes into
-  the policy as written). The Helm chart's web Caddy has the same value
-  (`web.filesOrigin`).
+- **The origins of files** (`STORAGE_DRIVER=s3`). The browser reaches the bucket itself
+  twice: it PUTs a direct upload straight to it
+  ([attachments](attachments.md#direct-uploads-s3)), and the attachments panel's `<img>`
+  for an image's thumbnail and preview
+  (`GET /v1/attachments/{id}/download?rendition=thumb|preview`) follows a 302 to the
+  bucket's signed link ([attachments](attachments.md#image-renditions)). The policy
+  blocks a request to an origin it does not name before any CORS check (the web app
+  still works without it, less directly: uploads go through the API, a thumbnail that
+  cannot load shows the file icon, and the original still downloads, a download being a
+  navigation, which neither directive governs). With `STORAGE_DRIVER=local` there is
+  nothing to add: the files' links are `https://<APP_DOMAIN>/files…`, the app's own
+  origin (`/files/*` goes to the API above), which `'self'` covers. So `connect-src` and
+  `img-src` both name one list of origins, which `caddy/entrypoint.sh` makes at each
+  start (`WEB_FILES_ORIGINS`, the one value the Caddyfile reads for them; after changing
+  the settings, recreate Caddy: `docker compose up -d caddy`). The Helm chart's web
+  Caddy makes the same list from `env` and `web.filesOrigin` (`app.webFilesOrigins`,
+  which fails the render on a value it cannot read). The list holds:
+  - **the bucket's origin**, derived from the app's own `S3_BUCKET`, `S3_ENDPOINT`,
+    `S3_REGION` (or `AWS_REGION`) and `S3_FORCE_PATH_STYLE` as the API's S3 disk signs its
+    URLs (`https://<bucket>.s3.<region>.amazonaws.com`; R2's
+    `https://<bucket>.<account>.r2.cloudflarestorage.com`; with path style, the endpoint
+    with the bucket's path, `https://s3.<region>.amazonaws.com/<bucket>/`, never the
+    bare host, which on AWS and other shared stores serves every customer's buckets;
+    the upload's `PUT` matches the path, and a source's path does not count after a
+    redirect, so the thumbnail's 302 still loads), which `compose.prod.yaml` hands to
+    `caddy`. Settings it cannot make an origin of leave it out, with a warning in
+    Caddy's log;
+  - then **`FILES_ORIGIN`**, set in `.env`: space-separated `https://host[:port]` origins
+    the settings can't tell, such as a custom domain or a CDN in front of the bucket.
+    Empty (the default), nothing is added. It goes into the policy as written, so
+    `caddy/entrypoint.sh` refuses to start with anything else (a path, a wildcard, a
+    quote or a semicolon).
 - **Security contact** (`/.well-known/security.txt`, RFC 9116). Caddy answers that one
   path itself (its handle comes before the `@api` matcher); `caddy/entrypoint.sh` writes
   the file to `/srv/security` at each start from `SECURITY_CONTACT` (one or more
@@ -146,6 +161,10 @@ build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviol
   Secure cookie and `trust proxy` rely on that.
 - Local file storage is a volume shared by the replicas of one host. More hosts:
   `STORAGE_DRIVER=s3`.
+  With S3 the web app uploads straight to the bucket (presigned PUT): the
+  bucket needs a CORS rule for the web app's origin
+  ([attachments](attachments.md#direct-uploads-s3)); without one it uploads
+  through the API instead.
 - Logs are JSON on stdout (`docker compose logs`). `X-Request-Id` follows a
   request through Caddy, the logs and NestJS Observe. Credentials are
   masked before a line is written ([Log redaction](#log-redaction)).

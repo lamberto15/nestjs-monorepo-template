@@ -26,3 +26,14 @@ export function attachmentLimits(
     types: [...config.get('ATTACHMENT_ALLOWED_TYPES', { infer: true })],
   };
 }
+
+/**
+ * Whether uploads may go straight to the object store with a signed URL
+ * (`POST …/attachments/presign`), given `STORAGE_DRIVER`: with `s3` only. On
+ * a local or in-memory disk the "store" is this API, so a signed URL would
+ * still stream through it. Asked by the routes (AttachmentUploadsService)
+ * and by `GET /v1/features` (`presignedUploads`) alike, so a client is never
+ * told a route works that refuses.
+ */
+export const presignedUploads = (storageDriver: string) =>
+  storageDriver === 's3';

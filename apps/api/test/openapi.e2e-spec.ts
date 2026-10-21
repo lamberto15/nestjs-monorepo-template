@@ -24,6 +24,7 @@ const PANEL_COMPONENTS = [
   'CommentPage',
   'Attachment',
   'AttachmentPage',
+  'PresignedUpload',
   'Tag',
   'TagPage',
   'TagRef',
@@ -459,6 +460,13 @@ describe("OpenAPI document: the record panels' components (e2e)", () => {
       ref('AttachmentPage'),
     );
     expect(response(`${base}/attachments`, 'post', '201')).toEqual(
+      ref('Attachment'),
+    );
+    // Direct uploads to the object store (STORAGE_DRIVER=s3): announce, then complete.
+    expect(response(`${base}/attachments/presign`, 'post', '201')).toEqual(
+      ref('PresignedUpload'),
+    );
+    expect(response(`${base}/attachments/complete`, 'post', '201')).toEqual(
       ref('Attachment'),
     );
     expect(response(`${base}/tags`, 'put')).toEqual(ref('TagRefList'));

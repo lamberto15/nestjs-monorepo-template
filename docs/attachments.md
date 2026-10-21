@@ -7,6 +7,8 @@ example (`features/notes/note-attachments.ts`, `attachmentRoutes()` in `notes.mo
 | Route | Does |
 | --- | --- |
 | `POST /v1/notes/{id}/attachments` (multipart, field `file`) | 201, the attachment; who may change the note (`Note.update`) |
+| `POST /v1/notes/{id}/attachments/presign` (JSON `{ name, size, contentType }`) | 201, a signed PUT URL to the object store, `STORAGE_DRIVER=s3` only, else 503 `presigned_uploads_unavailable`; the same right as the upload ([Direct uploads](#direct-uploads-s3)) |
+| `POST /v1/notes/{id}/attachments/complete` (JSON `{ uploadId }`) | 201, the attachment, once the file is in the store and was checked ([Direct uploads](#direct-uploads-s3)) |
 | `GET /v1/notes/{id}/attachments` | a page of them, newest first (`?contentType=`, `?name.contains=`, `size`, `createdAt`); who may read the note |
 | `GET /v1/attachments/{id}/download` | 302 to a signed link to the file (5 minutes, no credentials needed: a link or an image works); `?inline=true` shows a PDF in the browser; `?rendition=thumb\|preview` links to an image's smaller copy ([Image renditions](#image-renditions)) |
 | `DELETE /v1/attachments/{id}` | 204; the uploader, or who may change the record; the file goes too |
@@ -130,7 +132,9 @@ upload(…, @UploadedFile() file: StoredUpload) { return this.attachments.upload
   its attachments, file and row, and logs how many; each round's rows go
   with an `attachments.swept` audit entry (the ids) by the system principal
   `system:attachment-sweep`. A subject no target registers any more is
-  left alone.
+  left alone. The same sweep removes the direct uploads nobody completed
+  ([Direct uploads](#direct-uploads-s3)); that round is audited as
+  `attachments.uploads-swept` (the upload ids).
 - **Issued documents** (a generated PDF, [documents.md](documents.md)) are
   attachments too, added by the app with `locked: true`: they never change,
   and `DELETE` answers 409 `attachment_locked`; they go only with their
@@ -141,7 +145,107 @@ upload(…, @UploadedFile() file: StoredUpload) { return this.attachments.upload
 - **Personal data:** a user's uploads are in their data export
   (`kind: attachments`: the rows, not the files). When their account is
   deleted the files stay with their records; `uploadedBy` becomes
-  `anonymized`. File names are kept: they belong to the record.
+  `anonymized`. File names are kept: they belong to the record. A direct
+  upload announced and not completed ([Direct uploads](#direct-uploads-s3))
+  is not in the export; on deletion its `uploadedBy` becomes `anonymized`
+  too, and the sweep removes it with its object.
+
+## Direct uploads (S3)
+
+With `STORAGE_DRIVER=s3` a client can send a file straight to the bucket
+instead of through the API, which spares the API the bytes (its memory, its
+request time and its bandwidth; the multipart upload still works and is the
+only way with the local driver). `GET /v1/features` says so
+(`presignedUploads`, [configuration](configuration.md#which-switches-are-on-get-v1features)); the routes are
+`attachmentRoutes()`'s, beside the multipart upload
+(`attachment-uploads.service.ts`):
+
+1. **`POST /v1/notes/{id}/attachments/presign`**, `{ name, size,
+   contentType }`: needs the right to attach files to the record (the
+   upload's: 404 for a record the caller cannot read, 403 for a reader) and
+   refuses what the upload refuses before any byte moves: over
+   `ATTACHMENT_MAX_MB` 413, a type not allowed (`ATTACHMENT_ALLOWED_TYPES`)
+   or not declared 415 (`contentType` is required: the URL is signed for it;
+   text is signed as the upload through the API types it,
+   `text/plain; charset=utf-8` or `text/csv; charset=utf-8`), the tenant's
+   storage quota 422 `quota_exceeded`. It answers 201 `{ uploadId, url,
+   method: 'PUT', headers, expiresAt }`.
+2. **The client PUTs the file to `url`** with `headers` as they are
+   (`content-type`, and `x-amz-server-side-encryption` when the deployment
+   encrypts at rest; the browser sets `Content-Length` itself). The URL
+   (SigV4, `@nestjs/storage`'s `signedUpload()`) is bound to the key, the size
+   and the `Content-Type`, and works for ten minutes (`UPLOAD_LINK_TTL`): a
+   body of another size or type, or a late one, is refused by the bucket
+   (403). The key is the server's, under the tenant's prefix
+   (`tenants/<id>/attachments/…`, the one an upload through the API gets),
+   never the client's.
+3. **`POST /v1/notes/{id}/attachments/complete`**, `{ uploadId }`: the
+   announcer's own upload for this record (404 `attachment_upload_not_found`
+   otherwise). It checks the right again, then **copies the object to a key
+   of the server's own** (`tenants/<id>/attachments/…`, which no signed URL
+   reaches) and reads the copy back: its size and `Content-Type` (HEAD) and
+   its first 64 KiB (a ranged GET), and types it from those bytes exactly as
+   the upload does (signatures, zip entries, text), so the type must be
+   allowed and must not contradict the declared one. The copy matters: the
+   signed URL works until it expires, and whoever holds it can PUT again, so
+   a file checked and scanned where it was PUT could be replaced after
+   both. What was PUT is never the attachment's file; it is deleted on
+   completion. A file that is not what was announced is deleted and
+   refused: 413, 415, or 400 `attachment_upload_mismatch`. When nothing was
+   PUT yet it is 409 `attachment_upload_incomplete` and the upload stays: PUT,
+   then complete again. Then `AttachmentsService.upload()` creates the
+   attachment from the copy, **the same path as an upload through the API**: the quota,
+   the tenant, the audit entry (`attachment.added`), the malware scan
+   (`pending` until it is done) and the image renditions. Completing twice
+   makes one attachment (409 `attachment_upload_in_progress` while another
+   request completes it, 404 after).
+
+- **State** is a row per announced upload (`attachment_uploads`: key, name,
+  size, type, uploader, expiry), marked completed (`completedAt`) in the
+  transaction that creates the attachment and deleted by the sweep once the
+  URL has expired, so that whatever is PUT to the URL after the completion is
+  deleted with it. An uploader may have 100 announced, not completed and not
+  expired (`MAX_PENDING_UPLOADS`, 429 `attachment_uploads_pending`): a link
+  that expired, say after a PUT that failed, frees its place at once, though
+  the sweep deletes the row only at night. The storage quota counts
+  attachments, not what was PUT and never completed.
+- **A late PUT** may still be arriving when the URL expires: an upload may be
+  completed for an hour after (`UPLOAD_GRACE_MS`); past that it is 410
+  `attachment_upload_expired` and the object is deleted.
+- **Never completed** (the client went away): the nightly sweep
+  ([above](#attachments-files-on-records), "Deleted records") deletes the
+  object and the row of every upload an hour past its expiry, and never a
+  file an attachment uses. It audits `attachments.uploads-swept`. The rows of
+  completed uploads go with it (with an object PUT again, if any), unaudited.
+- **The bucket needs a CORS rule** for the web app's origin, since the
+  browser sends the PUT: `AllowedMethods: PUT`, `AllowedOrigins` the web app's
+  origin(s), `AllowedHeaders: *` (or `content-type` and
+  `x-amz-server-side-encryption`). Without one the browser cannot reach the
+  bucket: the web app notices (no answer from the store) and uploads that
+  file through the API instead, so uploads keep working, only not directly.
+- **The web app's Content-Security-Policy must name the bucket** too: the
+  browser blocks a request to another origin that `connect-src` does not list,
+  before any CORS preflight. The Compose stack's Caddy and the Helm chart's
+  web app derive the bucket's origin from the S3 settings and name it in
+  `connect-src` and `img-src` themselves when `STORAGE_DRIVER=s3` (one list,
+  which also lets the [thumbnails](#image-renditions) load; `FILES_ORIGIN`
+  adds a custom domain or CDN in front of the bucket: [deployment.md](deployment.md),
+  "The origins of files"); a deployment that serves the web app another way
+  adds it to its own policy.
+- **The web app's dropzone** uses it whenever `presignedUploads` is on and the
+  browser names the file's type (a signed URL is bound to one; a file with no
+  type goes through the API, which decides). It falls back to the multipart
+  upload when the store cannot be reached or the server answers 503
+  `presigned_uploads_unavailable` or 429 `attachment_uploads_pending` (the
+  multipart upload leaves no announcement behind); a refusal by the API (415, 413, 422) is
+  shown as it is, and the store's (an expired link) as "the upload link was
+  refused or has expired".
+- **Tested** with an in-memory disk that does what S3 does with a presigned
+  PUT (`test/attachments-presign.e2e-spec.ts`: signature, expiry, size and
+  type checked at the PUT) and with the S3 disk's own signing and its
+  HEAD and ranged GET against a stubbed `fetch`
+  (`attachment-types.spec.ts`, `attachment-upload-check.spec.ts`). Nothing
+  here has run against a real bucket or MinIO.
 
 ## Image renditions
 
@@ -194,8 +298,9 @@ nothing for it), loaded by a worker on its first image, never by the API.
   for it: `pnpm dev` rewrites the redirect's host to the page's and proxies
   `/files` (`apps/web/dev-proxy.ts`, [monorepo](monorepo.md), "The web
   app"); under Caddy the local disk's link is the app's own origin, and with
-  S3 the bucket's host goes into `img-src` as `FILES_ORIGIN`
-  ([deployment](deployment.md), "`FILES_ORIGIN`").
+  S3 the bucket's origin is in `img-src`, derived from the S3 settings like
+  the direct uploads' `connect-src` ([deployment](deployment.md), "The origins
+  of files").
 - **In the web app:** an image `ready` shows its `thumb` in the attachments panel,
   sized from `renditions.thumb.width` and `height`, and opens its `preview` in a
   dialog with the original downloadable; a placeholder while `pending`; the file icon
@@ -302,9 +407,10 @@ check `assertDeclaredType`), on a path of its own so changes to attachments
   API's `Cross-Origin-Resource-Policy: same-origin` (`pnpm dev` proxies `/files`
   and rewrites the redirect to the page's origin now, for the attachments'
   thumbnails: [Image renditions](#image-renditions)), and with
-  `STORAGE_DRIVER=s3` the signed link is the bucket's host, which Caddy's
-  `img-src 'self' data:` blocks unless `FILES_ORIGIN` names it. The avatar
-  needs neither: the route streams the bytes (`serveFile()`, `inline`,
+  `STORAGE_DRIVER=s3` the signed link is the bucket's host, which the page's
+  `img-src` must name (Caddy's does: [deployment](deployment.md), "The origins
+  of files"; a policy of your own may not). The avatar needs neither: the
+  route streams the bytes (`serveFile()`, `inline`,
   `Cache-Control: private, max-age=300`) from the origin the page is on.
 - **Personal data:** the account export's `profile` row holds `avatarKey` (the
   file's name, not the bytes). When the account is deleted the file is

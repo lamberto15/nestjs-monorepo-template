@@ -425,7 +425,12 @@ fields value onChange errors />` is a typed input per field (the drafts and
 
   Which panels a subject takes is the API's `capabilities` in
   `GET /v1/lists/{subject}` (from its `<item>.record.ts`), and uploads are
-  held to its `attachmentLimits` (size, types). @mentions search
+  held to its `attachmentLimits` (size, types). With
+  `presignedUploads` on (`GET /v1/features`, `STORAGE_DRIVER=s3`) the
+  dropzone sends files straight to the bucket (`uploadAttachment()` in
+  `panels/api.ts`: presign, a PUT with progress, complete) and falls back to the
+  API's multipart upload when the bucket cannot be reached
+  ([attachments](attachments.md#direct-uploads-s3)). @mentions search
   `GET /v1/people?q=` (any member) and write `@user:<id>`; authors are the
   API's `authorName` and `changedByName`. Comments and files reload on the
   realtime events `record.commented` and `record.attachments.changed`
@@ -446,8 +451,9 @@ fields value onChange errors />` is a typed input per field (the drafts and
   Thumbnails are an `<img>` on `GET /v1/attachments/{id}/download?rendition=thumb`,
   which redirects to the disk's signed link: that link's origin must be one
   the page may load images from (the dev proxy above; under Caddy the app's
-  own origin with the local disk, the bucket's with S3: `FILES_ORIGIN`,
-  [deployment](deployment.md)). An infected file is deleted by the
+  own origin with the local disk, the bucket's with S3, which Caddy derives
+  from the S3 settings: [deployment](deployment.md), "The origins of files").
+  An infected file is deleted by the
   API, so there is no rejected row: it leaves the list on `removed` or, for
   its uploader, when the `attachment.rejected` notification arrives (a toast
   shows its text and the list is read again). Texts are in the `records`

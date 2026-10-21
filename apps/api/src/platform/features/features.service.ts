@@ -6,6 +6,7 @@ import type { PlatformEnv } from '../platform.env.js';
 import { AiProvider } from '../ai/ai-provider.js';
 import { PdfRenderer } from '../documents/pdf-renderer.js';
 import { ModeService } from '../mode/mode.service.js';
+import { presignedUploads } from '../attachments/attachment-limits.js';
 import { switchedOn } from '../switches.js';
 import type { Features } from './features.schemas.js';
 
@@ -46,6 +47,7 @@ export class FeaturesService {
       signUp: get('AUTH_SIGN_UP'),
       magicLink: get('AUTH_MAGIC_LINK'),
       documents: this.pdf.enabled,
+      presignedUploads: presignedUploads(get('STORAGE_DRIVER')),
       ai: this.ai.enabled,
       exchangeRates: get('EXCHANGE_RATES_FETCH'),
       tenancy: get('TENANCY'),

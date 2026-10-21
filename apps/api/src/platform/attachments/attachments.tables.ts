@@ -8,7 +8,7 @@ import {
   text,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { timestamps, uuidPk } from '../../core/database/columns.js';
+import { at, timestamps, uuidPk } from '../../core/database/columns.js';
 import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
 import type {
   RenditionStatus,
@@ -97,3 +97,59 @@ export const attachments = pgTable(
 ).enableRLS();
 
 export type Attachment = typeof attachments.$inferSelect;
+
+/**
+ * An upload straight to the object store that has been announced
+ * (`POST …/attachments/presign`) and not completed yet
+ * (`POST …/attachments/complete`): the server's own record of what it signed.
+ * The key is the server's (under the tenant's prefix), and the record, the
+ * uploader, the size and the type are what the signed URL is bound to, so the
+ * completing request names only the upload's id and is checked against this
+ * row, never against the client's word. The object at `key` is where the
+ * client PUT: the attachment is a copy of it on a key of the server's own
+ * (the signed URL keeps working until it expires, and must not reach the
+ * file that was checked). The row stays, `completedAt` set, until the nightly
+ * sweep removes it with whatever was PUT to `key` meanwhile; the sweep also
+ * deletes the object and the row of one that was never completed
+ * (docs/attachments.md, "Direct uploads").
+ */
+export const attachmentUploads = pgTable(
+  'attachment_uploads',
+  {
+    id: uuidPk(),
+    tenantId: tenantColumn(),
+    /** The record's permission subject: `Note`. */
+    subject: text('subject').notNull(),
+    recordId: uuid('record_id').notNull(),
+    /** Where the client puts the object: never the attachment's key, which is a copy made on completion. */
+    key: text('key').notNull(),
+    /** The file name the client gave, shown and used for downloads. */
+    name: text('name').notNull(),
+    /** Bytes the URL is signed for. */
+    size: bigint('size', { mode: 'number' }).notNull(),
+    /** The `Content-Type` the URL is signed for (the client's declared type, normalized). */
+    contentType: text('content_type').notNull(),
+    /** `user:<id>` or `client:<id>`: only they may complete it. */
+    uploadedBy: text('uploaded_by').notNull(),
+    /** When the URL stops working (a PUT already under way may finish after it). */
+    expiresAt: at('expires_at').notNull(),
+    /**
+     * Set while a request completes it: a second, parallel request is refused
+     * (409), so two never create two attachments of one object. A claim older
+     * than a few minutes is a request that died, and no longer holds it.
+     */
+    completingAt: at('completing_at'),
+    /** Set once the attachment exists: the upload can't be completed again, and no longer counts as pending. */
+    completedAt: at('completed_at'),
+    ...timestamps(),
+  },
+  (table) => [
+    // The sweep looks for the uploads past their expiry.
+    index('attachment_uploads_expires_idx').on(table.expiresAt),
+    // The cap on one uploader's pending uploads.
+    index('attachment_uploads_uploaded_by_idx').on(table.uploadedBy),
+    ...tenantTable('attachment_uploads', table),
+  ],
+).enableRLS();
+
+export type AttachmentUpload = typeof attachmentUploads.$inferSelect;

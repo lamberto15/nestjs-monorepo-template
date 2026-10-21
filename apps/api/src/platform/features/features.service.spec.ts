@@ -20,6 +20,7 @@ function service(
     AUTH_SIGN_UP: false,
     AUTH_MAGIC_LINK: true,
     EXCHANGE_RATES_FETCH: true,
+    STORAGE_DRIVER: 'local',
     TENANCY: 'multi',
     LOCALES: ['en', 'de'],
     ...env,
@@ -65,6 +66,7 @@ describe('FeaturesService', () => {
       signUp: false,
       magicLink: true,
       documents: false,
+      presignedUploads: false,
       ai: false,
       exchangeRates: true,
       mode: 'normal',
@@ -119,5 +121,16 @@ describe('FeaturesService', () => {
   it('says ai is on while the AI provider is (ANTHROPIC_API_KEY is set)', () => {
     expect(service({}, false, true).current().ai).toBe(true);
     expect(service({}, false, false).current().ai).toBe(false);
+  });
+
+  it('says presignedUploads are on with the S3 driver only (the routes refuse the others)', () => {
+    expect(service({ STORAGE_DRIVER: 's3' }).current().presignedUploads).toBe(
+      true,
+    );
+    for (const driver of ['local', 'memory']) {
+      expect(
+        service({ STORAGE_DRIVER: driver }).current().presignedUploads,
+      ).toBe(false);
+    }
   });
 });

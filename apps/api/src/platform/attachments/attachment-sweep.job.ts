@@ -3,7 +3,7 @@ import { TransactionHost } from '@nestjs-cls/transactional';
 import { OnOneInstance, WithoutOverlapping } from '@nestjs/locks';
 import { Cron } from '@nestjs/schedule';
 import { StorageDisk } from '@nestjs/storage';
-import { and, asc, eq, gt, inArray } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, lt } from 'drizzle-orm';
 import {
   database,
   type DrizzleTransactions,
@@ -12,10 +12,12 @@ import {
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { SystemContext } from '../../iam/access/system-context.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
+import type { SystemPrincipal } from '../../iam/auth/principal.js';
 import { renditionKeys } from '../images/renditions.js';
 import { ATTACHMENT_SWEEP_JOB } from '../platform.jobs.js';
+import { UPLOAD_GRACE_MS } from './attachment-uploads.service.js';
 import { AttachmentsRegistry } from './attachments.registry.js';
-import { attachments } from './attachments.tables.js';
+import { attachments, attachmentUploads } from './attachments.tables.js';
 
 /** Attachments looked at per round. */
 const BATCH = 1000;
@@ -30,6 +32,14 @@ const BATCH = 1000;
  * one tenant at a time (docs/tenancy.md: `Tenancy.forEachTenant()`, which
  * logs each): a target's `exists()` and the rows are that tenant's, and
  * each round's rows go with an `attachments.swept` audit entry in its log.
+ *
+ * It also deletes the objects of direct uploads that were announced and
+ * never completed (`attachment_uploads`, STORAGE_DRIVER=s3): an hour after
+ * their URL expired, with their rows and an `attachments.uploads-swept`
+ * audit entry. The rows of completed uploads go the same way, without an
+ * entry, with what was PUT to their URL after the completion (the
+ * attachment is a copy on another key). An object an attachment has as its
+ * file is never deleted here.
  */
 @Injectable()
 export class AttachmentSweepJob {
@@ -134,9 +144,83 @@ export class AttachmentSweepJob {
           tenant: tenantId,
           deleted,
         });
-        return deleted;
+        const abandoned = await this.sweepUploads(system);
+        if (abandoned > 0) {
+          this.logger.log('Direct uploads never completed removed', {
+            tenant: tenantId,
+            deleted: abandoned,
+          });
+        }
+        return deleted + abandoned;
       },
       { transaction: false },
     );
+  }
+
+  /**
+   * The direct uploads (this tenant's) whose URL expired more than
+   * UPLOAD_GRACE_MS ago: the object, then the row. Returns how many nobody
+   * completed (a completed upload's object is only what was PUT again).
+   */
+  private async sweepUploads(system: SystemPrincipal): Promise<number> {
+    let deleted = 0;
+    for (;;) {
+      const expired = await this.db
+        .select({
+          id: attachmentUploads.id,
+          key: attachmentUploads.key,
+          completedAt: attachmentUploads.completedAt,
+        })
+        .from(attachmentUploads)
+        .where(
+          lt(
+            attachmentUploads.expiresAt,
+            new Date(Date.now() - UPLOAD_GRACE_MS),
+          ),
+        )
+        .orderBy(asc(attachmentUploads.id))
+        .limit(BATCH);
+      if (expired.length === 0) break;
+      // A key that became an attachment's file is not an orphan: keep its object.
+      const used = new Set(
+        (
+          await this.db
+            .select({ key: attachments.key })
+            .from(attachments)
+            .where(
+              inArray(
+                attachments.key,
+                expired.map((row) => row.key),
+              ),
+            )
+        ).map((row) => row.key),
+      );
+      const abandoned = expired.filter((row) => !row.completedAt);
+      // The objects first: a failure leaves the rows, and the next night tries again.
+      await this.disk.delete(
+        expired.map((row) => row.key).filter((key) => !used.has(key)),
+      );
+      await inTransaction(this.txHost, async (tx) => {
+        await tx.delete(attachmentUploads).where(
+          inArray(
+            attachmentUploads.id,
+            expired.map((row) => row.id),
+          ),
+        );
+        if (abandoned.length > 0) {
+          await this.audit.record(
+            system,
+            {
+              action: 'attachments.uploads-swept',
+              targetType: 'attachment',
+              details: { uploads: abandoned.map((row) => row.id) },
+            },
+            tx,
+          );
+        }
+      });
+      deleted += abandoned.length;
+    }
+    return deleted;
   }
 }

@@ -58,6 +58,7 @@ export const allFeatures: Features = {
   signUp: false,
   magicLink: true,
   documents: true,
+  presignedUploads: false,
   ai: true,
   exchangeRates: true,
   mode: 'normal',

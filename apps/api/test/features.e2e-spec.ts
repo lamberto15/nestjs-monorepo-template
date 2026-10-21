@@ -34,6 +34,7 @@ describe('GET /v1/features (e2e)', () => {
       signUp: true,
       magicLink: true,
       documents: false,
+      presignedUploads: false,
       ai: false,
       exchangeRates: false,
       tenancy: 'single',

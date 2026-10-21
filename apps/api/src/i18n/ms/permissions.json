@@ -132,7 +132,7 @@
     },
     "attachment-sweep": {
       "label": "Pembersihan lampiran",
-      "description": "Memadam fail dan baris lampiran yang rekodnya tidak lagi wujud, setiap malam."
+      "description": "Memadam fail dan baris lampiran yang rekodnya tidak lagi wujud, dan fail muat naik terus yang tidak pernah disiapkan, setiap malam."
     },
     "attachment-scan": {
       "label": "Imbasan perisian hasad lampiran",

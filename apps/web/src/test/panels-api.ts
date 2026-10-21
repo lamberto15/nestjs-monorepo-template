@@ -39,6 +39,16 @@ export const EVERY_PANEL: PanelCapabilities = {
   revisions: true,
 };
 
+/** The object store's origin, in the tests of direct uploads. */
+const STORE = 'https://files.example.test';
+
+/** What a bucket with the CORS rule the docs ask for answers (the browser enforces it). */
+const BUCKET_CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'PUT',
+  'access-control-allow-headers': '*',
+};
+
 export const ATTACHMENT_LIMITS = {
   maxBytes: 25 * 1024 * 1024,
   maxMb: 25,
@@ -154,6 +164,16 @@ export function panelHandlers(
     uploadStatus?: number;
     /** What an upload is stored as: `pending` as with MALWARE_SCANNER on. */
     uploadScanStatus?: 'pending' | 'clean';
+    /**
+     * Direct uploads (`presignedUploads`): how `…/attachments/presign` answers
+     * (an error status and code, or a signed URL) and what the object store
+     * does with the PUT (`unreachable`: no answer, as a bucket without a CORS
+     * rule gives the browser; `refused`: a 403, as an expired link gets).
+     */
+    direct?: {
+      presign?: { status: number; code: string };
+      store?: 'ok' | 'unreachable' | 'refused';
+    };
   } = {},
 ) {
   const { subject, path } = options.record ?? TEST_RECORD;
@@ -164,6 +184,10 @@ export function panelHandlers(
     edited: [] as { commentId: string; body: unknown }[],
     removedComments: [] as string[],
     uploaded: [] as { name: string; type: string; size: number }[],
+    /** Direct uploads: what was announced, what the store received, what was completed. */
+    presigned: [] as { name: string; size: number; contentType: string }[],
+    stored: [] as { url: string; type: string | null; size: number }[],
+    completed: [] as string[],
     removedAttachments: [] as string[],
     tagged: [] as { id: string; tagIds: string[] }[],
     tagsCreated: [] as unknown[],
@@ -213,6 +237,9 @@ export function panelHandlers(
   // Copies: scanClean() changes an item, which a test's shared fixture must not see.
   const attachments = (options.attachments ?? []).map((a) => ({ ...a }));
   const revisions = options.revisions ?? [];
+  /** The file the last presign announced: what its completion attaches. */
+  let announced:
+    { name: string; size: number; contentType: string } | undefined;
   const page = (items: unknown[]) =>
     HttpResponse.json({ items, nextCursor: null });
 
@@ -341,6 +368,70 @@ export function panelHandlers(
         name: file.name,
         size: file.size,
         contentType: file.type,
+        uploadedBy: `user:${signedInUser.user.id}`,
+        scanStatus: options.uploadScanStatus ?? 'clean',
+      };
+      attachments.push(added);
+      return HttpResponse.json(added, { status: 201 });
+    }),
+    http.post(`${route}/attachments/presign`, async ({ request }) => {
+      const body = (await request.json()) as {
+        name: string;
+        size: number;
+        contentType: string;
+      };
+      calls.presigned.push(body);
+      const refusal = options.direct?.presign;
+      if (refusal) {
+        return problem(refusal.status, refusal.code);
+      }
+      announced = body;
+      return HttpResponse.json(
+        {
+          uploadId: `u${calls.presigned.length}`,
+          url: `${STORE}/tenants/t/attachments/u${calls.presigned.length}?X-Amz-Signature=sig`,
+          method: 'PUT',
+          headers: { 'content-type': body.contentType },
+          expiresAt: '2026-10-17T10:10:00.000Z',
+        },
+        { status: 201 },
+      );
+    }),
+    // The object store, another origin: the signed URL is the credential. jsdom
+    // does what a browser does with a cross-origin PUT carrying a Content-Type:
+    // a preflight, which the bucket's CORS rules (docs/attachments.md) answer.
+    http.options(`${STORE}/*`, () => {
+      if ((options.direct?.store ?? 'ok') === 'unreachable') {
+        return HttpResponse.error();
+      }
+      return new HttpResponse(null, { status: 200, headers: BUCKET_CORS });
+    }),
+    http.put(`${STORE}/*`, async ({ request }) => {
+      const behaviour = options.direct?.store ?? 'ok';
+      if (behaviour === 'unreachable') {
+        return HttpResponse.error();
+      }
+      if (behaviour === 'refused') {
+        return new HttpResponse(
+          '<Error><Code>SignatureDoesNotMatch</Code></Error>',
+          { status: 403, headers: BUCKET_CORS },
+        );
+      }
+      calls.stored.push({
+        url: request.url,
+        type: request.headers.get('content-type'),
+        size: (await request.text()).length,
+      });
+      return new HttpResponse(null, { status: 200, headers: BUCKET_CORS });
+    }),
+    http.post(`${route}/attachments/complete`, async ({ request }) => {
+      const body = (await request.json()) as { uploadId: string };
+      calls.completed.push(body.uploadId);
+      const added = {
+        id: `a${attachments.length}`,
+        name: announced!.name,
+        size: announced!.size,
+        contentType: announced!.contentType,
         uploadedBy: `user:${signedInUser.user.id}`,
         scanStatus: options.uploadScanStatus ?? 'clean',
       };

@@ -422,7 +422,7 @@ transaction of the job carries `app.tenant_id` ([tenancy](tenancy.md)).
 | Audit retention | `system:audit-retention` | each tenant in turn, then none (account-level entries) | `audit.pruned` (count, cut-off) in the log it pruned, when it deleted any |
 | Recycle bin purge | `system:soft-delete-purge` | each tenant in turn | `records.purged` per batch (the ids), with the purge |
 | Account deletion | `system:account-deletion` | each tenant the person belonged to (their data there), then none (the account) | `account.deleted` (no tenant), with the anonymization |
-| Attachment sweep | `system:attachment-sweep` | each tenant in turn | `attachments.swept` per round (the ids), with the rows |
+| Attachment sweep | `system:attachment-sweep` | each tenant in turn | `attachments.swept` per round (the ids), with the rows; `attachments.uploads-swept` per round (the upload ids) for direct uploads nobody completed, with their objects |
 | Attachment malware scan (and its retry job, every five minutes) | `system:attachment-scan` | the upload's (the job's tenant); the retry job: each tenant in turn | `attachment.rejected` (signature) when the file is infected, with the deletion; `attachments.released` (the ids) when scanning is switched off and pending files are released |
 | Attachment image processing (and its retry job, every five minutes) | `system:attachment-images` | the upload's (the job's tenant); the retry job: each tenant in turn | `attachment.processed` (renditions, metadata removed, size before and after) with the new rows |
 | Scheduled reports | `system:report-runner` | each tenant in turn | `report.skipped`, `report.deactivated`, `report.finished`; the export itself runs, and is audited, as the report's owner |
