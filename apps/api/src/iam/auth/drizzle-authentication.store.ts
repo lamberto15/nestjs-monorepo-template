@@ -84,7 +84,14 @@ export class DrizzleAuthenticationStore
       .select()
       .from(sessions)
       .where(eq(sessions.id, id));
-    return row && withoutNulls(row);
+    return (
+      row && {
+        ...withoutNulls(row),
+        // Before SessionService moves it forward (touchSession): a tenant's
+        // idle timeout is judged on the activity before this request.
+        extra: { previousActiveAt: row.lastActiveAt },
+      }
+    );
   }
 
   // Every new session (a sign-in by any method; a rotation copies its
@@ -153,6 +160,28 @@ export class DrizzleAuthenticationStore
     await this.db
       .delete(refreshTokens)
       .where(lte(refreshTokens.familyExpiresAt, record.createdAt));
+  }
+
+  /**
+   * When the family's first token was made (its sign-in) and its latest
+   * (its last refresh): what a tenant's session limits are judged on
+   * (SessionLifetime). Undefined: no such family.
+   */
+  async refreshTokenFamilyBounds(familyId: string) {
+    const [row] = await this.db
+      .select({
+        first: sql<Date | null>`min(${refreshTokens.createdAt})`.mapWith(
+          refreshTokens.createdAt,
+        ),
+        last: sql<Date | null>`max(${refreshTokens.createdAt})`.mapWith(
+          refreshTokens.createdAt,
+        ),
+      })
+      .from(refreshTokens)
+      .where(eq(refreshTokens.familyId, familyId));
+    return row?.first && row.last
+      ? { first: row.first, last: row.last }
+      : undefined;
   }
 
   async markRefreshTokenUsed(id: string, at: Date): Promise<boolean> {

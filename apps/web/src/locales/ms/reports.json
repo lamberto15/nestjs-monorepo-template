@@ -7,7 +7,6 @@
   "error": "Laporan tidak dapat dimuatkan.",
   "retry": "Cuba lagi",
   "never": "Belum dijalankan",
-  "recipients_one": "{{count}} penerima",
   "recipients_other": "{{count}} penerima",
   "toggle": "{{name}} aktif",
   "formats": {

@@ -6,10 +6,6 @@
     "platform": "Platform",
     "dashboard": "Papan pemuka"
   },
-  "dashboard": {
-    "title": "Papan pemuka",
-    "description": "Gambaran keseluruhan anda akan dipaparkan di sini."
-  },
   "auth": {
     "signIn": {
       "title": "Log masuk",
@@ -155,6 +151,11 @@
       "cancel": "Batal",
       "none": "Log masuk tunggal tidak tersedia untuk alamat itu. Log masuk dengan cara lain, atau tanya pentadbir anda.",
       "failed": "Kami tidak dapat menyemak alamat itu. Cuba lagi sebentar lagi."
+    },
+    "idle": {
+      "title": "Sesi anda hampir tamat",
+      "description": "Anda tidak aktif. Anda akan dilog keluar dalam {{time}}.",
+      "stay": "Kekal log masuk"
     }
   },
   "account": {
@@ -167,6 +168,16 @@
       "emailHint": "Alamat log masuk anda.",
       "timezone": "Zon waktu",
       "saved": "Profil disimpan."
+    },
+    "avatar": {
+      "title": "Gambar",
+      "choose": "Pilih gambar",
+      "change": "Tukar gambar",
+      "remove": "Alih keluar",
+      "hint": "PNG, JPEG, WebP atau GIF. Dipaparkan kepada ahli organisasi anda.",
+      "saved": "Gambar disimpan.",
+      "removed": "Gambar dialih keluar.",
+      "rejected": "{{name}} tidak digunakan: {{reason}}"
     },
     "security": {
       "title": "Keselamatan"
@@ -190,7 +201,6 @@
       "secret": "Kunci:",
       "qr": "Kod QR untuk aplikasi pengesah anda",
       "confirm": "Hidupkan",
-      "remaining_one": "{{count}} kod pemulihan lagi.",
       "remaining_other": "{{count}} kod pemulihan lagi.",
       "newCodes": "Kod pemulihan baharu",
       "disable": "Matikan",
@@ -263,6 +273,12 @@
     "description": "Halaman yang anda cari tidak wujud.",
     "back": "Kembali ke papan pemuka"
   },
+  "routeError": {
+    "title": "Sesuatu telah berlaku",
+    "description": "Halaman ini gagal dimuatkan. Bahagian lain aplikasi masih berfungsi.",
+    "reportId": "ID laporan: {{id}}",
+    "retry": "Cuba lagi"
+  },
   "preferences": {
     "open": "Keutamaan",
     "theme": "Tema",
@@ -303,9 +319,7 @@
     "no": "Tidak",
     "table": {
       "noResults": "Tiada keputusan.",
-      "rowsSelected_one": "{{count}} baris dipilih.",
       "rowsSelected_other": "{{count}} baris dipilih.",
-      "notShown_one": "{{count}} tidak dipaparkan",
       "notShown_other": "{{count}} tidak dipaparkan",
       "rowsPerPage": "Baris setiap halaman",
       "pageOf": "Halaman {{page}} daripada {{count}}",
@@ -396,9 +410,7 @@
     },
     "bulk": {
       "label": "Tindakan pilihan",
-      "selected_one": "{{count}} dipilih",
       "selected_other": "{{count}} dipilih",
-      "selectAll_one": "Pilih semua {{count}} yang sepadan",
       "selectAll_other": "Pilih semua {{count}} yang sepadan",
       "onlyChosen": "Hanya baris yang dipilih",
       "tooMany": "Paling banyak {{max}} baris dipilih sekali gus: tapis senarai dan pilih semua yang sepadan.",

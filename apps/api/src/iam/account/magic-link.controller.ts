@@ -18,6 +18,7 @@ import {
 } from '@nestjs/swagger';
 import { Throttle, minutes } from '@nestjs/throttler';
 import { z } from 'zod';
+import { AllowInMaintenance } from '../../core/http/maintenance.js';
 import { Captcha } from '../captcha/captcha.guard.js';
 import type { IamEnv } from '../iam.env.js';
 import { AccountService } from './account.service.js';
@@ -66,6 +67,8 @@ export class MagicLinkController {
   }
 
   @Throttle({ default: { limit: 10, ttl: minutes(15) } })
+  // Only the link already mailed: asking for one needs the mail queue, paused while restricted.
+  @AllowInMaintenance()
   @Post('verify')
   @HttpCode(200)
   @ApiOperation({

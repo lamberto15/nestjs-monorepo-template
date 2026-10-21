@@ -53,6 +53,7 @@ import {
   useUpdateClient,
   type Client,
 } from './queries';
+import { cidrList, cidrProblems } from './cidr';
 import { SecretDialog } from './secret-dialog';
 
 const graces = ['0', '3600', '86400', '604800'] as const;
@@ -116,6 +117,11 @@ export function ClientDetail(props: { id: string }) {
             client={client}
           />
           <QuotaSection client={client} />
+          <AllowlistSection
+            // Refetched after a change: the saved (normalized) list.
+            key={client.updatedAt}
+            client={client}
+          />
           <StateSection client={client} />
         </>
       ) : missing ? (
@@ -362,6 +368,101 @@ function QuotaSection({ client }: { client: Client }) {
           <div>
             <form.AppForm>
               <form.SubmitButton>{t('detail.quota.save')}</form.SubmitButton>
+            </form.AppForm>
+          </div>
+        </FieldGroup>
+      </form>
+    </Section>
+  );
+}
+
+/**
+ * The addresses the client's keys may be used from, one per line (empty: any).
+ * Entries are checked here for a friendly message; the API's `400 invalid_cidr`
+ * (it is the authority) is shown on the same field.
+ */
+function AllowlistSection({ client }: { client: Client }) {
+  const { t } = useTranslation('api-clients');
+  const update = useUpdateClient(client.id, { errorToast: false });
+  const [error, setError] = useState<string>();
+  const form = useAppForm({
+    defaultValues: { allowedCidrs: client.allowedCidrs.join('\n') },
+    validators: {
+      onSubmit: ({ value }) => {
+        const [first, ...more] = cidrProblems(value.allowedCidrs);
+        if (!first) {
+          return undefined;
+        }
+        const message = [first, ...more]
+          .map((problem) =>
+            t(
+              problem.kind === 'prefix'
+                ? 'detail.allowlist.prefix'
+                : 'detail.allowlist.invalid',
+              // React escapes; i18next must not (a “/” would read &#x2F;).
+              { ...problem, interpolation: { escapeValue: false } },
+            ),
+          )
+          .join(' ');
+        return { fields: { allowedCidrs: { message } } };
+      },
+    },
+    onSubmit: async ({ value }) => {
+      setError(undefined);
+      try {
+        await update.mutateAsync({
+          allowedCidrs: cidrList(value.allowedCidrs),
+        });
+        toast.success(t('detail.allowlist.saved'));
+      } catch (caught) {
+        if (isApiError(caught) && caught.code === 'invalid_cidr') {
+          form.setFieldMeta('allowedCidrs', (meta) => ({
+            ...meta,
+            isTouched: true,
+            errorMap: {
+              ...meta?.errorMap,
+              onSubmit: { message: caught.detail },
+            },
+          }));
+        } else if (!applyFieldErrors(form, caught)) {
+          setError(errorMessage(caught));
+        }
+      }
+    },
+  });
+  return (
+    <Section
+      title={t('detail.allowlist.title')}
+      description={t('detail.allowlist.description')}
+    >
+      <form
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          void form.handleSubmit();
+        }}
+      >
+        <FieldGroup>
+          <FormAlert message={error} />
+          <form.AppField name="allowedCidrs">
+            {(field) => (
+              <field.TextAreaField
+                label={t('detail.allowlist.label')}
+                rows={4}
+                placeholder={t('detail.allowlist.placeholder')}
+                description={
+                  client.allowedCidrs.length === 0
+                    ? t('detail.allowlist.none')
+                    : undefined
+                }
+              />
+            )}
+          </form.AppField>
+          <div>
+            <form.AppForm>
+              <form.SubmitButton>
+                {t('detail.allowlist.save')}
+              </form.SubmitButton>
             </form.AppForm>
           </div>
         </FieldGroup>

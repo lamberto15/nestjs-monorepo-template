@@ -1,3 +1,4 @@
+import { AllowInMaintenance } from '../../core/http/maintenance.js';
 import {
   BadRequestException,
   Body,
@@ -67,6 +68,7 @@ import type { UserPrincipal } from './principal.js';
 import { SessionOnly, UserOnly } from './user-only.decorator.js';
 import { DuringMfaEnrollment } from './mfa-enrollment.guard.js';
 import { AuthPolicyService } from './auth-policy.service.js';
+import { SessionLifetime } from './session-lifetime.js';
 import { SignUpTenant } from '../access/sign-up-tenant.js';
 import { UsersRepository } from './users.repository.js';
 import { WithoutSso } from '../sso/sso-required.guard.js';
@@ -162,6 +164,28 @@ const meSchema = z.object({
         ),
     })
     .nullable(),
+  session: z
+    .object({
+      idleMinutes: z
+        .number()
+        .int()
+        .describe(
+          "Minutes without a request after which this session ends: the tenant's auth.sessionIdleMinutes under the deployment's SESSION_IDLE_MINUTES.",
+        ),
+      lastActiveAt: z.iso
+        .datetime()
+        .describe('The last request this session made, as stored.'),
+      expiresAt: z.iso
+        .datetime()
+        .describe(
+          "When it ends however active: the tenant's auth.sessionMaxHours after the sign-in, under the deployment's SESSION_MAX_HOURS.",
+        ),
+    })
+    .nullable()
+    .optional()
+    .describe(
+      "A browser session's lifetime, for a warning before it ends. Always sent; null for a token or an impersonation.",
+    ),
   can: z
     .record(z.string(), z.boolean())
     .describe(
@@ -229,11 +253,13 @@ export class AuthController {
     private readonly captcha: CaptchaService,
     private readonly tenancy: Tenancy,
     private readonly authPolicy: AuthPolicyService,
+    private readonly lifetime: SessionLifetime,
     private readonly signUpTenant: SignUpTenant,
   ) {}
 
   @Public()
   @Get('methods')
+  @AllowInMaintenance()
   @ApiOperation({ summary: 'How users can sign in here, for the sign-in page' })
   @ApiOkResponse({ standardSchema: methodsSchema })
   methods() {
@@ -253,6 +279,7 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: minutes(15) } })
   @Captcha({ action: 'sign-in', count: 'failures' })
   @Post('sign-in')
+  @AllowInMaintenance()
   @HttpCode(200)
   @ApiOperation({
     summary: 'Sign in with a password: sets the session cookie',
@@ -335,6 +362,7 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: minutes(15) } })
   @Captcha({ action: 'sign-in', count: 'failures', account: 'session' })
   @Post('mfa/verify')
+  @AllowInMaintenance()
   @HttpCode(200)
   @ApiOperation({ summary: 'Finish signing in with a two-factor code' })
   @ApiOkResponse({ standardSchema: signedInSchema })
@@ -356,6 +384,7 @@ export class AuthController {
   @DuringMfaEnrollment()
   @WithoutSso()
   @Post('sign-out')
+  @AllowInMaintenance()
   @HttpCode(204)
   @ApiOperation({ summary: "Sign out: ends this browser's session" })
   @ApiNoContentResponse()
@@ -375,6 +404,7 @@ export class AuthController {
   @DuringMfaEnrollment()
   @WithoutSso()
   @Get('me')
+  @AllowInMaintenance()
   @ApiCookieAuth('user-session')
   @ApiBearerAuth('user-token')
   @ApiOperation({ summary: 'The signed-in user and what they may do' })
@@ -404,6 +434,7 @@ export class AuthController {
       hasPassword:
         (await this.accounts.findView(user.id))?.hasPassword ?? false,
       mfaEnrollmentRequired: await this.authPolicy.mfaEnrollmentRequired(user),
+      session: await this.lifetime.describe(session, user),
       authentication: authentication && {
         ...authentication,
         authenticatedAt: authentication.authenticatedAt?.toISOString() ?? null,

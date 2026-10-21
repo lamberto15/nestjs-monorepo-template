@@ -60,6 +60,17 @@
       "remove": "移除配额",
       "none": "没有配额。"
     },
+    "allowlist": {
+      "title": "IP 允许列表",
+      "description": "允许使用此客户端密钥的地址：每行一个 IPv4 或 IPv6 地址或 CIDR 范围（203.0.113.0/24、2001:db8::/32）。来自其他地址的请求会被拒绝，返回 403 client_ip_not_allowed。留空表示允许任何地址。",
+      "label": "允许的地址",
+      "placeholder": "203.0.113.9\n198.51.100.0/24",
+      "save": "保存允许列表",
+      "saved": "允许列表已保存。",
+      "none": "允许任何地址。",
+      "invalid": "第 {{line}} 行：“{{value}}”不是 IPv4 或 IPv6 地址或 CIDR 范围。",
+      "prefix": "第 {{line}} 行：“{{value}}”的前缀长度超出 0-{{max}}。"
+    },
     "state": {
       "title": "访问",
       "activeDescription": "撤销期间，该客户端的所有密钥都会被拒绝。",

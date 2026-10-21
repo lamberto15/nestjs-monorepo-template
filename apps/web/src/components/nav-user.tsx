@@ -2,10 +2,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { unwrap } from '@nestjs-monorepo-template/api-client';
 import {
-  Avatar,
-  AvatarFallback,
-} from '@nestjs-monorepo-template/ui/components/avatar';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -28,6 +24,7 @@ import {
 import { useTheme } from '@nestjs-monorepo-template/ui/components/theme-provider';
 import {
   BellIcon,
+  DownloadIcon,
   ChevronsUpDownIcon,
   EyeIcon,
   LanguagesIcon,
@@ -41,21 +38,13 @@ import {
 import { useTranslation } from 'react-i18next';
 import { languages, type Language } from '@/i18n';
 import { api } from '@/lib/api';
+import { UserAvatar } from '@/components/user-avatar';
 import { useMe } from '@/lib/features';
+import { useInstallPrompt } from '@/lib/pwa';
 import { meQuery, saveLanguageKey } from '@/lib/session';
 import { useSignOut } from '@/lib/sign-out';
 
 const themes = ['light', 'dark', 'system'] as const;
-
-/** Initials for the avatar: "Ada Lovelace" → AL. */
-export function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const letters =
-    parts.length > 1
-      ? `${parts[0]![0]}${parts[parts.length - 1]![0]}`
-      : name.slice(0, 2);
-  return letters.toUpperCase();
-}
 
 /** The signed-in user: their account, the preferences, signing out. */
 export function NavUser() {
@@ -63,6 +52,8 @@ export function NavUser() {
   const { t, i18n } = useTranslation();
   const { t: tn } = useTranslation('notifications');
   const { t: tw } = useTranslation('watching');
+  const { t: tp } = useTranslation('pwa');
+  const install = useInstallPrompt();
   const { theme, setTheme } = useTheme();
   const me = useMe();
   const queryClient = useQueryClient();
@@ -89,9 +80,7 @@ export function NavUser() {
               <SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />
             }
           >
-            <Avatar>
-              <AvatarFallback>{initials(user.name)}</AvatarFallback>
-            </Avatar>
+            <UserAvatar name={user.name} src={user.avatarUrl} />
             <div className="grid flex-1 text-start text-sm leading-tight">
               <span className="truncate font-medium">{user.name}</span>
               <span className="truncate text-xs">{user.email}</span>
@@ -192,6 +181,12 @@ export function NavUser() {
               </DropdownMenuSub>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
+            {install && (
+              <DropdownMenuItem onClick={() => void install()}>
+                <DownloadIcon />
+                {tp('install')}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               disabled={signOut.isPending}
               onClick={() => signOut.mutate()}

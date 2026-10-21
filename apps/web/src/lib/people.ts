@@ -49,19 +49,19 @@ export function peopleQuery(term: string) {
  * "batcher" (DataLoader's pattern) below, in chunks of what the route takes.
  * Custom code, because Query has no batching of its own.
  */
-type Waiter = {
-  resolve: (name: string | null) => void;
+type Waiter<T> = {
+  resolve: (found: T | null) => void;
   reject: (error: unknown) => void;
 };
 
 /** The wait for more keys before asking: one render's effects all land within it. */
 const BATCH_DELAY_MS = 5;
 
-function createBatcher(
+function createBatcher<T>(
   size: number,
-  load: (keys: string[]) => Promise<Map<string, string>>,
+  load: (keys: string[]) => Promise<Map<string, T>>,
 ) {
-  let waiting = new Map<string, Waiter[]>();
+  let waiting = new Map<string, Waiter<T>[]>();
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   const flush = () => {
@@ -89,7 +89,7 @@ function createBatcher(
   };
 
   return (key: string) =>
-    new Promise<string | null>((resolve, reject) => {
+    new Promise<T | null>((resolve, reject) => {
       const waiters = waiting.get(key) ?? [];
       waiters.push({ resolve, reject });
       waiting.set(key, waiters);
@@ -102,14 +102,15 @@ const PEOPLE_BATCH = 20;
 /** The most ids `GET /v1/teams?id=` takes at once. */
 const TEAM_BATCH = 100;
 
-const askPerson = createBatcher(PEOPLE_BATCH, async (keys) => {
+// One request serves a key's name and its picture.
+const askPerson = createBatcher<Person>(PEOPLE_BATCH, async (keys) => {
   const { items } = await unwrap(
     api.GET('/v1/people', { params: { query: { key: keys.join(',') } } }),
   );
-  return new Map(items.map((person) => [person.key, person.name]));
+  return new Map(items.map((person) => [person.key, person]));
 });
 
-const askTeam = createBatcher(TEAM_BATCH, async (ids) => {
+const askTeam = createBatcher<string>(TEAM_BATCH, async (ids) => {
   const found = new Map<string, string>();
   for await (const team of api.items('/v1/teams', {
     id: ids.join(','),
@@ -132,7 +133,7 @@ const NAME_STALE_MS = 30 * 60_000;
 export const personNameQuery = (key: string) =>
   queryOptions({
     queryKey: ['people', 'name', key],
-    queryFn: () => askPerson(key),
+    queryFn: async () => (await askPerson(key))?.name ?? null,
     staleTime: NAME_STALE_MS,
     gcTime: 2 * NAME_STALE_MS,
     retry: false,
@@ -197,4 +198,42 @@ export function useTeamNames(
   ids: readonly (string | null | undefined)[],
 ): Names {
   return useNames(ids, TEAM_ID, teamNameQuery);
+}
+
+// --------------------------------------------------------------- pictures
+
+/** One person's picture address by key (null: none, or nobody of this tenant has the key). */
+export const personAvatarQuery = (key: string) =>
+  queryOptions({
+    queryKey: ['people', 'avatar', key],
+    queryFn: async () => (await askPerson(key))?.avatarUrl ?? null,
+    // A picture changes more often than a name: the same window is long enough for a page, short for a session.
+    staleTime: 5 * 60_000,
+    gcTime: 2 * NAME_STALE_MS,
+    retry: false,
+    meta: { errorToast: false },
+  });
+
+/**
+ * The pictures of these principal keys, asked together with their names
+ * (the same batched `GET /v1/people?key=`): `avatarUrl(key)` is the address
+ * to put in an `<img>`, undefined while loading and for no picture.
+ */
+export function usePeopleAvatars(
+  keys: readonly (string | null | undefined)[],
+): { avatarUrl: (key: string | null | undefined) => string | undefined } {
+  const wanted = [
+    ...new Set(keys.filter((k): k is string => !!k && PERSON_KEY.test(k))),
+  ];
+  const found = useQueries({
+    queries: wanted.map(personAvatarQuery),
+    combine: (results) => {
+      const found = new Map<string, string>();
+      results.forEach((result, index) => {
+        if (result.data) found.set(wanted[index]!, result.data);
+      });
+      return found;
+    },
+  });
+  return { avatarUrl: (key) => (key ? found.get(key) : undefined) };
 }

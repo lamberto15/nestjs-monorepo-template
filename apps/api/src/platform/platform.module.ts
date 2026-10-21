@@ -6,7 +6,7 @@ import {
   type Type,
 } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { getDrizzleToken } from '@nestjs/drizzle';
 import { ConfigService } from '@nestjs/config';
 import { IdempotencyModule } from '@nestjs/idempotency';
@@ -110,6 +110,9 @@ import {
   NotificationMail,
 } from './notifications/notification.mails.js';
 import { NotificationsController } from './notifications/notifications.controller.js';
+import { NotificationUnsubscribeController } from './notifications/notification-unsubscribe.controller.js';
+import { NotificationUnsubscribeService } from './notifications/notification-unsubscribe.service.js';
+import { notificationUnsubscribeLinksProvider } from './notifications/notification-unsubscribe.js';
 import {
   inDevelopment,
   TEST_NOTIFICATIONS,
@@ -134,6 +137,8 @@ import { ConsentKinds } from './account/consent-kinds.js';
 import { AccountDeletionJob } from './account/account-deletion.job.js';
 import { AccountDeletionMail } from './account/account.mails.js';
 import { AccountLifecycleService } from './account/account.service.js';
+import { AvatarController } from './account/avatar.controller.js';
+import { AvatarService } from './account/avatar.service.js';
 import { deletionCancelLinksProvider } from './account/deletion-cancel-links.js';
 import { AccountTransfer } from './account/account.transfer.js';
 import { TenantCleanup } from './tenants/tenant-cleanup.js';
@@ -197,6 +202,9 @@ import {
 } from './approvals/approval-admin.controllers.js';
 import { ApprovalDelegationsService } from './approvals/approval-delegations.service.js';
 import { ApprovalEngine } from './approvals/approval-engine.service.js';
+import { ModeGuard } from './mode/mode.guard.js';
+import { ModeService } from './mode/mode.service.js';
+import { MODE_SETTINGS } from './mode/mode.setting.js';
 import { APPROVAL_NOTIFICATIONS } from './approvals/approval-events.js';
 import { APPROVAL_SETTINGS } from './approvals/approval-settings.js';
 import { ApprovalPoliciesService } from './approvals/approval-policies.service.js';
@@ -395,6 +403,7 @@ export class PlatformModule {
         BulkController,
         CustomFieldsController,
         NotificationsController,
+        NotificationUnsubscribeController,
         // Push devices and the SMS number; the provider's inbound STOP/START webhook.
         MessagingController,
         SmsInboundController,
@@ -402,6 +411,8 @@ export class PlatformModule {
         ...inDevelopment<Type>(NotificationTestController),
         SettingsController,
         AccountController,
+        // The user's picture (PUT, DELETE /v1/account/avatar).
+        AvatarController,
         AccountDeletionLinkController,
         ConsentKindsController,
         // The operators' export of a tenant (POST /v1/tenants/{id}/export).
@@ -448,6 +459,7 @@ export class PlatformModule {
             // And its own settings (IAM's auth policies, numbering's, approvals' delegation limit).
             settings: [
               ...AUTH_SETTINGS,
+              ...MODE_SETTINGS,
               ...NUMBERING_SETTINGS,
               ...APPROVAL_SETTINGS,
               ...MESSAGING_SETTINGS,
@@ -501,6 +513,9 @@ export class PlatformModule {
         OpsPolicy,
         // Which switches are on, for clients (GET /v1/features).
         FeaturesService,
+        // platform.mode / APP_MODE: read-only and maintenance (docs/settings.md).
+        ModeService,
+        { provide: APP_GUARD, useClass: ModeGuard },
         // socket.io gateway at /realtime; features inject it to push events.
         // REALTIME=off: the same token, pushes that do nothing, no gateway.
         switchedOn('REALTIME')
@@ -528,6 +543,8 @@ export class PlatformModule {
         NotificationChannelRegistry,
         NotificationCatalog,
         NotificationsService,
+        NotificationUnsubscribeService,
+        notificationUnsubscribeLinksProvider,
         // IAM's security notifications go through it (iam can't import the platform).
         { provide: IAM_NOTIFIER, useExisting: NotificationsService },
         // The audit log's actor names (iam/audit, `actorName`): the people directory's.
@@ -560,6 +577,7 @@ export class PlatformModule {
         // A person's own account: their data (features register PersonalDataSources), its deletion, consents.
         PersonalDataRegistry,
         AccountLifecycleService,
+        AvatarService,
         ConsentKinds,
         deletionCancelLinksProvider,
         AccountTransfer,

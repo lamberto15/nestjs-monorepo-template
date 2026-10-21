@@ -88,5 +88,18 @@
   "bulk": {
     "delete": "Delete",
     "restore": "Restore"
+  },
+  "dashboard": {
+    "newNote": "New note",
+    "recent": {
+      "title": "Recently changed notes",
+      "empty": "No notes yet."
+    },
+    "chart": {
+      "title": "Notes per week",
+      "description": "Notes created in the last 8 weeks (weeks start on Monday, UTC).",
+      "series": "Notes",
+      "empty": "No notes were created in the last 8 weeks."
+    }
   }
 }

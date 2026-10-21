@@ -8,7 +8,7 @@ import { http, HttpResponse } from 'msw/http';
  * every call ('' without one); `asked` gets every call's query string.
  */
 export function peopleHandler(
-  people: readonly { id: string; name: string }[],
+  people: readonly { id: string; name: string; avatarUrl?: string | null }[],
   seen?: string[],
   asked?: URLSearchParams[],
 ) {
@@ -18,7 +18,11 @@ export function peopleHandler(
     const q = query.get('q') ?? '';
     seen?.push(q);
     const key = query.get('key');
-    const all = people.map((p) => ({ key: `user:${p.id}`, name: p.name }));
+    const all = people.map((p) => ({
+      key: `user:${p.id}`,
+      name: p.name,
+      avatarUrl: p.avatarUrl ?? null,
+    }));
     if (key !== null) {
       const keys = key.split(',');
       if (keys.length > 20 || query.has('q')) {

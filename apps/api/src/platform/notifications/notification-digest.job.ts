@@ -12,6 +12,7 @@ import {
 import { MailQueue } from '../../core/mail/mail-queue.js';
 import { UsersRepository } from '../../iam/auth/users.repository.js';
 import { NotificationCatalog } from './notification-catalog.js';
+import { NotificationUnsubscribeLinks } from './notification-unsubscribe.js';
 import { NotificationDigestMail } from './notification.mails.js';
 import { notifications } from './notifications.tables.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
@@ -52,6 +53,7 @@ export class NotificationDigestJob {
     private readonly i18n: I18nService,
     private readonly system: SystemContext,
     private readonly tenancy: Tenancy,
+    private readonly unsubscribeLinks: NotificationUnsubscribeLinks,
   ) {}
 
   @Cron('5 * * * *', {
@@ -151,6 +153,13 @@ export class NotificationDigestJob {
             }
             const locale = user.locale ?? this.i18n.defaultLocale;
             const listed = rows.slice(0, DIGEST_ITEMS);
+            // Unsubscribing from a digest switches off the types in its modes
+            // (never the mandatory ones): offered when it lists any other.
+            const modes = rows.flatMap((row) =>
+              row.digest && !this.catalog.declaration(row.type)?.mandatory
+                ? [row.digest]
+                : [],
+            );
             try {
               await this.mailQueue.send(NotificationDigestMail, {
                 to: { name: user.name, address: user.email },
@@ -169,6 +178,10 @@ export class NotificationDigestJob {
                   count: rows.length,
                   more: rows.length - listed.length,
                   timezone: user.timezone,
+                  unsubscribe:
+                    modes.length > 0
+                      ? this.unsubscribeLinks.signDigests(user.id, modes)
+                      : null,
                 },
                 locale,
               });

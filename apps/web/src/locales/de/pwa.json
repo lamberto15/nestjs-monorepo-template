@@ -1,0 +1,7 @@
+{
+  "offline": "Sie sind offline. Die Anzeige kann veraltet sein, und Änderungen lassen sich erst wieder speichern, wenn Sie online sind.",
+  "reconnecting": "Die Verbindung zum Server ist abgebrochen. Live-Aktualisierungen pausieren, bis die Verbindung wieder steht.",
+  "install": "App installieren",
+  "updateAvailable": "Eine neue Version ist verfügbar.",
+  "reload": "Neu laden"
+}
