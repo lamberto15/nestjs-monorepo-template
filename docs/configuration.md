@@ -11,7 +11,7 @@ them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`
   or by hand `cp env.example .env`, then
   fill it: `env.example` marks what is required); the containers get their variables from `compose.prod.yaml`.
 - Development: `apps/api/.env.development` (`cp
-apps/api/env.development.example apps/api/.env.development`), optional.
+  apps/api/env.development.example apps/api/.env.development`), optional.
   The app finds it next to its package.json whatever directory it starts
   from (`apps/api/src/dev-env.ts`).
 - Tests: `apps/api/test/setup-env.ts`.
@@ -23,7 +23,7 @@ apps/api/env.development.example apps/api/.env.development`), optional.
   `STORAGE_SIGNING_KEYS`, `IDEMPOTENCY_KEYS`, `CURSOR_KEYS`, the incoming
   webhook secrets.
   Set them in `.env` to keep them out of the database (`openssl rand -base64
-32` each); keys are comma-separated, newest first (add a new one in front
+  32` each); keys are comma-separated, newest first (add a new one in front
   to rotate).
 - `MFA_ENCRYPTION_KEYS` is created in the database only outside production; in
   production it must be set (docs/encryption.md, "The MFA key").
@@ -48,13 +48,14 @@ apps/api/env.development.example apps/api/.env.development`), optional.
 | Logs and traces | `LOG_FORMAT`, `LOG_LEVEL`, `OBSERVE_APP_KEY`, `OBSERVE_APP_SECRET` |
 | Metrics | `METRICS_TOKEN` (Prometheus' bearer token for `GET /metrics`, at least 16 characters; unset: 404; [deployment.md](deployment.md), "Metrics") |
 | Alerting (`compose.monitoring.yaml`, optional) | `ALERT_EMAIL_TO`, `ALERT_SMTP_URL` (default: `SMTP_URL`), `ALERT_SMTP_REQUIRE_TLS` (true), `ALERT_EMAIL_FROM` (default: `MAIL_FROM`), `ALERT_WEBHOOK_URL`, `ALERT_SLACK_WEBHOOK_URL`; `PROMETHEUS_PORT` (9090), `ALERTMANAGER_PORT` (9093), both on 127.0.0.1; `PROMETHEUS_CPUS` (0.5), `PROMETHEUS_MEMORY` (1G), `ALERTMANAGER_CPUS` (0.25), `ALERTMANAGER_MEMORY` (128M); [deployment.md](deployment.md), "Alerting" |
+| Log shipping (`compose.monitoring.yaml`, optional, off) | `COMPOSE_PROFILES` (`logs`: Loki and Alloy; `logs,grafana`: and Grafana), `LOKI_RETENTION` (720h), `GRAFANA_ADMIN_PASSWORD` (required with the `grafana` profile), `GRAFANA_PORT` (3001, on 127.0.0.1), `LOKI_CPUS` (0.5), `LOKI_MEMORY` (512M), `ALLOY_CPUS` (0.25), `ALLOY_MEMORY` (256M), `GRAFANA_CPUS` (0.5), `GRAFANA_MEMORY` (256M); [deployment.md](deployment.md), "Logs" |
 | Languages and time | `LOCALES`, `APP_TIMEZONE` |
 | Mail | `MAIL_TRANSPORT`, `MAIL_FROM`, `SMTP_URL`, `MAIL_API_KEY`, `MAIL_DIRECTORY` (`.data/mail`), `SES_ENDPOINT` (Floci) |
 | Deliverability | `SES_SNS_TOPIC_ARNS` (the SNS topics SES publishes bounces and complaints to; empty: `POST /v1/webhooks/mail/ses` refuses everything), `MAIL_SOFT_BOUNCE_THRESHOLD` (3: transient bounces before an address is suppressed), `MAIL_SOFT_BOUNCE_WINDOW_HOURS` (24: they count when the last is at most this old), `MAIL_SOFT_BOUNCE_SUPPRESSION_HOURS` (72: how long a soft-bounce suppression lasts), `SES_SNS_REQUIRE_SIGNATURE_V2` (`off`: refuse SignatureVersion 1), `POSTMARK_WEBHOOK_SECRET`, `RESEND_WEBHOOK_SECRET` and `SENDGRID_WEBHOOK_PUBLIC_KEY` (the Postmark, Resend and SendGrid webhooks; empty: refused), `MAIL_EVENTS_RETENTION_DAYS` (90: the bounce, complaint and delivery events); [deliverability.md](deliverability.md) |
 | Deployment switches | `WEBHOOKS`, `REPORTS`, `USAGE`, `REALTIME` (all `on`; [below](#deployment-switches)) |
 | Webhooks | `WEBHOOKS_DELIVERY_RETENTION_DAYS` (30: finished outgoing deliveries, with their attempt log and recorded request; [webhooks](webhooks-and-realtime.md#retention)) |
 | Background | `SCHEDULER`, `OUTBOX_RELAY`, `WEBHOOKS_WORKER`, `BULK_SYNC_LIMIT` (100: bulk runs of up to this many ids answer in the request, larger ones are queued) |
-| Notifications | `NOTIFICATIONS_DIGEST_HOUR` (8: daily digests, in each user's time zone), `NOTIFICATIONS_RETENTION_DAYS` (90: read ones), `NOTIFICATIONS_MAX_AGE_DAYS` (365: any) |
+| Notifications | `NOTIFICATIONS_DIGEST_HOUR` (8: daily digests, in each user's time zone), `NOTIFICATIONS_RETENTION_DAYS` (90: read ones), `NOTIFICATIONS_MAX_AGE_DAYS` (365: any), `MAIL_UNSUBSCRIBE_MAILTO` (empty: a `mailto:` for `List-Unsubscribe` beside the https link) |
 | Push and SMS | `SMS_PROVIDER` (`off`, `twilio`, `memory`: off), `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` (secret), `TWILIO_FROM` (a number or a Messaging Service SID), `TWILIO_WEBHOOK_URL` (when a proxy changes the URL Twilio signs), `TWILIO_API_URL`; `PUSH_PROVIDER` (`off`, `web-push`, `memory`: off), `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY` (secret), `WEB_PUSH_SUBJECT`; the toll-fraud caps `SMS_ALLOWED_PREFIXES` (`+1,+44`; empty: no SMS is sent), `SMS_DAILY_LIMIT_PER_TENANT` (200), `SMS_DAILY_LIMIT_PER_PREFIX` (100), `SMS_DAILY_LIMIT_PER_USER` (10); the limits `SMS_MAX_LENGTH` (320), `PUSH_MAX_PAYLOAD_BYTES` (3500), `DEVICES_RETENTION_DAYS` (270); [notifications.md](notifications.md#push-and-sms) |
 | Attachments | `ATTACHMENT_MAX_MB` (25), `ATTACHMENT_ALLOWED_TYPES` (comma-separated MIME types, detected from the bytes; default: JPEG, PNG, GIF, WebP, PDF, docx, xlsx, pptx, plain text, CSV, zip) |
 | AI helper | `ANTHROPIC_API_KEY` (unset: off, 503 `ai_unavailable`), `AI_BASE_URL`, `AI_MODEL` (`claude-sonnet-5-5`), `AI_MODEL_CHEAP` (`claude-haiku-5-5`), `AI_TIMEOUT_MS` (60000), `AI_MAX_OUTPUT_TOKENS` (1024), `AI_ATTEMPTS` (2), `AI_TENANT_DAILY_TOKENS` (500000; 0: no cap), `AI_CACHE_TTL_SECONDS` (3600) ([ai](ai.md)) |
@@ -76,7 +77,8 @@ apps/api/env.development.example apps/api/.env.development`), optional.
 | AWS (S3, SES) | `AWS_REGION` (also S3's default region), `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`; unset keys: the packages read `process.env` |
 | Platform keys | `IDEMPOTENCY` (`required`; `optional`: [api-conventions.md](api-conventions.md#idempotency)), `IDEMPOTENCY_KEYS`, `WEBHOOKS_ENCRYPTION_KEYS`, `DATA_ENCRYPTION_KEYS` and `BLIND_INDEX_KEYS` (encrypted columns; never created, required once a column is declared encrypted, which SSO's client secrets are: [encryption.md](encryption.md)), `WEBHOOKS_ALLOW_LOOPBACK` (development only: lets endpoints be `http://127.0.0.1` or `localhost`; [webhooks-and-realtime.md](webhooks-and-realtime.md), "A receiver on your machine") |
 | Compose | `COMPOSE_FILE`, `COMPOSE_PROJECT_NAME`, `APP_IMAGE`, `GOTENBERG_IMAGE`, `CADDY_IMAGE` (unset: built from the checkout; a published image: [deployment.md](deployment.md), "Publishing and rolling back images"; `VERIFY_IMAGES`, `VERIFY_IDENTITY_REGEXP`: [deployment.md](deployment.md), "Signing and verifying images"), `API_REPLICAS`, `WORKER_REPLICAS`, `API_CPUS`, `API_MEMORY` (768M), `API_HEAP_MB` (384), `API_PASSWORD_HASH_CONCURRENCY` (2), `WORKER_CPUS`, `WORKER_MEMORY` (1G), `WORKER_HEAP_MB` (768), `WORKER_PASSWORD_HASH_CONCURRENCY` (1), `POSTGRES_CPUS`, `POSTGRES_MEMORY`, `REDIS_PASSWORD`, `REDIS_CPUS`, `REDIS_MEMORY`, `REDIS_MAXMEMORY` (400mb); the PostgreSQL roles: the Database row |
-| Caddy | `APP_DOMAIN`, `CLOUDFLARE_API_TOKEN`, `ACME_EMAIL` |
+| Caddy | `APP_DOMAIN`, `CLOUDFLARE_API_TOKEN`, `ACME_EMAIL`; the security contact file: `SECURITY_CONTACT` (empty: no file), `SECURITY_EXPIRES`, `SECURITY_POLICY`, `SECURITY_PREFERRED_LANGUAGES` (`en`) ([deployment.md](deployment.md), "Security contact") |
+| PgBouncer (Compose, optional `compose.pgbouncer.yaml`, [deployment.md](deployment.md), "PgBouncer") | `PGBOUNCER_POOL_SIZE` (20: the app role's server connections), `PGBOUNCER_MAINTENANCE_POOL_SIZE` (3), `PGBOUNCER_MAX_CLIENT_CONN` (400), `PGBOUNCER_QUERY_WAIT_TIMEOUT` (10, seconds), `PGBOUNCER_DB_HOST` (`postgres`), `PGBOUNCER_DB_PORT` (5432), `PGBOUNCER_CPUS` (0.5), `PGBOUNCER_MEMORY` (128M) |
 | Backups (Compose, [deployment.md](deployment.md), "Backups and restore") | `BACKUP_SCHEDULE` (`0 3 * * *`, cron, UTC), `BACKUP_RETENTION_DAYS` (14: in the `backups` volume), `BACKUP_MAX_AGE_HOURS` (25: older, a catch-up runs and the service turns unhealthy), `BACKUP_CPUS` (0.5), `BACKUP_MEMORY` (512M); off the host, all optional: `BACKUP_S3_BUCKET` (empty: off), `BACKUP_S3_ENDPOINT`, `BACKUP_S3_REGION`, `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY`, `BACKUP_S3_PREFIX` (`COMPOSE_PROJECT_NAME`), `BACKUP_S3_PROVIDER` (rclone's provider name) |
 | Container logs (Compose) | `DOCKER_LOG_DRIVER` (`local`; `json-file` for a shipper reading Docker's files), `DOCKER_LOG_MAX_SIZE` (20m), `DOCKER_LOG_MAX_FILE` (5): per container |
 | Example feature | `NOTE_PUBLISH_DELAY`, `EXAMPLE_SENDER_WEBHOOK_SECRET` |
@@ -138,12 +140,12 @@ needs a restart), validated at boot (a typo stops the app), and `off` leaves
 the module's routes, workers and jobs out with no error at boot. An absent
 route answers the app's ordinary 404 problem.
 
-| Switch     | Off means                                                                                                                                                                                                                                                                                                                                                                                        |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Switch | Off means |
+| --- | --- |
 | `WEBHOOKS` | No `/v1/webhook-endpoints` or delivery API, no delivery worker and no delivery retention job. The webhooks package stays registered (notifications, approvals and incoming receivers use it), so incoming webhooks work as before, and the outbox relay keeps running: notification delivery goes through it. Deliveries already queued for existing endpoints wait until it is turned on again. |
-| `REPORTS`  | No `/v1/reports` and no hourly runner; exports and imports are untouched. The `reports` table stays (migrations are not switched); existing reports stop running and are left out of an account's personal-data export.                                                                                                                                                                          |
-| `USAGE`    | No metering and no quota enforcement: `UsageInterceptor` is not registered, so nothing is counted on the hot path, the nightly roll-up and `GET /v1/access/clients/{id}/usage` are gone, and a client's `dailyQuota` can still be set but **does not apply** (no `429 quota_exceeded`, no `X-Quota-*` headers).                                                                                  |
-| `REALTIME` | No `/realtime` gateway and no socket.io Redis adapter. Everything that pushes (notifications, bulk and export progress, documents, approvals) keeps working: notifications are still stored and mailed, only the live event is dropped.                                                                                                                                                          |
+| `REPORTS` | No `/v1/reports` and no hourly runner; exports and imports are untouched. The `reports` table stays (migrations are not switched); existing reports stop running and are left out of an account's personal-data export. |
+| `USAGE` | No metering and no quota enforcement: `UsageInterceptor` is not registered, so nothing is counted on the hot path, the nightly roll-up and `GET /v1/access/clients/{id}/usage` are gone, and a client's `dailyQuota` can still be set but **does not apply** (no `429 quota_exceeded`, no `X-Quota-*` headers). |
+| `REALTIME` | No `/realtime` gateway and no socket.io Redis adapter. Everything that pushes (notifications, bulk and export progress, documents, approvals) keeps working: notifications are still stored and mailed, only the live event is dropped. |
 
 The environment is also the **ceiling of the auth policies** a tenant's
 administrators set at runtime (`auth.requireMfa`, `auth.passwordMinLength`):
@@ -183,7 +185,6 @@ the way its module reads it (`FeaturesService`, `platform/features/`):
   "documents": false,
   "exchangeRates": true,
   "tenancy": "multi",
-  "mode": "normal",
   "locales": ["en", "de", "ar", "zh", "ms"]
 }
 ```
@@ -195,7 +196,6 @@ the way its module reads it (`FeaturesService`, `platform/features/`):
 | `passkeys`, `signUp`, `magicLink`          | `PASSKEYS`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`                              | as in `GET /v1/auth/methods` (which also lists the providers and bot protection, and needs no sign-in) |
 | `documents`                                | `GOTENBERG_URL` set                                                        | PDF routes answer 503 `documents_unavailable`                                                          |
 | `exchangeRates`                            | `EXCHANGE_RATES_FETCH`                                                     | no ECB rates are fetched (the money conversions have none)                                             |
-| `mode`                                     | `APP_MODE`, else the operators' `platform.mode` setting                    | `read-only` or `maintenance`: writes (or everything) answer 503 (docs/settings.md)                     |
 | `tenancy`                                  | `TENANCY`                                                                  | `single`: the first tenant is the only one                                                             |
 | `locales`                                  | `LOCALES`                                                                  | the languages the API answers in, the first is the default                                             |
 
