@@ -97,6 +97,7 @@ jobs:
       - name: Diagnostics
         if: failure()
         run: |
-          kubectl get pods,jobs -o wide
+          kubectl get pods,jobs,serviceaccounts,secrets -o wide
+          kubectl get events --sort-by=.lastTimestamp | tail -40
           kubectl describe pods | tail -80
           kubectl logs -l app.kubernetes.io/instance=ci --all-containers --tail=100 || true

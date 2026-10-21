@@ -8,6 +8,12 @@ spec:
     metadata: { labels: { app: postgres } }
     spec:
       automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        fsGroup: 70
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: postgres
           image: postgres:18.6-alpine
@@ -19,9 +25,21 @@ spec:
             - { name: POSTGRES_PASSWORD, value: ci }
             - { name: POSTGRES_DB, value: app }
           ports: [{ containerPort: 5432 }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql }
+            - { name: run, mountPath: /var/run/postgresql }
+            - { name: tmp, mountPath: /tmp }
           readinessProbe:
             exec: { command: [pg_isready, -U, app, -d, app] }
             periodSeconds: 3
+      volumes:
+        - { name: data, emptyDir: { sizeLimit: 1Gi } }
+        - { name: run, emptyDir: { sizeLimit: 16Mi } }
+        - { name: tmp, emptyDir: { sizeLimit: 64Mi } }
 ---
 apiVersion: v1
 kind: Service
@@ -39,6 +57,12 @@ spec:
     metadata: { labels: { app: redis } }
     spec:
       automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: redis
           image: redis:8.10.2-alpine
@@ -48,9 +72,17 @@ spec:
           args:
             [redis-server, --appendonly, 'yes', --maxmemory-policy, noeviction]
           ports: [{ containerPort: 6379 }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: data, mountPath: /data }
           readinessProbe:
             exec: { command: [redis-cli, ping] }
             periodSeconds: 3
+      volumes:
+        - { name: data, emptyDir: { sizeLimit: 256Mi } }
 ---
 apiVersion: v1
 kind: Service
