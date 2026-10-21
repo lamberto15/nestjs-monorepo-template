@@ -22,7 +22,6 @@
     "retry": "重试失败的任务",
     "retryTitle": "重试 {{name}} 中失败的任务？",
     "retryDescription": "{{count}} 个失败的任务将回到队列并重新运行。",
-    "retried_one": "已将 {{count}} 个任务放回队列。",
     "retried_other": "已将 {{count}} 个任务放回队列。",
     "failures": "{{name}} 的最近失败",
     "job": "任务",
@@ -59,7 +58,6 @@
     "requeueOneDescription": "{{topic}} 的消息将回到发件箱并重新尝试。",
     "requeueAllTitle": "重新排队所有死信？",
     "requeueAllDescription": "所有死信（当前 {{count}} 条）将回到发件箱并重新尝试。",
-    "requeued_one": "已重新排队 {{count}} 条死信。",
     "requeued_other": "已重新排队 {{count}} 条死信。",
     "purge": "清除",
     "purgeAll": "全部清除",
@@ -67,7 +65,6 @@
     "purgeOneDescription": "{{topic}} 的消息将被永久删除，之后无法重新排队。",
     "purgeAllTitle": "删除所有死信？",
     "purgeAllDescription": "所有死信（当前 {{count}} 条）将被永久删除，之后无法重新排队。",
-    "purged_one": "已删除 {{count}} 条死信。",
     "purged_other": "已删除 {{count}} 条死信。"
   },
   "events": {

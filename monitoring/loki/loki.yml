@@ -1,0 +1,52 @@
+# Loki for the Compose stack (compose.monitoring.yaml, profile "logs"): one
+# process, local filesystem storage, no authentication (it listens inside
+# the Compose network only; nothing publishes it). Modelled on Grafana's
+# single-instance example (cmd/loki/loki-local-config.yaml in grafana/loki).
+# Retention: docs/deployment.md, "Logs". Check it:
+#   docker run --rm -v "$PWD/monitoring/loki:/etc/loki:ro" grafana/loki:<tag> \
+#     -config.file=/etc/loki/loki.yml -config.expand-env=true -verify-config
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+  log_level: warn
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        # Retention needs a 24h index period.
+        period: 24h
+
+limits_config:
+  # ${VAR:-default} works because Loki starts with -config.expand-env=true.
+  retention_period: ${LOKI_RETENTION:-720h}
+
+compactor:
+  working_directory: /loki/retention
+  compaction_interval: 10m
+  # Without this the compactor only compacts and nothing is ever deleted.
+  retention_enabled: true
+  retention_delete_delay: 2h
+  delete_request_store: filesystem
+
+# No usage reports to Grafana Labs.
+analytics:
+  reporting_enabled: false

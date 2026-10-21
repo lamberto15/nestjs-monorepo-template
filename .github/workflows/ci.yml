@@ -107,7 +107,7 @@ jobs:
       - name: Secrets as variables, as an existing .env has them
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
-          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci
+          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci BACKUP_ENCRYPTION_KEY=age1ci
           docker compose config --format json > env.json
           # The app role for api and worker; the owner on migrate only (docs/deployment.md, "Database roles").
           test "$(jq -r .services.api.environment.DATABASE_URL env.json)" = 'postgres://app_runtime:app-ci@postgres:5432/app'
@@ -146,6 +146,9 @@ jobs:
           done
           test "$(jq -r .services.postgres.environment.POSTGRES_PASSWORD env.json)" = pg-ci
           test "$(jq -r .services.backup.environment.PGPASSWORD env.json)" = pg-ci
+          # The backup's encryption recipients: the variable reaches the backup, the file variable stays empty.
+          test "$(jq -r .services.backup.environment.BACKUP_ENCRYPTION_KEY env.json)" = age1ci
+          test "$(jq -r .services.backup.environment.BACKUP_ENCRYPTION_KEY_FILE env.json)" = ''
           test "$(jq -r .services.caddy.environment.CLOUDFLARE_API_TOKEN env.json)" = ci
           test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_NAME' env.json)" = 'postgresql://app_monitor:mon-ci@postgres:5432/app?sslmode=disable'
           test "$(jq -r '.services["postgres-exporter"].secrets | map(.source) | join(",")' env.json)" = postgres_monitor_password
@@ -154,7 +157,7 @@ jobs:
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
           dir=$(mktemp -d)
-          for name in POSTGRES_PASSWORD DATABASE_URL DATABASE_OWNER_URL POSTGRES_MONITOR_PASSWORD POSTGRES_REPORTING_PASSWORD REDIS_PASSWORD CLOUDFLARE_API_TOKEN JWT_SECRET SMTP_URL ANTHROPIC_API_KEY; do
+          for name in POSTGRES_PASSWORD DATABASE_URL DATABASE_OWNER_URL POSTGRES_MONITOR_PASSWORD POSTGRES_REPORTING_PASSWORD REDIS_PASSWORD CLOUDFLARE_API_TOKEN JWT_SECRET SMTP_URL ANTHROPIC_API_KEY BACKUP_ENCRYPTION_KEY; do
             echo ci > "$dir/$name"
             export "${name}_FILE=$dir/$name"
           done
@@ -188,6 +191,11 @@ jobs:
           test "$(jq -r .services.postgres.environment.POSTGRES_PASSWORD files.json)" = ''
           test "$(jq -r .services.postgres.environment.POSTGRES_PASSWORD_FILE files.json)" = /run/secrets/postgres_password
           test "$(jq -r .services.backup.environment.PGPASSWORD_FILE files.json)" = /run/secrets/postgres_password
+          # The backup's encryption recipients from a file (BACKUP_ENCRYPTION_KEY_FILE).
+          test "$(jq -r .services.backup.environment.BACKUP_ENCRYPTION_KEY files.json)" = ''
+          test "$(jq -r .services.backup.environment.BACKUP_ENCRYPTION_KEY_FILE files.json)" = /run/secrets/backup_encryption_key
+          test "$(jq -r '.services.backup.secrets | map(.source) | index("backup_encryption_key") != null' files.json)" = true
+          test "$(jq -r .secrets.backup_encryption_key.file files.json)" = "$dir/BACKUP_ENCRYPTION_KEY"
           test "$(jq -r .services.redis.environment.REDIS_PASSWORD_FILE files.json)" = /run/secrets/redis_password
           test "$(jq -r .services.caddy.environment.CLOUDFLARE_API_TOKEN_FILE files.json)" = /run/secrets/cloudflare_api_token
           test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_NAME' files.json)" = ''
@@ -287,6 +295,10 @@ jobs:
       # The release notes' generator (tools/release/, docs/releases.md): git only.
       - name: The release notes' tests
         run: node --test tools/release/notes.test.mjs
+      # The translation parity check's tests (tools/i18n/); the check itself
+      # runs in `pnpm lint`.
+      - name: The i18n check's tests
+        run: node --test tools/i18n/check.test.mjs
 
   # The unit tests in parallel (Vitest's --shard): the API's in 3 shards, the
   # web app's in 3 (jsdom, the run's longest at 3 min whole), the packages'
@@ -812,6 +824,10 @@ jobs:
           tags: backup:ci
           cache-from: type=gha,scope=backup
           cache-to: type=gha,scope=backup,mode=max
+      # Encryption (age) and point-in-time recovery, end to end in the image,
+      # on a throwaway PostgreSQL (backup/test-pitr.sh).
+      - name: Encryption and point-in-time recovery work
+        run: scripts/test-backup-pitr.sh backup:ci
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
@@ -852,6 +868,22 @@ jobs:
           cache-to: type=gha,scope=caddy,mode=max
       - name: The web app is in the image
         run: docker run --rm --entrypoint test caddy:ci -f /srv/web/index.html
+      # The Caddyfile parses (its security.txt handle included), and the entrypoint
+      # writes the file from SECURITY_CONTACT, and writes none without it (docs/deployment.md).
+      # Caddy's Cloudflare module checks the token's format while it provisions the
+      # ACME DNS provider (legacy: 35-50 alphanumeric, dash or underscore), so the dummy must look like one.
+      - name: The Caddyfile is valid
+        run: |
+          docker run --rm -e APP_DOMAIN=ci.example.com -e ACME_EMAIL=ci@example.com \
+            -e CLOUDFLARE_API_TOKEN=0123456789abcdef0123456789abcdef01234567 \
+            -v "$PWD/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:ci caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: security.txt is written from SECURITY_CONTACT
+        run: |
+          docker run --rm -e CLOUDFLARE_API_TOKEN=ci -e SECURITY_CONTACT=mailto:ci@example.com \
+            caddy:ci test -f /srv/security/.well-known/security.txt
+          docker run --rm -e CLOUDFLARE_API_TOKEN=ci caddy:ci \
+            sh -c 'test ! -f /srv/security/.well-known/security.txt'
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:

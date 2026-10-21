@@ -27,6 +27,12 @@ native speaker review them.
   fails while a key, a placeholder or a plural form is missing. The web app
   has its own texts: a folder in `apps/web/src/locales` and the code in
   `languages` (`apps/web/src/i18n.ts`); [monorepo](monorepo.md), "Languages".
+- Parity check: `pnpm i18n:check` (part of `pnpm lint`, so CI runs it) compares
+  every locale of `apps/web/src/locales` and `apps/api/src/i18n` with `en`: the
+  same files and keys (none missing, none stale), the same `{{name}}` / `{name}`
+  placeholders, and for a plural message exactly the forms the language uses
+  (`Intl.PluralRules`: `ar` six, `en` and `de` two, `zh` and `ms` only
+  `_other`). So a `_one` in `zh` is stale, and `_zero` in `ar` is required.
 - The web app sends its language as `Accept-Language` with each request and
   switches to the user's saved one; it shows times in their time zone, else
   the browser's (`apps/web/src/lib/date-time.ts`).

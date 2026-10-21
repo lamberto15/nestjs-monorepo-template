@@ -15,6 +15,7 @@ import {
   teamTree,
   users,
 } from '../../iam/iam.tables.js';
+import { avatarUrl } from '../../iam/account/avatar-url.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { UsersRepository } from '../../iam/auth/users.repository.js';
 import type { TeamsQuery } from './people.schemas.js';
@@ -26,6 +27,8 @@ export interface Person {
   /** `user:<id>`: what `@user:<id>` mentions, and what `author`, `changedBy`, `ownerId` hold. */
   key: string;
   name: string;
+  /** The user's picture (`/v1/people/<id>/avatar?v=…`); null: none, and for an API client. */
+  avatarUrl: string | null;
 }
 
 /** A team, as any member of the tenant may see it: its name and its place in the tree. */
@@ -95,6 +98,16 @@ export class PeopleService {
    * removed client) is null.
    */
   async names(keys: Iterable<string>): Promise<Map<string, string | null>> {
+    const found = await this.find(keys);
+    return new Map(
+      [...found].map(([key, person]) => [key, person?.name ?? null]),
+    );
+  }
+
+  /** `names()` with each user's picture: the person behind each key, or null. */
+  private async find(
+    keys: Iterable<string>,
+  ): Promise<Map<string, { name: string; avatarUrl: string | null } | null>> {
     const tenantId = requireTenantId('A name');
     const all = [...new Set(keys)];
     const ids = (kind: string) =>
@@ -107,7 +120,11 @@ export class PeopleService {
     const [people, clients] = await Promise.all([
       userIds.length
         ? this.db
-            .select({ id: users.id, name: users.name })
+            .select({
+              id: users.id,
+              name: users.name,
+              avatarKey: users.avatarKey,
+            })
             .from(users)
             .innerJoin(
               memberships,
@@ -130,9 +147,18 @@ export class PeopleService {
             )
         : [],
     ]);
-    const found = new Map<string, string>([
-      ...people.map((row) => [`user:${row.id}`, row.name] as const),
-      ...clients.map((row) => [`client:${row.id}`, row.name] as const),
+    const found = new Map<string, { name: string; avatarUrl: string | null }>([
+      ...people.map(
+        (row) =>
+          [
+            `user:${row.id}`,
+            { name: row.name, avatarUrl: avatarUrl(row.id, row.avatarKey) },
+          ] as const,
+      ),
+      ...clients.map(
+        (row) =>
+          [`client:${row.id}`, { name: row.name, avatarUrl: null }] as const,
+      ),
     ]);
     return new Map(all.map((key) => [key, found.get(key) ?? null]));
   }
@@ -145,9 +171,9 @@ export class PeopleService {
    * answer never tells such a key from one that doesn't exist.
    */
   async named(keys: readonly string[]): Promise<Person[]> {
-    const names = await this.names(keys);
-    return [...names].flatMap(([key, name]) =>
-      name === null ? [] : [{ key, name }],
+    const found = await this.find(keys);
+    return [...found].flatMap(([key, person]) =>
+      person === null ? [] : [{ key, ...person }],
     );
   }
 
@@ -212,7 +238,7 @@ export class PeopleService {
   async directory(q: string | undefined, limit: number): Promise<Person[]> {
     const tenantId = requireTenantId('The directory');
     const rows = await this.db
-      .select({ id: users.id, name: users.name })
+      .select({ id: users.id, name: users.name, avatarKey: users.avatarKey })
       .from(users)
       .innerJoin(
         memberships,
@@ -230,7 +256,11 @@ export class PeopleService {
       )
       .orderBy(asc(users.name), asc(users.id))
       .limit(limit);
-    return rows.map((row) => ({ key: `user:${row.id}`, name: row.name }));
+    return rows.map((row) => ({
+      key: `user:${row.id}`,
+      name: row.name,
+      avatarUrl: avatarUrl(row.id, row.avatarKey),
+    }));
   }
 
   /**

@@ -1,0 +1,60 @@
+# Optional point-in-time recovery for the production stack: PostgreSQL archives
+# its WAL, the backup service takes a base backup with each dump and sends the
+# WAL off the host (encrypted when BACKUP_ENCRYPTION_KEY is set). A restore can
+# then stop at any moment after the oldest base backup kept, not only at a dump.
+# Off by default; add it to COMPOSE_FILE in .env:
+#
+#   COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.pitr.yaml
+#   docker compose up -d      # recreates postgres: archive_mode needs a restart
+#
+# docs/deployment.md, "Point-in-time recovery". Needs the backup service's
+# own bucket for protection against a lost disk (BACKUP_S3_BUCKET).
+
+services:
+  # Writable by postgres (uid 70, like the backup service): a new named volume
+  # is owned by root, and the PostgreSQL image has nothing at /wal to copy.
+  wal-init:
+    image: ${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}-backup
+    build: ./backup
+    user: root
+    entrypoint: ['chown', 'postgres:postgres', '/wal']
+    restart: 'no'
+    volumes:
+      - wal_archive:/wal
+
+  postgres:
+    # The whole command list is replaced (compose.prod.yaml's has only
+    # max_connections): keep the two in step. archive_command is PostgreSQL's
+    # documented example, plus a temporary name so a half-copied segment is never
+    # taken for a finished one (the backup service ignores dotfiles).
+    # archive_timeout: a segment is closed at least this often (seconds), the
+    # most that can be lost besides what the last segment shipped.
+    command:
+      - postgres
+      - -c
+      - max_connections=${POSTGRES_MAX_CONNECTIONS:-100}
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=test ! -f /wal/%f && cp %p /wal/.%f.tmp && mv /wal/.%f.tmp /wal/%f
+      - -c
+      - archive_timeout=${BACKUP_WAL_ARCHIVE_TIMEOUT:-300}
+      # pg_basebackup's replication connection (see the file).
+      - -c
+      - hba_file=/etc/postgresql/pg_hba.conf
+    volumes:
+      - wal_archive:/wal
+      - ./backup/pg_hba.pitr.conf:/etc/postgresql/pg_hba.conf:ro
+    depends_on:
+      wal-init:
+        condition: service_completed_successfully
+
+  backup:
+    environment:
+      BACKUP_PITR: 'on'
+      BACKUP_WAL_DIR: /wal
+    volumes:
+      - wal_archive:/wal
+
+volumes:
+  wal_archive:

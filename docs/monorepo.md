@@ -506,6 +506,32 @@ CI runs these in `.github/workflows/web.yml` (pull requests touching
   shell of the static build (no API behind it). Make it blocking by changing
   `warn` to `error` once the scores are stable.
 
+### Installable and offline (PWA)
+
+`vite-plugin-pwa` (`apps/web/vite.config.ts`, the documented `generateSW`
+setup) writes the web manifest and a Workbox service worker at build time;
+`src/main.tsx` registers it (`registerType: 'prompt'`: a new version waits
+until the user taps "Reload" in the toast, so no page is swapped under them).
+The worker **precaches the built shell only** (scripts, styles, icons) and has
+no runtime caching, so no API response (user data) is ever stored by it;
+navigations fall back to the shell except for the paths Caddy sends to the API
+(`apps/web/pwa-paths.ts`: `/v1`, `/health`, `/metrics`, `/api`, `/api-json`,
+`/api-yaml`, `/files`, `/socket.io`, `/.well-known`; a test keeps it in step
+with the Caddyfile's `@api` matcher, so an export or attachment link reaches
+the server). It is not active under `pnpm dev`.
+
+- **Icons** are generated from `public/favicon.svg`: `pnpm --filter
+  @nestjs-monorepo-template/web pwa:icons` (`@vite-pwa/assets-generator`,
+  `pwa-assets.config.ts`). Name, colours: the `manifest` in `vite.config.ts`.
+- **Install**: the user menu (`NavUser`) shows "Install the app" while the
+  browser offers it (`beforeinstallprompt`, `src/lib/pwa.ts`, listened for
+  from the first page load: the browser fires it once, before the menu
+  exists); Safari and Firefox never do, there the user adds it from the
+  browser's menu.
+- **Offline banner** (`OfflineBanner`, in the `_app` layout): shown when
+  `navigator.onLine` is false, or online with the realtime socket dropped.
+- Strings: the `pwa` namespace, in all five languages.
+
 ### Adding a page for a feature
 
 `pnpm feature:add` writes the API side only; the web side is written by

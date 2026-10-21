@@ -10,6 +10,14 @@ export const deletionSchema = z.object({
     .describe('When the account is deleted, unless cancelled before.'),
 });
 
+export const avatarResultSchema = z.object({
+  avatarUrl: z
+    .string()
+    .describe(
+      'Where the picture is shown from (a path on this API, for an `<img>`).',
+    ),
+});
+
 export const consentSchema = z.object({
   kind: z.string().meta({ example: 'terms' }),
   version: z

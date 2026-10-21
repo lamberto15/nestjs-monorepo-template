@@ -19,27 +19,20 @@
       "failed": "gagal",
       "skipped": "dilangkau (tidak ditemui, atau bukan milik anda)"
     },
-    "more_one": "Dan {{count}} lagi.",
     "more_other": "Dan {{count}} lagi.",
     "close": "Tutup"
   },
   "confirm": {
     "delete": {
-      "title_one": "Padam {{count}} rekod?",
       "title_other": "Padam {{count}} rekod?",
-      "description_one": "Ia masuk ke tong kitar semula, dan boleh dipulihkan.",
       "description_other": "Ia masuk ke tong kitar semula, dan boleh dipulihkan."
     },
     "restore": {
-      "title_one": "Pulihkan {{count}} rekod?",
       "title_other": "Pulihkan {{count}} rekod?",
-      "description_one": "Ia kembali dari tong kitar semula.",
       "description_other": "Ia kembali dari tong kitar semula."
     },
     "update": {
-      "title_one": "Ubah {{count}} rekod?",
       "title_other": "Ubah {{count}} rekod?",
-      "description_one": "Perubahan digunakan padanya.",
       "description_other": "Perubahan digunakan pada setiap satunya."
     }
   }

@@ -155,6 +155,11 @@
       "cancel": "取消",
       "none": "该地址无法使用单点登录。请使用其他方式登录，或咨询管理员。",
       "failed": "无法检查该地址，请稍后重试。"
+    },
+    "idle": {
+      "title": "您的会话即将结束",
+      "description": "您已长时间未操作。将在 {{time}} 后退出登录。",
+      "stay": "保持登录"
     }
   },
   "account": {
@@ -167,6 +172,16 @@
       "emailHint": "您的登录地址。",
       "timezone": "时区",
       "saved": "个人资料已保存。"
+    },
+    "avatar": {
+      "title": "头像",
+      "choose": "选择头像",
+      "change": "更换头像",
+      "remove": "移除",
+      "hint": "PNG、JPEG、WebP 或 GIF。您所在组织的成员可以看到。",
+      "saved": "头像已保存。",
+      "removed": "头像已移除。",
+      "rejected": "未使用 {{name}}：{{reason}}"
     },
     "security": {
       "title": "安全"
@@ -203,8 +218,7 @@
       "saved": "我已保存",
       "requiredTitle": "必须启用双重验证",
       "required": "您的组织要求使用双重验证：请先设置才能继续。",
-      "redirected": "请先设置双重验证，然后才能继续。",
-      "remaining_one": "还剩 {{count}} 个恢复码。"
+      "redirected": "请先设置双重验证，然后才能继续。"
     },
     "passkeys": {
       "title": "通行密钥",
@@ -263,6 +277,12 @@
     "description": "您要查找的页面不存在。",
     "back": "返回仪表盘"
   },
+  "routeError": {
+    "title": "出错了",
+    "description": "此页面加载失败，应用的其余部分仍可使用。",
+    "reportId": "报告编号：{{id}}",
+    "retry": "重试"
+  },
   "preferences": {
     "open": "偏好设置",
     "theme": "主题",
@@ -303,9 +323,7 @@
     "no": "否",
     "table": {
       "noResults": "没有结果。",
-      "rowsSelected_one": "已选择 {{count}} 行。",
       "rowsSelected_other": "已选择 {{count}} 行。",
-      "notShown_one": "{{count}} 行未显示",
       "notShown_other": "{{count}} 行未显示",
       "rowsPerPage": "每页行数",
       "pageOf": "第 {{page}} 页，共 {{count}} 页",
@@ -396,9 +414,7 @@
     },
     "bulk": {
       "label": "所选项的操作",
-      "selected_one": "已选择 {{count}} 项",
       "selected_other": "已选择 {{count}} 项",
-      "selectAll_one": "选择全部 {{count}} 个匹配项",
       "selectAll_other": "选择全部 {{count}} 个匹配项",
       "onlyChosen": "仅所选行",
       "tooMany": "一次最多选择 {{max}} 行：请筛选列表并改为选择全部匹配项。",
