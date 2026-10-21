@@ -57,6 +57,10 @@
         "OTEL_BSP_SCHEDULE_DELAY",
         "SENTRY_DSN"
       ]
+    },
+    "test:cov": {
+      "dependsOn": ["^build"],
+      "outputs": [".vitest/**", "coverage/**"]
     }
   }
 }

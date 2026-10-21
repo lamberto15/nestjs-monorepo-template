@@ -16,9 +16,6 @@ export type TransferFormat = NonNullable<
   >['content']['application/json']['format']
 >;
 
-/** `GET /v1/data`: what the caller may export and import. */
-export type DataCatalog = GetResponse<'/v1/data'>;
-
 export const catalogQuery = queryOptions({
   queryKey: ['data', 'catalog'],
   queryFn: () => unwrap(api.GET('/v1/data')),
@@ -46,9 +43,6 @@ export const transferQuery = (id: string, poll: JobPoll = () => POLL) =>
         : poll(status);
     },
   });
-
-export const isFinished = (transfer: Pick<Transfer, 'status'>) =>
-  transfer.status === 'completed' || transfer.status === 'failed';
 
 /**
  * What an export takes of a list's state: the list's own filters (`filter`,
@@ -83,8 +77,6 @@ export function startImport(
 
 export type TransferKind = 'export' | 'import';
 export type TransferState = Transfer['status'];
-export type TransferListItem =
-  GetResponse<'/v1/data/transfers'>['items'][number];
 export type BulkRun = GetResponse<'/v1/bulk'>['items'][number];
 
 const PAGE = 20;

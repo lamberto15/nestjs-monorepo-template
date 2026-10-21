@@ -13,6 +13,7 @@ import {
 } from '@nestjs/swagger';
 import { Throttle, minutes } from '@nestjs/throttler';
 import { z } from 'zod';
+import { AllowInMaintenance } from '../../core/http/maintenance.js';
 import { SessionLifetime } from '../auth/session-lifetime.js';
 import { Captcha } from '../captcha/captcha.guard.js';
 import { CaptchaService } from '../captcha/captcha.service.js';
@@ -58,6 +59,7 @@ const tokensSchema = z.object({
  */
 @ApiTags('auth')
 @Public()
+@AllowInMaintenance() // sign-in, and the refresh that keeps a signed-in client signed in
 @Controller('auth/token')
 export class TokensController {
   constructor(

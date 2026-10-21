@@ -153,7 +153,10 @@ export const encryptedColumnNamed = (name: string) =>
     (entry) => `${entry.bindingTable}.${entry.bindingColumn}` === name,
   );
 
-/** Whether `column` is declared encrypted. */
+/**
+ * Whether `column` is declared encrypted.
+ * @public
+ */
 export const isEncrypted = (column: PgColumn) => registry.has(column);
 
 /** Every declared encrypted column, in declaration order. */
@@ -175,7 +178,10 @@ export const encryptedProperties = (): ReadonlySet<string> =>
     ]),
   );
 
-/** What replaces an encrypted value where a reader may not (or need not) see it. */
+/**
+ * What replaces an encrypted value where a reader may not (or need not) see it.
+ * @public
+ */
 export const ENCRYPTED_PLACEHOLDER = '[encrypted]';
 
 /**

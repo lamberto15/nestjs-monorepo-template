@@ -1,0 +1,2 @@
+ALTER TABLE "attachments" ADD COLUMN "scan_status" text DEFAULT 'clean' NOT NULL;--> statement-breakpoint
+CREATE INDEX "attachments_pending_idx" ON "attachments" USING btree ("created_at") WHERE "attachments"."scan_status" = 'pending';

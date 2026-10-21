@@ -483,5 +483,8 @@ export const redactValue = (value: unknown, options?: RedactValueOptions) =>
 export const redactString = (text: string, maxString?: number) =>
   logRedaction.redactString(text, maxString);
 
-/** `logRedaction.redactText()`, for the places that build a text from an error (a job's failure reason). */
+/**
+ * `logRedaction.redactText()`, for the places that build a text from an error (a job's failure reason).
+ * @public
+ */
 export const redactText = (text: string) => logRedaction.redactText(text);

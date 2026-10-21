@@ -153,6 +153,18 @@ jobs:
           test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_NAME' env.json)" = 'postgresql://app_monitor:mon-ci@postgres:5432/app?sslmode=disable'
           test "$(jq -r '.services["postgres-exporter"].secrets | map(.source) | join(",")' env.json)" = postgres_monitor_password
           test "$(jq -r '.services["redis-exporter"].environment.REDIS_PASSWORD' env.json)" = redis-ci
+      # The containers get the variables compose.prod.yaml lists (no env_file):
+      # APP_MODE (docs/settings.md, "Maintenance and read-only mode") must be one.
+      - name: APP_MODE reaches the api and the worker
+        run: |
+          export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
+          export POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci CLOUDFLARE_API_TOKEN=ci
+          APP_MODE=read-only docker compose config --format json > mode.json
+          for service in api worker; do
+            test "$(jq -r ".services.$service.environment.APP_MODE" mode.json)" = read-only
+          done
+          docker compose config --format json > mode-unset.json
+          test "$(jq -r '.services.api.environment.APP_MODE' mode-unset.json)" = ''
       - name: Secrets in files
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
@@ -217,6 +229,30 @@ jobs:
           done
           test "$(jq -r '.services["redis-exporter"].environment.REDIS_PASSWORD_FILE' files.json)" = /run/secrets/redis_password
           test "$(jq -r .services.alertmanager.environment.SMTP_URL_FILE files.json)" = /run/secrets/smtp_url
+      # Malware scanning (docs/deployment.md, "ClamAV (malware scanning)"):
+      # compose.clamav.yaml turns it on for api and worker; the blue-green
+      # colours extend compose.prod.yaml's api and never see an overlay's
+      # change to it, so they read .env (x-app) like every service.
+      - name: Malware scanning reaches every app service
+        run: |
+          export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
+          setting() { jq -r ".services[\"$1\"].environment.$2" "$3"; }
+          COMPOSE_FILE=compose.yaml:compose.prod.yaml docker compose config --format json > scan-off.json
+          for service in api worker; do
+            test "$(setting $service MALWARE_SCANNER scan-off.json)" = off
+          done
+          COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.clamav.yaml docker compose config --format json > scan-clamav.json
+          for service in api worker; do
+            test "$(setting $service MALWARE_SCANNER scan-clamav.json)" = clamav
+            test "$(setting $service CLAMAV_HOST scan-clamav.json)" = clamav
+          done
+          test "$(jq -r '.services.clamav.image | startswith("clamav/clamav:")' scan-clamav.json)" = true
+          # Blue-green: the colours, with the two settings in .env as the docs say.
+          MALWARE_SCANNER=clamav CLAMAV_HOST=clamav COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.blue-green.yaml:compose.clamav.yaml docker compose config --format json > scan-blue-green.json
+          for service in api-blue api-green worker; do
+            test "$(setting $service MALWARE_SCANNER scan-blue-green.json)" = clamav
+            test "$(setting $service CLAMAV_HOST scan-blue-green.json)" = clamav
+          done
       - name: The shell readers of the files, in their images
         run: scripts/test-secret-readers.sh
 
@@ -275,6 +311,8 @@ jobs:
           path: .turbo/cache
           key: turbo-${{ runner.os }}-${{ github.sha }}
           restore-keys: turbo-${{ runner.os }}-
+      # Oxlint in every package, the translation parity check, then knip:
+      # unused files, exports and dependencies (knip.jsonc).
       - run: pnpm lint
       - run: pnpm build
       # The typed client's OpenAPI document and types must match the routes.
@@ -299,11 +337,21 @@ jobs:
       # runs in `pnpm lint`.
       - name: The i18n check's tests
         run: node --test tools/i18n/check.test.mjs
+      # Guards on this workflow's artifact uploads (tools/ci/): a run of the
+      # workflow is the only other way to learn a blob report went missing.
+      - name: The workflow's tests
+        run: node --test tools/ci/workflow.test.mjs
 
   # The unit tests in parallel (Vitest's --shard): the API's in 3 shards, the
   # web app's in 3 (jsdom, the run's longest at 3 min whole), the packages'
   # (the client's) in one job. Turborepo builds what they depend on, replayed
   # from its cache when nothing changed.
+  # They also measure coverage (`test:cov`, the same run: no second one). A
+  # shard writes a blob report (Vitest's .vitest/blob) with its coverage and
+  # no threshold of its own: a share of the tests covers only a share of the
+  # code. The `coverage` job below merges the shards' blobs and enforces the
+  # thresholds in each package's vitest.config.ts. The packages job runs
+  # whole, so it enforces its own.
   unit:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -312,21 +360,33 @@ jobs:
       matrix:
         include:
           - name: api 1/3
+            blob: api-1
+            app: api
             filter: --filter=@nestjs-monorepo-template/api
             args: --shard=1/3
           - name: api 2/3
+            blob: api-2
+            app: api
             filter: --filter=@nestjs-monorepo-template/api
             args: --shard=2/3
           - name: api 3/3
+            blob: api-3
+            app: api
             filter: --filter=@nestjs-monorepo-template/api
             args: --shard=3/3
           - name: web 1/3
+            blob: web-1
+            app: web
             filter: --filter=@nestjs-monorepo-template/web
             args: --shard=1/3
           - name: web 2/3
+            blob: web-2
+            app: web
             filter: --filter=@nestjs-monorepo-template/web
             args: --shard=2/3
           - name: web 3/3
+            blob: web-3
+            app: web
             filter: --filter=@nestjs-monorepo-template/web
             args: --shard=3/3
           - name: packages
@@ -346,7 +406,60 @@ jobs:
           path: .turbo/cache
           key: turbo-${{ runner.os }}-${{ github.sha }}
           restore-keys: turbo-${{ runner.os }}-
-      - run: pnpm exec turbo run test ${{ matrix.filter }} -- ${{ matrix.args }}
+      - name: A shard (blob report, coverage; thresholds are checked when merged)
+        if: matrix.blob
+        run: >-
+          pnpm exec turbo run test:cov ${{ matrix.filter }} --
+          ${{ matrix.args }} --reporter=default --reporter=blob
+          --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
+          --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
+      - name: Whole (coverage and its thresholds)
+        if: ${{ !matrix.blob }}
+        run: pnpm exec turbo run test:cov ${{ matrix.filter }}
+      - name: The shard's blob report
+        if: matrix.blob
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ matrix.blob }}
+          # One app's directory, so the files keep their bare names (a glob
+          # over apps/* would nest them one level down, which Vitest's
+          # --merge-reports does not read). .vitest is hidden, which
+          # upload-artifact skips unless told otherwise; with no files it
+          # fails, so the coverage job is never left with nothing to merge.
+          path: apps/${{ matrix.app }}/.vitest/blob/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  # The coverage thresholds (each package's vitest.config.ts): the unit
+  # shards' blob reports merged, no test run again.
+  coverage:
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - name: The API's shards
+        uses: actions/download-artifact@v7
+        with:
+          pattern: coverage-api-*
+          path: apps/api/.vitest/blob
+          merge-multiple: true
+      - name: The web app's shards
+        uses: actions/download-artifact@v7
+        with:
+          pattern: coverage-web-*
+          path: apps/web/.vitest/blob
+          merge-multiple: true
+      - name: The API's coverage
+        run: pnpm --filter @nestjs-monorepo-template/api exec vitest --merge-reports --coverage
+      - name: The web app's coverage
+        run: pnpm --filter @nestjs-monorepo-template/web exec vitest --merge-reports --coverage
 
   # The e2e tests in shards, each on its own runner with its own Redis and
   # PostgreSQL: the slowest step of CI, split (Vitest's --shard). They run
@@ -610,7 +723,9 @@ jobs:
           pnpm feature:sync
           pnpm feature:sync --check
           pnpm db:generate
-      - run: pnpm lint
+      # Without knip: it checks this repository's own code (knip.jsonc), not a
+      # generated one.
+      - run: pnpm lint:code
       - run: pnpm build
       - run: pnpm db:check
       - run: pnpm client:generate
@@ -674,7 +789,7 @@ jobs:
           fi
       - name: 'Lint (once: shard 1)'
         if: matrix.shard == 1
-        run: pnpm lint
+        run: pnpm lint:code
       - run: pnpm build
       - run: pnpm db:check
       - run: pnpm client:generate

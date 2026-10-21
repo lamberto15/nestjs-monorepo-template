@@ -23,7 +23,6 @@ export type Catalog = GetResponse<'/v1/access/catalog'>;
 export type CatalogSubject = Catalog['subjects'][number];
 export type CatalogAction = CatalogSubject['actions'][number];
 export type CatalogCondition = CatalogAction['conditions'][number];
-export type CatalogField = CatalogSubject['fields'][number];
 
 /** A permission as the access API returns it (a role's). */
 export type Permission =

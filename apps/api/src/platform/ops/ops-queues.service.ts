@@ -48,6 +48,23 @@ export class OpsQueues {
     return this.moduleRef.get<Queue>(getQueueToken(name), { strict: false });
   }
 
+  /** Pauses every queue (BullMQ `pause()`: jobs wait in Redis; running ones finish): the app mode. */
+  async pauseAll() {
+    await Promise.all(this.names.map((name) => this.queue(name).pause()));
+  }
+
+  /** Resumes the queues that are paused (nothing else pauses them). */
+  async resumeAll() {
+    await Promise.all(
+      this.names.map(async (name) => {
+        const queue = this.queue(name);
+        if (await queue.isPaused()) {
+          await queue.resume();
+        }
+      }),
+    );
+  }
+
   /** Job counts by state per queue, without the failures (the metrics' scrape). */
   async counts() {
     return Promise.all(

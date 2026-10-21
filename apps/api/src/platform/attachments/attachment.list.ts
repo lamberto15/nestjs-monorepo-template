@@ -16,6 +16,11 @@ export const ATTACHMENT_LIST = listQuery(
       type: 'string',
       ops: ['eq', 'in', 'startsWith'],
     },
+    scanStatus: {
+      column: attachments.scanStatus,
+      type: 'string',
+      ops: ['eq'],
+    },
     size: {
       column: attachments.size,
       type: 'number',

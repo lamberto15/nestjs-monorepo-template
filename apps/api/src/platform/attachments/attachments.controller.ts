@@ -65,6 +65,10 @@ export class AttachmentsController {
     description: `Whoever may read its record. Redirects to a signed link to the file, valid for ${DOWNLOAD_LINK_TTL}: it needs no credentials, so a browser can follow it (a link, an image). The file comes as \`Content-Disposition: attachment\` (a download), with \`X-Content-Type-Options: nosniff\`; \`?inline=true\` shows a PDF in the browser instead (a preview in a new tab), under \`Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox\` (nothing loads, nothing runs, no page may frame it). Any other type stays a download.`,
   })
   @ApiFoundResponse({ description: 'To the file (a signed link).' })
+  @ApiConflictResponse({
+    description:
+      'The malware scan has not finished (attachment_scan_pending): try again shortly.',
+  })
   @ApiNotFoundResponse()
   download(
     @CurrentUser() user: Principal,

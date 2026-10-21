@@ -16,9 +16,7 @@ export const deliveriesPath =
   '/v1/access/clients/{clientId}/webhook-deliveries';
 
 export type Endpoint = GetResponse<typeof endpoints>['items'][number];
-export type EventGroups = GetResponse<'/v1/webhook-event-types'>['items'];
 export type Delivery = GetResponse<typeof deliveriesPath>['items'][number];
-export type DeliveryDetail = GetResponse<`${typeof deliveriesPath}/{id}`>;
 export type DeliveryStatus = Delivery['status'];
 
 type JsonBody<T> = T extends {
@@ -174,11 +172,6 @@ export function useRetryFailed(clientId: string, endpointId: string) {
       ),
     onSuccess: refresh,
   });
-}
-
-/** Whether a catalog entry list holds a type. */
-export function knownTypes(groups: EventGroups | undefined): Set<string> {
-  return new Set(groups?.flatMap((group) => group.types.map((t) => t.type)));
 }
 
 /** The JSON of a payload as indented text; anything else as it is. */

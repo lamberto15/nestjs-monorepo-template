@@ -6,7 +6,7 @@ import {
   type Type,
 } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { getDrizzleToken } from '@nestjs/drizzle';
 import { ConfigService } from '@nestjs/config';
 import { IdempotencyModule } from '@nestjs/idempotency';
@@ -171,6 +171,15 @@ import { NamingSeriesService } from './sequences/naming-series.service.js';
 import { NamingVariables } from './sequences/naming-variables.js';
 import { NUMBERING_SETTINGS } from './sequences/numbering-settings.js';
 import { SequencesService } from './sequences/sequences.service.js';
+import { AttachmentScanProcessor } from './attachments/attachment-scan.processor.js';
+import { AttachmentScanRetryJob } from './attachments/attachment-scan-retry.job.js';
+import {
+  ATTACHMENT_NOTIFICATIONS,
+  AttachmentScanQueue,
+} from './attachments/attachment-scan.queue.js';
+import { AttachmentScanService } from './attachments/attachment-scan.service.js';
+import { MalwareScanner } from './attachments/malware-scanner.js';
+import { malwareScanner } from './attachments/malware-scanner.factory.js';
 import { AttachmentsController } from './attachments/attachments.controller.js';
 import { AttachmentsRegistry } from './attachments/attachments.registry.js';
 import { AttachmentsService } from './attachments/attachments.service.js';
@@ -202,6 +211,9 @@ import {
 } from './approvals/approval-admin.controllers.js';
 import { ApprovalDelegationsService } from './approvals/approval-delegations.service.js';
 import { ApprovalEngine } from './approvals/approval-engine.service.js';
+import { ModeGuard } from './mode/mode.guard.js';
+import { ModeService } from './mode/mode.service.js';
+import { MODE_SETTINGS } from './mode/mode.setting.js';
 import { APPROVAL_NOTIFICATIONS } from './approvals/approval-events.js';
 import { APPROVAL_SETTINGS } from './approvals/approval-settings.js';
 import { ApprovalPoliciesService } from './approvals/approval-policies.service.js';
@@ -449,6 +461,7 @@ export class PlatformModule {
             notifications: [
               ...COMMENT_NOTIFICATIONS,
               ...APPROVAL_NOTIFICATIONS,
+              ...ATTACHMENT_NOTIFICATIONS,
               // Development only, with the route that sends it.
               ...inDevelopment(...TEST_NOTIFICATIONS),
               ...(options.notifications ?? []),
@@ -456,6 +469,7 @@ export class PlatformModule {
             // And its own settings (IAM's auth policies, numbering's, approvals' delegation limit).
             settings: [
               ...AUTH_SETTINGS,
+              ...MODE_SETTINGS,
               ...NUMBERING_SETTINGS,
               ...APPROVAL_SETTINGS,
               ...MESSAGING_SETTINGS,
@@ -509,6 +523,9 @@ export class PlatformModule {
         OpsPolicy,
         // Which switches are on, for clients (GET /v1/features).
         FeaturesService,
+        // platform.mode / APP_MODE: read-only and maintenance (docs/settings.md).
+        ModeService,
+        { provide: APP_GUARD, useClass: ModeGuard },
         // socket.io gateway at /realtime; features inject it to push events.
         // REALTIME=off: the same token, pushes that do nothing, no gateway.
         switchedOn('REALTIME')
@@ -609,6 +626,16 @@ export class PlatformModule {
         NamingSeriesService,
         // Files attached to records: features register an AttachmentTarget.
         AttachmentsRegistry,
+        // Malware scanning of uploads (MALWARE_SCANNER, off by default): a queue job per upload.
+        {
+          provide: MalwareScanner,
+          inject: [ConfigService],
+          useFactory: malwareScanner,
+        },
+        AttachmentScanQueue,
+        AttachmentScanService,
+        AttachmentScanProcessor,
+        AttachmentScanRetryJob,
         AttachmentsService,
         AttachmentSweepJob,
         // PDF documents of records: features register a DocumentSource and call DocumentsService.request().

@@ -142,11 +142,3 @@ export function useListRefs(
     return sources;
   }, [kinds, tags.data, teams.data, me]);
 }
-
-/** A ref value's name, when known; undefined otherwise. */
-export function refLabel(
-  source: RefSource | undefined,
-  value: string,
-): string | undefined {
-  return source?.options.find((option) => option.value === value)?.label;
-}
