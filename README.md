@@ -179,4 +179,5 @@ Releases and the roadmap
 
 ## License
 
-[MIT](LICENSE).
+[PolyForm Noncommercial 1.0.0](LICENSE): free for personal, research, education and other
+noncommercial use. Commercial use needs a separate licence from the copyright holder.

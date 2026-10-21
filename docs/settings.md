@@ -107,6 +107,11 @@ Operators only (`Access.manageSettings` in the operator tenant,
   `source: platform` when it decides) and whether the caller may change it
   (`canEditPlatform`).
 
+The deployment's default tenant limits are settings of this kind
+(`quotas.maxMembers`, `quotas.maxApiClients`, `quotas.maxStorageBytes`,
+`quotas.maxRecords`: no tenant scope, so only the operators' platform value
+sets them; [tenancy](tenancy.md#quotas)).
+
 ## Maintenance and read-only mode (`platform.mode`, `APP_MODE`)
 
 During a risky migration, a restore or an incident the deployment can be
