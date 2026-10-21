@@ -115,6 +115,7 @@ rollback is one command).
 | Rolling (Compose)    | `pnpm deploy:rolling`    | deploy the previous `APP_IMAGE`                                      | one host, the default: new replicas start beside the old, which stop once the new are healthy ([deploy-rolling.md](deploy-rolling.md))   |
 | Blue-green (Compose) | `pnpm deploy:blue-green` | `pnpm deploy:blue-green rollback`: instant while the old colour runs | one host, an instant switch back matters, 2× the API's resources during a deploy are fine ([deploy-blue-green.md](deploy-blue-green.md)) |
 | Docker Swarm         | `pnpm deploy:swarm`      | automatic on a failed health check, or `pnpm deploy:swarm rollback`  | one or more nodes, updates and rollback by the orchestrator ([deploy-swarm.md](deploy-swarm.md))                                         |
+| Kubernetes (Helm)    | `helm upgrade --install` | `helm rollback`; the migrate Job is a pre-upgrade hook               | a managed cluster ([deploy-kubernetes.md](deploy-kubernetes.md))                                                                         |
 
 A plain `docker compose up -d --build` is not one of them: it recreates the
 replicas in place (below, what Caddy does about that).
@@ -384,12 +385,42 @@ Compose scales on one host. Beyond it:
   `DATABASE_OWNER_URL` for the admin account that owns the database:
   [Database roles](#database-roles)), with backups and point-in-time
   recovery; drop `postgres` and `backup` from the stack.
+- **Read replicas:** not built in ([Read replicas](#read-replicas)).
 - **Redis:** managed, or Sentinel (`REDIS_SENTINELS=host:26379,…`,
   `REDIS_SENTINEL_NAME`); drop `redis` from the stack.
 - **Files:** S3 or R2 (`STORAGE_DRIVER=s3`, `S3_*`).
 - **Hosts:** an orchestrator (Swarm, Kubernetes, a managed platform) runs the
   same image with the same three commands. socket.io across hosts needs
   `transports: ['websocket']` on clients, or sticky sessions.
+
+### Read replicas
+
+**The app has no read/write split: every query, lists and reports included,
+goes to the primary** (`DATABASE_URL`). A `DATABASE_READ_URL` is not
+implemented, on purpose, because the part that makes it sound is not small:
+
+- Drizzle supports it (`withReplicas(primary, [replica])` from
+  `drizzle-orm/pg-core`, reads to a replica, writes and `transaction()` to the
+  primary), but the app's pool is `TenantPool` (`core/tenancy`), which sends the
+  tenant's settings with every `begin`. A replica needs its own `TenantPool`
+  (and the maintenance role's pool beside it), and the services run their
+  queries through the transaction host (`database(this.txHost)`), so each one
+  would have to be told, query by query, which pool it may read from.
+- **Replication lag breaks read-your-writes:** a user creates a record, the
+  list that follows reads a replica that has not seen it. Lists and reports
+  would each need a decision: read the primary after a write by the same user,
+  or accept the lag (a report, an export, an analytics aggregate usually can).
+- Row-level security works on a replica (the policies replicate, and
+  `set_config(…, true)` is allowed in a read-only transaction), so the tenant
+  wall is not the obstacle.
+
+**When you need it today:** a managed PostgreSQL's read replica, pointed at by
+the scheduled reports and exports only (the heavy, lag-tolerant reads), is the
+change to make: a second pool for the services behind them, with
+`DATABASE_READ_URL` unset meaning the primary. Not built here because it needs a
+replica to test against and a decision per query that only a real workload can
+make. For more reads before that: PgBouncer ([above](#pgbouncer)), indexes
+(`EXPLAIN` the slow list), a larger primary.
 
 ## Database roles
 
@@ -556,10 +587,99 @@ When a process's pool runs short:
   requests are refused; `pg_stat_activity.application_name` names the process
   (`<SERVICE_NAME>:api`, `:worker`).
 
-Raising the pools: more API replicas need a smaller pool each, or PgBouncer
-(transaction mode) in front of PostgreSQL, or a larger `max_connections`
-(each connection costs PostgreSQL memory). Workers need a pool at least as
-large as what they run at once (workflow steps, job concurrency).
+Raising the pools: more API replicas need a smaller pool each, or
+[PgBouncer](#pgbouncer) (transaction mode) in front of PostgreSQL, or a larger
+`max_connections` (each connection costs PostgreSQL memory). Workers need a
+pool at least as large as what they run at once (workflow steps, job
+concurrency).
+
+### PgBouncer
+
+Optional, off by default: `compose.pgbouncer.yaml` puts PgBouncer between
+the app and PostgreSQL, in **transaction pooling** mode, so the apps' many
+client connections share a few server connections. Worth it when
+`API_REPLICAS × API_DATABASE_POOL_MAX + WORKER_REPLICAS × WORKER_DATABASE_POOL_MAX`
+no longer fits under `max_connections` (the sum above), or many replicas each
+keep a mostly idle pool. One host with two replicas does not need it.
+
+```bash
+# .env: add the file to COMPOSE_FILE
+COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.pgbouncer.yaml
+docker compose up -d
+```
+
+- **What goes through it:** `api` and `worker` (`DATABASE_URL`, and the
+  worker's `DATABASE_MAINTENANCE_URL`): the overlay points both at host
+  `pgbouncer`. **What does not:** `migrate` (the owner: DDL, the role
+  grants), `backup` (`pg_dump` holds one snapshot across statements, which a
+  transaction-pooled connection cannot) and the monitoring exporter. They
+  keep their direct connections, and count against `max_connections` as
+  before.
+- **Pool sizes per role** (`pgbouncer/entrypoint.sh` writes the
+  configuration from the environment): `PGBOUNCER_POOL_SIZE` (20) server
+  connections for the app role, `PGBOUNCER_MAINTENANCE_POOL_SIZE` (3) for the
+  maintenance role, `PGBOUNCER_MAX_CLIENT_CONN` (400) client connections,
+  `PGBOUNCER_QUERY_WAIT_TIMEOUT` (10 s: how long a client waits for a server
+  connection). The new sum: `PGBOUNCER_POOL_SIZE +
+PGBOUNCER_MAINTENANCE_POOL_SIZE + migrate/backup/exporter < POSTGRES_MAX_CONNECTIONS − 10`.
+  The apps' own pools (`API_DATABASE_POOL_MAX`, `WORKER_DATABASE_POOL_MAX`)
+  now size how many requests run at once, no longer how many PostgreSQL
+  connections they cost; `max_client_conn` must hold their sum, workers'
+  maintenance pools (3 each) included.
+- **The image:** `edoburu/pgbouncer` (Alpine, rebuilt for each PgBouncer
+  release; PgBouncer publishes no image of its own), pinned by tag and digest;
+  Dependabot's `docker-compose` updater raises both. Resources:
+  `PGBOUNCER_CPUS` (0.5) and `PGBOUNCER_MEMORY` (128M).
+- **Passwords in the environment only:** the overlay builds the URLs from
+  `POSTGRES_APP_PASSWORD` and `POSTGRES_MAINTENANCE_PASSWORD`, as
+  compose.prod.yaml does. With `DATABASE_URL_FILE` secrets, change the host in
+  those files to `pgbouncer` yourself (and give the `pgbouncer` service the
+  passwords). A managed PostgreSQL behind it: `PGBOUNCER_DB_HOST` and
+  `PGBOUNCER_DB_PORT`, and leave `DATABASE_URL` pointing at `pgbouncer`.
+
+**What transaction pooling takes away, and what the app does about it**
+(read from the code, and exercised by `pgbouncer/check.sh`):
+
+| Session feature                                                                         | In this app                                                                                                         | Through PgBouncer                                                                                                                                                                                                                   |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tenant settings (`app.tenant_id`, `app.read_tenants`, [tenancy.md](tenancy.md))         | `set_config(…, true)`: local to the transaction, sent with `begin` (`core/tenancy/tenant-pool.ts`)                  | Works, and it is the reason it can: nothing survives `COMMIT`, so a server connection never carries a tenant to the next client. A plain `SET` or `set_config(…, false)` would leak between clients: never add one                  |
+| Advisory locks (views, approvals, revisions, sequences, tags, the seeders, migrations…) | all `pg_advisory_xact_lock`: released at `COMMIT`                                                                   | Works. A session-level `pg_advisory_lock` would not (it stays on a server connection another client reuses): use the `xact` form                                                                                                    |
+| `LocksModule` (`@nestjs/locks`)                                                         | rows in a `locks` table with an owner and an expiry (`core/locks/drizzle-lock.store.ts`), not advisory locks        | Works                                                                                                                                                                                                                               |
+| Prepared statements                                                                     | node-postgres sends parameterized queries unnamed; the app prepares nothing by name                                 | Works. PgBouncer 1.21+ also rewrites named protocol-level statements (`max_prepared_statements`, 200); SQL-level `PREPARE` is not supported                                                                                         |
+| `statement_timeout`, `idle_in_transaction_session_timeout`                              | node-postgres sends both as **startup parameters** (`DATABASE_STATEMENT_TIMEOUT_MS`, `DATABASE_IDLE_TX_TIMEOUT_MS`) | PgBouncer refuses unknown startup parameters. `track_extra_parameters` lists both, so PgBouncer sets them on whichever server connection serves the client. Without that line the limits would be dropped or the connection refused |
+| `application_name`                                                                      | `<SERVICE_NAME>:api`, `:worker` in `pg_stat_activity`                                                               | Tracked by default, but `pg_stat_activity` shows the **PgBouncer** connections: the name of whoever used it last, not a per-process count                                                                                           |
+| `LISTEN`/`NOTIFY`, `WITH HOLD` cursors, session-level `SET`                             | not used (queues are in Redis; the outbox relay polls)                                                              | Would not work in transaction mode; a feature needing them connects to PostgreSQL directly                                                                                                                                          |
+
+**Caveats, honestly:**
+
+- **Errors when the pool is full differ.** The app's own pool answers
+  `503 database_busy` after `DATABASE_POOL_TIMEOUT_MS`. A request that gets
+  past it but waits at PgBouncer longer than `PGBOUNCER_QUERY_WAIT_TIMEOUT`
+  fails with a database error the app does not map to `database_busy` (a 500).
+  Keep `PGBOUNCER_POOL_SIZE` large enough for the apps' pools' busy peak, and
+  watch PgBouncer's log for `query_wait_timeout`.
+- **`GET /health`'s `databasePool` and the pool metrics** describe the
+  apps' pools, not PgBouncer's; PgBouncer's own statistics (`SHOW POOLS`)
+  are not exported by this stack (its admin console is off: `admin_users` is
+  empty).
+- **One more hop:** a few hundred microseconds per query, and a service that
+  must be up: the apps wait for it (`depends_on`) and fail their queries while
+  it restarts.
+- **No TLS inside the Compose network** between the apps, PgBouncer and
+  PostgreSQL, as without it. Across hosts, configure `client_tls_*` and
+  `server_tls_*` in `pgbouncer/entrypoint.sh`.
+- **A schema change that alters a result's type** can make PgBouncer's cached
+  statements fail with "cached plan must not change result type"; the
+  app prepares nothing by name, so it does not apply today. If you add a
+  driver that does, `RECONNECT` on the admin console clears it.
+- **Tested once, in CI** (`.github/workflows/pgbouncer.yml`, on changes to
+  these files and the database code, and on demand): the load test's
+  stack with the overlay on, the k6 scenarios (sign-in, tenant-scoped list,
+  create, export) through PgBouncer, then `pgbouncer/check.sh`: the server
+  connections stay inside the pool, the two limits take effect, a tenant
+  setting and an advisory lock are gone after `COMMIT`. Locally:
+  `LOADTEST_PGBOUNCER=on loadtest/run.sh up && pgbouncer/check.sh` after
+  `loadtest/run.sh run`, then `LOADTEST_PGBOUNCER=on loadtest/run.sh down`.
 
 ## Log redaction
 
@@ -1138,6 +1258,46 @@ exec backup sh -c 'PGDATABASE=restore_check restore db-<time>.dump --yes'`
 loads it into a database `restore_check` beside the app's. Look at it
 (`docker compose exec backup psql -d restore_check -c '\dt'`), then
 `docker compose exec backup dropdb restore_check`.
+
+### Restore drill
+
+A backup nobody has restored is a hope. `scripts/restore-drill.sh` proves the
+whole chain on a throwaway stack, with the same scripts and the same
+procedure a real recovery uses (the load test's stack: `loadtest/run.sh`,
+`compose.loadtest.yaml` on top, its own Compose project and generated
+settings; the repository's `.env` is never read):
+
+1. start the production stack and the `backup` service; sign in as the seeded
+   administrator and write 12 notes;
+2. stop `api` and `worker`, count the rows of **every table**, take a backup
+   (`backup`, the scheduled run's own script);
+3. destroy PostgreSQL's volume: a new, empty cluster;
+4. `restore` the dump into it ([Restoring](#restoring)), then count again: the
+   two lists must be identical;
+5. start the stack (`migrate` grants the app role what the dump skipped), sign
+   in again and read the notes back through the API;
+6. report the durations and remove the stack.
+
+It fails loudly at the first step that does not work (the stack's logs are
+printed first) and when backup plus restore take longer than
+`RESTORE_DRILL_MAX_SECONDS` (600). `RESTORE_DRILL_PROJECT` names the Compose
+project (`loadtest-<name>` only: it removes the project's volumes),
+`RESTORE_DRILL_KEEP=on` leaves the stack running, `APP_IMAGE` skips the build.
+It needs Docker: `scripts/restore-drill.sh` locally, from the repository root.
+
+**In CI** (`.github/workflows/restore-drill.yml`): weekly (Mondays 03:17 UTC),
+on demand (`workflow_dispatch`), and on pull requests that touch `backup/`,
+the drill or the load test's stack. The durations are in the job summary. A
+failed run is the alert: GitHub mails the repository's watchers and the run
+shows red.
+
+**What it does not prove:** the off-host copy (no `BACKUP_S3_BUCKET` in a
+throwaway stack: `backup-fetch` from your bucket needs your keys, so try it
+by hand now and then), the uploaded files' archive (written, not extracted
+and compared), or a restore of **your** data's size: the drill's database is
+a few hundred rows, so its durations show the procedure works, not how long
+yours takes. Time a restore of a real dump once and set
+`RESTORE_DRILL_MAX_SECONDS` and your own expectations from that.
 
 ## CI
 
