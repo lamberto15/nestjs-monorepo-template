@@ -19,27 +19,20 @@
       "failed": "失败",
       "skipped": "跳过（未找到，或不属于你）"
     },
-    "more_one": "还有 {{count}} 条。",
     "more_other": "还有 {{count}} 条。",
     "close": "关闭"
   },
   "confirm": {
     "delete": {
-      "title_one": "删除 {{count}} 条记录？",
       "title_other": "删除 {{count}} 条记录？",
-      "description_one": "它会进入回收站，可以恢复。",
       "description_other": "它们会进入回收站，可以恢复。"
     },
     "restore": {
-      "title_one": "恢复 {{count}} 条记录？",
       "title_other": "恢复 {{count}} 条记录？",
-      "description_one": "它会从回收站恢复。",
       "description_other": "它们会从回收站恢复。"
     },
     "update": {
-      "title_one": "修改 {{count}} 条记录？",
       "title_other": "修改 {{count}} 条记录？",
-      "description_one": "修改将应用于它。",
       "description_other": "修改将应用于每一条。"
     }
   }

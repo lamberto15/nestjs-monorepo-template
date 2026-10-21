@@ -7,7 +7,6 @@
   "error": "无法加载报告。",
   "retry": "重试",
   "never": "尚未运行",
-  "recipients_one": "{{count}} 位收件人",
   "recipients_other": "{{count}} 位收件人",
   "toggle": "{{name}} 已启用",
   "formats": {

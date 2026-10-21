@@ -287,6 +287,10 @@ jobs:
       # The release notes' generator (tools/release/, docs/releases.md): git only.
       - name: The release notes' tests
         run: node --test tools/release/notes.test.mjs
+      # The translation parity check's tests (tools/i18n/); the check itself
+      # runs in `pnpm lint`.
+      - name: The i18n check's tests
+        run: node --test tools/i18n/check.test.mjs
 
   # The unit tests in parallel (Vitest's --shard): the API's in 3 shards, the
   # web app's in 3 (jsdom, the run's longest at 3 min whole), the packages'
