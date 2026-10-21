@@ -52,7 +52,7 @@ if [ "$captcha" != off ] && [ "$captcha" != always ]; then
 fi
 
 pgbouncer=${LOADTEST_PGBOUNCER:-off}
-if [ "$pgbouncer" != off ] && [ "$pgbouncer" != on ]; then
+if [[ "$pgbouncer" != off ]] && [[ "$pgbouncer" != on ]]; then
   echo "LOADTEST_PGBOUNCER=$pgbouncer: on or off" >&2
   exit 2
 fi
@@ -98,7 +98,7 @@ fi
 # overlay: Caddy publishing 80 and 443, the limits not raised).
 compose() {
   local files=(-f compose.yaml -f compose.prod.yaml -f compose.loadtest.yaml)
-  if [ "$pgbouncer" = on ]; then files+=(-f compose.pgbouncer.yaml); fi
+  if [[ "$pgbouncer" = on ]]; then files+=(-f compose.pgbouncer.yaml); fi
   env -u COMPOSE_FILE -u COMPOSE_PROJECT_NAME \
     API_REPLICAS="$replicas" LOADTEST_CAPTCHA="$captcha" docker compose \
     --project-name "$project" --env-file "$env_file" \

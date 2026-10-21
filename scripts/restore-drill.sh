@@ -104,12 +104,12 @@ api_script() {
 summary=${GITHUB_STEP_SUMMARY:-/dev/stdout}
 cleanup() {
   code=$?
-  if [ "$code" -ne 0 ]; then
+  if [[ "$code" -ne 0 ]]; then
     echo "The drill failed (exit $code). The stack, for the log:" >&2
     compose ps -a >&2 || true
     compose logs --tail 80 backup postgres migrate api >&2 || true
   fi
-  if [ "$keep" != on ]; then run down || true; fi
+  if [[ "$keep" != on ]]; then run down || true; fi
   exit "$code"
 }
 trap cleanup EXIT
@@ -131,7 +131,7 @@ compose stop api worker
 before=$(count_rows)
 head -n 40 <<< "$before"
 tables=$(echo "$before" | wc -l)
-if [ "$tables" -lt 20 ]; then
+if [[ "$tables" -lt 20 ]]; then
   echo "Only $tables tables counted: the check would prove nothing." >&2
   exit 1
 fi
@@ -141,7 +141,7 @@ backup_start=$(now)
 compose exec -T backup backup
 backup_seconds=$(($(now) - backup_start))
 dump=$(compose exec -T backup sh -c 'ls -1t /backups/db-*.dump | head -n 1' | tr -d '\r')
-[ -n "$dump" ] || {
+[[ -n "$dump" ]] || {
   echo "No dump in /backups." >&2
   exit 1
 }
@@ -186,7 +186,7 @@ total_seconds=$(($(now) - drill_start))
   echo "$tables tables restored with identical row counts; the administrator signed in and read back $(echo "$note_ids" | tr ',' '\n' | wc -l) notes."
 } >> "$summary"
 
-if [ $((backup_seconds + restore_seconds)) -gt "$max_seconds" ]; then
+if [[ $((backup_seconds + restore_seconds)) -gt "$max_seconds" ]]; then
   echo "Backup and restore took $((backup_seconds + restore_seconds))s, over RESTORE_DRILL_MAX_SECONDS=$max_seconds." >&2
   exit 1
 fi

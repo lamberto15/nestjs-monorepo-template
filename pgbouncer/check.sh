@@ -21,7 +21,7 @@ pool=${PGBOUNCER_POOL_SIZE:-20}
 servers=$(compose exec -T postgres psql --no-psqlrc -U app -d app -At \
   -c "SELECT count(*) FROM pg_stat_activity WHERE usename = 'app_runtime'")
 echo "Server connections of app_runtime: $servers (pool $pool)"
-if [ "$servers" -lt 1 ] || [ "$servers" -gt "$pool" ]; then
+if [[ "$servers" -lt 1 ]] || [[ "$servers" -gt "$pool" ]]; then
   echo "Expected 1 to $pool: the api and worker are not pooled by PgBouncer." >&2
   exit 1
 fi
