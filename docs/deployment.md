@@ -6,9 +6,18 @@
 pnpm setup --target production          # asks, writes .env (chmod 600), every secret generated
 # or by hand:
 cp env.example .env && chmod 600 .env   # then fill it (below)
+pnpm env:check                    # names missing from .env, REQUIRED ones empty (exits 1)
 docker compose up -d --build      # .env sets COMPOSE_FILE=compose.yaml:compose.prod.yaml
 docker compose ps
 ```
+
+`pnpm env:check` compares `.env` with `env.example` by name, and reads nothing
+else: Compose has defaults for most variables, so `docker compose config`
+passes with a stale `.env` and the app then runs with values you never saw.
+Run it before every `docker compose up` that follows an update of the
+template; a re-run of `pnpm setup --target production` adds the missing
+variables with the template's defaults
+([configuration.md](configuration.md#first-setup-pnpm-setup)).
 
 Filling `.env` (each step is commented in `env.example`):
 
@@ -1791,7 +1800,7 @@ merged migration fails it already):
 
 | Job                      | What                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `check`                  | lint, build, `client:check`, `db:check`, migrations and the app role's bootstrap on a real PostgreSQL (twice: the second run changes nothing); lint and build are every package's (`turbo run`), the web app's included. The Caddy image, which carries the web app, is `caddy-image`'s |
+| `check`                  | lint, build, `client:check`, `db:check`, migrations and the app role's bootstrap on a real PostgreSQL (twice: the second run changes nothing), `pnpm env:check --templates` (the env templates: no variable set twice, the REQUIRED ones named); lint and build are every package's (`turbo run`), the web app's included. The Caddy image, which carries the web app, is `caddy-image`'s |
 | `changes`                | what a pull request touched (the API's file list), so `caddy-image` and `gotenberg-image` run on pull requests only for the paths they read; main, tags and the nightly run build both |
 | `unit`                   | the unit tests beside `check`: the API's in 3 shards (`--shard=1/3`..`3/3`), the web app's in 3, the packages' in one job |
 | `e2e`                    | the e2e tests in 6 shards (`--shard=1/6`..`6/6`), each on its own runner with PostgreSQL and Redis, beside `check`; every app runs as the app role, made by an owner that is no superuser ([Database roles](#database-roles)) |

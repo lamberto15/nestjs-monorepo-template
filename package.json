@@ -36,6 +36,7 @@
     "client:publish": "turbo run build --filter=@nestjs-monorepo-template/api-client && changeset publish",
     "release:notes": "node tools/release/notes.mjs",
     "setup": "node tools/setup/setup.mjs",
+    "env:check": "node tools/setup/envcheck.mjs",
     "deploy:rolling": "node tools/deploy/rolling.mjs",
     "feature:add": "node tools/feature/add.mjs",
     "feature:remove": "node tools/feature/remove.mjs",
