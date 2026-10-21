@@ -369,6 +369,24 @@ describe('OpenAPI document (e2e)', () => {
     expect(Object.keys(body.properties)).toEqual(['name', 'dryRun', 'file']);
   });
 
+  it('documents the unsubscribe link twice, both public: the POST unsubscribes, the GET only says what it stops', () => {
+    const route = document.paths['/v1/notifications/unsubscribe/{token}']!;
+    expect(Object.keys(route).sort()).toEqual(['get', 'post']);
+    for (const operation of Object.values(route)) {
+      expect(operation.security ?? []).toEqual([]);
+      expect(operation.responses['400']).toBeDefined();
+    }
+    expect(route.post!.responses['204']).toBeDefined();
+    const answer =
+      route.get!.responses['200'].content['application/json'].schema;
+    expect(
+      answer.oneOf.map(
+        (shape: { properties: { kind: { enum: string[] } } }) =>
+          shape.properties.kind.enum[0],
+      ),
+    ).toEqual(['type', 'digest']);
+  });
+
   it('pre-fills Idempotency-Key with "generate", which Swagger UI swaps for a fresh key', async () => {
     const header = document.paths['/v1/webhook-endpoints'].post.parameters.find(
       (parameter: { name: string }) => parameter.name === 'Idempotency-Key',

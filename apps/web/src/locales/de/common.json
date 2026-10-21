@@ -122,6 +122,12 @@
       "title": "E-Mails abbestellen",
       "description": "Bestätigen Sie, dass Sie diese E-Mail nicht mehr erhalten möchten",
       "hint": "Sie erhalten diese Art von E-Mail nicht mehr. E-Mails, die wir zu Ihrem Konto und dessen Sicherheit senden müssen, erreichen Sie weiterhin. Was Sie erhalten, legen Sie in Ihren Benachrichtigungseinstellungen fest.",
+      "hintType": "Sie erhalten die E-Mails „{{label}}“ nicht mehr. E-Mails, die wir zu Ihrem Konto und dessen Sicherheit senden müssen, erreichen Sie weiterhin. Was Sie erhalten, legen Sie in Ihren Benachrichtigungseinstellungen fest.",
+      "hintDigest": "Sie erhalten die E-Mails, die Sie als Zusammenfassung bekommen ({{modes, list}}), nicht mehr. E-Mails, die wir zu Ihrem Konto und dessen Sicherheit senden müssen, erreichen Sie weiterhin. Was Sie erhalten, legen Sie in Ihren Benachrichtigungseinstellungen fest.",
+      "modes": {
+        "hourly": "stündlich",
+        "daily": "täglich"
+      },
       "submit": "Abbestellen",
       "done": "Sie haben die E-Mails abbestellt: Wir senden Ihnen diese Art von E-Mail nicht mehr.",
       "invalid": "Dieser Link ist ungültig oder abgelaufen. Öffnen Sie ihn erneut aus der E-Mail oder legen Sie in Ihren Benachrichtigungseinstellungen fest, was Sie erhalten."

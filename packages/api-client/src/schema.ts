@@ -927,7 +927,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Which mail an unsubscribe link stops
+         * @description No sign-in, and read-only: it changes and records nothing, so a mail scanner that follows the link does no harm. Answers what the token of the mail's unsubscribe link stops: a notification type (`kind: type`, its `label` in the request's language) or a digest (`kind: digest`, its `modes`). Never the person's email or id. A forged, expired or foreign token, or a gone account, is the same 400 the POST gives.
+         */
+        get: operations["NotificationUnsubscribeController_describe_v1"];
         put?: never;
         /**
          * One-click unsubscribe from notification mail
@@ -9626,6 +9630,44 @@ export interface operations {
             };
             /** @description Not yours, or gone. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotificationUnsubscribeController_describe_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        kind: "type";
+                        /** @description What the notification type is called, in the request's language. Null when the link would change nothing (the type is gone, or mandatory): the client then speaks generally. */
+                        label: string | null;
+                    } | {
+                        /** @enum {string} */
+                        kind: "digest";
+                        /** @description The digests the link stands for: every type the person gets in these modes. */
+                        modes: ("hourly" | "daily")[];
+                    };
+                };
+            };
+            /** @description The link is invalid or expired, or the account is gone: the link errors share one answer, the POST included. */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -100,6 +100,7 @@ same tenant only (or among the account's own).
 | `DELETE /v1/notifications/{id}` | removes one |
 | `GET /v1/notifications/types` | the types: label, `mandatory`, the defaults of the channels the caller may set |
 | `GET /v1/notifications/preferences` | the caller's effective settings per type |
+| `GET /v1/notifications/unsubscribe/{token}` | public, read-only; what a mail's unsubscribe link would stop (below): `{ kind: 'type', label }` or `{ kind: 'digest', modes }`; 400 for an invalid link |
 | `POST /v1/notifications/unsubscribe/{token}` | public; the one-click unsubscribe of a mail's `List-Unsubscribe` link (below); 204 |
 | `PUT /v1/notifications/preferences` | replaces the caller's overrides: `{ "note.published": { "email": "daily" } }`; a type or channel left out goes back to its default; a mandatory type refuses `false`; audited (`notificationPreferences.updated`) |
 | `POST /v1/notifications/test` | development and tests only: sends the caller a `system.test` notification, answers `{ id }` |
@@ -137,8 +138,9 @@ same tenant only (or among the account's own).
   every notification and digest mail carries `List-Unsubscribe: <https://…/v1/notifications/unsubscribe/{token}>`
   (and a `mailto:` when `MAIL_UNSUBSCRIBE_MAILTO` is set), `List-Unsubscribe-Post: List-Unsubscribe=One-Click`,
   and an "Unsubscribe" link in the footer (to `WEB_URL/unsubscribe?token=…`, the web app's
-  `unsubscribe` page, no sign-in: a button POSTs the token; a GET changes nothing, since mail
-  scanners follow links). The mail client
+  `unsubscribe` page, no sign-in: it asks the read-only `GET` below what the link stops and
+  shows it above a button, and only that button POSTs the token; a GET changes nothing, since
+  mail scanners follow links). The mail client
   POSTs the form `List-Unsubscribe=One-Click` to the https URL, with no sign-in: the
   `{token}` is a JWT (`notification-unsubscribe.ts`) signed with a key derived
   from `JWT_SECRET` (HKDF, labelled, own audience and `typ`), naming the user and
@@ -149,7 +151,18 @@ same tenant only (or among the account's own).
   nothing. **Essential mail is excluded**: a `mandatory` type's mail carries
   no headers and no link, and its token would not switch it off. Every refusal
   (forged, expired, account gone) is the same 400, as a wrong body is a 400
-  `validation_failed`. The headers need an https `APP_URL` (the RFC says so);
+  `validation_failed`.
+  **`GET /v1/notifications/unsubscribe/{token}`** only describes the link, for the
+  page above its button (and a mail scanner that follows it): public, it writes nothing,
+  records no audit entry and spends nothing (the token is not single-use), and it is
+  throttled like the POST (the app's default per-address limit). It answers
+  `{ kind: 'type', label }`, the notification type's label in the request's language
+  (`label` is null when the POST would change nothing: a `mandatory` type, or one no
+  longer declared), or `{ kind: 'digest', modes }`, the digests the link stands for
+  (`hourly`, `daily`). Never the user's email or id. It checks the token exactly as the
+  POST does (the same code, `NotificationUnsubscribeService.resolve`), so a forged,
+  expired, wrong-purpose or gone-account token is the same single 400 from both: no
+  way to tell them apart. The web page falls back to its generic text on any failure. The headers need an https `APP_URL` (the RFC says so);
   with http (development) mail has the footer link only. See
   [deliverability.md](deliverability.md), "Unsubscribe headers (RFC 8058)".
 - **Export**: `POST /v1/data/exports { name: 'notifications' }` (CSV, JSON
