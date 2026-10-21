@@ -12,6 +12,7 @@ import type { UserPrincipal } from '../../iam/auth/principal.js';
 import { SettingsService } from '../settings/settings.service.js';
 import {
   AUTH_ALLOW_BREAK_GLASS,
+  AUTH_PASSWORD_HISTORY,
   AUTH_PASSWORD_MIN_LENGTH,
   AUTH_REQUIRE_MFA,
 } from './auth-settings.js';
@@ -91,6 +92,12 @@ export class SettingsAuthPolicy implements AuthPolicySource {
   passwordMinLength(tenantId: string): Promise<number | undefined> {
     return this.tenancy.run(tenantId, () =>
       this.settings.get(AUTH_PASSWORD_MIN_LENGTH),
+    );
+  }
+
+  passwordHistory(tenantId: string): Promise<number | undefined> {
+    return this.tenancy.run(tenantId, () =>
+      this.settings.get(AUTH_PASSWORD_HISTORY),
     );
   }
 

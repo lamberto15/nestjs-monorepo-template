@@ -28886,6 +28886,9 @@
           },
           "400": {
             "description": "Unknown, used or expired link; or `password_breached`: the password is in known data breaches (the link still works)."
+          },
+          "422": {
+            "description": "`password_reused`: one of the account's last passwords (`auth.passwordHistory`); the link still works."
           }
         },
         "summary": "Set a new password with a reset or invitation link",
@@ -28933,6 +28936,9 @@
           },
           "403": {
             "description": "Wrong current password, or an administrator acting as you.\n\n`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "422": {
+            "description": "`password_reused`: the current password or one of the last ones (`auth.passwordHistory`)."
           }
         },
         "security": [

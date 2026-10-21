@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  PASSWORD_HISTORY_LIMIT,
   PASSWORD_MIN_LENGTH,
   PASSWORD_MIN_LENGTH_LIMIT,
 } from '../../iam/auth/auth-policy.js';
@@ -43,6 +44,20 @@ export const AUTH_PASSWORD_MIN_LENGTH = setting({
 });
 
 /**
+ * How many of an account's last passwords a new one may not repeat (the
+ * current one counts): 0, the default, is off. Only hashes are kept, and
+ * only while it is on. A person in several tenants meets the strictest.
+ */
+export const AUTH_PASSWORD_HISTORY = setting({
+  key: 'auth.passwordHistory',
+  label: 'Password history',
+  description: `How many of an account's last passwords can't be used again (0 to ${PASSWORD_HISTORY_LIMIT}, 0 is off): a change or a reset with one of them is refused.`,
+  schema: z.number().int().min(0).max(PASSWORD_HISTORY_LIMIT),
+  default: 0,
+  public: false,
+});
+
+/**
  * Whether the deployment's operators may open this tenant with a
  * break-glass grant (docs/tenancy.md, "Break-glass"): read only, an hour
  * at most, a reason its administrators are told. `false` opts the tenant
@@ -64,5 +79,6 @@ export const AUTH_ALLOW_BREAK_GLASS = setting({
 export const AUTH_SETTINGS = defineSettings([
   AUTH_REQUIRE_MFA,
   AUTH_PASSWORD_MIN_LENGTH,
+  AUTH_PASSWORD_HISTORY,
   AUTH_ALLOW_BREAK_GLASS,
 ]);

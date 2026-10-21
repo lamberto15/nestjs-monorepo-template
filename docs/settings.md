@@ -199,6 +199,7 @@ through its `AUTH_POLICY` port under the environment's ceiling
 | ------------------------ | ----------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `auth.requireMfa`        | boolean           | `tenant`, `team` (never `user`: nobody exempts themselves) | `false`                                                                                                                   |
 | `auth.passwordMinLength` | integer, 12 to 64 | `tenant`                                                   | `12`                                                                                                                      |
+| `auth.passwordHistory`   | integer, 0 to 24  | `tenant`                                                   | `0` (off; N: the account's last N passwords, the current one included, can't be reused: [auth.md](auth.md#passwords))   |
 | `auth.allowBreakGlass`   | boolean           | `tenant`                                                   | `true` (`false`: the operators' break-glass grants are refused, and running ones stop: [tenancy](tenancy.md#break-glass)) |
 
 - **`true` wins for `auth.requireMfa`**: it applies to a user when the

@@ -386,6 +386,13 @@
       "when": 1792576690863,
       "tag": "0054_petite_callisto",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1792579172496,
+      "tag": "0055_yielding_maddog",
+      "breakpoints": true
     }
   ]
 }

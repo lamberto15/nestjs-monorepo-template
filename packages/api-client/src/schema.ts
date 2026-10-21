@@ -17746,6 +17746,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description `password_reused`: one of the account's last passwords (`auth.passwordHistory`); the link still works. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     PasswordController_change_v1: {
@@ -17784,6 +17791,13 @@ export interface operations {
              *     `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user.
              */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `password_reused`: the current password or one of the last ones (`auth.passwordHistory`). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
