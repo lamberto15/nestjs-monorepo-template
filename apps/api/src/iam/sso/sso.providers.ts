@@ -1,6 +1,7 @@
 import { Resolver } from 'node:dns/promises';
 import { BullModule } from '@nestjs/bullmq';
 import { OidcSso } from './oidc-sso.service.js';
+import { SamlMetadataImport } from './saml-metadata.service.js';
 import { SamlSso } from './saml-sso.service.js';
 import { ScimController } from './scim/scim.controller.js';
 import { ScimGroupsService } from './scim/scim-groups.service.js';
@@ -42,6 +43,7 @@ export const ssoProviders = [
   SsoAccounts,
   OidcSso,
   SamlSso,
+  SamlMetadataImport,
   SsoConnectionGuard,
   SsoProcessor,
   ScimUsersService,

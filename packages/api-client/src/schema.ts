@@ -3658,6 +3658,26 @@ export interface paths {
         patch: operations["SsoController_updateConnection_v1"];
         trace?: never;
     };
+    "/v1/sso/saml/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read a SAML IdP's metadata from its URL (nothing is stored)
+         * @description Fetches the https URL (private and metadata addresses refused, no redirects, 10 s, 512 KiB) and answers the entity id, the HTTP-Redirect sign-on URL and the signing certificates, to create or change a SAML connection with. The metadata's own signature is not checked: its trust is the URL. 422 `saml_metadata_url_refused`, `saml_metadata_unreachable`, `saml_metadata_too_large`, `saml_metadata_invalid`.
+         */
+        post: operations["SsoController_importSamlMetadata_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sso/connections/{id}/refresh": {
         parameters: {
             query?: never;
@@ -22298,6 +22318,53 @@ export interface operations {
                 content?: never;
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SsoController_importSamlMetadata_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uri
+                     * @description The IdP's SAML metadata URL.
+                     */
+                    url: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        idpEntityId: string;
+                        idpSsoUrl: string;
+                        /** @description PEM, the signing certificates (one or two). */
+                        idpCertificates: string[];
+                    };
+                };
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

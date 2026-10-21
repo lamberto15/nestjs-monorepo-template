@@ -66,6 +66,15 @@ export function useCreateConnection() {
   });
 }
 
+/** Reads a SAML IdP's metadata (nothing is stored): the fields a connection takes. */
+export function useImportSamlMetadata() {
+  return useMutation({
+    meta: { errorToast: false },
+    mutationFn: (url: string) =>
+      unwrap(api.POST('/v1/sso/saml/metadata', { body: { url } })),
+  });
+}
+
 export function useUpdateConnection() {
   const refresh = useRefresh();
   return useMutation({
