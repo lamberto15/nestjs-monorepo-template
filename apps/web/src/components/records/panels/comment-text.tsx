@@ -46,6 +46,9 @@ export function splitMentions(
   return pieces;
 }
 
+/** At most this many people are mentioned in one comment (apps/api comments.service.ts). */
+const MAX_MENTIONS = 20;
+
 /**
  * The names for the `@user:<id>` mentions of a comment's body. The API names
  * the mentions it kept (`mentionNames`); one it dropped (the author's own, or
@@ -60,7 +63,11 @@ export function useMentionNames(
   names: Readonly<Record<string, string | null>> = {},
 ): Readonly<Record<string, string | null>> {
   const known = new Set(Object.keys(names).map((key) => key.toLowerCase()));
-  const unnamed = userKeysOf(body).filter((key) => !known.has(key));
+  // Only the first ones: the API keeps no more (MAX_MENTIONS), and a body
+  // of thousands of ids must not make every reader ask for thousands of names.
+  const unnamed = userKeysOf(body)
+    .slice(0, MAX_MENTIONS)
+    .filter((key) => !known.has(key));
   const asked = usePeopleNames(unnamed);
   const found = Object.fromEntries(
     unnamed.flatMap((key) => {

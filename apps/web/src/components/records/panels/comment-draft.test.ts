@@ -34,6 +34,27 @@ describe('toBody', () => {
     );
   });
 
+  it('converts where the API reads a mention: after a bracket, a quote, a comma', () => {
+    const picked = { [MAYA]: 'Maya Patel' };
+    expect(toBody('see (@Maya Patel) "@Maya Patel" ,@Maya Patel', picked)).toBe(
+      `see (@${MAYA}) "@${MAYA}" ,@${MAYA}`,
+    );
+    // Where it reads none: inside a word, an address or after a full stop.
+    expect(toBody('x@Maya Patel a.@Maya Patel @@Maya Patel', picked)).toBe(
+      'x@Maya Patel a.@Maya Patel @@Maya Patel',
+    );
+  });
+
+  it('leaves a label that starts a longer address or hyphenated word', () => {
+    const picked = { [MAYA]: 'sam' };
+    expect(
+      toBody('cc @sam.jones@corp.com, @sam@corp.com, @sam-lee', picked),
+    ).toBe('cc @sam.jones@corp.com, @sam@corp.com, @sam-lee');
+    expect(toBody('hi @sam. and @sam+', picked)).toBe(
+      `hi @${MAYA}. and @${MAYA}+`,
+    );
+  });
+
   it('reads a name with characters a pattern would', () => {
     const picked = { [MAYA]: 'Dr. (Maya) Patel+Co' };
     expect(toBody('hi @Dr. (Maya) Patel+Co!', picked)).toBe(`hi @${MAYA}!`);
@@ -72,6 +93,16 @@ describe('labelFor', () => {
     ).toBe('Alex Kim (000a2)');
   });
 
+  it('puts a name on one line, as the input does', () => {
+    expect(labelFor(MAYA, 'Dana\nKim', new Map())).toBe('Dana Kim');
+    expect(labelFor(MAYA, 'Dana  Kim', new Map())).toBe('Dana Kim');
+    // Two names that differ only in their breaks are one name.
+    const used = new Map([[OTTO, 'Dana Kim']]);
+    expect(labelFor(MAYA, 'Dana\nKim', used)).toBe(
+      `Dana Kim (${MAYA.slice(-4)})`,
+    );
+  });
+
   it('tells two people of one name apart, and keeps the toBody mapping exact', () => {
     const used = new Map([
       [ALEX_1, 'Alex Kim'],
@@ -101,6 +132,28 @@ describe('toDraft', () => {
 
   it('is the body itself without names', () => {
     expect(toDraft(`Hi @${MAYA}`)).toEqual({ text: `Hi @${MAYA}`, picked: {} });
+  });
+
+  it('leaves a mention in place where its name would not survive, and so keeps it', () => {
+    const names = { [MAYA]: 'Maya Patel' };
+    for (const body of [
+      `cc (@${MAYA}) now`,
+      `"@${MAYA}"`,
+      `x,@${MAYA}`,
+      `[@${MAYA}]`,
+      `a-@${MAYA}`,
+      `hi @${MAYA}.`,
+      // Not converted: the name would run into the next word, or the text
+      // is no mention for the API ("a.@id" follows a full stop).
+      `@${MAYA}x`,
+      `a.@${MAYA}`,
+      `@${MAYA}.com`,
+    ]) {
+      const { text, picked } = toDraft(body, names);
+      expect(toBody(text, picked)).toBe(body);
+    }
+    expect(toDraft(`@${MAYA}x`, names).text).toBe(`@${MAYA}x`);
+    expect(toDraft(`(@${MAYA})`, names).text).toBe('(@Maya Patel)');
   });
 
   it('round-trips through toBody, ids in lower case', () => {
