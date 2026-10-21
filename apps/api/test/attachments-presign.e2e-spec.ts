@@ -146,6 +146,18 @@ describe('direct uploads to the object store (e2e, STORAGE_DRIVER=s3)', () => {
         .where(eq(attachmentUploads.id, uploadId))
     )[0];
 
+  /** The attachment-sized objects on the disk that were not there in `before` (renditions have their own names). */
+  const newObjects = (before: ReadonlySet<string>) =>
+    disk
+      .keys()
+      .filter(
+        (key) =>
+          !before.has(key) &&
+          new RegExp(
+            `^tenants/${node.tenantId}/attachments/[0-9a-f-]{36}$`,
+          ).test(key),
+      );
+
   it('is offered: GET /v1/features says so', async () => {
     const features = (await node.admin().get('/v1/features').expect(200)).body;
     expect(features.presignedUploads).toBe(true);
@@ -216,13 +228,24 @@ describe('direct uploads to the object store (e2e, STORAGE_DRIVER=s3)', () => {
     });
     expect(completed.body).not.toHaveProperty('key');
 
-    // The attachment is the object that was PUT, in this tenant; the announcement is gone.
+    // The attachment is a copy of the object that was PUT, on a key of the
+    // server's own in this tenant (the signed URL reaches only the first).
     const [row] = await node.db
       .select()
       .from(attachments)
       .where(eq(attachments.id, completed.body.id));
-    expect(row).toMatchObject({ key: pending.key, tenantId: node.tenantId });
-    expect(await uploadRow(presigned.uploadId)).toBeUndefined();
+    expect(row).toMatchObject({ tenantId: node.tenantId });
+    expect(row!.key).toMatch(
+      new RegExp(`^tenants/${node.tenantId}/attachments/[0-9a-f-]{36}$`),
+    );
+    expect(row!.key).not.toBe(pending.key);
+    expect(disk.keys()).toContain(row!.key);
+    expect(disk.keys()).not.toContain(pending.key);
+    // The announcement is completed: it can't be again, and is not pending.
+    expect(await uploadRow(presigned.uploadId)).toMatchObject({
+      key: pending.key,
+      completedAt: expect.any(Date),
+    });
     // Audited like any upload, by the uploader, in the tenant.
     const entries = await node.auditEntries({
       action: 'attachment.added',
@@ -309,7 +332,7 @@ describe('direct uploads to the object store (e2e, STORAGE_DRIVER=s3)', () => {
       'text/plain',
       'eicar.txt',
     );
-    const key = (await uploadRow(presigned.uploadId))!.key;
+    const before = new Set(disk.keys());
     const completed = await complete(
       editor,
       note.id,
@@ -327,7 +350,11 @@ describe('direct uploads to the object store (e2e, STORAGE_DRIVER=s3)', () => {
       },
       { timeout: 15_000, interval: 250 },
     );
-    expect(disk.keys()).not.toContain(key);
+    // Neither the file that was PUT nor the copy that was scanned is left.
+    expect(disk.keys()).not.toContain(
+      (await uploadRow(presigned.uploadId))!.key,
+    );
+    expect(newObjects(before)).toEqual([]);
     const rejected = await node.auditEntries({
       action: 'attachment.rejected',
       targetId: completed.body.id,
@@ -434,6 +461,42 @@ describe('direct uploads to the object store (e2e, STORAGE_DRIVER=s3)', () => {
       await presign(other.editor, other.note.id, body).expect(201);
     });
 
+    it('counts only what can still be completed: an expired link or a completed upload frees its place (429 otherwise)', async () => {
+      const { editor, note } = await noteOfEditor();
+      const body = {
+        name: 'a.png',
+        size: png.length,
+        contentType: 'image/png',
+      };
+      const row = (expiresAt: Date, completedAt: Date | null = null) => ({
+        tenantId: node.tenantId,
+        subject: 'TestItem',
+        recordId: note.id,
+        key: `tenants/${node.tenantId}/attachments/${randomUUID()}`,
+        name: 'later.png',
+        size: 1,
+        contentType: 'image/png',
+        uploadedBy: `user:${editor.id}`,
+        expiresAt,
+        completedAt,
+      });
+      const many = <T>(make: () => T) =>
+        Array.from({ length: MAX_PENDING_UPLOADS }, make);
+      await node.db.insert(attachmentUploads).values([
+        // Links that expired (a PUT that failed, a closed tab), the sweep not yet run.
+        ...many(() => row(new Date(Date.now() - 60_000))),
+        // Uploads that became attachments, their rows kept until the sweep.
+        ...many(() => row(new Date(Date.now() + 60_000), new Date())),
+        // And one place short of the limit that does count.
+        ...Array.from({ length: MAX_PENDING_UPLOADS - 1 }, () =>
+          row(new Date(Date.now() + 60_000)),
+        ),
+      ]);
+      await presign(editor, note.id, body).expect(201);
+      const refused = await presign(editor, note.id, body).expect(429);
+      expect(refused.body.code).toBe('attachment_uploads_pending');
+    });
+
     it("refuses what does not fit the tenant's storage quota, as the upload does (422)", async () => {
       const other = await node.otherTenant();
       const item = (
@@ -531,13 +594,16 @@ describe('direct uploads to the object store (e2e, STORAGE_DRIVER=s3)', () => {
       );
       const key = (await uploadRow(presigned.uploadId))!.key;
       expect(disk.keys()).toContain(key);
+      const before = new Set(disk.keys());
       const refused = await complete(
         editor,
         note.id,
         presigned.uploadId,
       ).expect(415);
       expect(refused.body.code).toBe('unsupported_media_type');
+      // The object that was PUT and the copy that was checked are both gone.
       expect(disk.keys()).not.toContain(key);
+      expect(newObjects(before)).toEqual([]);
       expect(await uploadRow(presigned.uploadId)).toBeUndefined();
       expect(
         (
@@ -555,8 +621,71 @@ describe('direct uploads to the object store (e2e, STORAGE_DRIVER=s3)', () => {
       const pdf = Buffer.from('%PDF-1.4\n1 0 obj << >> endobj\n%%EOF\n');
       const presigned = await announce(editor, note.id, pdf, 'image/png');
       const key = (await uploadRow(presigned.uploadId))!.key;
+      const before = new Set(disk.keys());
       await complete(editor, note.id, presigned.uploadId).expect(415);
       expect(disk.keys()).not.toContain(key);
+      expect(newObjects(before)).toEqual([]);
+    });
+
+    it('keeps what it checked: a PUT to the same URL after the completion changes neither the attachment nor the upload, and the sweep clears it', async () => {
+      const { editor, note } = await noteOfEditor();
+      const presigned = await announce(editor, note.id, png, 'image/png');
+      const staging = (await uploadRow(presigned.uploadId))!.key;
+      const completed = await complete(
+        editor,
+        note.id,
+        presigned.uploadId,
+      ).expect(201);
+      const [attachment] = await node.db
+        .select()
+        .from(attachments)
+        .where(eq(attachments.id, completed.body.id));
+
+      // The link works for ten minutes: the same size and type, other bytes.
+      const other = Buffer.alloc(png.length, 0x41);
+      other.write('<html><script>alert(1)</script></html>');
+      await put(presigned, other).expect(200);
+      expect(Buffer.compare(await disk.getBuffer(staging), other)).toBe(0);
+
+      // The attachment is the file that was checked, not what was PUT since.
+      expect(attachment!.key).not.toBe(staging);
+      expect(Buffer.compare(await disk.getBuffer(attachment!.key), png)).toBe(
+        0,
+      );
+      // The upload is completed: what was PUT again does not become a second attachment.
+      await complete(editor, note.id, presigned.uploadId).expect(404);
+      expect(
+        (
+          await editor.agent
+            .get(`/v1/test-items/${note.id}/attachments`)
+            .expect(200)
+        ).body.items,
+      ).toHaveLength(1);
+
+      // The row outlives the completion, for the sweep to delete the object that was PUT again.
+      await node.db
+        .update(attachmentUploads)
+        .set({ expiresAt: new Date(Date.now() - 2 * 60 * 60 * 1000) })
+        .where(eq(attachmentUploads.id, presigned.uploadId));
+      await node.app.get(AttachmentSweepJob).run();
+      expect(disk.keys()).not.toContain(staging);
+      expect(await uploadRow(presigned.uploadId)).toBeUndefined();
+      expect(disk.keys()).toContain(attachment!.key);
+      expect(Buffer.compare(await disk.getBuffer(attachment!.key), png)).toBe(
+        0,
+      );
+      // It was not an abandoned upload: no audit entry says so.
+      const swept = await node.db
+        .select()
+        .from(auditLog)
+        .where(eq(auditLog.action, 'attachments.uploads-swept'));
+      expect(
+        swept.some((entry) =>
+          (entry.details as { uploads: string[] }).uploads.includes(
+            presigned.uploadId,
+          ),
+        ),
+      ).toBe(false);
     });
 
     it('is the announcer’s own, for the record it was announced for (404 otherwise)', async () => {

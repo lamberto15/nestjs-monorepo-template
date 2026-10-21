@@ -26,6 +26,14 @@ export type UploadVerdict =
   | { ok: true; size: number; contentType: string }
   | { ok: false; keep: boolean; error: HttpException };
 
+/** 409: nothing was PUT to the upload's URL yet; the upload stays, try again. */
+export const uploadIncomplete = () =>
+  new ConflictException({
+    code: 'attachment_upload_incomplete',
+    message:
+      'The file has not arrived in storage: PUT it to the upload URL first.',
+  });
+
 /**
  * Reads an object a client PUT to a signed URL back from the store and
  * compares it with what was announced (`expected`): its size and
@@ -52,15 +60,7 @@ export async function checkUploadedObject(
     file = await disk.stat(expected.key);
   } catch (error) {
     if (error instanceof StorageFileNotFoundError) {
-      return {
-        ok: false,
-        keep: true,
-        error: new ConflictException({
-          code: 'attachment_upload_incomplete',
-          message:
-            'The file has not arrived in storage: PUT it to the upload URL first.',
-        }),
-      };
+      return { ok: false, keep: true, error: uploadIncomplete() };
     }
     throw error;
   }

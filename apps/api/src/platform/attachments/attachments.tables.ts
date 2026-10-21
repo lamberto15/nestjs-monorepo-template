@@ -105,9 +105,13 @@ export type Attachment = typeof attachments.$inferSelect;
  * The key is the server's (under the tenant's prefix), and the record, the
  * uploader, the size and the type are what the signed URL is bound to, so the
  * completing request names only the upload's id and is checked against this
- * row, never against the client's word. Gone when the attachment is created;
- * the nightly sweep deletes the object and the row of one that was never
- * completed (docs/attachments.md, "Direct uploads").
+ * row, never against the client's word. The object at `key` is where the
+ * client PUT: the attachment is a copy of it on a key of the server's own
+ * (the signed URL keeps working until it expires, and must not reach the
+ * file that was checked). The row stays, `completedAt` set, until the nightly
+ * sweep removes it with whatever was PUT to `key` meanwhile; the sweep also
+ * deletes the object and the row of one that was never completed
+ * (docs/attachments.md, "Direct uploads").
  */
 export const attachmentUploads = pgTable(
   'attachment_uploads',
@@ -117,7 +121,7 @@ export const attachmentUploads = pgTable(
     /** The record's permission subject: `Note`. */
     subject: text('subject').notNull(),
     recordId: uuid('record_id').notNull(),
-    /** Where the client puts the object, and the attachment's key once completed. */
+    /** Where the client puts the object: never the attachment's key, which is a copy made on completion. */
     key: text('key').notNull(),
     /** The file name the client gave, shown and used for downloads. */
     name: text('name').notNull(),
@@ -135,6 +139,8 @@ export const attachmentUploads = pgTable(
      * than a few minutes is a request that died, and no longer holds it.
      */
     completingAt: at('completing_at'),
+    /** Set once the attachment exists: the upload can't be completed again, and no longer counts as pending. */
+    completedAt: at('completed_at'),
     ...timestamps(),
   },
   (table) => [

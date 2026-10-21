@@ -181,43 +181,61 @@ only way with the local driver). `GET /v1/features` says so
    never the client's.
 3. **`POST /v1/notes/{id}/attachments/complete`**, `{ uploadId }`: the
    announcer's own upload for this record (404 `attachment_upload_not_found`
-   otherwise). It checks the right again, then reads the object back: its
-   size and `Content-Type` (HEAD) and its first 64 KiB (a ranged GET), and
-   types it from those bytes exactly as the upload does (signatures, zip
-   entries, text), so the type must be allowed and must not contradict the
-   declared one. A file that is not what was announced is deleted and
+   otherwise). It checks the right again, then **copies the object to a key
+   of the server's own** (`tenants/<id>/attachments/…`, which no signed URL
+   reaches) and reads the copy back: its size and `Content-Type` (HEAD) and
+   its first 64 KiB (a ranged GET), and types it from those bytes exactly as
+   the upload does (signatures, zip entries, text), so the type must be
+   allowed and must not contradict the declared one. The copy matters: the
+   signed URL works until it expires, and whoever holds it can PUT again, so
+   a file checked and scanned where it was PUT could be replaced after
+   both. What was PUT is never the attachment's file; it is deleted on
+   completion. A file that is not what was announced is deleted and
    refused: 413, 415, or 400 `attachment_upload_mismatch`. When nothing was
    PUT yet it is 409 `attachment_upload_incomplete` and the upload stays: PUT,
    then complete again. Then `AttachmentsService.upload()` creates the
-   attachment, **the same path as an upload through the API**: the quota,
+   attachment from the copy, **the same path as an upload through the API**: the quota,
    the tenant, the audit entry (`attachment.added`), the malware scan
    (`pending` until it is done) and the image renditions. Completing twice
    makes one attachment (409 `attachment_upload_in_progress` while another
    request completes it, 404 after).
 
 - **State** is a row per announced upload (`attachment_uploads`: key, name,
-  size, type, uploader, expiry), deleted in the transaction that creates the
-  attachment. An uploader may have 100 announced and not completed
-  (`MAX_PENDING_UPLOADS`, 429 `attachment_uploads_pending`): the storage
-  quota counts attachments, not what was PUT and never completed.
+  size, type, uploader, expiry), marked completed (`completedAt`) in the
+  transaction that creates the attachment and deleted by the sweep once the
+  URL has expired, so that whatever is PUT to the URL after the completion is
+  deleted with it. An uploader may have 100 announced, not completed and not
+  expired (`MAX_PENDING_UPLOADS`, 429 `attachment_uploads_pending`): a link
+  that expired, say after a PUT that failed, frees its place at once, though
+  the sweep deletes the row only at night. The storage quota counts
+  attachments, not what was PUT and never completed.
 - **A late PUT** may still be arriving when the URL expires: an upload may be
   completed for an hour after (`UPLOAD_GRACE_MS`); past that it is 410
   `attachment_upload_expired` and the object is deleted.
 - **Never completed** (the client went away): the nightly sweep
   ([above](#attachments-files-on-records), "Deleted records") deletes the
   object and the row of every upload an hour past its expiry, and never a
-  file an attachment uses. It audits `attachments.uploads-swept`.
+  file an attachment uses. It audits `attachments.uploads-swept`. The rows of
+  completed uploads go with it (with an object PUT again, if any), unaudited.
 - **The bucket needs a CORS rule** for the web app's origin, since the
   browser sends the PUT: `AllowedMethods: PUT`, `AllowedOrigins` the web app's
   origin(s), `AllowedHeaders: *` (or `content-type` and
   `x-amz-server-side-encryption`). Without one the browser cannot reach the
   bucket: the web app notices (no answer from the store) and uploads that
   file through the API instead, so uploads keep working, only not directly.
+- **The web app's Content-Security-Policy must name the bucket** too: the
+  browser blocks a request to another origin that `connect-src` does not list,
+  before any CORS preflight. The Compose stack's Caddy and the Helm chart's
+  web app add the bucket's origin to `connect-src` themselves when
+  `STORAGE_DRIVER=s3` ([deployment.md](deployment.md), "The web app's
+  security headers"); a deployment that serves the web app another way adds
+  it to its own policy.
 - **The web app's dropzone** uses it whenever `presignedUploads` is on and the
   browser names the file's type (a signed URL is bound to one; a file with no
   type goes through the API, which decides). It falls back to the multipart
   upload when the store cannot be reached or the server answers 503
-  `presigned_uploads_unavailable`; a refusal by the API (415, 413, 422) is
+  `presigned_uploads_unavailable` or 429 `attachment_uploads_pending` (the
+  multipart upload leaves no announcement behind); a refusal by the API (415, 413, 422) is
   shown as it is, and the store's (an expired link) as "the upload link was
   refused or has expired".
 - **Tested** with an in-memory disk that does what S3 does with a presigned

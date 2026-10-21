@@ -197,8 +197,9 @@ export const removeAttachment = (attachmentId: string) =>
  * `…/attachments/complete`, which attaches it after the server checked what
  * arrived. Otherwise, and whenever a direct upload cannot be tried (the
  * browser cannot name the file's type, which a signed URL is bound to; the
- * server answered 503 `presigned_uploads_unavailable` meanwhile; the browser
- * cannot reach the store, say a bucket with no CORS rule for this origin),
+ * server answered 503 `presigned_uploads_unavailable` meanwhile, or 429
+ * `attachment_uploads_pending`; the browser cannot reach the store, say a
+ * bucket with no CORS rule for this origin),
  * the file goes as multipart through the API, which works with every driver.
  */
 export async function uploadAttachment(
@@ -212,10 +213,13 @@ export async function uploadAttachment(
     try {
       return await uploadDirect(base, id, file, onProgress);
     } catch (error) {
+      // The multipart upload leaves no announcement behind, so a user who
+      // has many open (attachment_uploads_pending) can still attach files.
       const fallback =
         error instanceof StoreUnreachableError ||
         (error instanceof ApiError &&
-          error.code === 'presigned_uploads_unavailable');
+          (error.code === 'presigned_uploads_unavailable' ||
+            error.code === 'attachment_uploads_pending'));
       if (!fallback) throw error;
       onProgress(0);
     }

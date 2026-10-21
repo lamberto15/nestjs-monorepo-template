@@ -334,6 +334,20 @@ describe('attachments', () => {
       expect(calls.stored).toEqual([]);
     });
 
+    it('uploads through the API instead when the user has too many announced uploads open (429)', async () => {
+      const calls = usePanelsApi({
+        direct: {
+          presign: { status: 429, code: 'attachment_uploads_pending' },
+        },
+      });
+      await mountPanels(ALL, direct);
+      await upload(plan());
+      await waitFor(() => expect(calls.uploaded).toHaveLength(1));
+      expect(calls.stored).toEqual([]);
+      const list = await screen.findByRole('list', { name: 'Attachments' });
+      expect(within(list).getByText('plan.txt')).toBeVisible();
+    });
+
     it('uploads through the API a file the browser cannot name the type of', async () => {
       const calls = usePanelsApi();
       await mountPanels(ALL, direct);

@@ -36,8 +36,10 @@ const BATCH = 1000;
  * It also deletes the objects of direct uploads that were announced and
  * never completed (`attachment_uploads`, STORAGE_DRIVER=s3): an hour after
  * their URL expired, with their rows and an `attachments.uploads-swept`
- * audit entry. An object an attachment already has as its file is never
- * deleted here.
+ * audit entry. The rows of completed uploads go the same way, without an
+ * entry, with what was PUT to their URL after the completion (the
+ * attachment is a copy on another key). An object an attachment has as its
+ * file is never deleted here.
  */
 @Injectable()
 export class AttachmentSweepJob {
@@ -157,13 +159,18 @@ export class AttachmentSweepJob {
 
   /**
    * The direct uploads (this tenant's) whose URL expired more than
-   * UPLOAD_GRACE_MS ago and that nobody completed: the object, then the row.
+   * UPLOAD_GRACE_MS ago: the object, then the row. Returns how many nobody
+   * completed (a completed upload's object is only what was PUT again).
    */
   private async sweepUploads(system: SystemPrincipal): Promise<number> {
     let deleted = 0;
     for (;;) {
       const expired = await this.db
-        .select({ id: attachmentUploads.id, key: attachmentUploads.key })
+        .select({
+          id: attachmentUploads.id,
+          key: attachmentUploads.key,
+          completedAt: attachmentUploads.completedAt,
+        })
         .from(attachmentUploads)
         .where(
           lt(
@@ -188,6 +195,7 @@ export class AttachmentSweepJob {
             )
         ).map((row) => row.key),
       );
+      const abandoned = expired.filter((row) => !row.completedAt);
       // The objects first: a failure leaves the rows, and the next night tries again.
       await this.disk.delete(
         expired.map((row) => row.key).filter((key) => !used.has(key)),
@@ -199,17 +207,19 @@ export class AttachmentSweepJob {
             expired.map((row) => row.id),
           ),
         );
-        await this.audit.record(
-          system,
-          {
-            action: 'attachments.uploads-swept',
-            targetType: 'attachment',
-            details: { uploads: expired.map((row) => row.id) },
-          },
-          tx,
-        );
+        if (abandoned.length > 0) {
+          await this.audit.record(
+            system,
+            {
+              action: 'attachments.uploads-swept',
+              targetType: 'attachment',
+              details: { uploads: abandoned.map((row) => row.id) },
+            },
+            tx,
+          );
+        }
       });
-      deleted += expired.length;
+      deleted += abandoned.length;
     }
     return deleted;
   }
