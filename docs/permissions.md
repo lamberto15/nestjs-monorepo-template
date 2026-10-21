@@ -210,6 +210,9 @@ The built-in `Access` permissions (`ACCESS_PERMISSIONS`,
   `manageUsers`, `manageClients`, `manageTeams`, `impersonate` or
   `readAudit`): whoever manages teams lists them and their members, whoever
   impersonates finds whom. Changing takes the matching permission.
+  The two lists the SSO page's pickers need, `GET` roles and users (not one
+  by id), also admit `Access.manageSso` (`AccessPolicy.openForSso`), so an
+  administrator holding only that reads them and still changes nothing.
   `GET /v1/access/users?teamId=<id>` (or `teamId.in=`) lists a team's own
   members (not those of the teams below); `GET /v1/lists/User` describes
   that list ([api-conventions](api-conventions.md), "List metadata").
