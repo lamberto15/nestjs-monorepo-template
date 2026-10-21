@@ -385,10 +385,13 @@ fields value onChange errors />` is a typed input per field (the drafts and
   (`scanStatus: 'pending'`, [attachments](attachments.md)) shows a
   "Scanning…" badge and a disabled download (the API answers 409
   `attachment_scan_pending`); the list is read again on the `scanned` event
-  (every 30 s as a safety net, every 5 s without a connected socket) and the
-  download link appears. An infected file is deleted by the API, so there is
-  no rejected row: it leaves the list on `removed` and a toast shows the
-  `attachment.rejected` notification's text. Texts are in the `records`
+  and the download link appears. The scan acts as the system principal, so
+  the event reaches only the record's watchers: while a file is pending the
+  list is also read every 10 s with a connected socket (5 s without), for an
+  uploader who does not watch the record. An infected file is deleted by the
+  API, so there is no rejected row: it leaves the list on `removed` or, for
+  its uploader, when the `attachment.rejected` notification arrives (a toast
+  shows its text and the list is read again). Texts are in the `records`
   namespace. Pass `canUpdate` (the record's own `can.update`) when the page
   has it: the panels' writes take the record's PATCH check, conditions
   included. Tests:

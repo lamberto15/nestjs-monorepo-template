@@ -189,7 +189,8 @@ export function panelHandlers(
     updatedAt: '2026-10-17T09:30:00.000Z',
     ...c,
   }));
-  const attachments = [...(options.attachments ?? [])];
+  // Copies: scanClean() changes an item, which a test's shared fixture must not see.
+  const attachments = (options.attachments ?? []).map((a) => ({ ...a }));
   const revisions = options.revisions ?? [];
   const page = (items: unknown[]) =>
     HttpResponse.json({ items, nextCursor: null });

@@ -467,6 +467,40 @@ describe('attachments', () => {
         vi.useRealTimers();
       }
     });
+
+    it('polls for the scan with a connected socket that never hears of its end', async () => {
+      // The scan job acts as the system principal: `scanned` goes to the
+      // record's watchers, and an uploader who is not one gets no event.
+      vi.useFakeTimers({
+        toFake: ['setInterval', 'clearInterval'],
+        shouldAdvanceTime: true,
+      });
+      try {
+        const calls = usePanelsApi({ attachments: files });
+        await mountPanels(ALL);
+        await open('Attachments');
+        await screen.findByText('incoming.pdf');
+        await waitFor(() => expect(connections).toHaveLength(1));
+        act(() => connections[0]!.emit('connect'));
+        calls.scanClean('a1');
+        const listed = calls.attachmentListings;
+        // Not yet: a connected socket is read less often than none.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(calls.attachmentListings).toBe(listed);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(
+          await screen.findByRole('link', { name: 'Download incoming.pdf' }),
+        ).toBeVisible();
+        expect(calls.attachmentListings).toBeGreaterThan(listed);
+        expect(screen.queryByText('Scanning…')).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });
 
@@ -800,6 +834,52 @@ describe('realtime', () => {
     );
     await act(() => Promise.resolve());
     expect(screen.queryByText('A note was published')).toBeNull();
+  });
+
+  it("drops a rejected file on the uploader's notification when the removed event does not reach them", async () => {
+    // The uploader is no watcher of the record: `removed` (sent by the system
+    // principal) goes to the watchers only; the notification is theirs.
+    const calls = usePanelsApi({
+      attachments: [
+        {
+          id: 'a1',
+          name: 'virus.pdf',
+          size: 2048,
+          contentType: 'application/pdf',
+          uploadedBy: ME,
+          scanStatus: 'pending',
+        },
+      ],
+    });
+    await mountPanels(ALL);
+    await open('Attachments');
+    await screen.findByText('virus.pdf');
+    const fake = await socket();
+    act(() => fake.emit('connect'));
+    calls.scanInfected('a1');
+    act(() =>
+      fake.emit('notification', {
+        id: '0199a3f2-0000-7000-8000-000000000702',
+        type: 'attachment.rejected',
+        title: 'Your file was rejected',
+        body: '“virus.pdf” was removed from TestItem: the malware scan flagged it (Eicar-Test-Signature).',
+        data: {
+          name: 'virus.pdf',
+          subject: TEST_RECORD.subject,
+          signature: 'Eicar-Test-Signature',
+        },
+        link: null,
+        key: null,
+        count: 1,
+        read: false,
+        readAt: null,
+        createdAt: '2026-10-21T10:00:00.000Z',
+        updatedAt: '2026-10-21T10:00:00.000Z',
+      }),
+    );
+    await findToast('Your file was rejected');
+    await screen.findByText('No files attached.');
+    expect(screen.queryByText('virus.pdf')).toBeNull();
   });
 });
 

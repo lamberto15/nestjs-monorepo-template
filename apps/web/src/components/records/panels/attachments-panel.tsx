@@ -82,11 +82,14 @@ const isScanning = (attachment: Pick<Attachment, 'scanStatus'>) =>
   attachment.scanStatus === 'pending';
 
 /**
- * How often a list with a file being scanned is read again: `record.attachments.changed`
- * (`scanned`) settles it, so a connected socket only needs a slow safety net
- * (an event lost in between); without one, the scan is polled for.
+ * How often a list with a file being scanned is read again. The scan job acts
+ * as the system principal, so `record.attachments.changed` (`scanned`,
+ * `removed`) reaches only the record's watchers, and an uploader who is not
+ * one never hears of the scan's end: the read is what settles their list
+ * (an infected file's notification reloads it sooner, RecordPanels). Hence
+ * a short interval even with a connected socket.
  */
-const SCAN_POLL = { live: 30_000, offline: 5_000 } as const;
+const SCAN_POLL = { live: 10_000, offline: 5_000 } as const;
 
 /** Why the browser refuses a file before the upload: `onFileValidate`'s answer. */
 const TYPE_REFUSED = 'type';
@@ -285,8 +288,9 @@ function AttachmentRow(props: {
  * once the malware scan is done: a file still being scanned says so and has
  * no link), delete (the uploader, or who may change the record; never an
  * issued document). A file found infected is deleted by the API: it leaves
- * the list on `record.attachments.changed` (`removed`), and its uploader is
- * told (RecordPanels).
+ * the list on `record.attachments.changed` (`removed`, to the record's
+ * watchers) or when its uploader's rejection notification arrives, and the
+ * uploader is told (RecordPanels).
  */
 export function AttachmentsPanel(props: {
   base: string;

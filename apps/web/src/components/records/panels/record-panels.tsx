@@ -80,15 +80,20 @@ export function RecordPanels(props: {
     }
   });
   // An upload the malware scan flagged is deleted, not marked (docs/attachments.md):
-  // the list loses it on the event above, and its uploader is told why here
-  // (the API's notification, in their language) while a record of the subject
-  // is open; the bell has it anywhere else.
+  // its uploader is told why here (the API's notification, in their language)
+  // while a record of the subject is open; the bell has it anywhere else.
+  // The notification also reloads the list: the `removed` event above goes to
+  // the record's watchers only, and the uploader may not be one. It names no
+  // record, so the open one is read again (a rare event, one cheap read).
   useRealtimeEvent('notification', (event) => {
     if (
       event.type === 'attachment.rejected' &&
       event.data.subject === props.subject
     ) {
       toast.error(event.title, { description: event.body });
+      void queryClient.invalidateQueries({
+        queryKey: panelKeys.attachments(props.path, props.id),
+      });
     }
   });
 
