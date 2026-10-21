@@ -66,6 +66,7 @@ import {
   MailEventsService,
 } from './deliverability/mail-events.service.js';
 import { SesIntake } from './deliverability/sns/ses-intake.js';
+import { ResendIntake } from './deliverability/resend/resend-intake.js';
 import { PostmarkIntake } from './deliverability/postmark/postmark-intake.js';
 import { SendGridIntake } from './deliverability/sendgrid/sendgrid-intake.js';
 import {
@@ -136,6 +137,13 @@ import { AccountLifecycleService } from './account/account.service.js';
 import { deletionCancelLinksProvider } from './account/deletion-cancel-links.js';
 import { AccountTransfer } from './account/account.transfer.js';
 import { TenantCleanup } from './tenants/tenant-cleanup.js';
+import { QuotaMetrics } from './quotas/quota.metrics.js';
+import { QUOTA_SETTINGS } from './quotas/quota.settings.js';
+import {
+  OwnQuotasController,
+  TenantQuotasController,
+} from './quotas/quotas.controller.js';
+import { QuotasService } from './quotas/quotas.service.js';
 import { TenantExportController } from './tenants/tenant-export.controller.js';
 import { TenantExports } from './tenants/tenant-exports.service.js';
 import { TenantTransfer } from './tenants/tenant.transfer.js';
@@ -398,6 +406,9 @@ export class PlatformModule {
         ConsentKindsController,
         // The operators' export of a tenant (POST /v1/tenants/{id}/export).
         TenantExportController,
+        // Tenants' use and limits (GET /v1/tenants/{id}/usage, PUT …/quotas, GET /v1/tenant/usage).
+        TenantQuotasController,
+        OwnQuotasController,
         SubscriptionsController,
         SearchController,
         ListsController,
@@ -440,6 +451,7 @@ export class PlatformModule {
               ...NUMBERING_SETTINGS,
               ...APPROVAL_SETTINGS,
               ...MESSAGING_SETTINGS,
+              ...QUOTA_SETTINGS,
               ...AI_SETTINGS,
               ...(options.settings ?? []),
             ],
@@ -557,6 +569,9 @@ export class PlatformModule {
         TenantTransfer,
         TenantExports,
         TenantCleanup,
+        // Tenant limits: the deployment's defaults (settings), the views, the storage gauges.
+        QuotasService,
+        QuotaMetrics,
         // Watching records: features subscribe creators and notify the watchers of a change.
         SubscriptionsService,
         SubscriptionsRegistry,
@@ -661,6 +676,7 @@ export class PlatformModule {
         { provide: SnsGateway, useClass: HttpSnsGateway },
         SesIntake,
         PostmarkIntake,
+        ResendIntake,
         SendGridIntake,
         SuppressionsService,
         { provide: MAIL_SUPPRESSION, useExisting: SuppressionsService },
