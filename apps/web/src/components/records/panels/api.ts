@@ -176,6 +176,17 @@ export const listAttachments = (base: string, id: string) =>
 export const downloadUrl = (attachmentId: string) =>
   `/v1/attachments/${attachmentId}/download`;
 
+/**
+ * An image's smaller copy (`thumb` 256 px, `preview` 1600 px, WebP: docs/attachments.md,
+ * "Image renditions"). Like the download, it redirects to a signed link, which an
+ * `<img>` follows only to an origin the page may load images from (the dev proxy,
+ * Caddy's `img-src`: docs/attachments.md). 404 while the image is not `ready`.
+ */
+export const renditionUrl = (
+  attachmentId: string,
+  rendition: 'thumb' | 'preview',
+) => `${downloadUrl(attachmentId)}?rendition=${rendition}`;
+
 export const removeAttachment = (attachmentId: string) =>
   unwrap(
     api.DELETE('/v1/attachments/{id}', {

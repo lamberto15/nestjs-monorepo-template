@@ -34,6 +34,7 @@ import {
   uploadAttachment,
   type Attachment,
 } from './api';
+import { AttachmentVisual } from './attachment-visual';
 
 /**
  * What a file may be, as the upload route enforces it (`attachmentLimits` of
@@ -82,14 +83,23 @@ const isScanning = (attachment: Pick<Attachment, 'scanStatus'>) =>
   attachment.scanStatus === 'pending';
 
 /**
- * How often a list with a file being scanned is read again. The scan job acts
- * as the system principal, so `record.attachments.changed` (`scanned`,
- * `removed`) reaches only the record's watchers, and an uploader who is not
- * one never hears of the scan's end: the read is what settles their list
- * (an infected file's notification reloads it sooner, RecordPanels). Hence
- * a short interval even with a connected socket.
+ * An image whose thumbnail and preview are still being made
+ * (`renditionStatus` `pending`, docs/attachments.md, "Image renditions"):
+ * the original can be downloaded, and the row shows a placeholder.
  */
-const SCAN_POLL = { live: 10_000, offline: 5_000 } as const;
+const isProcessing = (attachment: Pick<Attachment, 'renditionStatus'>) =>
+  attachment.renditionStatus === 'pending';
+
+/**
+ * How often a list with a file waiting for a worker (the malware scan, an
+ * image's renditions) is read again. Both jobs act as the system principal,
+ * so `record.attachments.changed` (`scanned`, `processed`, `removed`)
+ * reaches only the record's watchers, and an uploader who is not one never
+ * hears of the job's end: the read is what settles their list (an infected
+ * file's notification reloads it sooner, RecordPanels). Hence a short
+ * interval even with a connected socket.
+ */
+const WORKER_POLL = { live: 10_000, offline: 5_000 } as const;
 
 /** Why the browser refuses a file before the upload: `onFileValidate`'s answer. */
 const TYPE_REFUSED = 'type';
@@ -206,32 +216,35 @@ function AttachmentRow(props: {
   const scanning = isScanning(attachment);
   return (
     <li className="flex items-center justify-between gap-3 rounded-lg border p-3">
-      <div className="min-w-0">
-        <p className="flex items-center gap-1.5 truncate text-sm font-medium">
-          {attachment.locked && (
-            <LockIcon
-              className="size-3.5 shrink-0"
-              aria-label={t('attachments.locked')}
-            />
-          )}
-          <span className="truncate">{attachment.name}</span>
-        </p>
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          <span>{typeLabel(attachment.contentType)}</span>
-          <span>{formatSize(attachment.size, i18n.language)}</span>
-          <RelativeTime value={attachment.createdAt} />
-          {scanning && (
-            // A status, so a screen reader hears it when the upload lands.
-            <Badge variant="secondary" role="status">
-              <Spinner
-                aria-hidden
-                role="presentation"
-                data-icon="inline-start"
+      <div className="flex min-w-0 items-center gap-3">
+        <AttachmentVisual attachment={attachment} />
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 truncate text-sm font-medium">
+            {attachment.locked && (
+              <LockIcon
+                className="size-3.5 shrink-0"
+                aria-label={t('attachments.locked')}
               />
-              {t('attachments.scanning')}
-            </Badge>
-          )}
-        </p>
+            )}
+            <span className="truncate">{attachment.name}</span>
+          </p>
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            <span>{typeLabel(attachment.contentType)}</span>
+            <span>{formatSize(attachment.size, i18n.language)}</span>
+            <RelativeTime value={attachment.createdAt} />
+            {scanning && (
+              // A status, so a screen reader hears it when the upload lands.
+              <Badge variant="secondary" role="status">
+                <Spinner
+                  aria-hidden
+                  role="presentation"
+                  data-icon="inline-start"
+                />
+                {t('attachments.scanning')}
+              </Badge>
+            )}
+          </p>
+        </div>
       </div>
       <div className="flex shrink-0 gap-1">
         {scanning ? (
@@ -290,7 +303,9 @@ function AttachmentRow(props: {
  * issued document). A file found infected is deleted by the API: it leaves
  * the list on `record.attachments.changed` (`removed`, to the record's
  * watchers) or when its uploader's rejection notification arrives, and the
- * uploader is told (RecordPanels).
+ * uploader is told (RecordPanels). An image shows its thumbnail once the
+ * worker has made it (AttachmentVisual); `processed` reloads the list like
+ * the other events.
  */
 export function AttachmentsPanel(props: {
   base: string;
@@ -308,12 +323,13 @@ export function AttachmentsPanel(props: {
     queryKey: key,
     queryFn: () => listAttachments(props.base, props.id),
     // `record.attachments.changed` reloads it (RecordPanels); polled only
-    // without realtime, and while a file is being scanned (SCAN_POLL).
+    // without realtime, and while a file waits for a worker: its malware
+    // scan or its image renditions (WORKER_POLL).
     refetchInterval: (q) =>
-      q.state.data?.some(isScanning)
+      q.state.data?.some((a) => isScanning(a) || isProcessing(a))
         ? connected
-          ? SCAN_POLL.live
-          : SCAN_POLL.offline
+          ? WORKER_POLL.live
+          : WORKER_POLL.offline
         : live
           ? false
           : 60_000,

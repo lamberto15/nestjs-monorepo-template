@@ -24,6 +24,26 @@ if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
   exit 1
 fi
 
+# FILES_ORIGIN goes into the web app's Content-Security-Policy (`img-src`,
+# caddy/Caddyfile) as it is: with STORAGE_DRIVER=s3, the origin(s) the bucket's
+# signed links point at, so an attachment's thumbnail may load. Space-separated
+# https origins (https://host[:port]), nothing else: a value with a path, a
+# quote, a semicolon or a wildcard would add a directive or widen the policy.
+if [ -n "${FILES_ORIGIN:-}" ]; then
+  set -f # split on spaces below, never globbed
+  for origin in $FILES_ORIGIN; do
+    host=
+    case $origin in https://*) host=${origin#https://} ;; esac
+    case $host in
+      '' | *[!A-Za-z0-9.:-]*)
+        echo "FILES_ORIGIN: $origin is not an https origin (https://host[:port], no path)" >&2
+        exit 1
+        ;;
+    esac
+  done
+  set +f
+fi
+
 # /.well-known/security.txt (RFC 9116), served by the Caddyfile from
 # /srv/security. Caddy can't branch on an environment variable, so the file is
 # written here, at each start: no file without SECURITY_CONTACT (the path is a

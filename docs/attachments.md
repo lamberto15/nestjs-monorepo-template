@@ -189,8 +189,21 @@ nothing for it), loaded by a worker on its first image, never by the API.
   `processed`), or `failed`. The scan check comes first (409
   `attachment_scan_pending`). Like every download, an `<img>` follows the
   redirect only to an origin the page may load from: the avatar section
-  below says what that costs (the dev proxy, S3's host under Caddy's
-  `img-src 'self'`).
+  below says what that costs. The web app's attachments panel does this
+  (`components/records/panels/attachment-visual.tsx`), so both ends are set up
+  for it: `pnpm dev` rewrites the redirect's host to the page's and proxies
+  `/files` (`apps/web/dev-proxy.ts`, [monorepo](monorepo.md), "The web
+  app"); under Caddy the local disk's link is the app's own origin, and with
+  S3 the bucket's host goes into `img-src` as `FILES_ORIGIN`
+  ([deployment](deployment.md), "`FILES_ORIGIN`").
+- **In the web app:** an image `ready` shows its `thumb` in the attachments panel,
+  sized from `renditions.thumb.width` and `height`, and opens its `preview` in a
+  dialog with the original downloadable; a placeholder while `pending`; the file icon
+  for `failed`, for everything not processed, and for a thumbnail that does not load
+  (a CSP that refuses the redirect's origin, say). The list is read again on
+  `processed`, and every 10 s (5 s without a socket) while an image is `pending`,
+  because the worker's events reach only the record's watchers, not an uploader who
+  does not watch it.
 - **Metadata of the original:** an original that carries EXIF, XMP, IPTC,
   Photoshop resources or PNG text is replaced by a copy without it,
   rotated upright, in the same format (JPEG and lossy WebP re-encoded at
@@ -285,11 +298,13 @@ check `assertDeclaredType`), on a path of its own so changes to attachments
   authenticates it); a client with a token fetches it with its header.
 - **Served by the API, not redirected** to the disk's signed link (as an
   attachment's download is): an `<img>` follows a redirect only to an origin
-  the page may load from. `pnpm dev` proxies `/v1` but not `/files`, the
-  browser refuses a cross-origin image under the API's
-  `Cross-Origin-Resource-Policy: same-origin`, and with `STORAGE_DRIVER=s3`
-  the signed link is the bucket's host, which Caddy's `img-src 'self' data:`
-  blocks. So the route streams the bytes (`serveFile()`, `inline`,
+  the page may load from. The browser refuses a cross-origin image under the
+  API's `Cross-Origin-Resource-Policy: same-origin` (`pnpm dev` proxies `/files`
+  and rewrites the redirect to the page's origin now, for the attachments'
+  thumbnails: [Image renditions](#image-renditions)), and with
+  `STORAGE_DRIVER=s3` the signed link is the bucket's host, which Caddy's
+  `img-src 'self' data:` blocks unless `FILES_ORIGIN` names it. The avatar
+  needs neither: the route streams the bytes (`serveFile()`, `inline`,
   `Cache-Control: private, max-age=300`) from the origin the page is on.
 - **Personal data:** the account export's `profile` row holds `avatarKey` (the
   file's name, not the bytes). When the account is deleted the file is
