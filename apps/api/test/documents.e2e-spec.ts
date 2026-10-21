@@ -481,8 +481,14 @@ describe('documents (e2e)', () => {
 
   it('refuses a second request while the first is rendering (409 document_pending)', async () => {
     const { client, item, socket } = await owner();
+    // The two documents' ends (ready or failed). Their renders race for the
+    // stub's answers below, so which one fails and which one renders is not
+    // fixed: wait for both, not for the first document.failed.
+    const ended = new Set<unknown>();
+    const end = (data: Record<string, unknown>) => ended.add(data.id);
+    socket.on('document.ready', end);
+    socket.on('document.failed', end);
     gotenberg.state.answers.push('hang', 'hang');
-    const failed = next(socket, 'document.failed');
     const first = await ask(client.auth, item.id).expect(202);
     const again = await ask(client.auth, item.id).expect(409);
     expect(again.body).toMatchObject({
@@ -491,9 +497,17 @@ describe('documents (e2e)', () => {
     });
     // Another language is another document.
     gotenberg.state.answers.push('reject');
-    await ask(client.auth, item.id, '?lang=de').expect(202);
-    await failed;
-    // Once it failed, asking again is allowed.
+    const german = await ask(client.auth, item.id, '?lang=de').expect(202);
+    await vi.waitFor(
+      () =>
+        expect([...ended]).toEqual(
+          expect.arrayContaining([first.body.id, german.body.id]),
+        ),
+      { timeout: 10_000, interval: 50 },
+    );
+    socket.off('document.ready', end);
+    socket.off('document.failed', end);
+    // Once it is no longer rendering, asking again is allowed.
     const ready = next(socket, 'document.ready');
     await ask(client.auth, item.id).expect(202);
     await ready;
