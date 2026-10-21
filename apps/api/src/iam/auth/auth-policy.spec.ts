@@ -6,8 +6,10 @@ import type { IamEnv } from '../iam.env.js';
 import {
   type AuthPolicySource,
   ceilingRefusal,
+  effectivePasswordHistory,
   effectivePasswordMinLength,
   effectiveRequireMfa,
+  PASSWORD_HISTORY_LIMIT,
   PASSWORD_MIN_LENGTH,
   PASSWORD_MIN_LENGTH_LIMIT,
 } from './auth-policy.js';
@@ -70,6 +72,9 @@ describe('AuthPolicyService', () => {
     requireMfa: vi.fn(async (_user: UserPrincipal) => true),
     passwordMinLength: vi.fn(async (tenantId: string) =>
       tenantId === 't2' ? 20 : undefined,
+    ),
+    passwordHistory: vi.fn(async (tenantId: string) =>
+      tenantId === 't1' ? 3 : tenantId === 't2' ? 5 : undefined,
     ),
   } satisfies AuthPolicySource;
 
@@ -140,6 +145,18 @@ describe('AuthPolicyService', () => {
     expect(await service(null).passwordMinLength({ userId: 'u1' })).toBe(
       PASSWORD_MIN_LENGTH,
     );
+  });
+
+  it('the history is the strictest count of the around tenants, off without a choice, capped', async () => {
+    expect(effectivePasswordHistory([])).toBe(0);
+    expect(effectivePasswordHistory([undefined, -2])).toBe(0);
+    expect(effectivePasswordHistory([3, 5, undefined])).toBe(5);
+    expect(effectivePasswordHistory([500])).toBe(PASSWORD_HISTORY_LIMIT);
+    expect(effectivePasswordHistory([Number.NaN])).toBe(0);
+    expect(await service().passwordHistory({ userId: 'u1' })).toBe(5);
+    expect(await service().passwordHistory({ tenantIds: ['t1'] })).toBe(3);
+    expect(await service().passwordHistory({ tenantIds: ['t3'] })).toBe(0);
+    expect(await service(null).passwordHistory({ userId: 'u1' })).toBe(0);
   });
 
   it("a sign-up meets the one tenant's minimum with TENANCY=single, the floor otherwise", async () => {

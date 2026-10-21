@@ -123,6 +123,30 @@ export const users = pgTable('users', {
 });
 
 /**
+ * The hashes of an account's previous passwords (`auth.passwordHistory`,
+ * docs/auth.md, "Passwords"): kept only while a tenant of the account asks
+ * for a history, pruned to the count it needs, so a new password can be
+ * refused when it repeats one. Hashes only, from the account's hasher;
+ * never exported. The current password's hash is `users.password_hash`.
+ * Global, like the account.
+ */
+export const passwordHistory = pgTable(
+  'password_history',
+  {
+    id: uuidPk(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    passwordHash: text('password_hash').notNull(),
+    /** When the password was replaced. */
+    createdAt: at('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('password_history_user_id_idx').on(table.userId, table.createdAt),
+  ],
+);
+
+/**
  * Which tenants a user belongs to, and whether the membership is active:
  * what lets the user act in a tenant at all. Global (core/tenancy/global-tables.ts):
  * a sign-in picks the session's tenant from them, `GET /v1/auth/tenants`
