@@ -360,6 +360,39 @@ at 5 sign-ins/s (the load test); every sign-in queued on it failed. So:
   `/metrics`; the `PasswordHashingSaturated` alert fires after 10 minutes of
   refusals. `AppRestarting` catches a process still killed at its limit.
 
+### Container hardening
+
+Every service of compose.prod.yaml runs with `read_only: true`,
+`cap_drop: [ALL]` and `no-new-privileges`, and a `tmpfs` for what it writes
+(Gotenberg's were the first). A compromised process then can't change the
+image, plant a binary, or gain privileges. What each one may write, and the
+capabilities it gets back:
+
+| Service | Writable (besides the image: none) | Capabilities added back |
+| --- | --- | --- |
+| `api`, `worker`, `migrate` | `/tmp` (64m tmpfs); `api` and `worker` also the `app_storage` volume | none |
+| `postgres` | the `postgres_data` volume, `/tmp` (64m) and `/run/postgresql` (the socket) in memory | `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, `SETUID`: the image's entrypoint starts as root, fixes the data directory and drops to `postgres` |
+| `redis` | the `redis_data` volume, `/tmp` (16m) | `CHOWN`, `SETGID`, `SETUID`: the entrypoint chowns `/data` and drops to `redis` |
+| `caddy` | the `caddy_data` and `caddy_config` volumes, `/tmp` (16m) | `NET_BIND_SERVICE`: ports 80 and 443 |
+| `backup` | the `backups` volume, `/tmp` (16m); `app_storage` stays read only | none |
+| `gotenberg` | `/tmp` and its home, in memory (see above) | none |
+
+- **The tmpfs counts against the container's memory limit** once used, so
+  `/tmp` is small. Raise it in the service's `tmpfs:` line if a feature
+  writes large temporary files (nothing in the app does today: exports and
+  attachments go through the storage driver).
+- **Adding a service or a write path:** give the service the same keys, mount
+  a volume or tmpfs on every path it writes, and start it with the stack up
+  (`docker compose logs <service>`): a `Read-only file system` error names
+  the path to add. Add a capability only when the service fails without it,
+  and say why in a comment.
+- **Not covered:** the optional `compose.monitoring.yaml` services, and
+  `compose.yaml` / `compose.dev.yaml` alone (development), which keep the
+  images' defaults.
+- **Swarm** ([deploy-swarm.md](deploy-swarm.md)) renders these files, so it
+  inherits `read_only`, `tmpfs` and the capabilities; `security_opt` is
+  dropped there.
+
 ## Staging
 
 The same stack and image, with its own `.env`: its domain, secrets, database,

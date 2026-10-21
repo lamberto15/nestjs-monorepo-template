@@ -150,6 +150,19 @@ jobs:
           test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_NAME' env.json)" = 'postgresql://app_monitor:mon-ci@postgres:5432/app?sslmode=disable'
           test "$(jq -r '.services["postgres-exporter"].secrets | map(.source) | join(",")' env.json)" = postgres_monitor_password
           test "$(jq -r '.services["redis-exporter"].environment.REDIS_PASSWORD' env.json)" = redis-ci
+      - name: Every service is hardened
+        # docs/deployment.md, "Container hardening": a new service without
+        # these keys fails here (the monitoring stack's are not covered).
+        run: |
+          export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
+          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci
+          docker compose config --format json > hardened.json
+          for service in migrate api worker postgres redis caddy gotenberg backup; do
+            test "$(jq -r ".services.$service.read_only" hardened.json)" = true || { echo "::error::$service is not read_only"; exit 1; }
+            test "$(jq -r ".services.$service.cap_drop | index(\"ALL\")" hardened.json)" = 0 || { echo "::error::$service does not drop ALL capabilities"; exit 1; }
+            test "$(jq -r ".services.$service.security_opt | index(\"no-new-privileges:true\")" hardened.json)" = 0 || { echo "::error::$service lacks no-new-privileges"; exit 1; }
+            test "$(jq -r ".services.$service.tmpfs | map(select(startswith(\"/tmp\"))) | length" hardened.json)" = 1 || { echo "::error::$service has no /tmp tmpfs"; exit 1; }
+          done
       - name: Secrets in files
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
