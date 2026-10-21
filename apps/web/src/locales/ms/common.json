@@ -263,6 +263,12 @@
     "description": "Halaman yang anda cari tidak wujud.",
     "back": "Kembali ke papan pemuka"
   },
+  "routeError": {
+    "title": "Sesuatu telah berlaku",
+    "description": "Halaman ini gagal dimuatkan. Bahagian lain aplikasi masih berfungsi.",
+    "reportId": "ID laporan: {{id}}",
+    "retry": "Cuba lagi"
+  },
   "preferences": {
     "open": "Keutamaan",
     "theme": "Tema",
