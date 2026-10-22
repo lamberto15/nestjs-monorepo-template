@@ -632,14 +632,14 @@ jobs:
           cache: true
       - name: The API's shards
         if: needs.unit-api.result == 'success'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: coverage-api-*
           path: apps/api/.vitest/blob
           merge-multiple: true
       - name: The web app's shards
         if: needs.unit-web.result == 'success'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: coverage-web-*
           path: apps/web/.vitest/blob
