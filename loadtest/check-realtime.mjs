@@ -28,6 +28,27 @@ export function summarizeRealtime(report) {
   }
   return { ok: reasons.length === 0, created, completed, failed, errors, p95, p99, reasons };
 }
+export function summarizeRejectedAuthentication(report) {
+  const aggregate = report?.aggregate ?? report?.metrics ?? report;
+  const counters = aggregate?.counters ?? {};
+  const created = Number(counters['vusers.created'] ?? 0);
+  const completed = Number(counters['vusers.completed'] ?? 0);
+  const failed = Number(counters['vusers.failed'] ?? 0);
+  const unauthorized = Object.entries(counters).filter(
+    ([key, count]) => key.startsWith('errors.') && /unauthorized/i.test(key) && Number(count) > 0,
+  );
+  const otherErrors = Object.entries(counters).filter(
+    ([key, count]) => key.startsWith('errors.') && !/unauthorized/i.test(key) && Number(count) > 0,
+  );
+  const count = unauthorized.reduce((sum, [, n]) => sum + Number(n), 0);
+  const ok = created === 1 && completed === 0 && failed === 1 && count === 1 && otherErrors.length === 0;
+  return {
+    ok, created, completed, failed, errors: [...unauthorized, ...otherErrors],
+    p95: NaN, p99: NaN,
+    reasons: ok ? ['Invalid Socket.IO handshake rejected as expected'] :
+      ['Expected exactly one unauthorized failed virtual user and no other errors'],
+  };
+}
 const clean = (value) => String(value).replaceAll('|', '\\|').replaceAll('\n', ' ');
 export function markdownRealtime(summary) {
   return [
@@ -49,16 +70,21 @@ export function markdownRealtime(summary) {
   ].join('\n');
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  const [, , reportPath, summaryPath] = process.argv;
+  const [, , reportPath, summaryPath, mode] = process.argv;
   let summary;
   try {
     if (!reportPath) throw new Error('Artillery JSON report path was not supplied');
-    summary = summarizeRealtime(JSON.parse(readFileSync(reportPath, 'utf8')));
+    const report = JSON.parse(readFileSync(reportPath, 'utf8'));
+    summary = mode === '--expect-unauthorized'
+      ? summarizeRejectedAuthentication(report) : summarizeRealtime(report);
   } catch (error) {
     summary = { ok: false, created: 0, completed: 0, failed: 0, errors: [], p95: NaN, p99: NaN,
       reasons: [`Cannot validate Artillery report: ${error.message}`] };
   }
-  const md = markdownRealtime(summary);
+  const md = mode === '--expect-unauthorized'
+    ? markdownRealtime(summary).replace('## Realtime Socket.IO load test', '## Realtime rejected-auth smoke test')
+      .replace('**Verdict:**', '**Expected rejection verdict:**')
+    : markdownRealtime(summary);
   process.stdout.write(md + '\n');
   if (summaryPath) appendFileSync(summaryPath, md + '\n', 'utf8');
   if (!summary.ok) process.exitCode = 1;

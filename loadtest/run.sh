@@ -160,9 +160,26 @@ realtime() {
   # Run as the caller (the report lands owned by them), whom the image's
   # /etc/passwd doesn't know: Node's os.userInfo() (Artillery calls it) fails
   # with ENOENT, so the host's passwd file is mounted read-only.
+  # Sign in BEFORE VUs are created: Artillery initializes Socket.IO
+  # before scenario hooks, so beforeScenario cannot set handshake auth.
+  local realtime_token
+  if ! realtime_token=(
+    ADMIN_EMAIL=$(setting ADMIN_EMAIL) ADMIN_PASSWORD=$(setting ADMIN_PASSWORD) \
+      docker run --rm --network "${project}_default" \
+      -v "$PWD/loadtest:/scripts:ro" \
+      -e BASE_URL=http://caddy -e CAPTCHA="$captcha" \
+      -e ADMIN_EMAIL -e ADMIN_PASSWORD \
+      --entrypoint node "$ARTILLERY_IMAGE" /scripts/realtime.processor.cjs
+  ); then
+    echo "Cannot authenticate the realtime load-test administrator" >&2
+    return 1
+  fi
+  if [[ ! "$realtime_token" =~ ^[A-Za-z0-9._~-]+$ ]]; then
+    echo "Realtime token was empty or invalid" >&2
+    return 1
+  fi
   local artillery_status
-  if ADMIN_EMAIL=$(setting ADMIN_EMAIL) ADMIN_PASSWORD=$(setting ADMIN_PASSWORD) \
-    docker run --rm \
+  if REALTIME_TOKEN="$realtime_token" docker run --rm \
     --network "${project}_default" \
     --user "$(id -u):$(id -g)" \
     -v "$PWD/loadtest:/scripts:ro" \
@@ -172,7 +189,7 @@ realtime() {
     -e ARTILLERY_DISABLE_TELEMETRY=true \
     -e BASE_URL=http://caddy \
     -e CAPTCHA="$captcha" \
-    -e ADMIN_EMAIL -e ADMIN_PASSWORD \
+    -e REALTIME_TOKEN \
     "$ARTILLERY_IMAGE" run \
     --overrides "{\"config\":{\"phases\":[{\"duration\":$seconds,\"arrivalRate\":$rate}]}}" \
     --output /out/realtime.json /scripts/realtime.yml; then
@@ -190,6 +207,29 @@ realtime() {
   if [ "$artillery_status" -ne 0 ]; then
     echo "Artillery exited with status $artillery_status" >&2
     return "$artillery_status"
+  fi
+  # Real integration regression: the same websocket-only handshake must
+  # reject a deliberately invalid token, never silently complete a VU.
+  local rejected_status=0
+  if REALTIME_TOKEN='invalid-realtime-test-token' docker run --rm \
+    --network "${project}_default" \
+    --user "$(id -u):$(id -g)" \
+    -v "$PWD/loadtest:/scripts:ro" \
+    -v "$out:/out" \
+    -v /etc/passwd:/etc/passwd:ro \
+    -e HOME=/tmp -e ARTILLERY_DISABLE_TELEMETRY=true \
+    -e BASE_URL=http://caddy -e REALTIME_TOKEN \
+    "$ARTILLERY_IMAGE" run \
+    --overrides '{"config":{"phases":[{"duration":1,"arrivalRate":1}]}}' \
+    --output /out/realtime-rejected.json /scripts/realtime.yml; then
+    rejected_status=0
+  else
+    rejected_status=$?
+  fi
+  if ! node loadtest/check-realtime.mjs "$out/realtime-rejected.json" \
+      "$out/realtime-rejected-summary.md" --expect-unauthorized; then
+    echo "Realtime rejection smoke test failed (Artillery status: $rejected_status)" >&2
+    return 1
   fi
 }
 

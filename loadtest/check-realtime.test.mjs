@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { summarizeRealtime } from './check-realtime.mjs';
+import { summarizeRealtime, summarizeRejectedAuthentication } from './check-realtime.mjs';
 
 const report = (counters, summary = { p95: 95, p99: 200 }) => ({
   aggregate: { counters, summaries: { 'socketio.response_time': summary } },
@@ -38,4 +38,17 @@ test('CLI returns nonzero and appends a distinct GitHub summary on failed VUs', 
   const result = spawnSync(process.execPath, [exe, path, summary], { encoding: 'utf8' });
   assert.equal(result.status, 1);
   assert.match(readFileSync(summary, 'utf8'), /Verdict:\*\* FAIL/);
+});
+
+test('negative Socket.IO smoke test needs exactly one unauthorized VU', () => {
+  const unauthorized = report({
+    'vusers.created': 1, 'vusers.completed': 0, 'vusers.failed': 1,
+    'errors.Error: unauthorized': 1,
+  }, {});
+  assert.equal(summarizeRejectedAuthentication(unauthorized).ok, true);
+  assert.equal(summarizeRejectedAuthentication(report(passing)).ok, false);
+  assert.equal(summarizeRejectedAuthentication(report({
+    'vusers.created': 1, 'vusers.completed': 0, 'vusers.failed': 1,
+    'errors.Error: connect timeout': 1,
+  }, {})).ok, false);
 });
