@@ -5,7 +5,7 @@
 # raises the FROM line; raise PNPM_VERSION with devEngines by hand.
 FROM mcr.microsoft.com/devcontainers/javascript-node:5.2.3-24-trixie
 
-ARG PNPM_VERSION=12.11.2
+ARG PNPM_VERSION=12.15.0
 RUN npm install --global --force pnpm@${PNPM_VERSION} \
   && apt-get update \
   && apt-get install --yes --no-install-recommends postgresql-client redis-tools \
