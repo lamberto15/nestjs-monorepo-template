@@ -21,6 +21,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ConfirmButton } from '@/components/confirm-button';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { RulesEditor } from './rules-editor';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
@@ -49,6 +50,11 @@ import {
  */
 export function PlatformEditor({ setting }: { setting: Setting }) {
   const { t } = useTranslation('settings');
+  const { t: modeT } = useTranslation('mode');
+  const [pendingMode, setPendingMode] = useState<{
+    value: 'maintenance' | 'read-only';
+    enforced: boolean;
+  } | null>(null);
   const queryClient = useQueryClient();
   const [error, setError] = useState<string>();
   const stored = setting.platform;
@@ -133,6 +139,17 @@ export function PlatformEditor({ setting }: { setting: Setting }) {
     const parsed = fromDraft(setting, draft);
     if (!rolling && !parsed.ok) {
       setError(invalidText(parsed.invalid, t));
+      return;
+    }
+    // Global deployment modes affect *every* tenant, immediately. Do not
+    // activate them through a form submit without the operator's consent.
+    if (
+      setting.key === 'platform.mode' &&
+      !rolling &&
+      parsed.ok &&
+      (parsed.value === 'maintenance' || parsed.value === 'read-only')
+    ) {
+      setPendingMode({ value: parsed.value, enforced });
       return;
     }
     try {
@@ -297,6 +314,28 @@ export function PlatformEditor({ setting }: { setting: Setting }) {
           </div>
         </form>
       )}
+      <ConfirmDialog
+        open={pendingMode != null}
+        onOpenChange={(open) => {
+          if (!open) setPendingMode(null);
+        }}
+        title={modeT(`confirm.${pendingMode?.value ?? 'maintenance'}.title`)}
+        description={modeT(`confirm.${pendingMode?.value ?? 'maintenance'}.description`)}
+        confirm={modeT('confirm.apply')}
+        onConfirm={async () => {
+          if (!pendingMode) return;
+          try {
+            await save.mutateAsync({
+              value: pendingMode.value,
+              enforced: pendingMode.enforced,
+            });
+            toast.success(t('platform.saved'));
+          } catch (caught) {
+            setError(errorMessage(caught));
+            throw caught;
+          }
+        }}
+      />
       {setting.flag && setting.canEditPlatform && (
         <section
           aria-label={t('rules.platformTitle')}

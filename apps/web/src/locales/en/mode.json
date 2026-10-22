@@ -16,5 +16,16 @@
       "stillOn": "The mode is still on. It is set in the deployment's environment (APP_MODE), so it can only be changed there.",
       "hint": "Operators only. If the mode is set in the deployment's environment (APP_MODE), it can only be changed there."
     }
+  },
+  "confirm": {
+    "maintenance": {
+      "title": "Enable maintenance for every tenant?",
+      "description": "This will replace the signed-in app with the maintenance notice for every tenant, including your session. An operator can select “End maintenance” on the notice from the operator tenant; APP_MODE settings set in the deployment environment must be changed there."
+    },
+    "read-only": {
+      "title": "Make every tenant read-only?",
+      "description": "Saving this blocks writes in every tenant and displays a read-only banner. An operator can restore normal mode from deployment settings; an APP_MODE override must be changed in the environment."
+    },
+    "apply": "Apply to all tenants"
   }
 }
