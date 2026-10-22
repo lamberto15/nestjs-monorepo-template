@@ -1,34 +1,34 @@
-# Documentation tooling: recommendation and rollout
+# Documentation tooling and VitePress
 
-**Decision:** keep Markdown in this repository as the canonical documentation source. Improve navigation and accuracy first; only then add a documentation site or additional dependencies. This page is a proposal, not an assertion that the listed tools are installed.
+The **same Markdown in `docs/`** is the source for GitHub and a searchable VitePress documentation website. No duplicate copies of technical references are maintained.
 
-## Recommended approach
+## Local commands
 
-| Need | Recommended option | Why / trade-off |
-| --- | --- | --- |
-| Separate audiences while keeping source docs | These `docs/nontechnical/` and `docs/technical/` guides, alongside the existing references | No migration, no dependency updates; works directly on GitHub |
-| Reliable content structure | [Diátaxis](https://diataxis.fr/) | Distinguishes tutorials, how-to guides, explanations and reference within each audience |
-| Public searchable documentation site | [VitePress](https://vitepress.dev/guide/what-is-vitepress) | Markdown-first, lightweight static docs, suitable for this JavaScript/TypeScript workspace |
-| Browser-based local search | [VitePress local search](https://vitepress.dev/reference/default-theme-search) | Built-in search without a hosted search service |
-| Markdown consistency | [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) | Can run locally and in CI; choose rules incrementally to avoid mass noise |
-| Broken link checks | [lychee](https://github.com/lycheeverse/lychee) | Checks internal/external links in Markdown; external sites can be flaky or rate limited |
-| Strong docs release versioning and i18n later | [Docusaurus](https://docusaurus.io/docs) | More features but added framework and maintenance overhead |
-| Alternative Python-based docs tooling | [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/setup/) | Mature navigation/search, but introduces a separate Python toolchain |
+With the repository's Node.js 24 and pnpm toolchain, run the following from the root:
 
-## Why not generate a website in this PR?
+```bash
+pnpm docs:check     # check local links and selected source-code claims
+pnpm docs:dev       # run the VitePress development server
+pnpm docs:build     # build a static site at docs/.vitepress/dist
+pnpm docs:preview   # preview its production output
+```
 
-The repository already maintains extensive Markdown technical guides, and the first gap is **discoverability**, not rendering. A website introduces package-lock and CI changes, routing, hosting permissions and link-conversion decisions. It should be a separate reviewed change after the content hierarchy settles.
+The scripts use **VitePress 1.6.4**, pinned to the stable npm release when this was configured. They invoke `pnpm dlx vitepress@1.6.4` rather than changing the application's locked workspace dependencies. The first use downloads the tool; its **transitive dependencies are not locked** by this approach. If the site becomes release-critical or must build offline, add VitePress with pnpm, commit the regenerated `pnpm-lock.yaml`, and replace the `dlx` scripts in a focused follow-up PR.
 
-## Suggested incremental rollout
+The configuration is [`.vitepress/config.mjs`](.vitepress/config.mjs). It defines nontechnical and technical navigation, in-browser **local search**, GitHub edit links and a nested reference sidebar.
 
-1. **Now:** two audience entry points, explicit licensing/maturity limits, links to existing deep references, and a documentation-maintenance checklist.
-2. **Next PR:** add lightweight internal-link checking and changed-file Markdown linting; pin all action versions or SHAs according to repository policy. Audit existing links before making checks blocking.
-3. **Optional site PR:** install VitePress as a workspace dependency, add navigation/sidebar grouping the two audiences, local search, edit links and a clear site base path; make the docs build a CI check.
-4. **Optional publication PR:** deploy the generated static site to GitHub Pages or another approved static host. Keep the source Markdown and GitHub README accessible even without the site.
-5. **Only when needed:** snapshot versioned docs for breaking releases and add i18n. Versioning every early iteration increases maintenance cost.
+## Build and publishing
 
-## How to measure success
+A dedicated [documentation CI workflow](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/.github/workflows/docs.yml) runs the source/link checker and a site build when docs-related files change. It does **not** publish a site or change production application deployment.
 
-Ask a first-time evaluator to answer "Is this for me?", "May I use it commercially?" and "What will I operate?" in a few minutes. Ask a contributor to locate the source of truth for a feature, an environment variable, a schema change and a rollback. Track broken internal links and outdated commands, not page count.
+The default VitePress base path is `/`. When publishing at a repository-scoped GitHub Pages URL, build with `DOCS_BASE=/nestjs-monorepo-template/`. For a custom domain use `/` or its real subpath. Publication needs a separately approved host, URL and permissions; avoid guessing that Pages is already enabled.
 
-References: [VitePress deployment](https://vitepress.dev/guide/deploy), [Docusaurus versioning guidance](https://docusaurus.io/docs/versioning) and [Diátaxis](https://diataxis.fr/).
+The [source audit](technical/implementation-audit.md) explains which architecture/capability claims were compared with code and which runtime tests remain outstanding. The checker is not a security audit or an external-URL crawler. VitePress validates its own rendered links during the build.
+
+## Editorial standards and next enhancements
+
+Use [Diátaxis](https://diataxis.fr/) within the separate [evaluation](nontechnical/index.md) and [engineering](technical/index.md) paths. Follow the [documentation maintenance policy](documentation-maintenance.md) to update reference docs in the same PR as a behavior change.
+
+Consider [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) after agreeing on formatting rules, and [Lychee](https://github.com/lycheeverse/lychee) for scheduled external link checks. Add versioned documentation snapshots when public compatibility promises make historical docs worth maintaining.
+
+Official references: [VitePress v1 documentation](https://vuejs.github.io/vitepress/v1/), [local search](https://vuejs.github.io/vitepress/v1/reference/default-theme-search), [deployment](https://vuejs.github.io/vitepress/v1/guide/deploy).
