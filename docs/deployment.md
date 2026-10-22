@@ -643,6 +643,19 @@ This ownership change therefore needs a short Caddy maintenance window in either
 direction; API/worker containers keep running. For Swarm, follow
 [the node-local procedure](deploy-swarm.md#upgrading-caddys-runtime-user).
 
+If Caddy fails after the upgrade, check `docker compose logs --tail 50 caddy`
+for the exact failing path. A permission error under `/data` or `/config`
+requires checking the existing volume ownership and the migration above; an
+unreadable `CLOUDFLARE_API_TOKEN_FILE` requires fixing that host file's access
+for the runtime user. Retrying startup cannot repair either problem. Do not
+delete certificate volumes or make private keys world-readable.
+
+The CI runtime check has a separate readiness wait for HTTP and HTTPS: Docker
+publishing a port does not mean Caddy has finished starting its listeners or
+obtaining the test's local TLS certificate. It waits up to 20 seconds per
+listener, fails if the container stops, then checks responses without retries.
+Its local CA check does not exercise Cloudflare DNS or public ACME issuance.
+
 ### Read replicas
 
 **The app has no read/write split: every query, lists and reports included,

@@ -10,7 +10,10 @@ name=$prefix
 volumes=("$prefix-data" "$prefix-config")
 cleanup() {
   local status=$?
-  if (( status != 0 )); then docker logs "$name" >&2 || true; fi
+  if (( status != 0 )); then
+    docker inspect --format 'Caddy state: {{.State.Status}}, exit code: {{.State.ExitCode}}, error: {{.State.Error}}' "$name" >&2 || true
+    docker logs "$name" >&2 || true
+  fi
   docker rm -f "$name" >/dev/null 2>&1 || true
   for volume in "${volumes[@]}"; do docker volume rm "$volume" >/dev/null 2>&1 || true; done
   rm -rf "$dir"
@@ -46,21 +49,44 @@ common=(--read-only --tmpfs /tmp:size=16m --cap-drop ALL
   -v "$dir/token:/run/secrets/token:ro"
   -e CLOUDFLARE_API_TOKEN_FILE=/run/secrets/token
   -e SECURITY_CONTACT=mailto:runtime@example.com)
+wait_for_ready() {
+  local protocol=$1 port=$2
+  shift 2
+  local deadline=$((SECONDS + 20)) remaining timeout
+  # Published ports and the admin API can answer before the HTTP/TLS listeners
+  # are ready. Poll each listener before making single-attempt assertions.
+  while (( SECONDS < deadline )); do
+    if [[ $(docker inspect --format '{{.State.Running}}' "$name") != true ]]; then
+      echo "Caddy stopped while waiting for $protocol readiness" >&2
+      return 1
+    fi
+    remaining=$((deadline - SECONDS))
+    if (( remaining <= 0 )); then break; fi
+    timeout=$remaining
+    if (( timeout > 2 )); then timeout=2; fi
+    if curl --silent --show-error --fail --connect-timeout 1 --max-time "$timeout" \
+      --output /dev/null "$@" --resolve "localhost:$port:127.0.0.1" \
+      "$protocol://localhost:$port/" 2> "$dir/readiness-error"; then
+      return 0
+    fi
+    if (( SECONDS < deadline )); then sleep 0.1; fi
+  done
+  echo "Caddy $protocol listener was not ready within 20 seconds" >&2
+  cat "$dir/readiness-error" >&2
+  return 1
+}
 check() {
   local http_port https_port
   http_port=$(docker port "$name" 80/tcp | cut -d: -f2)
   https_port=$(docker port "$name" 443/tcp | cut -d: -f2)
-  # Docker may map the port before Caddy is ready, resetting an early TCP
-  # connection. Retry curl error 56 as well as error 7 (connection refused).
-  curl --silent --show-error --fail --retry 20 --retry-all-errors --retry-delay 1 \
+  wait_for_ready http "$http_port"
+  wait_for_ready https "$https_port" --insecure
+  curl --silent --show-error --fail --connect-timeout 1 --max-time 5 \
     --resolve "localhost:$http_port:127.0.0.1" "http://localhost:$http_port/" | grep -q 'non-root HTTP'
-  # HTTP can become ready before Caddy finishes provisioning its local TLS CA.
-  # TLS alert errors during startup should be retried, like connection refused;
-  # persistent TLS/permissions problems still fail after a bounded interval.
-  curl --silent --show-error --fail --insecure \
-    --retry 20 --retry-all-errors --retry-delay 1 \
+  curl --silent --show-error --fail --insecure --connect-timeout 1 --max-time 5 \
     --resolve "localhost:$https_port:127.0.0.1" "https://localhost:$https_port/" | grep -q 'non-root HTTPS'
-  curl --silent --show-error --fail --resolve "localhost:$http_port:127.0.0.1" "http://localhost:$http_port/.well-known/security.txt" \
+  curl --silent --show-error --fail --connect-timeout 1 --max-time 5 \
+    --resolve "localhost:$http_port:127.0.0.1" "http://localhost:$http_port/.well-known/security.txt" \
     | grep -q 'Contact: mailto:runtime@example.com'
   [[ $(docker exec "$name" id -u) == 10001 ]]
   docker exec "$name" sh -ec '
