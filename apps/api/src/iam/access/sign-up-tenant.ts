@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Transaction } from '../../core/database/drizzle.js';
+import { trimEnd } from '../../core/text/trim.js';
 import { AuditService } from '../audit/audit.service.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import type { IamEnv } from '../iam.env.js';
@@ -135,9 +136,7 @@ export class SignUpTenant implements OnApplicationBootstrap {
 
 /** `acme-corp-k3x9q2`: the name's slug (shortened to fit 48) and a random suffix. */
 export function drawSlug(name: string): string {
-  const base = slugOf(name)
-    .slice(0, 48 - SUFFIX - 1)
-    .replace(/-+$/, '');
+  const base = trimEnd(slugOf(name).slice(0, 48 - SUFFIX - 1), '-');
   let suffix = '';
   for (let i = 0; i < SUFFIX; i++) {
     suffix += ALPHABET[randomInt(ALPHABET.length)];

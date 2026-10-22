@@ -156,6 +156,31 @@ const kebab = (pascal) =>
     (letter, i) => `${i ? '-' : ''}${letter.toLowerCase()}`,
   );
 
+const isSpace = (char) => /\s/.test(char);
+
+/**
+ * What `fields: {` holds, up to the line break before the `},` that closes
+ * it (only whitespace between them), or undefined: what
+ * `/\bfields:\s*\{([\s\S]*?)\n\s*\},/` captured. A loop for the end, not that
+ * regex: it scans to the end again from every `fields: {` and every line
+ * break, quadratic or worse on a file that doesn't close one (SonarCloud
+ * S8786). The loop skips each run of whitespace once: the line breaks in it
+ * all lead to the same `},` or to none.
+ */
+function fieldsBlock(text) {
+  const open = /\bfields:\s*\{/.exec(text);
+  if (!open) return undefined;
+  const start = open.index + open[0].length;
+  for (let from = start; ;) {
+    const lineBreak = text.indexOf('\n', from);
+    if (lineBreak === -1) return undefined;
+    let end = lineBreak + 1;
+    while (end < text.length && isSpace(text[end])) end++;
+    if (text.startsWith('},', end)) return text.slice(start, lineBreak);
+    from = end;
+  }
+}
+
 /** The declaration, from its text: names, flags, fields (one per line) and capabilities. */
 export function readRecord(file) {
   return readRecordText(readFileSync(file, 'utf8'), file);
@@ -165,7 +190,7 @@ function readRecordText(text, file) {
   const string = (key) => new RegExp(`\\b${key}:\\s*'([^']+)'`).exec(text)?.[1];
   const flag = (key) =>
     new RegExp(`\\b${key}:\\s*(true|false)`).exec(text)?.[1] === 'true';
-  const block = /\bfields:\s*\{([\s\S]*?)\n\s*\},/.exec(text)?.[1];
+  const block = fieldsBlock(text);
   const caps = /\bcapabilities:\s*\[([\s\S]*?)\]/.exec(text)?.[1];
   const subject = string('subject');
   const plural = string('path');
@@ -183,7 +208,12 @@ function readRecordText(text, file) {
   }
   const fields = [];
   for (const line of block.split('\n')) {
-    const match = /^\s*(\w+):\s*field\.(\w+)\(([^)]*)\)(.*?),?\s*$/.exec(line);
+    // The line without its trailing whitespace, then its last comma: one
+    // pattern for both (`(.*?),?\s*$`) backtracks in quadratic time over a
+    // long line (SonarCloud S8786).
+    const match = /^\s*(\w+):\s*field\.(\w+)\(([^)]*)\)(.*)$/.exec(
+      line.trimEnd(),
+    );
     if (!match) {
       if (line.trim() && !line.trim().startsWith('//')) {
         throw new Error(
@@ -192,7 +222,8 @@ function readRecordText(text, file) {
       }
       continue;
     }
-    const [, name, kind, arg, modifiers] = match;
+    const [, name, kind, arg, rest] = match;
+    const modifiers = rest.endsWith(',') ? rest.slice(0, -1) : rest;
     fields.push({
       name,
       type: kind,

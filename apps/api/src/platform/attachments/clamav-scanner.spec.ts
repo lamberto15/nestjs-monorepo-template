@@ -36,6 +36,17 @@ describe('parseClamdReply', () => {
       parseClamdReply('INSTREAM size limit exceeded. ERROR\0'),
     ).toThrow(/size limit/);
     expect(() => parseClamdReply('')).toThrow(/nothing/);
+    expect(parseClamdReply('stream: OK\0\0\0')).toEqual({ infected: false });
+    expect(() => parseClamdReply('\0\0')).toThrow(/nothing/);
+  });
+
+  it('reads a reply of many NULs and then text in linear time', () => {
+    // A regex for the trailing NULs, /\0+$/, takes about a second here
+    // (quadratic); the loop, well under a millisecond.
+    const reply = `${'\0'.repeat(50_000)}stream: OK`;
+    const started = performance.now();
+    expect(() => parseClamdReply(reply)).toThrow(/clamd answered/);
+    expect(performance.now() - started).toBeLessThan(250);
   });
 });
 

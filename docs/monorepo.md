@@ -431,7 +431,11 @@ fields value onChange errors />` is a typed input per field (the drafts and
   `panels/api.ts`: presign, a PUT with progress, complete) and falls back to the
   API's multipart upload when the bucket cannot be reached
   ([attachments](attachments.md#direct-uploads-s3)). @mentions search
-  `GET /v1/people?q=` (any member) and write `@user:<id>`; authors are the
+  `GET /v1/people?q=` (any member): the box shows the name (`@Maya Patel`),
+  the body sent has `@user:<id>` (`comment-draft.ts`; an edit shows the
+  names again), and a comment shows a mention by name from `mentionNames`,
+  else from `GET /v1/people?key=` (the author's own mention, or someone who
+  may not read the record, has no entry); authors are the
   API's `authorName` and `changedByName`. Comments and files reload on the
   realtime events `record.commented` and `record.attachments.changed`
   (polled only without realtime). A file whose malware scan is not done

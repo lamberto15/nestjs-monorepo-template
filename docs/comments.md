@@ -38,7 +38,8 @@ this.comments.add(user, { subject: 'Note', recordId: id }, dto.body, ip);
   part may hold dots (`@maya.patel@demo.example.com`). An edit tells only
   the people it newly mentions. Autocomplete searches `GET /v1/people?q=`
   ([permissions.md](permissions.md), "The people directory"), open to
-  every member, and inserts `@user:<id>`.
+  every member. The web app's box shows the chosen person's name and sends
+  `@user:<id>` in its place; a client writes `@user:<id>` itself.
 - **Names**: each comment carries `authorName` beside `author`, and
   `mentionNames` beside `mentions` (`{ "user:<id>": "Maya Patel" }`, a
   key for each mention; a mention written as an address,
@@ -53,7 +54,10 @@ this.comments.add(user, { subject: 'Note', recordId: id }, dto.body, ip);
   here: one who left it (an inactive membership) keeps theirs on what
   they wrote and where they're mentioned; `anonymous`, or a key of
   someone the tenant never had, is null. The personal-data export
-  leaves `mentionNames` out (other people's data; the keys stay).
+  leaves `mentionNames` out (other people's data; the keys stay). A
+  `@user:<id>` the API dropped (the author's own, a person who can't read
+  the record) has no entry, and a client that wants the name asks
+  `GET /v1/people?key=` (the web app does).
 - **Watchers** (subscriptions) get the feature's `<subject>.commented`,
   collapsed per record, but the author and those mentioned. The author
   watches the record from their first comment on it (while an earlier

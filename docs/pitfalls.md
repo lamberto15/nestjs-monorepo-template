@@ -263,6 +263,16 @@
   concurrent pull request conflict (this happened twice with
   docs/configuration.md). Edit the docs by hand.
 
+- **Super-linear regexes** (SonarCloud S8786, 29 of them fixed in #470): an
+  unanchored `/x+$/` (`/\/+$/`, `/-+$/`, `/0+$/`) starts again at every
+  position of a long run of `x` that doesn't reach the end, and two
+  quantifiers that can take the same character (`\s+(.+)$`, `\s*;?\s*$`,
+  `[^@]+\.[^@]+`) try every split between them: about a second on 50,000
+  crafted characters. Trim with `trimEnd(text, chars)` / `trim(text, chars)`
+  (core/text/trim.ts); give neighbouring quantifiers disjoint characters
+  (`\s+(\S.*)$`); otherwise use indexOf or a loop. A regex that reads input
+  from a user or another system gets a test with such an input.
+
 ## Migrations: expand/contract
 
 A release's migrations must leave the release before it working, because

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <!-- CI's gotenberg-image job renders this page with the built image and
+         checks the PDF: a small page with the scripts the fonts must cover
+         (no Content-Security-Policy: the layout's is the app's, not the image's). -->
+    <title>Smoke</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 18mm 16mm;
+      }
+      html {
+        font-family:
+          'Noto Sans', 'Noto Sans Arabic', 'Noto Sans CJK SC', sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Smoke test</h1>
+    <p>Latin: The quick brown fox jumps over the lazy dog.</p>
+    <p dir="rtl" lang="ar">العربية: مرحبا بالعالم</p>
+    <p lang="zh">中文：你好，世界</p>
+  </body>
+</html>

@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { OutboxRelay } from '@nestjs/outbox';
 import request from 'supertest';
 import { SignInPasswordCheck } from '../src/iam/account/sign-in-password-check.js';
@@ -16,6 +16,7 @@ import { bootApp, newPassword, type TestApp } from './support.js';
 const pwned = await vi.hoisted(async () => {
   const { createServer } = await import('node:http');
   const crypto = await import('node:crypto');
+  // The range API is defined on SHA-1; the tests hash as it does.
   const sha1 = (value: string) =>
     crypto.createHash('sha1').update(value).digest('hex').toUpperCase();
   // Made at runtime (a local hook refuses password-like literals); 12 characters.
@@ -71,6 +72,7 @@ const pwned = await vi.hoisted(async () => {
   });
   return {
     breached,
+    sha1,
     requests,
     state,
     held,
@@ -201,10 +203,7 @@ describe('breached passwords (e2e)', () => {
       .post('/v1/auth/sign-up')
       .send({ email: email(), name: 'Ada', password })
       .expect(201);
-    const hash = createHash('sha1')
-      .update(password)
-      .digest('hex')
-      .toUpperCase();
+    const hash = pwned.sha1(password);
     expect(pwned.requests).toEqual([
       { url: `/range/${hash.slice(0, 5)}`, padding: 'true' },
     ]);
@@ -268,10 +267,7 @@ describe('breached passwords (e2e)', () => {
     const address = await breachedAccount();
     const agent = await node.signIn(address, pwned.breached);
     await checked();
-    const hash = createHash('sha1')
-      .update(pwned.breached)
-      .digest('hex')
-      .toUpperCase();
+    const hash = pwned.sha1(pwned.breached);
     // Only the prefix left, as for a new password.
     expect(pwned.requests).toEqual([
       { url: `/range/${hash.slice(0, 5)}`, padding: 'true' },

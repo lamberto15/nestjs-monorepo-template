@@ -46,13 +46,7 @@ describe('notification mail: one-click unsubscribe (RFC 8058, e2e)', () => {
   async function notify(
     to: string,
     type: string,
-    data: Record<string, unknown> = {
-      recordId: randomUUID(),
-      commentId: randomUUID(),
-      title: 'Direct',
-      by: 'Ada',
-      excerpt: 'Looks good.',
-    },
+    data?: Record<string, unknown>,
   ) {
     const txHost = node.app.get(TransactionHost);
     await node.inTenant(() =>
@@ -60,7 +54,13 @@ describe('notification mail: one-click unsubscribe (RFC 8058, e2e)', () => {
         node.app.get(NotificationsService).notify(tx, {
           type: type as NotificationType,
           to,
-          data,
+          data: data ?? {
+            recordId: randomUUID(),
+            commentId: randomUUID(),
+            title: 'Direct',
+            by: 'Ada',
+            excerpt: 'Looks good.',
+          },
         }),
       ),
     );

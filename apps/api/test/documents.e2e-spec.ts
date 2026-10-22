@@ -116,14 +116,16 @@ describe('documents (e2e)', () => {
   });
 
   /** An API client with a test item, and its realtime connection. */
-  async function owner(
-    body: Record<string, unknown> = {
-      title: 'Quarterly report',
-      body: 'All good.',
-    },
-  ) {
+  async function owner(body?: Record<string, unknown>) {
     const client = await node.client();
-    const item = (await node.writeItem(client.auth, body).expect(201)).body as {
+    const item = (
+      await node
+        .writeItem(
+          client.auth,
+          body ?? { title: 'Quarterly report', body: 'All good.' },
+        )
+        .expect(201)
+    ).body as {
       id: string;
     };
     const socket = await connect(node, client.key);

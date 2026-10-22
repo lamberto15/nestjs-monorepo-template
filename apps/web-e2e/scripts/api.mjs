@@ -60,6 +60,26 @@ const env = {
   ),
 };
 
+/**
+ * The account on one line of the seed's report (report() in
+ * apps/api/src/demo/run-demo-seed.ts), as a list of one; none for any other
+ * line. An account's line is
+ *
+ *     "  <email>  <password>  <name> (<roles>)"
+ *
+ * Read with string methods: one regex for the whole line backtracks in
+ * quadratic time on a long line that isn't one (SonarCloud S8786).
+ */
+function account(line) {
+  const open = line.lastIndexOf(' (');
+  if (!line.startsWith(' ') || !line.endsWith(')') || open === -1) return [];
+  const [email, password, ...name] = line.slice(0, open).trim().split(/ +/);
+  const roles = line.slice(open + 2, -1);
+  if (!email.includes('@') || !password || name.length === 0) return [];
+  if (!roles || roles.includes(')')) return [];
+  return [{ email, password, roles: roles.split(', ') }];
+}
+
 function seed() {
   const result = spawnSync('node', ['dist/seed-demo.js'], {
     cwd: api,
@@ -71,15 +91,7 @@ function seed() {
     process.stdout.write(result.stdout);
     process.exit(result.status ?? 1);
   }
-  // "  <email>  <password>  <name> (<roles>)", the lines of report() in
-  // apps/api/src/demo/run-demo-seed.ts.
-  const accounts = [
-    ...result.stdout.matchAll(/^ +(\S+@\S+) +(\S+) +.+ \(([^)]+)\)$/gm),
-  ].map(([, email, password, roles]) => ({
-    email,
-    password,
-    roles: roles.split(', '),
-  }));
+  const accounts = result.stdout.split('\n').flatMap(account);
   if (accounts.length === 0) {
     console.log(
       `The demo data was seeded before: keeping ${credentialsFile} (or set E2E_CREDENTIALS).`,

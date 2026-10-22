@@ -475,13 +475,11 @@ describe('ProblemDetailsFilter', () => {
   beforeAll(() => Logger.overrideLogger(false));
 
   /** Runs the filter on `exception` for an HTTP request; returns what it answered. */
-  function answer(
-    exception: unknown,
-    request: Record<string, unknown> = {
+  function answer(exception: unknown, request?: Record<string, unknown>) {
+    const req = request ?? {
       originalUrl: '/v1/things?secret=1',
       headers: { 'x-request-id': 'req-unit-0001' },
-    },
-  ) {
+    };
     const replies: { body: Record<string, unknown>; status: number }[] = [];
     const headers: Record<string, string> = {};
     const filter = new ProblemDetailsFilter({
@@ -495,7 +493,7 @@ describe('ProblemDetailsFilter', () => {
     filter.catch(exception, {
       getType: () => 'http',
       switchToHttp: () => ({
-        getRequest: () => request,
+        getRequest: () => req,
         getResponse: () => ({}),
       }),
     } as never);

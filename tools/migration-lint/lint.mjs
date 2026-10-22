@@ -551,11 +551,34 @@ async function listAll(url, token, pick = (body) => body) {
     if (!response.ok)
       throw new Error(`GitHub API ${response.status} for ${next}`);
     items.push(...pick(await response.json()));
-    next = /<([^>]+)>;\s*rel="next"/.exec(
-      response.headers.get('link') ?? '',
-    )?.[1];
+    next = nextLink(response.headers.get('link') ?? '');
   }
   return items;
+}
+
+/** `rel="next"` right after a `>`, as GitHub writes it: `>; rel="next"`. */
+const REL_NEXT = /;\s*rel="next"/y;
+
+/**
+ * The URL of a Link header's `rel="next"` (GitHub's pagination), or
+ * undefined: what `/<([^>]+)>;\s*rel="next"/` found, the first `<…>` that
+ * holds something and is followed by `; rel="next"`. Searched with indexOf,
+ * not that regex: it scans to the next `>` again from every `<`, quadratic
+ * on a crafted header (SonarCloud S8786). Every `<` before a `>` leads to
+ * that same `>`, so the search goes on after it.
+ */
+export function nextLink(header) {
+  let open = header.indexOf('<');
+  while (open !== -1) {
+    const close = header.indexOf('>', open + 1);
+    if (close === -1) return undefined;
+    REL_NEXT.lastIndex = close + 1;
+    if (close > open + 1 && REL_NEXT.test(header)) {
+      return header.slice(open + 1, close);
+    }
+    open = header.indexOf('<', close + 1);
+  }
+  return undefined;
 }
 
 export async function readLabel({ api, repository, pr, head, token }) {

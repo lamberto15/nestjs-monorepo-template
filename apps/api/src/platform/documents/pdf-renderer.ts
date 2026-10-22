@@ -81,6 +81,12 @@ export class PdfRenderer {
       if (pdf.subarray(0, 5).toString('latin1') !== '%PDF-') {
         throw new Error('Gotenberg answered something other than a PDF.');
       }
+      // A PDF ends with its `%%EOF` marker (Chromium's does, a newline after
+      // it): a body cut short has none, and would be issued as a file no
+      // viewer opens. Not a PDF the page is refused for, so the queue tries again.
+      if (!pdf.subarray(-1024).toString('latin1').includes('%%EOF')) {
+        throw new Error('Gotenberg answered a PDF that stops short.');
+      }
       return pdf;
     } catch (error) {
       if (

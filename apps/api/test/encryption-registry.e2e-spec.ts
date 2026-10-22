@@ -96,9 +96,8 @@ describe('the encrypted-column registry in revisions, audit and exports (e2e)', 
         name: 'spec-leaky',
         subject: 'Spec',
         columns: [{ key: 'taxNumber' }],
-        // eslint-disable-next-line require-yield
         async *batches() {
-          return;
+          yield* [];
         },
       }),
     ).toThrow(/encrypted column/);

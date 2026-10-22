@@ -140,9 +140,7 @@ export class Tree {
     const roots =
       typeof ids === 'string'
         ? eq(this.closure.ancestorId, ids)
-        : Array.isArray(ids)
-          ? inArray(this.closure.ancestorId, ids)
-          : inArray(this.closure.ancestorId, ids);
+        : inArray(this.closure.ancestorId, ids);
     return this.selectFrom(this.closure.descendantId, roots);
   }
 

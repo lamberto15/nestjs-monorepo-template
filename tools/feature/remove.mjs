@@ -127,10 +127,13 @@ function stripBarrel(text, plural) {
   let out = text.replace(imports, (statement) => {
     const clause = statement.match(/^import \{([^}]*)\}/);
     for (const part of clause?.[1].split(',') ?? []) {
-      const name = part
-        .trim()
-        .split(/\s+as\s+/)
-        .pop();
+      // `a`, `type a`, `a as b`: the word after a final `as`, else the whole
+      // specifier, as splitting at /\s+as\s+/ gave. Split into words: that
+      // regex scans a long run of spaces again from each of its positions
+      // (SonarCloud S8786).
+      const words = part.trim().split(/\s+/);
+      const name =
+        words.length > 2 && words.at(-2) === 'as' ? words.at(-1) : part.trim();
       if (name) identifiers.push(name);
     }
     return '';

@@ -243,7 +243,9 @@ export async function preflight(ctx, stackFile) {
   const wanted = new Map();
   for (const service of Object.values(stackFile.services)) {
     for (const constraint of service.deploy?.placement?.constraints ?? []) {
-      const match = /^node\.labels\.([\w.-]+)\s*==\s*(.+)$/.exec(
+      // The value starts at the first character after the spaces: the two
+      // quantifiers share none, so the match is linear (SonarCloud S8786).
+      const match = /^node\.labels\.([\w.-]+)\s*==\s*(\S.*)$/.exec(
         constraint.trim(),
       );
       if (match) wanted.set(constraint.trim(), [match[1], match[2].trim()]);

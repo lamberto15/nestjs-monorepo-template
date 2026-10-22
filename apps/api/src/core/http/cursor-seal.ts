@@ -63,7 +63,7 @@ export function useCursorKeys(materials: readonly string[]) {
       'CURSOR_KEYS must list at least one key, newest first.',
     );
   }
-  keys = list.map(deriveKey);
+  keys = list.map((material, index) => deriveKey(material, index));
 }
 
 const currentKeys = () =>

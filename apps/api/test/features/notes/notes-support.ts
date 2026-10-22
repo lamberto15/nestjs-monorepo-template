@@ -12,14 +12,16 @@ import type { TestApp } from '../../support.js';
 export function writeNote(
   node: TestApp,
   auth: string | request.Agent,
-  body: Record<string, unknown> = { title: 'Hello', body: 'World' },
+  body?: Record<string, unknown>,
   key: string = randomUUID(),
 ) {
   const req =
     typeof auth === 'string'
       ? node.http().post('/v1/notes').set('Authorization', auth)
       : auth.post('/v1/notes');
-  return req.set('Idempotency-Key', key).send(body);
+  return req
+    .set('Idempotency-Key', key)
+    .send(body ?? { title: 'Hello', body: 'World' });
 }
 
 /** POSTs an event signed as the example sender signs it (Standard Webhooks). */

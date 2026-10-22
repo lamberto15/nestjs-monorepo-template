@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { trimEnd } from '../../core/text/trim.js';
 import { currencyExponent, isCurrency } from './currencies.js';
 import { DECIMAL_PATTERN, ROUNDING_MODES } from './decimal.js';
 
@@ -49,7 +50,7 @@ function checkMinorUnit(
   if (!isCurrency(value.currency) || !DECIMAL_PATTERN.test(value.amount)) {
     return; // their own issues
   }
-  const decimals = value.amount.split('.')[1]?.replace(/0+$/, '').length ?? 0;
+  const decimals = trimEnd(value.amount.split('.')[1] ?? '', '0').length;
   const exponent = currencyExponent(value.currency);
   if (decimals > exponent) {
     ctx.addIssue({

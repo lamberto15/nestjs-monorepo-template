@@ -152,6 +152,29 @@ describe('readSecretFiles', () => {
     expect(values.JWT_SECRET).toBe(pem);
   });
 
+  it('keeps a lone carriage return at the end: only \\n and \\r\\n are line breaks', () => {
+    const { values } = readSecretFiles(
+      { JWT_SECRET_FILE: '/s' },
+      ['JWT_SECRET'],
+      files({ '/s': `${VALUE}\r\r\n\n` }),
+    );
+    expect(values.JWT_SECRET).toBe(`${VALUE}\r`);
+  });
+
+  it('reads a file of many line breaks and then a value in linear time', () => {
+    // A regex for the trailing breaks, /(?:\r?\n)+$/, takes about a second
+    // here (quadratic); the loop, well under a millisecond.
+    const contents = `${'\n'.repeat(50_000)}${VALUE}`;
+    const started = performance.now();
+    const { values } = readSecretFiles(
+      { JWT_SECRET_FILE: '/s' },
+      ['JWT_SECRET'],
+      files({ '/s': contents }),
+    );
+    expect(performance.now() - started).toBeLessThan(250);
+    expect(values.JWT_SECRET).toBe(contents);
+  });
+
   it('reads only the secrets it is given', () => {
     const read = vi.fn();
     readSecretFiles({ PORT_FILE: '/port' }, ['JWT_SECRET'], read);

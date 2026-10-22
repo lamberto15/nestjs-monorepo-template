@@ -49,7 +49,7 @@ export class SenderSecretCipher {
 
   /** `keys`: newest first; none: secrets are stored as they are. */
   constructor(keys: readonly string[] = []) {
-    this.keys = keys.map(deriveKey);
+    this.keys = keys.map((material, index) => deriveKey(material, index));
   }
 
   /** From `WEBHOOKS_ENCRYPTION_KEYS` (comma separated, newest first). */

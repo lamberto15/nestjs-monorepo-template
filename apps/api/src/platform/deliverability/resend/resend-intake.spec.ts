@@ -76,6 +76,38 @@ describe('ResendIntake', () => {
     });
   });
 
+  it('unwraps each recipient as before: the first <…> that holds something', async () => {
+    const recipients: [to: string, address: string][] = [
+      ['Jane <jane@example.com>', 'jane@example.com'],
+      ['jane@example.com', 'jane@example.com'],
+      ['"A <b>" <jane@example.com>', 'b'],
+      ['<> <jane@example.com>', 'jane@example.com'],
+      ['<<jane@example.com>', '<jane@example.com'],
+      ['Jane <jane@example.com', 'Jane <jane@example.com'],
+      ['<>', '<>'],
+      ['<', '<'],
+    ];
+    const result = await intake().intake.receive(
+      signed(event('email.delivered', { to: recipients.map(([to]) => to) })),
+    );
+    if (result.kind !== 'events') throw new Error('expected events');
+    expect(result.events.map((e) => e.address)).toEqual(
+      recipients.map(([, address]) => address),
+    );
+  });
+
+  it('unwraps a crafted recipient in linear time', async () => {
+    // The pattern it replaced (/<([^>]+)>/) took about a second here.
+    const to = '<'.repeat(50_000);
+    const started = performance.now();
+    const result = await intake().intake.receive(
+      signed(event('email.delivered', { to: [to] })),
+    );
+    expect(performance.now() - started).toBeLessThan(250);
+    if (result.kind !== 'events') throw new Error('expected events');
+    expect(result.events[0]?.address).toBe(to);
+  });
+
   it.each(['Transient', 'Undetermined'])(
     'maps a %s bounce to a soft one',
     async (type) => {

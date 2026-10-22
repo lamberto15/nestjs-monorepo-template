@@ -24,7 +24,8 @@ import {
   removeComment,
   type Comment,
 } from './api';
-import { CommentText } from './comment-text';
+import { labelFor, toBody, toDraft, type Picked } from './comment-draft';
+import { CommentText, useMentionNames } from './comment-text';
 import { usePeople } from './users';
 
 /** The API's limit (docs/comments.md): 1 to 10 000 characters. */
@@ -32,12 +33,21 @@ const MAX_LENGTH = 10_000;
 
 /**
  * The text box: typing `@` offers the tenant's people (`GET /v1/people?q=`,
- * searched by name as the user types); choosing one writes `@user:<id>` into
- * the text, which is what the API reads (docs/comments.md). The body sent is
- * exactly the text; the API names the people mentioned (`mentionNames`).
+ * searched by name as the user types); choosing one writes `@Name` into the
+ * box, and the body sent has `@user:<id>` in its place, which is what the API
+ * reads (docs/comments.md; comment-draft.ts does the turning). The API names
+ * the people mentioned (`mentionNames`).
+ *
+ * Dice UI's input is not a controlled one: it keeps its own value, and each
+ * mention's place inside, whatever the `inputValue` says. So the input is
+ * given `value`, and after a send the `Mention` is made anew (`key`), the only
+ * way to make it forget the places of the mentions just sent.
  */
 function CommentEditor(props: {
+  /** The body to edit; its mentions show by name (`names`). */
   initial?: string;
+  /** The names of the people `initial` mentions (`mentionNames`). */
+  names?: Readonly<Record<string, string | null>>;
   submit: string;
   label: string;
   placeholder: string;
@@ -46,22 +56,41 @@ function CommentEditor(props: {
   onCancel?: () => void;
 }) {
   const { t } = useTranslation('records');
-  const [text, setText] = useState(props.initial ?? '');
-  const [mentions, setMentions] = useState<string[]>([]);
+  const [draft] = useState(() => toDraft(props.initial ?? '', props.names));
+  const [text, setText] = useState(draft.text);
+  // Whom each label in the box stands for. Only added to: Dice UI drops every
+  // mention of a person when one is deleted, but a label left in the text
+  // must still turn into the id it stood for.
+  const [picked, setPicked] = useState<Picked>(draft.picked);
+  const [session, setSession] = useState(0);
   const [term, setTerm] = useState('');
   const search = useDebouncedCallback(setTerm, 250);
   const people = usePeople(term).data ?? [];
-  const body = text.trim();
+  // The label each listed person gets (their name, told apart from another's
+  // of the same name), or the one already written for them.
+  const used = new Map([
+    ...people.map((person) => [person.key, person.name] as const),
+    ...Object.entries(picked),
+  ]);
+  const labels = new Map(
+    people.map((person) => [
+      person.key,
+      picked[person.key] ?? labelFor(person.key, person.name, used),
+    ]),
+  );
+  const trimmed = text.trim();
+  const body = toBody(trimmed, picked);
 
   const send = async (event: FormEvent) => {
     event.preventDefault();
-    if (!body || body.length > MAX_LENGTH) {
+    if (!trimmed || body.length > MAX_LENGTH) {
       return;
     }
     try {
       await props.onSubmit(body);
       setText('');
-      setMentions([]);
+      setPicked({});
+      setSession((n) => n + 1);
     } catch {
       // The global handler told the user; the text stays to try again.
     }
@@ -70,9 +99,20 @@ function CommentEditor(props: {
   return (
     <form className="flex flex-col gap-2" onSubmit={send}>
       <Mention
+        key={session}
         trigger="@"
-        value={mentions}
-        onValueChange={setMentions}
+        onValueChange={(keys) =>
+          setPicked((before) => {
+            const after = { ...before };
+            for (const key of keys) {
+              const label = labels.get(key);
+              if (label !== undefined) {
+                after[key] ??= label;
+              }
+            }
+            return after;
+          })
+        }
         inputValue={text}
         onInputValueChange={setText}
         disabled={props.busy}
@@ -93,13 +133,20 @@ function CommentEditor(props: {
         <MentionInput
           aria-label={props.label}
           placeholder={props.placeholder}
-          maxLength={MAX_LENGTH}
+          value={text}
+          // The room left for the text once the names are ids (a mention
+          // is longer as an id than as a name).
+          maxLength={MAX_LENGTH - (body.length - trimmed.length)}
           autoComplete="off"
         />
         {people.length > 0 && (
           <MentionContent>
             {people.map((person) => (
-              <MentionItem key={person.key} value={person.key}>
+              <MentionItem
+                key={person.key}
+                value={person.key}
+                label={labels.get(person.key)}
+              >
                 <UserAvatar
                   size="sm"
                   name={person.name}
@@ -123,7 +170,11 @@ function CommentEditor(props: {
             {t('cancel')}
           </Button>
         )}
-        <Button type="submit" size="sm" disabled={props.busy || !body}>
+        <Button
+          type="submit"
+          size="sm"
+          disabled={props.busy || !trimmed || body.length > MAX_LENGTH}
+        >
           {props.busy && <Spinner />}
           {props.submit}
         </Button>
@@ -156,6 +207,7 @@ function CommentItem(props: {
   const { t } = useTranslation('records');
   const me = useMe()?.user.id;
   const { comment } = props;
+  const names = useMentionNames(comment.body, comment.mentionNames);
   const [editing, setEditing] = useState(false);
   const own = me !== undefined && comment.author === `user:${me}`;
   const edit = useMutation({
@@ -195,6 +247,7 @@ function CommentItem(props: {
       {editing ? (
         <CommentEditor
           initial={comment.body}
+          names={names}
           label={t('comments.editLabel')}
           placeholder={t('comments.placeholder')}
           submit={t('save')}
@@ -203,7 +256,7 @@ function CommentItem(props: {
           onCancel={() => setEditing(false)}
         />
       ) : (
-        <CommentText body={comment.body} names={comment.mentionNames} />
+        <CommentText body={comment.body} names={names} />
       )}
       {!editing && (own || props.canModerate) && (
         <div className="flex gap-1">
@@ -243,7 +296,8 @@ function CommentItem(props: {
  *
  * It reloads when `record.commented` arrives for the record (RecordPanels
  * listens); without realtime (switched off, or not connected) it polls.
- * A mention `@user:<id>` shows the name the API gives (`mentionNames`).
+ * A mention `@user:<id>` shows the person's name (`mentionNames`, else the
+ * people directory: useMentionNames).
  */
 export function CommentsPanel(props: {
   base: string;

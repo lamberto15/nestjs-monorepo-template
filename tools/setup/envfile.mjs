@@ -55,7 +55,33 @@ export function parseValue(raw) {
     if (m) return m[1].replace(/\\(.)/g, '$1');
   }
   // Unquoted: an inline comment starts at " #".
-  return text.replace(/\s+#.*$/, '');
+  return withoutComment(text);
+}
+
+const isSpace = (char) => /\s/.test(char);
+
+/**
+ * `text` up to its inline comment: from the whitespace before the first `#`
+ * that follows whitespace, past the text's last line break (where
+ * `/\s+#.*$/` would cut). A loop, not that regex: it scans a long run of
+ * spaces again from each of its positions, quadratic (SonarCloud S8786).
+ */
+function withoutComment(text) {
+  const lineBreak = Math.max(
+    ...['\n', '\r', '\u2028', '\u2029'].map((end) => text.lastIndexOf(end)),
+  );
+  for (
+    let hash = text.indexOf('#', lineBreak + 1);
+    hash !== -1;
+    hash = text.indexOf('#', hash + 1)
+  ) {
+    if (hash > 0 && isSpace(text[hash - 1])) {
+      let start = hash - 1;
+      while (start > 0 && isSpace(text[start - 1])) start--;
+      return text.slice(0, start);
+    }
+  }
+  return text;
 }
 
 /** The active `KEY=value` lines of an env file, as a Map. The first one wins. */

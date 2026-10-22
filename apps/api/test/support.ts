@@ -38,6 +38,7 @@ import { FixtureI18nLoader } from './fixtures/i18n.js';
 import * as fixtureTables from './fixtures/tables.js';
 import { tenantTableNames } from '../src/core/database/drizzle.js';
 import { addTenantTables } from '../src/core/tenancy/tenant-pool.js';
+import { trimEnd } from '../src/core/text/trim.js';
 import { I18nLoader } from '@nestjs/i18n';
 import { createDatabase } from '../src/core/database/drizzle.js';
 import { configureApp } from '../src/configure-app.js';
@@ -51,11 +52,11 @@ addTenantTables(...tenantTableNames(fixtureTables));
 export function totp(secret: string, at = Date.now()) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   let bits = '';
-  for (const char of secret.replace(/=+$/, '').toUpperCase()) {
+  for (const char of trimEnd(secret, '=').toUpperCase()) {
     bits += alphabet.indexOf(char).toString(2).padStart(5, '0');
   }
   const key = Buffer.from(
-    bits.match(/.{8}/g)!.map((byte) => parseInt(byte, 2)),
+    bits.match(/.{8}/g)!.map((byte) => Number.parseInt(byte, 2)),
   );
   const counter = Buffer.alloc(8);
   counter.writeBigUInt64BE(BigInt(Math.floor(at / 30_000)));
@@ -574,14 +575,16 @@ export async function bootApp(
      */
     writeItem(
       auth: string | request.Agent,
-      body: Record<string, unknown> = { title: 'Hello', body: 'World' },
+      body?: Record<string, unknown>,
       key: string = randomUUID(),
     ) {
       const req =
         typeof auth === 'string'
           ? http().post('/v1/test-items').set('Authorization', auth)
           : auth.post('/v1/test-items');
-      return req.set('Idempotency-Key', key).send(body);
+      return req
+        .set('Idempotency-Key', key)
+        .send(body ?? { title: 'Hello', body: 'World' });
     },
 
     /** Hands committed outbox messages to the fan-out, then delivers what is due. */

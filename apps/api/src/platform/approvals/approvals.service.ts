@@ -909,7 +909,7 @@ export class ApprovalsService implements PersonalDataSource {
         throw this.problem(
           HttpStatus.CONFLICT,
           'approval_already_decided',
-          mine.length ? 'alreadyDecided' : 'alreadyDecided',
+          'alreadyDecided',
         );
       }
       const decided = await tx

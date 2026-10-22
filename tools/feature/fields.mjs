@@ -30,7 +30,9 @@ export function parseField(spec) {
       `--fields "${spec}": write name:type, with ? for optional and !unique for unique (title:string, dueOn:date?, code:string!unique).`,
     );
   }
-  const [, name, type, arg, optional, unique] = match;
+  // A group that did not take part (no `(…)`, no `?`, no `!unique`) is undefined.
+  const [, name, type, arg, optional, unique] =
+    /** @type {(string | undefined)[]} */ (match);
   if (!CAMEL.test(name)) {
     throw new Error(`--fields: "${name}" is a camelCase name (dueOn).`);
   }

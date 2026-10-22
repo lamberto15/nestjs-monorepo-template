@@ -115,10 +115,10 @@ function dateOf(value: unknown, unit: 'iso' | 'seconds') {
     unit === 'iso'
       ? typeof value === 'string'
         ? Date.parse(value)
-        : NaN
+        : Number.NaN
       : typeof value === 'number'
         ? value * 1000
-        : NaN;
+        : Number.NaN;
   return Number.isFinite(at) ? new Date(at) : null;
 }
 

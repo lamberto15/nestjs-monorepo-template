@@ -109,6 +109,12 @@ describe('PostmarkIntake', () => {
         request(bounce('HardBounce'), { authorization: `Basic ${basic}` }),
       ),
     ).resolves.toMatchObject({ kind: 'events' });
+    // Any case, any whitespace before the credentials.
+    await expect(
+      intake().intake.receive(
+        request(bounce('HardBounce'), { authorization: `basic \t ${basic}` }),
+      ),
+    ).resolves.toMatchObject({ kind: 'events' });
   });
 
   it('refuses a missing or wrong secret (401), before reading the body', async () => {
@@ -118,11 +124,26 @@ describe('PostmarkIntake', () => {
       { 'x-postmark-webhook-secret': 'nope' },
       { authorization: `Basic ${Buffer.from('u:nope').toString('base64')}` },
       { authorization: 'Bearer abc' },
+      { authorization: 'Basic' },
+      { authorization: 'Basic   ' },
     ]) {
       await expect(
         i.receive({ rawBody: Buffer.from('not json'), headers }),
       ).rejects.toBeInstanceOf(UnauthorizedException);
     }
+  });
+
+  it('reads a crafted Authorization header in linear time', async () => {
+    // The pattern it replaced (/^Basic\s+(.+)$/i) took about a second here.
+    const authorization = `Basic${'\t'.repeat(50_000)}\n`;
+    const started = performance.now();
+    await expect(
+      intake().intake.receive({
+        rawBody: Buffer.from('not json'),
+        headers: { authorization },
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(performance.now() - started).toBeLessThan(250);
   });
 
   it('refuses everything (403) while no secret is configured', async () => {
