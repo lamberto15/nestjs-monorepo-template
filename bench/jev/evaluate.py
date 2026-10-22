@@ -52,20 +52,21 @@ def auto(preds, ids, band):
 dev = [i for i, r in gold.items() if r["split"] == "dev"]
 test = [i for i, r in gold.items() if r["split"] == "test"]
 
-print(f"items: dev {len(dev)}, test {len(test)}\n")
-hdr = f"{'arm':<14}{'backend':>8}{'front':>8}{'ci':>8}{'docs':>8}{'macroF1':>9}{'exact':>8}{'brier':>8}{'ECE':>7}{'band':>6}{'cover':>7}{'prec':>7}"
-print(hdr)
-for path in sys.argv[2:]:
-    preds = load(path)
-    missing = [i for i in gold if i not in preds]
-    if missing:
-        print(f"{path}: {len(missing)} items missing, skipped"); continue
-    per, exact, brier, ece = metrics(preds, test)
-    # widest band whose dev precision is >= 0.95 (largest coverage)
-    best = max(((auto(preds, dev, b)[0], b) for b in [x / 100 for x in range(0, 50)]
-                if auto(preds, dev, b)[1] >= 0.95), default=(0.0, None))[1]
-    cover, prec = auto(preds, test, best) if best is not None else (0.0, 0.0)
-    best = best if best is not None else float("nan")
-    name = path.removeprefix("preds_").removesuffix(".jsonl")
-    print(f"{name:<14}" + "".join(f"{per[a]:>8.2f}" for a in AREAS)
-          + f"{sum(per.values()) / 4:>9.2f}{exact:>8.2f}{brier:>8.3f}{ece:>7.3f}{best:>6.2f}{cover:>7.2f}{prec:>7.2f}")
+if __name__ == "__main__":  # apply_metric.py imports the gold set and helpers
+    print(f"items: dev {len(dev)}, test {len(test)}\n")
+    hdr = f"{'arm':<14}{'backend':>8}{'front':>8}{'ci':>8}{'docs':>8}{'macroF1':>9}{'exact':>8}{'brier':>8}{'ECE':>7}{'band':>6}{'cover':>7}{'prec':>7}"
+    print(hdr)
+    for path in sys.argv[2:]:
+        preds = load(path)
+        missing = [i for i in gold if i not in preds]
+        if missing:
+            print(f"{path}: {len(missing)} items missing, skipped"); continue
+        per, exact, brier, ece = metrics(preds, test)
+        # widest band whose dev precision is >= 0.95 (largest coverage)
+        best = max(((auto(preds, dev, b)[0], b) for b in [x / 100 for x in range(0, 50)]
+                    if auto(preds, dev, b)[1] >= 0.95), default=(0.0, None))[1]
+        cover, prec = auto(preds, test, best) if best is not None else (0.0, 0.0)
+        best = best if best is not None else float("nan")
+        name = path.removeprefix("preds_").removesuffix(".jsonl")
+        print(f"{name:<14}" + "".join(f"{per[a]:>8.2f}" for a in AREAS)
+              + f"{sum(per.values()) / 4:>9.2f}{exact:>8.2f}{brier:>8.3f}{ece:>7.3f}{best:>6.2f}{cover:>7.2f}{prec:>7.2f}")

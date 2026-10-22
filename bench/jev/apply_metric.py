@@ -4,16 +4,9 @@ labels it applied (recall)."""
 import json, sys
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # python3 -I leaves bench/jev off the path
+from evaluate import AREAS, dev, gold, inside, test  # noqa: E402
 
-def inside(arg):  # file arguments must name files in bench/jev (SonarCloud S8707)
-    path = (HERE / arg).resolve()
-    if not path.is_relative_to(HERE):
-        raise SystemExit(f"{arg}: not a file in {HERE}")
-    return path
-AREAS = ["backend", "frontend", "ci", "documentation"]
-gold = {r["id"]: r for r in map(json.loads, open(inside(sys.argv[1])))}
-dev = [i for i in gold if gold[i]["split"] == "dev"]; test = [i for i in gold if gold[i]["split"] == "test"]
 def pr(p, ids, a, t):
     hit = [i for i in ids if p[i][a] >= t]; pos = sum(gold[i]["labels"][a] for i in ids)
     tp = sum(gold[i]["labels"][a] for i in hit)
