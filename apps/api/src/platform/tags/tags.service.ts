@@ -340,27 +340,26 @@ export class TagsService {
     const result = new Map<string, TagRef[]>(
       recordIds.map((id) => [id, []] as [string, TagRef[]]),
     );
-    if (!recordIds.length) {
-      return result;
-    }
-    const rows = await this.db
-      .select({
-        recordId: recordTags.recordId,
-        id: tags.id,
-        name: tags.name,
-        color: tags.color,
-      })
-      .from(recordTags)
-      .innerJoin(tags, eq(tags.id, recordTags.tagId))
-      .where(
-        and(
-          eq(recordTags.subject, subject),
-          inArray(recordTags.recordId, [...new Set(recordIds)]),
-        ),
-      )
-      .orderBy(asc(sql`lower(${tags.name})`), asc(tags.id));
-    for (const row of rows) {
-      result.get(row.recordId)?.push(ref(row));
+    if (recordIds.length) {
+      const rows = await this.db
+        .select({
+          recordId: recordTags.recordId,
+          id: tags.id,
+          name: tags.name,
+          color: tags.color,
+        })
+        .from(recordTags)
+        .innerJoin(tags, eq(tags.id, recordTags.tagId))
+        .where(
+          and(
+            eq(recordTags.subject, subject),
+            inArray(recordTags.recordId, [...new Set(recordIds)]),
+          ),
+        )
+        .orderBy(asc(sql`lower(${tags.name})`), asc(tags.id));
+      for (const row of rows) {
+        result.get(row.recordId)?.push(ref(row));
+      }
     }
     return result;
   }

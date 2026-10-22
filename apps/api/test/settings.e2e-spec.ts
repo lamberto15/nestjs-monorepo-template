@@ -649,11 +649,12 @@ describe('settings (e2e)', () => {
   });
 
   describe('targeting rules', () => {
-    const domain = (domains: string[], outcome: object = { value: true }) => ({
+    const ON: object = { value: true };
+    const domain = (domains: string[], outcome: object = ON) => ({
       conditions: [{ key: 'emailDomain', params: { domains } }],
       outcome,
     });
-    const kind = (kinds: string[], outcome: object = { value: true }) => ({
+    const kind = (kinds: string[], outcome: object = ON) => ({
       conditions: [{ key: 'principalKind', params: { kinds } }],
       outcome,
     });

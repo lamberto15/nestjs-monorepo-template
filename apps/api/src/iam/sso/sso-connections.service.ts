@@ -720,10 +720,11 @@ export class SsoConnectionsService {
   }
 
   /** What an administrator sees: never the client secret nor our private key. */
-  private view(
-    row: SsoConnection,
-    roles: RoleSetup = { roleMappings: [], defaultRoleIds: [] },
-  ) {
+  private view(row: SsoConnection, roles?: RoleSetup) {
+    const { roleMappings, defaultRoleIds }: RoleSetup = roles ?? {
+      roleMappings: [],
+      defaultRoleIds: [],
+    };
     const urls = this.urls(row);
     return {
       id: row.id,
@@ -732,8 +733,8 @@ export class SsoConnectionsService {
       enabled: row.enabled,
       jitProvisioning: row.jitProvisioning,
       groupsAttribute: row.groupsAttribute,
-      roleMappings: roles.roleMappings,
-      defaultRoleIds: roles.defaultRoleIds,
+      roleMappings,
+      defaultRoleIds,
       loginUrl: urls.login,
       oidc:
         row.protocol === 'oidc'

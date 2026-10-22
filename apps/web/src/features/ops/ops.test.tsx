@@ -311,7 +311,7 @@ describe('live events', () => {
       });
       stream.send('not json');
     });
-    const log = screen.getByRole('list', { name: 'Live events' });
+    const log = screen.getByRole('region', { name: 'Live events' });
     const items = within(log).getAllByRole('listitem');
     expect(items).toHaveLength(2);
     expect(items[0]).toHaveTextContent('mail');
@@ -328,7 +328,7 @@ describe('live events', () => {
         stream.send({ source: 'workflow', at: Date.now(), type: `e${i}` });
       }
     });
-    const log = screen.getByRole('list', { name: 'Live events' });
+    const log = screen.getByRole('region', { name: 'Live events' });
     const items = within(log).getAllByRole('listitem');
     expect(items).toHaveLength(MAX_EVENTS);
     expect(items[0]).toHaveTextContent(`e${MAX_EVENTS + 24}`);
@@ -348,7 +348,7 @@ describe('live events', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Resume' }));
     await waitFor(() => expect(FakeEventSource.instances).toHaveLength(2));
     await userEvent.click(screen.getByRole('button', { name: 'Clear' }));
-    expect(screen.queryByRole('list', { name: 'Live events' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Live events' })).toBeNull();
   });
 
   it('says so when the connection drops and when it is refused', async () => {
@@ -385,10 +385,10 @@ describe('live events', () => {
     const stream = await openEvents();
     act(() => stream.send({ source: 'mail', at: Date.now(), type: 'sent' }));
     expect(screen.getByRole('tabpanel')).toBeVisible();
-    expect(screen.getByRole('list', { name: 'Live events' })).toHaveAttribute(
-      'tabindex',
-      '0',
-    );
+    // The scroll region is named and in the tab order; the list inside keeps its role.
+    const log = screen.getByRole('region', { name: 'Live events' });
+    expect(log).toHaveAttribute('tabindex', '0');
+    expect(within(log).getByRole('list')).toBeVisible();
   });
 
   it('closes the stream when leaving the tab', async () => {

@@ -79,12 +79,18 @@ export class CaptchaGuard implements CanActivate {
       CaptchaOptions | undefined
     >(CAPTCHA, [context.getHandler(), context.getClass()]);
     if (
-      !options ||
-      context.getType() !== 'http' ||
-      this.captcha.mode === 'off'
+      options &&
+      context.getType() === 'http' &&
+      this.captcha.mode !== 'off'
     ) {
-      return true;
+      await this.verify(context, options);
     }
+    // A refusal is thrown by check() (a problem with its code and detail),
+    // never returned as `false`: a guard's `false` is a bare 403.
+    return true;
+  }
+
+  private async verify(context: ExecutionContext, options: CaptchaOptions) {
     const http = context.switchToHttp();
     const request = http.getRequest<Request>();
     const response = http.getResponse<Response>();
@@ -109,7 +115,6 @@ export class CaptchaGuard implements CanActivate {
       });
     }
     await this.captcha.check(headerValue(request, CAPTCHA_HEADER), subject);
-    return true;
   }
 
   /**
