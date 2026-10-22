@@ -130,6 +130,7 @@ export class UsersRepository {
         id: tenants.id,
         slug: tenants.slug,
         name: tenants.name,
+        operator: tenants.operator,
         selectedAt: memberships.selectedAt,
         joinedAt: memberships.createdAt,
       })

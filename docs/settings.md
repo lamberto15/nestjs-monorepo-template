@@ -137,10 +137,15 @@ show a banner), signing in and out by every method (`/v1/auth`: `methods`,
 `token/revoke`; `passkeys/sign-in/options`, `passkeys/sign-in` and
 `passkeys/token`; `oidc/{provider}/login` and `callback`; `sso/discover` and
 every SSO connection's login, callbacks and SAML routes; `magic-link/verify`),
-`/v1/ops` and the two operator routes
-`PUT`/`DELETE /v1/settings/{key}/platform`, so the operators can always turn
-the mode off again, however they sign in, and token clients keep renewing
-their tokens. Asking for a magic link (`POST /v1/auth/magic-link`) is
+`/v1/ops`, the two operator routes
+`PUT`/`DELETE /v1/settings/{key}/platform` and the tenant switch
+(`GET /v1/auth/tenants`, `POST /v1/auth/tenant`), so the operators can always
+turn the mode off again, however they sign in, and token clients keep renewing
+their tokens. The switch is there because the operator routes are the operator
+tenant's (`@OperatorOnly()`, 403 `operator_required` from any other) and a
+sign-in starts in the tenant the account chose last: an operator who is a
+member of other tenants and was in one of them when the mode went on would
+otherwise stay there, through a sign-out and in, with no way back. Asking for a magic link (`POST /v1/auth/magic-link`) is
 refused: its mail waits in the paused mail queue. Mark a route of your own
 the same way when it must keep working. A POST that only reads is refused in
 `read-only`.
@@ -165,6 +170,22 @@ the same way when it must keep working. A POST that only reads is refused in
   from being served at all (`MAINTENANCE_PAGE=on`, [deployment](deployment.md),
   "Maintenance page").
 - Not covered: WebSocket messages and a running job.
+- **Locked out of ending it?** In the order to try: the web app's notice
+  ("End maintenance", after "Switch to <operator tenant>" when the session
+  acts in another tenant); `DELETE /v1/settings/platform.mode/platform` with a
+  token minted for the operator tenant (`POST /v1/auth/token { email,
+  password, tenantId }`: a token sign-in does not move the account's last
+  chosen tenant); `pnpm ops setting:delete platform.mode --platform`
+  ([deployment](deployment.md), "Operator CLI"), which needs no session at
+  all; and, for a mode forced by `APP_MODE`, removing it from the environment
+  and recreating the containers (the setting's `DELETE` is then a no-op).
+  Sign-in is limited to 5 per email and address in 15 minutes (successes
+  count; then 429 `rate_limited`, `Retry-After: 900`), so signing out and in
+  over and over to see whether it helps can lock the password out for a
+  quarter of an hour: use the notice instead. After a deploy, a browser keeps
+  the web app it had until its Reload prompt is accepted; a bundle older than
+  the notice shows a page of 503s with no way to end the mode, so accept the
+  prompt (or hard reload) first.
 
 ## Targeting rules (flags)
 

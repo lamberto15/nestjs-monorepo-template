@@ -42,6 +42,7 @@ import {
   ifNoneMatchHeader,
 } from '../../core/http/etag.js';
 import type { ListQuery } from '../../core/http/list-query.js';
+import { AllowInMaintenance } from '../../core/http/maintenance.js';
 import { listSchema, pageSchema } from '../../core/http/pagination.js';
 import { newPassword } from '../account/account.schemas.js';
 import { DuringMfaEnrollment } from '../auth/mfa-enrollment.guard.js';
@@ -66,6 +67,15 @@ const myTenantSchema = z.object({
   slug: z.string(),
   name: z.string(),
   current: z.boolean().describe('The tenant this session or token acts in.'),
+  // Optional in the document though always sent (as `tenantSchema`'s
+  // `createdBySignUp`): a field the typed client requires would break every
+  // client's fixtures of a tenant.
+  operator: z
+    .boolean()
+    .optional()
+    .describe(
+      'An operator tenant: the only one whose session can turn `platform.mode` off. Always sent.',
+    ),
 });
 
 const switchSchema = z.object({
@@ -243,7 +253,10 @@ const createTenantSchema = z.object({
  * origin, the session carries the tenant it acts in, and switching re-issues
  * the session (a new cookie: anything bound to the old one, a realtime
  * connection, reconnects). Token clients sign in again with `tenantId`
- * (POST /auth/token).
+ * (POST /auth/token). Both routes answer in maintenance mode too: the mode
+ * routes are the operator tenant's (`@OperatorOnly()`), and a sign-in starts
+ * in the tenant last chosen, so an operator who is in another tenant when
+ * the mode goes on needs the way back to end it (docs/settings.md).
  */
 @ApiTags('auth')
 @Controller('auth')
@@ -259,6 +272,7 @@ export class TenantSwitchController {
   @DuringOnboarding()
   @WithoutSso()
   @Get('tenants')
+  @AllowInMaintenance() // an operator finds the way back to the operator tenant
   @ApiCookieAuth('user-session')
   @ApiOperation({
     summary: 'The tenants you belong to',
@@ -276,6 +290,7 @@ export class TenantSwitchController {
   @DuringOnboarding()
   @WithoutSso()
   @Post('tenant')
+  @AllowInMaintenance() // ...and takes it
   @HttpCode(204)
   @ApiCookieAuth('user-session')
   @ApiOperation({

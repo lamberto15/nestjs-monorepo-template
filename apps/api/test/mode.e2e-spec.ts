@@ -125,6 +125,45 @@ describe('maintenance and read-only mode (e2e)', () => {
       .expect(503);
   });
 
+  it('an operator in another tenant switches back to the operator tenant and ends maintenance', async () => {
+    // The mode routes are the operator tenant's (@OperatorOnly), and a
+    // sign-in starts in the tenant the account chose last: an operator who is
+    // a member of another tenant stays there through a sign-out and in. The
+    // tenant switch is how they get back, so it answers in maintenance.
+    const operator = await node.user(['administrator']);
+    const other = await node.otherTenant();
+    const token = await node.invite(other.admin, { email: operator.email });
+    await operator.agent
+      .post('/v1/auth/invitations/accept')
+      .send({ token })
+      .expect(200);
+    await operator.agent
+      .post('/v1/auth/tenant')
+      .send({ tenantId: other.id })
+      .expect(204);
+    await setMode('maintenance');
+
+    const again = await node.signIn(operator.email, operator.password);
+    expect(
+      (await again.get('/v1/auth/me').expect(200)).body.tenant,
+    ).toMatchObject({ id: other.id, operator: false });
+    await again.delete('/v1/settings/platform.mode/platform').expect(403);
+
+    const tenants = (await again.get('/v1/auth/tenants').expect(200)).body
+      .items as { id: string; current: boolean; operator: boolean }[];
+    expect(tenants).toHaveLength(2);
+    expect(tenants.find((tenant) => tenant.id === other.id)).toMatchObject({
+      current: true,
+      operator: false,
+    });
+    const home = tenants.find((tenant) => tenant.operator)!;
+    expect(home).toMatchObject({ id: node.tenantId, current: false });
+    await again.post('/v1/auth/tenant').send({ tenantId: home.id }).expect(204);
+    await again.delete('/v1/settings/platform.mode/platform').expect(204);
+    await node.app.get(ModeService).refresh();
+    await node.admin().get('/v1/test-items').expect(200);
+  });
+
   it('a tenant cannot set the mode for itself, and a bad value is refused', async () => {
     await node
       .admin()

@@ -5,7 +5,7 @@ import { act } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MODE_POLL, type Mode } from '@/lib/mode';
 import { renderApp } from '@/test/render-app';
-import { allFeatures, problem, server } from '@/test/server';
+import { allFeatures, problem, server, signedInUser } from '@/test/server';
 import { useSignedIn } from '@/test/signed-in';
 import { findToast } from '@/test/toast';
 
@@ -277,6 +277,99 @@ describe('a deployment in maintenance', () => {
     expect(
       screen.getByRole('heading', { name: 'Down for maintenance' }),
     ).toBeVisible();
+  });
+
+  describe('an operator whose session acts in another tenant', () => {
+    const operatorTenant = {
+      id: '0199a3f2-0000-7000-8000-0000000000bb',
+      slug: 'ops',
+      name: 'Operations',
+      operator: true,
+    };
+    const clientTenant = {
+      id: signedInUser.tenant!.id,
+      slug: 'acme',
+      name: 'Acme',
+      operator: false,
+    };
+
+    /** Maintenance, signed in to `acting` (one of the two tenants); a switch changes it. */
+    function useTwoTenants(acting: 'client' | 'operator') {
+      const state = { acting };
+      const deployment = useDeployment('maintenance', [
+        'Access.manageSettings',
+      ]);
+      const switched: string[] = [];
+      server.use(
+        http.get('/v1/auth/me', () => {
+          const tenant =
+            state.acting === 'operator' ? operatorTenant : clientTenant;
+          return HttpResponse.json({
+            ...signedInUser,
+            tenant,
+            can: { 'Access.manageSettings': true },
+          });
+        }),
+        http.get('/v1/auth/tenants', () =>
+          HttpResponse.json({
+            items: [
+              {
+                ...clientTenant,
+                current: state.acting === 'client',
+              },
+              {
+                ...operatorTenant,
+                current: state.acting === 'operator',
+              },
+            ],
+          }),
+        ),
+        http.post('/v1/auth/tenant', async ({ request }) => {
+          const body = (await request.json()) as { tenantId: string };
+          switched.push(body.tenantId);
+          state.acting =
+            body.tenantId === operatorTenant.id ? 'operator' : 'client';
+          return new HttpResponse(null, { status: 204 });
+        }),
+      );
+      return { ...deployment, switched };
+    }
+
+    it('is offered the way back to the operator tenant, and then the end button', async () => {
+      // The mode routes are the operator tenant's: from Acme, End maintenance
+      // would answer 403 operator_required.
+      const { switched } = useTwoTenants('client');
+      await renderApp('/');
+      await maintenanceTitle();
+      // The way back comes once the user's tenants are known.
+      const back = await screen.findByRole('button', {
+        name: 'Switch to Operations',
+      });
+      expect(screen.getByText(/This session is in Acme/)).toBeVisible();
+      expect(
+        screen.queryByRole('button', { name: 'End maintenance' }),
+      ).toBeNull();
+
+      const user = userEvent.setup();
+      await user.click(back);
+      expect(
+        await screen.findByRole('button', { name: 'End maintenance' }),
+      ).toBeVisible();
+      expect(switched).toEqual([operatorTenant.id]);
+      expect(
+        screen.queryByRole('button', { name: 'Switch to Operations' }),
+      ).toBeNull();
+    });
+
+    it('is not offered one from the operator tenant itself', async () => {
+      useTwoTenants('operator');
+      await renderApp('/');
+      await maintenanceTitle();
+      expect(
+        await screen.findByRole('button', { name: 'End maintenance' }),
+      ).toBeVisible();
+      expect(screen.queryByRole('button', { name: /^Switch to / })).toBeNull();
+    });
   });
 
   it('offers no way to end it to a user who may not manage settings', async () => {

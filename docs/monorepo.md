@@ -226,7 +226,13 @@ web app needs the API, so `dev:web` alone suits an API already running.
     (`DELETE /v1/settings/platform.mode/platform`). The API answers 204 whatever it
     removed, so the notice asks for the mode afterwards: still `maintenance` (it is
     forced by `APP_MODE`, which only the environment changes) is an error toast
-    saying so, not the success toast.
+    saying so, not the success toast. That route is the operator tenant's, and a
+    sign-in starts in the tenant the account chose last, so an operator whose
+    session acts in another of their tenants first sees "Switch to <operator
+    tenant>" (`GET /v1/auth/tenants` says which is one, `operator`; both tenant
+    routes stay open in maintenance). Requests the mode refused (503
+    `read_only`, `maintenance`) are not retried (`lib/errors.ts`): the refusal says
+    to wait, and the mode watch learns when it has ended.
   - **Caddy** serves a static page for the web app's files while `MAINTENANCE_PAGE=on`
     ([deployment](deployment.md), "Maintenance page"); an installed app (the service
     worker) opens its cached shell and shows this notice.

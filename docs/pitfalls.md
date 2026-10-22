@@ -11,6 +11,13 @@
 - **nestjs-cls hands Drizzle `{}` as transaction options**, which Drizzle
   turns into `set transaction ` (a syntax error): `DrizzleTransactionAdapter`
   drops empty options. Keep using it, not the plain adapter.
+- **Whatever an operator needs to leave maintenance mode must be
+  `@AllowInMaintenance()`** (`core/http/maintenance.ts`): every way to sign in,
+  the operator routes `PUT`/`DELETE /v1/settings/{key}/platform`, and the
+  tenant switch that reaches them (they are the operator tenant's, and a
+  sign-in starts in the tenant last chosen). One route left out strands the
+  operator behind the 503 with only the CLI to end it; `mode.e2e-spec.ts`
+  walks the whole way back.
 - **Module order:** `PlatformModule` before `CoreModule` before `IamModule`
   (idempotency outermost; rate limits before authentication). A warning
   `IdempotencyInterceptor runs inside …` means the order broke.
