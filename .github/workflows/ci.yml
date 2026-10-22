@@ -1707,7 +1707,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=caddy
       - name: Non-root runtime, HTTPS, restarts and certificate-volume migration
-        run: caddy/test-runtime.sh caddy:ci
+        run: caddy/test-runtime.sh caddy:publish
       - name: The web app is in the image
         run: docker run --rm --entrypoint test caddy:publish -f /srv/web/index.html
       - name: Install Trivy
