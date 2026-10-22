@@ -47,6 +47,7 @@ import {
   TARGETS,
   templateKeys,
 } from './envfile.mjs';
+import { checkout } from '../feature/paths.mjs';
 
 const REPO = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -60,7 +61,8 @@ const USAGE = `pnpm setup [--target development|production] [options]
   --yes, -y        take the defaults and the flags below, ask nothing
   --dry-run        print the plan (secrets masked), write nothing
   --rotate         new secrets in an existing file (keys are put in front of the old ones)
-  --root <dir>     the repository (default: this one); --out <dir>: write the file there
+  --root <dir>     the repository: this one (default) or a copy of it under a temp directory
+  --out <dir>      write the file there
 
 One flag per question (with --yes a required one missing is an error):
 ${QUESTIONS.map((q) => `  --${kebab(q.id)}${q.type === 'bool' ? ' / --no-' + kebab(q.id) : ' <value>'}`.padEnd(34) + q.label).join('\n')}`;
@@ -200,15 +202,23 @@ async function wizard(values, io) {
     else err('  development or production');
   }
 
-  const root = path.resolve(values.root ?? REPO);
   const files = TARGETS[target];
+  // --root as the feature tools take it (checkout()): this checkout or a copy
+  // under a temp directory, checked before anything is read or written. The
+  // example feature's removal runs feature:remove there, which takes no
+  // other directory (#471).
+  let root;
+  try {
+    root = checkout(values.root ?? REPO, files.template);
+  } catch (error) {
+    throw new Error(
+      `${error.message} Another checkout is set up from its own directory: cd there, then pnpm setup.`,
+    );
+  }
   const templatePath = path.join(root, files.template);
   const filePath = values.out
     ? path.join(path.resolve(values.out), path.basename(files.file))
     : path.join(root, files.file);
-  if (!existsSync(templatePath)) {
-    throw new Error(`The template ${files.template} is not under ${root}.`);
-  }
   const templateText = readFileSync(templatePath, 'utf8');
   const existingText = existsSync(filePath)
     ? readFileSync(filePath, 'utf8')

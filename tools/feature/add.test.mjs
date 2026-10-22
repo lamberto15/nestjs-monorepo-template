@@ -10,7 +10,9 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -32,6 +34,7 @@ import {
 import { parseField, parseFields } from './fields.mjs';
 import { names, singularize } from './names.mjs';
 import { checkout, inside } from './paths.mjs';
+import { tempRoots, within } from '../cli-paths.mjs';
 
 const REPO = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -961,7 +964,7 @@ describe('where the tools write', () => {
   });
 
   it('takes a checkout of the template as --root, and nothing else', () => {
-    assert.equal(checkout(root, 'apps/api/src/features'), root);
+    assert.equal(checkout(root, 'apps/api/src/features'), realpathSync(root));
     assert.throws(
       () => checkout(empty, 'apps/api/src/features'),
       /not a checkout of the template/,
@@ -969,42 +972,25 @@ describe('where the tools write', () => {
   });
 
   it('takes this checkout, or one under a temp directory, as --root', () => {
-    assert.equal(checkout(REPO, 'apps/api/src/features'), REPO);
+    const repo = realpathSync(REPO);
+    assert.equal(checkout(REPO, 'apps/api/src/features'), repo);
     assert.equal(
       checkout(path.join(REPO, 'apps', '..'), 'apps/api/src/features'),
-      REPO,
+      repo,
     );
     assert.throws(() => checkout('/', 'apps/api/src/features'), /refused/);
-    // A checkout outside this one and the temp directories: refused before
-    // anything is read or written.
-    const sync = cliElsewhere(undefined, 'sync.mjs', '--check', '--root', root);
-    assert.equal(sync.status, 1);
-    assert.match(sync.stderr, /--root .*: neither this checkout .* refused/);
-    const add = cliElsewhere(
-      undefined,
-      'add.mjs',
-      'invoices',
-      '--fields',
-      'title:string',
-      '--root',
-      root,
-    );
-    assert.equal(add.status, 1);
-    assert.match(add.stderr, /refused/);
-    const remove = cliElsewhere(
-      undefined,
-      'remove.mjs',
-      'orders',
-      '--root',
-      root,
-    );
-    assert.equal(remove.status, 1);
-    assert.match(remove.stderr, /refused/);
-    assert.deepEqual(readdirSync(api('src/features')).sort(), [
-      'index.ts',
-      'orders',
-      'tables.ts',
-    ]);
+    // A directory outside this checkout and the temp directories (the one
+    // that holds the checkout): refused before anything is read or written.
+    const outside = path.dirname(REPO);
+    for (const args of [
+      ['sync.mjs', '--check'],
+      ['add.mjs', 'invoices', '--fields', 'title:string'],
+      ['remove.mjs', 'orders'],
+    ]) {
+      const run = cliElsewhere(undefined, ...args, '--root', outside);
+      assert.equal(run.status, 1, args.join(' '));
+      assert.match(run.stderr, /--root .*: neither this checkout .* refused/);
+    }
     // CI's temp directory (RUNNER_TEMP) holds copies too.
     const ci = cliElsewhere(
       path.dirname(root),
@@ -1015,6 +1001,47 @@ describe('where the tools write', () => {
       root,
     );
     assert.equal(ci.status, 0, ci.stderr);
+  });
+
+  // A symlink is followed before the check: under a temp directory by its
+  // name, it may lead to any tree on the machine (here this checkout's apps).
+  it('follows symlinks: a root or a path that leads elsewhere is refused', () => {
+    const links = mkdtempSync(path.join(tmpdir(), 'feature-paths-links-'));
+    try {
+      const apps = path.join(links, 'apps-link');
+      symlinkSync(path.join(REPO, 'apps'), apps, 'dir');
+      assert.throws(() => checkout(apps, 'api/src/features'), /refused/);
+      // A copy in a temp directory whose apps folder leads out of it: the
+      // root passes, every path through the symlink is refused.
+      const copy = path.join(links, 'copy');
+      mkdirSync(copy);
+      symlinkSync(path.join(REPO, 'apps'), path.join(copy, 'apps'), 'dir');
+      assert.equal(checkout(copy, 'apps/api/src/features'), realpathSync(copy));
+      assert.throws(
+        () => inside(copy, 'apps/api/src/features/notes'),
+        /outside/,
+      );
+      // (A dry run: were the check to miss, nothing is removed.)
+      const remove = cli('remove.mjs', 'notes', '--dry-run', '--root', copy);
+      assert.equal(remove.status, 1);
+      assert.match(remove.stderr, /outside/);
+      // A file argument too, and a symlink to nothing (writing through it
+      // would create its target, wherever that is).
+      const roots = tempRoots();
+      assert.equal(within(path.join(apps, 'x.md'), roots), null);
+      assert.equal(
+        within(path.join(links, 'x.md'), roots),
+        path.join(realpathSync(links), 'x.md'),
+      );
+      symlinkSync(
+        path.join(links, 'missing', 'x.md'),
+        path.join(links, 'dangling'),
+      );
+      assert.equal(within(path.join(links, 'dangling'), roots), null);
+      assert.throws(() => inside(links, 'dangling'), /symlink to nothing/);
+    } finally {
+      rmSync(links, { recursive: true, force: true });
+    }
   });
 
   it('refuses a root that is not a checkout, and writes nothing there', async () => {

@@ -427,7 +427,35 @@ describe('the command', () => {
         '/etc/hosts',
       );
       assert.equal(run.status, 2, option);
-      assert.match(run.stderr, /--changes and --out name files under/);
+      assert.match(run.stderr, new RegExp(`^${option} names a file under`));
+    }
+  });
+
+  // In the checkout, a write could replace a git hook (.git/hooks/pre-commit,
+  // run by the next commit) or a script: --out goes to a temp directory.
+  it('writes --out in a temp directory only, never in the checkout', () => {
+    const repo = fileURLToPath(new URL('../..', import.meta.url));
+    const out = path.join(repo, 'release-notes-refused.md');
+    try {
+      const run = notes(
+        '--tag',
+        'v0.2.0',
+        '--previous',
+        'v0.1.0',
+        '--repository',
+        'o/r',
+        '--no-lint',
+        '--out',
+        out,
+      );
+      assert.equal(run.status, 2);
+      assert.match(
+        run.stderr,
+        /^--out names a file under .*, outside the checkout/,
+      );
+      assert.ok(!existsSync(out));
+    } finally {
+      rmSync(out, { force: true });
     }
   });
 

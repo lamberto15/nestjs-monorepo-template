@@ -27,7 +27,7 @@
 // Exit 1 on a regression, 2 on bad input (arguments, an unreadable file).
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { fileRoots, within } from '../tools/cli-paths.mjs';
+import { fileRoots, outputFile, tempRoots, within } from '../tools/cli-paths.mjs';
 
 export const FACTOR = 2;
 export const MIN_DELTA_MS = 20;
@@ -131,15 +131,20 @@ export function readBaseline(path) {
 const optional = (path) => (path && existsSync(path) ? readBaseline(path) : undefined);
 
 /**
- * A file the arguments name, resolved: in this checkout or a temp directory
- * (CI: RUNNER_TEMP, which holds the step summary). Anywhere else is refused
- * (#471): Claude runs this tool too, and a wrong path must not be read or
- * appended to.
+ * A file the arguments name, resolved: a baseline in this checkout or a temp
+ * directory, the summary (appended to) in a temp directory only, outside the
+ * checkout (CI: RUNNER_TEMP, which holds the step summary). Anywhere else is
+ * refused (#471): Claude runs this tool too, and a wrong path must not be
+ * read or appended to.
  */
 function argFile(file, option) {
   if (!file) return undefined;
-  const full = within(file, fileRoots());
-  if (!full) throw new Error(`${option} ${file}: not under ${fileRoots().join(' or ')}`);
+  const written = option === '--summary';
+  const full = written ? outputFile(file) : within(file, fileRoots());
+  if (!full) {
+    const roots = (written ? tempRoots() : fileRoots()).join(' or ');
+    throw new Error(`${option} ${file}: not under ${roots}${written ? ', outside the checkout' : ''}`);
+  }
   return full;
 }
 

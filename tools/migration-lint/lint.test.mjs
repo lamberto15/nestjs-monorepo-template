@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -471,6 +472,17 @@ describe('the command', () => {
       ],
       [['--base', 'HEAD', '--summary', '/etc/summary.md'], /--summary/],
       [['--base', 'HEAD', '--annotations', '/etc/x.txt'], /--annotations/],
+      // Written: in a temp directory only, never in the checkout (a git hook
+      // or a script there would run the text).
+      [
+        [
+          '--base',
+          'HEAD',
+          '--summary',
+          path.join(here, '../../lint-summary.md'),
+        ],
+        /--summary .*: a file under .*, outside the checkout/,
+      ],
       [['/etc/hosts'], /\/etc\/hosts: a \.sql file under/],
       [['/etc/x.sql'], /\/etc\/x\.sql: a \.sql file under/],
     ]) {
@@ -478,6 +490,7 @@ describe('the command', () => {
       assert.equal(r.status, 2, args.join(' '));
       assert.match(r.stderr, reason);
     }
+    assert.ok(!existsSync(path.join(here, '../../lint-summary.md')));
   });
 
   test('takes a base, with the summary in a temp directory (nothing new: no Docker)', () => {

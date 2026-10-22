@@ -36,7 +36,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { fileRoots, within } from '../cli-paths.mjs';
+import { fileRoots, outputFile, tempRoots, within } from '../cli-paths.mjs';
 import {
   JOURNAL,
   MIGRATIONS,
@@ -64,7 +64,7 @@ function git(cwd, args) {
 /** A file's text at a commit, or null when the commit doesn't have it. */
 function show(cwd, ref, file) {
   const result = spawnSync(
-    'git',
+    'git', // NOSONAR S4036: the developer's git, from PATH (no one fixed path fits macOS and Linux)
     ['show', '--end-of-options', `${ref}:${file}`],
     {
       cwd,
@@ -107,10 +107,11 @@ export function previousTag(tag, { cwd = process.cwd() } = {}) {
   if (!parents.length) return null; // the first commit
   const args = ['describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*'];
   if (!isPrerelease(tag)) args.push('--exclude', 'v*-*');
-  const result = spawnSync('git', [...args, '--end-of-options', `${tag}^`], {
-    cwd,
-    encoding: 'utf8',
-  });
+  const result = spawnSync(
+    'git', // NOSONAR S4036: the developer's git, from PATH (no one fixed path fits macOS and Linux)
+    [...args, '--end-of-options', `${tag}^`],
+    { cwd, encoding: 'utf8' },
+  );
   if (result.status === 0) return result.stdout.trim();
   // No ancestor has such a tag: the first release.
   if (/No (names found|tags can describe)/i.test(result.stderr)) return null;
@@ -511,13 +512,18 @@ async function main() {
     return 0;
   }
   if (!repository) return usage();
-  // --changes and --out: in this checkout or a temp directory (CI: RUNNER_TEMP).
-  const roots = fileRoots();
-  const changesFile = values.changes ? within(values.changes, roots) : null;
-  const outFile = values.out ? within(values.out, roots) : null;
-  if ((values.changes && !changesFile) || (values.out && !outFile)) {
+  // --changes: in this checkout or a temp directory; --out (written): in a
+  // temp directory only, never in the checkout, where it could replace a git
+  // hook (CI: both in RUNNER_TEMP).
+  const changesFile = values.changes ? within(values.changes) : null;
+  const outFile = values.out ? outputFile(values.out) : null;
+  if (values.changes && !changesFile) {
+    console.error(`--changes names a file under ${fileRoots().join(' or ')}.`);
+    return 2;
+  }
+  if (values.out && !outFile) {
     console.error(
-      `--changes and --out name files under ${roots.join(' or ')}.`,
+      `--out names a file under ${tempRoots().join(' or ')}, outside the checkout.`,
     );
     return 2;
   }

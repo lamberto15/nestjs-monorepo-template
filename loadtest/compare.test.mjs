@@ -1,12 +1,14 @@
 // node --test loadtest/compare.test.mjs
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { compare, report } from './compare.mjs';
+
+const repo = fileURLToPath(new URL('..', import.meta.url));
 
 const scenario = (med, p95, rate = 10, { failedRate = 0, droppedIterations = 0 } = {}) => ({
   rate,
@@ -153,15 +155,38 @@ test('the command refuses files outside the checkout and the temp directories', 
     ['--current', current, '--previous', '/etc/hosts'],
     ['--current', current, '--anchor', '/etc/passwd'],
     ['--current', current, '--summary', '/etc/load-test-summary.md'],
+    // Appended to: in a temp directory only, never in the checkout (a git
+    // hook or a script there would run the text).
+    ['--current', current, '--summary', join(repo, 'load-test-summary.md')],
   ]) {
     const result = run(...args);
     assert.equal(result.status, 2, args.join(' '));
     assert.match(result.stderr, /not under/);
   }
+  assert.ok(!existsSync(join(repo, 'load-test-summary.md')));
   // The checkout and the temp directory are fine.
   const summary = join(dir, 'summary.md');
   assert.equal(run('--current', current, '--summary', summary).status, 0);
   assert.match(readFileSync(summary, 'utf8'), /## Load test/);
+});
+
+// On macOS os.tmpdir() is the per-user $TMPDIR (/var/folders/…/T), not /tmp,
+// where docs/development.md's runs write (LOADTEST_OUT=/tmp/lt4): /tmp is a
+// temp directory too, whatever TMPDIR says.
+test('reads a baseline under /tmp when TMPDIR is elsewhere', { skip: process.platform === 'win32' }, () => {
+  const dir = mkdtempSync('/tmp/loadtest-compare-');
+  const elsewhere = mkdtempSync('/tmp/loadtest-tmpdir-');
+  try {
+    const current = join(dir, 'baseline.json');
+    writeFileSync(current, JSON.stringify(baseline({ list: scenario(40, 90) })));
+    execFileSync(process.execPath, [fileURLToPath(new URL('./compare.mjs', import.meta.url)), '--report-only', '--current', current, '--previous', current], {
+      stdio: 'pipe',
+      env: { ...process.env, TMPDIR: elsewhere, RUNNER_TEMP: '' },
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+    rmSync(elsewhere, { recursive: true, force: true });
+  }
 });
 
 test('holds an export to the same bar for its time to a ready file', () => {

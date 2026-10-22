@@ -35,7 +35,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
-import { fileRoots, within } from '../cli-paths.mjs';
+import { fileRoots, outputFile, tempRoots, within } from '../cli-paths.mjs';
 
 /** squawk's release, tag and digest (linux/amd64 only: Docker emulates it on arm64). */
 export const SQUAWK_IMAGE =
@@ -754,11 +754,13 @@ async function main() {
     );
     return 2;
   }
-  // Read and written files: in this checkout or a temp directory (CI: RUNNER_TEMP).
+  // Read files: in this checkout or a temp directory; written ones in a temp
+  // directory only, never in the checkout (CI: RUNNER_TEMP).
   const roots = fileRoots();
-  const summaryFile = values.summary ? within(values.summary, roots) : null;
+  const outputs = `a file under ${tempRoots().join(' or ')}, outside the checkout`;
+  const summaryFile = values.summary ? outputFile(values.summary) : null;
   const annotationsFile = values.annotations
-    ? within(values.annotations, roots)
+    ? outputFile(values.annotations)
     : null;
   const refused = [
     values.base !== undefined &&
@@ -770,12 +772,10 @@ async function main() {
     values.head !== undefined &&
       !SHA.test(values.head) &&
       `--head ${values.head}: a commit's SHA`,
-    values.summary &&
-      !summaryFile &&
-      `--summary ${values.summary}: a file under ${roots.join(' or ')}`,
+    values.summary && !summaryFile && `--summary ${values.summary}: ${outputs}`,
     values.annotations &&
       !annotationsFile &&
-      `--annotations ${values.annotations}: a file under ${roots.join(' or ')}`,
+      `--annotations ${values.annotations}: ${outputs}`,
     ...positionals
       .filter((file) => !file.endsWith('.sql') || !within(file, roots))
       .map((file) => `${file}: a .sql file under ${roots.join(' or ')}`),

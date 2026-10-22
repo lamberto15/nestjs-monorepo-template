@@ -289,7 +289,7 @@ export function permissionWarnings(dir, name, record) {
   let committed;
   try {
     committed = execFileSync(
-      'git',
+      'git', // NOSONAR S4036: the developer's git, from PATH (no one fixed path fits macOS and Linux)
       ['show', '--end-of-options', `HEAD:./${name}`],
       { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
     );

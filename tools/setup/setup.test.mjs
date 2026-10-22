@@ -6,7 +6,9 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -775,7 +777,7 @@ describe('the example feature', () => {
     await setup(root, temp(), [...PRODUCTION], {
       runRemove: (r) => calls.push(r) && 0,
     });
-    assert.deepEqual(calls, [root]);
+    assert.deepEqual(calls, [realpathSync(root)]);
 
     const bare = fixture();
     const ctx = {
@@ -792,6 +794,23 @@ describe('the example feature', () => {
       false,
     );
   });
+});
+
+// The removal runs feature:remove on --root, which takes this checkout or a
+// copy under a temp directory only (#471). Setup takes --root the same way,
+// before anything is read or written: not a written env file without the
+// notes' variables, then a refused removal.
+test('refuses a --root outside this checkout and the temp directories, writing nothing', async () => {
+  const out = temp();
+  const calls = [];
+  await assert.rejects(
+    setup(path.dirname(REPO), out, [...PRODUCTION], {
+      runRemove: (r) => calls.push(r) && 0,
+    }),
+    /--root .*: neither this checkout .* refused/,
+  );
+  assert.deepEqual(readdirSync(out), []);
+  assert.deepEqual(calls, []);
 });
 
 describe('deployment switches', () => {

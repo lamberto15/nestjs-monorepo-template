@@ -60,7 +60,7 @@ async function drain(container) {
       globalThis.sent = true;
       setTimeout(
         () =>
-          execFileSync('docker', ['kill', '--signal', 'TERM', '--', container]),
+          execFileSync('docker', ['kill', '--signal', 'TERM', '--', container]), // NOSONAR S4036: the operator's docker, from PATH (no one fixed path fits macOS and Linux)
         1500,
       );
     }
