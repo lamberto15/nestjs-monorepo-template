@@ -16,6 +16,8 @@ const caddyApiPaths = (/^\s*@api path (.+)$/m.exec(caddyfile)?.[1] ?? '')
 describe('the service worker navigation denylist', () => {
   it('reads the API paths from the Caddyfile', () => {
     expect(caddyApiPaths).toContain('/v1/*');
+    // The local disk's signed links are /files?key=…: the path is /files itself.
+    expect(caddyApiPaths).toContain('/files');
     expect(caddyApiPaths).toContain('/files/*');
   });
 

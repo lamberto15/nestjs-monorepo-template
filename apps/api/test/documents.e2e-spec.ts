@@ -170,6 +170,11 @@ describe('documents (e2e)', () => {
       .get(`/v1/attachments/${attachmentId}/download`)
       .set('Authorization', auth)
       .expect(302);
+    // A signed link (storage.config.ts: `${APP_URL}/files`, the local and the
+    // in-memory disk alike) is /files?key=…: the path is /files itself.
+    // caddy/Caddyfile's @api matcher must list exactly that (its test pins the
+    // other half); without it a download is the web app's index.html.
+    expect(new URL(link.headers.location!).pathname).toBe('/files');
     return node
       .http()
       .get(local(link.headers.location!))

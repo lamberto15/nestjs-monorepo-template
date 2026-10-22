@@ -206,6 +206,23 @@ describe('the web app, MAINTENANCE_PAGE unset', { skip }, () => {
     assert.equal((await get(caddy, '/assets/missing.js')).status, 404);
   });
 
+  it("sends the API a stored file's signed link: the local disk signs /files?key=…, whose path is /files itself", async () => {
+    // The link as the local disk issues it (@nestjs/storage, signedUrl): the
+    // key and the signature are in the query, so the path has no segment
+    // after /files. Matched by /files/* alone, it was the app shell, 200.
+    const query = 'key=tenants%2Ft%2Fdocuments%2Fd%2Fnote.pdf&signature=s';
+    for (const method of ['GET', 'PUT']) {
+      const response = await get(caddy, `/files?${query}`, { method });
+      assert.equal(response.status, 200, method);
+      assert.equal(response.body, `api ${method} /files?${query}`, method);
+    }
+    assert.match((await get(caddy, '/files/a?signature=s')).body, /^api GET /);
+    // Whole segments: paths that merely start with "files" stay the web app's.
+    for (const path of ['/files-list', '/filesystem', '/files.json']) {
+      assert.match((await get(caddy, path)).body, new RegExp(APP), path);
+    }
+  });
+
   it('sends the API its paths, and answers /metrics with 404', async () => {
     assert.match(
       (await get(caddy, '/v1/auth/me')).body,
@@ -258,6 +275,7 @@ describe('the web app, MAINTENANCE_PAGE=on', { skip }, () => {
       '/health/live',
       '/api',
       '/api-json',
+      '/files?key=a&signature=s',
       '/files/a',
       '/socket.io/?EIO=4',
     ]) {

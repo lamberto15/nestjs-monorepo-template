@@ -28,7 +28,7 @@ beforeAll(async () => {
     if (url.startsWith('/v1/attachments/local/')) {
       // The local disk: a signed link on APP_URL, the API's own address.
       response.writeHead(302, {
-        location: `${apiOrigin}/files/tenants/t/attachments/a.thumb.webp?signature=s`,
+        location: `${apiOrigin}/files?key=tenants%2Ft%2Fattachments%2Fa.thumb.webp&signature=s`,
       });
       response.end();
     } else if (url.startsWith('/v1/attachments/s3/')) {
@@ -37,7 +37,7 @@ beforeAll(async () => {
           'https://bucket.s3.eu-west-1.amazonaws.com/a.thumb.webp?X-Amz-Signature=s',
       });
       response.end();
-    } else if (url.startsWith('/files/')) {
+    } else if (url.startsWith('/files?')) {
       response.writeHead(200, { 'content-type': 'image/webp' });
       response.end(`bytes of ${url}`);
     } else {
@@ -81,7 +81,7 @@ describe('the dev proxy', () => {
     );
     expect(response.status).toBe(302);
     expect(response.headers.get('location')).toBe(
-      `${origin}/files/tenants/t/attachments/a.thumb.webp?signature=s`,
+      `${origin}/files?key=tenants%2Ft%2Fattachments%2Fa.thumb.webp&signature=s`,
     );
   });
 
@@ -94,7 +94,7 @@ describe('the dev proxy', () => {
     expect(new URL(response.url).origin).toBe(origin);
     expect(response.headers.get('content-type')).toBe('image/webp');
     expect(await response.text()).toBe(
-      'bytes of /files/tenants/t/attachments/a.thumb.webp?signature=s',
+      'bytes of /files?key=tenants%2Ft%2Fattachments%2Fa.thumb.webp&signature=s',
     );
   });
 
