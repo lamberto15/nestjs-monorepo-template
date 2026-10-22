@@ -138,7 +138,7 @@ the smoke check passed. A failed new colour stays up for you to read its logs
 | `--settle <seconds>` | 7 | Between the new colour taking `api` and the old one leaving it |
 | `--timeout <seconds>` | 180 | Waiting for the idle colour's replicas to be healthy |
 | `--to blue\|green` | the other colour | `switch` only: the colour to make live |
-| `-p`, `-f`, `--env-file` | | As `docker compose` |
+| `-p`, `-f`, `--env-file` | | As `docker compose`; the files are in this checkout (one elsewhere is refused) |
 
 ```bash
 pnpm deploy:blue-green switch      # to the other colour

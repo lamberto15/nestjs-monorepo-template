@@ -3,6 +3,7 @@
 // They add features to a scratch copy of the files the tools touch, then
 // remove them; the real tree is never written.
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
   existsSync,
@@ -113,6 +114,40 @@ C=3
       () => removeFeature(root, { name: 'ghosts' }),
       /no features\/ghosts/,
     );
+  });
+
+  // Claude runs it: a name is never a path, --root is a checkout (#471).
+  it('refuses a name that is a path, and a root that is not a checkout', async () => {
+    for (const name of ['../features', 'invoices/../..', '..', '-r']) {
+      await assert.rejects(
+        () => removeFeature(root, { name }),
+        /not a feature's name/,
+      );
+    }
+    assert.ok(existsSync(api('src/features/invoices')));
+    const empty = mkdtempSync(path.join(tmpdir(), 'feature-remove-empty-'));
+    try {
+      await assert.rejects(
+        () => removeFeature(empty, { name: 'notes' }),
+        /not a checkout of the template/,
+      );
+      const run = spawnSync(
+        process.execPath,
+        [
+          path.join(REPO, 'tools/feature/remove.mjs'),
+          '../../invoices',
+          '--dry-run',
+          '--root',
+          root,
+        ],
+        { encoding: 'utf8' },
+      );
+      assert.equal(run.status, 1);
+      assert.match(run.stderr, /not a feature's name/);
+    } finally {
+      rmSync(empty, { recursive: true, force: true });
+    }
+    assert.ok(existsSync(api('src/features/invoices')));
   });
 
   it('refuses while another feature refers to it, and lists the files', async () => {

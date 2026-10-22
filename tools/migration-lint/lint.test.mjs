@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -449,6 +450,71 @@ describe('the report', () => {
 });
 
 describe('the command', () => {
+  // Claude runs it too: no argument reaches git as an option, GitHub's API
+  // as a path, or the file system outside the checkout and the temp
+  // directories (#471). Refused before git, Docker or GitHub run.
+  test('refuses a base, pull request, head or file that is not one', () => {
+    const lint = (...args) =>
+      spawnSync('node', [script, ...args], {
+        encoding: 'utf8',
+        env: { ...process.env, MIGRATION_LINT_FAIL: '', RUNNER_TEMP: '' },
+      });
+    for (const [args, reason] of [
+      [['--base=--output=/tmp/x'], /--base --output=\/tmp\/x: a branch/],
+      [['--base', 'main..HEAD'], /--base main\.\.HEAD: a branch/],
+      [
+        ['--base', 'HEAD', '--pr', '1/../../user', '--head', 'abc1234'],
+        /--pr 1\/\.\.\/\.\.\/user: a pull request's number/,
+      ],
+      [
+        ['--base', 'HEAD', '--pr', '1', '--head', 'main&x=1'],
+        /--head main&x=1: a commit's SHA/,
+      ],
+      [['--base', 'HEAD', '--summary', '/etc/summary.md'], /--summary/],
+      [['--base', 'HEAD', '--annotations', '/etc/x.txt'], /--annotations/],
+      // Written: in a temp directory only, never in the checkout (a git hook
+      // or a script there would run the text).
+      [
+        [
+          '--base',
+          'HEAD',
+          '--summary',
+          path.join(here, '../../lint-summary.md'),
+        ],
+        /--summary .*: a file under .*, outside the checkout/,
+      ],
+      [['/etc/hosts'], /\/etc\/hosts: a \.sql file under/],
+      [['/etc/x.sql'], /\/etc\/x\.sql: a \.sql file under/],
+    ]) {
+      const r = lint(...args);
+      assert.equal(r.status, 2, args.join(' '));
+      assert.match(r.stderr, reason);
+    }
+    assert.ok(!existsSync(path.join(here, '../../lint-summary.md')));
+  });
+
+  test('takes a base, with the summary in a temp directory (nothing new: no Docker)', () => {
+    const r = repository();
+    try {
+      const summary = path.join(r.dir, 'summary.md');
+      for (const base of [r.base, 'main', 'HEAD~0']) {
+        const run = spawnSync(
+          'node',
+          [script, '--base', base, '--summary', summary],
+          {
+            cwd: r.dir,
+            encoding: 'utf8',
+            env: { ...process.env, MIGRATION_LINT_FAIL: '' },
+          },
+        );
+        assert.equal(run.status, 0, run.stderr);
+      }
+      assert.ok(readFileSync(summary, 'utf8').length > 0);
+    } finally {
+      rmSync(r.dir, { recursive: true, force: true });
+    }
+  });
+
   test('rejects a MIGRATION_LINT_FAIL other than empty or on', () => {
     const r = spawnSync('node', [script, '--base', 'HEAD'], {
       encoding: 'utf8',

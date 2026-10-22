@@ -35,6 +35,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { format } from './format.mjs';
 import { names, singularize } from './names.mjs';
+import { checkout, FEATURE_NAME, inside } from './paths.mjs';
 
 const REPO = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -91,14 +92,14 @@ function deleteKey(json, keys) {
 
 /** The web app's files of the feature (relative to `web`), those that exist. */
 function webPaths(web, plural) {
-  const locales = path.join(web, 'locales');
+  const locales = inside(web, 'locales');
   return [
-    path.join(web, 'features', plural),
-    path.join(web, 'routes/_app', plural),
-    path.join(web, 'routes/_app', `${plural}.tsx`),
+    inside(web, 'features', plural),
+    inside(web, 'routes/_app', plural),
+    inside(web, 'routes/_app', `${plural}.tsx`),
     ...(existsSync(locales)
       ? readdirSync(locales).map((lng) =>
-          path.join(locales, lng, `${plural}.json`),
+          inside(locales, lng, `${plural}.json`),
         )
       : []),
   ].filter((file) => existsSync(file));
@@ -173,18 +174,24 @@ function stripEnvBlocks(text, plural) {
 /**
  * Removes the feature under `root`. Returns what was (or, with `dryRun`,
  * would be) removed, relative to `root`; throws before changing anything
- * when the feature is missing or another one uses it. The TypeScript it
- * edits is formatted as `pnpm format` would.
+ * when the feature is missing or another one uses it, `root` isn't a
+ * checkout, or the name isn't a feature's (a path never is). The TypeScript
+ * it edits is formatted as `pnpm format` would.
  */
 export async function removeFeature(root, options) {
   const plural = options.name;
-  const api = path.join(root, 'apps/api');
-  const features = path.join(api, 'src/features');
-  const dir = path.join(features, plural);
-  const web = path.join(root, 'apps/web/src');
-  const valid = /^[a-z][a-z0-9-]*$/.test(plural);
-  const hasApi = valid && existsSync(dir);
-  const webFiles = valid && existsSync(web) ? webPaths(web, plural) : [];
+  const repo = checkout(root, 'apps/api/src/features', 'apps/web/src/features');
+  if (typeof plural !== 'string' || !FEATURE_NAME.test(plural)) {
+    throw new Error(
+      `"${plural}" is not a feature's name (plural, lowercase words joined by "-"): there is no features/${plural}.`,
+    );
+  }
+  const api = inside(repo, 'apps/api');
+  const features = inside(api, 'src/features');
+  const dir = inside(features, plural);
+  const web = inside(repo, 'apps/web/src');
+  const hasApi = existsSync(dir);
+  const webFiles = existsSync(web) ? webPaths(web, plural) : [];
   if (!hasApi && webFiles.length === 0) {
     throw new Error(`There is no features/${plural}.`);
   }
@@ -201,7 +208,7 @@ export async function removeFeature(root, options) {
       const text = readFileSync(file, 'utf8');
       return text.includes(`'../${plural}/`) || text.includes(`'./${plural}/`);
     })
-    .map((file) => path.relative(root, file));
+    .map((file) => path.relative(repo, file));
   if (offenders.length) {
     throw new Error(
       `Other files import from features/${plural}; remove those uses first (a ref(${plural}) field, for one):\n${offenders.map((f) => `  ${f}`).join('\n')}`,
@@ -216,7 +223,7 @@ export async function removeFeature(root, options) {
     .filter((file) =>
       readFileSync(file, 'utf8').includes(`'@/features/${plural}/`),
     )
-    .map((file) => path.relative(root, file));
+    .map((file) => path.relative(repo, file));
   if (webOffenders.length) {
     throw new Error(
       `Other web files import from features/${plural}; remove those uses first:\n${webOffenders.map((f) => `  ${f}`).join('\n')}`,
@@ -236,14 +243,14 @@ export async function removeFeature(root, options) {
     const stripped = stripBarrel(text, plural);
     if (stripped !== text) {
       edits.push([file, await format(file, stripped)]);
-      removed.push(`lines in ${path.relative(root, file)}`);
+      removed.push(`lines in ${path.relative(repo, file)}`);
     }
   }
   // Its variables: the deployment's template, the development one, the tests'.
   for (const file of [
-    path.join(root, 'env.example'),
-    path.join(api, 'env.development.example'),
-    path.join(api, 'test/setup-env.ts'),
+    inside(repo, 'env.example'),
+    inside(api, 'env.development.example'),
+    inside(api, 'test/setup-env.ts'),
   ]) {
     if (!existsSync(file)) {
       continue;
@@ -252,32 +259,32 @@ export async function removeFeature(root, options) {
     if (count) {
       edits.push([file, file.endsWith('.ts') ? await format(file, out) : out]);
       removed.push(
-        `${count} feature:${plural} block(s) in ${path.relative(root, file)}`,
+        `${count} feature:${plural} block(s) in ${path.relative(repo, file)}`,
       );
     }
   }
-  const i18n = path.join(api, 'src/i18n');
+  const i18n = inside(api, 'src/i18n');
   if (existsSync(i18n)) {
     for (const file of walk(i18n, '.json')) {
       const json = JSON.parse(readFileSync(file, 'utf8'));
       if (!Object.hasOwn(json, item)) continue;
       delete json[item];
       edits.push([file, `${JSON.stringify(json, null, 2)}\n`]);
-      removed.push(`"${item}" in ${path.relative(root, file)}`);
+      removed.push(`"${item}" in ${path.relative(repo, file)}`);
     }
   }
-  const locales = path.join(web, 'locales');
+  const locales = inside(web, 'locales');
   if (existsSync(locales)) {
     const forms = { plural, Subject: pascal(item) };
     for (const lng of readdirSync(locales)) {
       for (const text of WEB_TEXTS) {
-        const file = path.join(locales, lng, text.file);
+        const file = inside(locales, lng, text.file);
         if (!existsSync(file)) continue;
         const json = JSON.parse(readFileSync(file, 'utf8'));
         const keys = text.key(forms);
         if (!deleteKey(json, keys)) continue;
         edits.push([file, `${JSON.stringify(json, null, 2)}\n`]);
-        removed.push(`"${keys.join('.')}" in ${path.relative(root, file)}`);
+        removed.push(`"${keys.join('.')}" in ${path.relative(repo, file)}`);
       }
     }
   }
@@ -285,9 +292,9 @@ export async function removeFeature(root, options) {
     ...(hasApi
       ? [
           dir,
-          path.join(api, 'test', `${plural}.e2e-spec.ts`),
-          path.join(api, 'test/features', plural),
-          path.join(api, 'src/documents/templates', `${item}.html`),
+          inside(api, 'test', `${plural}.e2e-spec.ts`),
+          inside(api, 'test/features', plural),
+          inside(api, 'src/documents/templates', `${item}.html`),
         ]
       : []),
     ...webFiles,
@@ -299,7 +306,7 @@ export async function removeFeature(root, options) {
   }
   return {
     item,
-    deleted: deletions.map((file) => path.relative(root, file)),
+    deleted: deletions.map((file) => path.relative(repo, file)),
     removed,
   };
 }
@@ -320,7 +327,8 @@ async function main() {
     process.exit(values.help ? 0 : 1);
   }
   const name = positionals[0];
-  const result = await removeFeature(path.resolve(values.root ?? REPO), {
+  // --root: this checkout by default, or a copy in a temp directory (checkout()).
+  const result = await removeFeature(values.root ?? REPO, {
     name,
     dryRun: values['dry-run'],
   });

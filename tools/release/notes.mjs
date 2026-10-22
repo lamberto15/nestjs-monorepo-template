@@ -36,6 +36,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { fileRoots, outputFile, tempRoots, within } from '../cli-paths.mjs';
 import {
   JOURNAL,
   MIGRATIONS,
@@ -62,13 +63,25 @@ function git(cwd, args) {
 
 /** A file's text at a commit, or null when the commit doesn't have it. */
 function show(cwd, ref, file) {
-  const result = spawnSync('git', ['show', `${ref}:${file}`], {
-    cwd,
-    encoding: 'utf8',
-    maxBuffer: 256 * 1024 * 1024,
-  });
+  const result = spawnSync(
+    'git', // NOSONAR S4036: the developer's git, from PATH (no one fixed path fits macOS and Linux)
+    ['show', '--end-of-options', `${ref}:${file}`],
+    {
+      cwd,
+      encoding: 'utf8',
+      maxBuffer: 256 * 1024 * 1024,
+    },
+  );
   return result.status === 0 ? result.stdout : null;
 }
+
+/**
+ * A release tag: `v1.2.0`, or `v1.2.0-rc.1` for a pre-release. The tags the
+ * arguments name are checked against it before git sees them (#471): it
+ * starts with `v`, so it never reads as an option, and `--end-of-options`
+ * before every revision tells git so too.
+ */
+export const TAG = /^v\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
 /** `v1.2.0-rc.1` is a pre-release; `v1.2.0` isn't. */
 export function isPrerelease(tag) {
@@ -86,6 +99,7 @@ export function previousTag(tag, { cwd = process.cwd() } = {}) {
     '--parents',
     '-n',
     '1',
+    '--end-of-options',
     `${tag}^{commit}`,
   ])
     .trim()
@@ -93,10 +107,11 @@ export function previousTag(tag, { cwd = process.cwd() } = {}) {
   if (!parents.length) return null; // the first commit
   const args = ['describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*'];
   if (!isPrerelease(tag)) args.push('--exclude', 'v*-*');
-  const result = spawnSync('git', [...args, `${tag}^`], {
-    cwd,
-    encoding: 'utf8',
-  });
+  const result = spawnSync(
+    'git', // NOSONAR S4036: the developer's git, from PATH (no one fixed path fits macOS and Linux)
+    [...args, '--end-of-options', `${tag}^`],
+    { cwd, encoding: 'utf8' },
+  );
   if (result.status === 0) return result.stdout.trim();
   // No ancestor has such a tag: the first release.
   if (/No (names found|tags can describe)/i.test(result.stderr)) return null;
@@ -122,6 +137,7 @@ export function migrationChanges(previous, tag, { cwd = process.cwd() } = {}) {
       '-r',
       '--name-only',
       '-z',
+      '--end-of-options',
       tag,
       '--',
       `${MIGRATIONS}/`,
@@ -133,6 +149,7 @@ export function migrationChanges(previous, tag, { cwd = process.cwd() } = {}) {
     '--name-status',
     '--no-renames',
     '-z',
+    '--end-of-options',
     previous,
     tag,
     '--',
@@ -222,6 +239,7 @@ export function composeChanges(previous, tag, { cwd = process.cwd() } = {}) {
     'diff',
     '--name-only',
     '-z',
+    '--end-of-options',
     previous,
     tag,
     '--',
@@ -259,6 +277,7 @@ export function breakingChanges(previous, tag, { cwd = process.cwd() } = {}) {
     'log',
     '--first-parent',
     '--format=%s%x1f%b%x1e',
+    '--end-of-options',
     `${previous}..${tag}`,
   ])
     .split('\x1e')
@@ -478,22 +497,43 @@ async function main() {
     },
   });
   const repository = values.repository || process.env.GITHUB_REPOSITORY;
-  const tagValid =
-    values.tag && /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(values.tag);
-  // CI asks for the previous release first, for GitHub's generated notes.
-  if (tagValid && values['print-previous']) {
-    process.stdout.write(`${previousTag(values.tag) ?? ''}\n`);
-    return 0;
-  }
-  if (!tagValid || !repository) {
+  const usage = () => {
     console.error(
       'Usage: notes.mjs --tag vX.Y.Z [--print-previous] [--previous vX.Y.Z|none] [--repository owner/repo (default: GITHUB_REPOSITORY)] [--image-version X.Y.Z] [--app-digest sha256:…] [--gotenberg-digest sha256:…] [--caddy-digest sha256:…] [--changes <file>] [--no-lint] [--out <file>]',
     );
     return 2;
+  };
+  // The tags reach git, the files the file system: both are checked first.
+  const tag = values.tag ?? '';
+  if (!TAG.test(tag)) return usage();
+  // CI asks for the previous release first, for GitHub's generated notes.
+  if (values['print-previous']) {
+    process.stdout.write(`${previousTag(tag) ?? ''}\n`);
+    return 0;
   }
-  const tag = values.tag;
+  if (!repository) return usage();
+  // --changes: in this checkout or a temp directory; --out (written): in a
+  // temp directory only, never in the checkout, where it could replace a git
+  // hook (CI: both in RUNNER_TEMP).
+  const changesFile = values.changes ? within(values.changes) : null;
+  const outFile = values.out ? outputFile(values.out) : null;
+  if (values.changes && !changesFile) {
+    console.error(`--changes names a file under ${fileRoots().join(' or ')}.`);
+    return 2;
+  }
+  if (values.out && !outFile) {
+    console.error(
+      `--out names a file under ${tempRoots().join(' or ')}, outside the checkout.`,
+    );
+    return 2;
+  }
+  // Given or found by git, the release before is a tag too, or none.
   const previous =
     values.previous === 'none' ? null : (values.previous ?? previousTag(tag));
+  if (previous !== null && !TAG.test(previous)) {
+    console.error(`--previous ${previous}: a release tag (vX.Y.Z) or none.`);
+    return 2;
+  }
   const migrations = migrationChanges(previous, tag);
   // The first release has no previous one to break: nothing to lint.
   const findings = values['no-lint']
@@ -506,7 +546,12 @@ async function main() {
     tag,
     previous,
     version: values['image-version'] || tag.replace(/^v/, ''),
-    commit: git(process.cwd(), ['rev-parse', `${tag}^{commit}`]).trim(),
+    commit: git(process.cwd(), [
+      'rev-parse',
+      '--verify',
+      '--end-of-options',
+      `${tag}^{commit}`,
+    ]).trim(),
     digests: {
       app: values['app-digest'],
       gotenberg: values['gotenberg-digest'],
@@ -518,9 +563,9 @@ async function main() {
     env: envChanges(previous, tag),
     compose: composeChanges(previous, tag),
     client: clientVersions(previous, tag),
-    changes: values.changes ? readFileSync(values.changes, 'utf8') : '',
+    changes: changesFile ? readFileSync(changesFile, 'utf8') : '',
   });
-  if (values.out) writeFileSync(values.out, notes);
+  if (outFile) writeFileSync(outFile, notes);
   else process.stdout.write(notes);
   return 0;
 }

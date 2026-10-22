@@ -34,6 +34,7 @@ import {
 import { format } from './format.mjs';
 import { parseFields } from './fields.mjs';
 import { names } from './names.mjs';
+import { checkout, inside } from './paths.mjs';
 import * as templates from './templates.mjs';
 import { syncFeature } from './sync.mjs';
 
@@ -72,7 +73,8 @@ export const MARKERS = {
 /**
  * Writes the feature under `root` (the repository). Returns the paths
  * written and changed, relative to `root`; throws before writing anything
- * when the input is wrong.
+ * when the input is wrong: a `root` that isn't a checkout, a name or a path
+ * that would leave it.
  */
 export async function addFeature(root, options) {
   const t = names(options.name, options.singular);
@@ -85,13 +87,14 @@ export async function addFeature(root, options) {
   const capabilities = parseCapabilities(options.with, fields);
   const approvals = parseApprovals(options.approvals);
   const settings = parseSettings(options.settings, approvals);
-  const api = path.join(root, 'apps/api');
-  const dir = path.join(api, 'src/features', t.plural);
+  const repo = checkout(root, 'apps/api/src/features/index.ts');
+  const api = inside(repo, 'apps/api');
+  const dir = inside(api, 'src/features', t.plural);
   if (existsSync(dir)) {
     throw new Error(`features/${t.plural} exists already.`);
   }
   for (const ref of new Set(fields.filter((f) => f.ref).map((f) => f.ref))) {
-    const file = path.join(api, 'src/features', ref, `${ref}.tables.ts`);
+    const file = inside(api, 'src/features', ref, `${ref}.tables.ts`);
     if (!existsSync(file)) {
       throw new Error(
         `ref(${ref}): there is no features/${ref}/${ref}.tables.ts.`,
@@ -137,16 +140,16 @@ export async function addFeature(root, options) {
   const written = [];
   mkdirSync(dir, { recursive: true });
   for (const [name, text] of Object.entries(files)) {
-    const file = path.join(dir, name);
+    const file = inside(dir, name);
     writeFileSync(file, await format(file, text));
-    written.push(path.relative(root, file));
+    written.push(path.relative(repo, file));
   }
-  const spec = path.join(api, 'test', `${t.plural}.e2e-spec.ts`);
+  const spec = inside(api, 'test', `${t.plural}.e2e-spec.ts`);
   writeFileSync(spec, await format(spec, templates.e2e(context)));
-  written.push(path.relative(root, spec));
+  written.push(path.relative(repo, spec));
 
   const changed = [await appendFeature(api, t), await appendTables(api, t)].map(
-    (file) => path.relative(root, file),
+    (file) => path.relative(repo, file),
   );
   // Its texts and OpenAPI paths, as `pnpm feature:sync` keeps them.
   const synced = await syncFeature(api, t.plural);
@@ -160,7 +163,7 @@ export async function addFeature(root, options) {
 
 /** features/index.ts: the import and the list entry, at the markers. */
 async function appendFeature(api, t) {
-  const file = path.join(api, 'src/features/index.ts');
+  const file = inside(api, 'src/features/index.ts');
   const text = readFileSync(file, 'utf8');
   for (const marker of Object.values(MARKERS)) {
     if (!text.includes(marker)) {
@@ -181,7 +184,7 @@ async function appendFeature(api, t) {
 
 /** features/tables.ts: one export line. */
 async function appendTables(api, t) {
-  const file = path.join(api, 'src/features/tables.ts');
+  const file = inside(api, 'src/features/tables.ts');
   const text = readFileSync(file, 'utf8').trimEnd();
   writeFileSync(
     file,
@@ -219,7 +222,8 @@ async function main() {
     console.log(USAGE);
     process.exit(values.help ? 0 : 1);
   }
-  const result = await addFeature(path.resolve(values.root ?? REPO), {
+  // --root: this checkout by default, or a copy in a temp directory (checkout()).
+  const result = await addFeature(values.root ?? REPO, {
     name: positionals[0],
     fields: values.fields,
     singular: values.singular,

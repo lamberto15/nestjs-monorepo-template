@@ -22,6 +22,7 @@
 import { spawn } from 'node:child_process';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { REPO, within } from '../cli-paths.mjs';
 import { verifyEnabled, runVerify } from './verify.mjs';
 
 export const COLOURS = ['blue', 'green'];
@@ -30,6 +31,17 @@ const service = (colour) => `api-${colour}`;
 const sleepReal = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class DeployError extends Error {}
+
+// What the arguments may hold before docker sees them (#471): each pattern
+// is anchored and starts with a letter, a digit or "/", so no value reads as
+// an option of docker, and the files stay in this checkout.
+/** A Compose project name, as Compose itself requires it. */
+export const PROJECT = /^[a-z0-9][a-z0-9_-]*$/;
+/** An image reference: [registry[:port]/]name[:tag][@sha256:digest]. */
+export const IMAGE =
+  /^[A-Za-z0-9][A-Za-z0-9._-]*(?::\d+)?(?:\/[A-Za-z0-9._-]+)*(?::\w[\w.-]{0,127})?(?:@sha256:[a-f0-9]{64})?$/;
+/** A path to smoke-check: absolute, with a query string at most. */
+export const SMOKE_PATH = /^\/[A-Za-z0-9._~!$&'()*+,;=:@%/?-]*$/;
 
 /** The real runner: spawn, collect (and with `stream`, show) the output. */
 export function spawnRunner(cmd, args, { env, stream } = {}) {
@@ -314,12 +326,12 @@ export function createDeployer({
     if (!options.image) {
       throw new DeployError('deploy needs --image <ref> or --build');
     }
-    const present = await docker(['image', 'inspect', options.image], {
+    const present = await docker(['image', 'inspect', '--', options.image], {
       allowFail: true,
     });
     if (present.code !== 0) {
       log(`pulling ${options.image}`);
-      await docker(['pull', options.image], { stream: true });
+      await docker(['pull', '--', options.image], { stream: true });
     }
     return options.image;
   }
@@ -478,10 +490,33 @@ function parse(argv) {
       help: { type: 'boolean', short: 'h' },
     },
   });
+  const local = (file, flag) => {
+    const full = within(file, [REPO]);
+    if (!full) throw new DeployError(`${flag} ${file}: not a file in ${REPO}`);
+    return full;
+  };
   const flags = [];
-  for (const f of values.file ?? []) flags.push('-f', f);
-  for (const f of values['env-file'] ?? []) flags.push('--env-file', f);
-  if (values.project) flags.push('-p', values.project);
+  for (const f of values.file ?? []) flags.push('-f', local(f, '--file'));
+  for (const f of values['env-file'] ?? [])
+    flags.push('--env-file', local(f, '--env-file'));
+  if (values.project !== undefined) {
+    if (!PROJECT.test(values.project)) {
+      throw new DeployError(
+        `--project ${values.project}: lowercase letters, digits, "-" and "_", starting with a letter or a digit`,
+      );
+    }
+    flags.push('-p', values.project);
+  }
+  if (values.image !== undefined && !IMAGE.test(values.image)) {
+    throw new DeployError(
+      `--image ${values.image}: an image reference (ghcr.io/<owner>/<repo>:<tag>)`,
+    );
+  }
+  for (const p of values['smoke-path'] ?? []) {
+    if (!SMOKE_PATH.test(p)) {
+      throw new DeployError(`--smoke-path ${p}: a path such as /health`);
+    }
+  }
   const number = (v, name) => {
     if (v === undefined) return undefined;
     const n = Number(v);
@@ -509,17 +544,17 @@ function parse(argv) {
 }
 
 export async function main(argv, deps = {}) {
-  const { command, flags, options, help } = parse(argv);
-  if (help) {
-    log_help();
-    return 0;
-  }
-  const deployer = createDeployer({
-    ...deps,
-    processEnv: deps.env,
-    compose: flags,
-  });
   try {
+    const { command, flags, options, help } = parse(argv);
+    if (help) {
+      log_help();
+      return 0;
+    }
+    const deployer = createDeployer({
+      ...deps,
+      processEnv: deps.env,
+      compose: flags,
+    });
     if (command === 'status') {
       const result = await deployer.status({ json: options.json });
       if (options.json) console.log(JSON.stringify(result, null, 2));

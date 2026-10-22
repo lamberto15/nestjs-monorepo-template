@@ -27,6 +27,7 @@
 // Exit 1 on a regression, 2 on bad input (arguments, an unreadable file).
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
+import { fileRoots, outputFile, tempRoots, within } from '../tools/cli-paths.mjs';
 
 export const FACTOR = 2;
 export const MIN_DELTA_MS = 20;
@@ -129,11 +130,30 @@ export function readBaseline(path) {
 
 const optional = (path) => (path && existsSync(path) ? readBaseline(path) : undefined);
 
+/**
+ * A file the arguments name, resolved: a baseline in this checkout or a temp
+ * directory, the summary (appended to) in a temp directory only, outside the
+ * checkout (CI: RUNNER_TEMP, which holds the step summary). Anywhere else is
+ * refused (#471): Claude runs this tool too, and a wrong path must not be
+ * read or appended to.
+ */
+function argFile(file, option) {
+  if (!file) return undefined;
+  const written = option === '--summary';
+  const full = written ? outputFile(file) : within(file, fileRoots());
+  if (!full) {
+    const roots = (written ? tempRoots() : fileRoots()).join(' or ');
+    throw new Error(`${option} ${file}: not under ${roots}${written ? ', outside the checkout' : ''}`);
+  }
+  return full;
+}
+
 function main() {
   let values;
   let current;
   let previous;
   let anchor;
+  let summary;
   try {
     ({ values } = parseArgs({
       options: {
@@ -147,9 +167,10 @@ function main() {
     if (!values.current) {
       throw new Error('--current <baseline.json> is required');
     }
-    current = readBaseline(values.current);
-    previous = optional(values.previous);
-    anchor = optional(values.anchor);
+    current = readBaseline(argFile(values.current, '--current'));
+    previous = optional(argFile(values.previous, '--previous'));
+    anchor = optional(argFile(values.anchor, '--anchor'));
+    summary = argFile(values.summary, '--summary');
   } catch (error) {
     console.error(`compare.mjs: ${error.message}`);
     console.error(
@@ -160,7 +181,7 @@ function main() {
   const reportOnly = values['report-only'];
   const { text, regressed } = report(current, { previous, anchor, reportOnly });
   process.stdout.write(text);
-  if (values.summary) appendFileSync(values.summary, text);
+  if (summary) appendFileSync(summary, text);
   if (regressed && !reportOnly) {
     console.error(`A scenario regressed ${FACTOR}× against the previous run or the anchor.`);
     process.exit(1);
