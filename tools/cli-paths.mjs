@@ -28,12 +28,19 @@ export function inside(root, ...segments) {
 }
 
 /**
+ * The system's temp directory and CI's (RUNNER_TEMP, which holds the
+ * workflows' step summaries and release notes).
+ */
+export function tempRoots(env = process.env) {
+  return [tmpdir(), env.RUNNER_TEMP].filter(Boolean);
+}
+
+/**
  * The directories a tool's own input and output files may be in: this
- * checkout, the system's temp directory, and CI's (RUNNER_TEMP, which holds
- * the workflows' step summaries and release notes).
+ * checkout and the temp directories.
  */
 export function fileRoots(env = process.env) {
-  return [REPO, tmpdir(), env.RUNNER_TEMP].filter(Boolean);
+  return [REPO, ...tempRoots(env)];
 }
 
 /** `file` (an argument) resolved, when it is inside one of `roots`; else null. */

@@ -327,7 +327,7 @@ async function main() {
     process.exit(values.help ? 0 : 1);
   }
   const name = positionals[0];
-  // --root: a checkout of the template (removeFeature checks it), this one by default.
+  // --root: this checkout by default, or a copy in a temp directory (checkout()).
   const result = await removeFeature(values.root ?? REPO, {
     name,
     dryRun: values['dry-run'],

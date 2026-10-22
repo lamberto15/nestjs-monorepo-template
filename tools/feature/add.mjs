@@ -222,7 +222,7 @@ async function main() {
     console.log(USAGE);
     process.exit(values.help ? 0 : 1);
   }
-  // --root: a checkout of the template (addFeature checks it), this one by default.
+  // --root: this checkout by default, or a copy in a temp directory (checkout()).
   const result = await addFeature(values.root ?? REPO, {
     name: positionals[0],
     fields: values.fields,

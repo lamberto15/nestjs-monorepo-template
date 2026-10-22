@@ -929,6 +929,17 @@ describe('where the tools write', () => {
       [path.join(REPO, 'tools/feature', tool), ...args],
       { encoding: 'utf8' },
     );
+  // The same, with the temp directories somewhere else: TMPDIR (os.tmpdir())
+  // an empty directory, RUNNER_TEMP unset unless given.
+  const cliElsewhere = (runnerTemp, tool, ...args) => {
+    const env = { ...process.env, TMPDIR: empty, RUNNER_TEMP: runnerTemp };
+    if (!runnerTemp) delete env.RUNNER_TEMP;
+    return spawnSync(
+      process.execPath,
+      [path.join(REPO, 'tools/feature', tool), ...args],
+      { encoding: 'utf8', env },
+    );
+  };
 
   before(async () => {
     root = scratchCheckout('feature-paths-');
@@ -955,6 +966,55 @@ describe('where the tools write', () => {
       () => checkout(empty, 'apps/api/src/features'),
       /not a checkout of the template/,
     );
+  });
+
+  it('takes this checkout, or one under a temp directory, as --root', () => {
+    assert.equal(checkout(REPO, 'apps/api/src/features'), REPO);
+    assert.equal(
+      checkout(path.join(REPO, 'apps', '..'), 'apps/api/src/features'),
+      REPO,
+    );
+    assert.throws(() => checkout('/', 'apps/api/src/features'), /refused/);
+    // A checkout outside this one and the temp directories: refused before
+    // anything is read or written.
+    const sync = cliElsewhere(undefined, 'sync.mjs', '--check', '--root', root);
+    assert.equal(sync.status, 1);
+    assert.match(sync.stderr, /--root .*: neither this checkout .* refused/);
+    const add = cliElsewhere(
+      undefined,
+      'add.mjs',
+      'invoices',
+      '--fields',
+      'title:string',
+      '--root',
+      root,
+    );
+    assert.equal(add.status, 1);
+    assert.match(add.stderr, /refused/);
+    const remove = cliElsewhere(
+      undefined,
+      'remove.mjs',
+      'orders',
+      '--root',
+      root,
+    );
+    assert.equal(remove.status, 1);
+    assert.match(remove.stderr, /refused/);
+    assert.deepEqual(readdirSync(api('src/features')).sort(), [
+      'index.ts',
+      'orders',
+      'tables.ts',
+    ]);
+    // CI's temp directory (RUNNER_TEMP) holds copies too.
+    const ci = cliElsewhere(
+      path.dirname(root),
+      'sync.mjs',
+      '--check',
+      'orders',
+      '--root',
+      root,
+    );
+    assert.equal(ci.status, 0, ci.stderr);
   });
 
   it('refuses a root that is not a checkout, and writes nothing there', async () => {

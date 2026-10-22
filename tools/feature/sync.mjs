@@ -750,7 +750,7 @@ async function main() {
       root: { type: 'string' },
     },
   });
-  // --root: a checkout of the template, this one by default; names, not paths.
+  // --root: this checkout by default, or a copy in a temp directory (checkout()).
   const repo = checkout(values.root ?? REPO, 'apps/api/src/features');
   const api = inside(repo, 'apps/api');
   const features = positionals.length ? positionals : featureNames(api);
