@@ -10,7 +10,7 @@ name=$prefix
 volumes=("$prefix-data" "$prefix-config")
 cleanup() {
   local status=$?
-  if (( status != 0 )); then docker logs "$name" >&2 2>/dev/null || true; fi
+  if (( status != 0 )); then docker logs "$name" >&2 || true; fi
   docker rm -f "$name" >/dev/null 2>&1 || true
   for volume in "${volumes[@]}"; do docker volume rm "$volume" >/dev/null 2>&1 || true; done
   rm -rf "$dir"
@@ -52,7 +52,11 @@ check() {
   https_port=$(docker port "$name" 443/tcp | cut -d: -f2)
   curl --silent --show-error --fail --retry 20 --retry-connrefused --retry-delay 1 \
     --resolve "localhost:$http_port:127.0.0.1" "http://localhost:$http_port/" | grep -q 'non-root HTTP'
+  # HTTP can become ready before Caddy finishes provisioning its local TLS CA.
+  # TLS alert errors during startup should be retried, like connection refused;
+  # persistent TLS/permissions problems still fail after a bounded interval.
   curl --silent --show-error --fail --insecure \
+    --retry 20 --retry-all-errors --retry-delay 1 \
     --resolve "localhost:$https_port:127.0.0.1" "https://localhost:$https_port/" | grep -q 'non-root HTTPS'
   curl --silent --show-error --fail --resolve "localhost:$http_port:127.0.0.1" "http://localhost:$http_port/.well-known/security.txt" \
     | grep -q 'Contact: mailto:runtime@example.com'
