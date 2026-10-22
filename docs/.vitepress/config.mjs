@@ -84,6 +84,9 @@ export default {
   description: 'Separate project evaluation and technical engineering documentation, grounded in repository source.',
   base,
   lastUpdated: true,
+  // Documentation intentionally links to services on the reader's own machine.
+  // VitePress still fails the build for every other broken link.
+  ignoreDeadLinks: 'localhostLinks',
   // The preexisting reference manuals contain literal JSX/HTML-looking placeholders.
   // Treat authored Markdown as text, not as Vue component markup.
   markdown: {
