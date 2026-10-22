@@ -9,6 +9,8 @@ dir=$(mktemp -d)
 name=$prefix
 volumes=("$prefix-data" "$prefix-config")
 cleanup() {
+  local status=$?
+  if (( status != 0 )); then docker logs "$name" >&2 2>/dev/null || true; fi
   docker rm -f "$name" >/dev/null 2>&1 || true
   for volume in "${volumes[@]}"; do docker volume rm "$volume" >/dev/null 2>&1 || true; done
   rm -rf "$dir"
@@ -49,17 +51,17 @@ check() {
   http_port=$(docker port "$name" 80/tcp | cut -d: -f2)
   https_port=$(docker port "$name" 443/tcp | cut -d: -f2)
   curl --silent --show-error --fail --retry 20 --retry-connrefused --retry-delay 1 \
-    "http://127.0.0.1:$http_port/" | grep -q 'non-root HTTP'
+    --resolve "localhost:$http_port:127.0.0.1" "http://localhost:$http_port/" | grep -q 'non-root HTTP'
   curl --silent --show-error --fail --insecure \
-    "https://127.0.0.1:$https_port/" | grep -q 'non-root HTTPS'
-  curl --silent --show-error --fail "http://127.0.0.1:$http_port/.well-known/security.txt" \
+    --resolve "localhost:$https_port:127.0.0.1" "https://localhost:$https_port/" | grep -q 'non-root HTTPS'
+  curl --silent --show-error --fail --resolve "localhost:$http_port:127.0.0.1" "http://localhost:$http_port/.well-known/security.txt" \
     | grep -q 'Contact: mailto:runtime@example.com'
   [[ $(docker exec "$name" id -u) == 10001 ]]
   docker exec "$name" sh -ec '
     grep -Eq "^CapEff:[[:space:]]+0+$" /proc/1/status
     grep -Eq "^NoNewPrivs:[[:space:]]+1$" /proc/1/status
     test "$CLOUDFLARE_API_TOKEN_FILE" = /run/secrets/token
-    ! touch /etc/must-stay-read-only
+    if touch /etc/must-stay-read-only 2>/dev/null; then exit 1; fi
     test -r /data/caddy/pki/authorities/local/root.crt
     grep -q ":01BB " /proc/net/udp /proc/net/udp6
   '
@@ -68,7 +70,7 @@ start() {
   docker run -d --name "$name" "${common[@]}" \
     -p 127.0.0.1::80 -p 127.0.0.1::443/tcp -p 127.0.0.1::443/udp \
     "$image" >/dev/null
-  if ! check; then docker logs "$name"; return 1; fi
+  check
 }
 # Fresh volumes take the image's non-root ownership. A restart keeps its CA.
 start

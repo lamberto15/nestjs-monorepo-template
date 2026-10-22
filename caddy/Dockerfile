@@ -32,6 +32,9 @@ RUN addgroup -S -g 10001 caddy \
  && adduser -S -D -H -u 10001 -G caddy caddy \
  && chown -R 10001:10001 /data /config
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+# The upstream binary carries a file capability; it cannot exec with cap_drop ALL.
+# Low ports are allowed by the service network namespace instead.
+RUN setcap -r /usr/bin/caddy
 # The Cloudflare token from the environment or a file (a Docker secret).
 COPY --chmod=755 caddy/entrypoint.sh /usr/local/bin/caddy-entrypoint
 # The static files the Caddyfile serves for every path that isn't the API's.
