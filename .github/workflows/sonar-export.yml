@@ -33,3 +33,10 @@ jobs:
                 | jq -r '.files as $files | .duplications[] | "DUP " + ([.blocks[] | "\($files[.["_ref"]].name // .["_ref"]):\(.from)+\(.size)"] | join("  ==  "))'
             done
           done
+      - name: Main's open issues, counted by rule, and the slow-regex and taint ones listed
+        run: |
+          curl -fsS --retry 3 "$API/issues/search?componentKeys=$KEY&branch=main&resolved=false&ps=500" > main.json
+          echo "main: $(jq '.total' main.json) open issues"
+          jq -r '[.issues[].rule] | group_by(.) | map("\(length) \(.[0])") | sort_by(-(split(" ")[0]|tonumber)) | .[]' main.json
+          jq -r '.issues[] | select(.rule | test("S8786|jssecurity|tssecurity")) | "MAIN \(.rule) | \(.component | sub("^[^:]*:"; "")):\(.line // 0) | \(.message)"' main.json
+          curl -fsS --retry 3 "$API/project_analyses/search?project=$KEY&branch=main&ps=3" | jq -r '.analyses[] | "analysis \(.date) \(.revision // "")"'
