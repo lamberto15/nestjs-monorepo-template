@@ -17,7 +17,7 @@ The repository provides a **developer template**, with source code and guides fo
 - Operations: containers, migrations, observability, backups and deployment approaches.
 - A browser application to interact with the platform and example capabilities.
 
-For a current, categorized list, see [capabilities and limits](capabilities-and-limits.md) and the [repository README](../../README.md).
+For a current, categorized list, see [capabilities and limits](capabilities-and-limits.md) and the [repository README](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/README.md).
 
 ## What is not included
 

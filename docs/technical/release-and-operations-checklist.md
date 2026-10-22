@@ -4,7 +4,7 @@
 
 ## Before first production deployment
 
-- [ ] **Legal and scope:** verify the [license](../../LICENSE), ownership of the derived application, feature scope, data classification and support arrangements.
+- [ ] **Legal and scope:** verify the [license](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/LICENSE), ownership of the derived application, feature scope, data classification and support arrangements.
 - [ ] **Environment:** create production settings using [`pnpm setup --target production`](../configuration.md); review every secret/provider and the chosen feature switches; keep secrets outside source control.
 - [ ] **Infrastructure:** choose the supported deployment path in [deployment](../deployment.md) and provision PostgreSQL, Redis, API, workers, storage, reverse proxy/TLS and configured optional dependencies.
 - [ ] **Identity and permissions:** review admin onboarding, MFA/SSO, recovery, tenant isolation, account provisioning, API clients and feature access rules. See [auth](../auth.md), [permissions](../permissions.md) and [tenancy](../tenancy.md).
@@ -37,4 +37,4 @@
 
 Review dependency and security updates, unused secrets and API keys, operator access, tenant access, retention runs, notification providers, capacity and restore drills. Treat stale documentation as a defect. See [documentation maintenance](../documentation-maintenance.md).
 
-For detailed commands and caveats, read [deployment](../deployment.md), [releases](../releases.md), [upgrading](../upgrading.md) and [security policy](../../SECURITY.md).
+For detailed commands and caveats, read [deployment](../deployment.md), [releases](../releases.md), [upgrading](../upgrading.md) and [security policy](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/SECURITY.md).

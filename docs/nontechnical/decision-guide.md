@@ -21,7 +21,7 @@ The labels above are decision aids, not certifications.
 1. **Do you need custom domain behavior?** If a product already covers your exact needs, compare buying it with building and maintaining your own.
 2. **Can your team own the stack?** Plan for NestJS/TypeScript, React, PostgreSQL, Redis, container operations and security reviews.
 3. **Do you need most of the platform capabilities?** Multiple tenants, permissions and queues are useful for some projects but overhead for others.
-4. **Are you comfortable with the license and maturity?** Read [LICENSE](../../LICENSE), [releases](../releases.md) and [roadmap](../roadmap.md), and evaluate update risk.
+4. **Are you comfortable with the license and maturity?** Read [LICENSE](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/LICENSE), [releases](../releases.md) and [roadmap](../roadmap.md), and evaluate update risk.
 5. **Can you validate the real workload?** Plan a proof of concept covering authentication, data isolation, a business feature, load, recovery and production deployment.
 
 ## A practical evaluation exercise

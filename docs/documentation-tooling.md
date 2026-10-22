@@ -15,7 +15,7 @@ pnpm docs:preview   # preview its production output
 
 The scripts use **VitePress 1.6.4**, pinned to the stable npm release when this was configured. They invoke `pnpm dlx vitepress@1.6.4` rather than changing the application's locked workspace dependencies. The first use downloads the tool; its **transitive dependencies are not locked** by this approach. If the site becomes release-critical or must build offline, add VitePress with pnpm, commit the regenerated `pnpm-lock.yaml`, and replace the `dlx` scripts in a focused follow-up PR.
 
-The configuration is [`.vitepress/config.mjs`](.vitepress/config.mjs). It defines nontechnical and technical navigation, in-browser **local search**, GitHub edit links and a nested reference sidebar.
+The configuration is [`.vitepress/config.mjs`](https://github.com/lamberto15/nestjs-monorepo-template/blob/docs/audience-guides-20261022/docs/.vitepress/config.mjs). It defines nontechnical and technical navigation, in-browser **local search**, GitHub edit links and a nested reference sidebar.
 
 ## Build and publishing
 

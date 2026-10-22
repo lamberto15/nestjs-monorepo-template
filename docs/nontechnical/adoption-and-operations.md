@@ -6,7 +6,7 @@ This template reduces repeatable platform coding; it does **not** eliminate engi
 
 ### An incremental adoption path
 
-1. **Evaluate fit and legal use.** Read the [decision guide](decision-guide.md) and [license](../../LICENSE). Obtain the required license/permission before commercial use.
+1. **Evaluate fit and legal use.** Read the [decision guide](decision-guide.md) and [license](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/LICENSE). Obtain the required license/permission before commercial use.
 2. **Prototype safely.** Use development data, run the application and build one real workflow. Confirm its permissions, import/export needs and integration points.
 3. **Define what you own.** Remove the example notes feature, add domain-specific features and connect external systems. Put tests around business-critical behavior.
 4. **Choose deployment and providers.** Decide where PostgreSQL, Redis, files, email and the application run; define responsibilities for backups and monitoring.

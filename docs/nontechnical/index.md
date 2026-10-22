@@ -20,4 +20,4 @@ This is a customizable foundation for an organization-oriented web application. 
 
 If you only need a small internal form, a static website, or a standard SaaS tool, a more focused solution may be simpler. If you need a custom application with demanding access controls and long-term extensibility, this foundation may reduce recurring platform work — but it introduces operational complexity.
 
-Ready to build? Use the separate [technical documentation](../technical/index.md). See [the actual license](../../LICENSE) before planning business use.
+Ready to build? Use the separate [technical documentation](../technical/index.md). See [the actual license](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/LICENSE) before planning business use.
