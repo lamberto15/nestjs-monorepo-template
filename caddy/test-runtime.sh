@@ -50,7 +50,9 @@ check() {
   local http_port https_port
   http_port=$(docker port "$name" 80/tcp | cut -d: -f2)
   https_port=$(docker port "$name" 443/tcp | cut -d: -f2)
-  curl --silent --show-error --fail --retry 20 --retry-connrefused --retry-delay 1 \
+  # Docker may map the port before Caddy is ready, resetting an early TCP
+  # connection. Retry curl error 56 as well as error 7 (connection refused).
+  curl --silent --show-error --fail --retry 20 --retry-all-errors --retry-delay 1 \
     --resolve "localhost:$http_port:127.0.0.1" "http://localhost:$http_port/" | grep -q 'non-root HTTP'
   # HTTP can become ready before Caddy finishes provisioning its local TLS CA.
   # TLS alert errors during startup should be retried, like connection refused;
