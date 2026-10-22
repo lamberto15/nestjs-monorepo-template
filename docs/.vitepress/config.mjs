@@ -86,7 +86,29 @@ export default {
   lastUpdated: true,
   // The preexisting reference manuals contain literal JSX/HTML-looking placeholders.
   // Treat authored Markdown as text, not as Vue component markup.
-  markdown: { html: false },
+  markdown: {
+    html: false,
+    // Existing reference manuals show raw template syntax like {{#if}} and
+    // {{{ body }}}. Vue would otherwise parse it as a component expression.
+    // Encode literal braces in prose and inline code without altering
+    // canonical Markdown, so examples display as written on GitHub and the site.
+    config(md) {
+      const rawText = md.renderer.rules.text;
+      md.renderer.rules.text = (tokens, idx, options, env, self) => {
+        const html = rawText
+          ? rawText(tokens, idx, options, env, self)
+          : md.utils.escapeHtml(tokens[idx].content);
+        return html.replaceAll('{{', '&#123;&#123;');
+      };
+      const rawInline = md.renderer.rules.code_inline;
+      md.renderer.rules.code_inline = (tokens, idx, options, env, self) => {
+        const html = rawInline
+          ? rawInline(tokens, idx, options, env, self)
+          : '<code>' + md.utils.escapeHtml(tokens[idx].content) + '</code>';
+        return html.replaceAll('{{', '&#123;&#123;');
+      };
+    },
+  },
   themeConfig: {
     nav: [
       item('Home', '/'),
