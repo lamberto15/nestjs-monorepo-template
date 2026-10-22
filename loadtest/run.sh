@@ -160,7 +160,8 @@ realtime() {
   # Run as the caller (the report lands owned by them), whom the image's
   # /etc/passwd doesn't know: Node's os.userInfo() (Artillery calls it) fails
   # with ENOENT, so the host's passwd file is mounted read-only.
-  ADMIN_EMAIL=$(setting ADMIN_EMAIL) ADMIN_PASSWORD=$(setting ADMIN_PASSWORD) \
+  local artillery_status
+  if ADMIN_EMAIL=$(setting ADMIN_EMAIL) ADMIN_PASSWORD=$(setting ADMIN_PASSWORD) \
     docker run --rm \
     --network "${project}_default" \
     --user "$(id -u):$(id -g)" \
@@ -174,7 +175,22 @@ realtime() {
     -e ADMIN_EMAIL -e ADMIN_PASSWORD \
     "$ARTILLERY_IMAGE" run \
     --overrides "{\"config\":{\"phases\":[{\"duration\":$seconds,\"arrivalRate\":$rate}]}}" \
-    --output /out/realtime.json /scripts/realtime.yml
+    --output /out/realtime.json /scripts/realtime.yml; then
+    artillery_status=0
+  else
+    artillery_status=$?
+  fi
+  # A zero Artillery exit status does not prove any authenticated virtual
+  # user completed; validate reported failures and whoami responses ourselves.
+  local summary="${GITHUB_STEP_SUMMARY:-$out/realtime-summary.md}"
+  if ! node loadtest/check-realtime.mjs "$out/realtime.json" "$summary"; then
+    echo "Realtime load test failed: inspect its summary and realtime.json" >&2
+    return 1
+  fi
+  if [ "$artillery_status" -ne 0 ]; then
+    echo "Artillery exited with status $artillery_status" >&2
+    return "$artillery_status"
+  fi
 }
 
 down() {

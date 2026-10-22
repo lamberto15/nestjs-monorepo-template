@@ -59,7 +59,7 @@ jobs:
           install: false
 
       - name: The comparison's and run.sh's tests
-        run: node --test loadtest/compare.test.mjs loadtest/run.test.mjs
+        run: node --test loadtest/compare.test.mjs loadtest/run.test.mjs loadtest/check-realtime.test.mjs
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
