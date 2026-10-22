@@ -3,6 +3,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { markdownLinks } from './links.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const docs = join(root, 'docs');
@@ -29,8 +30,7 @@ for (const from of files) {
       continue;
     }
     if (fence) continue;
-    for (const match of line.matchAll(/!?\[[^\]]*]\(([^)\s]+)(?:\s+["'][^"']+["'])?\)/g)) {
-      const href = match[1];
+    for (const href of markdownLinks(line)) {
       if (/^(?:#|[a-z][\w+.-]*:|\/\/)/i.test(href)) continue;
       const targetName = href.split(/[?#]/)[0];
       if (!targetName) continue;
