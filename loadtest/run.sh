@@ -163,7 +163,7 @@ realtime() {
   # Sign in BEFORE VUs are created: Artillery initializes Socket.IO
   # before scenario hooks, so beforeScenario cannot set handshake auth.
   local realtime_token
-  if ! realtime_token=(
+  if ! realtime_token=$(
     ADMIN_EMAIL=$(setting ADMIN_EMAIL) ADMIN_PASSWORD=$(setting ADMIN_PASSWORD) \
       docker run --rm --network "${project}_default" \
       -v "$PWD/loadtest:/scripts:ro" \
