@@ -84,6 +84,9 @@ export default {
   description: 'Separate project evaluation and technical engineering documentation, grounded in repository source.',
   base,
   lastUpdated: true,
+  // The preexisting reference manuals contain literal JSX/HTML-looking placeholders.
+  // Treat authored Markdown as text, not as Vue component markup.
+  markdown: { html: false },
   themeConfig: {
     nav: [
       item('Home', '/'),
