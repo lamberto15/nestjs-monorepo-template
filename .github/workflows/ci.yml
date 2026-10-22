@@ -1359,6 +1359,8 @@ jobs:
           tags: caddy:ci
           cache-from: type=gha,scope=caddy
           cache-to: type=gha,scope=caddy,mode=max
+      - name: Non-root runtime, HTTPS, restarts and certificate-volume migration
+        run: caddy/test-runtime.sh caddy:ci
       - name: The web app is in the image
         run: docker run --rm --entrypoint test caddy:ci -f /srv/web/index.html
       - name: The maintenance page is in the image
@@ -1376,9 +1378,9 @@ jobs:
       - name: security.txt is written from SECURITY_CONTACT
         run: |
           docker run --rm -e CLOUDFLARE_API_TOKEN=ci -e SECURITY_CONTACT=mailto:ci@example.com \
-            caddy:ci test -f /srv/security/.well-known/security.txt
+            caddy:ci test -f /tmp/caddy-security/.well-known/security.txt
           docker run --rm -e CLOUDFLARE_API_TOKEN=ci caddy:ci \
-            sh -c 'test ! -f /srv/security/.well-known/security.txt'
+            sh -c 'test ! -f /tmp/caddy-security/.well-known/security.txt'
       # The Caddyfile's behaviour, run by the image's own Caddy: the app, and
       # with MAINTENANCE_PAGE=on the static page (503) for the web app's paths
       # and the API's paths untouched (caddy/caddyfile.test.mjs, which edits out
@@ -1704,6 +1706,8 @@ jobs:
             caddy:publish
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=caddy
+      - name: Non-root runtime, HTTPS, restarts and certificate-volume migration
+        run: caddy/test-runtime.sh caddy:publish
       - name: The web app is in the image
         run: docker run --rm --entrypoint test caddy:publish -f /srv/web/index.html
       - name: Install Trivy

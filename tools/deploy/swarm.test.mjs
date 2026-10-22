@@ -23,6 +23,8 @@ const rendered = () => ({
     },
     caddy: {
       image: 'caddy:1',
+      sysctls: { 'net.ipv4.ip_unprivileged_port_start': '0' },
+      cap_drop: ['ALL'],
       ports: [{ target: 80, published: '80', mode: 'host' }],
     },
     redis: {
@@ -62,6 +64,10 @@ test('toStack: fixes what docker stack refuses', () => {
   assert.equal(stack.services.api.profiles, undefined);
   assert.equal(stack.services.api.deploy.resources.limits.cpus, '1');
   assert.equal(stack.services.caddy.ports[0].published, 80);
+  assert.deepEqual(stack.services.caddy.sysctls, {
+    'net.ipv4.ip_unprivileged_port_start': '0',
+  });
+  assert.deepEqual(stack.services.caddy.cap_drop, ['ALL']);
   assert.equal(stack.services.redis.configs[0].mode, 0o555);
   assert.equal(stack.networks.default.name, undefined);
   assert.equal(stack.volumes.postgres_data.name, undefined);
