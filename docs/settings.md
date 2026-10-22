@@ -171,7 +171,7 @@ the same way when it must keep working. A POST that only reads is refused in
   "Maintenance page").
 - Not covered: WebSocket messages and a running job.
 - **Locked out of ending it?** In the order to try: the web app's notice
-  ("End maintenance", after "Switch to <operator tenant>" when the session
+  ("End maintenance", after "Switch to &lt;operator tenant&gt;" when the session
   acts in another tenant); `DELETE /v1/settings/platform.mode/platform` with a
   token minted for the operator tenant (`POST /v1/auth/token { email,
   password, tenantId }`: a token sign-in does not move the account's last
