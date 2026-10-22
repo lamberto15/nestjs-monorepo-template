@@ -22,6 +22,7 @@ import {
   mergeTemplate,
   missingKeys,
   parseEnv,
+  parseValue,
   templateKeys,
   unknownKeys,
 } from './envfile.mjs';
@@ -200,6 +201,33 @@ describe('envfile', () => {
     }
     assert.equal(formatValue('plain'), 'plain');
     assert.equal(formatValue('a b'), "'a b'");
+  });
+
+  test('an unquoted value ends at its inline comment, whitespace and #', () => {
+    for (const [line, value] of [
+      ['K=a # note', 'a'],
+      ['K=a\t\t# note # more', 'a'],
+      ['K=a#b # note', 'a#b'],
+      ['K=a #', 'a'],
+      ['K=a b  #c', 'a b'],
+      ['K=a#b', 'a#b'],
+      ['K=  # only a comment', '# only a comment'],
+    ]) {
+      assert.equal(parseEnv(line).get('K'), value, line);
+    }
+    // A line break inside (a lone CR, U+2028): the comment is the one after it.
+    assert.equal(parseValue('a\r # x'), 'a');
+    assert.equal(parseValue('a #x\r'), 'a');
+    assert.equal(parseValue('a #x\u2028 # y'), 'a #x');
+    assert.equal(parseValue('a #x\u2028y'), 'a #x\u2028y');
+  });
+
+  test('reads a long unquoted value of spaces in linear time', () => {
+    // The pattern it replaced (/\s+#.*$/) took about a second here.
+    const value = `a${' '.repeat(50_000)}b`;
+    const started = performance.now();
+    assert.equal(parseEnv(`K=${value}`).get('K'), value);
+    assert.ok(performance.now() - started < 250);
   });
 
   test('templateKeys sees active and commented keys, not prose', () => {
@@ -527,6 +555,28 @@ describe('answers', () => {
     assert.equal(env.get('EXCHANGE_RATES_FETCH'), 'on');
     assert.equal(env.get('PASSKEYS'), 'off');
     assert.equal(env.get('PASSKEY_RP_ID'), '');
+  });
+
+  test('an email answer needs a dot in its domain, and is checked in linear time', () => {
+    const { validate } = QUESTIONS.find((q) => q.id === 'adminEmail');
+    for (const ok of ['ops@example.com', 'a.b+c@mail.example.co.uk', 'a@b.c']) {
+      assert.equal(validate(ok), null, ok);
+    }
+    for (const bad of [
+      'ops',
+      'ops@example',
+      'ops@.com',
+      'ops@example.',
+      '@example.com',
+      'ops@@example.com',
+      'ops @example.com',
+    ]) {
+      assert.equal(validate(bad), 'an email address', bad);
+    }
+    // The pattern it replaced took about a second here (quadratic).
+    const started = performance.now();
+    assert.equal(validate(`a@${'a.'.repeat(25_000)}@`), 'an email address');
+    assert.ok(performance.now() - started < 250);
   });
 
   test('passkeys default their relying party id from the web URL host', () => {

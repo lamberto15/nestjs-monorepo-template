@@ -332,7 +332,7 @@ function parseColorString(value: string): ColorValue | null {
 
   // Parse rgb/rgba colors
   const rgbMatch = trimmed.match(
-    /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)$/,
+    /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/,
   );
   if (rgbMatch) {
     return {
@@ -345,7 +345,7 @@ function parseColorString(value: string): ColorValue | null {
 
   // Parse hsl/hsla colors
   const hslMatch = trimmed.match(
-    /^hsla?\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*(?:,\s*([\d.]+))?\s*\)$/,
+    /^hsla?\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*(?:,\s*([\d.]+)\s*)?\)$/,
   );
   if (hslMatch) {
     const h = Number.parseInt(hslMatch[1] ?? "0", 10);
@@ -398,7 +398,7 @@ function parseColorString(value: string): ColorValue | null {
 
   // Parse hsb/hsba colors
   const hsbMatch = trimmed.match(
-    /^hsba?\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*(?:,\s*([\d.]+))?\s*\)$/,
+    /^hsba?\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*(?:,\s*([\d.]+)\s*)?\)$/,
   );
   if (hsbMatch) {
     const h = Number.parseInt(hsbMatch[1] ?? "0", 10);

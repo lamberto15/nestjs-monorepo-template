@@ -18,7 +18,10 @@ export function hostOf(url) {
   }
 }
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Something@something.something. The domain is read up to its first dot
+// after its first character, so no two quantifiers can share a character:
+// linear time (SonarCloud S8786; `[^\s@]+\.[^\s@]+` backtracked over every dot).
+const EMAIL = /^[^\s@]+@[^\s@][^\s@.]*\.[^\s@]+$/;
 const HOSTNAME =
   /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]*[a-z0-9])?$/i;
 

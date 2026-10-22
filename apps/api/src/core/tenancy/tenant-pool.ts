@@ -65,7 +65,9 @@ let maintenanceInProcess = false;
 export const maintenanceAvailable = () => maintenanceInProcess;
 
 const BEGIN = /^\s*(?:begin|start\s+transaction)\b/i;
-const END = /^\s*(?:commit|rollback|end|abort)\s*;?\s*$/i;
+// The spaces after the `;` belong to the optional group: in `\s*;?\s*` both
+// runs could take the same spaces, quadratic on a long run (SonarCloud S8786).
+const END = /^\s*(?:commit|rollback|end|abort)\s*(?:;\s*)?$/i;
 
 type Callback = (error: Error | null, result?: unknown) => void;
 type QueryArgs = [config: unknown, values?: unknown, callback?: unknown];

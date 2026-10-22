@@ -662,7 +662,7 @@ describe('push and SMS (e2e)', () => {
       // The refused request changed nothing: the second number is still the one stored.
       expect(
         (await user.agent.get('/v1/messaging/phone').expect(200)).body.phone,
-      ).toMatch(/•+21$/);
+      ).toBe('+49•••••••••21');
     });
 
     it('stops sending at the month’s budget, by the price of the prefix', async () => {

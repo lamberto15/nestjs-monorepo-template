@@ -226,7 +226,7 @@ export class LogRedaction {
    * then the cut.
    */
   redactString(text: string, maxString = VALUE_LIMITS.maxString): string {
-    const frames = text.search(/\n\s+at \S/);
+    const frames = stackFramesStart(text);
     const message = frames === -1 ? text : text.slice(0, frames);
     // Cut first, at a bound well past the final one, so a huge string costs
     // little; the secret that straddles the cut sits beyond the final one.
@@ -391,6 +391,40 @@ const VALUE_LIMITS: Required<RedactValueOptions> = {
   maxItems: 100,
   maxNodes: 500,
 };
+
+/** Whether `char` is whitespace, as `\s` in a regular expression takes it. */
+const isSpace = (char: string) => /\s/.test(char);
+
+/**
+ * Where a stack trace's frames start in `text` (the line break before the
+ * first `    at …`), or -1: what `text.search(/\n\s+at \S/)` finds. A loop,
+ * not that regex: it starts again at each line break of a long run of
+ * whitespace and scans the rest of the run from there, quadratic on a
+ * crafted message (SonarCloud S8786). The loop scans each run once: the line
+ * breaks inside a run all lead to the same end.
+ */
+function stackFramesStart(text: string): number {
+  let from = 0;
+  for (;;) {
+    const lineBreak = text.indexOf('\n', from);
+    if (lineBreak === -1) {
+      return -1;
+    }
+    let end = lineBreak + 1;
+    while (end < text.length && isSpace(text.charAt(end))) {
+      end++;
+    }
+    if (
+      end > lineBreak + 1 &&
+      text.startsWith('at ', end) &&
+      end + 3 < text.length &&
+      !isSpace(text.charAt(end + 3))
+    ) {
+      return lineBreak;
+    }
+    from = end;
+  }
+}
 
 interface TextRule {
   pattern: RegExp;

@@ -59,7 +59,13 @@ export interface OneTimePassword {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/**
+ * Something@something.something, without whitespace or a second `@`. The
+ * domain is read up to its first dot after its first character, so no two
+ * quantifiers can share a character: linear time (SonarCloud S8786; the
+ * pattern it replaces, `[^\s@]+\.[^\s@]+`, backtracks over every dot).
+ */
+const EMAIL = /^[^\s@]+@[^\s@][^\s@.]*\.[^\s@]+$/;
 
 /** 144 random bits as base64url: 24 characters, longer than any default policy asks. */
 const oneTimePassword = () => randomBytes(18).toString('base64url');

@@ -28,6 +28,7 @@ import {
   labelDecision,
   lintFiles,
   MIGRATIONS,
+  nextLink,
   parseTrees,
   readLabel,
   report,
@@ -553,6 +554,35 @@ describe('the label', () => {
     const d = labelDecision({ events: [labeled(5)], runs: [] });
     assert.equal(d.ack, false);
     assert.match(d.note, /unknown/);
+  });
+
+  test('the next page is the Link header\'s rel="next" URL', () => {
+    const page = (n) =>
+      `https://api.github.com/repositories/1/issues/7/events?per_page=100&page=${n}`;
+    assert.equal(
+      nextLink(
+        `<${page(1)}>; rel="prev", <${page(3)}>; rel="next", <${page(9)}>; rel="last", <${page(1)}>; rel="first"`,
+      ),
+      page(3),
+    );
+    assert.equal(nextLink(`<${page(3)}>;rel="next"`), page(3));
+    assert.equal(
+      nextLink(`<${page(1)}>; rel="prev", <${page(1)}>; rel="first"`),
+      undefined,
+    );
+    assert.equal(nextLink(''), undefined);
+    // As the regex it replaced read them: the first <…> that holds something.
+    assert.equal(nextLink('<>; rel="next", <b>; rel="next"'), 'b');
+    assert.equal(nextLink('<<a>; rel="next"'), '<a');
+    assert.equal(nextLink('<a; rel="next"'), undefined);
+  });
+
+  test('reads a crafted Link header in linear time', () => {
+    // The pattern it replaced took about a second here (quadratic).
+    const started = performance.now();
+    assert.equal(nextLink('<'.repeat(50_000)), undefined);
+    assert.equal(nextLink('<a>'.repeat(25_000)), undefined);
+    assert.ok(performance.now() - started < 250);
   });
 
   // GitHub's REST API, as the lint calls it: the token, two pages of events.

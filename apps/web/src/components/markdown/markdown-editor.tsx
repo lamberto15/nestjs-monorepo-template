@@ -324,12 +324,29 @@ function RichEditor(props: {
   );
 }
 
+/** `line` without the spaces and tabs at its end. */
+function trimBlanks(line: string) {
+  let end = line.length;
+  while (end > 0 && (line[end - 1] === ' ' || line[end - 1] === '\t')) {
+    end--;
+  }
+  return line.slice(0, end);
+}
+
 /** Line ends, trailing spaces and trailing blank lines are spelling, not content. */
-function normalized(markdown: string) {
-  return markdown
-    .replace(/\r\n?/g, '\n')
-    .replace(/[ \t]+$/gm, '')
-    .trimEnd();
+export function normalizedMarkdown(markdown: string) {
+  return (
+    markdown
+      .replace(/\r\n?/g, '\n')
+      // Each line's trailing spaces and tabs dropped, the line breaks (U+2028
+      // and U+2029 end a line too) kept. Split, not /[ \t]+$/gm: that regex
+      // scans a long run of spaces again from each of its positions,
+      // quadratic on a pasted text (SonarCloud S8786).
+      .split(/([\n\u2028\u2029])/)
+      .map(trimBlanks)
+      .join('')
+      .trimEnd()
+  );
 }
 
 /**
@@ -345,7 +362,9 @@ export function keepsMarkdown(markdown: string) {
     contentType: 'markdown',
   });
   try {
-    return normalized(probe.getMarkdown()) === normalized(markdown);
+    return (
+      normalizedMarkdown(probe.getMarkdown()) === normalizedMarkdown(markdown)
+    );
   } finally {
     probe.destroy();
   }

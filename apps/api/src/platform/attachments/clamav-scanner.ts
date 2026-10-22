@@ -1,5 +1,6 @@
 import { connect } from 'node:net';
 import type { Readable } from 'node:stream';
+import { trimEnd } from '../../core/text/trim.js';
 import { MalwareScanner, type ScanResult } from './malware-scanner.js';
 
 /** Bytes per INSTREAM chunk (clamd's StreamMaxLength is the file's, not the chunk's, limit). */
@@ -17,7 +18,7 @@ export interface ClamavOptions {
  * clamd could not scan is not a clean one.
  */
 export function parseClamdReply(reply: string): ScanResult {
-  const text = reply.replace(/\0+$/, '').trim();
+  const text = trimEnd(reply, '\0').trim();
   if (text === 'stream: OK') {
     return { infected: false };
   }
