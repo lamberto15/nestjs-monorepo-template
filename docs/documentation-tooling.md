@@ -17,13 +17,36 @@ The scripts use **VitePress 1.6.4**, pinned to the stable npm release when this 
 
 The configuration is [`.vitepress/config.mjs`](https://github.com/lamberto15/nestjs-monorepo-template/blob/docs/audience-guides-20261022/docs/.vitepress/config.mjs). It defines nontechnical and technical navigation, in-browser **local search**, GitHub edit links and a nested reference sidebar.
 
-## Build and publishing
+## GitHub Pages publishing
 
-A dedicated [documentation CI workflow](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/.github/workflows/docs.yml) runs the source/link checker and a site build when docs-related files change. It does **not** publish a site or change production application deployment.
+The [Documentation workflow](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/.github/workflows/docs.yml) validates docs on pull requests and **publishes only after a docs-related change is merged into `main`** (or when manually dispatched from `main`). The PR build uses the same base path as production, but PRs cannot upload or publish Pages artifacts.
 
-The default VitePress base path is `/`. When publishing at a repository-scoped GitHub Pages URL, build with `DOCS_BASE=/nestjs-monorepo-template/`. For a custom domain use `/` or its real subpath. Publication needs a separately approved host, URL and permissions; avoid guessing that Pages is already enabled.
+The public URL, **once publishing is enabled and succeeds**, is:
 
-The [source audit](technical/implementation-audit.md) explains which architecture/capability claims were compared with code and which runtime tests remain outstanding. The checker is not a security audit or an external-URL crawler. VitePress validates its own rendered links during the build.
+**https://lamberto15.github.io/nestjs-monorepo-template/**
+
+The workflow builds with `DOCS_BASE=/nestjs-monorepo-template/`, uploads only `docs/.vitepress/dist` and deploys through GitHub's artifact-based Pages integration. It does not publish the source tree, involve the NestJS/React production containers or require additional stored credentials.
+
+### One-time GitHub setting
+
+GitHub Pages needs a repository administrator to select its publishing source:
+
+1. Go to [Repository settings → Pages](https://github.com/lamberto15/nestjs-monorepo-template/settings/pages).
+2. Under **Build and deployment → Source**, select **GitHub Actions** (not `Deploy from a branch`).
+3. Merge the reviewed documentation PR to `main`. The Documentation workflow will then build and deploy. If the setting was enabled *after* merging, open [Actions → Documentation](https://github.com/lamberto15/nestjs-monorepo-template/actions/workflows/docs.yml) and use **Run workflow** on `main`.
+4. Check that the **Publish documentation to GitHub Pages** job succeeded and open the published URL. GitHub can require a short delay for the first site to become visible.
+
+Recommended: under [Settings → Environments](https://github.com/lamberto15/nestjs-monorepo-template/settings/environments), restrict the `github-pages` environment to deployments from `main`. The workflow itself already enforces this; the environment rule supplies defense in depth.
+
+### Security and maintenance
+
+The build job only has `contents: read`; the publishing job alone has `pages: write` and `id-token: write` (plus `actions: read` to access the artifact). All GitHub Pages actions are pinned to commit SHAs. **No pull request can deploy the documentation.**
+
+The site is **public**: do not put secrets, private endpoints or internal-only runbooks into the Markdown. If a custom domain is added later, change the VitePress base to `/` when hosting at the domain root and configure DNS and Pages' custom-domain settings separately. Leave the current repository base for the default `github.io` project site.
+
+If the deployment fails with `Not Found`, `Pages site not enabled`, or environment authorization errors, check GitHub Pages Source and environment restrictions first, then inspect the Documentation workflow's deploy job. A passing build alone does not mean the site is published. The static site is not served by your production API, web app or Docker Compose stack.
+
+The [source audit](technical/implementation-audit.md) explains which architecture/capability claims were compared with code and which runtime tests remain outstanding. The checker is not a security audit or an external-URL crawler; VitePress validates its rendered links during the build.
 
 ## Editorial standards and next enhancements
 

@@ -31,6 +31,10 @@ Read [technical quickstart](technical/quickstart.md), [system map](technical/sys
 - **License:** [PolyForm Noncommercial 1.0.0](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/LICENSE). Check the license and obtain separate permission before assuming a commercial use is allowed.
 - **Release maturity:** consult the [roadmap](roadmap.md), [releases](releases.md) and [GitHub release notes](https://github.com/lamberto15/nestjs-monorepo-template/releases) for the current state, including possible breaking changes.
 
+## Website
+
+This VitePress documentation is published independently on GitHub Pages after the repository's [one-time publishing setup](documentation-tooling.md#one-time-github-setting) is enabled and the workflow on `main` succeeds. It does not run within the production NestJS or React containers.
+
 ## About these docs
 
 Documentation structure borrows the [Diátaxis](https://diataxis.fr/) distinction between learning, tasks, explanations and reference, while using audience-based entry points. For authoring conventions and how to keep documentation honest, see [documentation maintenance](documentation-maintenance.md); for the VitePress site and documentation checks, see [documentation tooling](documentation-tooling.md).
