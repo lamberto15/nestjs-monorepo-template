@@ -63,7 +63,7 @@ export class BrandedTemplateEngine extends MailTemplateEngine {
   ): MailTemplateOutput | Promise<MailTemplateOutput> {
     return this.inner.render(
       name,
-      { brand: scope.getStore() ?? DEFAULT_MAIL_BRAND, ...context },
+      { brand: scope.getStore() ?? DEFAULT_MAIL_BRAND, ...context, layoutLang: options.locale || 'en' },
       options,
     );
   }
