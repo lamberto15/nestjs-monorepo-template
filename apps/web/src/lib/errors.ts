@@ -142,9 +142,15 @@ export function createQueryClient(
     }),
     defaultOptions: {
       queries: {
-        // A 4xx won't change by asking again.
+        // A 4xx won't change by asking again, nor will the deployment's
+        // mode (503 `read_only` / `maintenance`: the API says to wait 30 s,
+        // and the mode watch asks when it has ended). Retrying those held a
+        // save, which refreshes pages the mode now refuses, for three seconds.
         retry: (count, error) =>
-          !(isApiError(error) && error.status < 500) && count < 2,
+          !(
+            isApiError(error) &&
+            (error.status < 500 || isModeRefusal(error))
+          ) && count < 2,
       },
     },
   });

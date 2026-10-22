@@ -320,3 +320,29 @@ describe('step-up (reauthentication_required)', () => {
     expect(ask).not.toHaveBeenCalled();
   });
 });
+
+describe('the query retry rule', () => {
+  const retry = createQueryClient(() => undefined).getDefaultOptions().queries!
+    .retry as (count: number, error: Error) => boolean;
+  const failed = (status: number, code?: string) =>
+    new ApiError({ status, ...(code && { code }) });
+
+  it('asks a failing server again, twice', () => {
+    expect(retry(0, failed(500))).toBe(true);
+    expect(retry(1, failed(502))).toBe(true);
+    expect(retry(2, failed(500))).toBe(false);
+  });
+
+  it('does not ask again after a 4xx', () => {
+    expect(retry(0, failed(404, 'not_found'))).toBe(false);
+  });
+
+  it("does not ask again what the deployment's mode refused (503 read_only, maintenance)", () => {
+    // The refusal says to wait 30 s and the mode watch asks when it has
+    // ended: a retry after 1 s and 2 s only held the page that saw it.
+    expect(retry(0, failed(503, 'maintenance'))).toBe(false);
+    expect(retry(0, failed(503, 'read_only'))).toBe(false);
+    // Any other 503 (a proxy, a restart) is still worth asking again.
+    expect(retry(0, failed(503))).toBe(true);
+  });
+});

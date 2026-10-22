@@ -6,6 +6,10 @@
     "title": "Wartungsarbeiten",
     "description": "Der Dienst wird gerade gewartet und ist bald wieder da. Diese Seite prüft von selbst erneut, Sie müssen nichts tun.",
     "check": "Erneut prüfen",
+    "switch": {
+      "action": "Zu {{tenant}} wechseln",
+      "hint": "Die Wartung lässt sich nur im Betreiber-Mandanten beenden. Diese Sitzung gehört zu {{tenant}}."
+    },
     "operator": {
       "end": "Wartung beenden",
       "ended": "Der Wartungsmodus ist aus.",

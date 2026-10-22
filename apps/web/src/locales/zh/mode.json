@@ -6,6 +6,10 @@
     "title": "系统维护中",
     "description": "服务正在维护，很快恢复。此页面会自动重新检查，你无需任何操作。",
     "check": "重新检查",
+    "switch": {
+      "action": "切换到 {{tenant}}",
+      "hint": "只能在运营租户中结束维护。此会话位于 {{tenant}}。"
+    },
     "operator": {
       "end": "结束维护",
       "ended": "维护模式已关闭。",

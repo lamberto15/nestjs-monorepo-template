@@ -6,6 +6,10 @@
     "title": "Down for maintenance",
     "description": "The service is being worked on and will be back shortly. This page checks again by itself, so you don't need to do anything.",
     "check": "Check again",
+    "switch": {
+      "action": "Switch to {{tenant}}",
+      "hint": "Maintenance can only be ended from an operator tenant. This session is in {{tenant}}."
+    },
     "operator": {
       "end": "End maintenance",
       "ended": "Maintenance mode is off.",

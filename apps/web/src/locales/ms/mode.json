@@ -6,6 +6,10 @@
     "title": "Sedang diselenggara",
     "description": "Perkhidmatan sedang diselenggara dan akan kembali tidak lama lagi. Halaman ini menyemak semula secara automatik, jadi anda tidak perlu berbuat apa-apa.",
     "check": "Semak semula",
+    "switch": {
+      "action": "Tukar ke {{tenant}}",
+      "hint": "Penyelenggaraan hanya boleh ditamatkan dari penyewa pengendali. Sesi ini berada dalam {{tenant}}."
+    },
     "operator": {
       "end": "Tamatkan penyelenggaraan",
       "ended": "Mod penyelenggaraan telah dimatikan.",

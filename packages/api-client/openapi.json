@@ -37753,6 +37753,10 @@
                           "current": {
                             "type": "boolean",
                             "description": "The tenant this session or token acts in."
+                          },
+                          "operator": {
+                            "description": "An operator tenant: the only one whose session can turn `platform.mode` off. Always sent.",
+                            "type": "boolean"
                           }
                         },
                         "required": [

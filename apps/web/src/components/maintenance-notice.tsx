@@ -1,13 +1,14 @@
 import { unwrap } from '@nestjs-monorepo-template/api-client';
 import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { WrenchIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { useSwitchTenant } from '@/components/tenant-switcher';
 import { api } from '@/lib/api';
-import { useCan, useMe } from '@/lib/features';
-import { featuresQuery } from '@/lib/session';
+import { useCan, useFeatures, useMe } from '@/lib/features';
+import { featuresQuery, tenantsQuery } from '@/lib/session';
 import { useSignOut } from '@/lib/sign-out';
 
 /**
@@ -19,15 +20,32 @@ import { useSignOut } from '@/lib/sign-out';
  * (lib/mode.ts); "Check again" asks now. Signing out stays possible, and an
  * operator who may manage settings can end the mode here, by the route the
  * API keeps open for it (`DELETE /v1/settings/platform.mode/platform`), which
- * removes the stored value only.
+ * removes the stored value only. That route is the operator tenant's: an
+ * operator whose session acts in another of their tenants (a sign-in starts in
+ * the one they chose last) is offered the way back, by the tenant switch the
+ * API keeps open too.
  */
 export function MaintenanceNotice() {
   const { t } = useTranslation('mode');
   const { t: tc } = useTranslation();
   const queryClient = useQueryClient();
   const signOut = useSignOut();
-  const operator = useMe()?.tenant?.operator === true;
+  const me = useMe();
+  const operator = me?.tenant?.operator === true;
   const canManage = useCan('Access.manageSettings');
+  // Only someone choosing among tenants has a way back (as the sidebar's
+  // switcher: not with TENANCY=single, not while impersonating).
+  const choosing =
+    useFeatures()?.tenancy === 'multi' && !me?.user.impersonator && !operator;
+  const tenants = useQuery({
+    ...tenantsQuery,
+    enabled: choosing,
+    meta: { errorToast: false },
+  });
+  const operatorTenant = tenants.data?.items.find(
+    (tenant) => tenant.operator === true && !tenant.current,
+  );
+  const switchTenant = useSwitchTenant();
   const refresh = () =>
     queryClient.refetchQueries({ queryKey: featuresQuery.queryKey });
   const check = useMutation({ mutationFn: refresh });
@@ -79,6 +97,20 @@ export function MaintenanceNotice() {
             {tc('auth.signOut')}
           </Button>
         </div>
+        {operatorTenant && (
+          <div className="flex flex-col items-center gap-2 border-t pt-4">
+            <Button
+              disabled={switchTenant.isPending}
+              onClick={() => switchTenant.mutate(operatorTenant.id)}
+            >
+              {switchTenant.isPending && <Spinner />}
+              {t('maintenance.switch.action', { tenant: operatorTenant.name })}
+            </Button>
+            <p className="text-sm text-muted-foreground">
+              {t('maintenance.switch.hint', { tenant: me?.tenant?.name })}
+            </p>
+          </div>
+        )}
         {operator && canManage && (
           <div className="flex flex-col items-center gap-2 border-t pt-4">
             <Button disabled={end.isPending} onClick={() => end.mutate()}>

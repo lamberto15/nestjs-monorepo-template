@@ -40,6 +40,7 @@ export class TenantSwitchService {
         id: row.id,
         slug: row.slug,
         name: row.name,
+        operator: row.operator,
         current: row.id === user.tenantId,
       }));
   }

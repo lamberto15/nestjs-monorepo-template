@@ -22290,6 +22290,8 @@ export interface operations {
                             name: string;
                             /** @description The tenant this session or token acts in. */
                             current: boolean;
+                            /** @description An operator tenant: the only one whose session can turn `platform.mode` off. Always sent. */
+                            operator?: boolean;
                         }[];
                     };
                 };
