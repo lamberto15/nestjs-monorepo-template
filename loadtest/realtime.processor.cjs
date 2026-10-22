@@ -30,8 +30,9 @@ async function accessToken() {
 if (require.main === module) {
   accessToken().then(
     (token) => process.stdout.write(token),
-    (error) => {
-      console.error(`Realtime login failed: ${error.message}`);
+    () => {
+      // Never echo untrusted upstream error text (or credentials) to CI logs.
+      console.error('Realtime administrator login failed; check the API logs.');
       process.exitCode = 1;
     },
   );

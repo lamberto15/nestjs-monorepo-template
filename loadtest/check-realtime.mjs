@@ -1,6 +1,6 @@
 // Independent realtime verdict: Artillery's exit code/ensure alone has
 // reported success with 600 refused Socket.IO virtual users.
-import { appendFileSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export function summarizeRealtime(report) {
@@ -44,7 +44,7 @@ export function summarizeRejectedAuthentication(report) {
   const ok = created === 1 && completed === 0 && failed === 1 && count === 1 && otherErrors.length === 0;
   return {
     ok, created, completed, failed, errors: [...unauthorized, ...otherErrors],
-    p95: NaN, p99: NaN,
+    p95: Number.NaN, p99: Number.NaN,
     reasons: ok ? ['Invalid Socket.IO handshake rejected as expected'] :
       ['Expected exactly one unauthorized failed virtual user and no other errors'],
   };
@@ -70,22 +70,30 @@ export function markdownRealtime(summary) {
   ].join('\n');
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  const [, , reportPath, summaryPath, mode] = process.argv;
-  let summary;
-  try {
-    if (!reportPath) throw new Error('Artillery JSON report path was not supplied');
-    const report = JSON.parse(readFileSync(reportPath, 'utf8'));
-    summary = mode === '--expect-unauthorized'
-      ? summarizeRejectedAuthentication(report) : summarizeRealtime(report);
-  } catch (error) {
-    summary = { ok: false, created: 0, completed: 0, failed: 0, errors: [], p95: NaN, p99: NaN,
-      reasons: [`Cannot validate Artillery report: ${error.message}`] };
+  // Read the report from stdin. No filesystem paths are accepted from CLI
+  // arguments, so an untrusted caller cannot select a file to read or write.
+  const mode = process.argv[2];
+  if (process.argv.length > 3 || (mode && mode !== '--expect-unauthorized')) {
+    process.stderr.write('Usage: check-realtime.mjs [--expect-unauthorized] < report.json\n');
+    process.exitCode = 2;
+  } else {
+    let summary;
+    try {
+      const report = JSON.parse(readFileSync(0, 'utf8'));
+      summary = mode === '--expect-unauthorized'
+        ? summarizeRejectedAuthentication(report) : summarizeRealtime(report);
+    } catch {
+      summary = {
+        ok: false, created: 0, completed: 0, failed: 0, errors: [],
+        p95: Number.NaN, p99: Number.NaN,
+        reasons: ['Cannot validate Artillery report: invalid or missing JSON on stdin'],
+      };
+    }
+    const md = mode === '--expect-unauthorized'
+      ? markdownRealtime(summary).replace('## Realtime Socket.IO load test', '## Realtime rejected-auth smoke test')
+        .replace('**Verdict:**', '**Expected rejection verdict:**')
+      : markdownRealtime(summary);
+    process.stdout.write(md + '\n');
+    if (!summary.ok) process.exitCode = 1;
   }
-  const md = mode === '--expect-unauthorized'
-    ? markdownRealtime(summary).replace('## Realtime Socket.IO load test', '## Realtime rejected-auth smoke test')
-      .replace('**Verdict:**', '**Expected rejection verdict:**')
-    : markdownRealtime(summary);
-  process.stdout.write(md + '\n');
-  if (summaryPath) appendFileSync(summaryPath, md + '\n', 'utf8');
-  if (!summary.ok) process.exitCode = 1;
 }

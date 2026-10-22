@@ -200,11 +200,11 @@ realtime() {
   # A zero Artillery exit status does not prove any authenticated virtual
   # user completed; validate reported failures and whoami responses ourselves.
   local summary="${GITHUB_STEP_SUMMARY:-$out/realtime-summary.md}"
-  if ! node loadtest/check-realtime.mjs "$out/realtime.json" "$summary"; then
+  if ! node loadtest/check-realtime.mjs < "$out/realtime.json" | tee -a "$summary"; then
     echo "Realtime load test failed: inspect its summary and realtime.json" >&2
     return 1
   fi
-  if [ "$artillery_status" -ne 0 ]; then
+  if [[ "$artillery_status" -ne 0 ]]; then
     echo "Artillery exited with status $artillery_status" >&2
     return "$artillery_status"
   fi
@@ -226,8 +226,8 @@ realtime() {
   else
     rejected_status=$?
   fi
-  if ! node loadtest/check-realtime.mjs "$out/realtime-rejected.json" \
-      "$out/realtime-rejected-summary.md" --expect-unauthorized; then
+  if ! node loadtest/check-realtime.mjs --expect-unauthorized \
+      < "$out/realtime-rejected.json" | tee "$out/realtime-rejected-summary.md"; then
     echo "Realtime rejection smoke test failed (Artillery status: $rejected_status)" >&2
     return 1
   fi
