@@ -44,14 +44,24 @@ python3 -I apply_metric.py data.jsonl preds_*.jsonl  # add a label at >= 95% dev
 `jev_arm.py` also writes `jev_runs.jsonl` (latency, input tokens, model per
 call) and prints p50/p95 latency and the cost.
 
-## Results so far (test, 172 items)
+## Results (test, 172 items)
 
 | Arm | Macro-F1 | Exact | ECE | Frontend auto-label |
 | --- | --- | --- | --- | --- |
 | Keyword | 0.60 | 0.43 | – | none at 95% |
 | Haiku 5.5 | 0.69 | 0.61 | 0.031 | P 0.97, R 0.76 |
 | Sonnet 5.5 | 0.79 | 0.74 | 0.047 | P 0.97, R 0.90 |
+| Jev (`jev-1.13.0`) | 0.59 | 0.49 | 0.034 | P 0.91, R 0.63 |
 
-Jev is worth adopting for triage if it roughly matches Haiku (macro-F1 about
+The bar, set before the run: Jev is worth adopting for triage if it roughly matches Haiku (macro-F1 about
 0.69, frontend precision about 0.97 when auto-labelling) with calibrated
 probabilities. Either way, record its p95 latency and the cost per 1,000 issues.
+
+**Verdict: Jev doesn't clear the bar.** Its macro-F1 (0.59) matches the keyword
+rules (0.60), not Haiku (0.69). Frontend auto-labelling reaches P 0.91 against
+Haiku's 0.97, and backend gets P 0.97 only by applying the label to a third of
+the items that need it (R 0.33). `documentation` is the weakest (F1 0.15 vs
+Haiku's 0.40). Its probabilities are well calibrated (ECE 0.034, near Haiku's
+0.031), so its errors are honest rather than overconfident. It is fast and
+cheap: p50 165 ms, p95 274 ms, $0.0086 for all 282 calls (about $0.03 per
+1,000 issues, 722 input tokens per call), no retries.
