@@ -1,6 +1,6 @@
 # Capabilities and limits in plain language
 
-This is a **summary of documented mechanisms, not a product-support promise**. Some modules are switched off by default, need providers or tenant-level enabling, and must be validated for a particular application. Follow each reference for implementation and operational prerequisites.
+This is a **summary of documented mechanisms, not a product-support promise**. The WEBHOOKS, REPORTS, USAGE and REALTIME deployment switches default to on in both the runtime schema and setup wizard. Other integrations, including AI and SMS, still require their own configuration or tenant-level enabling. All capabilities need validation for each application. Follow each reference for implementation and operational prerequisites.
 
 | Capability | What a user or organization gains | Constraints / where to learn more |
 | --- | --- | --- |
@@ -8,7 +8,7 @@ This is a **summary of documented mechanisms, not a product-support promise**. S
 | Roles, teams and permissions | Control who can do what, down to records and fields | Each new feature must declare and test its own permissions. [Permissions](../permissions.md) |
 | Multi-organization support | Serve different organizations from one deployment | Requires correct tenant-aware data access and verification. [Tenancy](../tenancy.md) |
 | Activity history | Track relevant changes with an audit trail | An audit log is not a substitute for governance or legal advice. [Permissions](../permissions.md) |
-| API and typed client | Backend interface for web, scripts and other applications | API changes and version expectations require management. [API conventions](../api-conventions.md), [client](../../packages/api-client/README.md) |
+| API and typed client | Backend interface for web, scripts and other applications | API changes and version expectations require management. [API conventions](../api-conventions.md), [client](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/packages/api-client/README.md) |
 | Web application | Sign-in and administrative pages, with an example record feature | Not a ready-made domain product; add your own pages. [Web app](../monorepo.md) |
 | Files and records | Attachments, tags, comments, record revisions, custom fields | Storage, malware scanning and retention need configuration. [Attachments](../attachments.md), [retention](../retention.md) |
 | Automated work | Queues, workflows, scheduled reports, approvals, webhooks | Workers and supporting services must run reliably. [Background work](../background-work.md), [approvals](../approvals.md) |
@@ -29,6 +29,6 @@ For exact version- or branch-specific availability, check the [roadmap](../roadm
 - **"All features are free to operate."** Mail, cloud storage, external identity, AI, SMS, backups and hosting can have recurring costs.
 - **"Multi-tenant means compliance is solved."** Isolation is a design capability; regulatory compliance depends on the deployed system and operating controls.
 - **"Zero downtime means zero risk."** Any deployment still requires compatible migrations, health verification and a rollback plan.
-- **"Open on GitHub means commercially open source."** Check the actual [noncommercial license](../../LICENSE).
+- **"Open on GitHub means commercially open source."** Check the actual [noncommercial license](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/LICENSE).
 
 Next: [Adoption and operations](adoption-and-operations.md).

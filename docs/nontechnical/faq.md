@@ -6,7 +6,7 @@ No. It includes a NestJS API, React frontend, administrative and platform capabi
 
 ## Can I use it for a company or a paid product?
 
-**Do not assume so.** The repository contains the [PolyForm Noncommercial 1.0.0 license](../../LICENSE). Commercial use needs permission under separate terms from the copyright holder. Evaluate your particular use with appropriate legal advice; a public GitHub repository is not necessarily licensed for commercial reuse.
+**Do not assume so.** The repository contains the [PolyForm Noncommercial 1.0.0 license](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/LICENSE). Commercial use needs permission under separate terms from the copyright holder. Evaluate your particular use with appropriate legal advice; a public GitHub repository is not necessarily licensed for commercial reuse.
 
 ## Is it only a NestJS backend?
 
@@ -18,7 +18,7 @@ Yes. The setup exposes a single-tenant option as well as multi-tenant deployment
 
 ## Is everything enabled automatically?
 
-No. Setup switches and feature flags determine what is enabled. Some functions need credentials, worker processes, mail, storage or other providers. See [configuration](../configuration.md).
+Not quite. Webhooks, reports, usage metering and realtime default to on (but can be disabled). AI, SMS and other optional integrations still need provider configuration and may need tenant-level enabling. Workers and backing services are also required for some features. See [configuration](../configuration.md).
 
 ## Do I need Docker and a database?
 
@@ -26,11 +26,11 @@ The documented development workflow uses Docker Compose for services such as Pos
 
 ## Does it support APIs for mobile apps?
 
-The API exposes REST routes, and the repository includes a typed client meant for clients beyond the bundled web app. A complete native mobile app is not supplied. See [API conventions](../api-conventions.md) and [client package](../../packages/api-client/README.md).
+The API exposes REST routes, and the repository includes a typed client meant for clients beyond the bundled web app. A complete native mobile app is not supplied. See [API conventions](../api-conventions.md) and [client package](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/packages/api-client/README.md).
 
 ## Does it come with support, hosting or a guaranteed SLA?
 
-No hosting or SLA is granted by the repository. The adopter is responsible for its own application operations. The [security policy](../../SECURITY.md) covers reporting vulnerabilities in the template, not support contracts for applications derived from it.
+No hosting or SLA is granted by the repository. The adopter is responsible for its own application operations. The [security policy](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/SECURITY.md) covers reporting vulnerabilities in the template, not support contracts for applications derived from it.
 
 ## Can I pull future template improvements into my project?
 

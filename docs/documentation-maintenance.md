@@ -5,7 +5,7 @@
 - **Nontechnical pages** in `docs/nontechnical/` help people decide whether to adopt the template. Avoid code details unless necessary for a decision.
 - **Technical navigation and task guides** in `docs/technical/` point to the deep technical references rather than repeating every implementation detail.
 - **Topic reference guides** directly under `docs/` are the authoritative description of runtime behavior, configuration, security boundaries and extension contracts.
-- The root [README](../README.md) is a short public entry point plus overview; [docs/index.md](index.md) is the documentation hub.
+- The root [README](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/README.md) is a short public entry point plus overview; [docs/index.md](index.md) is the documentation hub.
 
 ## Write what is verified
 
@@ -19,6 +19,9 @@ When a behavior changes, inspect implementation/configuration/tests and update t
 Use links to the [roadmap](roadmap.md) and [releases](releases.md) for changeable statuses. Do not embed volatile test counts, third-party prices or current CI-green claims in evergreen guides.
 
 ## Maintain commands and links
+
+Run `pnpm docs:check` to check local links and selected code assertions, and `pnpm docs:build` to validate the rendered VitePress site. These are drift alarms, not proof of runtime correctness. Review [the source audit](technical/implementation-audit.md) when implementation changes.
+
 
 1. Run documented commands on a clean appropriate environment, or clearly mark them as unverified examples.
 2. Check referenced files and relative links, especially when moving docs.

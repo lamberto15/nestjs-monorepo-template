@@ -29,6 +29,8 @@ Caddy (production reverse proxy + static web app)
 
 *Conceptual topology, not an exact deployment network diagram.* Development services differ from production, and optional integrations only run when configured. Production orchestration options are documented in [deployment](../deployment.md).
 
+The API and worker share `AppModule`. The worker entry point explicitly sets `APP_ROLE=worker`; local development can use the combined `all` role, while production runs API and worker roles separately. The `notes` example is hand-written; the `pnpm feature:add` output should be used for new generated features.
+
 ## Four code layers
 
 | Layer | Role | May depend on |

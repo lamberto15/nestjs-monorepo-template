@@ -72,6 +72,10 @@ pnpm client:check
 
 Browser e2e tests are documented under `pnpm test:e2e:web`. Some suites require running services and sufficient resources. CI remains the source of truth for the repository's required checks; see [development](../development.md) and [deployment CI](../deployment.md).
 
+## Documentation and implementation verification
+
+Read the [source audit](implementation-audit.md) for a code-grounded snapshot of supported claims and unverified runtime behaviors. Use `pnpm docs:check` for link and source-contract checks; `pnpm docs:dev` starts the searchable documentation site.
+
 ## Common problems
 
 | Symptom | First check |

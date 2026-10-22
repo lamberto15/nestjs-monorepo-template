@@ -701,7 +701,7 @@ Any framework fits the same way.
    root script like `dev:web` to run it alone. A build-time variable
    (`VITE_API_URL`…) goes into the build task's `env`.
 4. **Call the API** with the typed client
-   ([its README](../packages/api-client/README.md)):
+   ([its README](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/packages/api-client/README.md)):
 
    ```ts
    import {
