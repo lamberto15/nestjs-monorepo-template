@@ -43,7 +43,11 @@
     "feature:sync": "node tools/feature/sync.mjs",
     "deploy:blue-green": "node tools/deploy/blue-green.mjs",
     "deploy:swarm": "node tools/deploy/swarm.mjs",
-    "knip": "knip"
+    "knip": "knip",
+    "docs:check": "node tools/docs/check.mjs",
+    "docs:dev": "pnpm dlx vitepress@1.6.4 dev docs",
+    "docs:build": "pnpm dlx vitepress@1.6.4 build docs",
+    "docs:preview": "pnpm dlx vitepress@1.6.4 preview docs"
   },
   "devDependencies": {
     "@changesets/cli": "3.0.3",

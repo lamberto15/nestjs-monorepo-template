@@ -605,7 +605,7 @@ and typed realtime events (socket.io). It applies the
 [conventions](api-conventions.md) itself: credentials, languages, an
 `Idempotency-Key` per POST, problem details thrown as `ApiError`, cursor
 pages, ETags. Usage, the bell-icon recipe included:
-[its README](../packages/api-client/README.md).
+[its README](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/packages/api-client/README.md).
 
 - `pnpm client:generate` after changing a route, then commit
   `packages/api-client/openapi.json` and `packages/api-client/src/schema.ts`: they are the

@@ -1,5 +1,10 @@
 # NestJS REST backend template
 
+> **Start here:** [Documentation home](docs/index.md) · [Nontechnical: evaluate the template](docs/nontechnical/index.md) · [Technical: build and operate](docs/technical/index.md)
+>
+> New to this project? Read the [decision guide](docs/nontechnical/decision-guide.md) before installing it. This is a customizable foundation, not a complete business application. **Commercial-use rights are not granted by default:** review the [PolyForm Noncommercial license](LICENSE) and obtain separate permission if required.
+
+
 A production-ready starting point for NestJS 12 REST APIs: everything a
 project would otherwise rebuild is here, so a new project only writes its own
 features. JSON in, JSON out; Swagger UI at `/api` is the API's only page.
@@ -19,7 +24,7 @@ room for more frontends in `apps/` ([monorepo](docs/monorepo.md)).
 
 | Area | What you get | Docs |
 | --- | --- | --- |
-| Setup | `pnpm setup`: a first-run wizard that asks the deployment shape and the few choices, keeps the rest off and writes the env file with every secret generated | [configuration](docs/configuration.md) |
+| Setup | `pnpm setup`: a first-run wizard that asks the deployment shape and the few choices, lets you disable unused modules and writes the env file with generated secrets | [configuration](docs/configuration.md) |
 | Choices | Deployment switches, set once: one tenant or many (`TENANCY`), `IDEMPOTENCY` (required or optional), `WEBHOOKS`, `REPORTS`, `USAGE`, `REALTIME`, `AUTH_MFA`, `API_CLIENTS`, `IMPERSONATION` (off by default); auth policies changed at runtime (`auth.requireMfa`, `auth.passwordMinLength`) under the env's ceiling | [configuration](docs/configuration.md), [settings](docs/settings.md) |
 | Features | A generator (`pnpm feature:add`, the `/add-feature` skill for Claude Code) writes a feature from one declaration, `<item>.record.ts`: fields, recycle bin, teams, and capabilities (tags, comments, attachments, revisions, PDF, bulk, watch, search, export, custom fields, webhooks for its changes, gapless numbers), approvals and settings, plus API-key access, grants and idempotency; `pnpm feature:sync` applies a changed declaration later | [adding a feature](docs/adding-a-feature.md) |
 | Tenants | Many organizations in one deployment behind PostgreSQL row-level security (or one, with `TENANCY=single`), the tenant of every request, job, workflow and cron run, operators, a tenant tree for holding groups with consolidated reads, break-glass (an operator reading a tenant read only), platform analytics on anonymized aggregates | [tenancy](docs/tenancy.md) |
