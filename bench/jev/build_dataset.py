@@ -5,9 +5,18 @@ Input text = PR title + description with every conventional-commit
 the answer. Gold labels come from the paths each commit changed.
 """
 import hashlib, json, re, subprocess, sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+
+def inside(arg):  # file arguments must name files in bench/jev (SonarCloud S8707)
+    path = (HERE / arg).resolve()
+    if not path.is_relative_to(HERE):
+        raise SystemExit(f"{arg}: not a file in {HERE}")
+    return path
 
 REPO = sys.argv[1]
-OUT = sys.argv[2]
+OUT = inside(sys.argv[2])
 
 def git(*args):
     return subprocess.run(["git", "-C", REPO, *args], check=True,
@@ -51,7 +60,7 @@ for sha in shas:
     if not labels:
         continue
     text = clean(subject) + "\n\n" + clean(body)[:1200]
-    split = "dev" if int(hashlib.sha1(sha.encode()).hexdigest(), 16) % 10 < 4 else "test"
+    split = "dev" if int(hashlib.sha1(sha.encode(), usedforsecurity=False).hexdigest(), 16) % 10 < 4 else "test"
     rows.append({"id": sha[:10], "split": split, "text": text,
                  "labels": {a: a in labels for a in AREAS}})
 

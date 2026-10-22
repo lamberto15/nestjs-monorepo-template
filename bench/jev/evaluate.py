@@ -5,12 +5,21 @@ Each preds line: {"id": ..., "p": {area: P(label applies)}}.
 Thresholds for auto-labelling are tuned on the dev split, reported on test.
 """
 import json, sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+
+def inside(arg):  # file arguments must name files in bench/jev (SonarCloud S8707)
+    path = (HERE / arg).resolve()
+    if not path.is_relative_to(HERE):
+        raise SystemExit(f"{arg}: not a file in {HERE}")
+    return path
 
 AREAS = ["backend", "frontend", "ci", "documentation"]
-gold = {r["id"]: r for r in map(json.loads, open(sys.argv[1]))}
+gold = {r["id"]: r for r in map(json.loads, open(inside(sys.argv[1])))}
 
 def load(path):
-    return {r["id"]: r["p"] for r in map(json.loads, open(path))}
+    return {r["id"]: r["p"] for r in map(json.loads, open(inside(path)))}
 
 def f1(tp, fp, fn):
     p = tp / (tp + fp) if tp + fp else 0.0

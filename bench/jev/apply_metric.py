@@ -2,15 +2,24 @@
 precision >= 0.95 per label); report test precision and the share of true
 labels it applied (recall)."""
 import json, sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+
+def inside(arg):  # file arguments must name files in bench/jev (SonarCloud S8707)
+    path = (HERE / arg).resolve()
+    if not path.is_relative_to(HERE):
+        raise SystemExit(f"{arg}: not a file in {HERE}")
+    return path
 AREAS = ["backend", "frontend", "ci", "documentation"]
-gold = {r["id"]: r for r in map(json.loads, open(sys.argv[1]))}
+gold = {r["id"]: r for r in map(json.loads, open(inside(sys.argv[1])))}
 dev = [i for i in gold if gold[i]["split"] == "dev"]; test = [i for i in gold if gold[i]["split"] == "test"]
 def pr(p, ids, a, t):
     hit = [i for i in ids if p[i][a] >= t]; pos = sum(gold[i]["labels"][a] for i in ids)
     tp = sum(gold[i]["labels"][a] for i in hit)
     return (tp / len(hit) if hit else 1.0), (tp / pos if pos else 0.0)
 for path in sys.argv[2:]:
-    p = {r["id"]: r["p"] for r in map(json.loads, open(path))}
+    p = {r["id"]: r["p"] for r in map(json.loads, open(inside(path)))}
     cells, applied, right, pos = [], 0, 0, 0
     for a in AREAS:
         ok = [t / 100 for t in range(5, 101) if pr(p, dev, a, t / 100)[0] >= 0.95 and any(p[i][a] >= t / 100 for i in dev)]

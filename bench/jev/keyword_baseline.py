@@ -1,5 +1,14 @@
 """Arm A: deterministic keyword rules. Writes preds_keyword.jsonl (p is 0 or 1)."""
 import json, re, sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+
+def inside(arg):  # file arguments must name files in bench/jev (SonarCloud S8707)
+    path = (HERE / arg).resolve()
+    if not path.is_relative_to(HERE):
+        raise SystemExit(f"{arg}: not a file in {HERE}")
+    return path
 
 RULES = {
     "backend": r"\b(api|endpoint|route|controller|service|migration|drizzle|postgres|sql|queue|bullmq|worker|tenant|rls|nestjs|dto|schema|webhook|mail|sms|push|audit|permission|token|auth|client)\b",
@@ -8,8 +17,8 @@ RULES = {
     "documentation": r"\b(docs?|documentation|readme|guide|typo|wording|explain)\b",
 }
 
-data = [json.loads(l) for l in open(sys.argv[1])]
-with open(sys.argv[2], "w") as out:
+data = [json.loads(l) for l in open(inside(sys.argv[1]))]
+with open(inside(sys.argv[2]), "w") as out:
     for row in data:
         text = row["text"].lower()
         p = {a: 1.0 if re.search(rx, text) else 0.0 for a, rx in RULES.items()}
