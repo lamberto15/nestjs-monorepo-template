@@ -44,7 +44,8 @@ Filling `.env` (each step is commented in `env.example`):
   administrator's password is logged once.
 - **Caddy serves the web app too.** Its image builds `apps/web` (stage `web` of
   `caddy/Dockerfile`, context the repository root) into `/srv/web`. The Caddyfile sends
-  `/v1/*`, `/socket.io/*`, `/health*`, `/api*` (Swagger UI), `/files*` and
+  `/v1/*`, `/socket.io/*`, `/health*`, `/api*` (Swagger UI), `/files` and `/files/*`
+  (the local disk's links are `/files?key=…`, the path `/files` itself) and
   `/.well-known/*` to the API, `/metrics*` to a 404, and every other path to the app
   (`index.html` for its routes; `/assets/*` cached for a year, `index.html` never). The
   API's routes are the app's origin, so `__Host-sid` works and no CORS is needed. A new
@@ -75,7 +76,7 @@ build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviol
   cannot load shows the file icon, and the original still downloads, a download being a
   navigation, which neither directive governs). With `STORAGE_DRIVER=local` there is
   nothing to add: the files' links are `https://<APP_DOMAIN>/files…`, the app's own
-  origin (`/files/*` goes to the API above), which `'self'` covers. So `connect-src` and
+  origin (`/files` goes to the API above), which `'self'` covers. So `connect-src` and
   `img-src` both name one list of origins, which `caddy/entrypoint.sh` makes at each
   start (`WEB_FILES_ORIGINS`, the one value the Caddyfile reads for them; after changing
   the settings, recreate Caddy: `docker compose up -d caddy`). The Helm chart's web

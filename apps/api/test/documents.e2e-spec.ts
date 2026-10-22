@@ -170,6 +170,10 @@ describe('documents (e2e)', () => {
       .get(`/v1/attachments/${attachmentId}/download`)
       .set('Authorization', auth)
       .expect(302);
+    // The local disk's link is /files?key=…: the path is /files itself.
+    // caddy/Caddyfile's @api matcher must list exactly that (its test pins the
+    // other half); without it a download is the web app's index.html.
+    expect(new URL(link.headers.location!).pathname).toBe('/files');
     return node
       .http()
       .get(local(link.headers.location!))

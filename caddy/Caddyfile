@@ -31,7 +31,10 @@
 	# The API's paths (versioned routes, realtime, health, Swagger UI and its
 	# document, stored files, .well-known); every other path is the web app.
 	# Exact segments, no bare prefixes: /api* would also take the app's /api-keys.
-	@api path /v1/* /socket.io/* /health /health/* /api /api/* /api-json /api-yaml /files/* /.well-known/*
+	# /files and /files/*: the local disk's signed links are /files?key=…&signature=…,
+	# whose path is /files itself, which /files/* does not match. Left out, a download
+	# (an issued PDF, an export, an attachment) is the web app's index.html, 200.
+	@api path /v1/* /socket.io/* /health /health/* /api /api/* /api-json /api-yaml /files /files/* /.well-known/*
 	handle @api {
 		# Every api replica (API_REPLICAS): Docker's DNS lists them under "api".
 		reverse_proxy {
