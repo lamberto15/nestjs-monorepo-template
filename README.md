@@ -1,5 +1,10 @@
 # NestJS REST backend template
 
+> **Start here:** [Documentation home](docs/index.md) · [Nontechnical: evaluate the template](docs/nontechnical/index.md) · [Technical: build and operate](docs/technical/index.md)
+>
+> New to this project? Read the [decision guide](docs/nontechnical/decision-guide.md) before installing it. This is a customizable foundation, not a complete business application. **Commercial-use rights are not granted by default:** review the [PolyForm Noncommercial license](LICENSE) and obtain separate permission if required.
+
+
 A production-ready starting point for NestJS 12 REST APIs: everything a
 project would otherwise rebuild is here, so a new project only writes its own
 features. JSON in, JSON out; Swagger UI at `/api` is the API's only page.
