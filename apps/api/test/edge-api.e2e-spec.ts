@@ -480,7 +480,7 @@ describe('API conventions, edge cases (e2e)', () => {
       expect(res.status, JSON.stringify(res.body)).toBe(200);
       return (res.body.items as { title: string }[])
         .map((item) => item.title)
-        .sort();
+        .sort((a, b) => a.localeCompare(b));
     };
 
     it('searches for %, _ and backslash as characters, not as LIKE patterns', async () => {

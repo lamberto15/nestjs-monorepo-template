@@ -91,7 +91,7 @@ describe('notes access control (e2e)', () => {
         .expect(204);
       const notes = (await created.agent.get('/v1/notes').expect(200)).body
         .items as { title: string }[];
-      return notes.map((note) => note.title).sort();
+      return notes.map((note) => note.title).sort((a, b) => a.localeCompare(b));
     };
     expect(await leadOf(sales)).toEqual(['From North East', 'From South']);
     expect(await leadOf(north)).toEqual(['From North East']);

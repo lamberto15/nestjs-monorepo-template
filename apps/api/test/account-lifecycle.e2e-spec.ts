@@ -119,7 +119,7 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
       data: Record<string, unknown>;
     }[];
     const kinds = new Set(file.map((row) => row.kind));
-    expect([...kinds].sort()).toEqual([
+    expect([...kinds].sort((a, b) => a.localeCompare(b))).toEqual([
       'auditEntry',
       'consent',
       'membership',

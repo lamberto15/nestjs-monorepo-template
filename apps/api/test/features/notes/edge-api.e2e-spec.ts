@@ -36,7 +36,7 @@ describe('notes list filters, edge cases (e2e)', () => {
     expect(res.status, JSON.stringify(res.body)).toBe(200);
     return (res.body.items as { title: string }[])
       .map((note) => note.title)
-      .sort();
+      .sort((a, b) => a.localeCompare(b));
   };
 
   it('reads `in` with spaces around the items, and refuses an empty list', async () => {

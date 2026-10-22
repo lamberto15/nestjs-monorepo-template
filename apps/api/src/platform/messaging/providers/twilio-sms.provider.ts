@@ -91,7 +91,7 @@ export class TwilioSmsProvider implements SmsProvider {
     // URL + each field's name and value, fields sorted by name (Twilio's scheme).
     const signed = [...params.keys()]
       .filter((key, index, keys) => keys.indexOf(key) === index)
-      .sort()
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
       .reduce(
         (text, key) => text + key + params.getAll(key).join(''),
         this.options.webhookUrl,

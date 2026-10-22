@@ -77,7 +77,7 @@ describe('demo seed: notes (e2e)', () => {
           .items as { title: string }[]
       )
         .map((note) => note.title)
-        .sort();
+        .sort((a, b) => a.localeCompare(b));
 
     // The roles' conditions apply to the notes, which are their owners':
     // an editor sees their own, a team lead their teams' (Sales and the
@@ -112,7 +112,7 @@ describe('demo seed: notes (e2e)', () => {
       ownerId: string;
       tags: { name: string }[];
     }[];
-    expect(northwind!.tags.map((tag) => tag.name).sort()).toEqual([
+    expect(northwind!.tags.map((tag) => tag.name).sort((a, b) => a.localeCompare(b))).toEqual([
       'Customer',
       'Urgent',
     ]);
