@@ -110,7 +110,7 @@ describe('bot protection, always (e2e)', () => {
       secret: siteverify.secretKey,
       remoteip: address,
     });
-    expect(Object.keys(siteverify.requests[0]).sort()).toEqual([
+    expect(Object.keys(siteverify.requests[0]).sort((a, b) => a.localeCompare(b))).toEqual([
       'remoteip',
       'response',
       'secret',

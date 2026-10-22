@@ -396,7 +396,7 @@ export class PasskeysService {
           publicKey: toBase64url(credential.publicKey),
           counter: credential.counter,
           // Sorted, as browsers report them (and as the decoys are).
-          transports: [...(credential.transports ?? [])].sort(),
+          transports: [...(credential.transports ?? [])].sort((a, b) => a.localeCompare(b)),
           deviceType: credentialDeviceType,
           backedUp: credentialBackedUp,
           aaguid,

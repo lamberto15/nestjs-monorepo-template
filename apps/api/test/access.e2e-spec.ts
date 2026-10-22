@@ -244,7 +244,7 @@ describe('access control (e2e)', () => {
           .expect(204);
         const items = (await created.agent.get('/v1/test-items').expect(200))
           .body.items as { title: string }[];
-        return items.map((item) => item.title).sort();
+        return items.map((item) => item.title).sort((a, b) => a.localeCompare(b));
       };
       expect(await leadOf(sales)).toEqual(['From North East', 'From South']);
       expect(await leadOf(north)).toEqual(['From North East']);

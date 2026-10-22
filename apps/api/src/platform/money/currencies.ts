@@ -62,7 +62,7 @@ const CURRENCIES: ReadonlyMap<string, number> = new Map([
 ]);
 
 /** Every code, sorted: for a picker, or a schema's enum. */
-export const CURRENCY_CODES: readonly string[] = [...CURRENCIES.keys()].sort();
+export const CURRENCY_CODES: readonly string[] = [...CURRENCIES.keys()].sort((a, b) => a.localeCompare(b));
 
 /** An ISO 4217 code this module knows (`EUR`). A string checked by `isCurrency()`. */
 export type CurrencyCode = string & { readonly __currency: unique symbol };
