@@ -161,6 +161,39 @@ rollback`: the previous image and settings. The database is not rolled back.
 ([deployment.md](deployment.md), "Resource limits"). Swarm schedules by
 reservations, which are unset: it doesn't place tasks by their limits.
 
+## Upgrading Caddy's runtime user
+
+The non-root Caddy image runs as `10001:10001`. Before its first rollout on an
+existing stack, migrate the certificate volumes on the **stateful node that owns
+them**. New volumes inherit the image's ownership. The rendered service retains
+`cap_drop: [ALL]` and its namespaced low-port sysctl; published ports stay 80/443.
+
+1. Record the current Caddy image and take your normal certificate-volume backup.
+2. On the manager, stop its only writer: `docker service scale <stack>_caddy=0`.
+   Wait for the old task to stop before changing the volumes.
+3. On the stateful node, verify the existing volume names with
+   `docker volume inspect <stack>_caddy_data <stack>_caddy_config`, then run:
+
+   ```bash
+   docker run --rm --read-only --network none --user 0:0 \
+     --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE \
+     --mount type=volume,src=<stack>_caddy_data,dst=/data \
+     --mount type=volume,src=<stack>_caddy_config,dst=/config \
+     --entrypoint chown <new-caddy-image> -R 10001:10001 /data /config
+   ```
+
+   Substitute the actual stack name and new image reference. Do not use new or
+   empty volumes: this command must operate on the existing certificate store.
+4. Set the new `CADDY_IMAGE` and deploy with `pnpm deploy:swarm`; check its task,
+   HTTPS, certificate reuse and configured `security.txt`.
+
+For rollback, scale Caddy to zero and wait for the task to stop again, run the
+same ownership command with `-R 0:0`, then deploy the recorded previous image.
+Ownership changes preserve files and modes; they need a short Caddy maintenance
+window. Do not delete certificate volumes or loosen private-key permissions.
+See [the Compose procedure](deployment.md#upgrading-caddy-to-the-non-root-image)
+for host-file secret permissions and the runtime hardening details.
+
 ## Limits of this setup
 
 - The backup service's healthcheck is off: Swarm would kill an unhealthy

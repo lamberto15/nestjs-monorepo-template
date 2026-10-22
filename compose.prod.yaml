@@ -499,13 +499,14 @@ services:
       - '443:443/udp'
     # Hardened (docs/deployment.md, "Container hardening"): Caddy writes
     # /data (certificates) and /config (autosaved configuration), both
-    # volumes, and /tmp. It runs as root and owns what it writes; it only
-    # needs to bind ports 80 and 443.
+    # volumes, and /tmp (generated security.txt). The image runs as 10001:10001.
+    # Allow low ports only in its own network namespace, without capabilities.
     read_only: true
     tmpfs:
       - /tmp:size=16m
     cap_drop: [ALL]
-    cap_add: [NET_BIND_SERVICE]
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: '0'
     security_opt: ['no-new-privileges:true']
     secrets:
       - cloudflare_api_token

@@ -74,7 +74,7 @@ function testable({ port, apiPort, dirs }) {
   text = replace(text, '{$APP_DOMAIN}', `http://127.0.0.1:${port}`);
   text = replace(text, 'persist_config off', 'persist_config off\n\tadmin off');
   for (const name of ['web', 'maintenance', 'security']) {
-    text = replace(text, `/srv/${name}`, dirs[name]);
+    text = replace(text, name === 'security' ? '/tmp/caddy-security' : `/srv/${name}`, dirs[name]);
   }
   // The API's replicas: Docker's DNS name and port, here one local stub.
   text = replace(text, 'name api\n', 'name 127.0.0.1\n');

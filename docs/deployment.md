@@ -485,7 +485,7 @@ What each one may write, and the capabilities it gets back:
 | `api`, `worker`, `migrate` | `/tmp` (64m tmpfs); `api` and `worker` also the `app_storage` volume | none |
 | `postgres` | the `postgres_data` volume, `/tmp` (64m) and `/run/postgresql` (the socket) in memory | `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, `SETUID`: the image's entrypoint starts as root, fixes the data directory and drops to `postgres` |
 | `redis` | the `redis_data` volume, `/tmp` (16m) | `DAC_OVERRIDE`: the command is `sh redis.sh`, not `redis-server`, so the image's entrypoint never drops to `redis`; the server runs as root on a volume that is `redis`'s, which root can't write without it |
-| `caddy` | the `caddy_data` and `caddy_config` volumes, `/tmp` (16m) | `NET_BIND_SERVICE`: ports 80 and 443 |
+| `caddy` | the `caddy_data` and `caddy_config` volumes, `/tmp` (16m, including generated `security.txt`) | none: UID/GID `10001:10001`; low ports allowed only in its network namespace |
 | `backup` | the `backups` volume, `/tmp` (16m); `app_storage` stays read only | none (a files restore adds three: [Restoring](#restoring), step 4) |
 | `gotenberg` | `/tmp` and its home, in memory (see above) | none |
 | `clamav` ([ClamAV](#clamav-malware-scanning)) | the `clamav_db` volume; `/tmp` (512m, `CLAMAV_TMP_SIZE`) and `/var/log/clamav` (8m) in memory | none: it runs as `clamav`, started by `clamav/entrypoint.sh` instead of the image's `/init` (see below) |
@@ -595,6 +595,53 @@ Compose scales on one host. Beyond it:
 - **Hosts:** an orchestrator (Swarm, Kubernetes, a managed platform) runs the
   same image with the same three commands. socket.io across hosts needs
   `transports: ['websocket']` on clients, or sticky sessions.
+
+### Upgrading Caddy to the non-root image
+
+Caddy runs as UID/GID `10001:10001`, including its entrypoint. The image owns
+`/data` and `/config`, so new named volumes work without an initialization
+container. Existing volumes retain their old ownership when the image changes:
+**migrate them before starting the new Caddy image**. Otherwise Caddy cannot read
+its existing certificates or renew them. Keep the volumes; do not recreate them.
+
+The production service drops all capabilities and keeps `no-new-privileges`.
+`net.ipv4.ip_unprivileged_port_start=0` applies only inside Caddy's network
+namespace, allowing TCP 80/443 and UDP 443 without `NET_BIND_SERVICE` or a host
+sysctl change. Its generated `security.txt` lives under `/tmp/caddy-security`
+on the existing tmpfs. Caddy's configuration and static web files remain read only.
+
+For an existing Compose deployment, select the new `CADDY_IMAGE` in `.env`, then
+run on the deployment host with its normal Compose project and files selected:
+
+```bash
+docker compose pull caddy
+# Take your normal volume backup, then stop the only writer.
+docker compose stop caddy
+# Administrative, one-time ownership change; not the runtime entrypoint.
+docker compose run --rm --no-deps --user 0:0 \
+  --cap-add CHOWN --cap-add DAC_OVERRIDE --entrypoint chown \
+  caddy -R 10001:10001 /data /config
+docker compose up -d --no-deps caddy
+docker compose exec caddy id
+docker compose logs --tail 50 caddy
+```
+
+When building locally instead of pulling published images, use
+`docker compose build caddy` for the first command. Check public HTTPS,
+`/.well-known/security.txt` (when configured), the healthcheck, and that the
+existing certificates are reused. The migration changes ownership only, preserving
+certificate contents and private-key modes. A Compose secret sourced from a host
+file must also be readable by UID `10001` (or its GID `10001`); grant access only
+to that user/group. Compose cannot change a bind-mounted file's owner through
+`secrets.uid`/`gid`. Swarm secrets use their configured ownership/mode instead.
+
+**Rollback:** stop Caddy, run the same administrative command with
+`caddy -R 0:0 /data /config`, select the previous root-based image and recreate
+Caddy. Restore host-secret permissions as needed. The previous image's restricted
+root process cannot necessarily read a non-root user's mode-600 private keys.
+This ownership change therefore needs a short Caddy maintenance window in either
+direction; API/worker containers keep running. For Swarm, follow
+[the node-local procedure](deploy-swarm.md#upgrading-caddys-runtime-user).
 
 ### Read replicas
 
