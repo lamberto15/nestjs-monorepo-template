@@ -20,17 +20,17 @@ config:
   # The /realtime namespace is in the target: the engine connects to
   # target + the emit's namespace (empty here).
   target: "{{ $processEnvironment.BASE_URL }}/realtime"
-  processor: ./realtime.processor.cjs
+  # Sign in before VUs connect: a scenario hook is too late for Socket.IO.
   phases:
     - name: realtime
       duration: 60
       arrivalRate: 10
   socketio:
     transports: ["websocket"]
-    # The user's token as the bearer header the providers read; the
-    # processor signs the administrator in once and shares the token.
-    extraHeaders:
-      Authorization: "Bearer {{ token }}"
+    # Socket.IO namespace authentication works with websocket-only transport;
+    # Artillery's extraHeaders does not work with that transport.
+    auth:
+      token: "{{ $processEnvironment.REALTIME_TOKEN }}"
   ensure:
     thresholds:
       - socketio.response_time.p95: 500
@@ -40,14 +40,13 @@ config:
 scenarios:
   - name: connect, hold, ask whoami
     engine: socketio
-    beforeScenario: signedIn
     flow:
       - loop:
           - emit:
               - whoami
             acknowledge:
-              capture:
-                json: "$.0.id"
-                as: whoamiId
+              match:
+                json: "$.0.kind"
+                value: user
           - think: 1
         count: 10

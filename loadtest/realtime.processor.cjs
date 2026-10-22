@@ -1,48 +1,40 @@
-// realtime.yml's processor: signs the load-test administrator in once for
-// the whole run and hands the access token to every virtual user as `token`
-// (the same route and account the k6 setup uses). Custom code because the
-// socket.io engine can't call an HTTP route and then template the handshake's
-// headers from the answer; one sign-in, not one per user, since a password
-// check costs ~0.4 s of a CPU (docs/development.md, "Load tests").
+// Called as a Node CLI inside the Artillery image, before any VUs connect.
+// The access token is captured by run.sh, not printed to the Actions log.
 'use strict';
-
-let token;
+const { randomUUID } = require('node:crypto');
 
 async function accessToken() {
   const { BASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD, CAPTCHA } = process.env;
   if (!BASE_URL || !ADMIN_EMAIL || !ADMIN_PASSWORD) {
-    throw new Error('BASE_URL, ADMIN_EMAIL and ADMIN_PASSWORD are required (loadtest/run.sh sets them)');
+    throw new Error('BASE_URL, ADMIN_EMAIL and ADMIN_PASSWORD are required');
   }
   const headers = { 'Content-Type': 'application/json' };
-  // The stub provider (compose.loadtest.yaml) passes any `stub:pass:` token
-  // that wasn't seen before.
   if (CAPTCHA && CAPTCHA !== 'off') {
-    headers['X-Captcha-Token'] = `stub:pass:${Date.now()}-${Math.random()}`;
+    headers['X-Captcha-Token'] = `stub:pass:${randomUUID()}`;
   }
-  const res = await fetch(`${BASE_URL}/v1/auth/token`, {
+  const response = await fetch(`${BASE_URL}/v1/auth/token`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }),
   });
-  if (res.status !== 200 && res.status !== 201) {
-    throw new Error(`administrator sign-in: ${res.status} ${(await res.text()).slice(0, 300)}`);
+  if (!response.ok) {
+    throw new Error(`administrator sign-in: HTTP ${response.status}`);
   }
-  return (await res.json()).accessToken;
+  const body = await response.json();
+  if (typeof body.accessToken !== 'string' || !body.accessToken) {
+    throw new Error('administrator sign-in did not return an access token');
+  }
+  return body.accessToken;
 }
 
-function signedIn(context, _events, done) {
-  token ??= accessToken();
-  token.then(
-    (value) => {
-      context.vars.token = value;
-      done();
-    },
-    (error) => {
-      // Retry on the next user rather than caching a failure.
-      token = undefined;
-      done(error);
+if (require.main === module) {
+  accessToken().then(
+    (token) => process.stdout.write(token),
+    () => {
+      // Never echo untrusted upstream error text (or credentials) to CI logs.
+      console.error('Realtime administrator login failed; check the API logs.');
+      process.exitCode = 1;
     },
   );
 }
-
-module.exports = { signedIn };
+module.exports = { accessToken };
