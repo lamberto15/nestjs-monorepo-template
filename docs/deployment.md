@@ -44,13 +44,19 @@ Filling `.env` (each step is commented in `env.example`):
   administrator's password is logged once.
 - **Caddy serves the web app too.** Its image builds `apps/web` (stage `web` of
   `caddy/Dockerfile`, context the repository root) into `/srv/web`. The Caddyfile sends
-  `/v1/*`, `/socket.io/*`, `/health*`, `/api*` (Swagger UI), `/files` and `/files/*`
-  (the local disk's links are `/files?key=…`, the path `/files` itself) and
-  `/.well-known/*` to the API, `/metrics*` to a 404, and every other path to the app
+  `/v1/*`, `/socket.io/*`, `/health` and `/health/*`, `/api` and `/api/*` (Swagger UI),
+  `/api-json`, `/api-yaml`, `/files` and `/files/*` (the local disk's links are
+  `/files?key=…`, the path `/files` itself) and `/.well-known/*` to the API, `/metrics*`
+  to a 404, and every other path to the app
   (`index.html` for its routes; `/assets/*` cached for a year, `index.html` never). The
   API's routes are the app's origin, so `__Host-sid` works and no CORS is needed. A new
-  unversioned API path needs a line in the `@api` matcher. A web change redeploys Caddy
-  (`docker compose up -d --build`).
+  API path (an unversioned one, or a new version prefix such as `/v2/*`) needs a line in
+  the `@api` matcher, with the bare path when the API serves it, and in the lists that
+  mirror it: `apps/web/pwa-paths.ts`, `ingress.apiPaths` in the Helm chart's
+  `values.yaml`, and the dev proxy (`apps/web/dev-proxy.ts`) if the web app calls it. A web
+  change redeploys Caddy (`docker compose up -d --build`); a change to the Caddyfile alone
+  is read when Caddy starts (a bind mount: Compose sees no change), so
+  `docker compose up -d --force-recreate caddy`.
 - **The web app's security headers** are set in the Caddyfile's web-app `handle` only
   (the API's responses keep helmet's own): `Content-Security-Policy`
   (`default-src 'self'`; scripts and frames also from `https://challenges.cloudflare.com`,

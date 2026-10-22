@@ -224,17 +224,19 @@
   `collect()` now resets it. Both found by stopping Redis under the
   monitoring stack.
 
-- **Every download behind Caddy was the web app's `index.html`** (#509: "the
-  generated PDF is corrupted"). The local disk signs its links as
+- **Every local-disk download behind Caddy was the web app's `index.html`**
+  (#509: "the generated PDF is corrupted"). The local disk signs its links as
   `/files?key=…&signature=…`, so the path is `/files` itself, and the `@api`
   matcher listed only `/files/*`: Caddy sent the request to the web app's
   catch-all, which answered 200 `text/html`, saved by the browser as
   `NOTE-….pdf`. Invisible in `pnpm dev` (Vite's proxy matches `/files` by
-  prefix) and in the tests, which asked for `/files/a`. A path the API
-  serves needs the bare path and `/path/*` in the matcher, and a test that
-  asks for the URL the API really issues (`caddy/caddyfile.test.mjs`, the
-  documents e2e). Only the Compose stack with `STORAGE_DRIVER=local` showed
-  it; S3 links point at the bucket.
+  string prefix) and in the tests, which asked for `/files/a`. List the forms
+  the API really serves (the bare `/files`), keep `/path/*` for what follows
+  it, and test the URL the API really issues (`caddy/caddyfile.test.mjs`, the
+  documents e2e). It showed on the stacks that run `caddy/Caddyfile` (Compose,
+  blue-green, Swarm) with `STORAGE_DRIVER=local`; the Helm Ingress matches
+  `/files` by prefix, and S3 links point at the bucket. The fix needs Caddy
+  restarted: the Caddyfile is a bind mount, read at start.
 
 - **A Dependabot bump of Gotenberg is half a bump.** It raises the `FROM`
   line of `gotenberg/Dockerfile` (and, separately, `compose.dev.yaml`'s

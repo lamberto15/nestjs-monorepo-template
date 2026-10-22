@@ -3,7 +3,10 @@ import type { ProxyOptions } from 'vite';
 /**
  * What the dev server (`server.proxy`) and `vite preview` (`preview.proxy`)
  * send to the API, so the browser has one origin, as behind Caddy in
- * production (`@api` in caddy/Caddyfile). `api` is the API's address.
+ * production (`@api` in caddy/Caddyfile). `api` is the API's address. Vite
+ * matches a key as a string prefix of the URL, looser than Caddy's whole
+ * segments: a path that works here can still miss `@api` (docs/pitfalls.md,
+ * "Every download behind Caddy").
  */
 export function devProxy(api: string) {
   return {

@@ -217,7 +217,7 @@ describe('the web app, MAINTENANCE_PAGE unset', { skip }, () => {
       assert.equal(response.body, `api ${method} /files?${query}`, method);
     }
     assert.match((await get(caddy, '/files/a?signature=s')).body, /^api GET /);
-    // Whole segments: the app's own pages that merely start with "files".
+    // Whole segments: paths that merely start with "files" stay the web app's.
     for (const path of ['/files-list', '/filesystem', '/files.json']) {
       assert.match((await get(caddy, path)).body, new RegExp(APP), path);
     }
