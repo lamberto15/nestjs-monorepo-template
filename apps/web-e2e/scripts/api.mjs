@@ -81,7 +81,7 @@ function account(line) {
 }
 
 function seed() {
-  const result = spawnSync('node', ['dist/seed-demo.js'], {
+  const result = spawnSync(process.execPath, ['dist/seed-demo.js'], {
     cwd: api,
     env,
     encoding: 'utf8',
@@ -106,7 +106,7 @@ function seed() {
 }
 
 seed();
-const server = spawn('node', ['dist/main.js'], {
+const server = spawn(process.execPath, ['dist/main.js'], {
   cwd: api,
   env,
   stdio: 'inherit',
