@@ -46,7 +46,7 @@ if ! [[ "$replicas" =~ ^[1-6]$ ]]; then
   exit 2
 fi
 captcha=${LOADTEST_CAPTCHA:-off}
-if [ "$captcha" != off ] && [ "$captcha" != always ]; then
+if [[ "$captcha" != off ]] && [[ "$captcha" != always ]]; then
   echo "LOADTEST_CAPTCHA=$captcha: off or always" >&2
   exit 2
 fi
@@ -74,7 +74,7 @@ env_file="$out/stack.env"
 # administrator's password isn't sent to Pwned Passwords. ADMIN_ONBOARDING=off:
 # the administrator keeps its placeholder address, and the scenarios call admin
 # routes with its token at once (onboarding would answer 403 onboarding_required).
-if [ ! -f "$env_file" ]; then
+if [[ ! -f "$env_file" ]]; then
   (
     umask 077
     {
@@ -110,7 +110,7 @@ compose() {
 setting() { grep -E "^$1=" "$env_file" | cut -d= -f2-; }
 
 up() {
-  if [ -n "$(setting APP_IMAGE)" ]; then
+  if [[ -n "$(setting APP_IMAGE)" ]]; then
     compose up -d --no-build --remove-orphans
   else
     compose up -d --build --remove-orphans
@@ -252,7 +252,7 @@ case "${1:-all}" in
     trap down EXIT
     up
     run
-    if [ "${LOADTEST_REALTIME:-on}" != off ]; then realtime; fi
+    if [[ "${LOADTEST_REALTIME:-on}" != off ]]; then realtime; fi
     ;;
   *)
     echo "usage: $0 [up|run|realtime|down|config|compose …|all]" >&2

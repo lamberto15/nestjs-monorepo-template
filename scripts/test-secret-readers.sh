@@ -36,14 +36,14 @@ expect_exit() {
   local name=$1 code=$2 actual=0
   shift 2
   docker run --rm "$@" > "$dir/out" 2>&1 || actual=$?
-  if [ "$actual" = "$code" ]; then pass "$name"; else fail "$name: exit $actual, expected $code: $(cat "$dir/out")"; fi
+  if [[ "$actual" = "$code" ]]; then pass "$name"; else fail "$name: exit $actual, expected $code: $(cat "$dir/out")"; fi
 }
 # expect_output <name> <expected stdout> <docker run arguments…>
 expect_output() {
   local name=$1 expected=$2 actual
   shift 2
   actual=$(docker run --rm "$@" 2> "$dir/err") || true
-  if [ "$actual" = "$expected" ]; then pass "$name"; else fail "$name: got [$actual] $(cat "$dir/err")"; fi
+  if [[ "$actual" = "$expected" ]]; then pass "$name"; else fail "$name: got [$actual] $(cat "$dir/err")"; fi
 }
 
 # Redis: the server and the healthcheck in one container, then every
@@ -121,7 +121,7 @@ expect_exit "alertmanager refuses SMTP_URL and SMTP_URL_FILE both set" 1 "${aler
   -e SMTP_URL=smtps://x@mail.example.com -e SMTP_URL_FILE=/secrets/smtp_url "$alertmanager_image" \
   /etc/alertmanager/scripts/render-config.sh --check
 
-if [ "$failures" -gt 0 ]; then
+if [[ "$failures" -gt 0 ]]; then
   echo "$failures failed" >&2
   exit 1
 fi
