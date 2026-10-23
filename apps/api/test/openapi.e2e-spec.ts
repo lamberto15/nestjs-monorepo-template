@@ -369,7 +369,12 @@ describe('OpenAPI document (e2e)', () => {
       type: 'string',
       format: 'binary',
     });
-    expect(Object.keys(body.properties)).toEqual(['name', 'dryRun', 'file']);
+    expect(Object.keys(body.properties)).toEqual([
+      'name',
+      'matchOn',
+      'dryRun',
+      'file',
+    ]);
   });
 
   it('documents the unsubscribe link twice, both public: the POST unsubscribes, the GET only says what it stops', () => {

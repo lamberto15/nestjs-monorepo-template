@@ -105,15 +105,20 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
   `-` or `@`: `=1+1`, a phone number `+63 912`) is written with a leading
   quote, `'+63 912`, in CSV and Excel; an import removes that quote, as
   Excel does, so an exported file imports back as it was.
-- **Each imported row is one `POST`** of the feature: the importer's schema
-  (reuse the route's), then the field-level permissions (a field the caller
-  may not set refuses the row, as `field_forbidden` would; an empty cell
-  sets nothing), then `write()` with the same service call. Columns the
-  schema doesn't name (`id`, `createdAt`: an export's) are ignored. A 4xx
-  `write()` throws refuses that row alone (its `errors` / `fields` become
-  the report's lines); anything else fails the import. Refused rows (row, field, message) come back as a CSV;
-  `dryRun=true` runs the schema and permission checks, writing nothing.
-  Files up to 50 MB, recognized by their content.
+- **Imports write in groups of 200** when an importer implements
+  `writeMany(principal, rows, { matchOn })`; otherwise the processor calls
+  `write()` row by row. A group-level 4xx rolls the group back and the
+  processor retries each row alone, so one bad row does not refuse its
+  neighbors. `dryRun=true` runs the schema and permission checks, writing
+  nothing. Files up to 50 MB, recognized by their content.
+- **Matched imports**: an importer may declare `matchKeys` (columns unique
+  within the tenant). The caller may send `matchOn` with one of those exact
+  keys; the key must be present in the file. Without it, imports insert as
+  usual. With it, each key must find one existing record; missing records
+  are refused, never inserted, and a repeated key refuses its later
+  occurrence. Matching is tenant-scoped. Notes allow `id` and `number`;
+  matched rows need update permission and the same record and field checks
+  as a note update. The API does not choose a key for the caller.
 - **Templates**: the columns the caller may set (forbidden fields left
   out), read from the importer's schema with `z.toJSONSchema`, required,
   limits, choices, `.meta({ example })` and `.describe()` included;

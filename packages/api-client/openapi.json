@@ -7453,6 +7453,13 @@
                               ]
                             }
                           },
+                          "matchKeys": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Optional keys accepted by matchOn."
+                          },
                           "columns": {
                             "type": "array",
                             "items": {
@@ -7513,6 +7520,7 @@
                         "required": [
                           "name",
                           "formats",
+                          "matchKeys",
                           "columns",
                           "template"
                         ],
@@ -7660,6 +7668,12 @@
                     "minLength": 1,
                     "maxLength": 80,
                     "example": "notes"
+                  },
+                  "matchOn": {
+                    "description": "Update existing rows by this declared match key.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
                   },
                   "dryRun": {
                     "description": "true: check every row, write nothing.",

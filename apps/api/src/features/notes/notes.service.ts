@@ -1,8 +1,10 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import {
   database,
@@ -19,6 +21,7 @@ import {
   isNotNull,
   isNull,
   SQL,
+  inArray,
   sql,
 } from 'drizzle-orm';
 import { TenantQuotas } from '../../core/tenancy/tenant-quotas.js';
@@ -41,13 +44,16 @@ import { IncomingEventHandlers } from '../../platform/webhooks/incoming-event-ha
 import { RevisionsService } from '../../platform/revisions/revisions.service.js';
 import { ApprovalsService } from '../../platform/approvals/approvals.service.js';
 import { TeamsService } from '../../iam/access/teams.service.js';
+import { SystemContext } from '../../iam/access/system-context.js';
 import { LegalHoldsService } from '../../iam/holds/legal-holds.service.js';
 import { RetentionRegistry } from '../../platform/retention/retention.registry.js';
 import { principalKey, type Principal } from '../../iam/auth/principal.js';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { notes } from './notes.tables.js';
+import { NOTE_PUBLICATION_JOB } from './note.policy.js';
 import { publishNow } from './note-events.js';
 import {
+  NoteBatchPublicationWorkflow,
   NotePublicationWorkflow,
   publicationId,
 } from './note-publication.workflow.js';
@@ -78,6 +84,7 @@ export class NotesService {
     private readonly approvals: ApprovalsService,
     private readonly tenancy: Tenancy,
     private readonly holds: LegalHoldsService,
+    private readonly system: SystemContext,
     private readonly quotas: TenantQuotas,
     incomingEvents: IncomingEventHandlers,
     retention: RetentionRegistry,
@@ -212,6 +219,88 @@ export class NotesService {
     return note;
   }
 
+  /** Creates one import group under one transaction and grouped side effects. */
+  async createMany(
+    owner: Principal,
+    dtos: readonly CreateNoteDto[],
+    { by = owner }: { by?: Principal } = {},
+  ): Promise<Note[]> {
+    if (!dtos.length) return [];
+    const customs = await Promise.all(
+      dtos.map((dto) =>
+        this.customFields.parseValues('Note', dto.custom, 'create'),
+      ),
+    );
+    const rows = await inTransaction(this.txHost, async (tx) => {
+      await this.quotas.assertRoom(
+        tx,
+        this.tenancy.tenantId(),
+        'records:Note',
+        dtos.length,
+      );
+      const numbers = await this.namingSeries.nextMany(
+        tx,
+        'Note',
+        dtos.map((dto) => ({
+          seriesId: dto.namingSeriesId,
+          values: { title: dto.title },
+        })),
+      );
+      const teamId =
+        owner.kind === 'user'
+          ? ((await this.teams.teamsOf(owner.id, tx))[0] ?? null)
+          : null;
+      const created = await tx
+        .insert(notes)
+        .values(
+          dtos.map((dto, index) => ({
+            number: numbers[index]!.formatted,
+            ownerId: principalKey(owner),
+            teamId,
+            title: dto.title,
+            body: dto.body,
+            custom: customs[index]!,
+            status: 'draft' as const,
+          })),
+        )
+        .returning();
+      const tenantId = created[0]!.tenantId;
+      await this.workflowClient.start(
+        NoteBatchPublicationWorkflow,
+        { noteIds: created.map((note) => note.id), tenantId },
+        { id: `note-batch-${randomUUID()}`, transaction: tx },
+      );
+      await this.publisher.dispatchMany(tx, 'note.created', created);
+      await this.subscriptions.subscribeMany(
+        tx,
+        owner,
+        created.map((note) => ({ subject: 'Note', recordId: note.id })),
+      );
+      await this.audit.recordChanges(
+        by,
+        NOTE,
+        created.map((note) => ({
+          action: 'created' as const,
+          id: note.id,
+          after: note,
+        })),
+        tx,
+      );
+      await this.revisions.recordMany(
+        tx,
+        'Note',
+        created.map((note) => ({
+          recordId: note.id,
+          snapshot: noteSnapshot(note),
+          by,
+        })),
+      );
+      return created;
+    });
+    this.webhooks.notify();
+    return rows;
+  }
+
   /** One note, or a 404 (deleted ones too with `deleted`: the recycle bin). */
   async findOne(
     id: string,
@@ -319,6 +408,136 @@ export class NotesService {
     return updated;
   }
 
+  /** Applies a group of edits with one row lock query and one UPDATE FROM VALUES. */
+  async updateMany(
+    by: Principal,
+    matches: readonly { noteId: string; dto: UpdateNoteDto }[],
+    ip?: string,
+  ) {
+    if (!matches.length) return [];
+    const patches = await Promise.all(
+      matches.map(({ dto }) =>
+        this.customFields.parseValues('Note', dto.custom, 'update'),
+      ),
+    );
+    const updated = await inTransaction(this.txHost, async (tx) => {
+      const locked = await tx
+        .select()
+        .from(notes)
+        .where(
+          and(
+            inArray(
+              notes.id,
+              matches.map((item) => item.noteId),
+            ),
+            isNull(notes.deletedAt),
+          ),
+        )
+        .for('update');
+      const beforeById = new Map(locked.map((note) => [note.id, note]));
+      if (locked.length !== matches.length)
+        throw new NotFoundException('A matched note no longer exists.');
+      const changes = matches
+        .map((item, index) => {
+          const before = beforeById.get(item.noteId)!;
+          const { custom: _custom, ...dto } = item.dto;
+          const custom = { ...before.custom };
+          for (const [key, value] of Object.entries(patches[index]!)) {
+            if (value === null) delete custom[key];
+            else custom[key] = value;
+          }
+          const setTitle =
+            dto.title !== undefined && dto.title !== before.title;
+          const setBody = dto.body !== undefined && dto.body !== before.body;
+          const setCustom =
+            JSON.stringify(custom) !== JSON.stringify(before.custom);
+          return {
+            id: item.noteId,
+            before,
+            title: dto.title ?? before.title,
+            setTitle,
+            body: dto.body ?? before.body,
+            setBody,
+            custom,
+            setCustom,
+          };
+        })
+        .filter((item) => item.setTitle || item.setBody || item.setCustom);
+      if (!changes.length) return [];
+      await this.approvals.assertNotPendingMany(
+        'Note',
+        changes.map((item) => item.id),
+      );
+      const values = sql.join(
+        changes.map(
+          (item) => sql`(
+        ${item.id}::uuid, ${item.title}::text, ${item.setTitle}::boolean,
+        ${item.body}::text, ${item.setBody}::boolean,
+        ${JSON.stringify(item.custom)}::jsonb, ${item.setCustom}::boolean
+      )`,
+        ),
+        sql`, `,
+      );
+      // PostgreSQL's single set-based UPDATE avoids one UPDATE and commit path per imported note.
+      await tx.execute(sql`update notes set
+        title = case when batch.set_title then batch.title else notes.title end,
+        body = case when batch.set_body then batch.body else notes.body end,
+        custom = case when batch.set_custom then batch.custom else notes.custom end,
+        updated_at = now()
+      from (values ${values}) as batch(id, title, set_title, body, set_body, custom, set_custom)
+      where notes.id = batch.id`);
+      const after = await tx
+        .select()
+        .from(notes)
+        .where(
+          inArray(
+            notes.id,
+            changes.map((item) => item.id),
+          ),
+        );
+      const beforeByUpdated = new Map(
+        changes.map((item) => [item.id, item.before]),
+      );
+      await this.subscriptions.notifyWatchersMany(
+        tx,
+        after.map((row) => ({
+          subject: 'Note',
+          recordId: row.id,
+          type: 'note.changed',
+          data: { noteId: row.id, title: row.title, by: by.name },
+          key: `note.changed:${row.id}`,
+          link: `/notes/${row.id}`,
+          except: by,
+        })),
+      );
+      await this.audit.recordChanges(
+        by,
+        NOTE,
+        after.map((row) => ({
+          action: 'updated' as const,
+          id: row.id,
+          before: beforeByUpdated.get(row.id)!,
+          after: row,
+        })),
+        tx,
+        ip,
+      );
+      await this.revisions.recordMany(
+        tx,
+        'Note',
+        after.map((row) => ({
+          recordId: row.id,
+          snapshot: noteSnapshot(row),
+          before: noteSnapshot(beforeByUpdated.get(row.id)!),
+          by,
+        })),
+      );
+      return after;
+    });
+    this.notifications.deliverNow();
+    return updated;
+  }
+
   /** To the recycle bin (soft delete): hidden everywhere, restorable until purged. */
   async delete(by: Principal, note: Note, ip?: string) {
     await inTransaction(this.txHost, async (tx) => {
@@ -396,6 +615,30 @@ export class NotesService {
 
   async requestPublish(tx: Transaction, noteId: string, eventId: string) {
     const note = await this.findOne(noteId, tx); // 404 before anything is recorded
+    let offset = 0;
+    for (;;) {
+      const instances = await this.workflowClient.list({
+        workflow: 'note-batch-publication',
+        status: ['pending', 'running', 'suspended'],
+        limit: 100,
+        offset,
+      });
+      const batch = instances.find((instance) => {
+        const input = instance.input as { noteIds?: unknown };
+        return Array.isArray(input.noteIds) && input.noteIds.includes(noteId);
+      });
+      if (batch) {
+        // A grouped workflow has no individual publication wait; publish this requested note directly, and let the group's later UPDATE skip it.
+        await this.system.run(
+          NOTE_PUBLICATION_JOB,
+          (system) => this.publisher.publish(noteId, system),
+          { transaction: false },
+        );
+        return;
+      }
+      if (instances.length < 100) break;
+      offset += instances.length;
+    }
     await this.workflowClient.signal(
       publishNow,
       { eventId, tenantId: note.tenantId },

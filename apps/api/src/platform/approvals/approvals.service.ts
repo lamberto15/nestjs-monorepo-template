@@ -544,6 +544,43 @@ export class ApprovalsService implements PersonalDataSource {
     }
   }
 
+  /** Batch equivalent of assertNotPending: acquire all record locks in one statement, then inspect open requests once. */
+  async assertNotPendingMany(subject: string, recordIds: readonly string[]) {
+    if (!this.txHost.isTransactionActive()) {
+      throw new Error(
+        'assertNotPendingMany() must run inside the write transaction.',
+      );
+    }
+    if (!recordIds.length) return;
+    const tx = database(this.txHost) as unknown as Transaction;
+    const ids = [...new Set(recordIds)];
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtext(${`approval-record:${subject}:`} || id::text)) from unnest(array[${sql.join(
+        ids.map((id) => sql`${id}::uuid`),
+        sql`, `,
+      )}]) as ids(id)`,
+    );
+    const applying = this.engine.applying();
+    const [open] = await tx
+      .select({ id: approvalRequests.id })
+      .from(approvalRequests)
+      .where(
+        and(
+          eq(approvalRequests.subject, subject),
+          inArray(approvalRequests.recordId, [...new Set(recordIds)]),
+          applying ? ne(approvalRequests.id, applying) : undefined,
+          or(
+            eq(approvalRequests.status, 'pending'),
+            and(
+              eq(approvalRequests.status, 'approved'),
+              isNull(approvalRequests.outcomeAppliedAt),
+            ),
+          ),
+        ),
+      );
+    if (open) throw this.pendingConflict(open.id);
+  }
+
   /**
    * For a feature deleting a record, in its transaction: the record's open
    * requests are cancelled (by `by`), so no approval acts on a record that

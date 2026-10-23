@@ -3,10 +3,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { Outbox, type NewOutboxMessage } from '@nestjs/outbox';
-import { and, eq, isNotNull, isNull, lt, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import type { Transaction } from '../../core/database/drizzle.js';
 import { currentTenantId } from '../../core/tenancy/tenant-scope.js';
@@ -178,6 +179,130 @@ export class NotificationsService {
     }
     await this.outbox.add(tx, messages);
     return ids;
+  }
+
+  /** Stores many notifications and their outbox messages with grouped locks and multi-row writes. */
+  async notifyMany(
+    tx: Transaction,
+    inputs: readonly NotifyInput[],
+  ): Promise<string[][]> {
+    if (!inputs.length) return [];
+    const tenantId = currentTenantId();
+    const prepared: {
+      input: NotifyInput;
+      recipients: string[];
+      key: string | null;
+      data: Record<string, unknown>;
+      ids: string[];
+    }[] = [];
+    for (const input of inputs) {
+      const declaration = this.catalog.declaration(input.type);
+      if (!declaration)
+        throw new Error(`Notification type "${input.type}" is not declared.`);
+      const data = (
+        declaration.data ? declaration.data.parse(input.data) : input.data
+      ) as Record<string, unknown>;
+      const to = Array.isArray(input.to) ? input.to : [input.to];
+      const recipients = [
+        ...new Set(
+          to.map((recipient) =>
+            typeof recipient === 'string' ? recipient : principalKey(recipient),
+          ),
+        ),
+      ].filter((recipient) => !recipient.startsWith('system:'));
+      if (recipients.length > MAX_RECIPIENTS)
+        throw new Error(
+          `notifyMany() takes at most ${MAX_RECIPIENTS} recipients in one notification.`,
+        );
+      prepared.push({
+        input,
+        recipients,
+        key: input.key ?? (declaration.collapse ? `type:${input.type}` : null),
+        data,
+        ids: [],
+      });
+    }
+    const locks = [
+      ...new Set(
+        prepared.flatMap(({ recipients, key }) =>
+          key
+            ? recipients.map(
+                (recipient) => `${tenantId ?? ''}:${recipient}:${key}`,
+              )
+            : [],
+        ),
+      ),
+    ];
+    if (locks.length)
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(lock_key)) from unnest(array[${sql.join(
+          locks.map((key) => sql`${key}::text`),
+          sql`, `,
+        )}]) as locks(lock_key)`,
+      );
+    const collapsing = prepared.flatMap(({ recipients, key }) =>
+      key ? recipients.map((recipient) => ({ recipient, key })) : [],
+    );
+    const old = collapsing.length
+      ? await tx
+          .delete(notifications)
+          .where(
+            and(
+              tenantId
+                ? eq(notifications.tenantId, tenantId)
+                : isNull(notifications.tenantId),
+              or(
+                ...collapsing.map(({ recipient, key }) =>
+                  and(
+                    eq(notifications.recipient, recipient),
+                    eq(notifications.key, key),
+                  ),
+                ),
+              ),
+            ),
+          )
+          .returning({
+            recipient: notifications.recipient,
+            key: notifications.key,
+            count: notifications.count,
+          })
+      : [];
+    const counts = new Map(
+      old.map((row) => [`${row.recipient}\u0000${row.key}`, row.count]),
+    );
+    const values = prepared.flatMap((item) =>
+      item.recipients.map((recipient) => {
+        const id = randomUUID();
+        item.ids.push(id);
+        return {
+          id,
+          recipient,
+          type: item.input.type,
+          data: item.data,
+          key: item.key,
+          count: item.key
+            ? (counts.get(`${recipient}\u0000${item.key}`) ?? 0) + 1
+            : 1,
+          link: item.input.link ?? null,
+        };
+      }),
+    );
+    if (!values.length) return prepared.map((item) => item.ids);
+    await tx.insert(notifications).values(values);
+    const messages: NewOutboxMessage<NotificationMessage>[] = values.map(
+      (row) => ({
+        topic: NOTIFICATIONS_TOPIC,
+        key: row.recipient,
+        payload: {
+          notificationId: row.id,
+          recipient: row.recipient,
+          type: row.type,
+          tenantId,
+        },
+      }),
+    );
+    await this.outbox.add(tx, messages);
+    return prepared.map((item) => item.ids);
   }
 
   /**

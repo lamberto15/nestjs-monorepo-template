@@ -8306,6 +8306,8 @@ export interface operations {
                             /** @example notes */
                             name: string;
                             formats: ("csv" | "json" | "xlsx")[];
+                            /** @description Optional keys accepted by matchOn. */
+                            matchKeys: string[];
                             /** @description The columns you may fill (fields your permissions hide left out). */
                             columns: {
                                 /** @description The header (a datetime column gets the zone in a template: `dueAt (Asia/Dubai)`). */
@@ -8396,6 +8398,8 @@ export interface operations {
                 "multipart/form-data": {
                     /** @example notes */
                     name: string;
+                    /** @description Update existing rows by this declared match key. */
+                    matchOn?: string;
                     /**
                      * @description true: check every row, write nothing.
                      * @default false
