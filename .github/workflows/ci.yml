@@ -95,10 +95,10 @@ jobs:
           if [ "$(wc -l <<< "$files")" -ge 3000 ]; then all; fi
           # Read by no job here: the docs, Markdown at the root and at a
           # package's root, Claude's files, the changesets' notes, GitHub's
-          # repository settings, the Helm chart and the devcontainer (their
-          # own workflows check those two). Not the other workflows: knip
+          # repository settings, Helm and K3s manifests, and the devcontainer
+          # (their own workflows check those). Not the other workflows: knip
           # reads them (its GitHub Actions plugin), as it reads lefthook.yml.
-          inert='^(docs/|\.claude/|\.changeset/[^/]*\.md$|\.devcontainer/|deploy/helm/|\.github/(ISSUE_TEMPLATE/|CODEOWNERS$|dependabot\.yml$|PULL_REQUEST_TEMPLATE\.md$)|LICENSE$|\.editorconfig$|[^/]*\.md$|packages/[^/]+/[^/]*\.md$)'
+          inert='^(docs/|\.claude/|\.changeset/[^/]*\.md$|\.devcontainer/|deploy/(helm|k3s)/|\.github/(ISSUE_TEMPLATE/|CODEOWNERS$|dependabot\.yml$|PULL_REQUEST_TEMPLATE\.md$)|LICENSE$|\.editorconfig$|[^/]*\.md$|packages/[^/]+/[^/]*\.md$)'
           read=$(grep -vE "$inert" <<< "$files" || true)
           # code: any path a job reads.
           if [ -n "$read" ]; then echo code=true; else echo code=false; fi | tee -a "$GITHUB_OUTPUT"
@@ -1806,3 +1806,108 @@ jobs:
             case "$TAG" in *-*) flags+=(--prerelease) ;; esac
             gh release create "$TAG" --verify-tag --title "$TAG" --notes-file "$dir/notes.md" "${flags[@]}"
           fi
+
+  # The three digests come from this run's tested, scanned publish jobs. Only a
+  # successful push to main can request the production environment. The repo
+  # variable keeps deployment off until the namespace, backups and environment
+  # protection are ready; no PR or tag run can reach the cluster.
+  deploy-k3s:
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+      vars.K3S_DEPLOY_ENABLED == 'true'
+    needs: [publish, publish-gotenberg, publish-caddy]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: https://nestjs-monorepo.lamby.dev
+    concurrency:
+      group: production-k3s
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write # Tailscale workload identity federation
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify the CI image digests
+        env:
+          APP_DIGEST: ${{ needs.publish.outputs.digest }}
+          WEB_DIGEST: ${{ needs.publish-caddy.outputs.digest }}
+          GOTENBERG_DIGEST: ${{ needs.publish-gotenberg.outputs.digest }}
+        run: |
+          for digest in "$APP_DIGEST" "$WEB_DIGEST" "$GOTENBERG_DIGEST"; do
+            [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || exit 1
+          done
+      - name: Install Helm 4.3.1
+        run: |
+          curl -fsSL https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz -o "$RUNNER_TEMP/helm.tar.gz"
+          echo '0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b  helm.tar.gz' |
+            (cd "$RUNNER_TEMP" && sha256sum -c -)
+          mkdir -p "$RUNNER_TEMP/helm-bin"
+          tar -xzf "$RUNNER_TEMP/helm.tar.gz" -C "$RUNNER_TEMP" linux-amd64/helm
+          install -m 0755 "$RUNNER_TEMP/linux-amd64/helm" "$RUNNER_TEMP/helm-bin/helm"
+          echo "$RUNNER_TEMP/helm-bin" >> "$GITHUB_PATH"
+      - name: Validate the exact production render
+        env:
+          APP_DIGEST: ${{ needs.publish.outputs.digest }}
+          WEB_DIGEST: ${{ needs.publish-caddy.outputs.digest }}
+          GOTENBERG_DIGEST: ${{ needs.publish-gotenberg.outputs.digest }}
+        run: |
+          helm version --short
+          helm lint deploy/helm/app --strict \
+            -f deploy/helm/app/values.lab01.yaml \
+            --set image.digest="$APP_DIGEST" \
+            --set web.image.digest="$WEB_DIGEST" \
+            --set gotenberg.image.digest="$GOTENBERG_DIGEST"
+          helm template app deploy/helm/app \
+            -n nestjs-monorepo \
+            -f deploy/helm/app/values.lab01.yaml \
+            --set image.digest="$APP_DIGEST" \
+            --set web.image.digest="$WEB_DIGEST" \
+            --set gotenberg.image.digest="$GOTENBERG_DIGEST" > "$RUNNER_TEMP/app.yaml"
+          for digest in "$APP_DIGEST" "$WEB_DIGEST" "$GOTENBERG_DIGEST"; do
+            grep -Fq "@$digest" "$RUNNER_TEMP/app.yaml"
+          done
+      - name: Join the deployment tailnet
+        uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4.3.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:github-k3s-deploy
+      - name: Use the namespace-scoped kubeconfig
+        env:
+          K3S_KUBECONFIG: ${{ secrets.K3S_KUBECONFIG }}
+        run: |
+          umask 077
+          printf '%s' "$K3S_KUBECONFIG" > "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+      - name: Check namespace and prerequisite Secret
+        run: |
+          kubectl config current-context
+          test "$(kubectl -n nestjs-monorepo auth can-i create deployments)" = yes
+          test "$(kubectl -n nestjs-monorepo auth can-i create clusterrolebindings)" = no
+          kubectl -n nestjs-monorepo get secret app-secrets -o json |
+            jq -e '.data as $data | ["database_url", "database_owner_url", "database_maintenance_url", "jwt_secret", "mfa_encryption_keys", "data_encryption_keys", "blind_index_keys", "redis_password", "mail_api_key"] | all(. as $key | $data[$key] != null)' > /dev/null
+          kubectl -n nestjs-monorepo rollout status statefulset/postgres --timeout=2m
+          kubectl -n nestjs-monorepo rollout status statefulset/redis --timeout=2m
+          kubectl -n nestjs-monorepo get cronjob postgres-backup files-backup redis-backup -o name
+      - name: Install the CI-verified release
+        env:
+          APP_DIGEST: ${{ needs.publish.outputs.digest }}
+          WEB_DIGEST: ${{ needs.publish-caddy.outputs.digest }}
+          GOTENBERG_DIGEST: ${{ needs.publish-gotenberg.outputs.digest }}
+        run: |
+          helm upgrade --install app deploy/helm/app \
+            --namespace nestjs-monorepo \
+            --rollback-on-failure --wait-for-jobs --timeout 12m \
+            --history-max 10 \
+            -f deploy/helm/app/values.lab01.yaml \
+            --set image.digest="$APP_DIGEST" \
+            --set web.image.digest="$WEB_DIGEST" \
+            --set gotenberg.image.digest="$GOTENBERG_DIGEST"
+          kubectl -n nestjs-monorepo rollout status deployment/app-api --timeout=3m
+          kubectl -n nestjs-monorepo rollout status deployment/app-web --timeout=3m
+          kubectl -n nestjs-monorepo rollout status deployment/app-worker --timeout=3m
+          kubectl -n nestjs-monorepo rollout status deployment/app-gotenberg --timeout=3m

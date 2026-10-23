@@ -6,6 +6,11 @@ with the same settings, secret files and migrations. It is for adopters on a
 managed cluster; on one host, [rolling](deploy-rolling.md),
 [blue-green](deploy-blue-green.md) or [Swarm](deploy-swarm.md) stay simpler.
 
+For the single-node K3s deployment on `lab01`, use the dedicated
+[lab01 guide](deploy-k3s-lab01.md) and `values.lab01.yaml`. It covers the
+separate database, Redis, backups, namespace-scoped CI identity, Tailscale,
+Cloudflare Tunnel, and the `ReadWriteOnce` local storage profile.
+
 | Compose / Swarm                        | The chart                                                                                                                                                                                                                                                                          |
 | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `api` (`APP_ROLE=api`), `API_REPLICAS` | Deployment `-api` (rolling, `maxUnavailable: 0`), Service, HPA on CPU, PodDisruptionBudget                                                                                                                                                                                         |

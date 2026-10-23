@@ -75,8 +75,13 @@ app.kubernetes.io/component: {{ .component }}
 {{- define "app.secretVolume" -}}
 - name: secrets
   secret:
-    secretName: {{ include "app.secretName" . }}
+    secretName: {{ include "app.secretName" .ctx }}
     defaultMode: 0444
+    items:
+      {{- range $key := sortAlpha (uniq (values .files)) }}
+      - key: {{ $key }}
+        path: {{ $key }}
+      {{- end }}
 {{- end -}}
 
 {{/*
