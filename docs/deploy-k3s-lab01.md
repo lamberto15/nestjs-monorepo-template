@@ -39,7 +39,13 @@ request, not an expected backup size.
    Apply [`deploy/k3s/data.yaml`](../deploy/k3s/data.yaml), then wait for both
    StatefulSets and verify the two SSD claims bind. Never delete their claims
    as part of an application rollback.
-4. Create `app-secrets` with `database_url`, `database_owner_url`,
+4. Run the reviewed [`create-app-secret.py`](../deploy/k3s/create-app-secret.py)
+   interactively on lab01. It reads the PostgreSQL and Redis credentials from
+   their existing Secrets, prompts for the Resend API key, generates separate
+   runtime and maintenance passwords plus four signing/encryption keys, and
+   creates `app-secrets` through standard input. Save its six generated values
+   in a password manager before confirming the prompt. The Secret has
+   `database_url`, `database_owner_url`,
    `database_maintenance_url`, `jwt_secret`, `mfa_encryption_keys`,
    `data_encryption_keys`, `blind_index_keys`, `redis_password`, and
    `mail_api_key`. Use
