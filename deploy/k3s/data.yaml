@@ -54,8 +54,8 @@ spec:
             periodSeconds: 15
             failureThreshold: 3
           resources:
-            requests: { cpu: 500m, memory: 1Gi }
-            limits: { cpu: '2', memory: 3Gi }
+            requests: { cpu: 500m, memory: 1Gi, ephemeral-storage: 256Mi }
+            limits: { cpu: '2', memory: 3Gi, ephemeral-storage: 2Gi }
           volumeMounts:
             - { name: data, mountPath: /var/lib/postgresql }
             - { name: secrets, mountPath: /run/secrets, readOnly: true }
@@ -123,8 +123,8 @@ spec:
             periodSeconds: 15
             failureThreshold: 3
           resources:
-            requests: { cpu: 100m, memory: 512Mi }
-            limits: { cpu: '1', memory: 768Mi }
+            requests: { cpu: 100m, memory: 512Mi, ephemeral-storage: 64Mi }
+            limits: { cpu: '1', memory: 768Mi, ephemeral-storage: 512Mi }
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
