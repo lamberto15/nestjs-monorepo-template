@@ -1,0 +1,180 @@
+# Apply separately from the app release with an administrator. The referenced
+# postgres-secrets, redis-secrets and redis-script must already exist here.
+# Image digests are the registry manifests for the versions in compose.yaml.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: nestjs-monorepo
+spec:
+  clusterIP: None
+  selector: { app: postgres }
+  ports:
+    - { name: postgres, port: 5432, targetPort: postgres }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: nestjs-monorepo
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels: { app: postgres }
+  template:
+    metadata:
+      labels: { app: postgres }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: postgres
+          image: postgres:18.6-alpine@sha256:898c60cb390d1085bc97bdd6a1ae968757421df394b071848b52b1c09c89d6a5
+          imagePullPolicy: IfNotPresent
+          env:
+            - { name: POSTGRES_USER, value: app }
+            - { name: POSTGRES_DB, value: app }
+            - {
+                name: POSTGRES_PASSWORD_FILE,
+                value: /run/secrets/postgres_password,
+              }
+          ports:
+            - { name: postgres, containerPort: 5432 }
+          startupProbe:
+            exec: { command: [sh, -c, 'pg_isready -U app -d app'] }
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            exec: { command: [sh, -c, 'pg_isready -U app -d app'] }
+            periodSeconds: 5
+          livenessProbe:
+            exec: { command: [sh, -c, 'pg_isready -U app -d app'] }
+            periodSeconds: 15
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 500m, memory: 1Gi, ephemeral-storage: 256Mi }
+            limits: { cpu: '2', memory: 3Gi, ephemeral-storage: 2Gi }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql }
+            - { name: secrets, mountPath: /run/secrets, readOnly: true }
+      volumes:
+        - name: secrets
+          secret:
+            secretName: postgres-secrets
+            defaultMode: 0444
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: local-ssd
+        resources:
+          requests: { storage: 40Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: nestjs-monorepo
+spec:
+  clusterIP: None
+  selector: { app: redis }
+  ports:
+    - { name: redis, port: 6379, targetPort: redis }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: nestjs-monorepo
+spec:
+  serviceName: redis
+  replicas: 1
+  selector:
+    matchLabels: { app: redis }
+  template:
+    metadata:
+      labels: { app: redis }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: redis
+          image: redis:8.10.2-alpine@sha256:0bf6577d7774e592b29d093e3ac9390eb91e13d72c21e506afce736de5e0eeb0
+          imagePullPolicy: IfNotPresent
+          command: [sh, /etc/redis-scripts/redis.sh, server]
+          env:
+            - { name: REDIS_PASSWORD_FILE, value: /run/secrets/redis_password }
+            - { name: REDIS_MAXMEMORY, value: 400mb }
+          ports:
+            - { name: redis, containerPort: 6379 }
+          startupProbe:
+            exec: { command: [sh, /etc/redis-scripts/redis.sh, ping] }
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            exec: { command: [sh, /etc/redis-scripts/redis.sh, ping] }
+            periodSeconds: 5
+          livenessProbe:
+            exec: { command: [sh, /etc/redis-scripts/redis.sh, ping] }
+            periodSeconds: 15
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 100m, memory: 512Mi, ephemeral-storage: 64Mi }
+            limits: { cpu: '1', memory: 768Mi, ephemeral-storage: 512Mi }
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+            - { name: secrets, mountPath: /run/secrets, readOnly: true }
+            - { name: script, mountPath: /etc/redis-scripts, readOnly: true }
+      volumes:
+        - name: secrets
+          secret:
+            secretName: redis-secrets
+            defaultMode: 0444
+        - name: script
+          configMap:
+            name: redis-script
+            defaultMode: 0555
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: local-ssd
+        resources:
+          requests: { storage: 8Gi }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: data-ingress
+  namespace: nestjs-monorepo
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: app, operator: In, values: [postgres, redis] }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: app
+        - podSelector:
+            matchLabels:
+              app: postgres-backup
+        - podSelector:
+            matchLabels:
+              app: redis-backup
+      ports:
+        - { protocol: TCP, port: 5432 }
+        - { protocol: TCP, port: 6379 }

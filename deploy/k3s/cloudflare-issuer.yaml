@@ -1,0 +1,19 @@
+# Apply as an administrator after cert-manager v1.21.2 is installed and its
+# cloudflare-dns-token Secret exists in the cert-manager namespace.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: cloudflare-dns01
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-cloudflare-account
+    solvers:
+      - selector:
+          dnsZones: [lamby.dev]
+        dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-dns-token
+              key: api-token

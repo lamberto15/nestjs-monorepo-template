@@ -43,4 +43,4 @@ spec:
           volumeMounts:
             {{- include "app.secretMount" . | nindent 12 }}
       volumes:
-        {{- include "app.secretVolume" . | nindent 8 }}
+        {{- include "app.secretVolume" (dict "ctx" . "files" (merge (deepCopy .Values.secretFiles.migrate) (deepCopy .Values.secretFiles.common))) | nindent 8 }}

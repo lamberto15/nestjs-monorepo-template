@@ -11,11 +11,13 @@ on:
     branches: [main]
     paths:
       - deploy/helm/**
+      - deploy/k3s/**
       - monitoring/prometheus/alerts.yml
       - .github/workflows/helm.yml
   pull_request:
     paths:
       - deploy/helm/**
+      - deploy/k3s/**
       - monitoring/prometheus/alerts.yml
       - .github/workflows/helm.yml
 
@@ -33,6 +35,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Install Helm 4.3.1
+        run: |
+          curl --proto '=https' --proto-redir '=https' -fsSL https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz -o "$RUNNER_TEMP/helm.tar.gz"
+          echo '0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b  helm.tar.gz' |
+            (cd "$RUNNER_TEMP" && sha256sum -c -)
+          mkdir -p "$RUNNER_TEMP/helm-bin"
+          tar -xzf "$RUNNER_TEMP/helm.tar.gz" -C "$RUNNER_TEMP" linux-amd64/helm
+          install -m 0755 "$RUNNER_TEMP/linux-amd64/helm" "$RUNNER_TEMP/helm-bin/helm"
+          echo "$RUNNER_TEMP/helm-bin" >> "$GITHUB_PATH"
+
       - name: Tool versions
         run: helm version --short && kind version && kubectl version --client
 
@@ -43,6 +55,29 @@ jobs:
 
       - name: helm lint
         run: helm lint deploy/helm/app --strict -f deploy/helm/ci/values.yaml
+
+      - name: lab01 profile renders with RWO storage and immutable images
+        run: |
+          digest="sha256:$(printf '%064d' 0)"
+          helm lint deploy/helm/app --strict \
+            -f deploy/helm/app/values.lab01.yaml \
+            --set image.digest="$digest" \
+            --set web.image.digest="$digest" \
+            --set gotenberg.image.digest="$digest"
+          helm template app deploy/helm/app -n nestjs-monorepo \
+            -f deploy/helm/app/values.lab01.yaml \
+            --set image.digest="$digest" \
+            --set web.image.digest="$digest" \
+            --set gotenberg.image.digest="$digest" > "$RUNNER_TEMP/lab01.yaml"
+          grep -q 'storageClassName: "local-hdd"' "$RUNNER_TEMP/lab01.yaml"
+          grep -q 'ReadWriteOnce' "$RUNNER_TEMP/lab01.yaml"
+          test "$(grep -Fc "@$digest" "$RUNNER_TEMP/lab01.yaml")" -ge 5
+          api_keys=$(yq 'select(.kind == "Deployment" and .metadata.name == "app-api") | .spec.template.spec.volumes[] | select(.name == "secrets") | .secret.items[].key' "$RUNNER_TEMP/lab01.yaml")
+          worker_keys=$(yq 'select(.kind == "Deployment" and .metadata.name == "app-worker") | .spec.template.spec.volumes[] | select(.name == "secrets") | .secret.items[].key' "$RUNNER_TEMP/lab01.yaml")
+          migrate_keys=$(yq 'select(.kind == "Job" and .metadata.name == "app-migrate") | .spec.template.spec.volumes[] | select(.name == "secrets") | .secret.items[].key' "$RUNNER_TEMP/lab01.yaml")
+          if grep -q '^database_owner_url$' <<< "$api_keys"; then exit 1; fi
+          if grep -q '^database_owner_url$' <<< "$worker_keys"; then exit 1; fi
+          grep -q '^database_owner_url$' <<< "$migrate_keys"
 
       - name: helm template
         run: |
@@ -95,8 +130,29 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Install Helm 4.3.1
+        run: |
+          curl --proto '=https' --proto-redir '=https' -fsSL https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz -o "$RUNNER_TEMP/helm.tar.gz"
+          echo '0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b  helm.tar.gz' |
+            (cd "$RUNNER_TEMP" && sha256sum -c -)
+          mkdir -p "$RUNNER_TEMP/helm-bin"
+          tar -xzf "$RUNNER_TEMP/helm.tar.gz" -C "$RUNNER_TEMP" linux-amd64/helm
+          install -m 0755 "$RUNNER_TEMP/linux-amd64/helm" "$RUNNER_TEMP/helm-bin/helm"
+          echo "$RUNNER_TEMP/helm-bin" >> "$GITHUB_PATH"
+
       - name: kind cluster
         run: kind create cluster --wait 120s
+
+      - name: Validate lab01 infrastructure manifests against Kubernetes
+        run: |
+          kubectl create namespace nestjs-monorepo
+          kubectl create namespace cloudflare-tunnel
+          for file in deploy/k3s/data.yaml deploy/k3s/backups.yaml deploy/k3s/deployer-rbac.yaml deploy/k3s/cloudflare.yaml; do
+            kubectl apply --dry-run=server -f "$file"
+          done
+          # The ClusterIssuer needs cert-manager's CRD, which this smoke
+          # cluster does not install. Still parse its YAML.
+          yq eval '.' deploy/k3s/cloudflare-issuer.yaml > /dev/null
 
       - name: Build the API image and load it into the cluster
         run: |

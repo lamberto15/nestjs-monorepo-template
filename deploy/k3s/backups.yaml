@@ -1,0 +1,350 @@
+# Daily encrypted off-server backups. Apply after backup-secrets exists; run
+# both Jobs once and complete a restore drill before enabling app deployment.
+# backup-secrets keys: repository_base, restic_password, access_key_id,
+# secret_access_key. repository_base is an S3-compatible bucket URL, such as
+# s3:https://<account>.r2.cloudflarestorage.com/<bucket>.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backup-staging
+  namespace: nestjs-monorepo
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-hdd
+  resources:
+    requests: { storage: 80Gi }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: nestjs-monorepo
+spec:
+  schedule: '0 3 * * *'
+  timeZone: Asia/Manila
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 7200
+      template:
+        metadata:
+          labels: { app: postgres-backup }
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile: { type: RuntimeDefault }
+          initContainers:
+            - name: dump
+              image: postgres:18.6-alpine@sha256:898c60cb390d1085bc97bdd6a1ae968757421df394b071848b52b1c09c89d6a5
+              command:
+                - sh
+                - -ec
+                - |
+                  export PGPASSWORD="$(cat /run/secrets/postgres_password)"
+                  rm -f /backup/app.dump.tmp /backup/globals.sql.tmp
+                  pg_dump -h postgres -U app -d app -Fc -f /backup/app.dump.tmp
+                  pg_dumpall -h postgres -U app --globals-only > /backup/globals.sql.tmp
+                  mv /backup/app.dump.tmp /backup/app.dump
+                  mv /backup/globals.sql.tmp /backup/globals.sql
+              resources:
+                requests: { cpu: 100m, memory: 256Mi }
+                limits: { cpu: '1', memory: 1Gi }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              volumeMounts:
+                - { name: staging, mountPath: /backup }
+                - { name: cache, mountPath: /tmp }
+                - {
+                    name: postgres-secrets,
+                    mountPath: /run/secrets,
+                    readOnly: true,
+                  }
+          containers:
+            - name: upload
+              image: restic/restic:0.19.1@sha256:136600b6ff6843d61d355f7f71f460a166429f35de6fd11b568fece3c9a4d510
+              command:
+                - sh
+                - -ec
+                - |
+                  export RESTIC_REPOSITORY="${REPOSITORY_BASE%/}/postgres"
+                  restic cat config >/dev/null 2>&1 || restic init
+                  restic backup /backup/app.dump /backup/globals.sql --tag lab01-postgres
+                  restic forget --keep-daily 14 --keep-weekly 8 --keep-monthly 6 --prune
+              env:
+                - {
+                    name: REPOSITORY_BASE,
+                    valueFrom:
+                      {
+                        secretKeyRef:
+                          { name: backup-secrets, key: repository_base },
+                      },
+                  }
+                - {
+                    name: RESTIC_PASSWORD,
+                    valueFrom:
+                      {
+                        secretKeyRef:
+                          { name: backup-secrets, key: restic_password },
+                      },
+                  }
+                - {
+                    name: AWS_ACCESS_KEY_ID,
+                    valueFrom:
+                      {
+                        secretKeyRef:
+                          { name: backup-secrets, key: access_key_id },
+                      },
+                  }
+                - {
+                    name: AWS_SECRET_ACCESS_KEY,
+                    valueFrom:
+                      {
+                        secretKeyRef:
+                          { name: backup-secrets, key: secret_access_key },
+                      },
+                  }
+                - { name: RESTIC_CACHE_DIR, value: /tmp/restic-cache }
+                - { name: HOME, value: /tmp }
+              resources:
+                requests: { cpu: 100m, memory: 256Mi }
+                limits: { cpu: '1', memory: 1Gi }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              volumeMounts:
+                - { name: staging, mountPath: /backup, readOnly: true }
+                - { name: cache, mountPath: /tmp }
+          volumes:
+            - name: staging
+              persistentVolumeClaim: { claimName: backup-staging }
+            - name: postgres-secrets
+              secret:
+                secretName: postgres-secrets
+                defaultMode: 0444
+            - name: cache
+              emptyDir: { sizeLimit: 2Gi }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: files-backup
+  namespace: nestjs-monorepo
+spec:
+  schedule: '30 3 * * *'
+  timeZone: Asia/Manila
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 7200
+      template:
+        metadata:
+          labels: { app: files-backup }
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile: { type: RuntimeDefault }
+          containers:
+            - name: upload
+              image: restic/restic:0.19.1@sha256:136600b6ff6843d61d355f7f71f460a166429f35de6fd11b568fece3c9a4d510
+              command:
+                - sh
+                - -ec
+                - |
+                  export RESTIC_REPOSITORY="${REPOSITORY_BASE%/}/files"
+                  restic cat config >/dev/null 2>&1 || restic init
+                  restic backup /files --tag lab01-files
+                  restic forget --keep-daily 14 --keep-weekly 8 --keep-monthly 6 --prune
+              env:
+                - {
+                    name: REPOSITORY_BASE,
+                    valueFrom:
+                      {
+                        secretKeyRef:
+                          { name: backup-secrets, key: repository_base },
+                      },
+                  }
+                - {
+                    name: RESTIC_PASSWORD,
+                    valueFrom:
+                      {
+                        secretKeyRef:
+                          { name: backup-secrets, key: restic_password },
+                      },
+                  }
+                - {
+                    name: AWS_ACCESS_KEY_ID,
+                    valueFrom:
+                      {
+                        secretKeyRef:
+                          { name: backup-secrets, key: access_key_id },
+                      },
+                  }
+                - {
+                    name: AWS_SECRET_ACCESS_KEY,
+                    valueFrom:
+                      {
+                        secretKeyRef:
+                          { name: backup-secrets, key: secret_access_key },
+                      },
+                  }
+                - { name: RESTIC_CACHE_DIR, value: /tmp/restic-cache }
+                - { name: HOME, value: /tmp }
+              resources:
+                requests: { cpu: 100m, memory: 256Mi }
+                limits: { cpu: '1', memory: 1Gi }
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                runAsGroup: 1000
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              volumeMounts:
+                - { name: files, mountPath: /files, readOnly: true }
+                - { name: cache, mountPath: /tmp }
+          volumes:
+            - name: files
+              persistentVolumeClaim: { claimName: app-storage }
+            - name: cache
+              emptyDir: { sizeLimit: 2Gi }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: redis-backup
+  namespace: nestjs-monorepo
+spec:
+  schedule: '0 4 * * *'
+  timeZone: Asia/Manila
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels: { app: redis-backup }
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile: { type: RuntimeDefault }
+          initContainers:
+            - name: snapshot
+              image: redis:8.10.2-alpine@sha256:0bf6577d7774e592b29d093e3ac9390eb91e13d72c21e506afce736de5e0eeb0
+              command:
+                - sh
+                - -ec
+                - |
+                  export REDISCLI_AUTH="$(cat /run/secrets/redis_password)"
+                  rm -f /backup/redis.rdb.tmp
+                  redis-cli -h redis --rdb /backup/redis.rdb.tmp
+                  mv /backup/redis.rdb.tmp /backup/redis.rdb
+              resources:
+                requests: { cpu: 50m, memory: 128Mi }
+                limits: { cpu: 500m, memory: 512Mi }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              volumeMounts:
+                - { name: staging, mountPath: /backup }
+                - { name: cache, mountPath: /tmp }
+                - {
+                    name: redis-secrets,
+                    mountPath: /run/secrets,
+                    readOnly: true,
+                  }
+          containers:
+            - name: upload
+              image: restic/restic:0.19.1@sha256:136600b6ff6843d61d355f7f71f460a166429f35de6fd11b568fece3c9a4d510
+              command:
+                - sh
+                - -ec
+                - |
+                  export RESTIC_REPOSITORY="${REPOSITORY_BASE%/}/redis"
+                  restic cat config >/dev/null 2>&1 || restic init
+                  restic backup /backup/redis.rdb --tag lab01-redis
+                  restic forget --keep-daily 14 --keep-weekly 8 --keep-monthly 6 --prune
+              env:
+                - {
+                    name: REPOSITORY_BASE,
+                    valueFrom:
+                      {
+                        secretKeyRef:
+                          { name: backup-secrets, key: repository_base },
+                      },
+                  }
+                - {
+                    name: RESTIC_PASSWORD,
+                    valueFrom:
+                      {
+                        secretKeyRef:
+                          { name: backup-secrets, key: restic_password },
+                      },
+                  }
+                - {
+                    name: AWS_ACCESS_KEY_ID,
+                    valueFrom:
+                      {
+                        secretKeyRef:
+                          { name: backup-secrets, key: access_key_id },
+                      },
+                  }
+                - {
+                    name: AWS_SECRET_ACCESS_KEY,
+                    valueFrom:
+                      {
+                        secretKeyRef:
+                          { name: backup-secrets, key: secret_access_key },
+                      },
+                  }
+                - { name: RESTIC_CACHE_DIR, value: /tmp/restic-cache }
+                - { name: HOME, value: /tmp }
+              resources:
+                requests: { cpu: 50m, memory: 128Mi }
+                limits: { cpu: 500m, memory: 512Mi }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              volumeMounts:
+                - { name: staging, mountPath: /backup, readOnly: true }
+                - { name: cache, mountPath: /tmp }
+          volumes:
+            - name: staging
+              persistentVolumeClaim: { claimName: backup-staging }
+            - name: redis-secrets
+              secret:
+                secretName: redis-secrets
+                defaultMode: 0444
+            - name: cache
+              emptyDir: { sizeLimit: 2Gi }

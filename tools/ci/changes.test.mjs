@@ -233,7 +233,11 @@ const STATUS = /\b(success|failure|always|cancelled)\(\)/;
  */
 function simulate(
   files,
-  { event = 'pull_request', ref = 'refs/heads/main' } = {},
+  {
+    event = 'pull_request',
+    ref = 'refs/heads/main',
+    deployEnabled = false,
+  } = {},
 ) {
   const outputs = classify(files, event);
   const results = {};
@@ -257,7 +261,11 @@ function simulate(
     );
     const succeeded = job.needs.every((n) => results[n] === 'success');
     const context = {
-      values: { github: { event_name: event, ref }, needs },
+      values: {
+        github: { event_name: event, ref },
+        vars: { K3S_DEPLOY_ENABLED: String(deployEnabled) },
+        needs,
+      },
       functions: {
         success: () => succeeded,
         failure: () => job.needs.some((n) => results[n] === 'failure'),
@@ -296,7 +304,13 @@ function expectJobs(t, files, expected, options) {
 }
 
 const ALWAYS = ['changes', 'compose-images', 'security'];
-const PUSH_ONLY = ['publish', 'publish-gotenberg', 'publish-caddy', 'release'];
+const PUSH_ONLY = [
+  'publish',
+  'publish-gotenberg',
+  'publish-caddy',
+  'release',
+  'deploy-k3s',
+];
 // The jobs each output of `changes` switches on: the workflow's job-level `if`s
 // read as groups. A job gated on several outputs is in each of their groups
 // (`only` counts it once). A case expects ALWAYS plus the groups of the
@@ -353,10 +367,14 @@ test('a docs-only pull request runs the change classifier, the images list and s
   );
 });
 
-test('a Helm-only pull request is left to helm.yml', (t) => {
+test('a Helm or K3s manifest pull request is left to helm.yml', (t) => {
   expectJobs(
     t,
-    ['deploy/helm/app/values.yaml', 'deploy/helm/app/templates/api.yaml'],
+    [
+      'deploy/helm/app/values.yaml',
+      'deploy/helm/app/templates/api.yaml',
+      'deploy/k3s/data.yaml',
+    ],
     only(ALWAYS),
   );
 });
@@ -481,19 +499,19 @@ test("a list at the API's 3000-file limit runs everything", () => {
   );
 });
 
-test('main, tags and the nightly run skip nothing', (t) => {
+test('main can deploy only when enabled; tags and the nightly run never do', (t) => {
   const every = jobs(TEXT).map((j) => j.id);
   expectJobs(
     t,
     [],
     every.filter((id) => !['openapi-diff', 'release'].includes(id)),
-    { event: 'push' },
+    { event: 'push', deployEnabled: true },
   );
   expectJobs(
     t,
     [],
-    every.filter((id) => id !== 'openapi-diff'),
-    { event: 'push', ref: 'refs/tags/v1.2.3' },
+    every.filter((id) => id !== 'openapi-diff' && id !== 'deploy-k3s'),
+    { event: 'push', ref: 'refs/tags/v1.2.3', deployEnabled: true },
   );
   expectJobs(
     t,
@@ -501,6 +519,8 @@ test('main, tags and the nightly run skip nothing', (t) => {
     every.filter((id) => id !== 'openapi-diff' && !PUSH_ONLY.includes(id)),
     { event: 'schedule' },
   );
+  const disabled = simulate([], { event: 'push' });
+  assert.ok(!disabled.ran.includes('deploy-k3s'));
 });
 
 test('the classifier writes every declared output, in both branches', () => {
