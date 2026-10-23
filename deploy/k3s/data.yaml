@@ -125,6 +125,13 @@ spec:
           resources:
             requests: { cpu: 100m, memory: 512Mi }
             limits: { cpu: '1', memory: 768Mi }
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
           volumeMounts:
             - { name: data, mountPath: /data }
             - { name: secrets, mountPath: /run/secrets, readOnly: true }

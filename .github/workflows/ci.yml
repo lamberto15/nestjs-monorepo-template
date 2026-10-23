@@ -1876,6 +1876,8 @@ jobs:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           audience: ${{ secrets.TS_AUDIENCE }}
           tags: tag:github-k3s-deploy
+          version: 1.104.2
+          ping: 100.87.122.6
       - name: Use the namespace-scoped kubeconfig
         env:
           K3S_KUBECONFIG: ${{ secrets.K3S_KUBECONFIG }}
