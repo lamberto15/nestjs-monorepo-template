@@ -34,7 +34,8 @@ request, not an expected backup size.
 2. Create `postgres-secrets` with `postgres_password` and `redis-secrets` with
    `redis_password`. Generate independent random passwords outside Git, and
    keep a secure offline copy.
-3. Create `redis-script` from the reviewed [`redis/redis.sh`](../redis/redis.sh).
+3. Create `redis-script` from the reviewed
+   [`redis/redis.sh`](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/redis/redis.sh).
    Apply [`deploy/k3s/data.yaml`](../deploy/k3s/data.yaml), then wait for both
    StatefulSets and verify the two SSD claims bind. Never delete their claims
    as part of an application rollback.
