@@ -39,7 +39,8 @@ request, not an expected backup size.
    Apply [`deploy/k3s/data.yaml`](../deploy/k3s/data.yaml), then wait for both
    StatefulSets and verify the two SSD claims bind. Never delete their claims
    as part of an application rollback.
-4. Run the reviewed [`create-app-secret.py`](../deploy/k3s/create-app-secret.py)
+4. Run the reviewed
+   [`create-app-secret.py`](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/create-app-secret.py)
    interactively on lab01. It reads the PostgreSQL and Redis credentials from
    their existing Secrets, prompts for the Resend API key, generates separate
    runtime and maintenance passwords plus four signing/encryption keys, and
