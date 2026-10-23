@@ -194,6 +194,13 @@ export class DataTransferService {
         imports.push({
           name: importer.name,
           formats: TRANSFER_FORMATS,
+          matchKeys: (await this.access.can(
+            principal,
+            'update',
+            importer.subject,
+          ))
+            ? (importer.matchKeys ?? [])
+            : [],
           columns: await this.importColumns(principal, importer),
           template: `/v1/data/imports/${importer.name}/template`,
         });
@@ -276,6 +283,7 @@ export class DataTransferService {
       key: string;
       format: TransferFormat;
       dryRun: boolean;
+      matchOn?: string;
     },
   ) {
     const importer = this.registry.importer(input.name);
@@ -291,6 +299,23 @@ export class DataTransferService {
       if (!importer) {
         throw new NotFoundException(`Nothing to import named "${input.name}".`);
       }
+      throw new ForbiddenException();
+    }
+    if (input.matchOn && !importer.matchKeys?.includes(input.matchOn)) {
+      await this.disk.delete(input.key).catch(() => undefined);
+      throw new BadRequestException(`Unknown match key "${input.matchOn}".`);
+    }
+    if (input.matchOn && !importer.writeMany) {
+      await this.disk.delete(input.key).catch(() => undefined);
+      throw new BadRequestException(
+        'This importer does not support matched updates.',
+      );
+    }
+    if (
+      input.matchOn &&
+      !(await this.access.can(principal, 'update', importer.subject))
+    ) {
+      await this.disk.delete(input.key).catch(() => undefined);
       throw new ForbiddenException();
     }
     return this.enqueue(principal, {

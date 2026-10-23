@@ -11,7 +11,7 @@ import { ApprovalsService } from '../../platform/approvals/approvals.service.js'
 import { SubscriptionsService } from '../../platform/subscriptions/subscriptions.service.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import type { Transaction } from '../../core/database/drizzle.js';
 import { notes } from './notes.tables.js';
 import { NOTE } from './note.resource.js';
@@ -99,6 +99,69 @@ export class NotePublisher {
     return !!published;
   }
 
+  /** Publishes drafts as one locked read and one UPDATE; used by an import group's workflow. */
+  async publishMany(ids: readonly string[], by: Principal) {
+    if (!ids.length) return 0;
+    const published = await inTransaction(this.txHost, async (tx) => {
+      const before = await tx
+        .select()
+        .from(notes)
+        .where(
+          and(
+            inArray(notes.id, [...ids]),
+            eq(notes.status, 'draft'),
+            isNull(notes.deletedAt),
+          ),
+        )
+        .for('update');
+      if (!before.length) return 0;
+      const after = await tx
+        .update(notes)
+        .set({ status: 'published', publishedAt: new Date() })
+        .where(
+          and(
+            inArray(
+              notes.id,
+              before.map((note) => note.id),
+            ),
+            eq(notes.status, 'draft'),
+            isNull(notes.deletedAt),
+          ),
+        )
+        .returning();
+      const previous = new Map(before.map((note) => [note.id, note]));
+      await this.audit.recordChanges(
+        by,
+        NOTE,
+        after.map((row) => ({
+          action: 'updated' as const,
+          id: row.id,
+          before: previous.get(row.id)!,
+          after: row,
+        })),
+        tx,
+      );
+      await this.dispatchMany(tx, 'note.published', after);
+      const watchers = await this.subscriptions.watchersMany(
+        after.map((row) => ({ subject: 'Note', recordId: row.id })),
+        tx,
+      );
+      await this.notifications.notifyMany(
+        tx,
+        after.map((row) => ({
+          type: 'note.published',
+          to: [row.ownerId, ...(watchers.get(row.id) ?? [])],
+          data: { noteId: row.id, title: row.title },
+          link: `/notes/${row.id}`,
+        })),
+      );
+      return after.length;
+    });
+    this.webhooks.notify();
+    this.notifications.deliverNow();
+    return published;
+  }
+
   /**
    * Asks for the approval of a publication (the publication workflow's
    * step), as the note's owner: `not-needed` when the policy says so (the
@@ -150,5 +213,22 @@ export class NotePublisher {
     }
     const data: NoteEvent = { noteId: note.id, title: note.title };
     await this.webhooks.dispatch(tx, { type, tenant, data });
+  }
+
+  /** Dispatches webhook events for many notes with the package's array API. */
+  async dispatchMany(
+    tx: Transaction,
+    type: NoteEventType,
+    rows: readonly Note[],
+  ) {
+    const messages = rows.flatMap((note) => {
+      const tenant = note.ownerId.startsWith('client:')
+        ? note.ownerId.slice('client:'.length)
+        : null;
+      return tenant
+        ? [{ type, tenant, data: { noteId: note.id, title: note.title } }]
+        : [];
+    });
+    if (messages.length) await this.webhooks.dispatch(tx, messages);
   }
 }

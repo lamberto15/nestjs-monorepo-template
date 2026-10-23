@@ -77,6 +77,12 @@ const templateQuerySchema = z.object({
 });
 const importFieldsSchema = z.object({
   name: z.string().min(1).max(80).meta({ example: 'notes' }),
+  matchOn: z
+    .string()
+    .min(1)
+    .max(80)
+    .optional()
+    .describe('Update existing rows by this declared match key.'),
   dryRun: z
     .enum(['true', 'false'])
     .default('false')
@@ -109,6 +115,9 @@ const catalogSchema = z.object({
       z.object({
         name: z.string().meta({ example: 'notes' }),
         formats: z.array(z.enum(TRANSFER_FORMATS)),
+        matchKeys: z
+          .array(z.string())
+          .describe('Optional keys accepted by matchOn.'),
         columns: z
           .array(
             z.object({
@@ -261,6 +270,7 @@ export class DataTransferController {
       key: file.key,
       format,
       dryRun: body.dryRun,
+      matchOn: body.matchOn,
     });
   }
 

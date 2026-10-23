@@ -362,8 +362,10 @@ export class DataTransferProcessor extends TenantWorkerHost<
         )
         .map((column) => column.name),
     );
-    const action = importer.action ?? 'create';
+    const action = job.data.matchOn ? 'update' : (importer.action ?? 'create');
     const errors: ImportRowError[] = [];
+    const group: { row: number; data: Record<string, unknown> }[] = [];
+    const seenMatchValues = new Set<string>();
     let rows = 0;
     let imported = 0;
     const refuse = (refused: ImportRowError[]) => {
@@ -372,6 +374,47 @@ export class DataTransferProcessor extends TenantWorkerHost<
         throw new TransferRefused(
           `More than ${MAX_ERRORS} errors: check the file's format and columns.`,
         );
+      }
+    };
+    const flush = async () => {
+      if (!group.length) return;
+      const batch = group.splice(0);
+      if (!importer.writeMany) {
+        for (const item of batch) {
+          try {
+            await importer.write(principal, item.data);
+            imported++;
+          } catch (error) {
+            const refused = refusal(error, item.row);
+            if (!refused) throw error;
+            refuse(refused);
+          }
+        }
+        return;
+      }
+      try {
+        await importer.writeMany(
+          principal,
+          batch.map((item) => item.data),
+          { matchOn: job.data.matchOn },
+        );
+        imported += batch.length;
+      } catch (error) {
+        const refused = refusal(error, batch[0]!.row);
+        if (!refused) throw error;
+        // A group transaction has rolled back. Retry one row at a time so one invalid record is reported alone.
+        for (const item of batch) {
+          try {
+            await importer.writeMany(principal, [item.data], {
+              matchOn: job.data.matchOn,
+            });
+            imported++;
+          } catch (rowError) {
+            const rowRefusal = refusal(rowError, item.row);
+            if (!rowRefusal) throw rowError;
+            refuse(rowRefusal);
+          }
+        }
       }
     };
     // The upload was stored under the tenant's prefix: a payload naming
@@ -403,6 +446,40 @@ export class DataTransferProcessor extends TenantWorkerHost<
               `Unknown columns: ${refused.join(', ')}. Check the template.`,
             );
           }
+        }
+        if (
+          row === 1 &&
+          job.data.matchOn &&
+          !Object.hasOwn(record, job.data.matchOn)
+        ) {
+          throw new TransferRefused(
+            `The file is missing the match column "${job.data.matchOn}".`,
+          );
+        }
+        if (job.data.matchOn) {
+          const keyValue = record[job.data.matchOn];
+          const normalized = String(keyValue ?? '').trim();
+          if (!normalized) {
+            refuse([
+              {
+                row,
+                path: job.data.matchOn,
+                message: 'A match key is required.',
+              },
+            ]);
+            continue;
+          }
+          if (seenMatchValues.has(normalized)) {
+            refuse([
+              {
+                row,
+                path: job.data.matchOn,
+                message: `The ${job.data.matchOn} is repeated in this file.`,
+              },
+            ]);
+            continue;
+          }
+          seenMatchValues.add(normalized);
         }
         // Each row as one POST of the feature: its schema, the field-level
         // permissions, then the same service call (its 4xx refuses the row).
@@ -436,14 +513,16 @@ export class DataTransferProcessor extends TenantWorkerHost<
           } else if (job.data.dryRun) {
             imported++;
           } else {
-            try {
-              await importer.write(principal, parsed.data);
-              imported++;
-            } catch (error) {
-              const refused = refusal(error, row);
-              if (!refused) throw error;
-              refuse(refused);
-            }
+            group.push({
+              row,
+              data: job.data.matchOn
+                ? {
+                    ...parsed.data,
+                    [job.data.matchOn]: record[job.data.matchOn],
+                  }
+                : parsed.data,
+            });
+            if (group.length >= 200) await flush();
           }
         }
         if (row % PROGRESS_EVERY === 0) {
@@ -462,6 +541,7 @@ export class DataTransferProcessor extends TenantWorkerHost<
           });
         }
       }
+      await flush();
     } finally {
       // The upload was only a means: it goes, whatever happened.
       await this.disk.delete(job.data.key).catch(() => undefined);

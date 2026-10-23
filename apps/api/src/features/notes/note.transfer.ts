@@ -1,5 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { and, desc, eq, lt } from 'drizzle-orm';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { and, desc, eq, inArray, isNull, lt } from 'drizzle-orm';
 import { z } from 'zod';
 import { AccessService } from '../../iam/access/access.service.js';
 import {
@@ -22,6 +27,7 @@ import type {
 import { createNoteSchema, type Note } from './note.schemas.js';
 import { NOTE_LIST } from './note.list.js';
 import { NotesService } from './notes.service.js';
+import type { UpdateNoteDto } from './note.schemas.js';
 import { notes } from './notes.tables.js';
 
 /**
@@ -56,6 +62,7 @@ export class NoteTransfer
 {
   readonly name = 'notes';
   readonly subject = 'Note';
+  readonly matchKeys = ['id', 'number'] as const;
   readonly columns: readonly TransferColumn[] = [
     { key: 'id' },
     { key: 'number' },
@@ -168,5 +175,81 @@ export class NoteTransfer
   /** One row, as POST /notes writes it (the platform checked its fields). */
   async write(principal: Principal, row: NoteRow) {
     await this.notes.create(principal, row);
+  }
+
+  /** Imports inserts or updates in groups; match lookups stay inside tenant RLS. */
+  async writeMany(
+    principal: Principal,
+    rows: readonly NoteRow[],
+    { matchOn }: { matchOn?: string },
+  ) {
+    if (!matchOn) {
+      await this.notes.createMany(principal, rows);
+      return;
+    }
+    if (!this.matchKeys.includes(matchOn as 'id' | 'number')) {
+      throw new NotFoundException(`Unknown match key "${matchOn}".`);
+    }
+    const key = matchOn as 'id' | 'number';
+    const values = rows.map((row) =>
+      String((row as Record<string, unknown>)[key]),
+    );
+    if (
+      key === 'id' &&
+      values.some((value) => !z.uuid().safeParse(value).success)
+    ) {
+      throw new BadRequestException('A note id must be a UUID.');
+    }
+    const found = await this.notes.query((db) =>
+      db
+        .select()
+        .from(notes)
+        .where(
+          and(
+            key === 'id'
+              ? inArray(notes.id, values)
+              : inArray(notes.number, values),
+            isNull(notes.deletedAt),
+          ),
+        ),
+    );
+    const byKey = new Map(found.map((note) => [String(note[key]), note]));
+    const missing = values.find((value) => !byKey.has(value));
+    if (missing !== undefined) {
+      throw new NotFoundException(`No note with this ${key}.`);
+    }
+    const matches = await Promise.all(
+      rows.map(async (row, index) => {
+        const note = byKey.get(values[index]!)!;
+        if (!(await this.access.can(principal, 'update', 'Note', note))) {
+          throw new ForbiddenException();
+        }
+        const { [key]: _match, ...dto } = row as Record<string, unknown>;
+        // Import's POST schema supplies the default empty body; for PATCH semantics an empty cell is absent.
+        if (dto.body === '') delete dto.body;
+        return { noteId: note.id, dto: dto as UpdateNoteDto };
+      }),
+    );
+    for (let index = 0; index < matches.length; index++) {
+      const note = byKey.get(values[index]!)!;
+      const row = rows[index]!;
+      const { [key]: _match, ...fields } = row as Record<string, unknown>;
+      if (fields.body === '') delete fields.body;
+      const forbidden = await this.access.forbiddenFields(
+        principal,
+        'update',
+        'Note',
+        fields,
+        note,
+      );
+      if (forbidden.length) {
+        throw new ForbiddenException({
+          code: 'field_forbidden',
+          message: `You may not change: ${forbidden.join(', ')}.`,
+          fields: forbidden,
+        });
+      }
+    }
+    await this.notes.updateMany(principal, matches);
   }
 }

@@ -71,3 +71,38 @@ export class NotePublicationWorkflow implements WorkflowRunner<
     return { published, trigger: trigger.key };
   }
 }
+
+export interface NoteBatchPublicationInput {
+  noteIds: string[];
+  tenantId: string;
+}
+
+/** One durable workflow per import group; @nestjs/workflows exposes start() for one instance, not a batch-start API. */
+@Workflow('note-batch-publication', { timeout: '30d' })
+export class NoteBatchPublicationWorkflow implements WorkflowRunner<
+  NoteBatchPublicationInput,
+  { published: number }
+> {
+  constructor(
+    private readonly publisher: NotePublisher,
+    private readonly settings: SettingsService,
+    private readonly system: SystemContext,
+  ) {}
+
+  async run(ctx: WorkflowContext, input: NoteBatchPublicationInput) {
+    ctx.setStatus('waiting');
+    const delay = await ctx.step('delay', () =>
+      inTenantOf(input, () => this.settings.get(NOTE_PUBLISH_DELAY)),
+    );
+    await ctx.timer(delay as Duration);
+    const published = await ctx.step('publish-many', () =>
+      this.system.run(
+        NOTE_PUBLICATION_JOB,
+        (system) => this.publisher.publishMany(input.noteIds, system),
+        { transaction: false, tenantId: input.tenantId },
+      ),
+    );
+    ctx.setStatus('published');
+    return { published };
+  }
+}

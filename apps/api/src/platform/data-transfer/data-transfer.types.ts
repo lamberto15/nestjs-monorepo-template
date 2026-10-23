@@ -118,6 +118,8 @@ export interface DataImporter<Row = Record<string, unknown>> {
   /** The caller needs `action` (default `create`) on `subject`. */
   readonly subject: string;
   readonly action?: string;
+  /** Columns a client may explicitly choose to match within the current tenant. */
+  readonly matchKeys?: readonly string[];
   /**
    * One row, validated (files bring strings: coerce numbers, dates, booleans).
    * A row that fails is reported with its number, field and message.
@@ -149,6 +151,12 @@ export interface DataImporter<Row = Record<string, unknown>> {
    * are reported with it; anything else fails the import.
    */
   write(principal: Principal, row: Row): Promise<void>;
+  /** Writes a group in one operation when supported; a 4xx lets the processor retry rows individually. */
+  writeMany?(
+    principal: Principal,
+    rows: readonly Row[],
+    options: { matchOn?: string },
+  ): Promise<void>;
 }
 
 /**
@@ -179,6 +187,7 @@ export type TransferJob = TenantEnvelope &
         /** The uploaded file, on the private disk; deleted once read. */
         key: string;
         dryRun: boolean;
+        matchOn?: string;
         principal: RequestPrincipal;
       }
   );

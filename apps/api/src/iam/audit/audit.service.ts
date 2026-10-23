@@ -132,6 +132,62 @@ export class AuditService {
     );
   }
 
+  /** Records many resource changes with one INSERT, omitting unchanged updates. */
+  async recordChanges(
+    principal: Principal | null,
+    resource: ResourceDefinition,
+    changes: readonly RecordChange[],
+    db: Database | Transaction = this.db,
+    ip?: string,
+  ) {
+    if (!resource.audit || changes.length === 0) return;
+    const ignore = new Set(['updatedAt', ...(resource.audit.ignore ?? [])]);
+    const expand = new Set(resource.audit.expand ?? []);
+    const sensitive = new Set([
+      ...this.catalog.sensitiveFields(resource.subject),
+      ...encryptedProperties(),
+    ]);
+    const shown = (field: string, value: unknown) =>
+      sensitive.has(field) ? '[redacted]' : value;
+    const values = (record: Record<string, unknown>) =>
+      Object.fromEntries(
+        Object.entries(record)
+          .filter(([field]) => !ignore.has(field))
+          .map(([field, value]) => [field, shown(field, value)]),
+      );
+    const type =
+      resource.subject.charAt(0).toLowerCase() + resource.subject.slice(1);
+    const entries = changes.flatMap((change) => {
+      let details: Record<string, unknown>;
+      if (change.action === 'updated') {
+        const diff = diffFields(change.before, change.after, {
+          ignore,
+          expand: new Set([...expand].filter((field) => !sensitive.has(field))),
+          shown,
+        });
+        if (Object.keys(diff).length === 0) return [];
+        details = { changes: diff };
+      } else {
+        details = {
+          values: values(
+            change.action === 'deleted' ? change.before : change.after,
+          ),
+        };
+      }
+      return [
+        {
+          ...actorOf(principal),
+          action: `${type}.${change.action}`,
+          targetType: type,
+          targetId: change.id,
+          details,
+          ip: ip ?? null,
+        },
+      ];
+    });
+    if (entries.length) await db.insert(auditLog).values(entries);
+  }
+
   /** For a sign-in attempt, before anyone is signed in. */
   async recordAnonymous(label: string, entry: AuditEntry) {
     await this.db.insert(auditLog).values({
