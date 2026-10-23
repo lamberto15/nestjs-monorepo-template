@@ -57,20 +57,24 @@ request, not an expected backup size.
    Verify `lamby.dev` as a sender domain in Resend. The chart uses
    `MAIL_TRANSPORT=resend` and `MAIL_FROM=no-reply@lamby.dev`; its API key comes
    only from the `mail_api_key` Secret file.
-5. Create a private R2 Standard bucket named `nestjs-monorepo-backups` and an
-   Object Read & Write token scoped to that bucket. Run the reviewed
+5. Choose an off-server backup destination with a hard free quota before
+   enabling automatic production deployment. The operator selected strict
+   zero spending, so R2 must stay inactive. If that constraint changes, create
+   a private R2 Standard bucket named `nestjs-monorepo-backups` and an Object
+   Read & Write token scoped to that bucket. Run the reviewed
    [`create-backup-secret.py`](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/create-backup-secret.py)
    interactively on lab01. It prompts for the R2 S3 endpoint and access key
    pair, generates a distinct restic encryption password to save offline, and
    creates `backup-secrets` through standard input. Its four keys are documented
    in [`deploy/k3s/backups.yaml`](../deploy/k3s/backups.yaml).
-   After the first manual app install creates `app-storage`, apply the backup
-   manifests. Run each CronJob once and restore each backup into disposable
-   storage. Enable automatic deployment only after the restore drill.
+   After the first manual app install creates `app-storage`, apply the R2 backup
+   manifests only when R2 is authorized. Run each CronJob once and restore each
+   backup into disposable storage. Enable automatic deployment only after an
+   off-server restore drill.
 
 PostgreSQL is initialized with the owner `app` and database `app`, matching the
 existing Compose configuration. Redis uses append-only persistence and
-`noeviction`, matching [`compose.yaml`](../compose.yaml). The backup Jobs use
+`noeviction`, matching [`compose.yaml`](../compose.yaml). The optional R2 backup Jobs use
 encrypted, deduplicated restic repositories for database dumps, Redis RDB, and
 uploaded files. The schedule is 03:00, 03:30, and 04:00 Asia/Manila. Fourteen
 daily, eight weekly, and six monthly snapshots are retained. This provides a
