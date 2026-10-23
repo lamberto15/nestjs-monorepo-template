@@ -1,11 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { watchNotifications } from '@nestjs-monorepo-template/api-client';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRealtime } from '@/lib/realtime';
 import {
   addCached,
   markCachedRead,
   removeCached,
+  refreshNotificationLists,
   setUnread,
   unreadKey,
 } from './queries';
@@ -19,13 +20,23 @@ import {
 export function useLiveNotifications() {
   const realtime = useRealtime();
   const queryClient = useQueryClient();
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
   useEffect(() => {
     if (!realtime) {
       return;
     }
-    return watchNotifications(realtime, {
+    const stop = watchNotifications(realtime, {
       onUnread: (unread) => setUnread(queryClient, unread),
-      onItem: (item) => addCached(queryClient, item),
+      onItem: (item) => {
+        addCached(queryClient, item);
+        clearTimeout(refreshTimer.current);
+        refreshTimer.current = setTimeout(() => {
+          refreshTimer.current = undefined;
+          void refreshNotificationLists(queryClient);
+        }, 1_000);
+      },
       onRead: ({ id, readAt }) =>
         markCachedRead(queryClient, (item) => item.id === id, readAt),
       onReadAll: ({ before }) => {
@@ -37,5 +48,10 @@ export function useLiveNotifications() {
       },
       onRemoved: (id) => removeCached(queryClient, id),
     });
+    return () => {
+      clearTimeout(refreshTimer.current);
+      refreshTimer.current = undefined;
+      stop();
+    };
   }, [realtime, queryClient]);
 }

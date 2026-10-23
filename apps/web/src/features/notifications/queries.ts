@@ -171,7 +171,7 @@ export function removeCached(queryClient: QueryClient, id: string) {
   changeItems(queryClient, (items) => items.filter((item) => item.id !== id));
 }
 
-/** A new notification: on top of the bell's list; the inbox refetches. */
+/** A new notification: on top of the bell's list immediately. */
 export function addCached(queryClient: QueryClient, item: NotificationItem) {
   // A collapsed notification replaces the older one of its key (a new id).
   queryClient.setQueryData<NotificationPage>(latestQuery.queryKey, (page) =>
@@ -188,9 +188,11 @@ export function addCached(queryClient: QueryClient, item: NotificationItem) {
         }
       : page,
   );
-  void queryClient.invalidateQueries({
-    queryKey: [...root, 'list'],
-  });
+}
+
+/** Refresh active filtered lists after a batch of socket events. */
+export function refreshNotificationLists(queryClient: QueryClient) {
+  return queryClient.invalidateQueries({ queryKey: [...root, 'list'] });
 }
 
 export function setUnread(queryClient: QueryClient, unread: number) {
