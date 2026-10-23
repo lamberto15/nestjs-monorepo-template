@@ -57,10 +57,13 @@ request, not an expected backup size.
    Verify `lamby.dev` as a sender domain in Resend. The chart uses
    `MAIL_TRANSPORT=resend` and `MAIL_FROM=no-reply@lamby.dev`; its API key comes
    only from the `mail_api_key` Secret file.
-5. Create a private S3-compatible backup bucket, preferably R2 Standard, and
-   bucket-scoped credentials. Put its repository base URL, a distinct restic
-   encryption password, and the access key pair in `backup-secrets` using the
-   keys documented in [`deploy/k3s/backups.yaml`](../deploy/k3s/backups.yaml).
+5. Create a private R2 Standard bucket named `nestjs-monorepo-backups` and an
+   Object Read & Write token scoped to that bucket. Run the reviewed
+   [`create-backup-secret.py`](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/create-backup-secret.py)
+   interactively on lab01. It prompts for the R2 S3 endpoint and access key
+   pair, generates a distinct restic encryption password to save offline, and
+   creates `backup-secrets` through standard input. Its four keys are documented
+   in [`deploy/k3s/backups.yaml`](../deploy/k3s/backups.yaml).
    After the first manual app install creates `app-storage`, apply the backup
    manifests. Run each CronJob once and restore each backup into disposable
    storage. Enable automatic deployment only after the restore drill.
@@ -129,6 +132,16 @@ that tag to reach only `100.87.122.6:6443`. Store the client ID and audience
 as `TS_OAUTH_CLIENT_ID` and `TS_AUDIENCE` in the `production` environment.
 The deploy job has `id-token: write` for this federation and joins as an
 ephemeral node.
+
+This repository was created after GitHub's immutable OIDC subject rollout.
+Set the federated identity issuer to
+`https://token.actions.githubusercontent.com` and the exact subject to
+`repo:lamberto15@58181776/nestjs-monorepo-template@1422061980:environment:production`.
+Grant only the `auth_keys` scope for `tag:github-k3s-deploy`. The production
+environment must remain restricted to `main`; the environment name takes the
+place of the branch in the default subject claim. Add a tailnet grant with
+`src: ["tag:github-k3s-deploy"]`, `dst: ["100.87.122.6"]`, and
+`ip: ["tcp:6443"]`. Verify the policy in the Tailscale console before saving.
 
 Restrict the GitHub `production` environment to `main` and require a reviewer
 when available. Protect `main` with PR review and the existing CI and Helm
