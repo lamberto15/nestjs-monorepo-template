@@ -1909,7 +1909,7 @@ jobs:
             jq -e '.data as $data | ["database_url", "database_owner_url", "database_maintenance_url", "jwt_secret", "mfa_encryption_keys", "data_encryption_keys", "blind_index_keys", "redis_password", "mail_api_key"] | all(. as $key | $data[$key] != null)' > /dev/null
           kubectl -n nestjs-monorepo rollout status statefulset/postgres --timeout=2m
           kubectl -n nestjs-monorepo rollout status statefulset/redis --timeout=2m
-      - name: Install the CI-verified release
+      - name: Upgrade to the CI-verified release
         env:
           APP_DIGEST: ${{ needs.publish.outputs.digest }}
           WEB_DIGEST: ${{ needs.publish-caddy.outputs.digest }}
@@ -1917,7 +1917,7 @@ jobs:
         run: |
           helm upgrade --install app deploy/helm/app \
             --namespace nestjs-monorepo \
-            --rollback-on-failure --wait-for-jobs --timeout 12m \
+            --rollback-on-failure --wait=legacy --wait-for-jobs --timeout 12m \
             --history-max 10 \
             -f deploy/helm/app/values.single-node.yaml \
             --set image.digest="$APP_DIGEST" \
@@ -1927,7 +1927,11 @@ jobs:
             --set-string env.WEB_URL="$APP_URL" \
             --set-string env.CORS_ORIGINS="$APP_URL" \
             --set-string env.MAIL_FROM="$MAIL_FROM"
-          kubectl -n nestjs-monorepo rollout status deployment/app-api --timeout=3m
-          kubectl -n nestjs-monorepo rollout status deployment/app-web --timeout=3m
-          kubectl -n nestjs-monorepo rollout status deployment/app-worker --timeout=3m
-          kubectl -n nestjs-monorepo rollout status deployment/app-gotenberg --timeout=3m
+      - name: Verify API rollout
+        run: kubectl -n nestjs-monorepo rollout status deployment/app-api --timeout=3m
+      - name: Verify web rollout
+        run: kubectl -n nestjs-monorepo rollout status deployment/app-web --timeout=3m
+      - name: Verify worker rollout
+        run: kubectl -n nestjs-monorepo rollout status deployment/app-worker --timeout=3m
+      - name: Verify Gotenberg rollout
+        run: kubectl -n nestjs-monorepo rollout status deployment/app-gotenberg --timeout=3m
