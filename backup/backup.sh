@@ -137,15 +137,10 @@ if [ "${STORAGE_DRIVER:-local}" = local ]; then
     exit 1
   fi
   step=manifest
-  psql --no-psqlrc --tuples-only --no-align -v ON_ERROR_STOP=1 >".partial-files-$stamp.manifest" <<SQL
-BEGIN ISOLATION LEVEL REPEATABLE READ;
+  psql --no-psqlrc --tuples-only --no-align --quiet --single-transaction -v ON_ERROR_STOP=1 >".partial-files-$stamp.manifest" <<SQL
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 SET TRANSACTION SNAPSHOT '$snapshot';
-SELECT key FROM attachments
-UNION SELECT r.value->>'key' FROM attachments a CROSS JOIN LATERAL jsonb_each(COALESCE(a.renditions, '{}'::jsonb)) r
-UNION SELECT avatar_key FROM users WHERE avatar_key IS NOT NULL
-UNION SELECT logo_key FROM tenants WHERE logo_key IS NOT NULL
-UNION SELECT 'legacy_logo:' || 'tenants/' || id::text || '/branding/logo' FROM tenants WHERE logo_key IS NULL;
-COMMIT;
+\copy (SELECT key FROM attachments UNION SELECT r.value->>'key' FROM attachments a CROSS JOIN LATERAL jsonb_each(COALESCE(a.renditions, '{}'::jsonb)) r UNION SELECT avatar_key FROM users WHERE avatar_key IS NOT NULL UNION SELECT logo_key FROM tenants WHERE logo_key IS NOT NULL UNION SELECT 'legacy_logo:' || 'tenants/' || id::text || '/branding/logo' FROM tenants WHERE logo_key IS NULL) TO STDOUT
 SQL
   # Old logos used a fixed key without a database pointer. Include those that
   # exist; current uploads always have the persisted logo_key above.
