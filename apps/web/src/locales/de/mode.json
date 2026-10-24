@@ -16,5 +16,16 @@
       "stillOn": "Der Modus ist weiterhin aktiv. Er ist in der Umgebung der Installation gesetzt (APP_MODE) und lässt sich nur dort ändern.",
       "hint": "Nur für Betreiber. Ist der Modus in der Umgebung der Installation gesetzt (APP_MODE), lässt er sich nur dort ändern."
     }
+  },
+  "confirm": {
+    "maintenance": {
+      "title": "Wartung für alle Mandanten aktivieren?",
+      "description": "Dies ersetzt die App in allen Mandanten, auch für Ihre Sitzung, durch den Wartungshinweis. Ein Betreiber kann die Wartung im Betreiber-Mandanten mit „Wartung beenden“ beenden; APP_MODE aus der Umgebung muss dort geändert werden."
+    },
+    "read-only": {
+      "title": "Alle Mandanten schreibschützen?",
+      "description": "Dies blockiert Änderungen in allen Mandanten und zeigt einen Hinweis. Ein Betreiber kann den normalen Modus in den Einstellungen wiederherstellen; APP_MODE aus der Umgebung muss dort geändert werden."
+    },
+    "apply": "Für alle Mandanten übernehmen"
   }
 }

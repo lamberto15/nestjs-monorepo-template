@@ -5,6 +5,7 @@ import { registerSW } from 'virtual:pwa-register';
 import '@nestjs-monorepo-template/ui/globals.css';
 import { App, createApp } from '@/app';
 import { initI18n } from '@/i18n';
+import { reloadForBuildUpdate, setPendingPwaUpdate } from '@/lib/sw-update';
 // For its side effect: it must hear `beforeinstallprompt` from the first page
 // load, not when the signed-in layout (the user menu) is loaded.
 import '@/lib/pwa';
@@ -22,11 +23,12 @@ createRoot(document.getElementById('root')!).render(
 // version waits until the user reloads, so no page is swapped under them.
 const updateSW = registerSW({
   onNeedRefresh() {
+    setPendingPwaUpdate(() => updateSW(true));
     toast(i18n.t('pwa:updateAvailable'), {
       duration: Infinity,
       action: {
         label: i18n.t('pwa:reload'),
-        onClick: () => void updateSW(true),
+        onClick: reloadForBuildUpdate,
       },
     });
   },

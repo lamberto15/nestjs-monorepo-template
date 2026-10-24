@@ -13,6 +13,9 @@ RUN CI=true pnpm fetch --store-dir /pnpm-store
 COPY . .
 RUN CI=true pnpm install --store-dir /pnpm-store --frozen-lockfile --offline \
       --filter @nestjs-monorepo-template/web...
+# Only the build output depends on the commit SHA. Leave fetch/install layers
+# cacheable when a new commit changes no dependencies.
+ARG GIT_SHA=""
 RUN pnpm --filter @nestjs-monorepo-template/web... build
 
 FROM caddy:2.11.7-builder AS builder
@@ -27,7 +30,15 @@ RUN xcaddy build --with github.com/caddy-dns/cloudflare@v0.2.4 \
       --replace golang.org/x/net=golang.org/x/net@v0.61.0
 
 FROM caddy:2.11.7
+# Stable IDs also used by the one-time certificate-volume migration.
+RUN apk upgrade --no-cache brotli-libs \
+ && addgroup -S -g 10001 caddy \
+ && adduser -S -D -H -u 10001 -G caddy caddy \
+ && chown -R 10001:10001 /data /config
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+# The upstream binary carries a file capability; it cannot exec with cap_drop ALL.
+# Low ports are allowed by the service network namespace instead.
+RUN setcap -r /usr/bin/caddy
 # The Cloudflare token from the environment or a file (a Docker secret).
 COPY --chmod=755 caddy/entrypoint.sh /usr/local/bin/caddy-entrypoint
 # The static files the Caddyfile serves for every path that isn't the API's.
@@ -35,5 +46,6 @@ COPY --from=web /app/apps/web/dist /srv/web
 # The page the Caddyfile answers (503) for the web app's paths while
 # MAINTENANCE_PAGE=on: static, one file (docs/deployment.md, "Maintenance page").
 COPY caddy/maintenance.html /srv/maintenance/index.html
+USER 10001:10001
 ENTRYPOINT ["caddy-entrypoint"]
 CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

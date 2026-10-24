@@ -40,6 +40,7 @@ function api(options: { realtime?: boolean; impersonating?: boolean } = {}) {
   const state = {
     items: [item('a'), item('b', { link: '/notes' })],
     unreadCalls: 0,
+    listCalls: 0,
     readCalls: [] as string[],
     readAllCalls: 0,
     preferencesBody: undefined as unknown,
@@ -61,6 +62,7 @@ function api(options: { realtime?: boolean; impersonating?: boolean } = {}) {
       return HttpResponse.json({ unread: unread() });
     }),
     http.get('/v1/notifications', ({ request }) => {
+      state.listCalls++;
       const read = new URL(request.url).searchParams.get('read');
       const items = state.items.filter(
         (entry) => read === null || String(entry.read) === read,
@@ -154,6 +156,33 @@ describe('the bell and realtime', () => {
       connections[0]!.emit('notification', item('c', { title: 'Fresh' })),
     );
     expect(await screen.findByText('Fresh')).toBeVisible();
+  });
+
+  it('coalesces list refreshes for notification bursts, then refreshes a later event', async () => {
+    const state = api();
+    const user = userEvent.setup();
+    await renderApp('/');
+    await waitFor(() => expect(state.listCalls).toBeGreaterThan(0));
+    await user.click(await bell());
+    await screen.findAllByText('Title a');
+    const initialCalls = state.listCalls;
+
+    act(() => {
+      connections[0]!.emit('notification', item('c'));
+      connections[0]!.emit('notification', item('d'));
+      connections[0]!.emit('notification', item('e'));
+    });
+    expect(await screen.findByText('Title c')).toBeVisible();
+    expect(state.listCalls).toBe(initialCalls);
+    // Dashboard and breach alert are both active list queries.
+    await waitFor(() => expect(state.listCalls).toBe(initialCalls + 2), {
+      timeout: 2_000,
+    });
+
+    act(() => connections[0]!.emit('notification', item('f')));
+    await waitFor(() => expect(state.listCalls).toBe(initialCalls + 4), {
+      timeout: 2_000,
+    });
   });
 
   it('refetches after a reconnect, not at the first connection', async () => {

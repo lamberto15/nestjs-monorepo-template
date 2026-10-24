@@ -284,10 +284,10 @@ describe('custom fields (e2e)', () => {
       expect(entry.label.singular).not.toBe('');
       expect(entry.label.plural).not.toBe('');
     }
-    expect(subjects(all.body).sort()).toEqual(
+    expect(subjects(all.body).sort((a, b) => a.localeCompare(b))).toEqual(
       subjects(
         (await editor.agent.get('/v1/custom-fields/subjects').expect(200)).body,
-      ).sort(),
+      ).sort((a, b) => a.localeCompare(b)),
     );
 
     // Only the subjects whose fields the caller may read (as GET /custom-fields).
@@ -376,7 +376,7 @@ describe('custom fields (e2e)', () => {
       type: 'number',
       validation: { min: 5, max: 1, pattern: 'x' },
     }).expect(400);
-    expect(paths(many.body).sort()).toEqual([
+    expect(paths(many.body).sort((a, b) => a.localeCompare(b))).toEqual([
       'validation.min',
       'validation.pattern',
     ]);
@@ -1203,17 +1203,17 @@ describe('custom fields (e2e)', () => {
       ]);
 
       expect(
-        titles((await list('?custom.region=eu').expect(200)).body).sort(),
+        titles((await list('?custom.region=eu').expect(200)).body).sort((a, b) => a.localeCompare(b)),
       ).toEqual(['Item 0', 'Item 2']);
       expect(
-        titles((await list('?custom.amount.gte=10').expect(200)).body).sort(),
+        titles((await list('?custom.amount.gte=10').expect(200)).body).sort((a, b) => a.localeCompare(b)),
       ).toEqual(['Item 1', 'Item 2']);
       expect(
         titles((await list('?custom.due.lt=2026-02-01').expect(200)).body),
       ).toEqual(['Item 1']);
       // multiSelect: holds any of.
       expect(
-        titles((await list('?custom.tags.in=a,b').expect(200)).body).sort(),
+        titles((await list('?custom.tags.in=a,b').expect(200)).body).sort((a, b) => a.localeCompare(b)),
       ).toEqual(['Item 0', 'Item 1']);
       const filter = encodeURIComponent(
         JSON.stringify({
@@ -1224,7 +1224,7 @@ describe('custom fields (e2e)', () => {
         }),
       );
       expect(
-        titles((await list(`?filter=${filter}`).expect(200)).body).sort(),
+        titles((await list(`?filter=${filter}`).expect(200)).body).sort((a, b) => a.localeCompare(b)),
       ).toEqual(['Item 1', 'Item 3']);
 
       // Sorted by a number, paged two at a time: every item once, in order (no value last).

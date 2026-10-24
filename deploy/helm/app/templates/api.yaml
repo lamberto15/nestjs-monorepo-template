@@ -79,7 +79,7 @@ spec:
               mountPath: /app/.data/storage
             {{- end }}
       volumes:
-        {{- include "app.secretVolume" . | nindent 8 }}
+        {{- include "app.secretVolume" (dict "ctx" . "files" (merge (deepCopy .Values.secretFiles.api) (deepCopy .Values.secretFiles.common))) | nindent 8 }}
         {{- if .Values.persistence.enabled }}
         - name: storage
           persistentVolumeClaim:

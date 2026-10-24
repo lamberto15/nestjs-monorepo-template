@@ -170,11 +170,11 @@ describe('access administration (e2e)', () => {
             .items as { id: string }[]
         )
           .map((user) => user.id)
-          .sort();
+          .sort((a, b) => a.localeCompare(b));
       expect(await ids(`teamId=${parent}`)).toEqual([a.id]);
       expect(await ids(`teamId=${child.body.id}`)).toEqual([b.id]);
       expect(await ids(`teamId.in=${parent},${child.body.id}`)).toEqual(
-        [a.id, b.id].sort(),
+        [a.id, b.id].sort((a, b) => a.localeCompare(b)),
       );
       expect(await ids(`teamId=${randomUUID()}`)).toEqual([]);
       expect(await ids('limit=100')).toContain(c.id);

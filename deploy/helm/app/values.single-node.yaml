@@ -1,0 +1,66 @@
+# Single-node profile. Keep credentials in the existing Kubernetes Secret.
+# The deploy job supplies the three CI image digests.
+domain: example.com
+redisUrl: redis://redis:6379/0
+image:
+  repository: ghcr.io/lamberto15/nestjs-monorepo-template
+web:
+  image:
+    repository: ghcr.io/lamberto15/nestjs-monorepo-template/caddy
+  replicas: 1
+  podDisruptionBudget:
+    enabled: false
+gotenberg:
+  image:
+    repository: ghcr.io/lamberto15/nestjs-monorepo-template/gotenberg
+
+env:
+  WEB_URL: https://example.com
+  CORS_ORIGINS: https://example.com
+  STORAGE_DRIVER: local
+  OPENAPI: 'off'
+  AUTH_SIGN_UP: 'off'
+  TENANT_SIGN_UP: 'off'
+  MAIL_TRANSPORT: resend
+  MAIL_FROM: no-reply@example.com
+
+secret:
+  existingSecret: app-secrets
+secretFiles:
+  api:
+    MAIL_API_KEY_FILE: mail_api_key
+    REDIS_PASSWORD_FILE: redis_password
+    METRICS_TOKEN_FILE: metrics_token
+  worker:
+    MAIL_API_KEY_FILE: mail_api_key
+    REDIS_PASSWORD_FILE: redis_password
+    METRICS_TOKEN_FILE: metrics_token
+
+# local-path provisioned volumes support RWO. On one node the API and worker
+# can mount the same claim; this profile must be changed before adding nodes.
+persistence:
+  enabled: true
+  storageClass: local-hdd
+  size: 100Gi
+  accessModes: [ReadWriteOnce]
+
+api:
+  replicas: 2
+  autoscaling:
+    enabled: false
+  podDisruptionBudget:
+    enabled: false
+worker:
+  replicas: 1
+
+ingress:
+  className: traefik
+  tlsSecretName: app-tls
+  annotations:
+    cert-manager.io/cluster-issuer: cloudflare-dns01
+
+# A PrometheusRule requires the Prometheus Operator CRD.
+prometheusRule:
+  enabled: true
+  labels:
+    release: monitoring

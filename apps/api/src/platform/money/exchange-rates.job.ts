@@ -211,7 +211,7 @@ export class ExchangeRatesJob {
 const newestOf = (days: readonly { day: string }[]) =>
   days
     .map((each) => each.day)
-    .sort()
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
     .at(-1)!;
 
 /** An error's kind and status, for the log. */

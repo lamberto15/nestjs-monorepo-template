@@ -64,7 +64,7 @@ describe('audit log and search labels (e2e)', () => {
       ).body,
     ).items;
   const actors = (items: { actor: string }[]) =>
-    [...new Set(items.map((item) => item.actor))].sort();
+    [...new Set(items.map((item) => item.actor))].sort((a, b) => a.localeCompare(b));
 
   it('describes the audit list at GET /v1/lists/Audit, to whoever may read the log', async () => {
     const { body } = await node.admin().get('/v1/lists/Audit').expect(200);
@@ -112,7 +112,7 @@ describe('audit log and search labels (e2e)', () => {
 
     // By name, whatever the case: Ada (a member) and the client.
     expect(actors(await audit({ 'actorLabel.contains': tag }))).toEqual(
-      [`client:${client.id}`, `user:${ada.id}`].sort(),
+      [`client:${client.id}`, `user:${ada.id}`].sort((a, b) => a.localeCompare(b)),
     );
     expect(
       actors(
@@ -205,7 +205,7 @@ describe('audit log and search labels (e2e)', () => {
         .expect(200)
     ).body.items as Record<string, unknown>[];
     expect(picked.length).toBeGreaterThan(0);
-    expect(Object.keys(picked[0]!).sort()).toEqual(['actorName', 'id']);
+    expect(Object.keys(picked[0]!).sort((a, b) => a.localeCompare(b))).toEqual(['actorName', 'id']);
   });
 
   it('is refused to whoever may not read the audit log', async () => {

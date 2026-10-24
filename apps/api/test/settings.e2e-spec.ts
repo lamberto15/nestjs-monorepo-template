@@ -12,6 +12,7 @@ import { bootApp, type TestApp } from './support.js';
 const KEY = 'approvals.maxDelegationDays';
 const FLAG = 'testItems.richPreview';
 const VIEW = 'testItems.view';
+const EMAIL_POLICY = 'notifications.emailPolicy';
 
 describe('settings (e2e)', () => {
   let node: TestApp;
@@ -43,6 +44,55 @@ describe('settings (e2e)', () => {
     (body.errors ?? []).map((error) => error.path);
   const settingOf = (body: { items: { key: string }[] }, key: string) =>
     body.items.find((item) => item.key === key);
+
+  it('lets settings managers edit tenant and platform email policy values with tenant precedence', async () => {
+    const manager = await node.user([await role(['Access', 'manageSettings'])]);
+    const editor = await node.user(['editor']);
+    const shown = await manager.agent.get('/v1/settings').expect(200);
+    expect(settingOf(shown.body, EMAIL_POLICY)).toMatchObject({
+      value: 'all',
+      default: 'all',
+      scopes: ['tenant'],
+      canEdit: true,
+    });
+    expect(
+      settingOf(
+        (await editor.agent.get('/v1/settings').expect(200)).body,
+        EMAIL_POLICY,
+      ),
+    ).toBeUndefined();
+    await editor.agent
+      .put(`/v1/settings/${EMAIL_POLICY}`)
+      .send({ value: 'essential' })
+      .expect(403);
+
+    await node
+      .admin()
+      .put(`/v1/settings/${EMAIL_POLICY}/platform`)
+      .send({ value: 'essential' })
+      .expect(200);
+    expect(
+      (await manager.agent.get(`/v1/settings/${EMAIL_POLICY}`).expect(200))
+        .body,
+    ).toMatchObject({ value: 'essential', source: 'platform' });
+    await manager.agent
+      .put(`/v1/settings/${EMAIL_POLICY}`)
+      .send({ value: 'all' })
+      .expect(200);
+    expect(
+      (await manager.agent.get(`/v1/settings/${EMAIL_POLICY}`).expect(200))
+        .body,
+    ).toMatchObject({ value: 'all', source: 'tenant' });
+    await manager.agent.delete(`/v1/settings/${EMAIL_POLICY}`).expect(204);
+    expect(
+      (await manager.agent.get(`/v1/settings/${EMAIL_POLICY}`).expect(200))
+        .body,
+    ).toMatchObject({ value: 'essential', source: 'platform' });
+    await node
+      .admin()
+      .delete(`/v1/settings/${EMAIL_POLICY}/platform`)
+      .expect(204);
+  });
 
   it('shows a setting with its default to managers only; they set the value for everyone, audited', async () => {
     const manager = await node.user([await role(['Access', 'manageSettings'])]);

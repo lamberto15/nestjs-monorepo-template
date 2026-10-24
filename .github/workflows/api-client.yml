@@ -24,7 +24,23 @@ name: Typed client
 on:
   push:
     branches: [main]
+    paths:
+      - 'packages/api-client/**'
+      - '.changeset/**'
+      - 'apps/api/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/api-client.yml'
   pull_request:
+    paths:
+      - packages/api-client/**
+      - .changeset/**
+      - apps/api/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .github/workflows/api-client.yml
 
 permissions:
   contents: read

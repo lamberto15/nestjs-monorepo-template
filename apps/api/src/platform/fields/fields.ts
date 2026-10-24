@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import {
   sql,
   type ColumnBuilderBase,
@@ -279,8 +279,8 @@ const SAMPLES: Record<
   }),
   text: () => ({ sample: 'Some text.', changed: 'Other text.', invalid: 123 }),
   int: (f) => ({
-    sample: f.options.unique ? Math.floor(Math.random() * 1e9) : 3,
-    changed: f.options.unique ? Math.floor(Math.random() * 1e9) : 4,
+    sample: f.options.unique ? randomInt(1e9) : 3,
+    changed: f.options.unique ? randomInt(1e9) : 4,
     invalid: 'three',
   }),
   decimal: () => ({ sample: '12.50', changed: '13.75', invalid: 'twelve' }),

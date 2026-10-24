@@ -96,6 +96,28 @@ export class SubscriptionsService {
     );
   }
 
+  /** Starts watching a group of records with one INSERT. */
+  async subscribeMany(
+    tx: Transaction,
+    principal: Pick<Principal, 'kind' | 'id'>,
+    records: readonly RecordRef[],
+  ) {
+    if (principal.kind === 'system' || records.length === 0) return;
+    await tx
+      .insert(recordSubscriptions)
+      .values(
+        [
+          ...new Map(
+            records.map((record) => [
+              `${record.subject}:${record.recordId}`,
+              record,
+            ]),
+          ).values(),
+        ].map((record) => ({ ...record, subscriber: principalKey(principal) })),
+      )
+      .onConflictDoNothing();
+  }
+
   /** Stops watching; false when the principal wasn't. */
   async unsubscribe(
     principal: Pick<Principal, 'kind' | 'id'>,
@@ -159,6 +181,38 @@ export class SubscriptionsService {
     return rows.map((row) => row.subscriber);
   }
 
+  /** Watchers of several records, returned by record id from one query. */
+  async watchersMany(records: readonly RecordRef[], tx?: Transaction) {
+    if (!records.length) return new Map<string, string[]>();
+    const db = tx ?? this.db;
+    const rows = await db
+      .select({
+        subject: recordSubscriptions.subject,
+        recordId: recordSubscriptions.recordId,
+        subscriber: recordSubscriptions.subscriber,
+      })
+      .from(recordSubscriptions)
+      .where(
+        inArray(
+          recordSubscriptions.recordId,
+          records.map((record) => record.recordId),
+        ),
+      );
+    const result = new Map<string, string[]>();
+    for (const record of records) result.set(record.recordId, []);
+    for (const row of rows) {
+      if (
+        records.some(
+          (record) =>
+            record.subject === row.subject && record.recordId === row.recordId,
+        )
+      ) {
+        result.get(row.recordId)!.push(row.subscriber);
+      }
+    }
+    return result;
+  }
+
   /**
    * Notifies the record's watchers, in `tx` (the change's transaction),
    * but `except` (the one who made the change: they know). Returns the
@@ -182,6 +236,54 @@ export class SubscriptionsService {
       (watcher) => watcher !== skip,
     );
     return this.notifications.notify(tx, { ...notification, to });
+  }
+
+  /** Notifies watchers for a group; one watcher query, then the notification service batches storage and outbox writes. */
+  async notifyWatchersMany(
+    tx: Transaction,
+    inputs: readonly (RecordRef &
+      Omit<NotifyInput, 'to'> & {
+        except?: Pick<Principal, 'kind' | 'id'> | string;
+      })[],
+  ) {
+    if (!inputs.length) return [];
+    const rows = await tx
+      .select({
+        subject: recordSubscriptions.subject,
+        recordId: recordSubscriptions.recordId,
+        subscriber: recordSubscriptions.subscriber,
+      })
+      .from(recordSubscriptions)
+      .where(
+        inArray(
+          recordSubscriptions.recordId,
+          inputs.map((item) => item.recordId),
+        ),
+      );
+    const notifications = inputs.map((input) => {
+      const skip =
+        input.except === undefined
+          ? null
+          : typeof input.except === 'string'
+            ? input.except
+            : principalKey(input.except);
+      const to = rows
+        .filter(
+          (row) =>
+            row.subject === input.subject &&
+            row.recordId === input.recordId &&
+            row.subscriber !== skip,
+        )
+        .map((row) => row.subscriber);
+      const {
+        subject: _subject,
+        recordId: _recordId,
+        except: _except,
+        ...notification
+      } = input;
+      return { ...notification, to };
+    });
+    return this.notifications.notifyMany(tx, notifications);
   }
 
   /** A page of what the principal watches. */

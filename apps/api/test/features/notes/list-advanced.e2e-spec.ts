@@ -126,7 +126,7 @@ describe('the advanced list query on GET /v1/notes (e2e)', () => {
 
   it('answers with the fields asked for, id always, redaction still applied', async () => {
     const res = await list({ fields: 'title,status', limit: '1' }).expect(200);
-    expect(Object.keys(res.body.items[0]).sort()).toEqual([
+    expect(Object.keys(res.body.items[0]).sort((a, b) => a.localeCompare(b))).toEqual([
       'id',
       'status',
       'title',

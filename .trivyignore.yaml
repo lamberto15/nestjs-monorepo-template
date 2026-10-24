@@ -1,6 +1,21 @@
 # Findings Trivy may skip (CI's image and repository scans: --ignorefile).
 # Each entry says why. Prefer fixing; add one only when a finding doesn't apply.
 misconfigurations:
+  - id: KSV-0014
+    paths:
+      - deploy/k3s/data.yaml
+    statement: >-
+      The official PostgreSQL entrypoint initializes its data directory and
+      Unix socket directory before dropping privileges. Its data is on a
+      retained PVC; a read-only root filesystem needs an image-specific
+      entrypoint change that is outside this deployment.
+  - id: KSV-0056
+    paths:
+      - deploy/k3s/deployer-rbac.yaml
+    statement: >-
+      Helm must update the app's Services, Ingress and NetworkPolicy. This
+      Role is confined to the nestjs-monorepo namespace and cannot modify
+      cluster RBAC, namespaces, or nodes.
   - id: DS-0002
     paths:
       - caddy/Dockerfile

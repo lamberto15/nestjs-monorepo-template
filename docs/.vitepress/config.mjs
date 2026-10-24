@@ -70,6 +70,7 @@ const technical = [
     ['Blue-green', '/deploy-blue-green'],
     ['Swarm', '/deploy-swarm'],
     ['Kubernetes', '/deploy-kubernetes'],
+    ['Single-node K3s', '/deploy-k3s'],
     ['Releases', '/releases'],
     ['Upgrading', '/upgrading'],
     ['Pitfalls', '/pitfalls'],

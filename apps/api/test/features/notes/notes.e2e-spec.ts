@@ -1,5 +1,12 @@
 import { writeNote, exampleSender } from './notes-support.js';
 import { randomUUID } from 'node:crypto';
+import { inArray, sql } from 'drizzle-orm';
+import { NotesService } from '../../../src/features/notes/notes.service.js';
+import { auditLog } from '../../../src/iam/iam.tables.js';
+import { notes } from '../../../src/features/notes/notes.tables.js';
+import { revisions } from '../../../src/platform/revisions/revisions.tables.js';
+import { notifications } from '../../../src/platform/notifications/notifications.tables.js';
+import { recordSubscriptions } from '../../../src/platform/subscriptions/subscriptions.tables.js';
 import { publicationId } from '../../../src/features/notes/note-publication.workflow.js';
 import { noteSchema } from '../../../src/features/notes/note.schemas.js';
 import { bootApp, webhookReceiver, type TestApp } from '../../support.js';
@@ -13,6 +20,149 @@ describe('the example feature: notes (e2e)', () => {
 
   afterEach(async () => {
     await node.close();
+  });
+
+  it('keeps grouped create and update side effects equivalent to single writes', async () => {
+    const client = await node.client();
+    const principal = {
+      kind: 'client' as const,
+      id: client.id,
+      name: 'batch client',
+      tenantId: node.tenantId,
+    };
+    const service = node.app.get(NotesService);
+    const dtos = [
+      { title: 'Batch A', body: 'one' },
+      { title: 'Batch B', body: 'two' },
+      { title: 'Single A', body: 'one' },
+      { title: 'Single B', body: 'two' },
+    ];
+    const beforeOutbox = await node.db.execute(
+      sql`select count(*)::int as count from nest_outbox.messages`,
+    );
+    const [created, singles] = await node.inTenant(async () =>
+      Promise.all([
+        service.createMany(principal, dtos.slice(0, 2)),
+        Promise.all(dtos.slice(2).map((dto) => service.create(principal, dto))),
+      ]),
+    );
+    const all = [...created, ...singles];
+    const ids = all.map((note) => note.id);
+    const firstRevisionCounts = await node.inTenant(async () =>
+      Promise.all([
+        node.db.select().from(auditLog).where(inArray(auditLog.targetId, ids)),
+        node.db
+          .select()
+          .from(revisions)
+          .where(inArray(revisions.recordId, ids)),
+        node.db
+          .select()
+          .from(recordSubscriptions)
+          .where(inArray(recordSubscriptions.recordId, ids)),
+      ]),
+    );
+    expect(firstRevisionCounts.map((rows) => rows.length)).toEqual([4, 4, 4]);
+    const afterCreateOutbox = await node.db.execute(
+      sql`select count(*)::int as count from nest_outbox.messages`,
+    );
+    expect(
+      Number(
+        (afterCreateOutbox as { rows: { count: number }[] }).rows[0]!.count,
+      ) -
+        Number((beforeOutbox as { rows: { count: number }[] }).rows[0]!.count),
+    ).toBe(4);
+
+    const admin = node.admin();
+    const adminId = (await admin.get('/v1/auth/me').expect(200)).body.user
+      .id as string;
+    for (const note of all)
+      await admin.post(`/v1/notes/${note.id}/watch`).expect(200);
+    const batchMatches = created.map((note, index) => ({
+      noteId: note.id,
+      dto: { title: `Changed ${index}` },
+    }));
+    const updated = await node.inTenant(() =>
+      service.updateMany(principal, batchMatches),
+    );
+    const updatedSingles = await node.inTenant(() =>
+      Promise.all(
+        singles.map((note, index) =>
+          service.update(principal, note, { title: `Changed ${index + 2}` }),
+        ),
+      ),
+    );
+    const current = await node.inTenant(() =>
+      node.db.select().from(notes).where(inArray(notes.id, ids)),
+    );
+    expect(
+      current
+        .map(({ id, title, body }) => ({ id, title, body }))
+        .sort((a, b) => a.id.localeCompare(b.id)),
+    ).toEqual(
+      [...updated, ...updatedSingles]
+        .map(({ id, title, body }) => ({ id, title, body }))
+        .sort((a, b) => a.id.localeCompare(b.id)),
+    );
+    const [audits, revisionsAfter, subscriptionsAfter, notices] =
+      await node.inTenant(async () =>
+        Promise.all([
+          node.db
+            .select()
+            .from(auditLog)
+            .where(inArray(auditLog.targetId, ids)),
+          node.db
+            .select()
+            .from(revisions)
+            .where(inArray(revisions.recordId, ids)),
+          node.db
+            .select()
+            .from(recordSubscriptions)
+            .where(inArray(recordSubscriptions.recordId, ids)),
+          node.db
+            .select()
+            .from(notifications)
+            .where(inArray(notifications.recipient, [`user:${adminId}`])),
+        ]),
+      );
+    expect(
+      audits.filter((entry) => entry.action === 'note.updated'),
+    ).toHaveLength(4);
+    expect(revisionsAfter).toHaveLength(8);
+    expect(subscriptionsAfter).toHaveLength(8);
+    expect(
+      notices.filter((notice) => ids.includes(String(notice.data.noteId))),
+    ).toHaveLength(4);
+  });
+
+  it('reserves gapless numbers across concurrent groups', async () => {
+    const client = await node.client();
+    const principal = {
+      kind: 'client' as const,
+      id: client.id,
+      name: 'batch client',
+      tenantId: node.tenantId,
+    };
+    const service = node.app.get(NotesService);
+    const make = (prefix: string) =>
+      Array.from({ length: 4 }, (_, index) => ({
+        title: `${prefix} ${index}`,
+        body: '',
+      }));
+    const groups = await node.inTenant(() =>
+      Promise.all([
+        service.createMany(principal, make('Concurrent A')),
+        service.createMany(principal, make('Concurrent B')),
+      ]),
+    );
+    const numbers = groups
+      .flat()
+      .map((note) => Number(note.number!.split('-').at(-1)))
+      .sort((a, b) => a - b);
+    expect(numbers).toHaveLength(8);
+    expect(new Set(numbers).size).toBe(8);
+    expect(
+      numbers.slice(1).map((number, index) => number - numbers[index]!),
+    ).toEqual(Array(7).fill(1));
   });
 
   describe('idempotency', () => {

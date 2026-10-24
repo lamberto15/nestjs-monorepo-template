@@ -462,5 +462,20 @@
     "done": "进入应用",
     "doneHint": "所有必需步骤已完成。",
     "redirected": "请先完成管理员账户设置再继续。"
+  },
+  "build": {
+    "title": "构建信息",
+    "tab": "当前标签页",
+    "web": "已部署的网页版本",
+    "api": "API",
+    "notChecked": "尚未检查",
+    "current": "与已部署版本一致",
+    "stale": "有可用更新",
+    "unknownStatus": "版本未知",
+    "unknown": "未知",
+    "check": "检查版本",
+    "checking": "检查中…",
+    "reload": "重新加载",
+    "copy": "复制详情"
   }
 }

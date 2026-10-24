@@ -1,0 +1,97 @@
+# Helm chart: prometheus-community/kube-prometheus-stack 92.11.0.
+# Release: monitoring in namespace monitoring. All endpoints remain ClusterIP.
+grafana:
+  enabled: true
+  replicas: 1
+  ingress:
+    enabled: false
+  service:
+    type: ClusterIP
+  persistence:
+    enabled: true
+    type: pvc
+    storageClassName: local-ssd
+    accessModes: [ReadWriteOnce]
+    size: 5Gi
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+  sidecar:
+    resources:
+      requests: { cpu: 25m, memory: 32Mi }
+      limits: { cpu: 100m, memory: 128Mi }
+  initChownData:
+    resources:
+      requests: { cpu: 25m, memory: 32Mi }
+      limits: { cpu: 100m, memory: 128Mi }
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki
+      access: proxy
+      url: http://loki-gateway.monitoring.svc.cluster.local
+      isDefault: false
+
+prometheus:
+  enabled: true
+  ingress:
+    enabled: false
+  service:
+    type: ClusterIP
+  prometheusSpec:
+    replicas: 1
+    retention: 10d
+    retentionSize: 15GB
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-ssd
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 20Gi
+    resources:
+      requests: { cpu: 250m, memory: 512Mi }
+      limits: { cpu: '1', memory: 2Gi }
+    # Match only monitors and rules explicitly labelled for this release.
+    serviceMonitorSelector:
+      matchLabels:
+        release: monitoring
+    serviceMonitorNamespaceSelector: {}
+    ruleSelector:
+      matchLabels:
+        release: monitoring
+    ruleNamespaceSelector: {}
+
+alertmanager:
+  enabled: true
+  ingress:
+    enabled: false
+  alertmanagerSpec:
+    replicas: 1
+    resources:
+      requests: { cpu: 50m, memory: 96Mi }
+      limits: { cpu: 250m, memory: 256Mi }
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-ssd
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 2Gi
+
+prometheusOperator:
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+
+kube-state-metrics:
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 250m, memory: 256Mi }
+
+prometheus-node-exporter:
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 250m, memory: 128Mi }

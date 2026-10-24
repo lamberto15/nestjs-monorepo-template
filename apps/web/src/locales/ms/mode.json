@@ -16,5 +16,16 @@
       "stillOn": "Mod masih aktif. Ia ditetapkan dalam persekitaran penerapan (APP_MODE), jadi hanya boleh diubah di sana.",
       "hint": "Untuk pengendali sahaja. Jika mod ditetapkan dalam persekitaran penerapan (APP_MODE), ia hanya boleh diubah di sana."
     }
+  },
+  "confirm": {
+    "maintenance": {
+      "title": "Aktifkan penyelenggaraan untuk semua penyewa?",
+      "description": "Notis penyelenggaraan akan menggantikan aplikasi untuk semua penyewa, termasuk sesi anda. Pengendali boleh memilih “Tamatkan penyelenggaraan” dari penyewa pengendali; APP_MODE yang ditetapkan dalam persekitaran perlu diubah di sana."
+    },
+    "read-only": {
+      "title": "Jadikan semua penyewa baca sahaja?",
+      "description": "Ini menghalang perubahan bagi semua penyewa dan memaparkan sepanduk baca sahaja. Pengendali boleh memulihkan mod biasa melalui tetapan; APP_MODE dalam persekitaran perlu diubah di sana."
+    },
+    "apply": "Gunakan untuk semua penyewa"
   }
 }

@@ -16,7 +16,16 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+    # Documentation-only merges do not need image publishing or K3s rollout.
+    # Release tags and changes to deployment files remain fully validated.
+    paths-ignore:
+      - 'docs/**'
+      - 'README.md'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - '.claude/**'
   pull_request:
+  workflow_dispatch: # Run all checks manually when modifying CI.
   # A nightly run of everything on main, the checks a pull request skips
   # included (below): new advisories in the images, the generated template.
   schedule:
@@ -36,10 +45,12 @@ jobs:
   # reads changed: a docs-only or web-only pull request doesn't queue the
   # API's e2e shards, and the reverse. The runner pool is shared by every
   # open pull request (GitHub's concurrent-jobs limit), so a job that has
-  # nothing to prove costs every other run its wait in the queue. Main, tags
-  # and the nightly run skip nothing. The files come from the API (no
-  # checkout, no history to fetch). The workflow itself counts everywhere: a
-  # change to a job must run it. Each job's `if` names the outputs it reads
+  # nothing to prove costs every other run its wait in the queue. Regular
+  # main code pushes, tags and nightly runs keep full validation to protect
+  # image publication. Workflow-only PRs/merges instead run ci-validate;
+  # editing an unrelated workflow must not start every app suite. The paths come from
+  # GitHub's PR file list or push comparison (no checkout needed).
+  # Each job's `if` names the outputs it reads
   # (docs/deployment.md, "Which jobs a pull request runs"), and
   # tools/ci/changes.test.mjs runs this step on sample pull requests. `gh`
   # and grep rather than a paths-filter action: no third-party action to pin
@@ -55,6 +66,10 @@ jobs:
       # Anything but the paths no job here reads (docs, Markdown, Claude's
       # files, the Helm chart...): lint and knip, the build, the migrations.
       code: ${{ steps.paths.outputs.code }}
+      # App, shared runtime, or unknown sources that need the full build/DB check.
+      app: ${{ steps.paths.outputs.app }}
+      # Tooling scripts/Knip config need lint, but no database-backed app checks.
+      lint: ${{ steps.paths.outputs.lint }}
       # The API, its client, the workspace's roots, the image's build
       # context: the API's unit and e2e tests, the app image, the OpenAPI
       # diff.
@@ -73,6 +88,7 @@ jobs:
       # so the suites that run on them (e2e, e2e-telemetry, e2e-web,
       # feature-smoke, template-without-notes) meet a new image before main.
       services: ${{ steps.paths.outputs.services }}
+      ci: ${{ steps.paths.outputs.ci }}
       backup: ${{ steps.paths.outputs.backup }}
       gotenberg: ${{ steps.paths.outputs.gotenberg }}
       caddy: ${{ steps.paths.outputs.caddy }}
@@ -81,51 +97,83 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
+          CI_BEFORE: ${{ github.event.before }}
         run: |
-          keys='code api web tools stack services backup gotenberg caddy'
+          keys='code app lint api web tools stack services backup gotenberg caddy ci'
           all() {
             for key in $keys; do echo "$key=true"; done | tee -a "$GITHUB_OUTPUT"
             exit 0
           }
-          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then all; fi
-          # A renamed file counts at both paths: its old place changed too.
-          files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')
+          # Keep full release/nightly/manual checks and main application changes.
+          # Only an exclusively CI-config/docs main merge skips publish/deploy.
+          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+            if [ "$GITHUB_EVENT_NAME" != push ] || [ "$GITHUB_REF" != refs/heads/main ]; then all; fi
+            if [ -z "$CI_BEFORE" ] || [[ "$CI_BEFORE" =~ ^0+$ ]]; then all; fi
+            if ! files=$(gh api "repos/$GITHUB_REPOSITORY/compare/$CI_BEFORE...$GITHUB_SHA" --jq '.files[] | .filename, (.previous_filename // empty)'); then all; fi
+            # Compare returns up to 300 files; ambiguity runs full checks.
+            if [ -z "$files" ] || [ "$(wc -l <<< "$files")" -ge 300 ]; then all; fi
+            light='^(tools/ci/|\.github/workflows/|docs/|README\.md$|CLAUDE\.md$|\.claude/)'
+            if grep -qEv "$light" <<< "$files"; then all; fi
+          else
+            # A renamed file counts at both paths: its old place changed too.
+            if ! files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)'); then all; fi
+            if [ "$(wc -l <<< "$files")" -ge 3000 ]; then all; fi
+          fi
           echo "$files"
-          # The API lists 3000 files at most: a longer list may hide any path.
-          if [ "$(wc -l <<< "$files")" -ge 3000 ]; then all; fi
+          # CI orchestration/tests do not imply changes to every application.
           # Read by no job here: the docs, Markdown at the root and at a
           # package's root, Claude's files, the changesets' notes, GitHub's
-          # repository settings, the Helm chart and the devcontainer (their
-          # own workflows check those two). Not the other workflows: knip
+          # repository settings, Helm and K3s manifests, and the devcontainer
+          # (their own workflows check those). Not the other workflows: knip
           # reads them (its GitHub Actions plugin), as it reads lefthook.yml.
-          inert='^(docs/|\.claude/|\.changeset/[^/]*\.md$|\.devcontainer/|deploy/helm/|\.github/(ISSUE_TEMPLATE/|CODEOWNERS$|dependabot\.yml$|PULL_REQUEST_TEMPLATE\.md$)|LICENSE$|\.editorconfig$|[^/]*\.md$|packages/[^/]+/[^/]*\.md$)'
+          inert='^(tools/ci/|\.github/workflows/|docs/|\.claude/|\.changeset/[^/]*\.md$|\.devcontainer/|deploy/(helm|k3s)/|\.github/(ISSUE_TEMPLATE/|CODEOWNERS$|dependabot\.yml$|PULL_REQUEST_TEMPLATE\.md$)|LICENSE$|\.editorconfig$|[^/]*\.md$|packages/[^/]+/[^/]*\.md$)'
           read=$(grep -vE "$inert" <<< "$files" || true)
           # code: any path a job reads.
           if [ -n "$read" ]; then echo code=true; else echo code=false; fi | tee -a "$GITHUB_OUTPUT"
+          # Tooling files can change independently of API, web, or the runtime
+          # contract. An unknown file stays app-relevant (conservative fallback).
+          app_inputs=$(grep -vE '^(tools/|knip\.jsonc$)' <<< "$read" || true)
+          if [ -n "$app_inputs" ]; then echo app=true; else echo app=false; fi | tee -a "$GITHUB_OUTPUT"
+          tooling_inputs=$(grep -E '^(tools/|knip\.jsonc$)' <<< "$read" || true)
+          if [ -n "$tooling_inputs" ]; then echo lint=true; else echo lint=false; fi | tee -a "$GITHUB_OUTPUT"
           # touched <key> <regex>: true when a path a job reads matches.
           touched() {
             if grep -qE "$2" <<< "$read"; then echo "$1=true"; else echo "$1=false"; fi | tee -a "$GITHUB_OUTPUT"
           }
-          workflow='\.github/workflows/ci\.yml$'
+          if grep -qE '^(tools/ci/|\.github/workflows/)' <<< "$files"; then echo ci=true; else echo ci=false; fi | tee -a "$GITHUB_OUTPUT"
           roots='package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|tsconfig[^/]*\.json$|\.oxlintrc\.json$|\.npmrc$|\.nvmrc$'
           # The images' scans read it.
           scan='\.trivyignore\.yaml$'
-          touched api "^(apps/api/|packages/api-client/|\.dockerignore$|$roots|$scan|$workflow)"
-          touched web "^(apps/web/|apps/web-e2e/|packages/|caddy/Caddyfile$|$roots|$workflow)"
+          touched api "^(apps/api/|packages/api-client/|\.dockerignore$|$roots|$scan)"
+          touched web "^(apps/web/|apps/web-e2e/|packages/|caddy/Caddyfile$|$roots)"
           # The tools' tests read env.example and Prettier's config too.
-          touched tools "^(tools/|env\.example$|\.prettierrc$|\.prettierignore$|$workflow)"
-          touched stack "^(compose[^/]*\.yaml$|secret\.empty$|swarm\.placeholder$|scripts/|loadtest/|redis/|caddy/|backup/|gotenberg/|monitoring/|clamav/|pgbouncer/|tools/deploy/|$workflow)"
-          touched services "^(compose\.yaml$|$workflow)"
-          touched backup "^(backup/|scripts/test-backup-pitr\.sh$|$scan|$workflow)"
-          touched gotenberg "^(gotenberg/|compose\.(dev|prod)\.yaml$|$scan|$workflow)"
+          touched tools "^(tools/|env\.example$|\.prettierrc$|\.prettierignore$)"
+          touched stack "^(compose[^/]*\.yaml$|secret\.empty$|swarm\.placeholder$|scripts/|loadtest/|redis/|caddy/|backup/|gotenberg/|monitoring/|clamav/|pgbouncer/|tools/deploy/)"
+          touched services "^(compose\.yaml$)"
+          touched backup "^(backup/|scripts/test-backup-pitr\.sh$|$scan)"
+          touched gotenberg "^(gotenberg/|compose\.(dev|prod)\.yaml$|$scan)"
           # Caddy's image builds the web app from the repository root
           # (caddy/Dockerfile.dockerignore: the API's package.json too).
-          touched caddy "^(caddy/|apps/web/|packages/|apps/api/package\.json$|$roots|$scan|$workflow)"
+          touched caddy "^(caddy/|apps/web/|packages/|apps/api/package\.json$|$roots|$scan)"
+
+  # Workflow-only changes require orchestration tests, not application suites.
+  ci-validate:
+    needs: changes
+    if: needs.changes.outputs.ci == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify change routing and workflow invariants
+        run: node --test tools/ci/changes.test.mjs tools/ci/workflow.test.mjs
 
   # CI's PostgreSQL and Redis are compose.yaml's images, read from it: they
   # can't drift apart, and Dependabot's compose.yaml updates reach CI too
   # (a change to compose.yaml runs the jobs on them: changes' `services`).
   compose-images:
+    needs: changes
+    # Only jobs that use the Compose service image outputs need this runner.
+    if: needs.changes.outputs.app == 'true' || needs.changes.outputs.tools == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -402,11 +450,34 @@ jobs:
           CLOUDFLARE_API_TOKEN: ci
         run: node tools/deploy/swarm.mjs check --stack ci
 
+  # A Knip-only pull request needs lint/Knip validation, but does not
+  # need PostgreSQL, application builds or a generator-smoke runner.
+  # Mixed app+tooling changes run the full check below (which includes lint).
+  tooling-lint:
+    needs: changes
+    # Generator smoke already installs dependencies and can run lint there.
+    # This separate runner is only needed when Knip changed without tools.
+    if: >-
+      needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true' &&
+      needs.changes.outputs.tools != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm and Node.js
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - name: Lint the workspace and check unused dependencies
+        run: pnpm lint
+
   # Lint, build, the typed client and migrations. The unit tests (the unit
   # job) and the e2e tests (the e2e job) run beside it, not after it.
   check:
     needs: [compose-images, changes]
-    if: needs.changes.outputs.code == 'true'
+    # Tooling-only edits already get lint and relevant generator smoke checks.
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
@@ -486,6 +557,8 @@ jobs:
     timeout-minutes: 15
     strategy:
       fail-fast: false
+      # Reserve runner capacity for other pull requests.
+      max-parallel: 2
       matrix:
         include:
           - name: api 1/3
@@ -549,6 +622,8 @@ jobs:
     timeout-minutes: 15
     strategy:
       fail-fast: false
+      # Reserve runner capacity for other pull requests.
+      max-parallel: 2
       matrix:
         include:
           - name: web 1/3
@@ -662,6 +737,8 @@ jobs:
     timeout-minutes: 15
     strategy:
       fail-fast: false
+      # Reserve runner capacity for other pull requests.
+      max-parallel: 2
       matrix:
         shard: [1, 2, 3, 4, 5, 6]
     name: e2e (${{ matrix.shard }}/6)
@@ -886,6 +963,18 @@ jobs:
         with:
           runtime: node@24
           cache: true
+      # Reuse this already-installed workspace for tooling-only lint, avoiding
+      # a second GitHub runner (and do it before generators modify the tree).
+      - name: Lint tooling and unused dependencies
+        if: needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true'
+        run: pnpm lint
+      # The full app check usually runs these guards. Keep them when only
+      # scripts change, so moving lint to this job does not lose coverage.
+      - name: Release, i18n and environment tooling invariants
+        if: needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true'
+        run: |
+          node --test tools/release/notes.test.mjs tools/i18n/check.test.mjs
+          pnpm env:check --templates
       - name: The generator's tests
         run: node --test 'tools/feature/*.test.mjs'
       - name: The setup wizard's tests (tools/setup, `pnpm setup`)
@@ -956,6 +1045,8 @@ jobs:
     # repeats the cheap steps before. Raise the list and the totals together.
     strategy:
       fail-fast: false
+      # Reserve runner capacity for other pull requests.
+      max-parallel: 2
       matrix:
         # Matrix expressions: the job-level `if` can't read the matrix.
         shard: ${{ fromJSON(github.event_name == 'pull_request' && '[1]' || '[1, 2, 3, 4, 5, 6]') }}
@@ -1124,6 +1215,9 @@ jobs:
   # Dockerfile. GitHub code scanning (CodeQL, SARIF) isn't available to a
   # private repository on the free plan, so the results are the job's log.
   security:
+    needs: changes
+    # Scan runtime/deploy changes and executable tooling, not Knip-only edits.
+    if: needs.changes.outputs.app == 'true' || needs.changes.outputs.tools == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -1355,12 +1449,19 @@ jobs:
         with:
           context: .
           file: caddy/Dockerfile
+          build-args: GIT_SHA=${{ github.sha }}
           load: true
           tags: caddy:ci
           cache-from: type=gha,scope=caddy
           cache-to: type=gha,scope=caddy,mode=max
+      - name: Non-root runtime, HTTPS, restarts and certificate-volume migration
+        run: caddy/test-runtime.sh caddy:ci
       - name: The web app is in the image
         run: docker run --rm --entrypoint test caddy:ci -f /srv/web/index.html
+      - name: Built web manifest identifies this exact source commit
+        run: |
+          docker run --rm --entrypoint cat caddy:ci /srv/web/version.json |
+            jq -e --arg sha "$GITHUB_SHA" '.sha == $sha'
       - name: The maintenance page is in the image
         run: docker run --rm --entrypoint test caddy:ci -f /srv/maintenance/index.html
       # The Caddyfile parses (its security.txt handle included), and the entrypoint
@@ -1376,9 +1477,9 @@ jobs:
       - name: security.txt is written from SECURITY_CONTACT
         run: |
           docker run --rm -e CLOUDFLARE_API_TOKEN=ci -e SECURITY_CONTACT=mailto:ci@example.com \
-            caddy:ci test -f /srv/security/.well-known/security.txt
+            caddy:ci test -f /tmp/caddy-security/.well-known/security.txt
           docker run --rm -e CLOUDFLARE_API_TOKEN=ci caddy:ci \
-            sh -c 'test ! -f /srv/security/.well-known/security.txt'
+            sh -c 'test ! -f /tmp/caddy-security/.well-known/security.txt'
       # The Caddyfile's behaviour, run by the image's own Caddy: the app, and
       # with MAINTENANCE_PAGE=on the static page (503) for the web app's paths
       # and the API's paths untouched (caddy/caddyfile.test.mjs, which edits out
@@ -1698,14 +1799,21 @@ jobs:
         with:
           context: .
           file: caddy/Dockerfile
+          build-args: GIT_SHA=${{ github.sha }}
           load: true
           tags: |
             ${{ steps.meta.outputs.tags }}
             caddy:publish
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=caddy
+      - name: Non-root runtime, HTTPS, restarts and certificate-volume migration
+        run: caddy/test-runtime.sh caddy:publish
       - name: The web app is in the image
         run: docker run --rm --entrypoint test caddy:publish -f /srv/web/index.html
+      - name: Published web manifest identifies this exact source commit
+        run: |
+          docker run --rm --entrypoint cat caddy:publish /srv/web/version.json |
+            jq -e --arg sha "$GITHUB_SHA" '.sha == $sha'
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
@@ -1734,6 +1842,7 @@ jobs:
         with:
           context: .
           file: caddy/Dockerfile
+          build-args: GIT_SHA=${{ github.sha }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -1802,3 +1911,138 @@ jobs:
             case "$TAG" in *-*) flags+=(--prerelease) ;; esac
             gh release create "$TAG" --verify-tag --title "$TAG" --notes-file "$dir/notes.md" "${flags[@]}"
           fi
+
+  # The three digests come from this run's tested, scanned publish jobs. Only a
+  # successful push to main can request the protected production environment;
+  # no PR or tag run can reach the cluster. Off-server backups are optional and
+  # are not a prerequisite when an operator has chosen a strict zero-cost setup.
+  deploy-k3s:
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+      vars.K3S_DEPLOY_ENABLED == 'true'
+    needs: [publish, publish-gotenberg, publish-caddy]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: ${{ vars.APP_URL }}
+    concurrency:
+      group: production-k3s
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write # Tailscale workload identity federation
+    env:
+      APP_DOMAIN: ${{ vars.APP_DOMAIN }}
+      APP_URL: ${{ vars.APP_URL }}
+      MAIL_FROM: ${{ vars.MAIL_FROM }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify the CI image digests
+        env:
+          APP_DIGEST: ${{ needs.publish.outputs.digest }}
+          WEB_DIGEST: ${{ needs.publish-caddy.outputs.digest }}
+          GOTENBERG_DIGEST: ${{ needs.publish-gotenberg.outputs.digest }}
+        run: |
+          for digest in "$APP_DIGEST" "$WEB_DIGEST" "$GOTENBERG_DIGEST"; do
+            [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || exit 1
+          done
+      - name: Install Helm 4.3.1
+        run: |
+          curl --proto '=https' --proto-redir '=https' -fsSL https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz -o "$RUNNER_TEMP/helm.tar.gz"
+          echo '0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b  helm.tar.gz' |
+            (cd "$RUNNER_TEMP" && sha256sum -c -)
+          mkdir -p "$RUNNER_TEMP/helm-bin"
+          tar -xzf "$RUNNER_TEMP/helm.tar.gz" -C "$RUNNER_TEMP" linux-amd64/helm
+          install -m 0755 "$RUNNER_TEMP/linux-amd64/helm" "$RUNNER_TEMP/helm-bin/helm"
+          echo "$RUNNER_TEMP/helm-bin" >> "$GITHUB_PATH"
+      - name: Validate the exact production render
+        env:
+          APP_DIGEST: ${{ needs.publish.outputs.digest }}
+          WEB_DIGEST: ${{ needs.publish-caddy.outputs.digest }}
+          GOTENBERG_DIGEST: ${{ needs.publish-gotenberg.outputs.digest }}
+        run: |
+          test -n "$APP_DOMAIN" && test -n "$APP_URL" && test -n "$MAIL_FROM"
+          test "$APP_URL" = "https://$APP_DOMAIN"
+          helm version --short
+          helm lint deploy/helm/app --strict \
+            -f deploy/helm/app/values.single-node.yaml \
+            --set image.digest="$APP_DIGEST" \
+            --set web.image.digest="$WEB_DIGEST" \
+            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
+            --set-string domain="$APP_DOMAIN" \
+            --set-string env.WEB_URL="$APP_URL" \
+            --set-string env.CORS_ORIGINS="$APP_URL" \
+            --set-string env.MAIL_FROM="$MAIL_FROM"
+          helm template app deploy/helm/app \
+            -n nestjs-monorepo \
+            -f deploy/helm/app/values.single-node.yaml \
+            --set image.digest="$APP_DIGEST" \
+            --set web.image.digest="$WEB_DIGEST" \
+            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
+            --set-string domain="$APP_DOMAIN" \
+            --set-string env.WEB_URL="$APP_URL" \
+            --set-string env.CORS_ORIGINS="$APP_URL" \
+            --set-string env.MAIL_FROM="$MAIL_FROM" > "$RUNNER_TEMP/app.yaml"
+          for digest in "$APP_DIGEST" "$WEB_DIGEST" "$GOTENBERG_DIGEST"; do
+            grep -Fq "@$digest" "$RUNNER_TEMP/app.yaml"
+          done
+          for value in "$APP_DOMAIN" "$APP_URL" "$MAIL_FROM"; do
+            grep -Fq "$value" "$RUNNER_TEMP/app.yaml"
+          done
+      - name: Join the deployment tailnet
+        uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4.3.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:github-k3s-deploy
+          version: 1.104.2
+      - name: Use the namespace-scoped kubeconfig
+        env:
+          K3S_KUBECONFIG: ${{ secrets.K3S_KUBECONFIG }}
+        run: |
+          umask 077
+          printf '%s' "$K3S_KUBECONFIG" > "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+      - name: Check namespace and prerequisite Secret
+        run: |
+          test "$(kubectl -n nestjs-monorepo auth can-i create deployments)" = yes
+          test "$(kubectl -n nestjs-monorepo auth can-i create clusterrolebindings)" = no
+          for verb in get list watch create update patch delete; do
+            if [ "$(kubectl -n nestjs-monorepo auth can-i "$verb" prometheusrules.monitoring.coreos.com)" != yes ]; then
+              echo "::error::github-deployer cannot $verb PrometheusRules; apply deploy/k3s/deployer-rbac.yaml as a cluster administrator"
+              exit 1
+            fi
+          done
+          kubectl -n nestjs-monorepo get secret app-secrets -o json |
+            jq -e '.data as $data | ["database_url", "database_owner_url", "database_maintenance_url", "jwt_secret", "mfa_encryption_keys", "data_encryption_keys", "blind_index_keys", "redis_password", "mail_api_key", "metrics_token"] | all(. as $key | $data[$key] != null)' > /dev/null
+          kubectl -n nestjs-monorepo rollout status statefulset/postgres --timeout=2m
+          kubectl -n nestjs-monorepo rollout status statefulset/redis --timeout=2m
+      - name: Upgrade to the CI-verified release
+        env:
+          APP_DIGEST: ${{ needs.publish.outputs.digest }}
+          WEB_DIGEST: ${{ needs.publish-caddy.outputs.digest }}
+          GOTENBERG_DIGEST: ${{ needs.publish-gotenberg.outputs.digest }}
+        run: |
+          helm upgrade --install app deploy/helm/app \
+            --namespace nestjs-monorepo \
+            --rollback-on-failure --wait=legacy --wait-for-jobs --timeout 12m \
+            --history-max 10 \
+            -f deploy/helm/app/values.single-node.yaml \
+            --set image.digest="$APP_DIGEST" \
+            --set web.image.digest="$WEB_DIGEST" \
+            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
+            --set-string domain="$APP_DOMAIN" \
+            --set-string env.WEB_URL="$APP_URL" \
+            --set-string env.CORS_ORIGINS="$APP_URL" \
+            --set-string env.MAIL_FROM="$MAIL_FROM"
+      - name: Verify API rollout
+        run: kubectl -n nestjs-monorepo rollout status deployment/app-api --timeout=3m
+      - name: Verify web rollout
+        run: kubectl -n nestjs-monorepo rollout status deployment/app-web --timeout=3m
+      - name: Verify worker rollout
+        run: kubectl -n nestjs-monorepo rollout status deployment/app-worker --timeout=3m
+      - name: Verify Gotenberg rollout
+        run: kubectl -n nestjs-monorepo rollout status deployment/app-gotenberg --timeout=3m

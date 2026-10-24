@@ -120,6 +120,7 @@ import {
 import { NotificationTestController } from './notifications/notification-test.controller.js';
 import { NotificationsService } from './notifications/notifications.service.js';
 import { NotificationDeliveryHandler } from './notifications/notification-delivery.handler.js';
+import { NOTIFICATION_SETTINGS } from './notifications/notification-email-policy.setting.js';
 import { NotificationDigestJob } from './notifications/notification-digest.job.js';
 import { NotificationRetentionJob } from './notifications/notification-retention.job.js';
 import { NotificationTransfer } from './notifications/notification.transfer.js';
@@ -494,6 +495,7 @@ export class PlatformModule {
               ...QUOTA_SETTINGS,
               ...BRANDING_SETTINGS,
               ...AI_SETTINGS,
+              ...NOTIFICATION_SETTINGS,
               ...(options.settings ?? []),
             ],
           },

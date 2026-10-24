@@ -1,5 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="{{ layoutLang }}">
+  <head>
+    <meta charset="utf-8" />
+    <title>{{#if brand.name}}{{ brand.name }}{{else}}Notification{{/if}}</title>
+  </head>
   <body style="margin:0;padding:24px;background:#f6f7f9;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1f2328;">
     <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;border-top:4px solid {{ brand.color }};padding:32px;">
       {{#if brand.logoUrl}}

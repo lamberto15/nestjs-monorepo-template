@@ -816,7 +816,7 @@ describe('approvals (e2e)', () => {
     const inbox = async (agent: request.Agent, query = '') =>
       (await agent.get(`/v1/approvals${query}`).expect(200)).body
         .items as Item[];
-    const ids = (items: Item[]) => items.map((item) => item.id).sort();
+    const ids = (items: Item[]) => items.map((item) => item.id).sort((a, b) => a.localeCompare(b));
 
     it('each item carries the can and the etag its GET would give the reader; decide from the list with If-Match', async () => {
       const [requester, a, b, delegate] = [
@@ -872,8 +872,8 @@ describe('approvals (e2e)', () => {
       const [picked] = (
         await a.agent.get('/v1/approvals?fields=title').expect(200)
       ).body.items;
-      expect(Object.keys(picked).sort()).toEqual(
-        ['can', 'etag', 'id', 'title'].sort(),
+      expect(Object.keys(picked).sort((a, b) => a.localeCompare(b))).toEqual(
+        ['can', 'etag', 'id', 'title'].sort((a, b) => a.localeCompare(b)),
       );
       await a.agent.get('/v1/approvals?fields=etag').expect(400);
 
@@ -940,7 +940,7 @@ describe('approvals (e2e)', () => {
       await approve(delegate, forB).expect(200);
 
       expect(ids(await inbox(a.agent, '?decidedByMe=true'))).toEqual(
-        [decided, rejected].sort(),
+        [decided, rejected].sort((a, b) => a.localeCompare(b)),
       );
       // The delegate's decision is theirs, not b's (b's assignment says onBehalfOf).
       expect(ids(await inbox(delegate.agent, '?decidedByMe=true'))).toEqual([
@@ -950,7 +950,7 @@ describe('approvals (e2e)', () => {
       expect(await inbox(requester.agent, '?decidedByMe=true')).toEqual([]);
       // false: what they take part in and didn't decide; with the other filters.
       expect(ids(await inbox(a.agent, '?decidedByMe=false'))).toEqual(
-        [waiting, forB].sort(),
+        [waiting, forB].sort((a, b) => a.localeCompare(b)),
       );
       expect(
         ids(await inbox(a.agent, '?decidedByMe=true&status=rejected')),
@@ -962,7 +962,7 @@ describe('approvals (e2e)', () => {
             `?filter=${encodeURIComponent(JSON.stringify({ field: 'decidedByMe', op: 'eq', value: true }))}`,
           ),
         ),
-      ).toEqual([decided, rejected].sort());
+      ).toEqual([decided, rejected].sort((a, b) => a.localeCompare(b)));
       // An API client decides nothing: nothing is decided by it.
       const client = await node.client();
       expect(

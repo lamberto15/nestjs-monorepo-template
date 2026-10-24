@@ -125,6 +125,35 @@ export class SequencesService {
     return Number(row!.value);
   }
 
+  /** Reserves a contiguous range for one counter key with a single UPSERT. */
+  async takeMany(
+    tx: Transaction,
+    name: string,
+    key: string,
+    count: number,
+    { carryFrom }: { carryFrom?: string } = {},
+  ) {
+    if (!Number.isSafeInteger(count) || count < 1) {
+      throw new RangeError('A sequence batch needs a positive integer count.');
+    }
+    const first = carryFrom
+      ? sql`1 + coalesce((select ${sequences.value} from ${sequences} where ${and(eq(sequences.name, name), eq(sequences.scope, carryFrom))}), 0)`
+      : 1;
+    const [row] = await tx
+      .insert(sequences)
+      .values({ name, scope: key, value: sql`${first} + ${count - 1}` })
+      .onConflictDoUpdate({
+        target: [sequences.tenantId, sequences.name, sequences.scope],
+        set: { value: sql`${sequences.value} + ${count}` },
+      })
+      .returning({ value: sequences.value });
+    const last = Number(row!.value);
+    return Array.from(
+      { length: count },
+      (_, index) => last - count + index + 1,
+    );
+  }
+
   /** A naming series counter's last value (0 when none), `carryFrom` as in `take()`. */
   async peek(name: string, key: string, options: { carryFrom?: string } = {}) {
     const [value] = await this.peekMany([{ name, key, ...options }]);

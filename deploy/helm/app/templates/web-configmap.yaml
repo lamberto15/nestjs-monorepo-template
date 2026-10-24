@@ -30,6 +30,10 @@ data:
       handle /healthz {
         respond "ok" 200
       }
+      handle /version.json {
+        header Cache-Control "no-store"
+        file_server
+      }
       handle /assets/* {
         @asset file
         header @asset Cache-Control "public, max-age=31536000, immutable"

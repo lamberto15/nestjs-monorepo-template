@@ -117,13 +117,13 @@ set +f
 export WEB_FILES_ORIGINS
 
 # /.well-known/security.txt (RFC 9116), served by the Caddyfile from
-# /srv/security. Caddy can't branch on an environment variable, so the file is
+# /tmp/caddy-security. Caddy can't branch on an environment variable, so the file is
 # written here, at each start: no file without SECURITY_CONTACT (the path is a
 # 404). SECURITY_CONTACT: one or more URIs (mailto: or https:), comma-separated;
 # the RFC requires Contact. SECURITY_EXPIRES: RFC 3339 in UTC; unset, a year
 # from this start (so it renews at each start; pin it to keep one date).
 # Policy and Preferred-Languages come from compose.prod.yaml's values.
-security_file=/srv/security/.well-known/security.txt
+security_file=/tmp/caddy-security/.well-known/security.txt
 rm -f "$security_file"
 if [ -n "${SECURITY_CONTACT:-}" ]; then
   set -f # the values are split on commas and spaces below, never globbed
@@ -145,7 +145,7 @@ if [ -n "${SECURITY_CONTACT:-}" ]; then
     ????-??-??T??:??:??Z) ;;
     *) echo "SECURITY_EXPIRES: $expires is not an RFC 3339 UTC time (2027-10-21T00:00:00Z)" >&2; exit 1 ;;
   esac
-  mkdir -p /srv/security/.well-known
+  mkdir -p /tmp/caddy-security/.well-known
   {
     for contact in $contacts; do printf 'Contact: %s\n' "$contact"; done
     printf 'Expires: %s\n' "$expires"

@@ -23,8 +23,8 @@ describe('BrandedTemplateEngine', () => {
       await engine.render('x', { a: 2 }, { locale: 'en' });
     });
     expect(spy.contexts).toEqual([
-      { brand: DEFAULT_MAIL_BRAND, a: 1 },
-      { brand, a: 2 },
+      { brand: DEFAULT_MAIL_BRAND, a: 1, layoutLang: 'en' },
+      { brand, a: 2, layoutLang: 'en' },
     ]);
   });
 
@@ -35,6 +35,6 @@ describe('BrandedTemplateEngine', () => {
       { brand: 'own' },
       { locale: 'en' },
     );
-    expect(spy.contexts).toEqual([{ brand: 'own' }]);
+    expect(spy.contexts).toEqual([{ brand: 'own', layoutLang: 'en' }]);
   });
 });

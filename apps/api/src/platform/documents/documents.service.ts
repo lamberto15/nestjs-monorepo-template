@@ -449,7 +449,7 @@ export class DocumentsService implements PersonalDataSource {
       }
       written = true;
       await this.disk.put(key, pdf, { contentType: 'application/pdf' });
-      const fields = [...new Set(content.fields)].sort();
+      const fields = [...new Set(content.fields)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
       const issued = await inTransaction(this.txHost, async (tx) => {
         const attachment = await this.attachments.attachStored(
           principal,

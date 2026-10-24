@@ -20,7 +20,7 @@
 //
 // Then: pnpm db:generate (drops the table: on a live project that is an
 // expand/contract change, docs/development.md), pnpm client:generate, and
-// the check before every commit (CLAUDE.md). `pnpm build` comes first: the
+// the check before every commit (AGENTS.md). `pnpm build` comes first: the
 // web's build regenerates its route tree (src/routeTree.gen.ts, the TanStack
 // Router plugin's) before it type-checks, and the tests import that tree.
 import {

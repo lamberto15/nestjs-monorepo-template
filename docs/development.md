@@ -115,8 +115,8 @@ tenant: memberships, roles, teams, the features' records, the files (under
     before), the devcontainer too. A production container
     (`NODE_ENV=production`) refuses before connecting to anything.
   - The database is marked as a development database: the database-wide
-    setting `app.dev_database = on`. NODE_ENV alone proves nothing (app10
-    runs the same image), so the database must say it too. Only a superuser
+    setting `app.dev_database = on`. NODE_ENV alone proves nothing because
+    development and production may run the same image. Only a superuser
     can write the setting: the app's role can't, nor an administrator through
     the API, so a production database never has it. The development
     services set it when they create their database
@@ -589,8 +589,8 @@ writes a table for each to the job summary:
 - **Pull requests** that change `loadtest/`, `compose.loadtest.yaml` or the
   workflow run it too, report-only and never as a baseline.
 - **No self-hosted runner.** The numbers come from GitHub's runners only. A
-  self-hosted one (the owner's Mac) would only ever run behind
-  `workflow_dispatch`, never on a schedule or a pull request: a pull
+  self-hosted runner would only ever run behind `workflow_dispatch`, never on
+  a schedule or a pull request: a pull
   request's code must never run on it.
 - **k6's version** (`K6_IMAGE` in `loadtest/run.sh`, tag and digest) is raised
   by hand, as oasdiff's and squawk's are; a new version may move the numbers,
@@ -719,7 +719,7 @@ pages, ETags. Usage, the bell-icon recipe included:
    (`.claude/worktrees/` is in `.git/info/exclude`; `--no-track`, or the branch
    tracks `main` and a plain `git push` fails). Push with `git push -u origin HEAD`.
    Parallel work gets one worktree each, on disjoint files where possible.
-2. **The check** (see CLAUDE.md) passes in the worktree. Commits follow
+2. **The check** (see AGENTS.md) passes in the worktree. Commits follow
    Conventional Commits. The squash commit takes the commit's subject when the
    PR has one commit and the PR title otherwise (the repository's
    `COMMIT_OR_PR_TITLE` setting; GitHub counts merge commits too), so both
@@ -742,7 +742,7 @@ ones that fall behind.
 
 ### Issues and labels
 
-Several sessions (people or Claude) work at once, often from the same GitHub
+Several sessions (people or coding agents) work at once, often from the same GitHub
 account, so the labels say what each issue and PR is about and who has it.
 
 | Label | Meaning |

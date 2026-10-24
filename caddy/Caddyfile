@@ -24,7 +24,7 @@
 	# Its own handle, before @api: @api takes every /.well-known/* path, and
 	# the API serves no files of its own here (the REST-only rule holds).
 	handle /.well-known/security.txt {
-		root * /srv/security
+		root * /tmp/caddy-security
 		file_server
 	}
 
@@ -111,6 +111,10 @@
 			file_server {
 				status 503
 			}
+		}
+		handle /version.json {
+			header Cache-Control "no-store"
+			file_server
 		}
 		# Hashed file names: they never change. A missing one is a 404, not the page.
 		handle /assets/* {

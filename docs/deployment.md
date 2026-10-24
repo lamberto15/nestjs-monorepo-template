@@ -485,7 +485,7 @@ What each one may write, and the capabilities it gets back:
 | `api`, `worker`, `migrate` | `/tmp` (64m tmpfs); `api` and `worker` also the `app_storage` volume | none |
 | `postgres` | the `postgres_data` volume, `/tmp` (64m) and `/run/postgresql` (the socket) in memory | `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, `SETUID`: the image's entrypoint starts as root, fixes the data directory and drops to `postgres` |
 | `redis` | the `redis_data` volume, `/tmp` (16m) | `DAC_OVERRIDE`: the command is `sh redis.sh`, not `redis-server`, so the image's entrypoint never drops to `redis`; the server runs as root on a volume that is `redis`'s, which root can't write without it |
-| `caddy` | the `caddy_data` and `caddy_config` volumes, `/tmp` (16m) | `NET_BIND_SERVICE`: ports 80 and 443 |
+| `caddy` | the `caddy_data` and `caddy_config` volumes, `/tmp` (16m, including generated `security.txt`) | none: UID/GID `10001:10001`; low ports allowed only in its network namespace |
 | `backup` | the `backups` volume, `/tmp` (16m); `app_storage` stays read only | none (a files restore adds three: [Restoring](#restoring), step 4) |
 | `gotenberg` | `/tmp` and its home, in memory (see above) | none |
 | `clamav` ([ClamAV](#clamav-malware-scanning)) | the `clamav_db` volume; `/tmp` (512m, `CLAMAV_TMP_SIZE`) and `/var/log/clamav` (8m) in memory | none: it runs as `clamav`, started by `clamav/entrypoint.sh` instead of the image's `/init` (see below) |
@@ -595,6 +595,53 @@ Compose scales on one host. Beyond it:
 - **Hosts:** an orchestrator (Swarm, Kubernetes, a managed platform) runs the
   same image with the same three commands. socket.io across hosts needs
   `transports: ['websocket']` on clients, or sticky sessions.
+
+### Upgrading Caddy to the non-root image
+
+Caddy runs as UID/GID `10001:10001`, including its entrypoint. The image owns
+`/data` and `/config`, so new named volumes work without an initialization
+container. Existing volumes retain their old ownership when the image changes:
+**migrate them before starting the new Caddy image**. Otherwise Caddy cannot read
+its existing certificates or renew them. Keep the volumes; do not recreate them.
+
+The production service drops all capabilities and keeps `no-new-privileges`.
+`net.ipv4.ip_unprivileged_port_start=0` applies only inside Caddy's network
+namespace, allowing TCP 80/443 and UDP 443 without `NET_BIND_SERVICE` or a host
+sysctl change. Its generated `security.txt` lives under `/tmp/caddy-security`
+on the existing tmpfs. Caddy's configuration and static web files remain read only.
+
+For an existing Compose deployment, select the new `CADDY_IMAGE` in `.env`, then
+run on the deployment host with its normal Compose project and files selected:
+
+```bash
+docker compose pull caddy
+# Take your normal volume backup, then stop the only writer.
+docker compose stop caddy
+# Administrative, one-time ownership change; not the runtime entrypoint.
+docker compose run --rm --no-deps --user 0:0 \
+  --cap-add CHOWN --cap-add DAC_OVERRIDE --entrypoint chown \
+  caddy -R 10001:10001 /data /config
+docker compose up -d --no-deps caddy
+docker compose exec caddy id
+docker compose logs --tail 50 caddy
+```
+
+When building locally instead of pulling published images, use
+`docker compose build caddy` for the first command. Check public HTTPS,
+`/.well-known/security.txt` (when configured), the healthcheck, and that the
+existing certificates are reused. The migration changes ownership only, preserving
+certificate contents and private-key modes. A Compose secret sourced from a host
+file must also be readable by UID `10001` (or its GID `10001`); grant access only
+to that user/group. Compose cannot change a bind-mounted file's owner through
+`secrets.uid`/`gid`. Swarm secrets use their configured ownership/mode instead.
+
+**Rollback:** stop Caddy, run the same administrative command with
+`caddy -R 0:0 /data /config`, select the previous root-based image and recreate
+Caddy. Restore host-secret permissions as needed. The previous image's restricted
+root process cannot necessarily read a non-root user's mode-600 private keys.
+This ownership change therefore needs a short Caddy maintenance window in either
+direction; API/worker containers keep running. For Swarm, follow
+[the node-local procedure](deploy-swarm.md#upgrading-caddys-runtime-user).
 
 ### Read replicas
 
@@ -736,14 +783,14 @@ ROW LEVEL SECURITY` on every tenant table (drizzle-kit emits only
   `tenant_id` lacks RLS, FORCE or its four policies. FORCE binds a table's
   owner too, unless it is a superuser (Compose's owner is): the owner never
   serves a request, and the app role, which does, is neither.
-- **Upgrading to tenancy (1a)** is a reset, not a migration of data (the
-  owner's call for app10). Add `POSTGRES_MAINTENANCE_PASSWORD=$(openssl rand -hex 24)`
+- **Upgrading to tenancy (1a)** is a reset, not a migration of data for a
+  disposable demo deployment. Add `POSTGRES_MAINTENANCE_PASSWORD=$(openssl rand -hex 24)`
   to `.env` first: the tenancy migration adds `tenant_id NOT NULL`
   with no default, which fails on tables that hold rows. Back up, then start
   from an empty database (`docker compose down`, remove the `postgres_data`
   volume, `docker compose up -d --build --remove-orphans`); the first start
   makes the operator tenant (`ADMIN_TENANT_NAME`) and the administrator.
-- **Upgrading a deployment made before the roles** (app10): add
+- **Upgrading a deployment made before the roles:** add
   `POSTGRES_APP_PASSWORD=$(openssl rand -hex 24)` to `.env` and redeploy
   (`docker compose up -d --build --remove-orphans`). `migrate` creates
   `app_runtime` and grants it everything; api and worker start on it. The
@@ -1152,8 +1199,8 @@ without a paid key, both off until you set them up:
    skipped, not failed, and costs nothing. A failed run is the alert (GitHub
    mails the watchers; Settings, Notifications). Limits: hourly (to spare
    Actions minutes; scheduled runs can be late), disabled after 60 days
-   without repository activity, and the URL must resolve publicly (not
-   app10, whose name only `/etc/hosts` knows).
+   without repository activity, and the URL must resolve publicly. A host
+   name known only to a local hosts file cannot be probed from GitHub.
 2. **The dead man's switch** (below) already alarms when the host stops
    sending: that covers a dead host without a public name. For a faster
    check, an uptime service's free tier (UptimeRobot, healthchecks.io's
@@ -1945,7 +1992,7 @@ may hide any path).
 
 | Output      | Paths                                                                                                                                                                                                                                                                          |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `code`      | anything but what no job of `ci.yml` reads: `docs/`, Markdown at the root and at a package's root, `.claude/`, the changesets' notes, `.devcontainer/` and `deploy/helm/` (their own workflows check them), `.github/ISSUE_TEMPLATE/`, `CODEOWNERS`, `dependabot.yml`, the pull request template, `LICENSE`, `.editorconfig`. The other workflows and `lefthook.yml` count: knip reads them |
+| `code`      | anything but what no job of `ci.yml` reads: `docs/`, Markdown at the root and at a package's root, `.claude/`, the changesets' notes, `.devcontainer/`, `deploy/helm/` and `deploy/k3s/` (their own workflow checks them), `.github/ISSUE_TEMPLATE/`, `CODEOWNERS`, `dependabot.yml`, the pull request template, `LICENSE`, `.editorconfig`. The other workflows and `lefthook.yml` count: knip reads them |
 | `api`       | `apps/api/`, `packages/api-client/`, `.dockerignore`, `.trivyignore.yaml` and the workspace's roots: `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `turbo.json`, `tsconfig*.json`, `.oxlintrc.json`, `.npmrc`, `.nvmrc` |
 | `web`       | `apps/web/`, `apps/web-e2e/`, `packages/`, `caddy/Caddyfile` (`apps/web/pwa-paths.test.ts` reads it) and the roots |
 | `tools`     | `tools/`, and the files its tests read: `env.example`, `.prettierrc`, `.prettierignore` |
