@@ -1,4 +1,7 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { brotliCompressSync, gzipSync } from 'node:zlib';
 import tailwindcss from '@tailwindcss/vite';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
@@ -14,6 +17,14 @@ const api = process.env.API_URL ?? 'http://localhost:3000';
 const proxy = devProxy(api);
 
 const gitSha = process.env.GIT_SHA ?? '';
+const webRoot = fileURLToPath(new URL('.', import.meta.url));
+const bundleReportDir = fileURLToPath(
+  new URL('./.bundle-analysis/', import.meta.url),
+);
+const bundleReportFile = fileURLToPath(
+  new URL('./.bundle-analysis/bundle.json', import.meta.url),
+);
+
 export default defineConfig({
   define: { __APP_GIT_SHA__: JSON.stringify(gitSha) },
   plugins: [
@@ -21,7 +32,46 @@ export default defineConfig({
       name: 'build-version-manifest',
       apply: 'build',
       generateBundle() {
-        this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ sha: gitSha }) });
+        this.emitFile({
+          type: 'asset',
+          fileName: 'version.json',
+          source: JSON.stringify({ sha: gitSha }),
+        });
+      },
+    },
+    {
+      // Measurement only: this report stays outside dist/, so it is never
+      // shipped by Caddy or precached by the PWA. CI keeps it as an artifact.
+      name: 'bundle-analysis',
+      apply: 'build',
+      generateBundle(_options, bundle) {
+        const chunks = Object.values(bundle)
+          .filter((output) => output.type === 'chunk')
+          .map((chunk) => ({
+            file: chunk.fileName,
+            bytes: Buffer.byteLength(chunk.code),
+            gzipBytes: gzipSync(chunk.code).byteLength,
+            brotliBytes: brotliCompressSync(chunk.code).byteLength,
+            modules: Object.entries(chunk.modules)
+              .map(([id, details]) => ({
+                id: relative(webRoot, id),
+                renderedBytes: details.renderedLength,
+              }))
+              .filter((module) => module.renderedBytes > 0)
+              .toSorted(
+                (a, b) =>
+                  b.renderedBytes - a.renderedBytes ||
+                  a.id.localeCompare(b.id),
+              ),
+          }))
+          .toSorted(
+            (a, b) => b.gzipBytes - a.gzipBytes || a.file.localeCompare(b.file),
+          );
+        mkdirSync(bundleReportDir, { recursive: true });
+        writeFileSync(
+          bundleReportFile,
+          JSON.stringify({ version: 1, chunks }, null, 2) + '\n',
+        );
       },
     },
     // Before react(): it writes src/routeTree.gen.ts and splits routes.

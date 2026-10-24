@@ -78,6 +78,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 *storybook.log
 storybook-static
 .lighthouseci
+.bundle-analysis
 
 # Generated VitePress cache and output
 /docs/.vitepress/cache/
