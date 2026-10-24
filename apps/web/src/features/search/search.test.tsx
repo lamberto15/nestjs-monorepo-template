@@ -234,6 +234,33 @@ describe('the palette', () => {
     );
   });
 
+  it('includes feature-provided actions and keeps their permission gates', async () => {
+    signedInWith({ 'Note.create': true });
+    const { router } = await renderApp('/');
+    const user = userEvent.setup();
+    await user.keyboard('{Control>}k{/Control}');
+    await user.type(await screen.findByRole('combobox'), '>');
+    const dialog = within(await screen.findByRole('dialog'));
+    expect(await dialog.findByText('New note')).toBeInTheDocument();
+    expect(dialog.getByText('Actions')).toBeInTheDocument();
+    await user.type(screen.getByRole('combobox'), 'new');
+    await user.keyboard('{Enter}');
+    await vi.waitFor(() =>
+      expect(router.state.location.pathname).toBe('/notes/new'),
+    );
+  });
+
+  it('hides feature actions without their permission', async () => {
+    signedInWith({});
+    await renderApp('/');
+    const user = userEvent.setup();
+    await user.keyboard('{Control>}k{/Control}');
+    await user.type(await screen.findByRole('combobox'), '>');
+    expect(
+      within(await screen.findByRole('dialog')).queryByText('New note'),
+    ).toBeNull();
+  });
+
   it('lists the audit log for someone who may read it', async () => {
     signedInWith({ 'Access.readAudit': true });
     await renderApp('/');
