@@ -44,10 +44,12 @@ jobs:
   # reads changed: a docs-only or web-only pull request doesn't queue the
   # API's e2e shards, and the reverse. The runner pool is shared by every
   # open pull request (GitHub's concurrent-jobs limit), so a job that has
-  # nothing to prove costs every other run its wait in the queue. Main, tags
-  # and the nightly run skip nothing. The files come from the API (no
-  # checkout, no history to fetch). The workflow itself counts everywhere: a
-  # change to a job must run it. Each job's `if` names the outputs it reads
+  # nothing to prove costs every other run its wait in the queue. Regular
+  # main code pushes, tags and nightly runs keep full validation to protect
+  # image publication. CI-only PRs/merges instead run ci-validate; changing
+  # orchestration should not start every app suite. The paths come from
+  # GitHub's PR file list or push comparison (no checkout needed).
+  # Each job's `if` names the outputs it reads
   # (docs/deployment.md, "Which jobs a pull request runs"), and
   # tools/ci/changes.test.mjs runs this step on sample pull requests. `gh`
   # and grep rather than a paths-filter action: no third-party action to pin
@@ -113,8 +115,7 @@ jobs:
             if [ "$(wc -l <<< "$files")" -ge 3000 ]; then all; fi
           fi
           echo "$files"
-          # CI orchestration/tests are validated separately, never by fanning
-          # out API, web, tools, stack and container builds.
+          # CI orchestration/tests do not imply changes to every application.
           # Read by no job here: the docs, Markdown at the root and at a
           # package's root, Claude's files, the changesets' notes, GitHub's
           # repository settings, Helm and K3s manifests, and the devcontainer
