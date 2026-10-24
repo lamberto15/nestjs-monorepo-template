@@ -1,5 +1,7 @@
 {
-  "nav": { "title": "Webhook" },
+  "nav": {
+    "title": "Webhook"
+  },
   "clients": {
     "title": "Webhook",
     "description": "每个 API 客户端都有自己的端点：选择要管理其 Webhook 的客户端。",
@@ -8,7 +10,8 @@
     "active": "启用",
     "revoked": "已吊销",
     "empty": "还没有 API 客户端。请先创建一个：Webhook 属于某个客户端。",
-    "senders": "传入发送方"
+    "senders": "传入发送方",
+    "createClient": "创建 API 客户端"
   },
   "endpoints": {
     "back": "所有客户端",
@@ -19,7 +22,11 @@
     "empty": "还没有端点。",
     "allEvents": "所有事件",
     "eventCount_other": "{{count}} 种事件类型",
-    "columns": { "url": "URL", "status": "状态", "events": "事件" }
+    "columns": {
+      "url": "URL",
+      "status": "状态",
+      "events": "事件"
+    }
   },
   "endpoint": {
     "enabled": "启用",
@@ -97,7 +104,11 @@
     }
   },
   "delivery": {
-    "status": { "pending": "待处理", "succeeded": "成功", "failed": "失败" },
+    "status": {
+      "pending": "待处理",
+      "succeeded": "成功",
+      "failed": "失败"
+    },
     "reasons": {
       "exhausted": "所有尝试均失败",
       "rejected": "接收方拒绝了它",
