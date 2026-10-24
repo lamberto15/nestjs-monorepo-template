@@ -71,7 +71,15 @@ export function WebhookClientsPage() {
           </Table>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">{t('clients.empty')}</p>
+        <div className="flex flex-col items-start gap-3 rounded-md border p-4">
+          <p className="text-sm text-muted-foreground">{t('clients.empty')}</p>
+          <Link
+            to="/api-clients"
+            className={buttonVariants({ variant: 'outline' })}
+          >
+            {t('clients.createClient')}
+          </Link>
+        </div>
       )}
     </div>
   );
