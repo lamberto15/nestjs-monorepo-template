@@ -10,7 +10,8 @@
     "active": "Aktif",
     "revoked": "Dibatalkan",
     "empty": "Belum ada klien API. Cipta satu dahulu: webhook milik sesuatu klien.",
-    "senders": "Penghantar masuk"
+    "senders": "Penghantar masuk",
+    "createClient": "Cipta klien API"
   },
   "endpoints": {
     "back": "Semua klien",

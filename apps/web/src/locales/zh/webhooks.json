@@ -8,7 +8,8 @@
     "active": "启用",
     "revoked": "已吊销",
     "empty": "还没有 API 客户端。请先创建一个：Webhook 属于某个客户端。",
-    "senders": "传入发送方"
+    "senders": "传入发送方",
+    "createClient": "创建 API 客户端"
   },
   "endpoints": {
     "back": "所有客户端",

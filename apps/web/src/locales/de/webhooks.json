@@ -10,7 +10,8 @@
     "active": "Aktiv",
     "revoked": "Widerrufen",
     "empty": "Noch keine API-Clients. Legen Sie zuerst einen an: Webhooks gehören zu einem Client.",
-    "senders": "Eingehende Absender"
+    "senders": "Eingehende Absender",
+    "createClient": "API-Client erstellen"
   },
   "endpoints": {
     "back": "Alle Clients",
