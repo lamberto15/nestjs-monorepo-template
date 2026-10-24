@@ -109,7 +109,7 @@ writeFileSync(script, changesScript(TEXT));
 
 let runs = 0;
 /** Runs the changes step for an event and changed paths: its outputs. */
-function classify(files, event = 'pull_request') {
+function classify(files, event = 'pull_request', ref = 'refs/heads/main') {
   const id = ++runs;
   const sample = path.join(work, `files-${id}`);
   const output = path.join(work, `output-${id}`);
@@ -120,6 +120,9 @@ function classify(files, event = 'pull_request') {
     env: {
       PATH: `${bin}:${process.env.PATH}`,
       GITHUB_EVENT_NAME: event,
+      GITHUB_REF: ref,
+      GITHUB_SHA: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      CI_BEFORE: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       GITHUB_OUTPUT: output,
       GITHUB_REPOSITORY: 'owner/repo',
       GH_TOKEN: 'unused',
@@ -239,7 +242,7 @@ function simulate(
     deployEnabled = false,
   } = {},
 ) {
-  const outputs = classify(files, event);
+  const outputs = classify(files, event, ref);
   const results = {};
   const all = jobs(TEXT);
   const pending = [...all];
@@ -469,17 +472,37 @@ test('another workflow runs check: knip reads the workflows', (t) => {
   expectJobs(t, ['.github/workflows/web.yml'], only(ALWAYS, CODE));
 });
 
-test('ci.yml itself runs every pull request job', (t) => {
+test('CI workflow-only PRs validate routing without any app, e2e or image jobs', (t) => {
   const outputs = expectJobs(
     t,
-    ['.github/workflows/ci.yml'],
-    only(
-      jobs(TEXT)
-        .map((j) => j.id)
-        .filter((id) => !PUSH_ONLY.includes(id)),
-    ),
+    ['.github/workflows/ci.yml', 'tools/ci/workflow.test.mjs'],
+    only(ALWAYS, 'ci-validate'),
   );
-  assert.ok(Object.values(outputs).every((v) => v === 'true'));
+  assert.equal(outputs.ci, 'true');
+  for (const key of ['code', 'api', 'web', 'tools', 'stack', 'services', 'backup', 'gotenberg', 'caddy']) {
+    assert.equal(outputs[key], 'false', key);
+  }
+});
+
+test('CI config and API changes both run, without accidentally testing the web app', (t) => {
+  expectJobs(
+    t,
+    ['.github/workflows/ci.yml', 'apps/api/src/main.ts'],
+    only(ALWAYS, CODE, API, 'ci-validate'),
+  );
+});
+
+test('CI-only main merges skip publishing and K3s; app changes keep full validation', (t) => {
+  expectJobs(
+    t,
+    ['.github/workflows/ci.yml', 'tools/ci/changes.test.mjs'],
+    only(ALWAYS, 'ci-validate'),
+    { event: 'push' },
+  );
+  const regular = simulate(['apps/api/src/main.ts'], { event: 'push' });
+  assert.ok(regular.ran.includes('publish'));
+  assert.ok(regular.ran.includes('publish-caddy'));
+  assert.ok(regular.ran.includes('publish-gotenberg'));
 });
 
 test('a file moved out of the API counts at its old path', (t) => {
