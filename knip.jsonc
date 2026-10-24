@@ -18,6 +18,8 @@
       // from the API's folder, for its key generator: the root does not
       // depend on it.
       "ignoreDependencies": ["k6", "web-push"],
+      // ci-validate installs the checksum-pinned Helm binary for release renders.
+      "ignoreBinaries": ["helm"],
     },
     "apps/api": {
       // Started as `node dist/<name>` (package.json: migrate, db:seed:demo,

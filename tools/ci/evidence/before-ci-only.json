@@ -1,0 +1,30 @@
+{
+  "runId": 40059092538,
+  "sha": "835715e4d204df913070523c566244fc6353d3f9",
+  "event": "push",
+  "conclusion": "success",
+  "elapsedMinutes": 0.18333333333333332,
+  "validationMinutes": 0.18333333333333332,
+  "runnerMinutes": 0.11666666666666667,
+  "peakRunners": 1,
+  "schedulingSeconds": 4,
+  "matrixWaitSeconds": 0,
+  "cacheHits": 0,
+  "cacheMisses": 0,
+  "jobs": [
+    {
+      "name": "changes",
+      "runnerMinutes": 0.03333333333333333,
+      "createdAfterRunSeconds": 0,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "ci-validate",
+      "runnerMinutes": 0.08333333333333333,
+      "createdAfterRunSeconds": 4,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    }
+  ]
+}

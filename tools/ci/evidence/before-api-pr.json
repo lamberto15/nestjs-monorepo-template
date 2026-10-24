@@ -1,0 +1,163 @@
+{
+  "runId": 40076584955,
+  "sha": "7d8b5781cb30c48a95f1013ea56ba172b6445237",
+  "event": "pull_request",
+  "conclusion": "success",
+  "elapsedMinutes": 10.4,
+  "validationMinutes": 10.4,
+  "runnerMinutes": 41.300000000000004,
+  "peakRunners": 12,
+  "schedulingSeconds": 42,
+  "matrixWaitSeconds": 996,
+  "cacheHits": 6,
+  "cacheMisses": 42,
+  "jobs": [
+    {
+      "name": "changes",
+      "runnerMinutes": 0.05,
+      "createdAfterRunSeconds": 93,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "unit (api 2/3)",
+      "runnerMinutes": 0.9333333333333333,
+      "createdAfterRunSeconds": 98,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "hardened-stack",
+      "runnerMinutes": 5.633333333333334,
+      "createdAfterRunSeconds": 98,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "compose-images",
+      "runnerMinutes": 0.11666666666666667,
+      "createdAfterRunSeconds": 98,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "image",
+      "runnerMinutes": 3.4833333333333334,
+      "createdAfterRunSeconds": 98,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "security",
+      "runnerMinutes": 0.38333333333333336,
+      "createdAfterRunSeconds": 98,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "unit (api 1/3)",
+      "runnerMinutes": 0.9166666666666666,
+      "createdAfterRunSeconds": 98,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "openapi-diff",
+      "runnerMinutes": 0.11666666666666667,
+      "createdAfterRunSeconds": 98,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 3
+    },
+    {
+      "name": "e2e-web",
+      "runnerMinutes": 3.5166666666666666,
+      "createdAfterRunSeconds": 108,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "check",
+      "runnerMinutes": 1.7666666666666666,
+      "createdAfterRunSeconds": 108,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "template-without-notes (1/6)",
+      "runnerMinutes": 2.5,
+      "createdAfterRunSeconds": 108,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e-telemetry",
+      "runnerMinutes": 2.3666666666666667,
+      "createdAfterRunSeconds": 108,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "feature-smoke",
+      "runnerMinutes": 2.933333333333333,
+      "createdAfterRunSeconds": 108,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (2/6)",
+      "runnerMinutes": 3.183333333333333,
+      "createdAfterRunSeconds": 108,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (1/6)",
+      "runnerMinutes": 2.183333333333333,
+      "createdAfterRunSeconds": 108,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "unit (api 3/3)",
+      "runnerMinutes": 0.8833333333333333,
+      "createdAfterRunSeconds": 98,
+      "matrixWaitSeconds": 57,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "coverage",
+      "runnerMinutes": 0.6666666666666666,
+      "createdAfterRunSeconds": 210,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (3/6)",
+      "runnerMinutes": 2.15,
+      "createdAfterRunSeconds": 108,
+      "matrixWaitSeconds": 133,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (4/6)",
+      "runnerMinutes": 2.566666666666667,
+      "createdAfterRunSeconds": 108,
+      "matrixWaitSeconds": 193,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (5/6)",
+      "runnerMinutes": 2.2,
+      "createdAfterRunSeconds": 108,
+      "matrixWaitSeconds": 264,
+      "schedulingSeconds": 1
+    },
+    {
+      "name": "e2e (6/6)",
+      "runnerMinutes": 2.75,
+      "createdAfterRunSeconds": 108,
+      "matrixWaitSeconds": 349,
+      "schedulingSeconds": 2
+    }
+  ]
+}

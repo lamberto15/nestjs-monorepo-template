@@ -1905,144 +1905,80 @@ yours takes. Time a restore of a real dump once and set
 
 ## CI
 
-`.github/workflows/ci.yml` (per the pnpm CI guide) runs on every pull
-request, on `main` and on `v*` tags. The checks are the root's scripts;
-Turborepo's cache (`.turbo/cache`) is kept between runs. Each job fails the run,
-except `openapi-diff`, which only reports until `OASDIFF_FAIL_ON` is set, and
-`migration-lint` (`.github/workflows/migrations.yml`), whose destructive
-statements are reported only until `MIGRATION_LINT_FAIL` is set (a changed
-merged migration fails it already):
+The **CI / CD** workflow (`.github/workflows/ci.yml`) validates changes and,
+for eligible releases, publishes images and release notes. Its filename remains
+stable because image signatures and provenance identify that workflow path.
+Production deployment is explicitly disabled in this change; enabling it requires
+separate rollout review after CI passes. Existing production variables cannot
+bypass the disabled condition.
 
-| Job                      | What                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `check`                  | lint, build, `client:check`, `db:check`, migrations and the app role's bootstrap on a real PostgreSQL (twice: the second run changes nothing), `pnpm env:check --templates` (the env templates: no variable set twice, the REQUIRED ones named); lint and build are every package's (`turbo run`), the web app's included. The Caddy image, which carries the web app, is `caddy-image`'s |
-| `changes`                | what a pull request touched (the API's file list), so every other job runs only for the paths it reads ([Which jobs a pull request runs](#which-jobs-a-pull-request-runs)); main, tags and the nightly run skip nothing |
-| `unit-api`, `unit-web`   | the unit tests beside `check`, with coverage: the API's in 3 shards (`--shard=1/3`..`3/3`), the web app's in 3 and the packages' in one job; two jobs so a pull request runs each side only when its paths changed |
-| `coverage`               | the unit shards' blob reports merged (`vitest --merge-reports --coverage`) and the coverage thresholds enforced (development.md, "Coverage"); on a pull request, the side(s) whose unit job ran |
-| `e2e`                    | the e2e tests in 6 shards (`--shard=1/6`..`6/6`), each on its own runner with PostgreSQL and Redis, beside `check`; every app runs as the app role, made by an owner that is no superuser ([Database roles](#database-roles)) |
-| `e2e-web` | the web app's browser tests (`pnpm test:e2e:web`, Playwright on the built API and web app, with an axe accessibility scan), with its own PostgreSQL and Redis; not a dependency of `publish` (development.md, "Browser tests") |
-| `compose-secrets`        | the production stack's secrets with the values in `.env` and with every one in a file, as Compose renders them (the monitoring stack too); that every service of the stack and of each overlay (`clamav`, `monitoring`, `blue-green`) is hardened ([Container hardening](#container-hardening)); then the shell readers in their images (`scripts/test-secret-readers.sh`)                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `swarm-stack`            | `compose.swarm.yaml` rendered with dummy values and accepted by `docker stack config` (`pnpm deploy:swarm check`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `feature-smoke`          | the feature generator's tests, then two features generated with every option, which must build, lint, migrate and pass their generated e2e tests ([adding a feature](adding-a-feature.md))                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `e2e-telemetry` | one shard of the e2e suite (`--shard=1/6`) with OpenTelemetry and Sentry on, against a stub collector (`apps/api/test/telemetry-stub.mjs`), then the built app (`node dist/main`) against one of its own; fails if the instrumentation breaks the app or no span of a request served arrives ([Telemetry](#telemetry)) |
-| `template-without-notes` | `pnpm feature:remove notes` (the API's and the web app's part), no `notes` left in `apps/api` or `apps/web`, then lint, build, `db:check`, `client:generate` and the build again on that client: the core and the web app stand without the example. On main, tags and the nightly run (03:17 UTC) also its unit and web tests and the whole e2e suite, in 6 shards like the `e2e` job's (each runs a sixth of the e2e suite and a third of the API's or the web app's unit tests), so the run lasts as long as a pull request's; a pull request skips those (they are the `unit-*` and `e2e` jobs' tests with a feature fewer) |
-| `security`               | `pnpm audit --prod --audit-level high`; Trivy: any secret in the repository, high or critical misconfigurations in the Dockerfiles                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `image`                  | builds the production image; Trivy: fixable high or critical vulnerabilities in it (OS packages and `node_modules`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `backup-image`           | builds the backup image (`backup/`); the same Trivy scan. Not published: a deploy builds it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `caddy-image`            | builds Caddy's image (`caddy/Dockerfile`, from the repository root): the web app's production build and the xcaddy build with the Cloudflare plugin; checks the web app is in it, then the same Trivy scan. Published by `publish-caddy`                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `gotenberg-image`        | checks that `gotenberg/Dockerfile`'s `FROM`, its `GOTENBERG_VERSION` and `compose.dev.yaml`'s image are one release, and that both Compose files give Gotenberg the same flags; builds the image (`gotenberg/`, its Debian upgrade fresh each run), renders `gotenberg/smoke.html` with it under production's flags (a PDF that ends with `%%EOF`, that the image's own `pdfcpu` validates, one page: the only place Gotenberg really renders, as every other test uses a stub) and runs the same Trivy scan                                                                                                                                                                                                                                                                                                                                                                                   |
-| `openapi-diff`           | pull requests only: oasdiff compares the typed client's `openapi.json` with the base branch's and lists breaking changes and the changelog in the job summary. Report-only until `OASDIFF_FAIL_ON` is set (development.md, "Typed client")                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `migration-lint`         | pull requests only, in `migrations.yml` (adding or removing the `destructive-migration` label runs it again; other labels skip it): squawk reads the migrations the pull request adds under `apps/api/drizzle/` and lists destructive statements (drops, renames, retypes, `SET NOT NULL`, NOT NULL without a default, `TRUNCATE`, `DELETE`/`UPDATE` without `WHERE`, `MERGE`'s deletes and updates) in the job summary, with file and line. Report-only until `MIGRATION_LINT_FAIL` is `on` (pitfalls.md, "Migrations: expand/contract"). Always failing: an edited or deleted merged migration or journal entry, a `squawk-ignore` comment. The `destructive-migration` label accepts both when added after the latest push |
-| `publish`                | `main` and `v*` tags only, after `check`, `e2e`, `security` and `image`: pushes the app image to GHCR (below)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `publish-gotenberg`      | the same for Gotenberg's image, after `gotenberg-image` too: `ghcr.io/<owner>/<repo>/gotenberg`, the build `gotenberg-image` scanned in the same run, scanned again, then pushed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `publish-caddy`          | the same for Caddy's image, after `caddy-image`: `ghcr.io/<owner>/<repo>/caddy`, the build `caddy-image` scanned in the same run (its `scope=caddy` cache), scanned again, then pushed                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `release`                | `v*` tags only, after the three publish jobs: the tag's GitHub release, its notes generated by `tools/release/notes.mjs` (the images by version and digest, the migrations since the previous release and the expand/contract lint's findings, rolling back; [releases](releases.md)). Its tests run in `check`                                                                                                                                                                                                                                                                                                                                                   |
-
-- **The same PostgreSQL and Redis as Compose:** CI reads their images from
-  `compose.yaml` (job `compose-images`). Change them there only.
-- **Load test:** `.github/workflows/load-test.yml`, manual only for now
-  (`workflow_dispatch`, to save Actions minutes; a pull request changing the
-  load test runs it report-only): the production stack and k6 on a GitHub
-  runner, failing only on a 2× regression against the previous run or the
-  anchor (the k6 scenarios and the Artillery socket.io run; two api
-  replicas, the bot check off: `LOADTEST_REPLICAS` and `LOADTEST_CAPTCHA`
-  are for manual runs). A schedule comes back with one line under `on:`, e.g.
-  `schedule: [{ cron: '37 2 * * 1' }]` (development.md, "Load tests").
-- **Devcontainer:** `.github/workflows/devcontainer.yml` builds
-  `.devcontainer/` with the pinned `@devcontainers/cli` (`devcontainer up`,
-  so `post-create.sh` and `pnpm install`) and smoke-tests it: `pnpm dev`,
-  then `127.0.0.1:5173/`, `[::1]:5173/` and `/health` through Vite's proxy
-  must answer 2xx (`.devcontainer/smoke-test.sh`). Runs on pull requests
-  and `main` that change `.devcontainer/**`, `compose.yaml`,
-  `compose.dev.yaml`, `apps/web/vite.config.ts`, `pnpm-lock.yaml` or the
-  workflow, and on demand. Not a required check (development.md,
-  "Devcontainer").
-- **Commit messages:** `.github/workflows/commit-messages.yml` fails a pull
-  request whose title, or whose only commit's subject, isn't a Conventional
-  Commit (development.md, "Git hooks").
-- **Typed client:** `.github/workflows/api-client.yml` reports a pull
-  request that changes `packages/api-client` without a changeset, and on
-  `main` opens the client's version pull request; its npm publish is off
-  until the owner turns it on ([releases](releases.md), "The typed client").
-- **GitHub code scanning:** the repository is public, CodeQL's default setup
-  analyses every pull request and `main`, and the `main` ruleset requires its
-  result. The other scans print their findings in the job's log.
-- **A finding that doesn't apply:** add it to `.trivyignore.yaml` with a
-  `statement` saying why (as for Caddy running as root). For an npm
-  advisory, `pnpm audit --ignore <GHSA id>` in the workflow, with a comment.
-  Prefer a fix: a newer package or base image.
-- **Run the scans locally:**
-  `docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.76.0 image --severity HIGH,CRITICAL --ignore-unfixed <image>`.
-- **Versions:** Dependabot proposes newer packages, images and actions as
-  pull requests (pinned versions, never `:latest`). `@types/node` follows
-  the Node.js major the app runs on, so Dependabot skips its major
-  versions: raise it together with `devEngines.runtime`, apps/api/Dockerfile's
-  `node` image and CI's `runtime`. Trivy's own version (`version:` in the
-  workflow), oasdiff's (`OASDIFF_IMAGE`) and squawk's (`SQUAWK_IMAGE` in
-  `tools/migration-lint/lint.mjs`; its tests run in the job) and k6's
-  (`K6_IMAGE` in `loadtest/run.sh`) are raised by hand.
+Application validation stays centralized here. Workflows with different path
+triggers, permissions or schedules (Helm, monitoring, migrations, the typed
+client, docs, restore drills) remain separate. PR concurrency groups include the
+workflow and PR ref, cancelling superseded runs without cancelling other PRs.
+Publication and production deployment keep their serialization.
 
 ### Which jobs a pull request runs
 
-The runner pool is shared by every open pull request (GitHub's limit on
-concurrent jobs is the account's), so a job with nothing to prove costs every
-other run its wait in the queue: with ~19 open pull requests, runs whose jobs
-take 0.5–3 min waited up to 30 min for runners. So on a pull request each job
-runs only when a path it reads changed. The `changes` job sorts the pull
-request's files (a renamed file at its old path too) into outputs, leaving
-out the paths no job reads (`code`'s row); main, `v*` tags and the nightly
-run set every output, and so does a change to `.github/workflows/ci.yml` (a
-change to a job must run it) or a list of 3000 files (the API's limit: it
-may hide any path).
+`tools/ci/changes.mjs` classifies PR files and ordinary `main` push comparisons.
+Renames count at both paths, and deleted files count too. A missing or empty
+comparison, a capped list (300 compare files or 3000 PR files), inconsistent PR
+file counts, unknown paths and shared root dependencies trigger comprehensive
+validation. A failed compare never silently skips tests. Nightly (03:17 UTC),
+manual full runs and `v*` tags are comprehensive too.
 
-| Output      | Paths                                                                                                                                                                                                                                                                          |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `code`      | anything but what no job of `ci.yml` reads: `docs/`, Markdown at the root and at a package's root, `.claude/`, the changesets' notes, `.devcontainer/`, `deploy/helm/` and `deploy/k3s/` (their own workflow checks them), `.github/ISSUE_TEMPLATE/`, `CODEOWNERS`, `dependabot.yml`, the pull request template, `LICENSE`, `.editorconfig`. The other workflows and `lefthook.yml` count: knip reads them |
-| `api`       | `apps/api/`, `packages/api-client/`, `.dockerignore`, `.trivyignore.yaml` and the workspace's roots: `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `turbo.json`, `tsconfig*.json`, `.oxlintrc.json`, `.npmrc`, `.nvmrc` |
-| `web`       | `apps/web/`, `apps/web-e2e/`, `packages/`, `caddy/Caddyfile` (`apps/web/pwa-paths.test.ts` reads it) and the roots |
-| `tools`     | `tools/`, and the files its tests read: `env.example`, `.prettierrc`, `.prettierignore` |
-| `stack`     | `compose*.yaml`, `secret.empty`, `swarm.placeholder`, `scripts/`, `loadtest/`, `redis/`, `caddy/`, `backup/`, `gotenberg/`, `monitoring/`, `clamav/`, `pgbouncer/`, `tools/deploy/` |
-| `services`  | `compose.yaml`: CI's PostgreSQL and Redis are its images (`compose-images`), so a Dependabot update of one runs the suites on them |
-| `backup`    | `backup/`, `scripts/test-backup-pitr.sh`, `.trivyignore.yaml` |
-| `gotenberg` | `gotenberg/`, `compose.dev.yaml`, `compose.prod.yaml`, `.trivyignore.yaml` |
-| `caddy`     | `caddy/`, `apps/web/`, `packages/`, `apps/api/package.json` (Caddy's image builds the web app from the repository root), the roots, `.trivyignore.yaml` |
+| Change | Validation |
+| --- | --- |
+| API | lint/build, API unit coverage, API E2E, instrumented E2E, browser/accessibility tests, migrations, security, API image and hardened runtime |
+| Web/UI | lint/build, web/package coverage, browser/accessibility tests, security and Caddy image/runtime checks |
+| Typed client/shared roots | dependent packages; shared root dependencies run comprehensive validation |
+| Generator/platform contracts | generator smoke checks in addition to affected application checks |
+| Compose service images | database/browser E2E and generator smoke on those images |
+| Stack/images | relevant Compose secrets, Swarm, hardened runtime and image checks |
+| CI orchestration | routing, gate, manifest and workflow syntax tests |
+| Docs, Helm/K3s, devcontainer | the corresponding companion workflow |
 
-| Job                                                         | Runs on a pull request when                                       |
-| ----------------------------------------------------------- | ----------------------------------------------------------------- |
-| `changes`, `compose-images`, `security`                     | always                                                            |
-| `check`                                                     | `code`                                                            |
-| `unit-api`, `image`, `openapi-diff`                         | `api`                                                             |
-| `e2e`, `e2e-telemetry`                                      | `api` or `services`                                               |
-| `unit-web`                                                  | `web`                                                             |
-| `coverage`                                                  | a unit job ran and none failed (it merges the sides that ran)     |
-| `e2e-web`                                                   | `api`, `web` or `services`                                        |
-| `feature-smoke`                                             | `api`, `tools` (the generator writes into the API only) or `services` |
-| `template-without-notes`                                    | `api`, `web`, `tools` or `services`                               |
-| `compose-secrets`, `swarm-stack`                            | `stack`                                                           |
-| `hardened-stack`                                            | `api` or `stack`                                                  |
-| `backup-image`                                              | `backup`                                                          |
-| `caddy-image`                                               | `caddy`                                                           |
-| `gotenberg-image`                                           | `gotenberg`                                                       |
-| `publish`, `publish-gotenberg`, `publish-caddy`, `release`  | never (`main` and `v*` tags only)                                 |
+The classifier has explicit routes for infrastructure, generators, migrations and
+image contexts. Workspace lint/build/coverage tasks use Turbo's `--affected` with
+explicit `TURBO_SCM_BASE`/`TURBO_SCM_HEAD` and full checkout history. When a
+comparison includes inputs outside the workspace graph, explicit routing retains
+the necessary tasks. Knip and translation parity still inspect the whole workspace.
 
-So a docs-only pull request runs `changes`, `compose-images` and `security`;
-a web-only one 9 jobs (no API unit, e2e or image job); an API-only one 14
-(no web unit tests, no stack checks, no Caddy, backup or Gotenberg image).
-`tools/ci/changes.test.mjs` (run by `check`) runs the `changes` step on
-sample pull requests, applies every job's `needs` and `if` as GitHub does,
-and prints the jobs each one runs.
+| Job | Purpose |
+| --- | --- |
+| `changes` | classification, expected jobs and cumulative image rebuild plan |
+| `check` | affected lint/build, API client/migrations when relevant, tooling invariants |
+| `unit-api`, `unit-web`, `coverage` | unit coverage; merge blob reports and enforce unchanged package thresholds when sharded |
+| `e2e`, `e2e-telemetry`, `e2e-web` | isolated API/database, instrumentation and browser/accessibility tests |
+| `feature-smoke` | generated features, schema/client generation and their E2E tests |
+| `template-without-notes` | exhaustive generated-template variant; nightly/manual/release or conservative full fallback |
+| `compose-secrets`, `swarm-stack`, `hardened-stack` | runtime and infrastructure contracts |
+| `security`, `image`, `backup-image`, `caddy-image`, `gotenberg-image` | dependency/secret/configuration scans and relevant image builds/scans/runtime checks |
+| `openapi-diff` | PR API compatibility report; enforcement controlled by `OASDIFF_FAIL_ON` |
+| `ci-gate` (**CI gate**) | requires every classified job to succeed; rejects missing results, failures, cancellations and unexpected skips |
+| `publish`, `publish-caddy`, `publish-gotenberg` | push the verified artifacts without rebuilding, scan the pushed digest, then sign/attest |
+| `release-manifest` | verify reuse evidence and preserve the complete immutable release image set |
+| `release` | version-tag notes and the existing complete image set |
 
-- **A new job** gets `needs: changes` and an `if` on the outputs whose
-  paths it reads (broader when unsure); the test fails a job that has
-  neither. A job whose service containers take `compose-images`' images
-  reads `services` too (the test fails one that doesn't). A job that needs
-  a gated one is skipped with it, unless its `if` calls a status function,
-  as `coverage`'s does (`!cancelled()`).
-- **Required checks:** a skipped job counts as passed. `main`'s ruleset
-  requires none of this workflow's checks today; before requiring one, pick
-  a job without a matrix: a matrix job skipped by its `if` is skipped before
-  its matrix expands, so it never reports the names of its entries (such as
-  `unit (api 1/3)`), and a required one would wait for ever.
+Require **CI gate** as the stable application status check, rather than individual
+matrix names that may not exist on an unaffected PR. Companion workflows retain
+their checks. Any new validation job must be added to the classifier's expected
+jobs and gate dependencies; tests compare real workflow conditions with that list.
+
+Turbo caches are namespaced by job and matrix entry, with matching restore
+prefixes. `test:cov` stores both `.vitest/**` (blobs and raw coverage) and
+`coverage/**`; artifact uploads fail on missing blobs. CI mode, Node mode,
+root configuration, public build variables and the build SHA participate in
+relevant hashes. Database and browser E2E remain uncached. Cache keys do not
+replace task-input hashing. See [CI measurements](ci-runtime.md) for the benchmark
+protocol, evidence and chosen defaults.
+
+The Web workflow retains bundle budgets and Storybook checks for frontend
+changes. Report-only Lighthouse runs nightly, manually and for version tags.
+Migration lint retains its separate PR workflow and existing acceptance controls
+([migrations](development.md#migrations)). Third-party actions remain pinned;
+Dependabot proposes updates. PostgreSQL and Redis are read from `compose.yaml`,
+so tests use the same versions as the development stack.
 
 ## The image
 
@@ -2058,9 +1994,27 @@ settings in production (the captcha stub, text logs) reads it.
 
 ## Publishing and rolling back images
 
-On every push to `main` and every `v*` tag, CI pushes the production image
+On affected pushes to `main` and every `v*` tag, CI publishes verified images
 to `ghcr.io/<owner>/<repo>` (here `ghcr.io/lamberto15/nestjs-monorepo-template`).
-It builds it once, scans it, and pushes it only when every check passed.
+Each affected image is built once, scanned and runtime-validated. A Docker image
+archive transfers that exact build to runtime and publish jobs; publication does
+not run another build. The pushed immutable digest is scanned before signing,
+provenance and SBOM generation. Publication requires **CI gate** success.
+
+The versioned `release-manifest-v1` artifact contains `release-manifest.json`:
+`version: 1`, repository, source SHA, run ID and the API, Caddy/Web and Gotenberg
+repositories/digests, plus each image's producer SHA/run. Unchanged images retain
+their producer evidence. Rebuild decisions include all component changes since
+the trusted manifest, so failed or skipped intervening releases cannot lose work.
+
+Reuse requires a successful `main` CI run's manifest, source ancestry, registry
+availability, an exact main-workflow cosign identity, a signed CycloneDX SBOM and
+source-bound GitHub provenance. Invalid/missing/expired evidence blocks the release;
+mutable tags are never a fallback. The lookup is bounded to 1000 successful runs.
+To bootstrap or recover expired evidence, explicitly dispatch CI on `main` with
+`bootstrap_release=true`: comprehensive validation and all three builds/publications,
+with deployment still disabled. Ordinary manual and nightly runs do not publish.
+Artifacts expire after 90 days; bootstrap again if no trusted artifact remains.
 
 - **Tags:** the full commit SHA, always; `main` for a push to main; `1.2.3`
   and `1.2` for a `v1.2.3` tag. Never `latest`: a deploy names the image
@@ -2075,10 +2029,10 @@ It builds it once, scans it, and pushes it only when every check passed.
   at run time (`Caddyfile`), the web app has no build-time variables and
   calls the API on its own origin, and the Turnstile site key comes from the
   API. So one published image serves every deployment, and its tag pins a web
-  build to the API build of the same commit: deploy `APP_IMAGE` and
-  `CADDY_IMAGE` at the same SHA.
+  build to its producer commit. Use the complete manifest
+  when a release mixes rebuilt and reused components.
 - **Inside:** `GIT_SHA` is the commit (NestJS Observe reports it as the
-  version), and the OCI labels name the repository, commit and build time.
+  version), and the OCI labels name the source repository and producer commit.
 - **Private:** the package belongs to the repository and follows its
   access. Pulling needs a login (below).
 
@@ -2090,7 +2044,7 @@ echo "$GHCR_TOKEN" | docker login ghcr.io -u <github user> --password-stdin
 ```
 
 Deploying a published image: set `APP_IMAGE` (and `GOTENBERG_IMAGE` and
-`CADDY_IMAGE`, Gotenberg's and Caddy's from the same commit) in `.env`, then pull and start. Without
+`CADDY_IMAGE`, using all three immutable references from one release manifest) in `.env`, then pull and start. Without
 `--build`: a build would replace the pulled images with local ones.
 
 ```bash

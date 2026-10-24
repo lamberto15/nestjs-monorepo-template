@@ -2,7 +2,11 @@
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "stream",
   "cacheDir": ".turbo/cache",
-  "globalDependencies": [".oxlintrc.json"],
+  "globalDependencies": [
+    ".oxlintrc.json",
+    "tsconfig*.json",
+    "pnpm-workspace.yaml"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -11,9 +15,12 @@
         "!test/**",
         "!**/*.spec.ts",
         "!vitest.config*.ts",
-        "!*.md"
+        "!*.md",
+        "!**/*.test.ts",
+        "!**/*.test.tsx"
       ],
-      "outputs": ["dist/**", "*.tsbuildinfo"]
+      "outputs": ["dist/**", "*.tsbuildinfo"],
+      "env": ["GIT_SHA", "VITE_*"]
     },
     "size": {
       "dependsOn": ["build"],
@@ -62,5 +69,6 @@
       "dependsOn": ["^build"],
       "outputs": [".vitest/**", "coverage/**"]
     }
-  }
+  },
+  "globalEnv": ["CI", "NODE_ENV"]
 }
