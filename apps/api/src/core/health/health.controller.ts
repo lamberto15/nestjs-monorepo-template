@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, VERSION_NEUTRAL } from '@nestjs/common';
+import { Controller, Get, Header, Inject, VERSION_NEUTRAL } from '@nestjs/common';
 import { Public } from '@nestjs/authentication';
 import { ApiExcludeController } from '@nestjs/swagger';
 import {
@@ -57,6 +57,7 @@ export class HealthController {
   }
 
   @Get('version')
+  @Header('Cache-Control', 'no-store')
   version() {
     return { sha: process.env.GIT_SHA ?? '' };
   }

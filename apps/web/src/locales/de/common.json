@@ -467,5 +467,20 @@
     "done": "Weiter zur App",
     "doneHint": "Alle nötigen Schritte sind erledigt.",
     "redirected": "Schließen Sie zuerst die Einrichtung des Administratorkontos ab."
+  },
+  "build": {
+    "title": "Build-Informationen",
+    "tab": "Dieser Tab",
+    "web": "Bereitgestelltes Web",
+    "api": "API",
+    "notChecked": "Nicht geprüft",
+    "current": "Aktuelle Web-Version",
+    "stale": "Update verfügbar",
+    "unknownStatus": "Version unbekannt",
+    "unknown": "Unbekannt",
+    "check": "Version prüfen",
+    "checking": "Wird geprüft…",
+    "reload": "Neu laden",
+    "copy": "Details kopieren"
   }
 }
