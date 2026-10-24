@@ -6,6 +6,7 @@ export default {
   cards: [
     {
       id: 'notifications',
+      label: 'notifications:dashboard.title',
       order: 20,
       component: lazy(() =>
         import('./dashboard-cards').then((m) => ({

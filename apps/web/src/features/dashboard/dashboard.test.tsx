@@ -18,6 +18,29 @@ const approval = {
 /** Answers the routes of the cards that need no permission, and the audit's. */
 function useData(seen: string[] = []) {
   server.use(
+    http.get('/v1/settings', () =>
+      HttpResponse.json({
+        items: [
+          {
+            key: 'dashboard.layout',
+            label: 'Dashboard layout',
+            description: 'Which dashboard cards you hide and the order you prefer.',
+            flag: false,
+            scopes: ['user'],
+            public: true,
+            value: { hidden: [], order: [] },
+            source: 'default',
+            default: { hidden: [], order: [] },
+            type: 'json',
+            schema: {},
+            canEdit: false,
+            canSetMine: true,
+            platform: null,
+            canEditPlatform: false,
+          },
+        ],
+      }),
+    ),
     http.get('/v1/approvals', ({ request }) => {
       seen.push(`approvals ${new URL(request.url).search}`);
       return HttpResponse.json({
@@ -134,15 +157,15 @@ describe('the dashboard registry', () => {
     const { cards, actions } = mergeDashboard([
       {
         cards: [
-          { id: 'b', order: 20, component },
-          { id: 'a', order: 20, component },
+          { id: 'b', label: 'b', order: 20, component },
+          { id: 'a', label: 'a', order: 20, component },
         ],
         actions: [
           { to: '/approvals', order: 2, label: 'x', icon: FilePlusIcon },
         ],
       },
       {
-        cards: [{ id: 'c', order: 10, component }],
+        cards: [{ id: 'c', label: 'c', order: 10, component }],
         actions: [{ to: '/audit', order: 1, label: 'y', icon: FilePlusIcon }],
       },
       {},

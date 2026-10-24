@@ -4,5 +4,14 @@
   "viewAll": "View all",
   "quick": {
     "title": "Quick actions"
+  },
+  "customize": {
+    "button": "Customize",
+    "title": "Customize dashboard",
+    "reset": "Reset",
+    "up": "Move {{name}} up",
+    "down": "Move {{name}} down",
+    "hide": "Hide {{name}}",
+    "show": "Show {{name}}"
   }
 }

@@ -4,5 +4,14 @@
   "viewAll": "Lihat semua",
   "quick": {
     "title": "Tindakan pantas"
+  },
+  "customize": {
+    "button": "Sesuaikan",
+    "title": "Sesuaikan papan pemuka",
+    "reset": "Tetapkan semula",
+    "up": "Alih {{name}} ke atas",
+    "down": "Alih {{name}} ke bawah",
+    "hide": "Sembunyikan {{name}}",
+    "show": "Tunjukkan {{name}}"
   }
 }

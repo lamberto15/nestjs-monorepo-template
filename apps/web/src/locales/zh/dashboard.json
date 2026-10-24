@@ -4,5 +4,14 @@
   "viewAll": "查看全部",
   "quick": {
     "title": "快捷操作"
+  },
+  "customize": {
+    "button": "自定义",
+    "title": "自定义仪表板",
+    "reset": "重置",
+    "up": "上移 {{name}}",
+    "down": "下移 {{name}}",
+    "hide": "隐藏 {{name}}",
+    "show": "显示 {{name}}"
   }
 }

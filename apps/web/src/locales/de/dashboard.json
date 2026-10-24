@@ -4,5 +4,14 @@
   "viewAll": "Alle anzeigen",
   "quick": {
     "title": "Schnellzugriff"
+  },
+  "customize": {
+    "button": "Anpassen",
+    "title": "Dashboard anpassen",
+    "reset": "Zurücksetzen",
+    "up": "{{name}} nach oben",
+    "down": "{{name}} nach unten",
+    "hide": "{{name}} ausblenden",
+    "show": "{{name}} anzeigen"
   }
 }

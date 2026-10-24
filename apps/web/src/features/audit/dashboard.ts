@@ -6,6 +6,7 @@ export default {
   cards: [
     {
       id: 'audit',
+      label: 'audit:dashboard.title',
       order: 30,
       permission: 'Access.readAudit',
       component: lazy(() =>

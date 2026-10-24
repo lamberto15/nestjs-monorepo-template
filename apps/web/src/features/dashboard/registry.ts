@@ -6,6 +6,8 @@ import type { FileRoutesByTo } from '@/routeTree.gen';
 /** A card of the home page: shown with its switch on and its permission held. */
 export type DashboardCard = Gated & {
   id: string;
+  /** An i18n key used by dashboard personalization controls. */
+  label: string;
   /** Lower first; ties by id. */
   order: number;
   /** Spans both columns (a chart). */
