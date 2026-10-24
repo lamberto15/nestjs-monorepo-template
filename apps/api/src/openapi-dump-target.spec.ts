@@ -16,7 +16,9 @@ describe('dumpTarget', () => {
 
   it('takes a .json file in the repository or the temp directory', () => {
     const fresh = join(tmpdir(), 'api-client-x', 'openapi.json');
-    expect(dumpTarget(fresh)).toBe(fresh);
+    expect(dumpTarget(fresh)).toBe(
+      join(realpathSync(tmpdir()), 'api-client-x', 'openapi.json'),
+    );
     expect(dumpTarget(join(repo, 'tmp/openapi.json'))).toBe(
       join(repo, 'tmp/openapi.json'),
     );
