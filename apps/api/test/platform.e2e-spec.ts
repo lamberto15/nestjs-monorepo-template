@@ -57,6 +57,47 @@ describe('platform: queues, storage and realtime (e2e)', () => {
     expect(anonymous.active).toBe(false);
   });
 
+  it('disconnects a browser socket as soon as its session is revoked', async () => {
+    const user = await node.user(['editor']);
+    const signedIn = await node
+      .http()
+      .post('/v1/auth/sign-in')
+      .send({ email: user.email, password: user.password })
+      .expect(200);
+    const cookie = (signedIn.headers['set-cookie'] as string[])[0]!.split(
+      ';',
+      1,
+    )[0]!;
+    const { port } = node.app.getHttpServer().address() as AddressInfo;
+    const socket = io(`http://127.0.0.1:${port}/realtime`, {
+      extraHeaders: { Cookie: cookie },
+      transports: ['websocket'],
+    });
+    sockets.push(socket);
+    await new Promise<void>((resolve, reject) => {
+      socket.once('connect', resolve);
+      socket.once('connect_error', reject);
+    });
+    const identity = await socket.emitWithAck('whoami');
+    expect(identity.rooms).toContain(
+      `tenant:${node.tenantId}:principal:user:${user.id}`,
+    );
+    expect(
+      identity.rooms.some((room: string) => room.startsWith('session:')),
+    ).toBe(true);
+
+    const disconnected = new Promise<void>((resolve) =>
+      socket.once('disconnect', () => resolve()),
+    );
+    await node
+      .http()
+      .post('/v1/auth/sign-out')
+      .set('Cookie', cookie)
+      .expect(204);
+    await disconnected;
+    await node.http().get('/v1/auth/me').set('Cookie', cookie).expect(401);
+  });
+
   it('puts a connection in its room before it hears it is connected', async () => {
     // A message sent the moment the connection opens (and events sent to the
     // principal then) must find the room joined: once a race, now by design.

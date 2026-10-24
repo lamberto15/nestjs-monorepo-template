@@ -32,6 +32,7 @@ import {
   sessions,
 } from '../iam.tables.js';
 import { UsersRepository } from './users.repository.js';
+import { SessionLifecycleRegistry } from './session-lifecycle.registry.js';
 
 /**
  * Keeps sessions, refresh tokens, authenticators and pending links in
@@ -65,6 +66,7 @@ export class DrizzleAuthenticationStore
   constructor(
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly users: UsersRepository,
+    private readonly sessionLifecycle: SessionLifecycleRegistry,
     storage: AuthenticationStorage,
   ) {
     storage.registerSource({
@@ -126,6 +128,9 @@ export class DrizzleAuthenticationStore
       .delete(sessions)
       .where(eq(sessions.id, id))
       .returning({ id: sessions.id });
+    if (deleted[0]) {
+      await this.sessionLifecycle.afterRevocation(deleted[0].id);
+    }
     return deleted.length > 0;
   }
 
@@ -138,7 +143,13 @@ export class DrizzleAuthenticationStore
   }
 
   async deleteUserSessions(userId: string): Promise<void> {
-    await this.db.delete(sessions).where(eq(sessions.userId, userId));
+    const deleted = await this.db
+      .delete(sessions)
+      .where(eq(sessions.userId, userId))
+      .returning({ id: sessions.id });
+    await Promise.all(
+      deleted.map(({ id }) => this.sessionLifecycle.afterRevocation(id)),
+    );
   }
 
   // Refresh tokens

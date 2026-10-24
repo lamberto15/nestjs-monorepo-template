@@ -3,6 +3,7 @@ import type { WsAuthenticator } from '@nestjs/authentication';
 import type { ApiClientLifecycleRegistry } from '../../iam/access/api-client-lifecycle.registry.js';
 import type { TenantLifecycleRegistry } from '../../iam/access/tenant-lifecycle.registry.js';
 import type { UserLifecycleRegistry } from '../../iam/auth/user-lifecycle.registry.js';
+import type { SessionLifecycleRegistry } from '../../iam/auth/session-lifecycle.registry.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import type { PeopleService } from '../people/people.service.js';
 import type { SubscriptionsService } from '../subscriptions/subscriptions.service.js';
@@ -19,6 +20,7 @@ const serverless = () =>
   new Realtime(
     {} as WsAuthenticator,
     { register: vi.fn() } as unknown as UserLifecycleRegistry,
+    { register: vi.fn() } as unknown as SessionLifecycleRegistry,
     { register: vi.fn() } as unknown as ApiClientLifecycleRegistry,
     { register: vi.fn() } as unknown as TenantLifecycleRegistry,
   );
@@ -96,6 +98,7 @@ describe('Realtime declared events', () => {
     new Realtime(
       {} as WsAuthenticator,
       { register: vi.fn() } as unknown as UserLifecycleRegistry,
+      { register: vi.fn() } as unknown as SessionLifecycleRegistry,
       { register: vi.fn() } as unknown as ApiClientLifecycleRegistry,
       { register: vi.fn() } as unknown as TenantLifecycleRegistry,
       { realtimeEvents },

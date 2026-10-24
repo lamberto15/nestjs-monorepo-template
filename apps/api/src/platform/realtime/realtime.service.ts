@@ -1,5 +1,6 @@
 import { ApiClientLifecycleRegistry } from '../../iam/access/api-client-lifecycle.registry.js';
 import { UserLifecycleRegistry } from '../../iam/auth/user-lifecycle.registry.js';
+import { SessionLifecycleRegistry } from '../../iam/auth/session-lifecycle.registry.js';
 import { TenantLifecycleRegistry } from '../../iam/access/tenant-lifecycle.registry.js';
 import { Inject, Logger, Optional, UseInterceptors } from '@nestjs/common';
 import { ClsInterceptor } from 'nestjs-cls';
@@ -47,6 +48,9 @@ export const principalRoom = (
     : `principal:${principalKey(principal)}`;
 };
 
+/** A private room for the credential that opened a browser socket. */
+export const sessionRoom = (sessionId: string) => `session:${sessionId}`;
+
 /**
  * Realtime events over socket.io, namespace `/realtime`, on every instance
  * (the Redis adapter, realtime-adapter.ts).
@@ -55,12 +59,13 @@ export const principalRoom = (
  * clients (`auth: { token: 'sk_…' }`); anyone else is refused at the
  * handshake (`connect_error` "unauthorized"; socket.io doesn't retry it).
  * Each connection is in its principal's room of its tenant (and, for a
- * user, their account room) before the client hears it's connected; a
- * session's tenant switch issues a new session, and a socket opened before
- * stays in the old tenant's room: reconnect after switching. The global
- * guard authenticates every message again, so a revoked session or key
- * stops working mid-connection; each message runs in a CLS context with
- * its principal's tenant (ClsInterceptor, set up in CoreModule).
+ * user, their account room) before the client hears it's connected; browser
+ * sockets also join their session's private room. Revoking a session
+ * disconnects its sockets across instances. A session's tenant switch
+ * issues a new session, and a socket opened before stays in the old tenant's
+ * room: reconnect after switching. The global guard authenticates every
+ * message again; each message runs in a CLS context with its principal's
+ * tenant (ClsInterceptor, set up in CoreModule).
  *
  * Browser: `io('/realtime', { withCredentials: true, transports: ['websocket'] })`.
  *
@@ -88,6 +93,7 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
   constructor(
     private readonly wsAuth: WsAuthenticator,
     lifecycle: UserLifecycleRegistry,
+    sessionLifecycle: SessionLifecycleRegistry,
     clientLifecycle: ApiClientLifecycleRegistry,
     tenantLifecycle: TenantLifecycleRegistry,
     @Optional()
@@ -95,6 +101,15 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
     options?: Pick<PlatformOptions, 'realtimeEvents'>,
   ) {
     this.events = allRealtimeEvents(options?.realtimeEvents);
+    // Revoke sockets for this credential only, across API replicas via Redis.
+    sessionLifecycle.register({
+      name: 'realtime',
+      afterRevocation: (sessionId) => {
+        if (this.server) {
+          this.server.in(sessionRoom(sessionId)).disconnectSockets(true);
+        }
+      },
+    });
     // A membership deactivated: that user's connections in that tenant end
     // (a socket is authenticated at its handshake; its tenant room would
     // keep hearing the tenant's events). After the commit: a deactivation
@@ -235,6 +250,15 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
       return undefined;
     }
     socket.data.principal = user;
+    const session = result?.session as
+      { id?: unknown; userId?: unknown } | undefined;
+    if (
+      user?.kind === 'user' &&
+      typeof session?.id === 'string' &&
+      session.userId === user.id
+    ) {
+      socket.data.sessionId = session.id;
+    }
     return user;
   }
 
@@ -250,6 +274,9 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
           ? [principalRoom(user, null)]
           : []),
       ];
+      if (typeof client.data.sessionId === 'string') {
+        rooms.push(sessionRoom(client.data.sessionId));
+      }
       void client.join(rooms);
       this.logger.debug(`Connected: ${principalKey(user)}`);
     }
