@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import {
   AuthenticationStorage,
   type EmailTokenPurpose,
@@ -66,8 +66,8 @@ export class DrizzleAuthenticationStore
   constructor(
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly users: UsersRepository,
-    private readonly sessionLifecycle: SessionLifecycleRegistry,
     storage: AuthenticationStorage,
+    @Optional() private readonly sessionLifecycle?: SessionLifecycleRegistry,
   ) {
     storage.registerSource({
       sessions: this,
@@ -128,7 +128,7 @@ export class DrizzleAuthenticationStore
       .delete(sessions)
       .where(eq(sessions.id, id))
       .returning({ id: sessions.id });
-    if (deleted[0]) {
+    if (deleted[0] && this.sessionLifecycle) {
       await this.sessionLifecycle.afterRevocation(deleted[0].id);
     }
     return deleted.length > 0;
@@ -143,13 +143,14 @@ export class DrizzleAuthenticationStore
   }
 
   async deleteUserSessions(userId: string): Promise<void> {
+    const lifecycle = this.sessionLifecycle;
     const deleted = await this.db
       .delete(sessions)
       .where(eq(sessions.userId, userId))
       .returning({ id: sessions.id });
-    await Promise.all(
-      deleted.map(({ id }) => this.sessionLifecycle.afterRevocation(id)),
-    );
+    if (lifecycle) {
+      await Promise.all(deleted.map(({ id }) => lifecycle.afterRevocation(id)));
+    }
   }
 
   // Refresh tokens
