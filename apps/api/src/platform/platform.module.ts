@@ -39,6 +39,7 @@ import { AiService } from './ai/ai.service.js';
 import { AI_SETTINGS } from './ai/ai-settings.js';
 import { AnthropicProvider } from './ai/anthropic.provider.js';
 import { AUTH_SETTINGS } from './auth-policy/auth-settings.js';
+import { DASHBOARD_SETTINGS } from './settings/dashboard.setting.js';
 import { SettingsAuthPolicy } from './auth-policy/settings-auth-policy.js';
 import { WebhookDeliveryRetentionJob } from './webhooks/webhook-delivery-retention.job.js';
 import { WebhookDeliveriesController } from './webhooks/webhook-deliveries.controller.js';
@@ -494,6 +495,7 @@ export class PlatformModule {
               ...MESSAGING_SETTINGS,
               ...QUOTA_SETTINGS,
               ...BRANDING_SETTINGS,
+              ...DASHBOARD_SETTINGS,
               ...AI_SETTINGS,
               ...NOTIFICATION_SETTINGS,
               ...(options.settings ?? []),
