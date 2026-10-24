@@ -34,7 +34,7 @@
     },
     "apps/web": {
       // Dice UI's data table: registry output the shadcn CLI writes, kept
-      // whole so `shadcn add` updates apply (CLAUDE.md: generate, never
+      // whole so `shadcn add` updates apply (AGENTS.md: generate, never
       // hand-write). Parts of it are unused until a list page needs them.
       "ignore": ["src/components/data-table/**", "src/lib/data-table-*.ts"],
       // react-day-picker: the calendar of that same registry code.

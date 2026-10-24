@@ -109,7 +109,7 @@ writeFileSync(script, changesScript(TEXT));
 
 let runs = 0;
 /** Runs the changes step for an event and changed paths: its outputs. */
-function classify(files, event = 'pull_request') {
+function classify(files, event = 'pull_request', ref = 'refs/heads/main') {
   const id = ++runs;
   const sample = path.join(work, `files-${id}`);
   const output = path.join(work, `output-${id}`);
@@ -120,6 +120,9 @@ function classify(files, event = 'pull_request') {
     env: {
       PATH: `${bin}:${process.env.PATH}`,
       GITHUB_EVENT_NAME: event,
+      GITHUB_REF: ref,
+      GITHUB_SHA: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      CI_BEFORE: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       GITHUB_OUTPUT: output,
       GITHUB_REPOSITORY: 'owner/repo',
       GH_TOKEN: 'unused',
@@ -239,7 +242,7 @@ function simulate(
     deployEnabled = false,
   } = {},
 ) {
-  const outputs = classify(files, event);
+  const outputs = classify(files, event, ref);
   const results = {};
   const all = jobs(TEXT);
   const pending = [...all];
@@ -304,8 +307,10 @@ function expectJobs(t, files, expected, options) {
 }
 
 const ALWAYS = ['changes'];
-// Meaningful code changes also run the service-image detector and security scan.
+// App-facing changes need the full build/DB check, Compose service outputs,
+// and security. Tooling changes get independent lint and smoke verification.
 const CODE_PREREQS = ['compose-images', 'security'];
+const TOOLING_ONLY = ['compose-images', 'security'];
 const PUSH_ONLY = [
   'publish',
   'publish-gotenberg',
@@ -318,7 +323,7 @@ const PUSH_ONLY = [
 // (`only` counts it once). A case expects ALWAYS plus the groups of the
 // outputs its paths set; the images that build one thing (backup, Caddy,
 // Gotenberg) are named in the case.
-/** `code`: any path a job reads: lint and knip, the build, the migrations. */
+/** App-relevant paths need the full lint, build, client and migration checks. */
 const CODE = ['check', ...CODE_PREREQS];
 /** `services`: the suites that run on CI's PostgreSQL and Redis (compose.yaml). */
 const SERVICES = [
@@ -358,6 +363,7 @@ test('a docs-only pull request runs only the change classifier', (t) => {
     [
       'docs/deployment.md',
       'README.md',
+      'AGENTS.md',
       'CLAUDE.md',
       '.claude/skills/add-feature/SKILL.md',
       '.changeset/quiet-hours.md',
@@ -432,8 +438,8 @@ test('every job whose services run compose.yaml images reads the services output
       continue;
     }
     if (job.id === 'check') {
-      // Gated on `code`, which compose.yaml sets too.
-      assert.match(job.if, /needs\.changes\.outputs\.code == 'true'/);
+      // Gated on `app`, which compose.yaml sets too.
+      assert.match(job.if, /needs\.changes\.outputs\.app == 'true'/);
       continue;
     }
     assert.match(
@@ -444,9 +450,12 @@ test('every job whose services run compose.yaml images reads the services output
   }
 });
 
-test("a change to the generator's tools runs feature-smoke and the template check", (t) => {
-  expectJobs(t, ['tools/feature/add.mjs'], only(ALWAYS, CODE, TOOLS));
-  expectJobs(t, ['tools/deploy/swarm.mjs'], only(ALWAYS, CODE, TOOLS, STACK));
+test("tooling-only changes lint and smoke-test generators without DB-backed app checks", (t) => {
+  const inputs = expectJobs(t, ['tools/feature/add.mjs'], only(ALWAYS, TOOLING_ONLY, TOOLS));
+  assert.equal(inputs.code, 'true');
+  assert.equal(inputs.app, 'false');
+  assert.equal(inputs.lint, 'true');
+  expectJobs(t, ['tools/deploy/swarm.mjs'], only(ALWAYS, TOOLING_ONLY, TOOLS, STACK));
 });
 
 test("the Caddyfile runs the web unit tests (one reads it) and Caddy's image", (t) => {
@@ -465,21 +474,97 @@ test('the lockfile runs everything that installs or builds the workspace', (t) =
   );
 });
 
-test('another workflow runs check: knip reads the workflows', (t) => {
-  expectJobs(t, ['.github/workflows/web.yml'], only(ALWAYS, CODE));
+test('generator smoke reuses its runner for tooling-only lint', () => {
+  const smoke = jobs(TEXT).find((job) => job.id === 'feature-smoke');
+  const text = smoke.lines.join('\n');
+  assert.match(text, /- name: Lint tooling and unused dependencies\n\s+if: needs\.changes\.outputs\.lint == 'true' && needs\.changes\.outputs\.app != 'true'\n\s+run: pnpm lint/);
+  assert.match(text, /- name: Release, i18n and environment tooling invariants\n\s+if: needs\.changes\.outputs\.lint == 'true' && needs\.changes\.outputs\.app != 'true'/);
+  assert.match(text, /node --test tools\/release\/notes\.test\.mjs tools\/i18n\/check\.test\.mjs/);
+  assert.match(text, /pnpm env:check --templates/);
+  const lint = jobs(TEXT).find((job) => job.id === 'tooling-lint');
+  assert.match(lint.if, /needs\.changes\.outputs\.tools != 'true'/);
 });
 
-test('ci.yml itself runs every pull request job', (t) => {
+test('Knip config alone gets lint, without containers, app builds or security scans', (t) => {
+  const outputs = expectJobs(t, ['knip.jsonc'], only(ALWAYS, 'tooling-lint'));
+  assert.equal(outputs.code, 'true');
+  assert.equal(outputs.app, 'false');
+  assert.equal(outputs.lint, 'true');
+});
+
+test('the agent documentation PR runs generator checks but not unrelated app validation', (t) => {
   const outputs = expectJobs(
     t,
-    ['.github/workflows/ci.yml'],
-    only(
-      jobs(TEXT)
-        .map((j) => j.id)
-        .filter((id) => !PUSH_ONLY.includes(id)),
-    ),
+    [
+      '.claude/skills/add-feature/SKILL.md',
+      '.github/workflows/ci.yml',
+      'AGENTS.md',
+      'CLAUDE.md',
+      'CONTRIBUTING.md',
+      'docs/development.md',
+      'docs/upgrading.md',
+      'knip.jsonc',
+      'tools/ci/changes.test.mjs',
+      'tools/feature/add.mjs',
+      'tools/feature/remove.mjs',
+    ],
+    only(ALWAYS, 'ci-validate', TOOLING_ONLY, TOOLS),
   );
-  assert.ok(Object.values(outputs).every((v) => v === 'true'));
+  assert.equal(outputs.api, 'false');
+  assert.equal(outputs.web, 'false');
+  assert.equal(outputs.app, 'false');
+});
+
+test('a tooling and API change runs the full check without duplicate lint', (t) => {
+  const outputs = expectJobs(
+    t,
+    ['tools/feature/add.mjs', 'apps/api/src/main.ts', 'knip.jsonc'],
+    only(ALWAYS, CODE, API, TOOLS),
+  );
+  assert.equal(outputs.app, 'true');
+  assert.equal(outputs.lint, 'true');
+});
+
+test('unknown root config is app-relevant rather than silently excluded', (t) => {
+  expectJobs(t, ['new-config.jsonc'], only(ALWAYS, CODE));
+});
+
+test('other workflow-only edits run CI validation, not unrelated application checks', (t) => {
+  expectJobs(t, ['.github/workflows/web.yml'], only(ALWAYS, 'ci-validate'));
+  expectJobs(t, ['.github/workflows/migrations.yml'], only(ALWAYS, 'ci-validate'));
+});
+
+test('CI workflow-only PRs validate routing without any app, e2e or image jobs', (t) => {
+  const outputs = expectJobs(
+    t,
+    ['.github/workflows/ci.yml', 'tools/ci/workflow.test.mjs'],
+    only(ALWAYS, 'ci-validate'),
+  );
+  assert.equal(outputs.ci, 'true');
+  for (const key of ['code', 'api', 'web', 'tools', 'stack', 'services', 'backup', 'gotenberg', 'caddy']) {
+    assert.equal(outputs[key], 'false', key);
+  }
+});
+
+test('CI config and API changes both run, without accidentally testing the web app', (t) => {
+  expectJobs(
+    t,
+    ['.github/workflows/ci.yml', 'apps/api/src/main.ts'],
+    only(ALWAYS, CODE, API, 'ci-validate'),
+  );
+});
+
+test('CI-only main merges skip publishing and K3s; app changes keep full validation', (t) => {
+  expectJobs(
+    t,
+    ['.github/workflows/ci.yml', '.github/workflows/migrations.yml', 'tools/ci/changes.test.mjs'],
+    only(ALWAYS, 'ci-validate'),
+    { event: 'push' },
+  );
+  const regular = simulate(['apps/api/src/main.ts'], { event: 'push' });
+  assert.ok(regular.ran.includes('publish'));
+  assert.ok(regular.ran.includes('publish-caddy'));
+  assert.ok(regular.ran.includes('publish-gotenberg'));
 });
 
 test('a file moved out of the API counts at its old path', (t) => {
@@ -502,7 +587,8 @@ test("a list at the API's 3000-file limit runs everything", () => {
 });
 
 test('main can deploy only when enabled; tags and the nightly run never do', (t) => {
-  const every = jobs(TEXT).map((j) => j.id);
+  // tooling-lint never duplicates lint on full pushes, tags or nightly checks.
+  const every = jobs(TEXT).map((j) => j.id).filter((id) => id !== 'tooling-lint');
   expectJobs(
     t,
     [],

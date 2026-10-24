@@ -1,5 +1,16 @@
 # Settings and feature flags
 
+## Notification email policy (`notifications.emailPolicy`)
+
+Operators and tenant administrators who can manage settings can choose `all`
+or `essential` in the settings editor. The default is `all`. `all` respects
+each recipient’s existing notification email preferences; `essential`
+suppresses email for notification types not declared `mandatory`. The
+operator’s platform value supplies the default across tenants, while an
+explicit tenant value takes precedence. Removing a tenant value restores the
+operator value. This setting does not affect in-app, realtime, webhook, or
+non-notification email.
+
 What administrators change at runtime without a deploy, and what users
 set for themselves: typed values declared by the features, with defaults
 in code and overrides in the database, for everyone, for a team, or

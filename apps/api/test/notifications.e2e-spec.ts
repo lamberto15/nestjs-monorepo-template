@@ -181,6 +181,37 @@ describe('notifications (e2e)', () => {
     ).toEqual([]);
   });
 
+  it('essential-only suppresses ordinary notification mail but keeps inbox delivery', async () => {
+    const editor = await node.user(['editor']);
+    const email = await emailOf(editor.agent);
+    await node
+      .admin()
+      .put('/v1/settings/notifications.emailPolicy/platform')
+      .send({ value: 'essential' })
+      .expect(200);
+    await editor.agent
+      .put('/v1/notifications/preferences')
+      .send({ 'testItem.commented': { email: 'immediate' } })
+      .expect(200);
+    const id = await notify(`user:${editor.id}`);
+    await deliver();
+
+    expect((await row(id)).deliveredAt).toBeTruthy();
+    expect(
+      (await editor.agent.get('/v1/notifications').expect(200)).body.items,
+    ).toHaveLength(1);
+    expect(noticesTo(email)).toEqual([]);
+
+    const mandatory = await notify(`user:${editor.id}`, {
+      type: 'security.passwordChanged' as NotificationType,
+      data: { via: 'change', ip: '192.0.2.10' },
+      key: randomUUID(),
+    });
+    await deliver();
+    expect((await row(mandatory)).deliveredAt).toBeTruthy();
+    await node.waitForMail({ to: email, subject: /password/i });
+  });
+
   it('tells an API client live and by webhook, which it may switch off', async () => {
     const receiver = await webhookReceiver();
     try {

@@ -19,7 +19,7 @@
 // Field types: string, text, int, decimal, money, bool, date, datetime,
 // enum(a|b), json, ref(<feature>)?; `?` optional, `!unique` unique per tenant.
 // Then: pnpm db:generate (new tables: drizzle-kit asks nothing),
-// pnpm client:generate, and the check before every commit (CLAUDE.md).
+// pnpm client:generate, and the check before every commit (AGENTS.md).
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -251,7 +251,7 @@ Next:
   pnpm client:generate    # the typed client
   Business logic: ${t.plural}.service.ts, where it says "Business logic".
   Record routes (tags, comments, attachments…): docs/adding-a-feature.md.
-  Then the check before every commit (CLAUDE.md).`);
+  Then the check before every commit (AGENTS.md).`);
 }
 
 if (
