@@ -61,6 +61,16 @@ alloy:
 
       loki.process "pods" {
         stage.cri {}
+        stage.json {
+          expressions = { level = "level" }
+        }
+        stage.template {
+          source = "level"
+          template = "{{ `{{` }} if eq .Value \"log\" {{ `}}` }}info{{ `{{` }} else {{ `}}` }}{{ `{{` }} .Value {{ `}}` }}{{ `{{` }} end {{ `}}` }}"
+        }
+        stage.labels {
+          values = { level = "" }
+        }
         forward_to = [loki.write.default.receiver]
       }
 
