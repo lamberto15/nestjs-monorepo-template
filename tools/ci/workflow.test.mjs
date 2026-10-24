@@ -138,3 +138,18 @@ test('the K3s release rolls back and waits with Helm legacy status checks', () =
     );
   }
 });
+
+test('client and migration workflows do not run on unrelated pull requests', () => {
+  const cases = [
+    ['api-client.yml', ['packages/api-client/**', 'apps/api/**', '.changeset/**']],
+    ['migrations.yml', ['apps/api/drizzle/**', 'tools/migration-lint/**']],
+  ];
+  for (const [name, relevantPaths] of cases) {
+    const workflow = readFileSync(new URL(`../../.github/workflows/${name}`, import.meta.url), 'utf8');
+    const triggers = workflow.slice(0, workflow.indexOf('\npermissions:'));
+    assert.match(triggers, /  pull_request:\n(?:    types: .*\n)?    paths:/, name);
+    for (const file of relevantPaths) {
+      assert.ok(triggers.includes(`      - ${file}`), `${name} must run for ${file}`);
+    }
+  }
+});
