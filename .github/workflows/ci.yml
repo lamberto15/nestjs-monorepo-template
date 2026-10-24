@@ -1820,13 +1820,17 @@ jobs:
     timeout-minutes: 30
     environment:
       name: production
-      url: https://nestjs-monorepo.lamby.dev
+      url: ${{ vars.APP_URL }}
     concurrency:
       group: production-k3s
       cancel-in-progress: false
     permissions:
       contents: read
       id-token: write # Tailscale workload identity federation
+    env:
+      APP_DOMAIN: ${{ vars.APP_DOMAIN }}
+      APP_URL: ${{ vars.APP_URL }}
+      MAIL_FROM: ${{ vars.MAIL_FROM }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -1855,20 +1859,33 @@ jobs:
           WEB_DIGEST: ${{ needs.publish-caddy.outputs.digest }}
           GOTENBERG_DIGEST: ${{ needs.publish-gotenberg.outputs.digest }}
         run: |
+          test -n "$APP_DOMAIN" && test -n "$APP_URL" && test -n "$MAIL_FROM"
+          test "$APP_URL" = "https://$APP_DOMAIN"
           helm version --short
           helm lint deploy/helm/app --strict \
-            -f deploy/helm/app/values.lab01.yaml \
+            -f deploy/helm/app/values.single-node.yaml \
             --set image.digest="$APP_DIGEST" \
             --set web.image.digest="$WEB_DIGEST" \
-            --set gotenberg.image.digest="$GOTENBERG_DIGEST"
+            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
+            --set-string domain="$APP_DOMAIN" \
+            --set-string env.WEB_URL="$APP_URL" \
+            --set-string env.CORS_ORIGINS="$APP_URL" \
+            --set-string env.MAIL_FROM="$MAIL_FROM"
           helm template app deploy/helm/app \
             -n nestjs-monorepo \
-            -f deploy/helm/app/values.lab01.yaml \
+            -f deploy/helm/app/values.single-node.yaml \
             --set image.digest="$APP_DIGEST" \
             --set web.image.digest="$WEB_DIGEST" \
-            --set gotenberg.image.digest="$GOTENBERG_DIGEST" > "$RUNNER_TEMP/app.yaml"
+            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
+            --set-string domain="$APP_DOMAIN" \
+            --set-string env.WEB_URL="$APP_URL" \
+            --set-string env.CORS_ORIGINS="$APP_URL" \
+            --set-string env.MAIL_FROM="$MAIL_FROM" > "$RUNNER_TEMP/app.yaml"
           for digest in "$APP_DIGEST" "$WEB_DIGEST" "$GOTENBERG_DIGEST"; do
             grep -Fq "@$digest" "$RUNNER_TEMP/app.yaml"
+          done
+          for value in "$APP_DOMAIN" "$APP_URL" "$MAIL_FROM"; do
+            grep -Fq "$value" "$RUNNER_TEMP/app.yaml"
           done
       - name: Join the deployment tailnet
         uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4.3.0
@@ -1877,7 +1894,6 @@ jobs:
           audience: ${{ secrets.TS_AUDIENCE }}
           tags: tag:github-k3s-deploy
           version: 1.104.2
-          ping: 100.87.122.6
       - name: Use the namespace-scoped kubeconfig
         env:
           K3S_KUBECONFIG: ${{ secrets.K3S_KUBECONFIG }}
@@ -1887,7 +1903,6 @@ jobs:
           echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
       - name: Check namespace and prerequisite Secret
         run: |
-          kubectl config current-context
           test "$(kubectl -n nestjs-monorepo auth can-i create deployments)" = yes
           test "$(kubectl -n nestjs-monorepo auth can-i create clusterrolebindings)" = no
           kubectl -n nestjs-monorepo get secret app-secrets -o json |
@@ -1904,10 +1919,14 @@ jobs:
             --namespace nestjs-monorepo \
             --rollback-on-failure --wait-for-jobs --timeout 12m \
             --history-max 10 \
-            -f deploy/helm/app/values.lab01.yaml \
+            -f deploy/helm/app/values.single-node.yaml \
             --set image.digest="$APP_DIGEST" \
             --set web.image.digest="$WEB_DIGEST" \
-            --set gotenberg.image.digest="$GOTENBERG_DIGEST"
+            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
+            --set-string domain="$APP_DOMAIN" \
+            --set-string env.WEB_URL="$APP_URL" \
+            --set-string env.CORS_ORIGINS="$APP_URL" \
+            --set-string env.MAIL_FROM="$MAIL_FROM"
           kubectl -n nestjs-monorepo rollout status deployment/app-api --timeout=3m
           kubectl -n nestjs-monorepo rollout status deployment/app-web --timeout=3m
           kubectl -n nestjs-monorepo rollout status deployment/app-worker --timeout=3m

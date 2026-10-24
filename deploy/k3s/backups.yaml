@@ -79,7 +79,7 @@ spec:
                 - |
                   export RESTIC_REPOSITORY="${REPOSITORY_BASE%/}/postgres"
                   restic cat config >/dev/null 2>&1 || restic init
-                  restic backup /backup/app.dump /backup/globals.sql --tag lab01-postgres
+                  restic backup /backup/app.dump /backup/globals.sql --tag postgres
                   restic forget --keep-daily 14 --keep-weekly 8 --keep-monthly 6 --prune
               env:
                 - {
@@ -173,7 +173,7 @@ spec:
                 - |
                   export RESTIC_REPOSITORY="${REPOSITORY_BASE%/}/files"
                   restic cat config >/dev/null 2>&1 || restic init
-                  restic backup /files --tag lab01-files
+                  restic backup /files --tag files
                   restic forget --keep-daily 14 --keep-weekly 8 --keep-monthly 6 --prune
               env:
                 - {
@@ -292,7 +292,7 @@ spec:
                 - |
                   export RESTIC_REPOSITORY="${REPOSITORY_BASE%/}/redis"
                   restic cat config >/dev/null 2>&1 || restic init
-                  restic backup /backup/redis.rdb --tag lab01-redis
+                  restic backup /backup/redis.rdb --tag redis
                   restic forget --keep-daily 14 --keep-weekly 8 --keep-monthly 6 --prune
               env:
                 - {

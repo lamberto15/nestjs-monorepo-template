@@ -1,10 +1,11 @@
-# lab01 K3s deployment
+# Single-node K3s deployment
 
-This is the deployment profile for `nestjs-monorepo.lamby.dev` on the single
-K3s node `lab01`. The Kubernetes API stays on Tailscale at `100.87.122.6:6443`.
-Cloudflare Tunnel carries public HTTPS traffic to Traefik inside the cluster.
-The production host runs K3s and pulls images; it needs neither Docker nor a
-source checkout.
+This guide describes a single-node K3s deployment. Keep the Kubernetes API
+private to your tailnet; Cloudflare Tunnel carries public HTTPS traffic to
+Traefik inside the cluster. The production host runs K3s and pulls images; it
+needs neither Docker nor a source checkout. Replace each `example.com` value
+with a domain you control, and keep cluster addresses and account identifiers
+in private configuration.
 
 The checked-in manifests are reviewed on a branch and merged through CI. An
 administrator applies infrastructure resources from a workstation with an
@@ -17,8 +18,8 @@ time and inspect its result before the next one.
 | Component              | Storage or access         | Owner              |
 | ---------------------- | ------------------------- | ------------------ |
 | API, worker, web, PDFs | GHCR digests              | `app` Helm release |
-| PostgreSQL and Redis   | `local-ssd`, retained RWO | administrator      |
-| Uploaded files         | `local-hdd`, retained RWO | `app` Helm release |
+| PostgreSQL and Redis   | retained RWO SSD class   | administrator      |
+| Uploaded files         | retained RWO HDD class   | `app` Helm release |
 | Backups                | Not configured            | operator decision  |
 | Cloudflare Tunnel      | Outbound connector        | administrator      |
 | ACME certificate       | DNS-01                    | administrator      |
@@ -41,7 +42,7 @@ request, not an expected backup size.
    as part of an application rollback.
 4. Run the reviewed
    [`create-app-secret.py`](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/create-app-secret.py)
-   interactively on lab01. It reads the PostgreSQL and Redis credentials from
+   interactively on the cluster host. It reads PostgreSQL and Redis credentials from
    their existing Secrets, prompts for the Resend API key, generates separate
    runtime and maintenance passwords plus four signing/encryption keys, and
    creates `app-secrets` through standard input. Save its six generated values
@@ -54,15 +55,15 @@ request, not an expected backup size.
    migration Job creates and grants application roles; only that Job receives
    the owner URL through its projected Secret keys. The Redis password matches
    `redis-secrets`.
-   Verify `lamby.dev` as a sender domain in Resend. The chart uses
-   `MAIL_TRANSPORT=resend` and `MAIL_FROM=no-reply@lamby.dev`; its API key comes
-   only from the `mail_api_key` Secret file.
-5. Backups are not configured. The operator selected strict zero spending, so
-   R2 must stay inactive. The HDD-backed upload PVC is production storage, not
-   a backup; it does not protect against disk failure, theft, or server loss.
-   Automatic deployment does not require the optional backup CronJobs. Before
-   storing irreplaceable production data, arrange a backup destination and
-   complete a restore drill. If the cost constraint changes, the reviewed
+   Verify your sending domain in Resend. The chart uses
+   `MAIL_TRANSPORT=resend` and an example sender address; set the actual
+   `MAIL_FROM` in GitHub's protected `production` environment variables. Its
+   API key comes only from the `mail_api_key` Secret file.
+5. The uploaded-files PVC is production storage, not a backup; it does not
+   protect against disk failure, theft, or server loss. Automatic deployment
+   does not require optional backup CronJobs. Before storing irreplaceable
+   production data, arrange a backup destination and complete a restore drill.
+   The reviewed
    [`backups.yaml`](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/backups.yaml)
    and [`create-backup-secret.py`](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/create-backup-secret.py)
    describe the optional encrypted S3-compatible backup path.
@@ -71,8 +72,8 @@ PostgreSQL is initialized with the owner `app` and database `app`, matching the
 existing Compose configuration. Redis uses append-only persistence and
 `noeviction`, matching [`compose.yaml`](../compose.yaml). Optional S3-compatible
 backup Jobs use encrypted, deduplicated restic repositories for database dumps,
-Redis RDB, and uploaded files. They are not installed in the current strict
-zero-cost setup.
+Redis RDB, and uploaded files. They are optional and are not installed by
+default.
 
 Restoring a database requires both `globals.sql` and `app.dump` from the same
 snapshot. Test restoration in a separate database and compare row counts and
@@ -83,11 +84,12 @@ decide whether queued work should resume before starting the worker.
 ## Public HTTPS
 
 Install cert-manager at a pinned current stable version. Create a Cloudflare
-API token limited to DNS Edit and Zone Read for `lamby.dev` and store it as
-`cloudflare-dns-token` in the `cert-manager` namespace. Apply
-[`deploy/k3s/cloudflare-issuer.yaml`](../deploy/k3s/cloudflare-issuer.yaml).
-The app ingress requests `app-tls` for `nestjs-monorepo.lamby.dev` through
-DNS-01. The Cloudflare token is never in the app namespace.
+API token limited to DNS Edit and Zone Read for your zone and store it as
+`cloudflare-dns-token` in the `cert-manager` namespace. Before applying
+[`deploy/k3s/cloudflare-issuer.yaml`](../deploy/k3s/cloudflare-issuer.yaml),
+replace its `example.com` placeholder with your zone. The app ingress requests
+`app-tls` for `app.example.com` through DNS-01. The Cloudflare token is never
+in the app namespace.
 
 Create a remotely managed Cloudflare Tunnel and a private `cloudflare-tunnel`
 namespace. Put its tunnel token in that namespace as `tunnel-token`, then apply
@@ -96,10 +98,10 @@ public route:
 
 | Field              | Value                                               |
 | ------------------ | --------------------------------------------------- |
-| Hostname           | `nestjs-monorepo.lamby.dev`                         |
+| Hostname           | `app.example.com`                                   |
 | Service URL        | `https://traefik.kube-system.svc.cluster.local:443` |
-| HTTP Host Header   | `nestjs-monorepo.lamby.dev`                         |
-| Origin Server Name | `nestjs-monorepo.lamby.dev`                         |
+| HTTP Host Header   | `app.example.com`                                   |
+| Origin Server Name | `app.example.com`                                   |
 | Match SNI to Host  | enabled                                             |
 | No TLS Verify      | disabled                                            |
 
@@ -118,34 +120,45 @@ the protected `production` GitHub environment. Verify denial of cluster-wide
 operations with `kubectl auth can-i` before storing it in GitHub.
 
 Create a kubeconfig for `github-deployer` with server
-`https://100.87.122.6:6443`, the K3s CA, the ServiceAccount token, and default
-namespace `nestjs-monorepo`. Store the complete kubeconfig as the
+`https://<TAILSCALE_K3S_ADDRESS>:6443`, the K3s CA, the ServiceAccount token,
+and default namespace `nestjs-monorepo`. Store the complete kubeconfig as the
 `K3S_KUBECONFIG` environment secret. Rotate this token if the environment is
 compromised or the deployer role changes.
 
 Configure a Tailscale workload identity federation client for the GitHub
 repository with the `tag:github-k3s-deploy` tag. Tailnet policy must allow
-that tag to reach only `100.87.122.6:6443`. Store the client ID and audience
-as `TS_OAUTH_CLIENT_ID` and `TS_AUDIENCE` in the `production` environment.
+that tag to reach only your cluster's Tailscale address on TCP port 6443. Store
+the client ID and audience as `TS_OAUTH_CLIENT_ID` and `TS_AUDIENCE` in the
+`production` environment.
 The deploy job has `id-token: write` for this federation and joins as an
 ephemeral node.
 
-This repository was created after GitHub's immutable OIDC subject rollout.
 Set the federated identity issuer to
-`https://token.actions.githubusercontent.com` and the exact subject to
-`repo:lamberto15@58181776/nestjs-monorepo-template@1422061980:environment:production`.
+`https://token.actions.githubusercontent.com`. Use the exact subject claim
+for your repository and protected environment. With GitHub's immutable OIDC
+subjects, the format is
+`repo:<OWNER>@<OWNER_ID>/<REPOSITORY>@<REPOSITORY_ID>:environment:production`.
 Grant only the `auth_keys` scope for `tag:github-k3s-deploy`. The production
 environment must remain restricted to `main`; the environment name takes the
-place of the branch in the default subject claim. Add a tailnet grant with
-`src: ["tag:github-k3s-deploy"]`, `dst: ["100.87.122.6"]`, and
-`ip: ["tcp:6443"]`. Verify the policy in the Tailscale console before saving.
+place of the branch in the default subject claim. Add a tailnet grant from that
+tag to your cluster's Tailscale address for `tcp:6443` only. Verify the policy
+in the Tailscale console before saving.
 
 Restrict the GitHub `production` environment to `main` and require a reviewer
 when available. Protect `main` with PR review and the existing CI and Helm
-checks. Leave the repository variable `K3S_DEPLOY_ENABLED` false until the
-database, certificate, route, and deploy identity have passed their checks.
-Backups are optional for deployment but remain unconfigured under the current
-strict zero-cost constraint; the local HDD is not an off-server backup.
+checks. Add the following deployment-specific values as variables to the
+protected `production` environment. The workflow uses these values at deploy
+time rather than checking your domain into this repository:
+
+| Variable      | Example value             |
+| ------------- | ------------------------- |
+| `APP_DOMAIN`  | `app.example.com`         |
+| `APP_URL`     | `https://app.example.com` |
+| `MAIL_FROM`   | `no-reply@example.com`    |
+
+Set `K3S_DEPLOY_ENABLED` to `true` only after the database, certificate, route,
+and deploy identity have passed their checks. Backups are optional for
+deployment; without them, the cluster has no off-server backup.
 
 ## Release and recovery
 

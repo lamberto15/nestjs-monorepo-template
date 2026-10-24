@@ -152,21 +152,9 @@ conflicted on this line.
 - Shell: `grep` is ripgrep, `ls` is eza; hooks refuse `/dev/null` redirects
   and recursive deletes of system paths, even in heredocs.
 
-## Deployed instance
+## Deployment data
 
-The owner's instance ("app10") runs the Compose production stack on the owner's Mac
-from **this checkout's main** (redeployed 2026-10-17 after tenancy, #14: api ×2,
-worker, Gotenberg, backup, PostgreSQL 18, Redis 8, Caddy with a Let's Encrypt
-certificate). Its `.env` sets `COMPOSE_PROJECT_NAME=nestjs-monorepo-template`, so
-its volumes are `nestjs-monorepo-template_*`; they were made fresh for the tenancy
-reset. The name has no public DNS record: `/etc/hosts` points it at 127.0.0.1.
-Redeploy with `docker compose up -d --build --remove-orphans` from this checkout
-(`.env` sets the files; `compose.monitoring.yaml` isn't among them).
-
-- **Check which checkout a running stack came from** before redeploying:
-  `docker inspect <container> --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}'`.
-- **Unused, removing them is the owner's decision:** the old checkout
-  `../nestjs-backend-template` (the private archive) and its
-  `nestjs-template_*` volumes, which held app10 before the reset.
-- **Deleting a production volume** is the owner's to run; the permission
-  check refuses it to Claude.
+Keep live hostnames, addresses, account identifiers, and production topology out
+of this public template. Put deployment-specific settings in protected CI
+environment variables and credentials in the platform's secret store. Consult
+the deployment runbook for your own environment before changing production data.

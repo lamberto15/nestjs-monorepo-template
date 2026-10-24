@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Create the lab01 app Secret without putting credentials in shell arguments.
+"""Create the application Secret without putting credentials in shell arguments.
 
-Run interactively on lab01 after postgres-secrets and redis-secrets exist. Save
-the generated values in a password manager before confirming the prompt.
+Run interactively on the cluster host after postgres-secrets and redis-secrets
+exist. Save the generated values in a password manager before confirming the
+prompt.
 """
 
 import base64
