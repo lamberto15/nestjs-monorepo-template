@@ -341,7 +341,7 @@ jobs:
           grafana_password=$(kubectl get secret monitoring-grafana -n monitoring -o jsonpath='{.data.admin-password}' | base64 -d)
           start=$(date -u -d '10 minutes ago' +%s%N)
           end=$(date -u +%s%N)
-          for _ in $(seq 1 60); do
+          for _ in $(seq 1 24); do
             if curl -fsSG --user "admin:$grafana_password" \
               --data-urlencode 'query={namespace="nestjs-monorepo",container="obs-log-smoke"} |= "k3s-observability-smoke"' \
               --data-urlencode "start=$start" --data-urlencode "end=$end" --data-urlencode 'limit=50' \
