@@ -5,12 +5,25 @@ import { dashboard } from '@/features/dashboard/registry';
 import { nav, visibleGroups } from '@/nav';
 import { visible, useFeatures, useMe } from '@/lib/features';
 
+export type QuickCommandKind = 'page' | 'action';
+
 export type QuickCommand = {
   to: string;
   label: string;
   icon: LucideIcon;
-  kind: 'page' | 'action';
+  kind: QuickCommandKind;
 };
+
+const command = (
+  item: { to: string; label: string; icon: LucideIcon },
+  kind: QuickCommandKind,
+  translate: (key: string) => string,
+): QuickCommand => ({
+  to: item.to,
+  label: translate(item.label),
+  icon: item.icon,
+  kind,
+});
 
 /** The pages and feature actions this user may use as commands (`>` in the palette). */
 export function useQuickCommands(): QuickCommand[] {
@@ -20,22 +33,12 @@ export function useQuickCommands(): QuickCommand[] {
   const can = me?.can;
   return useMemo(() => {
     const pages = visibleGroups(nav, features, can).flatMap((group) =>
-      group.items.map((item) => ({
-        to: item.to,
-        label: t(item.label),
-        icon: item.icon,
-        kind: 'page' as const,
-      })),
+      group.items.map((item) => command(item, 'page', t)),
     );
-    const pagePaths = new Set(pages.map((command) => command.to));
+    const pagePaths = new Set(pages.map(({ to }) => to));
     const actions = visible(dashboard.actions, features, can)
-      .filter((action) => !pagePaths.has(action.to))
-      .map((action) => ({
-        to: action.to,
-        label: t(action.label),
-        icon: action.icon,
-        kind: 'action' as const,
-      }));
+      .filter(({ to }) => !pagePaths.has(to))
+      .map((action) => command(action, 'action', t));
     return [...pages, ...actions];
   }, [features, can, t]);
 }
