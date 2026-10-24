@@ -2010,8 +2010,14 @@ jobs:
         run: |
           test "$(kubectl -n nestjs-monorepo auth can-i create deployments)" = yes
           test "$(kubectl -n nestjs-monorepo auth can-i create clusterrolebindings)" = no
+          for verb in get list watch create update patch delete; do
+            if [ "$(kubectl -n nestjs-monorepo auth can-i "$verb" prometheusrules.monitoring.coreos.com)" != yes ]; then
+              echo "::error::github-deployer cannot $verb PrometheusRules; apply deploy/k3s/deployer-rbac.yaml as a cluster administrator"
+              exit 1
+            fi
+          done
           kubectl -n nestjs-monorepo get secret app-secrets -o json |
-            jq -e '.data as $data | ["database_url", "database_owner_url", "database_maintenance_url", "jwt_secret", "mfa_encryption_keys", "data_encryption_keys", "blind_index_keys", "redis_password", "mail_api_key"] | all(. as $key | $data[$key] != null)' > /dev/null
+            jq -e '.data as $data | ["database_url", "database_owner_url", "database_maintenance_url", "jwt_secret", "mfa_encryption_keys", "data_encryption_keys", "blind_index_keys", "redis_password", "mail_api_key", "metrics_token"] | all(. as $key | $data[$key] != null)' > /dev/null
           kubectl -n nestjs-monorepo rollout status statefulset/postgres --timeout=2m
           kubectl -n nestjs-monorepo rollout status statefulset/redis --timeout=2m
       - name: Upgrade to the CI-verified release

@@ -277,6 +277,13 @@ jobs:
             --set alertmanager.alertmanagerSpec.storage=null \
             --wait --timeout 8m
 
+      - name: Verify deployer can manage namespaced PrometheusRules
+        run: |
+          subject=system:serviceaccount:nestjs-monorepo:github-deployer
+          for verb in get list watch create update patch delete; do
+            test "$(kubectl auth can-i "$verb" prometheusrules.monitoring.coreos.com -n nestjs-monorepo --as="$subject")" = yes
+          done
+
       - name: Provision the ephemeral app Secret outside Helm values
         run: |
           kubectl create secret generic app-secrets -n nestjs-monorepo \
