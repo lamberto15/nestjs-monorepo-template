@@ -19,7 +19,7 @@ time and inspect its result before the next one.
 | API, worker, web, PDFs | GHCR digests              | `app` Helm release |
 | PostgreSQL and Redis   | `local-ssd`, retained RWO | administrator      |
 | Uploaded files         | `local-hdd`, retained RWO | `app` Helm release |
-| Encrypted backups      | Off-server S3 bucket      | administrator      |
+| Backups                | Not configured            | operator decision  |
 | Cloudflare Tunnel      | Outbound connector        | administrator      |
 | ACME certificate       | DNS-01                    | administrator      |
 
@@ -57,29 +57,22 @@ request, not an expected backup size.
    Verify `lamby.dev` as a sender domain in Resend. The chart uses
    `MAIL_TRANSPORT=resend` and `MAIL_FROM=no-reply@lamby.dev`; its API key comes
    only from the `mail_api_key` Secret file.
-5. Choose an off-server backup destination with a hard free quota before
-   enabling automatic production deployment. The operator selected strict
-   zero spending, so R2 must stay inactive. If that constraint changes, create
-   a private R2 Standard bucket named `nestjs-monorepo-backups` and an Object
-   Read & Write token scoped to that bucket. Run the reviewed
-   [`create-backup-secret.py`](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/create-backup-secret.py)
-   interactively on lab01. It prompts for the R2 S3 endpoint and access key
-   pair, generates a distinct restic encryption password to save offline, and
-   creates `backup-secrets` through standard input. Its four keys are documented
-   in [`deploy/k3s/backups.yaml`](../deploy/k3s/backups.yaml).
-   After the first manual app install creates `app-storage`, apply the R2 backup
-   manifests only when R2 is authorized. Run each CronJob once and restore each
-   backup into disposable storage. Enable automatic deployment only after an
-   off-server restore drill.
+5. Backups are not configured. The operator selected strict zero spending, so
+   R2 must stay inactive. The HDD-backed upload PVC is production storage, not
+   a backup; it does not protect against disk failure, theft, or server loss.
+   Automatic deployment does not require the optional backup CronJobs. Before
+   storing irreplaceable production data, arrange a backup destination and
+   complete a restore drill. If the cost constraint changes, the reviewed
+   [`backups.yaml`](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/backups.yaml)
+   and [`create-backup-secret.py`](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/create-backup-secret.py)
+   describe the optional encrypted S3-compatible backup path.
 
 PostgreSQL is initialized with the owner `app` and database `app`, matching the
 existing Compose configuration. Redis uses append-only persistence and
-`noeviction`, matching [`compose.yaml`](../compose.yaml). The optional R2 backup Jobs use
-encrypted, deduplicated restic repositories for database dumps, Redis RDB, and
-uploaded files. The schedule is 03:00, 03:30, and 04:00 Asia/Manila. Fourteen
-daily, eight weekly, and six monthly snapshots are retained. This provides a
-daily recovery point; it is not point-in-time recovery. Monitor Job failures,
-bucket usage, and remaining disk space.
+`noeviction`, matching [`compose.yaml`](../compose.yaml). Optional S3-compatible
+backup Jobs use encrypted, deduplicated restic repositories for database dumps,
+Redis RDB, and uploaded files. They are not installed in the current strict
+zero-cost setup.
 
 Restoring a database requires both `globals.sql` and `app.dump` from the same
 snapshot. Test restoration in a separate database and compare row counts and
@@ -149,10 +142,10 @@ place of the branch in the default subject claim. Add a tailnet grant with
 
 Restrict the GitHub `production` environment to `main` and require a reviewer
 when available. Protect `main` with PR review and the existing CI and Helm
-checks. Leave the repository variable `K3S_DEPLOY_ENABLED` unset until the
-database, backups, certificate, route, and deploy identity have passed their
-checks. Set it to `true` only after the first manual deployment and restore
-drill.
+checks. Leave the repository variable `K3S_DEPLOY_ENABLED` false until the
+database, certificate, route, and deploy identity have passed their checks.
+Backups are optional for deployment but remain unconfigured under the current
+strict zero-cost constraint; the local HDD is not an off-server backup.
 
 ## Release and recovery
 
