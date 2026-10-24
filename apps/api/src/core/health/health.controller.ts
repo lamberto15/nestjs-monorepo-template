@@ -56,6 +56,11 @@ export class HealthController {
     ]);
   }
 
+  @Get('version')
+  version() {
+    return { sha: process.env.GIT_SHA ?? '' };
+  }
+
   @Get('live')
   @HealthCheck()
   live() {

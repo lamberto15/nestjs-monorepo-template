@@ -112,6 +112,10 @@
 				status 503
 			}
 		}
+		handle /version.json {
+			header Cache-Control "no-store"
+			file_server
+		}
 		# Hashed file names: they never change. A missing one is a 404, not the page.
 		handle /assets/* {
 			# Only a file that exists: a 404 must not be cached for a year.
