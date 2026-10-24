@@ -13,6 +13,9 @@ RUN CI=true pnpm fetch --store-dir /pnpm-store
 COPY . .
 RUN CI=true pnpm install --store-dir /pnpm-store --frozen-lockfile --offline \
       --filter @nestjs-monorepo-template/web...
+# Only the build output depends on the commit SHA. Leave fetch/install layers
+# cacheable when a new commit changes no dependencies.
+ARG GIT_SHA=""
 RUN pnpm --filter @nestjs-monorepo-template/web... build
 
 FROM caddy:2.11.7-builder AS builder

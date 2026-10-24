@@ -321,8 +321,15 @@
       "generic": "Something went wrong. Try again.",
       "retry": "Try again"
     },
-    "fields": { "tag": "Tag", "ownerId": "Owner", "teamId": "Team" },
-    "refs": { "searching": "Searching…", "failed": "The search failed." },
+    "fields": {
+      "tag": "Tag",
+      "ownerId": "Owner",
+      "teamId": "Team"
+    },
+    "refs": {
+      "searching": "Searching…",
+      "failed": "The search failed."
+    },
     "yes": "Yes",
     "no": "No",
     "table": {
@@ -460,5 +467,20 @@
     "done": "Continue to the app",
     "doneHint": "All required steps are done.",
     "redirected": "Finish setting up the administrator account before you continue."
+  },
+  "build": {
+    "title": "Build information",
+    "tab": "This tab",
+    "web": "Deployed web",
+    "api": "API",
+    "notChecked": "Not checked",
+    "current": "Up to date with deployed web",
+    "stale": "Update available",
+    "unknownStatus": "Version unknown",
+    "unknown": "Unknown",
+    "check": "Check version",
+    "checking": "Checking…",
+    "reload": "Reload",
+    "copy": "Copy details"
   }
 }

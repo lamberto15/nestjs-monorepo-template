@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  // Vite injects this global into production bundles; test runs do not use
+  // vite.config.ts, so provide the local/unknown-build default explicitly.
+  define: { __APP_GIT_SHA__: JSON.stringify('') },
   plugins: [react()],
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },

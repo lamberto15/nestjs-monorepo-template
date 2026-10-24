@@ -39,6 +39,7 @@ import { useTranslation } from 'react-i18next';
 import { languages, type Language } from '@/i18n';
 import { api } from '@/lib/api';
 import { UserAvatar } from '@/components/user-avatar';
+import { BuildInfo } from '@/components/build-info';
 import { useMe } from '@/lib/features';
 import { useInstallPrompt } from '@/lib/pwa';
 import { meQuery, saveLanguageKey } from '@/lib/session';
@@ -187,6 +188,8 @@ export function NavUser() {
                 {tp('install')}
               </DropdownMenuItem>
             )}
+            <BuildInfo />
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               disabled={signOut.isPending}
               onClick={() => signOut.mutate()}
