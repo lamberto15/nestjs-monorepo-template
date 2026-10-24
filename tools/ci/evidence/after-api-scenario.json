@@ -1,0 +1,100 @@
+{
+  "runId": 40087705374,
+  "sha": "42a43182f7eb253747f49a6fd68b128a2852b2d5",
+  "event": "workflow_dispatch",
+  "conclusion": "success",
+  "elapsedMinutes": 5.95,
+  "validationMinutes": 5.95,
+  "runnerMinutes": 22.933333333333334,
+  "peakRunners": 8,
+  "schedulingSeconds": 26,
+  "matrixWaitSeconds": 0,
+  "cacheHits": 14,
+  "cacheMisses": 5,
+  "jobs": [
+    {
+      "name": "changes",
+      "runnerMinutes": 0.11666666666666667,
+      "createdAfterRunSeconds": 1,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "security",
+      "runnerMinutes": 0.35,
+      "createdAfterRunSeconds": 10,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "image",
+      "runnerMinutes": 1.3,
+      "createdAfterRunSeconds": 10,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "compose-images",
+      "runnerMinutes": 0.1,
+      "createdAfterRunSeconds": 10,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 3
+    },
+    {
+      "name": "unit (api whole)",
+      "runnerMinutes": 1.7166666666666666,
+      "createdAfterRunSeconds": 10,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 3
+    },
+    {
+      "name": "check",
+      "runnerMinutes": 0.9,
+      "createdAfterRunSeconds": 19,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e-web",
+      "runnerMinutes": 1.8166666666666667,
+      "createdAfterRunSeconds": 19,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (2/2)",
+      "runnerMinutes": 4.733333333333333,
+      "createdAfterRunSeconds": 19,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (1/2)",
+      "runnerMinutes": 5.45,
+      "createdAfterRunSeconds": 19,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e-telemetry",
+      "runnerMinutes": 2.65,
+      "createdAfterRunSeconds": 19,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "hardened-stack",
+      "runnerMinutes": 3.683333333333333,
+      "createdAfterRunSeconds": 90,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "CI gate",
+      "runnerMinutes": 0.11666666666666667,
+      "createdAfterRunSeconds": 348,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    }
+  ]
+}

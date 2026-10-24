@@ -1,0 +1,37 @@
+{
+  "runId": 40086678737,
+  "sha": "42a43182f7eb253747f49a6fd68b128a2852b2d5",
+  "event": "workflow_dispatch",
+  "conclusion": "success",
+  "elapsedMinutes": 0.5833333333333334,
+  "validationMinutes": 0.5833333333333334,
+  "runnerMinutes": 0.4666666666666667,
+  "peakRunners": 1,
+  "schedulingSeconds": 6,
+  "matrixWaitSeconds": 0,
+  "cacheHits": 0,
+  "cacheMisses": 0,
+  "jobs": [
+    {
+      "name": "changes",
+      "runnerMinutes": 0.1,
+      "createdAfterRunSeconds": 1,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "ci-validate",
+      "runnerMinutes": 0.25,
+      "createdAfterRunSeconds": 9,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "CI gate",
+      "runnerMinutes": 0.11666666666666667,
+      "createdAfterRunSeconds": 26,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    }
+  ]
+}

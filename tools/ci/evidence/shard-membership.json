@@ -1,0 +1,59 @@
+[
+  {
+    "workspace": "api",
+    "config": "vitest.config.e2e.ts",
+    "count": 2,
+    "tests": 132,
+    "membership": [
+      66,
+      66
+    ]
+  },
+  {
+    "workspace": "api",
+    "config": "vitest.config.e2e.ts",
+    "count": 3,
+    "tests": 132,
+    "membership": [
+      44,
+      44,
+      44
+    ]
+  },
+  {
+    "workspace": "api",
+    "config": "vitest.config.e2e.ts",
+    "count": 6,
+    "tests": 132,
+    "membership": [
+      22,
+      22,
+      22,
+      22,
+      22,
+      22
+    ]
+  },
+  {
+    "workspace": "api",
+    "config": "vitest.config.ts",
+    "count": 3,
+    "tests": 150,
+    "membership": [
+      50,
+      50,
+      50
+    ]
+  },
+  {
+    "workspace": "web",
+    "config": "vitest.config.ts",
+    "count": 3,
+    "tests": 90,
+    "membership": [
+      30,
+      30,
+      30
+    ]
+  }
+]

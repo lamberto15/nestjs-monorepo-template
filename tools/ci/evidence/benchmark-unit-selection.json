@@ -1,0 +1,20 @@
+{
+  "winner": {
+    "name": "whole",
+    "runnerMinutes": 6.833333333333333,
+    "validationMinutes": 4.933333333333334
+  },
+  "meetsTarget": true,
+  "configurations": [
+    {
+      "name": "sharded",
+      "runnerMinutes": 9.950000000000001,
+      "validationMinutes": 4.683333333333334
+    },
+    {
+      "name": "whole",
+      "runnerMinutes": 6.833333333333333,
+      "validationMinutes": 4.933333333333334
+    }
+  ]
+}

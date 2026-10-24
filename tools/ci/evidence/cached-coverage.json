@@ -1,0 +1,8 @@
+{
+  "task": "api#test:cov --shard=1/3",
+  "cacheHit": true,
+  "files": 2,
+  "blobFiles": 1,
+  "coverageFiles": 1,
+  "identicalFileHashes": true
+}

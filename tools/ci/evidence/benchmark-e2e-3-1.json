@@ -1,0 +1,58 @@
+{
+  "runId": 40083001308,
+  "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+  "event": "workflow_dispatch",
+  "conclusion": "success",
+  "elapsedMinutes": 9.633333333333333,
+  "validationMinutes": 9.633333333333333,
+  "runnerMinutes": 13.816666666666668,
+  "peakRunners": 2,
+  "schedulingSeconds": 12,
+  "matrixWaitSeconds": 253,
+  "cacheHits": 0,
+  "cacheMisses": 3,
+  "jobs": [
+    {
+      "name": "changes",
+      "runnerMinutes": 0.15,
+      "createdAfterRunSeconds": 2,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "compose-images",
+      "runnerMinutes": 0.11666666666666667,
+      "createdAfterRunSeconds": 13,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (2/3)",
+      "runnerMinutes": 4.4,
+      "createdAfterRunSeconds": 22,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (1/3)",
+      "runnerMinutes": 4.183333333333334,
+      "createdAfterRunSeconds": 22,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (3/3)",
+      "runnerMinutes": 4.883333333333334,
+      "createdAfterRunSeconds": 22,
+      "matrixWaitSeconds": 253,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "CI gate",
+      "runnerMinutes": 0.08333333333333333,
+      "createdAfterRunSeconds": 571,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    }
+  ]
+}

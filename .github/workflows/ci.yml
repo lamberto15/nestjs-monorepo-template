@@ -10,7 +10,7 @@
 #
 # Third-party actions are pinned by commit SHA (the comment names the
 # release); Dependabot proposes newer ones.
-name: CI
+name: CI / CD
 
 on:
   push:
@@ -25,7 +25,32 @@ on:
       - 'CLAUDE.md'
       - '.claude/**'
   pull_request:
-  workflow_dispatch: # Run all checks manually when modifying CI.
+  workflow_dispatch:
+    inputs:
+      bootstrap_release:
+        description: 'Build and publish a complete manifest on main (no deployment)'
+        type: boolean
+        default: false
+      benchmark:
+        description: 'Run only the selected benchmark suites'
+        type: choice
+        options: ['off', e2e, unit]
+        default: 'off'
+      validation_scope:
+        description: 'Manual timing scenario; full is comprehensive (no publication)'
+        type: choice
+        options: [full, api, web, shared, infrastructure, ci]
+        default: full
+      e2e_shards:
+        description: 'API E2E shards (at most two run concurrently)'
+        type: choice
+        options: ['2', '3', '6']
+        default: '2'
+      unit_layout:
+        description: 'Unit coverage layout for measurement'
+        type: choice
+        options: [whole, sharded]
+        default: whole
   # A nightly run of everything on main, the checks a pull request skips
   # included (below): new advisories in the images, the generated template.
   schedule:
@@ -35,137 +60,95 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}${{ inputs.benchmark && inputs.benchmark != 'off' && format('-benchmark-{0}', github.run_id) || '' }}
   # A newer push to a pull request replaces its run; on main and tags a run
   # finishes, so a publish is never stopped halfway.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # What a pull request touched, so each job runs only when the paths it
-  # reads changed: a docs-only or web-only pull request doesn't queue the
-  # API's e2e shards, and the reverse. The runner pool is shared by every
-  # open pull request (GitHub's concurrent-jobs limit), so a job that has
-  # nothing to prove costs every other run its wait in the queue. Regular
-  # main code pushes, tags and nightly runs keep full validation to protect
-  # image publication. Workflow-only PRs/merges instead run ci-validate;
-  # editing an unrelated workflow must not start every app suite. The paths come from
-  # GitHub's PR file list or push comparison (no checkout needed).
-  # Each job's `if` names the outputs it reads
-  # (docs/deployment.md, "Which jobs a pull request runs"), and
-  # tools/ci/changes.test.mjs runs this step on sample pull requests. `gh`
-  # and grep rather than a paths-filter action: no third-party action to pin
-  # and trust with the token, and "anything but these paths" (`code`) is one
-  # grep.
+  # GitHub compares paths; the tested utility fails towards full validation.
   changes:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: read
+      actions: read
     outputs:
-      # Anything but the paths no job here reads (docs, Markdown, Claude's
-      # files, the Helm chart...): lint and knip, the build, the migrations.
       code: ${{ steps.paths.outputs.code }}
-      # App, shared runtime, or unknown sources that need the full build/DB check.
       app: ${{ steps.paths.outputs.app }}
-      # Tooling scripts/Knip config need lint, but no database-backed app checks.
       lint: ${{ steps.paths.outputs.lint }}
-      # The API, its client, the workspace's roots, the image's build
-      # context: the API's unit and e2e tests, the app image, the OpenAPI
-      # diff.
       api: ${{ steps.paths.outputs.api }}
-      # The web app, the packages, the browser tests, the Caddyfile (a web
-      # unit test reads it): the web app's unit tests, the browser tests.
       web: ${{ steps.paths.outputs.web }}
-      # The repository's scripts (tools/) and the root files their tests
-      # read: the feature generator, the setup wizard, the deploy scripts.
       tools: ${{ steps.paths.outputs.tools }}
-      # The production stack's files: the Compose files, what they build or
-      # mount, the shell scripts, the load test's stack, the deploy scripts:
-      # the secrets and hardening checks, the Swarm render, the started stack.
       stack: ${{ steps.paths.outputs.stack }}
-      # compose.yaml: compose-images reads CI's PostgreSQL and Redis from it,
-      # so the suites that run on them (e2e, e2e-telemetry, e2e-web,
-      # feature-smoke, template-without-notes) meet a new image before main.
       services: ${{ steps.paths.outputs.services }}
-      ci: ${{ steps.paths.outputs.ci }}
       backup: ${{ steps.paths.outputs.backup }}
       gotenberg: ${{ steps.paths.outputs.gotenberg }}
       caddy: ${{ steps.paths.outputs.caddy }}
+      ci: ${{ steps.paths.outputs.ci }}
+      generator: ${{ steps.paths.outputs.generator }}
+      image: ${{ steps.paths.outputs.image }}
+      api_image: ${{ steps.paths.outputs.api_image }}
+      full: ${{ steps.paths.outputs.full }}
+      base: ${{ steps.paths.outputs.base }}
+      head: ${{ steps.paths.outputs.head }}
+      affected: ${{ steps.paths.outputs.affected }}
+      expected: ${{ steps.paths.outputs.expected }}
+      benchmark: ${{ steps.paths.outputs.benchmark }}
+      publish: ${{ steps.paths.outputs.publish }}
+      release_ready: ${{ steps.paths.outputs.release_ready }}
+      unit_whole: ${{ steps.paths.outputs.unit_whole }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - id: paths
         env:
           GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
-          CI_BEFORE: ${{ github.event.before }}
-        run: |
-          keys='code app lint api web tools stack services backup gotenberg caddy ci'
-          all() {
-            for key in $keys; do echo "$key=true"; done | tee -a "$GITHUB_OUTPUT"
-            exit 0
-          }
-          # Keep full release/nightly/manual checks and main application changes.
-          # Only an exclusively CI-config/docs main merge skips publish/deploy.
-          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
-            if [ "$GITHUB_EVENT_NAME" != push ] || [ "$GITHUB_REF" != refs/heads/main ]; then all; fi
-            if [ -z "$CI_BEFORE" ] || [[ "$CI_BEFORE" =~ ^0+$ ]]; then all; fi
-            if ! files=$(gh api "repos/$GITHUB_REPOSITORY/compare/$CI_BEFORE...$GITHUB_SHA" --jq '.files[] | .filename, (.previous_filename // empty)'); then all; fi
-            # Compare returns up to 300 files; ambiguity runs full checks.
-            if [ -z "$files" ] || [ "$(wc -l <<< "$files")" -ge 300 ]; then all; fi
-            light='^(tools/ci/|\.github/workflows/|docs/|README\.md$|CLAUDE\.md$|\.claude/)'
-            if grep -qEv "$light" <<< "$files"; then all; fi
-          else
-            # A renamed file counts at both paths: its old place changed too.
-            if ! files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)'); then all; fi
-            if [ "$(wc -l <<< "$files")" -ge 3000 ]; then all; fi
-          fi
-          echo "$files"
-          # CI orchestration/tests do not imply changes to every application.
-          # Read by no job here: the docs, Markdown at the root and at a
-          # package's root, Claude's files, the changesets' notes, GitHub's
-          # repository settings, Helm and K3s manifests, and the devcontainer
-          # (their own workflows check those). Not the other workflows: knip
-          # reads them (its GitHub Actions plugin), as it reads lefthook.yml.
-          inert='^(tools/ci/|\.github/workflows/|docs/|\.claude/|\.changeset/[^/]*\.md$|\.devcontainer/|deploy/(helm|k3s)/|\.github/(ISSUE_TEMPLATE/|CODEOWNERS$|dependabot\.yml$|PULL_REQUEST_TEMPLATE\.md$)|LICENSE$|\.editorconfig$|[^/]*\.md$|packages/[^/]+/[^/]*\.md$)'
-          read=$(grep -vE "$inert" <<< "$files" || true)
-          # code: any path a job reads.
-          if [ -n "$read" ]; then echo code=true; else echo code=false; fi | tee -a "$GITHUB_OUTPUT"
-          # Tooling files can change independently of API, web, or the runtime
-          # contract. An unknown file stays app-relevant (conservative fallback).
-          app_inputs=$(grep -vE '^(tools/|knip\.jsonc$)' <<< "$read" || true)
-          if [ -n "$app_inputs" ]; then echo app=true; else echo app=false; fi | tee -a "$GITHUB_OUTPUT"
-          tooling_inputs=$(grep -E '^(tools/|knip\.jsonc$)' <<< "$read" || true)
-          if [ -n "$tooling_inputs" ]; then echo lint=true; else echo lint=false; fi | tee -a "$GITHUB_OUTPUT"
-          # touched <key> <regex>: true when a path a job reads matches.
-          touched() {
-            if grep -qE "$2" <<< "$read"; then echo "$1=true"; else echo "$1=false"; fi | tee -a "$GITHUB_OUTPUT"
-          }
-          if grep -qE '^(tools/ci/|\.github/workflows/)' <<< "$files"; then echo ci=true; else echo ci=false; fi | tee -a "$GITHUB_OUTPUT"
-          roots='package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|tsconfig[^/]*\.json$|\.oxlintrc\.json$|\.npmrc$|\.nvmrc$'
-          # The images' scans read it.
-          scan='\.trivyignore\.yaml$'
-          touched api "^(apps/api/|packages/api-client/|\.dockerignore$|$roots|$scan)"
-          touched web "^(apps/web/|apps/web-e2e/|packages/|caddy/Caddyfile$|$roots)"
-          # The tools' tests read env.example and Prettier's config too.
-          touched tools "^(tools/|env\.example$|\.prettierrc$|\.prettierignore$)"
-          touched stack "^(compose[^/]*\.yaml$|secret\.empty$|swarm\.placeholder$|scripts/|loadtest/|redis/|caddy/|backup/|gotenberg/|monitoring/|clamav/|pgbouncer/|tools/deploy/)"
-          touched services "^(compose\.yaml$)"
-          touched backup "^(backup/|scripts/test-backup-pitr\.sh$|$scan)"
-          touched gotenberg "^(gotenberg/|compose\.(dev|prod)\.yaml$|$scan)"
-          # Caddy's image builds the web app from the repository root
-          # (caddy/Dockerfile.dockerignore: the API's package.json too).
-          touched caddy "^(caddy/|apps/web/|packages/|apps/api/package\.json$|$roots|$scan)"
+        run: node tools/ci/changes.mjs
+      - name: Release comparison evidence
+        if: steps.paths.outputs.publish == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-plan
+          path: ${{ runner.temp }}/ci-release-plan/plan.json
+          if-no-files-found: error
+          retention-days: 7
 
   # Workflow-only changes require orchestration tests, not application suites.
   ci-validate:
     needs: changes
-    if: needs.changes.outputs.ci == 'true'
+    if: >-
+      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.ci == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    services:
+      registry:
+        image: registry:3.1.2
+        ports: ['5000/tcp']
     steps:
       - uses: actions/checkout@v7
       - name: Verify change routing and workflow invariants
-        run: node --test tools/ci/changes.test.mjs tools/ci/workflow.test.mjs
+        run: node --test 'tools/ci/*.test.mjs'
+      - name: Verify image publication against a disposable local registry
+        env:
+          REQUIRE_DOCKER: 'true'
+          CI_REGISTRY_ADDRESS: 127.0.0.1:${{ job.services.registry.ports['5000'] }}
+        run: node --test tools/ci/image-publication.test.mjs
+      - name: Validate GitHub Actions syntax
+        run: |
+          curl --proto '=https' --proto-redir '=https' -fsSL https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz -o "$RUNNER_TEMP/actionlint.tar.gz"
+          echo '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  actionlint.tar.gz' | (cd "$RUNNER_TEMP" && sha256sum -c -)
+          tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -shellcheck=
+      - name: Validate mixed release digests with Helm
+        run: |
+          curl --proto '=https' --proto-redir '=https' -fsSL https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz -o "$RUNNER_TEMP/helm.tar.gz"
+          echo '0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b  helm.tar.gz' | (cd "$RUNNER_TEMP" && sha256sum -c -)
+          tar -xzf "$RUNNER_TEMP/helm.tar.gz" -C "$RUNNER_TEMP" linux-amd64/helm
+          PATH="$RUNNER_TEMP/linux-amd64:$PATH" REQUIRE_HELM=true node --test tools/ci/release-helm.test.mjs
 
   # CI's PostgreSQL and Redis are compose.yaml's images, read from it: they
   # can't drift apart, and Dependabot's compose.yaml updates reach CI too
@@ -173,7 +156,11 @@ jobs:
   compose-images:
     needs: changes
     # Only jobs that use the Compose service image outputs need this runner.
-    if: needs.changes.outputs.app == 'true' || needs.changes.outputs.tools == 'true'
+    if: >-
+      needs.changes.outputs.benchmark == 'e2e' ||
+      (needs.changes.outputs.benchmark == 'off' &&
+      (needs.changes.outputs.app == 'true' || needs.changes.outputs.tools == 'true' ||
+      needs.changes.outputs.services == 'true' || needs.changes.outputs.generator == 'true' || needs.changes.outputs.full == 'true' || needs.changes.outputs.web == 'true'))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -200,7 +187,8 @@ jobs:
   # in their images. The app booting on files: secret-files.e2e-spec.ts.
   compose-secrets:
     needs: changes
-    if: needs.changes.outputs.stack == 'true'
+    if: >-
+      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.stack == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
@@ -427,7 +415,8 @@ jobs:
   # (which needs no Swarm). The script's unit tests run in feature-smoke.
   swarm-stack:
     needs: changes
-    if: needs.changes.outputs.stack == 'true'
+    if: >-
+      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.stack == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -458,8 +447,7 @@ jobs:
     # Generator smoke already installs dependencies and can run lint there.
     # This separate runner is only needed when Knip changed without tools.
     if: >-
-      needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true' &&
-      needs.changes.outputs.tools != 'true'
+      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true' && needs.changes.outputs.tools != 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -477,7 +465,8 @@ jobs:
   check:
     needs: [compose-images, changes]
     # Tooling-only edits already get lint and relevant generator smoke checks.
-    if: needs.changes.outputs.app == 'true'
+    if: >-
+      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.app == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
@@ -490,8 +479,13 @@ jobs:
           POSTGRES_DB: app
         ports: ['5432:5432']
         options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TURBO_SCM_BASE: ${{ needs.changes.outputs.base }}
+      TURBO_SCM_HEAD: ${{ needs.changes.outputs.head }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Install pnpm, Node.js and the dependencies
         uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
         with:
@@ -501,15 +495,17 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ github.sha }}
-          restore-keys: turbo-${{ runner.os }}-
+          key: turbo-v2-${{ runner.os }}-check-${{ github.sha }}
+          restore-keys: turbo-v2-${{ runner.os }}-check-
       # Oxlint in every package, the translation parity check, then knip:
       # unused files, exports and dependencies (knip.jsonc).
-      - run: pnpm lint
-      - run: pnpm build
+      - run: pnpm exec turbo run lint ${{ needs.changes.outputs.affected == 'true' && '--affected' || '' }} && pnpm i18n:check && pnpm knip
+      - run: pnpm exec turbo run build ${{ needs.changes.outputs.affected == 'true' && '--affected' || '' }}
       # The typed client's OpenAPI document and types must match the routes.
       - run: pnpm client:check
+        if: needs.changes.outputs.api == 'true'
       - name: Migrations match the schema
+        if: needs.changes.outputs.api == 'true'
         run: pnpm db:check
       # The owner (CI's superuser, as the Compose stack's) migrates, then
       # creates the app role from DATABASE_URL and checks it: no superuser, no
@@ -518,6 +514,7 @@ jobs:
       # that is no superuser (test/global-setup.ts) and run every test as the
       # app role.
       - name: Migrations apply to PostgreSQL and the app role is made (as `node dist/migrate` does on deploy)
+        if: needs.changes.outputs.api == 'true'
         run: pnpm migrate && pnpm migrate
         env:
           DATABASE_OWNER_URL: postgres://app:app@localhost:5432/app
@@ -552,7 +549,8 @@ jobs:
   # whole, so it enforces its own.
   unit-api:
     needs: changes
-    if: needs.changes.outputs.api == 'true'
+    if: >-
+      needs.changes.outputs.benchmark == 'unit' || (needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.api == 'true'))
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
@@ -560,25 +558,15 @@ jobs:
       # Reserve runner capacity for other pull requests.
       max-parallel: 2
       matrix:
-        include:
-          - name: api 1/3
-            blob: api-1
-            app: api
-            filter: --filter=@nestjs-monorepo-template/api
-            args: --shard=1/3
-          - name: api 2/3
-            blob: api-2
-            app: api
-            filter: --filter=@nestjs-monorepo-template/api
-            args: --shard=2/3
-          - name: api 3/3
-            blob: api-3
-            app: api
-            filter: --filter=@nestjs-monorepo-template/api
-            args: --shard=3/3
+        include: ${{ fromJSON(needs.changes.outputs.unit_whole == 'true' && '[{"name":"api whole","filter":"--filter=@nestjs-monorepo-template/api","blob":"","args":""}]' || '[{"name":"api 1/3","blob":"api-1","app":"api","filter":"--filter=@nestjs-monorepo-template/api","args":"--shard=1/3"},{"name":"api 2/3","blob":"api-2","app":"api","filter":"--filter=@nestjs-monorepo-template/api","args":"--shard=2/3"},{"name":"api 3/3","blob":"api-3","app":"api","filter":"--filter=@nestjs-monorepo-template/api","args":"--shard=3/3"}]') }}
     name: unit (${{ matrix.name }})
+    env:
+      TURBO_SCM_BASE: ${{ needs.changes.outputs.base }}
+      TURBO_SCM_HEAD: ${{ needs.changes.outputs.head }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Install pnpm, Node.js and the dependencies
         uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
         with:
@@ -588,18 +576,18 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ github.sha }}
-          restore-keys: turbo-${{ runner.os }}-
+          key: turbo-v2-${{ runner.os }}-unit-api-${{ matrix.name }}-${{ github.sha }}
+          restore-keys: turbo-v2-${{ runner.os }}-unit-api-${{ matrix.name }}-
       - name: A shard (blob report, coverage; thresholds are checked when merged)
         if: matrix.blob
         run: >-
-          pnpm exec turbo run test:cov ${{ matrix.filter }} --
+          pnpm exec turbo run test:cov ${{ needs.changes.outputs.benchmark == 'unit' && '--force' || '' }} ${{ needs.changes.outputs.affected == 'true' && '--affected' || '' }} ${{ matrix.filter }} --
           ${{ matrix.args }} --reporter=default --reporter=blob
           --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
           --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
       - name: Whole (coverage and its thresholds)
         if: ${{ !matrix.blob }}
-        run: pnpm exec turbo run test:cov ${{ matrix.filter }}
+        run: pnpm exec turbo run test:cov ${{ needs.changes.outputs.benchmark == 'unit' && '--force' || '' }} ${{ needs.changes.outputs.affected == 'true' && '--affected' || '' }} ${{ matrix.filter }}
       - name: The shard's blob report
         if: matrix.blob
         uses: actions/upload-artifact@v7
@@ -617,7 +605,8 @@ jobs:
 
   unit-web:
     needs: changes
-    if: needs.changes.outputs.web == 'true'
+    if: >-
+      needs.changes.outputs.benchmark == 'unit' || (needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.web == 'true'))
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
@@ -625,28 +614,15 @@ jobs:
       # Reserve runner capacity for other pull requests.
       max-parallel: 2
       matrix:
-        include:
-          - name: web 1/3
-            blob: web-1
-            app: web
-            filter: --filter=@nestjs-monorepo-template/web
-            args: --shard=1/3
-          - name: web 2/3
-            blob: web-2
-            app: web
-            filter: --filter=@nestjs-monorepo-template/web
-            args: --shard=2/3
-          - name: web 3/3
-            blob: web-3
-            app: web
-            filter: --filter=@nestjs-monorepo-template/web
-            args: --shard=3/3
-          - name: packages
-            filter: --filter=!@nestjs-monorepo-template/api --filter=!@nestjs-monorepo-template/web
-            args: ''
+        include: ${{ fromJSON(needs.changes.outputs.unit_whole == 'true' && '[{"name":"web whole","filter":"--filter=@nestjs-monorepo-template/web","blob":"","args":""},{"name":"packages","filter":"--filter=!@nestjs-monorepo-template/api --filter=!@nestjs-monorepo-template/web","args":""}]' || '[{"name":"web 1/3","blob":"web-1","app":"web","filter":"--filter=@nestjs-monorepo-template/web","args":"--shard=1/3"},{"name":"web 2/3","blob":"web-2","app":"web","filter":"--filter=@nestjs-monorepo-template/web","args":"--shard=2/3"},{"name":"web 3/3","blob":"web-3","app":"web","filter":"--filter=@nestjs-monorepo-template/web","args":"--shard=3/3"},{"name":"packages","filter":"--filter=!@nestjs-monorepo-template/api --filter=!@nestjs-monorepo-template/web","args":""}]') }}
     name: unit (${{ matrix.name }})
+    env:
+      TURBO_SCM_BASE: ${{ needs.changes.outputs.base }}
+      TURBO_SCM_HEAD: ${{ needs.changes.outputs.head }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Install pnpm, Node.js and the dependencies
         uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
         with:
@@ -656,18 +632,18 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ github.sha }}
-          restore-keys: turbo-${{ runner.os }}-
+          key: turbo-v2-${{ runner.os }}-unit-web-${{ matrix.name }}-${{ github.sha }}
+          restore-keys: turbo-v2-${{ runner.os }}-unit-web-${{ matrix.name }}-
       - name: A shard (blob report, coverage; thresholds are checked when merged)
         if: matrix.blob
         run: >-
-          pnpm exec turbo run test:cov ${{ matrix.filter }} --
+          pnpm exec turbo run test:cov ${{ needs.changes.outputs.benchmark == 'unit' && '--force' || '' }} ${{ needs.changes.outputs.affected == 'true' && '--affected' || '' }} ${{ matrix.filter }} --
           ${{ matrix.args }} --reporter=default --reporter=blob
           --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
           --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
       - name: Whole (coverage and its thresholds)
         if: ${{ !matrix.blob }}
-        run: pnpm exec turbo run test:cov ${{ matrix.filter }}
+        run: pnpm exec turbo run test:cov ${{ needs.changes.outputs.benchmark == 'unit' && '--force' || '' }} ${{ needs.changes.outputs.affected == 'true' && '--affected' || '' }} ${{ matrix.filter }}
       - name: The shard's blob report
         if: matrix.blob
         uses: actions/upload-artifact@v7
@@ -690,9 +666,9 @@ jobs:
   # job failed or was cancelled and one of them ran, and merges the side(s)
   # that ran. Main, tags and the nightly run have both.
   coverage:
-    needs: [unit-api, unit-web]
+    needs: [changes, unit-api, unit-web]
     if: >-
-      !cancelled() &&
+      !cancelled() && needs.changes.outputs.unit_whole != 'true' &&
       (needs.unit-api.result == 'success' || needs.unit-api.result == 'skipped') &&
       (needs.unit-web.result == 'success' || needs.unit-web.result == 'skipped') &&
       (needs.unit-api.result == 'success' || needs.unit-web.result == 'success')
@@ -732,7 +708,8 @@ jobs:
   # together.
   e2e:
     needs: [compose-images, changes]
-    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'
+    if: >-
+      needs.changes.outputs.benchmark == 'e2e' || (needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'))
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
@@ -740,8 +717,8 @@ jobs:
       # Reserve runner capacity for other pull requests.
       max-parallel: 2
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
-    name: e2e (${{ matrix.shard }}/6)
+        shard: ${{ fromJSON(inputs.e2e_shards == '2' && '[1,2]' || inputs.e2e_shards == '3' && '[1,2,3]' || inputs.e2e_shards == '6' && '[1,2,3,4,5,6]' || '[1,2]') }}
+    name: e2e (${{ matrix.shard }}/${{ inputs.e2e_shards || '2' }})
     services:
       # Redis: queues, rate limits, realtime; each file keeps to its own prefix.
       redis:
@@ -765,7 +742,7 @@ jobs:
         with:
           runtime: node@24
           cache: true
-      - run: pnpm test:e2e --shard=${{ matrix.shard }}/6
+      - run: pnpm test:e2e --shard=${{ matrix.shard }}/${{ inputs.e2e_shards || '2' }}
         env:
           REDIS_URL: redis://localhost:6379
           # The tests create their databases here (a template, then a copy per app).
@@ -786,7 +763,8 @@ jobs:
   # covered by observe.spec.ts.
   e2e-telemetry:
     needs: [compose-images, changes]
-    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'
+    if: >-
+      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
@@ -854,8 +832,7 @@ jobs:
   e2e-web:
     needs: [compose-images, changes]
     if: >-
-      needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true' ||
-      needs.changes.outputs.services == 'true'
+      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true' || needs.changes.outputs.services == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
@@ -888,8 +865,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ github.sha }}
-          restore-keys: turbo-${{ runner.os }}-
+          key: turbo-v2-${{ runner.os }}-e2e-web-${{ github.sha }}
+          restore-keys: turbo-v2-${{ runner.os }}-e2e-web-
       # Playwright's browsers, kept between runs by its version; the system
       # libraries are installed each time (`--with-deps`: apt, a few seconds).
       - name: Playwright's version
@@ -939,8 +916,7 @@ jobs:
   feature-smoke:
     needs: [compose-images, changes]
     if: >-
-      needs.changes.outputs.api == 'true' || needs.changes.outputs.tools == 'true' ||
-      needs.changes.outputs.services == 'true'
+      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.generator == 'true' || needs.changes.outputs.tools == 'true' || needs.changes.outputs.services == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
@@ -1031,8 +1007,7 @@ jobs:
   template-without-notes:
     needs: [compose-images, changes]
     if: >-
-      needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true' ||
-      needs.changes.outputs.tools == 'true' || needs.changes.outputs.services == 'true'
+      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.full == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     # A pull request runs shard 1's cheap steps only (the example removed, then
@@ -1049,7 +1024,7 @@ jobs:
       max-parallel: 2
       matrix:
         # Matrix expressions: the job-level `if` can't read the matrix.
-        shard: ${{ fromJSON(github.event_name == 'pull_request' && '[1]' || '[1, 2, 3, 4, 5, 6]') }}
+        shard: [1, 2, 3, 4, 5, 6]
     name: template-without-notes (${{ matrix.shard }}/6)
     services:
       redis:
@@ -1095,7 +1070,7 @@ jobs:
       # The unit jobs' split (3 API shards, 3 web shards), over this job's six;
       # the small packages' tests ride on shard 1.
       - name: Unit and web tests (a share per shard; not on pull requests)
-        if: github.event_name != 'pull_request'
+        if: needs.changes.outputs.full == 'true'
         run: |
           shard=${{ matrix.shard }}
           if [ "$shard" -le 3 ]; then
@@ -1107,7 +1082,7 @@ jobs:
             pnpm exec turbo run test --filter='!@nestjs-monorepo-template/api' --filter='!@nestjs-monorepo-template/web'
           fi
       - name: Every e2e test (this shard's sixth; not on pull requests)
-        if: github.event_name != 'pull_request'
+        if: needs.changes.outputs.full == 'true'
         run: pnpm --filter @nestjs-monorepo-template/api exec vitest run --config ./vitest.config.e2e.ts --shard=${{ matrix.shard }}/6
         env:
           REDIS_URL: redis://localhost:6379
@@ -1122,7 +1097,8 @@ jobs:
   # (docs/development.md, "Typed client").
   openapi-diff:
     needs: changes
-    if: github.event_name == 'pull_request' && needs.changes.outputs.api == 'true'
+    if: >-
+      needs.changes.outputs.benchmark == 'off' && (github.event_name == 'pull_request' && needs.changes.outputs.api == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:
@@ -1217,7 +1193,8 @@ jobs:
   security:
     needs: changes
     # Scan runtime/deploy changes and executable tooling, not Knip-only edits.
-    if: needs.changes.outputs.app == 'true' || needs.changes.outputs.tools == 'true'
+    if: >-
+      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.app == 'true' || needs.changes.outputs.tools == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -1261,7 +1238,8 @@ jobs:
   # vulnerability (OS packages and node_modules).
   image:
     needs: changes
-    if: needs.changes.outputs.api == 'true'
+    if: >-
+      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.image == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -1273,6 +1251,9 @@ jobs:
           # The repository root: the image takes the workspace (lockfile, packages/).
           context: .
           file: apps/api/Dockerfile
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
           load: true
           tags: app:ci
           build-args: GIT_SHA=${{ github.sha }}
@@ -1294,12 +1275,30 @@ jobs:
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
 
-  # The backup service's image (backup/) builds and passes the same scan.
-  # Its own cache scope, so it never evicts the app image's. Not published:
-  # every deploy builds it (`docker compose up -d --build`).
+      # The backup service's image (backup/) builds and passes the same scan.
+      # Its own cache scope, so it never evicts the app image's. Not published:
+      # every deploy builds it (`docker compose up -d --build`).
+      - name: Export the verified image
+        run: |
+          docker save app:ci -o "${{ runner.temp }}/app.tar"
+          (cd "${{ runner.temp }}" && sha256sum app.tar > app.tar.sha256)
+          docker image inspect --format '{{.Id}}' app:ci > "${{ runner.temp }}/app.id"
+      - name: Transfer the verified image
+        uses: actions/upload-artifact@v7
+        with:
+          name: image-app
+          path: |
+            ${{ runner.temp }}/app.tar
+            ${{ runner.temp }}/app.tar.sha256
+            ${{ runner.temp }}/app.id
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 2
+
   backup-image:
     needs: changes
-    if: needs.changes.outputs.backup == 'true'
+    if: >-
+      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.backup == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -1332,19 +1331,29 @@ jobs:
           exit-code: '1'
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
+      - name: Export the verified image
+        run: |
+          docker save backup:ci -o "${{ runner.temp }}/backup.tar"
+          (cd "${{ runner.temp }}" && sha256sum backup.tar > backup.tar.sha256)
+          docker image inspect --format '{{.Id}}' backup:ci > "${{ runner.temp }}/backup.id"
+      - name: Transfer the verified image
+        uses: actions/upload-artifact@v7
+        with:
+          name: image-backup
+          path: |
+            ${{ runner.temp }}/backup.tar
+            ${{ runner.temp }}/backup.tar.sha256
+            ${{ runner.temp }}/backup.id
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 2
 
-  # The hardened production stack starts (docs/deployment.md, "Container
-  # hardening"). compose-secrets sees the keys; only a start shows whether the
-  # containers run under them: a missing tmpfs or capability is a container
-  # that exits, restarts or never becomes healthy. It is the load test's
-  # stack (loadtest/run.sh: PostgreSQL, Redis, migrate, api ×2, worker, the
-  # stock Caddy on plain HTTP) with the backup service, on new volumes as a
-  # first deployment has them. Not started: the production Caddy (its
-  # certificate needs a public name) and Gotenberg. On a pull request, for
-  # the app image's paths and the stack's.
   hardened-stack:
-    needs: changes
-    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.stack == 'true'
+    needs: [changes, image, backup-image]
+    if: >-
+      !cancelled() && needs.image.result == 'success' &&
+      (needs.backup-image.result == 'success' || needs.backup-image.result == 'skipped') &&
+      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.stack == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
@@ -1354,16 +1363,29 @@ jobs:
       LOADTEST_OUT: loadtest/results
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - name: Build the production image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      - uses: actions/download-artifact@v8
         with:
-          context: .
-          file: apps/api/Dockerfile
-          load: true
-          tags: app:hardened
-          build-args: GIT_SHA=${{ github.sha }}
-          cache-from: type=gha
+          name: image-app
+          path: ${{ runner.temp }}/image
+      - name: Load the verified API image
+        run: |
+          (cd "${{ runner.temp }}/image" && sha256sum -c app.tar.sha256)
+          docker load -i "${{ runner.temp }}/image/app.tar"
+          test "$(docker image inspect --format '{{.Id}}' app:ci)" = "$(cat "${{ runner.temp }}/image/app.id")"
+          docker tag app:ci app:hardened
+      - name: Download the verified backup when it was built
+        if: needs.backup-image.result == 'success'
+        uses: actions/download-artifact@v8
+        with:
+          name: image-backup
+          path: ${{ runner.temp }}/image
+      - name: Load the verified backup
+        if: needs.backup-image.result == 'success'
+        run: |
+          (cd "${{ runner.temp }}/image" && sha256sum -c backup.tar.sha256)
+          docker load -i "${{ runner.temp }}/image/backup.tar"
+          test "$(docker image inspect --format '{{.Id}}' backup:ci)" = "$(cat "${{ runner.temp }}/image/backup.id")"
+          docker tag backup:ci "$LOADTEST_PROJECT-backup"
       # Returns once the API answers behind Caddy; otherwise prints the logs
       # and fails.
       - name: Start the stack
@@ -1371,6 +1393,8 @@ jobs:
           APP_IMAGE: app:hardened
         run: loadtest/run.sh up
       - name: Every container runs, healthy and never restarted
+        env:
+          BACKUP_VERIFIED: ${{ needs.backup-image.result == 'success' }}
         run: |
           # The files and the environment run.sh starts the stack with.
           compose() {
@@ -1381,7 +1405,11 @@ jobs:
           }
           # The backup service writes /backups as `postgres`: its first run
           # (the scheduler takes one at once on an empty volume) proves it can.
-          compose up -d --build --no-deps backup
+          if [ "$BACKUP_VERIFIED" = true ]; then
+            compose up -d --no-build --no-deps backup
+          else
+            compose up -d --build --no-deps backup
+          fi
           for _ in $(seq 1 45); do
             compose exec -T backup test -s /backups/.last-success && break
             sleep 2
@@ -1438,7 +1466,8 @@ jobs:
   # Published by publish-caddy, as the app image is.
   caddy-image:
     needs: changes
-    if: needs.changes.outputs.caddy == 'true'
+    if: >-
+      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.caddy == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -1449,6 +1478,9 @@ jobs:
         with:
           context: .
           file: caddy/Dockerfile
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
           build-args: GIT_SHA=${{ github.sha }}
           load: true
           tags: caddy:ci
@@ -1506,14 +1538,32 @@ jobs:
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
 
-  # Gotenberg's image (gotenberg/: the official one, pinned, made thin on
-  # top of), which renders the PDF documents: its pins agree with each other
-  # and with compose.dev.yaml, then it builds (its Debian upgrade fresh each
-  # run) and passes the same scan. Its own cache scope. Published by
-  # publish-gotenberg, as the app image is.
+      # Gotenberg's image (gotenberg/: the official one, pinned, made thin on
+      # top of), which renders the PDF documents: its pins agree with each other
+      # and with compose.dev.yaml, then it builds (its Debian upgrade fresh each
+      # run) and passes the same scan. Its own cache scope. Published by
+      # publish-gotenberg, as the app image is.
+      - name: Export the verified image
+        run: |
+          docker save caddy:ci -o "${{ runner.temp }}/caddy.tar"
+          (cd "${{ runner.temp }}" && sha256sum caddy.tar > caddy.tar.sha256)
+          docker image inspect --format '{{.Id}}' caddy:ci > "${{ runner.temp }}/caddy.id"
+      - name: Transfer the verified image
+        uses: actions/upload-artifact@v7
+        with:
+          name: image-caddy
+          path: |
+            ${{ runner.temp }}/caddy.tar
+            ${{ runner.temp }}/caddy.tar.sha256
+            ${{ runner.temp }}/caddy.id
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 2
+
   gotenberg-image:
     needs: changes
-    if: needs.changes.outputs.gotenberg == 'true'
+    if: >-
+      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.gotenberg == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -1542,6 +1592,9 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: gotenberg
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
           load: true
           tags: gotenberg:ci
           # A new value per workflow run: the Debian upgrade runs again (the
@@ -1588,32 +1641,89 @@ jobs:
           exit-code: '1'
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
+      - name: Export the verified image
+        run: |
+          docker save gotenberg:ci -o "${{ runner.temp }}/gotenberg.tar"
+          (cd "${{ runner.temp }}" && sha256sum gotenberg.tar > gotenberg.tar.sha256)
+          docker image inspect --format '{{.Id}}' gotenberg:ci > "${{ runner.temp }}/gotenberg.id"
+      - name: Transfer the verified image
+        uses: actions/upload-artifact@v7
+        with:
+          name: image-gotenberg
+          path: |
+            ${{ runner.temp }}/gotenberg.tar
+            ${{ runner.temp }}/gotenberg.tar.sha256
+            ${{ runner.temp }}/gotenberg.id
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 2
 
-  # main and v* tags, once check, security and image passed (backup-image
-  # gates pull requests; its image isn't published; Gotenberg's and Caddy's
-  # are, by publish-gotenberg and publish-caddy):
-  # the image is built again (from the cache the image job left), scanned,
-  # then pushed to ghcr.io/<owner>/<repo> as the full commit SHA, `main` or
-  # the version.
-  # Never `latest`: a deploy names the image it runs.
-  publish:
-    if: github.event_name == 'push'
-    needs: [check, unit-api, unit-web, e2e, security, image]
+  ci-gate:
+    name: CI gate
+    if: always()
+    needs:
+      [
+        changes,
+        ci-validate,
+        compose-images,
+        compose-secrets,
+        swarm-stack,
+        tooling-lint,
+        check,
+        unit-api,
+        unit-web,
+        coverage,
+        e2e,
+        e2e-telemetry,
+        e2e-web,
+        feature-smoke,
+        template-without-notes,
+        openapi-diff,
+        security,
+        image,
+        backup-image,
+        hardened-stack,
+        caddy-image,
+        gotenberg-image,
+      ]
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Require the classified checks
+        env:
+          EXPECTED: ${{ needs.changes.outputs.expected }}
+          NEEDS: ${{ toJSON(needs) }}
+        run: node tools/ci/gate.mjs
+
+  publish:
+    name: Publish app
+    if: >-
+      !cancelled() && needs.ci-gate.result == 'success' &&
+      needs.changes.outputs.publish == 'true' && needs.changes.outputs.release_ready == 'true' && needs.changes.outputs.api_image == 'true'
+    needs: [changes, ci-gate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: write
-      id-token: write # keyless signing (cosign, attestations)
+      id-token: write
       attestations: write
-    # For the release job: the version tag (1.2.3 for v1.2.3) and the digest.
     outputs:
       version: ${{ steps.meta.outputs.version }}
       digest: ${{ steps.push.outputs.digest }}
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - name: Tags and OCI labels
+      - uses: actions/download-artifact@v8
+        with:
+          name: image-app
+          path: ${{ runner.temp }}/image
+      - name: Load the verified image
+        run: |
+          (cd "${{ runner.temp }}/image" && sha256sum -c app.tar.sha256)
+          docker load -i "${{ runner.temp }}/image/app.tar"
+          test "$(docker image inspect --format '{{.Id}}' app:ci)" = "$(cat "${{ runner.temp }}/image/app.id")"
+      - name: Tags for the verified image
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
@@ -1624,18 +1734,29 @@ jobs:
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-      - name: Build the image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
-          context: .
-          file: apps/api/Dockerfile
-          load: true
-          tags: |
-            ${{ steps.meta.outputs.tags }}
-            app:publish
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: GIT_SHA=${{ github.sha }}
-          cache-from: type=gha
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push without rebuilding
+        id: push
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          REPOSITORY: ghcr.io/${{ github.repository }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r tag; do
+            docker tag app:ci "$tag"
+            docker push "$tag"
+          done <<< "$TAGS"
+          # Resolve the immutable SHA tag just pushed; never a mutable branch tag.
+          ref="${REPOSITORY,,}:$GITHUB_SHA"
+          digest=$(docker inspect --format '{{json .RepoDigests}}' "$ref" | jq -er --arg repo "${REPOSITORY,,}@" '.[] | select(startswith($repo)) | split("@")[1]')
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "ref=${REPOSITORY,,}@$digest" >> "$GITHUB_OUTPUT"
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
@@ -1645,60 +1766,46 @@ jobs:
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           skip-setup-trivy: true
-          image-ref: app:publish
+          image-ref: ${{ steps.push.outputs.ref }}
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: '1'
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
-      - name: Log in to GHCR
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      # The same build: every step comes from the builder's cache.
-      - name: Push the image
-        id: push
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          file: apps/api/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          annotations: ${{ steps.meta.outputs.annotations }}
-          build-args: GIT_SHA=${{ github.sha }}
-          cache-from: type=gha
       - name: Sign the image, attest its provenance and SBOM
         uses: ./.github/actions/sign-image
         with:
           image: ghcr.io/${{ github.repository }}
           digest: ${{ steps.push.outputs.digest }}
 
-  # Gotenberg's image, as publish does the app's: on main and v* tags, once
-  # the checks and gotenberg-image passed, built again (from the cache
-  # gotenberg-image left in this run: the image it scanned), scanned, then
-  # pushed to ghcr.io/<owner>/<repo>/gotenberg as the full commit SHA, `main`
-  # or the version. Production runs it (GOTENBERG_IMAGE, docs/deployment.md):
-  # what CI scanned, not a build on the host whose Debian upgrade a cache
-  # would freeze.
   publish-gotenberg:
-    if: github.event_name == 'push'
-    needs: [check, unit-api, unit-web, e2e, security, image, gotenberg-image]
+    name: Publish gotenberg
+    if: >-
+      !cancelled() && needs.ci-gate.result == 'success' &&
+      needs.changes.outputs.publish == 'true' && needs.changes.outputs.release_ready == 'true' && needs.changes.outputs.gotenberg == 'true'
+    needs: [changes, ci-gate]
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: write
-      id-token: write # keyless signing (cosign, attestations)
+      id-token: write
       attestations: write
     outputs:
+      version: ${{ steps.meta.outputs.version }}
       digest: ${{ steps.push.outputs.digest }}
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - name: Tags and OCI labels
+      - uses: actions/download-artifact@v8
+        with:
+          name: image-gotenberg
+          path: ${{ runner.temp }}/image
+      - name: Load the verified image
+        run: |
+          (cd "${{ runner.temp }}/image" && sha256sum -c gotenberg.tar.sha256)
+          docker load -i "${{ runner.temp }}/image/gotenberg.tar"
+          test "$(docker image inspect --format '{{.Id}}' gotenberg:ci)" = "$(cat "${{ runner.temp }}/image/gotenberg.id")"
+      - name: Tags for the verified image
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
@@ -1709,17 +1816,29 @@ jobs:
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-      - name: Build the image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
-          context: gotenberg
-          load: true
-          tags: |
-            ${{ steps.meta.outputs.tags }}
-            gotenberg:publish
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: APT_REFRESH=${{ github.run_id }}
-          cache-from: type=gha,scope=gotenberg
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push without rebuilding
+        id: push
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          REPOSITORY: ghcr.io/${{ github.repository }}/gotenberg
+        run: |
+          set -euo pipefail
+          while IFS= read -r tag; do
+            docker tag gotenberg:ci "$tag"
+            docker push "$tag"
+          done <<< "$TAGS"
+          # Resolve the immutable SHA tag just pushed; never a mutable branch tag.
+          ref="${REPOSITORY,,}:$GITHUB_SHA"
+          digest=$(docker inspect --format '{{json .RepoDigests}}' "$ref" | jq -er --arg repo "${REPOSITORY,,}@" '.[] | select(startswith($repo)) | split("@")[1]')
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "ref=${REPOSITORY,,}@$digest" >> "$GITHUB_OUTPUT"
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
@@ -1729,61 +1848,46 @@ jobs:
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           skip-setup-trivy: true
-          image-ref: gotenberg:publish
+          image-ref: ${{ steps.push.outputs.ref }}
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: '1'
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
-      - name: Log in to GHCR
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      # The same build: every step comes from the builder's cache.
-      - name: Push the image
-        id: push
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: gotenberg
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          annotations: ${{ steps.meta.outputs.annotations }}
-          build-args: APT_REFRESH=${{ github.run_id }}
-          cache-from: type=gha,scope=gotenberg
       - name: Sign the image, attest its provenance and SBOM
         uses: ./.github/actions/sign-image
         with:
           image: ghcr.io/${{ github.repository }}/gotenberg
           digest: ${{ steps.push.outputs.digest }}
 
-  # Caddy's image (with the web app), as publish-gotenberg does Gotenberg's:
-  # on main and v* tags, once the checks and caddy-image passed, built again
-  # (from the scope=caddy cache caddy-image left in this run: the image it
-  # scanned), scanned, then pushed to ghcr.io/<owner>/<repo>/caddy as the
-  # full commit SHA, `main` or the version. The image holds no deployment's
-  # values (the domain, the ACME email and the Cloudflare token come from the
-  # environment at run time, the web app calls the API on its own origin), so
-  # one build serves every deployment. Production runs it (CADDY_IMAGE,
-  # docs/deployment.md), Swarm requires it.
   publish-caddy:
-    if: github.event_name == 'push'
-    needs: [check, unit-api, unit-web, e2e, security, image, caddy-image]
+    name: Publish caddy
+    if: >-
+      !cancelled() && needs.ci-gate.result == 'success' &&
+      needs.changes.outputs.publish == 'true' && needs.changes.outputs.release_ready == 'true' && needs.changes.outputs.caddy == 'true'
+    needs: [changes, ci-gate]
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: write
-      id-token: write # keyless signing (cosign, attestations)
+      id-token: write
       attestations: write
     outputs:
+      version: ${{ steps.meta.outputs.version }}
       digest: ${{ steps.push.outputs.digest }}
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - name: Tags and OCI labels
+      - uses: actions/download-artifact@v8
+        with:
+          name: image-caddy
+          path: ${{ runner.temp }}/image
+      - name: Load the verified image
+        run: |
+          (cd "${{ runner.temp }}/image" && sha256sum -c caddy.tar.sha256)
+          docker load -i "${{ runner.temp }}/image/caddy.tar"
+          test "$(docker image inspect --format '{{.Id}}' caddy:ci)" = "$(cat "${{ runner.temp }}/image/caddy.id")"
+      - name: Tags for the verified image
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
@@ -1794,26 +1898,29 @@ jobs:
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-      - name: Build the image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
-          context: .
-          file: caddy/Dockerfile
-          build-args: GIT_SHA=${{ github.sha }}
-          load: true
-          tags: |
-            ${{ steps.meta.outputs.tags }}
-            caddy:publish
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=caddy
-      - name: Non-root runtime, HTTPS, restarts and certificate-volume migration
-        run: caddy/test-runtime.sh caddy:publish
-      - name: The web app is in the image
-        run: docker run --rm --entrypoint test caddy:publish -f /srv/web/index.html
-      - name: Published web manifest identifies this exact source commit
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push without rebuilding
+        id: push
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          REPOSITORY: ghcr.io/${{ github.repository }}/caddy
         run: |
-          docker run --rm --entrypoint cat caddy:publish /srv/web/version.json |
-            jq -e --arg sha "$GITHUB_SHA" '.sha == $sha'
+          set -euo pipefail
+          while IFS= read -r tag; do
+            docker tag caddy:ci "$tag"
+            docker push "$tag"
+          done <<< "$TAGS"
+          # Resolve the immutable SHA tag just pushed; never a mutable branch tag.
+          ref="${REPOSITORY,,}:$GITHUB_SHA"
+          digest=$(docker inspect --format '{{json .RepoDigests}}' "$ref" | jq -er --arg repo "${REPOSITORY,,}@" '.[] | select(startswith($repo)) | split("@")[1]')
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "ref=${REPOSITORY,,}@$digest" >> "$GITHUB_OUTPUT"
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
@@ -1823,49 +1930,75 @@ jobs:
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           skip-setup-trivy: true
-          image-ref: caddy:publish
+          image-ref: ${{ steps.push.outputs.ref }}
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: '1'
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
-      - name: Log in to GHCR
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      # The same build: every step comes from the builder's cache.
-      - name: Push the image
-        id: push
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          file: caddy/Dockerfile
-          build-args: GIT_SHA=${{ github.sha }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          annotations: ${{ steps.meta.outputs.annotations }}
-          cache-from: type=gha,scope=caddy
       - name: Sign the image, attest its provenance and SBOM
         uses: ./.github/actions/sign-image
         with:
           image: ghcr.io/${{ github.repository }}/caddy
           digest: ${{ steps.push.outputs.digest }}
 
-  # v* tags, once the images are published: the tag's GitHub release
-  # (docs/releases.md). Its notes come from tools/release/notes.mjs: breaking
-  # changes, the images by version and digest, the migrations since the
-  # previous release with the expand/contract lint's findings (squawk, in
-  # Docker), how to roll back (the previous release's images, valid only
-  # under the expand/contract policy), changed variables and the typed
-  # client's version; then GitHub's generated list of pull requests. A
-  # pre-release tag (v1.2.0-rc.1) makes a pre-release. Run again, it
-  # rewrites the notes of the existing release.
+  release-manifest:
+    name: Verify release manifest
+    if: >-
+      !cancelled() && needs.ci-gate.result == 'success' && needs.changes.outputs.publish == 'true'
+    needs: [changes, ci-gate, publish, publish-caddy, publish-gotenberg]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      packages: read
+      attestations: read
+    outputs:
+      api: ${{ steps.manifest.outputs.api }}
+      caddy: ${{ steps.manifest.outputs.caddy }}
+      gotenberg: ${{ steps.manifest.outputs.gotenberg }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-plan
+          path: release-plan
+      - name: Require affected publication to succeed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+          FLAGS: ${{ toJSON(needs.changes.outputs) }}
+          PLAN_FILE: release-plan/plan.json
+        run: node tools/ci/publication-gate.mjs
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Log in to GHCR for evidence verification
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify reuse evidence and assemble the immutable image set
+        id: manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLISHED: >-
+            {"api":"${{ needs.publish.outputs.digest }}","caddy":"${{ needs.publish-caddy.outputs.digest }}","gotenberg":"${{ needs.publish-gotenberg.outputs.digest }}"}
+        run: node tools/ci/release-manifest.mjs
+      - name: Preserve successful release evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-manifest-v1
+          path: release-manifest.json
+          if-no-files-found: error
+          retention-days: 90
+
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [publish, publish-gotenberg, publish-caddy]
+    needs:
+      [ci-gate, publish, publish-gotenberg, publish-caddy, release-manifest]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -1876,6 +2009,9 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-manifest-v1
       - name: Install Node.js (the notes have no dependencies)
         uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
         with:
@@ -1911,16 +2047,16 @@ jobs:
             case "$TAG" in *-*) flags+=(--prerelease) ;; esac
             gh release create "$TAG" --verify-tag --title "$TAG" --notes-file "$dir/notes.md" "${flags[@]}"
           fi
+          gh release upload "$TAG" release-manifest.json --clobber
 
   # The three digests come from this run's tested, scanned publish jobs. Only a
   # successful push to main can request the protected production environment;
   # no PR or tag run can reach the cluster. Off-server backups are optional and
   # are not a prerequisite when an operator has chosen a strict zero-cost setup.
   deploy-k3s:
-    if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/main' &&
-      vars.K3S_DEPLOY_ENABLED == 'true'
-    needs: [publish, publish-gotenberg, publish-caddy]
+    # Deliberately disabled by #629 until separate rollout review and green CI.
+    if: ${{ false && github.event_name == 'push' && vars.K3S_DEPLOY_ENABLED == 'true' }}
+    needs: [ci-gate, release-manifest]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment:
@@ -1942,9 +2078,9 @@ jobs:
           persist-credentials: false
       - name: Verify the CI image digests
         env:
-          APP_DIGEST: ${{ needs.publish.outputs.digest }}
-          WEB_DIGEST: ${{ needs.publish-caddy.outputs.digest }}
-          GOTENBERG_DIGEST: ${{ needs.publish-gotenberg.outputs.digest }}
+          APP_DIGEST: ${{ needs.release-manifest.outputs.api }}
+          WEB_DIGEST: ${{ needs.release-manifest.outputs.caddy }}
+          GOTENBERG_DIGEST: ${{ needs.release-manifest.outputs.gotenberg }}
         run: |
           for digest in "$APP_DIGEST" "$WEB_DIGEST" "$GOTENBERG_DIGEST"; do
             [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || exit 1
@@ -1960,9 +2096,9 @@ jobs:
           echo "$RUNNER_TEMP/helm-bin" >> "$GITHUB_PATH"
       - name: Validate the exact production render
         env:
-          APP_DIGEST: ${{ needs.publish.outputs.digest }}
-          WEB_DIGEST: ${{ needs.publish-caddy.outputs.digest }}
-          GOTENBERG_DIGEST: ${{ needs.publish-gotenberg.outputs.digest }}
+          APP_DIGEST: ${{ needs.release-manifest.outputs.api }}
+          WEB_DIGEST: ${{ needs.release-manifest.outputs.caddy }}
+          GOTENBERG_DIGEST: ${{ needs.release-manifest.outputs.gotenberg }}
         run: |
           test -n "$APP_DOMAIN" && test -n "$APP_URL" && test -n "$MAIL_FROM"
           test "$APP_URL" = "https://$APP_DOMAIN"
@@ -2022,9 +2158,9 @@ jobs:
           kubectl -n nestjs-monorepo rollout status statefulset/redis --timeout=2m
       - name: Upgrade to the CI-verified release
         env:
-          APP_DIGEST: ${{ needs.publish.outputs.digest }}
-          WEB_DIGEST: ${{ needs.publish-caddy.outputs.digest }}
-          GOTENBERG_DIGEST: ${{ needs.publish-gotenberg.outputs.digest }}
+          APP_DIGEST: ${{ needs.release-manifest.outputs.api }}
+          WEB_DIGEST: ${{ needs.release-manifest.outputs.caddy }}
+          GOTENBERG_DIGEST: ${{ needs.release-manifest.outputs.gotenberg }}
         run: |
           helm upgrade --install app deploy/helm/app \
             --namespace nestjs-monorepo \

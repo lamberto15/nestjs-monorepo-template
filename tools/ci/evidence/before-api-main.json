@@ -1,0 +1,289 @@
+{
+  "runId": 40077288057,
+  "sha": "d107b4cd28a01a7d08edf0236acb983ad28b2f14",
+  "event": "push",
+  "conclusion": "success",
+  "elapsedMinutes": 22.883333333333333,
+  "validationMinutes": 22.883333333333333,
+  "runnerMinutes": 85.55,
+  "peakRunners": 20,
+  "schedulingSeconds": 81,
+  "matrixWaitSeconds": 2623,
+  "cacheHits": 5,
+  "cacheMisses": 78,
+  "jobs": [
+    {
+      "name": "changes",
+      "runnerMinutes": 0.06666666666666667,
+      "createdAfterRunSeconds": 520,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "compose-images",
+      "runnerMinutes": 0.08333333333333333,
+      "createdAfterRunSeconds": 526,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "ci-validate",
+      "runnerMinutes": 0.1,
+      "createdAfterRunSeconds": 526,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "image",
+      "runnerMinutes": 3.966666666666667,
+      "createdAfterRunSeconds": 526,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "swarm-stack",
+      "runnerMinutes": 0.36666666666666664,
+      "createdAfterRunSeconds": 526,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "hardened-stack",
+      "runnerMinutes": 5.616666666666666,
+      "createdAfterRunSeconds": 526,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "backup-image",
+      "runnerMinutes": 1.5833333333333333,
+      "createdAfterRunSeconds": 526,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "unit (api 1/3)",
+      "runnerMinutes": 0.8166666666666667,
+      "createdAfterRunSeconds": 526,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "security",
+      "runnerMinutes": 0.3333333333333333,
+      "createdAfterRunSeconds": 526,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "gotenberg-image",
+      "runnerMinutes": 3.183333333333333,
+      "createdAfterRunSeconds": 526,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "unit (api 2/3)",
+      "runnerMinutes": 0.8333333333333334,
+      "createdAfterRunSeconds": 526,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "compose-secrets",
+      "runnerMinutes": 0.31666666666666665,
+      "createdAfterRunSeconds": 526,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "unit (web 2/3)",
+      "runnerMinutes": 1.65,
+      "createdAfterRunSeconds": 526,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "caddy-image",
+      "runnerMinutes": 5.216666666666667,
+      "createdAfterRunSeconds": 526,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "unit (web 1/3)",
+      "runnerMinutes": 1.35,
+      "createdAfterRunSeconds": 526,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "feature-smoke",
+      "runnerMinutes": 2.8,
+      "createdAfterRunSeconds": 533,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 1
+    },
+    {
+      "name": "e2e-telemetry",
+      "runnerMinutes": 2.8333333333333335,
+      "createdAfterRunSeconds": 533,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "check",
+      "runnerMinutes": 1.6,
+      "createdAfterRunSeconds": 533,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (2/6)",
+      "runnerMinutes": 2.95,
+      "createdAfterRunSeconds": 533,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e-web",
+      "runnerMinutes": 2.1,
+      "createdAfterRunSeconds": 533,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "template-without-notes (1/6)",
+      "runnerMinutes": 4.016666666666667,
+      "createdAfterRunSeconds": 533,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (1/6)",
+      "runnerMinutes": 2.216666666666667,
+      "createdAfterRunSeconds": 533,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 3
+    },
+    {
+      "name": "template-without-notes (2/6)",
+      "runnerMinutes": 4.15,
+      "createdAfterRunSeconds": 533,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 7
+    },
+    {
+      "name": "unit (api 3/3)",
+      "runnerMinutes": 0.9166666666666666,
+      "createdAfterRunSeconds": 526,
+      "matrixWaitSeconds": 51,
+      "schedulingSeconds": 1
+    },
+    {
+      "name": "unit (web 3/3)",
+      "runnerMinutes": 1.8,
+      "createdAfterRunSeconds": 526,
+      "matrixWaitSeconds": 83,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "unit (packages)",
+      "runnerMinutes": 0.5666666666666667,
+      "createdAfterRunSeconds": 526,
+      "matrixWaitSeconds": 101,
+      "schedulingSeconds": 1
+    },
+    {
+      "name": "e2e (3/6)",
+      "runnerMinutes": 2.283333333333333,
+      "createdAfterRunSeconds": 533,
+      "matrixWaitSeconds": 136,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (4/6)",
+      "runnerMinutes": 3,
+      "createdAfterRunSeconds": 533,
+      "matrixWaitSeconds": 179,
+      "schedulingSeconds": 1
+    },
+    {
+      "name": "coverage",
+      "runnerMinutes": 0.5,
+      "createdAfterRunSeconds": 719,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 1
+    },
+    {
+      "name": "template-without-notes (3/6)",
+      "runnerMinutes": 3.15,
+      "createdAfterRunSeconds": 533,
+      "matrixWaitSeconds": 243,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "template-without-notes (4/6)",
+      "runnerMinutes": 4.116666666666666,
+      "createdAfterRunSeconds": 533,
+      "matrixWaitSeconds": 256,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (5/6)",
+      "runnerMinutes": 2.783333333333333,
+      "createdAfterRunSeconds": 533,
+      "matrixWaitSeconds": 275,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (6/6)",
+      "runnerMinutes": 3.066666666666667,
+      "createdAfterRunSeconds": 533,
+      "matrixWaitSeconds": 360,
+      "schedulingSeconds": 3
+    },
+    {
+      "name": "template-without-notes (5/6)",
+      "runnerMinutes": 4.133333333333334,
+      "createdAfterRunSeconds": 533,
+      "matrixWaitSeconds": 434,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "template-without-notes (6/6)",
+      "runnerMinutes": 3.5,
+      "createdAfterRunSeconds": 533,
+      "matrixWaitSeconds": 505,
+      "schedulingSeconds": 1
+    },
+    {
+      "name": "publish",
+      "runnerMinutes": 1.2833333333333334,
+      "createdAfterRunSeconds": 1080,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "publish-gotenberg",
+      "runnerMinutes": 2.2333333333333334,
+      "createdAfterRunSeconds": 1080,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "publish-caddy",
+      "runnerMinutes": 1.5166666666666666,
+      "createdAfterRunSeconds": 1080,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "deploy-k3s",
+      "runnerMinutes": 2.55,
+      "createdAfterRunSeconds": 1216,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 4
+    }
+  ]
+}
