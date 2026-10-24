@@ -450,12 +450,16 @@ jobs:
           CLOUDFLARE_API_TOKEN: ci
         run: node tools/deploy/swarm.mjs check --stack ci
 
-  # A tooling-only pull request still needs lint/Knip validation, but
-  # must not start PostgreSQL, compile the API, or regenerate the client.
+  # A Knip-only pull request needs lint/Knip validation, but does not
+  # need PostgreSQL, application builds or a generator-smoke runner.
   # Mixed app+tooling changes run the full check below (which includes lint).
   tooling-lint:
     needs: changes
-    if: needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true'
+    # Generator smoke already installs dependencies and can run lint there.
+    # This separate runner is only needed when Knip changed without tools.
+    if: >-
+      needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true' &&
+      needs.changes.outputs.tools != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -959,6 +963,11 @@ jobs:
         with:
           runtime: node@24
           cache: true
+      # Reuse this already-installed workspace for tooling-only lint, avoiding
+      # a second GitHub runner (and do it before generators modify the tree).
+      - name: Lint tooling and unused dependencies
+        if: needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true'
+        run: pnpm lint
       - name: The generator's tests
         run: node --test 'tools/feature/*.test.mjs'
       - name: The setup wizard's tests (tools/setup, `pnpm setup`)
