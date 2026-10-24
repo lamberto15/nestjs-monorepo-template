@@ -18,6 +18,29 @@ const approval = {
 /** Answers the routes of the cards that need no permission, and the audit's. */
 function useData(seen: string[] = []) {
   server.use(
+    http.get('/v1/settings', () =>
+      HttpResponse.json({
+        items: [
+          {
+            key: 'dashboard.layout',
+            label: 'Dashboard layout',
+            description: 'Which dashboard cards you hide and the order you prefer.',
+            flag: false,
+            scopes: ['user'],
+            public: true,
+            value: { hidden: [], order: [] },
+            source: 'default',
+            default: { hidden: [], order: [] },
+            type: 'json',
+            schema: {},
+            canEdit: false,
+            canSetMine: true,
+            platform: null,
+            canEditPlatform: false,
+          },
+        ],
+      }),
+    ),
     http.get('/v1/approvals', ({ request }) => {
       seen.push(`approvals ${new URL(request.url).search}`);
       return HttpResponse.json({
