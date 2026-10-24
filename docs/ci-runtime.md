@@ -30,6 +30,12 @@ validation time is at most ten minutes. If none qualifies, retain the fastest
 median validation configuration and record that the target was missed. Keep
 coverage merging only if sharding wins. Do not lower coverage thresholds.
 
+Manual `validation_scope=api`, `web`, `shared`, `infrastructure`, or `ci` runs
+measure representative routing on the same source without committing synthetic
+application edits. These scenarios do not publish; `full` remains the manual
+default, and bootstrap requires comprehensive validation. Scenario timings measure
+the primary workflow, not the sum of companion workflows or account-wide billing.
+
 ## Reading the evidence
 
 [Before measurements](https://github.com/lamberto15/nestjs-monorepo-template/tree/main/tools/ci/evidence) contain run IDs, source revisions,

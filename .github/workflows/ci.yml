@@ -36,6 +36,11 @@ on:
         type: choice
         options: [off, e2e, unit]
         default: off
+      validation_scope:
+        description: 'Manual timing scenario; full is comprehensive (no publication)'
+        type: choice
+        options: [full, api, web, shared, infrastructure, ci]
+        default: full
       e2e_shards:
         description: 'API E2E shards (at most two run concurrently)'
         type: choice
@@ -119,10 +124,19 @@ jobs:
       needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.ci == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    services:
+      registry:
+        image: registry:3.1.2
+        ports: ['5000/tcp']
     steps:
       - uses: actions/checkout@v7
       - name: Verify change routing and workflow invariants
         run: node --test 'tools/ci/*.test.mjs'
+      - name: Verify image publication against a disposable local registry
+        env:
+          REQUIRE_DOCKER: 'true'
+          CI_REGISTRY_ADDRESS: 127.0.0.1:${{ job.services.registry.ports['5000'] }}
+        run: node --test tools/ci/image-publication.test.mjs
       - name: Validate GitHub Actions syntax
         run: |
           curl --proto '=https' --proto-redir '=https' -fsSL https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz -o "$RUNNER_TEMP/actionlint.tar.gz"

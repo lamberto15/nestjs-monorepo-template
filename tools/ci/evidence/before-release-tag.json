@@ -1,0 +1,128 @@
+{
+  "runId": 39033430016,
+  "sha": "d1ce3ffac32221c60a3281393f3041a561fb7a0e",
+  "event": "push",
+  "conclusion": "success",
+  "elapsedMinutes": 5.9,
+  "validationMinutes": 5.9,
+  "runnerMinutes": 23.550000000000004,
+  "peakRunners": 12,
+  "schedulingSeconds": 29,
+  "matrixWaitSeconds": 0,
+  "cacheHits": 12,
+  "cacheMisses": 15,
+  "jobs": [
+    {
+      "name": "compose-secrets",
+      "runnerMinutes": 0.4,
+      "createdAfterRunSeconds": 1,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "swarm-stack",
+      "runnerMinutes": 0.23333333333333334,
+      "createdAfterRunSeconds": 1,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "backup-image",
+      "runnerMinutes": 0.8333333333333334,
+      "createdAfterRunSeconds": 1,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "compose-images",
+      "runnerMinutes": 0.1,
+      "createdAfterRunSeconds": 1,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "image",
+      "runnerMinutes": 1.0166666666666666,
+      "createdAfterRunSeconds": 1,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "gotenberg-image",
+      "runnerMinutes": 3.7,
+      "createdAfterRunSeconds": 1,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "security",
+      "runnerMinutes": 0.4,
+      "createdAfterRunSeconds": 1,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 3
+    },
+    {
+      "name": "check",
+      "runnerMinutes": 0.6333333333333333,
+      "createdAfterRunSeconds": 10,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 1
+    },
+    {
+      "name": "e2e (1/2)",
+      "runnerMinutes": 2.05,
+      "createdAfterRunSeconds": 10,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 1
+    },
+    {
+      "name": "template-without-notes (1/2)",
+      "runnerMinutes": 2.7333333333333334,
+      "createdAfterRunSeconds": 10,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 1
+    },
+    {
+      "name": "template-without-notes (2/2)",
+      "runnerMinutes": 3.3333333333333335,
+      "createdAfterRunSeconds": 10,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "feature-smoke",
+      "runnerMinutes": 1.45,
+      "createdAfterRunSeconds": 10,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (2/2)",
+      "runnerMinutes": 3.65,
+      "createdAfterRunSeconds": 10,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "publish",
+      "runnerMinutes": 1.0333333333333334,
+      "createdAfterRunSeconds": 231,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "publish-gotenberg",
+      "runnerMinutes": 1.8,
+      "createdAfterRunSeconds": 231,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "release",
+      "runnerMinutes": 0.18333333333333332,
+      "createdAfterRunSeconds": 342,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 1
+    }
+  ]
+}

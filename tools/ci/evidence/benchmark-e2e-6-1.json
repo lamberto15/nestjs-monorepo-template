@@ -1,0 +1,79 @@
+{
+  "runId": 40083660113,
+  "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+  "event": "workflow_dispatch",
+  "conclusion": "success",
+  "elapsedMinutes": 8.833333333333334,
+  "validationMinutes": 8.833333333333334,
+  "runnerMinutes": 15.55,
+  "peakRunners": 2,
+  "schedulingSeconds": 18,
+  "matrixWaitSeconds": 914,
+  "cacheHits": 0,
+  "cacheMisses": 6,
+  "jobs": [
+    {
+      "name": "changes",
+      "runnerMinutes": 0.08333333333333333,
+      "createdAfterRunSeconds": 1,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "compose-images",
+      "runnerMinutes": 0.1,
+      "createdAfterRunSeconds": 9,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (1/6)",
+      "runnerMinutes": 2.2,
+      "createdAfterRunSeconds": 17,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (2/6)",
+      "runnerMinutes": 2.9166666666666665,
+      "createdAfterRunSeconds": 17,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (3/6)",
+      "runnerMinutes": 2.283333333333333,
+      "createdAfterRunSeconds": 17,
+      "matrixWaitSeconds": 134,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (4/6)",
+      "runnerMinutes": 2.5166666666666666,
+      "createdAfterRunSeconds": 17,
+      "matrixWaitSeconds": 177,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (5/6)",
+      "runnerMinutes": 2.466666666666667,
+      "createdAfterRunSeconds": 17,
+      "matrixWaitSeconds": 273,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (6/6)",
+      "runnerMinutes": 2.8833333333333333,
+      "createdAfterRunSeconds": 17,
+      "matrixWaitSeconds": 330,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "CI gate",
+      "runnerMinutes": 0.1,
+      "createdAfterRunSeconds": 522,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "runId": 40084264563,
+  "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+  "event": "workflow_dispatch",
+  "conclusion": "success",
+  "elapsedMinutes": 5.966666666666667,
+  "validationMinutes": 5.966666666666667,
+  "runnerMinutes": 10.466666666666667,
+  "peakRunners": 2,
+  "schedulingSeconds": 11,
+  "matrixWaitSeconds": 0,
+  "cacheHits": 0,
+  "cacheMisses": 2,
+  "jobs": [
+    {
+      "name": "changes",
+      "runnerMinutes": 0.13333333333333333,
+      "createdAfterRunSeconds": 2,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "compose-images",
+      "runnerMinutes": 0.1,
+      "createdAfterRunSeconds": 12,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 3
+    },
+    {
+      "name": "e2e (2/2)",
+      "runnerMinutes": 4.683333333333334,
+      "createdAfterRunSeconds": 21,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e (1/2)",
+      "runnerMinutes": 5.466666666666667,
+      "createdAfterRunSeconds": 21,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "CI gate",
+      "runnerMinutes": 0.08333333333333333,
+      "createdAfterRunSeconds": 351,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    }
+  ]
+}

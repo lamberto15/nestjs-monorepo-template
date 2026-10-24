@@ -41,7 +41,15 @@ export function classify({ files, full = false, complete = true }) {
       continue;
     }
     if (inert.test(file)) continue;
-    if (roots.test(file)) return { ...all(), full: false };
+    if (roots.test(file))
+      return {
+        ...all(),
+        full: false,
+        stack: false,
+        services: false,
+        backup: false,
+        gotenberg: false,
+      };
     if (/^(\.github\/actions\/|packages\/(?!api-client\/|ui\/))/.test(file))
       return all();
     flags.code = true;
@@ -191,6 +199,8 @@ export function gitFiles(base, head, run = execFileSync) {
 export function runChanges(
   env = process.env,
   gh = (args) => execFileSync(githubCli(), args, { encoding: 'utf8' }),
+  planning = releasePlan,
+  compare = gitFiles,
 ) {
   const event = JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8'));
   const full =
@@ -215,12 +225,36 @@ export function runChanges(
       files = null;
     }
   }
-  const flags = classify({ files, full, complete: Boolean(files) });
+  let flags = classify({ files, full, complete: Boolean(files) });
   const benchmark = event.inputs?.benchmark ?? 'off';
-  const plan = releasePlan(flags, env, event, classify, gitFiles);
+  if (event.inputs?.bootstrap_release === 'true' && benchmark !== 'off')
+    throw new Error(
+      'Bootstrap requires comprehensive validation, not benchmark mode',
+    );
+  const scenarios = {
+    api: ['apps/api/src/features/notes/notes.service.ts'],
+    web: ['apps/web/src/main.tsx'],
+    shared: ['package.json'],
+    infrastructure: ['backup/Dockerfile'],
+    ci: ['tools/ci/changes.mjs'],
+  };
+  const scope = event.inputs?.validation_scope ?? 'full';
+  if (
+    env.GITHUB_EVENT_NAME === 'workflow_dispatch' &&
+    benchmark === 'off' &&
+    scope !== 'full'
+  ) {
+    if (!scenarios[scope])
+      throw new Error('Unknown validation timing scenario');
+    if (event.inputs?.bootstrap_release === 'true')
+      throw new Error('Bootstrap requires comprehensive validation');
+    flags = classify({ files: scenarios[scope] });
+    files = null; // Explicit routing: there is no synthetic Git comparison.
+  }
+  const plan = planning(flags, env, event, classify, compare);
   if (plan.previous) {
     base = plan.previous.sourceSha;
-    files = gitFiles(base, head);
+    files = compare(base, head);
   }
   // A main release validates cumulative changes, including components whose
   // intervening release failed. Turbo must use that same base, too.
@@ -229,7 +263,7 @@ export function runChanges(
     Array.isArray(files) &&
     files.length > 0 &&
     files.every((file) => /^(apps\/api\/|apps\/web\/|packages\/)/.test(file)) &&
-    Boolean(gitFiles(base, head));
+    Boolean(compare(base, head));
   const unitWhole = event.inputs?.unit_layout === 'whole';
   const outputs = {
     ...flags,

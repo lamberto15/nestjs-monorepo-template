@@ -37,6 +37,8 @@ test('shared, migrations, infrastructure, tooling, CI and unknown paths', () => 
   ]) {
     assert.ok(route(path).api && route(path).web);
     assert.equal(route(path).full, false);
+    assert.equal(route(path).gotenberg, false);
+    assert.equal(route(path).backup, false);
   }
   assert.ok(route('packages/api-client/src/client.ts').web);
   assert.ok(route('packages/api-client/src/client.ts').api);
