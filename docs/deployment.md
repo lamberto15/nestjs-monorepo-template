@@ -1908,9 +1908,9 @@ yours takes. Time a restore of a real dump once and set
 The **CI / CD** workflow (`.github/workflows/ci.yml`) validates changes and,
 for eligible releases, publishes images and release notes. Its filename remains
 stable because image signatures and provenance identify that workflow path.
-Production deployment is explicitly disabled in this change; enabling it requires
-separate rollout review after CI passes. Existing production variables cannot
-bypass the disabled condition.
+Automatic deployment in CI remains explicitly disabled. The separately reviewed
+manual **Deploy** workflow accepts a verified release run ID through the protected
+production environment; see [manual deployment](deploy-k3s.md#deploy-a-verified-release-manually).
 
 Application validation stays centralized here. Workflows with different path
 triggers, permissions or schedules (Helm, monitoring, migrations, the typed

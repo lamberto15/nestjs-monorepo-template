@@ -166,13 +166,14 @@ deployment; without them, the cluster has no off-server backup.
 
 ## Release and recovery
 
-[`CI`](../.github/workflows/ci.yml) already publishes the three application
-images after its checks and scans. Its `deploy-k3s` job waits for those exact
-publish jobs, validates their digest outputs, renders the production chart,
-and deploys the digests with Helm 4 `--rollback-on-failure`. No runner rebuilds
-an image for deployment. The chart runs migrations before starting new pods;
-readiness waits for PostgreSQL and Redis. A failed migration or readiness
-check fails the release.
+[`CI`](../.github/workflows/ci.yml) publishes the tested and scanned application
+images and the complete release manifest. The manual [`Deploy`](../.github/workflows/deploy.yml)
+workflow verifies that release's immutable digests and evidence, uses its chart
+revision, and deploys with Helm 4 `--rollback-on-failure`. No runner rebuilds an
+image for deployment. The chart runs migrations before starting new pods;
+readiness waits for PostgreSQL and Redis. Failed Helm upgrades roll back;
+subsequent rollout/public checks report failures for operator investigation.
+Automatic deployment in CI remains disabled.
 
 On an application failure, inspect `helm history app -n nestjs-monorepo`,
 then roll back to the last healthy revision. A rollback changes workloads and
@@ -184,3 +185,25 @@ undo a schema or data migration.
 The data, backup, tunnel, and cert-manager manifests are intentionally outside
 the application release. Do not give their administrative credentials to
 GitHub Actions.
+
+## Deploy a verified release manually
+
+Open **Actions → Deploy → Run workflow**, select `main`, and enter the successful
+main CI run ID whose `release-manifest-v1` artifact you want to deploy. Approve the
+protected `production` environment if a reviewer is configured. From the CLI:
+
+```bash
+gh workflow run deploy.yml --ref main -f release_run_id=<successful-main-CI-run-id>
+```
+
+The workflow verifies the selected run, source ancestry, all image signatures,
+SBOM attestations and source-bound provenance before joining the tailnet. It uses
+the Helm chart from that release's source commit and the manifest's three exact
+digests. It does not rebuild images or substitute tags. The existing production
+variables and secrets above are reused; `K3S_DEPLOY_ENABLED` must be `true`.
+
+Helm waits for readiness and migration Jobs and rolls back failed upgrades. The
+workflow then checks API, worker, web and Gotenberg rollouts and public readiness.
+Automatic deployment in `ci.yml` remains disabled; publication alone does not
+change production. Select a previous successful release run to roll back application
+images with its matching chart, respecting the migration compatibility guidance.
