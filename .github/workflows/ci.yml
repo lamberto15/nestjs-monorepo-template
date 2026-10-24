@@ -24,6 +24,7 @@ on:
       - 'CLAUDE.md'
       - '.claude/**'
   pull_request:
+  workflow_dispatch: # Run all checks manually when modifying CI.
   # A nightly run of everything on main, the checks a pull request skips
   # included (below): new advisories in the images, the generated template.
   schedule:
@@ -80,6 +81,7 @@ jobs:
       # so the suites that run on them (e2e, e2e-telemetry, e2e-web,
       # feature-smoke, template-without-notes) meet a new image before main.
       services: ${{ steps.paths.outputs.services }}
+      ci: ${{ steps.paths.outputs.ci }}
       backup: ${{ steps.paths.outputs.backup }}
       gotenberg: ${{ steps.paths.outputs.gotenberg }}
       caddy: ${{ steps.paths.outputs.caddy }}
@@ -88,24 +90,37 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
+          CI_BEFORE: ${{ github.event.before }}
         run: |
-          keys='code api web tools stack services backup gotenberg caddy'
+          keys='code api web tools stack services backup gotenberg caddy ci'
           all() {
             for key in $keys; do echo "$key=true"; done | tee -a "$GITHUB_OUTPUT"
             exit 0
           }
-          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then all; fi
-          # A renamed file counts at both paths: its old place changed too.
-          files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')
+          # Keep full release/nightly/manual checks and main application changes.
+          # Only an exclusively CI-config/docs main merge skips publish/deploy.
+          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+            if [ "$GITHUB_EVENT_NAME" != push ] || [ "$GITHUB_REF" != refs/heads/main ]; then all; fi
+            if [ -z "$CI_BEFORE" ] || [[ "$CI_BEFORE" =~ ^0+$ ]]; then all; fi
+            if ! files=$(gh api "repos/$GITHUB_REPOSITORY/compare/$CI_BEFORE...$GITHUB_SHA" --jq '.files[] | .filename, (.previous_filename // empty)'); then all; fi
+            # Compare returns up to 300 files; ambiguity runs full checks.
+            if [ -z "$files" ] || [ "$(wc -l <<< "$files")" -ge 300 ]; then all; fi
+            light='^(tools/ci/|\\.github/workflows/ci\\.yml$|docs/|README\\.md$|CLAUDE\\.md$|\\.claude/)'
+            if grep -qEv "$light" <<< "$files"; then all; fi
+          else
+            # A renamed file counts at both paths: its old place changed too.
+            if ! files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)'); then all; fi
+            if [ "$(wc -l <<< "$files")" -ge 3000 ]; then all; fi
+          fi
           echo "$files"
-          # The API lists 3000 files at most: a longer list may hide any path.
-          if [ "$(wc -l <<< "$files")" -ge 3000 ]; then all; fi
-          # Read by no job here: the docs, Markdown at the root and at a
+          # CI orchestration/tests are validated separately, never by fanning
+          # out API, web, tools, stack and container builds.
+                    # Read by no job here: the docs, Markdown at the root and at a
           # package's root, Claude's files, the changesets' notes, GitHub's
           # repository settings, Helm and K3s manifests, and the devcontainer
           # (their own workflows check those). Not the other workflows: knip
           # reads them (its GitHub Actions plugin), as it reads lefthook.yml.
-          inert='^(docs/|\.claude/|\.changeset/[^/]*\.md$|\.devcontainer/|deploy/(helm|k3s)/|\.github/(ISSUE_TEMPLATE/|CODEOWNERS$|dependabot\.yml$|PULL_REQUEST_TEMPLATE\.md$)|LICENSE$|\.editorconfig$|[^/]*\.md$|packages/[^/]+/[^/]*\.md$)'
+          inert='^(tools/ci/|\.github/workflows/ci\.yml$|docs/|\.claude/|\.changeset/[^/]*\.md$|\.devcontainer/|deploy/(helm|k3s)/|\.github/(ISSUE_TEMPLATE/|CODEOWNERS$|dependabot\.yml$|PULL_REQUEST_TEMPLATE\.md$)|LICENSE$|\.editorconfig$|[^/]*\.md$|packages/[^/]+/[^/]*\.md$)'
           read=$(grep -vE "$inert" <<< "$files" || true)
           # code: any path a job reads.
           if [ -n "$read" ]; then echo code=true; else echo code=false; fi | tee -a "$GITHUB_OUTPUT"
@@ -113,21 +128,32 @@ jobs:
           touched() {
             if grep -qE "$2" <<< "$read"; then echo "$1=true"; else echo "$1=false"; fi | tee -a "$GITHUB_OUTPUT"
           }
-          workflow='\.github/workflows/ci\.yml$'
+          touched ci '^(tools/ci/|\.github/workflows/ci\.yml$)'
           roots='package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|tsconfig[^/]*\.json$|\.oxlintrc\.json$|\.npmrc$|\.nvmrc$'
           # The images' scans read it.
           scan='\.trivyignore\.yaml$'
-          touched api "^(apps/api/|packages/api-client/|\.dockerignore$|$roots|$scan|$workflow)"
-          touched web "^(apps/web/|apps/web-e2e/|packages/|caddy/Caddyfile$|$roots|$workflow)"
+          touched api "^(apps/api/|packages/api-client/|\.dockerignore$|$roots|$scan)"
+          touched web "^(apps/web/|apps/web-e2e/|packages/|caddy/Caddyfile$|$roots)"
           # The tools' tests read env.example and Prettier's config too.
-          touched tools "^(tools/|env\.example$|\.prettierrc$|\.prettierignore$|$workflow)"
-          touched stack "^(compose[^/]*\.yaml$|secret\.empty$|swarm\.placeholder$|scripts/|loadtest/|redis/|caddy/|backup/|gotenberg/|monitoring/|clamav/|pgbouncer/|tools/deploy/|$workflow)"
-          touched services "^(compose\.yaml$|$workflow)"
-          touched backup "^(backup/|scripts/test-backup-pitr\.sh$|$scan|$workflow)"
-          touched gotenberg "^(gotenberg/|compose\.(dev|prod)\.yaml$|$scan|$workflow)"
+          touched tools "^(tools/|env\.example$|\.prettierrc$|\.prettierignore$)"
+          touched stack "^(compose[^/]*\.yaml$|secret\.empty$|swarm\.placeholder$|scripts/|loadtest/|redis/|caddy/|backup/|gotenberg/|monitoring/|clamav/|pgbouncer/|tools/deploy/)"
+          touched services "^(compose\.yaml$)"
+          touched backup "^(backup/|scripts/test-backup-pitr\.sh$|$scan)"
+          touched gotenberg "^(gotenberg/|compose\.(dev|prod)\.yaml$|$scan)"
           # Caddy's image builds the web app from the repository root
           # (caddy/Dockerfile.dockerignore: the API's package.json too).
-          touched caddy "^(caddy/|apps/web/|packages/|apps/api/package\.json$|$roots|$scan|$workflow)"
+          touched caddy "^(caddy/|apps/web/|packages/|apps/api/package\.json$|$roots|$scan)"
+
+  # CI-only changes require the classifier and workflow invariants, not apps.
+  ci-validate:
+    needs: changes
+    if: needs.changes.outputs.ci == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify change routing and workflow invariants
+        run: node --test tools/ci/changes.test.mjs tools/ci/workflow.test.mjs
 
   # CI's PostgreSQL and Redis are compose.yaml's images, read from it: they
   # can't drift apart, and Dependabot's compose.yaml updates reach CI too
