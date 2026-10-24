@@ -84,6 +84,7 @@ import { EmailController } from './account/email.controller.js';
 import { SoftDeletePurgeJob } from './resources/soft-delete-purge.job.js';
 import { RecordPurgeRegistry } from './resources/record-purge.registry.js';
 import { UserLifecycleRegistry } from './auth/user-lifecycle.registry.js';
+import { SessionLifecycleRegistry } from './auth/session-lifecycle.registry.js';
 import { ApiClientLifecycleRegistry } from './access/api-client-lifecycle.registry.js';
 import { ApiClientCountsRegistry } from './access/api-client-counts.registry.js';
 import { TenantLifecycleRegistry } from './access/tenant-lifecycle.registry.js';
@@ -182,6 +183,7 @@ export class IamModule {
       // The platform's data about records goes with them when they are purged.
       RecordPurgeRegistry,
       UserLifecycleRegistry,
+      SessionLifecycleRegistry,
       ApiClientLifecycleRegistry,
       ApiClientCountsRegistry,
       TenantLifecycleRegistry,
@@ -447,6 +449,7 @@ export class IamModule {
         TenantDeletionJob,
         RecordPurgeRegistry,
         UserLifecycleRegistry,
+        SessionLifecycleRegistry,
         ApiClientLifecycleRegistry,
         ApiClientCountsRegistry,
         TenantLifecycleRegistry,

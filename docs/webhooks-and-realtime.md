@@ -358,8 +358,10 @@ gateways get no global middleware).
 To tell a person something they can also read later (and get by mail), send
 a [notification](notifications.md) instead: its `notification` event comes
 through the same connection.
-Every message is authenticated again, so a revoked session or key stops
-working mid-connection.
+Every message is authenticated again. A browser socket also joins a private
+room for its session; sign-out, session revocation, rotation and bulk sign-out
+disconnect that session's sockets across API replicas through the Redis
+adapter. Revoked API keys stop working on their next message.
 
 ### The event manifest
 
