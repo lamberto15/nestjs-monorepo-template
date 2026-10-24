@@ -10,5 +10,7 @@
   "empty": "Tiada hasil untuk “{{q}}”.",
   "recent": "Carian terkini",
   "clearRecent": "Kosongkan carian terkini",
-  "hint": "Taip untuk mencari; > menyenaraikan arahan."
+  "hint": "Taip untuk mencari; > menyenaraikan arahan.",
+  "pages": "Halaman",
+  "actions": "Tindakan"
 }

@@ -10,5 +10,7 @@
   "empty": "Nothing found for “{{q}}”.",
   "recent": "Recent searches",
   "clearRecent": "Clear recent searches",
-  "hint": "Type to search; > lists commands."
+  "hint": "Type to search; > lists commands.",
+  "pages": "Pages",
+  "actions": "Actions"
 }

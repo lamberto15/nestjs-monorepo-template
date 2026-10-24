@@ -16,7 +16,11 @@ import { useTranslation } from 'react-i18next';
 import { groupBySubject, searchQuery } from './api';
 import { Snippet } from './snippet';
 import { addRecent, clearRecent, readRecent } from './recent';
-import { useQuickCommands } from './commands';
+import {
+  useQuickCommands,
+  type QuickCommand,
+  type QuickCommandKind,
+} from './commands';
 import { normalizeRedirect } from '@/lib/safe-redirect';
 
 export const DEBOUNCE_MS = 250;
@@ -92,6 +96,15 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
   const shownCommands = commands.filter((c) =>
     c.label.toLowerCase().includes(filter),
   );
+  const commandGroups: Array<{
+    kind: QuickCommandKind;
+    heading: string;
+    commands: QuickCommand[];
+  }> = (['page', 'action'] as const).map((kind) => ({
+    kind,
+    heading: t(kind === 'page' ? 'pages' : 'actions'),
+    commands: shownCommands.filter((command) => command.kind === kind),
+  }));
 
   const go = (href: string | undefined) => {
     // A link comes from the API: only a path of this app is followed.
@@ -124,18 +137,15 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
               {shownCommands.length === 0 && (
                 <CommandEmpty>{t('noCommands')}</CommandEmpty>
               )}
-              <CommandGroup heading={t('commands')}>
-                {shownCommands.map((command) => (
-                  <CommandItem
-                    key={command.to}
-                    value={`command:${command.to}`}
-                    onSelect={() => go(command.to)}
-                  >
-                    <command.icon />
-                    {command.label}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
+              {commandGroups.map((group) => (
+                <QuickCommandGroup
+                  key={group.kind}
+                  heading={group.heading}
+                  kind={group.kind}
+                  commands={group.commands}
+                  onSelect={go}
+                />
+              ))}
             </>
           ) : searching ? (
             <>
@@ -212,5 +222,31 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
         </CommandList>
       </CommandRoot>
     </CommandDialog>
+  );
+}
+
+
+function QuickCommandGroup(props: {
+  heading: string;
+  kind: QuickCommandKind;
+  commands: QuickCommand[];
+  onSelect: (href: string) => void;
+}) {
+  if (props.commands.length === 0) {
+    return null;
+  }
+  return (
+    <CommandGroup heading={props.heading}>
+      {props.commands.map((command) => (
+        <CommandItem
+          key={`${props.kind}:${command.to}`}
+          value={`${props.kind}:${command.to}`}
+          onSelect={() => props.onSelect(command.to)}
+        >
+          <command.icon />
+          {command.label}
+        </CommandItem>
+      ))}
+    </CommandGroup>
   );
 }
