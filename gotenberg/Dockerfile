@@ -41,8 +41,10 @@ RUN for module in "github.com/gotenberg/gotenberg/v8@$GOTENBERG_VERSION" "github
  && chmod -R u+w gotenberg pdfcpu
 # Gotenberg v8.38.1 pins Echo v5.4.0; Trivy found two advisories fixed in v5.4.1.
 RUN cd gotenberg \
- && go get github.com/labstack/echo/v5@v5.4.1 golang.org/x/net@v0.61.0 golang.org/x/crypto@v0.58.0 \
- && go build -trimpath -o /out/gotenberg \
+ && go mod edit -require=github.com/labstack/echo/v5@v5.4.1 \
+ && go mod download github.com/labstack/echo/v5@v5.4.1 \
+ && go get golang.org/x/net@v0.61.0 golang.org/x/crypto@v0.58.0 \
+ && go build -mod=readonly -trimpath -o /out/gotenberg \
       -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION#v}'" \
       ./cmd/gotenberg-chromium
 RUN cd pdfcpu \
