@@ -134,15 +134,15 @@ describe('the dashboard registry', () => {
     const { cards, actions } = mergeDashboard([
       {
         cards: [
-          { id: 'b', order: 20, component },
-          { id: 'a', order: 20, component },
+          { id: 'b', label: 'b', order: 20, component },
+          { id: 'a', label: 'a', order: 20, component },
         ],
         actions: [
           { to: '/approvals', order: 2, label: 'x', icon: FilePlusIcon },
         ],
       },
       {
-        cards: [{ id: 'c', order: 10, component }],
+        cards: [{ id: 'c', label: 'c', order: 10, component }],
         actions: [{ to: '/audit', order: 1, label: 'y', icon: FilePlusIcon }],
       },
       {},
