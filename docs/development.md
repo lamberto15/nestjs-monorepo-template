@@ -719,7 +719,7 @@ pages, ETags. Usage, the bell-icon recipe included:
    (`.claude/worktrees/` is in `.git/info/exclude`; `--no-track`, or the branch
    tracks `main` and a plain `git push` fails). Push with `git push -u origin HEAD`.
    Parallel work gets one worktree each, on disjoint files where possible.
-2. **The check** (see CLAUDE.md) passes in the worktree. Commits follow
+2. **The check** (see AGENTS.md) passes in the worktree. Commits follow
    Conventional Commits. The squash commit takes the commit's subject when the
    PR has one commit and the PR title otherwise (the repository's
    `COMMIT_OR_PR_TITLE` setting; GitHub counts merge commits too), so both
@@ -742,7 +742,7 @@ ones that fall behind.
 
 ### Issues and labels
 
-Several sessions (people or Claude) work at once, often from the same GitHub
+Several sessions (people or coding agents) work at once, often from the same GitHub
 account, so the labels say what each issue and PR is about and who has it.
 
 | Label | Meaning |

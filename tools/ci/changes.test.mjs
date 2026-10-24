@@ -358,6 +358,7 @@ test('a docs-only pull request runs only the change classifier', (t) => {
     [
       'docs/deployment.md',
       'README.md',
+      'AGENTS.md',
       'CLAUDE.md',
       '.claude/skills/add-feature/SKILL.md',
       '.changeset/quiet-hours.md',
