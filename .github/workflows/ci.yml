@@ -968,6 +968,13 @@ jobs:
       - name: Lint tooling and unused dependencies
         if: needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true'
         run: pnpm lint
+      # The full app check usually runs these guards. Keep them when only
+      # scripts change, so moving lint to this job does not lose coverage.
+      - name: Release, i18n and environment tooling invariants
+        if: needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true'
+        run: |
+          node --test tools/release/notes.test.mjs tools/i18n/check.test.mjs
+          pnpm env:check --templates
       - name: The generator's tests
         run: node --test 'tools/feature/*.test.mjs'
       - name: The setup wizard's tests (tools/setup, `pnpm setup`)
