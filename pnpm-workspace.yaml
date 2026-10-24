@@ -7,6 +7,11 @@ packages:
 # advisory (GHSA-w5hq-g745-h8pq, fixed in 11.1.1). It only calls v4(), through
 # require(): uuid 14 is ESM, which Node 24's require() loads.
 overrides:
+  # Patched transitive versions for advisories not yet reflected in Nest's
+  # Express platform dependency ranges (2026-10).
+  'body-parser@^2.0.0': 2.4.0
+  'multer@^2.0.0': 2.5.0
+  'node-gyp@13.1.0>undici': 8.12.2
   'exceljs>uuid': 14.0.3
 allowBuilds:
   '@scarf/scarf': false
