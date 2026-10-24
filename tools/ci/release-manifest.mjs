@@ -1,3 +1,4 @@
+import { githubCli } from './github-cli.mjs';
 // The registry cannot establish whether a complete release passed CI. GitHub's
 // successful workflow artifacts provide that evidence; signatures bind images.
 import { execFileSync } from 'node:child_process';
@@ -16,7 +17,7 @@ export const components = { api: '', caddy: '/caddy', gotenberg: '/gotenberg' };
 const sha = /^[a-f0-9]{40}$/;
 const digest = /^sha256:[a-f0-9]{64}$/;
 const execute = (command, args) =>
-  execFileSync(command, args, {
+  execFileSync(command === 'gh' ? githubCli() : command, args, {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -32,8 +33,12 @@ export function validateManifest(manifest, repository) {
     throw new Error('Invalid release manifest identity');
   if (
     !manifest.images ||
-    Object.keys(manifest.images).sort().join() !==
-      Object.keys(components).sort().join()
+    Object.keys(manifest.images)
+      .sort((a, b) => a.localeCompare(b))
+      .join() !==
+      Object.keys(components)
+        .sort((a, b) => a.localeCompare(b))
+        .join()
   )
     throw new Error('Incomplete image set');
   for (const [key, suffix] of Object.entries(components)) {
@@ -75,27 +80,29 @@ export function trustedManifest(repository, head, run = execute) {
       return false;
     }
   };
-  // Bound lookup cost. If evidence expired or is older, an explicit bootstrap
-  // is required, rather than falling back to a tag or an unproven digest.
+  // Search named artifacts first: legacy successful runs have no manifest.
+  // A bounded lookup fails closed if all usable evidence expired.
   for (let page = 1; page <= 10; page++) {
     const data = JSON.parse(
       run('gh', [
         'api',
-        `repos/${repository}/actions/workflows/ci.yml/runs?branch=main&status=success&per_page=100&page=${page}`,
+        `repos/${repository}/actions/artifacts?name=release-manifest-v1&per_page=100&page=${page}`,
       ]),
     );
-    for (const candidate of data.workflow_runs) {
-      if (!['push', 'workflow_dispatch'].includes(candidate.event)) continue;
-      const artifacts = JSON.parse(
+    for (const artifact of data.artifacts) {
+      const candidate = JSON.parse(
         run('gh', [
           'api',
-          `repos/${repository}/actions/runs/${candidate.id}/artifacts?per_page=100`,
+          `repos/${repository}/actions/runs/${artifact.workflow_run.id}`,
         ]),
       );
-      const artifact = artifacts.artifacts.find(
-        (a) => a.name === 'release-manifest-v1',
-      );
-      if (!artifact) continue;
+      if (
+        candidate.conclusion !== 'success' ||
+        candidate.head_branch !== 'main' ||
+        !['push', 'workflow_dispatch'].includes(candidate.event) ||
+        candidate.path !== '.github/workflows/ci.yml'
+      )
+        continue;
       if (artifact.expired)
         throw new Error('Trusted manifest expired; bootstrap required');
       const dir = mkdtempSync(join(tmpdir(), 'ci-release-'));
@@ -116,7 +123,7 @@ export function trustedManifest(repository, head, run = execute) {
       validateEvidence(manifest, candidate, repository, ancestor);
       return manifest;
     }
-    if (data.workflow_runs.length < 100) break;
+    if (data.artifacts.length < 100) break;
   }
   throw new Error(
     'No trusted release manifest. Run CI on main with bootstrap_release=true after separate review.',
@@ -179,6 +186,8 @@ export function verifyImages(manifest, repository, head, run = execute) {
       `${repository}/.github/workflows/ci.yml`,
       '--source-digest',
       image.sourceSha,
+      '--source-ref',
+      'refs/heads/main',
     ]);
   }
 }
@@ -212,7 +221,14 @@ export function createManifest({
   );
 }
 
-export function releasePlan(outputs, env, event, classify, gitFiles) {
+export function releasePlan(
+  outputs,
+  env,
+  event,
+  classify,
+  gitFiles,
+  load = trustedManifest,
+) {
   const bootstrap =
     env.GITHUB_EVENT_NAME === 'workflow_dispatch' &&
     event.inputs?.bootstrap_release === 'true' &&
@@ -229,21 +245,26 @@ export function releasePlan(outputs, env, event, classify, gitFiles) {
   const plan = { publish, bootstrap, previous: null };
   if (publish && !tag && !bootstrap) {
     try {
-      plan.previous = trustedManifest(env.GITHUB_REPOSITORY, env.GITHUB_SHA);
+      plan.previous = load(env.GITHUB_REPOSITORY, env.GITHUB_SHA);
       const files = gitFiles(plan.previous.sourceSha, env.GITHUB_SHA);
       const cumulative = classify({ files, complete: Boolean(files) });
       // Include changes from failed/skipped intervening releases, rather than
       // comparing images only with the immediately preceding source commit.
-      outputs.image ||= cumulative.image;
-      outputs.caddy ||= cumulative.caddy;
-      outputs.gotenberg ||= cumulative.gotenberg;
+      // A failed validation cannot supply evidence for a rebuilt component.
+      // Revalidate cumulative application changes, not just their image build.
+      for (const [key, needed] of Object.entries(cumulative))
+        outputs[key] ||= needed;
     } catch (error) {
       plan.error = error.message;
     }
   }
 
   if (tag || bootstrap)
-    outputs.image = outputs.caddy = outputs.gotenberg = true;
+    outputs.image =
+      outputs.api_image =
+      outputs.caddy =
+      outputs.gotenberg =
+        true;
   const directory = join(env.RUNNER_TEMP ?? tmpdir(), 'ci-release-plan');
   mkdirSync(directory, { recursive: true });
   writeFileSync(join(directory, 'plan.json'), JSON.stringify(plan));

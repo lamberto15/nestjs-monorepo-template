@@ -241,3 +241,36 @@ test('the stable gate needs every validation job and production rollout is disab
   ])
     assert.ok(all.find((j) => j.id === id).needs.includes('ci-gate'), id);
 });
+
+test('every release image is built once and handed off with integrity evidence', () => {
+  const all = jobs(text);
+  for (const [builder, publisher, image] of [
+    ['image', 'publish', 'app'],
+    ['caddy-image', 'publish-caddy', 'caddy'],
+    ['gotenberg-image', 'publish-gotenberg', 'gotenberg'],
+    ['backup-image', null, 'backup'],
+  ]) {
+    const build = all.find((job) => job.id === builder).lines.join('\n');
+    assert.equal(
+      (build.match(/uses: docker\/build-push-action@/g) ?? []).length,
+      1,
+      builder,
+    );
+    assert.ok(build.includes(`name: image-${image}`), builder);
+    assert.ok(build.includes(`${image}.tar.sha256`), builder);
+    assert.ok(build.includes(`${image}.id`), builder);
+    if (!publisher) continue;
+    const publish = all.find((job) => job.id === publisher).lines.join('\n');
+    assert.ok(!publish.includes('uses: docker/build-push-action@'), publisher);
+    assert.ok(publish.includes(`sha256sum -c ${image}.tar.sha256`), publisher);
+    assert.ok(
+      publish.includes('image-ref: ${{ steps.push.outputs.ref }}'),
+      publisher,
+    );
+    assert.ok(
+      publish.indexOf('image-ref:') <
+        publish.indexOf('uses: ./.github/actions/sign-image'),
+      publisher,
+    );
+  }
+});

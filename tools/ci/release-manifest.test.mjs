@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { classify, gitFiles } from './changes.mjs';
@@ -8,6 +11,7 @@ import {
   validateEvidence,
   verifyImages,
   trustedManifest,
+  releasePlan,
 } from './release-manifest.mjs';
 const repository = 'owner/repo';
 const oldSha = 'a'.repeat(40),
@@ -159,7 +163,7 @@ test('missing/expired trust evidence requires bootstrap, never a mutable fallbac
   assert.throws(
     () =>
       trustedManifest(repository, newSha, () =>
-        JSON.stringify({ workflow_runs: [] }),
+        JSON.stringify({ artifacts: [] }),
       ),
     /bootstrap/,
   );
@@ -168,8 +172,16 @@ test('missing/expired trust evidence requires bootstrap, never a mutable fallbac
       trustedManifest(repository, newSha, (cmd, args) =>
         JSON.stringify(
           args[1].includes('/artifacts?')
-            ? { artifacts: [{ name: 'release-manifest-v1', expired: true }] }
-            : { workflow_runs: [record] },
+            ? {
+                artifacts: [
+                  {
+                    name: 'release-manifest-v1',
+                    expired: true,
+                    workflow_run: { id: 10 },
+                  },
+                ],
+              }
+            : record,
         ),
       ),
     /expired/,
@@ -187,4 +199,122 @@ test('cumulative image routing includes failed intervening releases', () => {
   assert.ok(!cumulative.gotenberg);
   assert.ok(calls[1].includes(oldSha));
   assert.equal(Object.keys(components).length, 3);
+});
+
+test('release planning revalidates cumulative failures, separates runtime builds, and requires explicit bootstrap', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'ci-plan-test-'));
+  const env = {
+    GITHUB_EVENT_NAME: 'push',
+    GITHUB_REF: 'refs/heads/main',
+    GITHUB_SHA: newSha,
+    GITHUB_REPOSITORY: repository,
+    RUNNER_TEMP: directory,
+  };
+  try {
+    const outputs = classify({
+      files: ['apps/api/src/features/notes/notes.service.ts'],
+    });
+    const plan = releasePlan(
+      outputs,
+      env,
+      {},
+      classify,
+      () => [
+        'apps/api/src/features/notes/notes.service.ts',
+        'apps/web/src/failed-release.tsx',
+      ],
+      () => previous,
+    );
+    assert.equal(plan.previous.sourceSha, oldSha);
+    assert.ok(outputs.web && outputs.app && outputs.caddy && outputs.api_image);
+    const infra = classify({ files: ['compose.prod.yaml'] });
+    assert.ok(infra.image);
+    assert.equal(infra.api_image, false);
+    const missing = releasePlan(
+      { ...infra },
+      env,
+      {},
+      classify,
+      () => [],
+      () => {
+        throw Error('bootstrap required');
+      },
+    );
+    assert.match(missing.error, /bootstrap/);
+    const bootstrap = { ...env, GITHUB_EVENT_NAME: 'workflow_dispatch' };
+    const built = classify({ full: true });
+    assert.equal(
+      releasePlan(
+        built,
+        bootstrap,
+        { inputs: { bootstrap_release: 'true' } },
+        classify,
+        () => [],
+        () => {
+          throw Error('must not load');
+        },
+      ).publish,
+      true,
+    );
+    assert.ok(built.api_image && built.caddy && built.gotenberg);
+    for (const event of ['schedule', 'workflow_dispatch', 'pull_request'])
+      assert.equal(
+        releasePlan(
+          { ...built },
+          { ...env, GITHUB_EVENT_NAME: event },
+          {},
+          classify,
+          () => [],
+        ).publish,
+        false,
+      );
+    const tag = releasePlan(
+      { ...built },
+      { ...env, GITHUB_REF: 'refs/tags/v1.2.3' },
+      {},
+      classify,
+      () => [],
+    );
+    assert.equal(tag.publish, true);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('trusted lookup ignores failed intervening runs and validates downloaded source evidence', () => {
+  const calls = [];
+  const runner = (command, args) => {
+    calls.push([command, args]);
+    if (command === 'git') return '';
+    if (args[0] === 'api' && args[1].includes('/artifacts?'))
+      return JSON.stringify({
+        artifacts: [
+          {
+            name: 'release-manifest-v1',
+            expired: false,
+            workflow_run: { id: 11 },
+          },
+          {
+            name: 'release-manifest-v1',
+            expired: false,
+            workflow_run: { id: 10 },
+          },
+        ],
+      });
+    if (args[0] === 'api')
+      return JSON.stringify(
+        args[1].endsWith('/11')
+          ? { ...record, id: 11, conclusion: 'failure' }
+          : record,
+      );
+    const dir = args[args.indexOf('--dir') + 1];
+    writeFileSync(join(dir, 'release-manifest.json'), JSON.stringify(previous));
+    return '';
+  };
+  assert.equal(trustedManifest(repository, newSha, runner).runId, 10);
+  assert.equal(
+    calls.filter(([, args]) => args[0] === 'run' && args[1] === 'download')
+      .length,
+    1,
+  );
 });

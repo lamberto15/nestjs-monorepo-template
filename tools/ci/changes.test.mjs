@@ -15,7 +15,7 @@ const selected = (flags) => keys.filter((k) => flags[k]);
 
 test('API and web changes route independently on PRs and main', () => {
   const api = route('apps/api/src/features/notes/notes.service.ts');
-  assert.deepEqual(selected(api), ['code', 'app', 'api', 'image']);
+  assert.deepEqual(selected(api), ['code', 'app', 'api', 'image', 'api_image']);
   const web = route('apps/web/src/routes/index.tsx');
   assert.deepEqual(selected(web), ['code', 'app', 'web', 'caddy']);
   for (const event of ['push', 'pull_request']) {
@@ -27,15 +27,17 @@ test('API and web changes route independently on PRs and main', () => {
 });
 
 test('shared, migrations, infrastructure, tooling, CI and unknown paths', () => {
+  for (const path of ['new-root-file', 'packages/new-shared/src/index.ts'])
+    assert.ok(route(path).full, path);
   for (const path of [
     'package.json',
     'pnpm-lock.yaml',
     'pnpm-workspace.yaml',
     'turbo.json',
-    'new-root-file',
-    'packages/new-shared/src/index.ts',
-  ])
-    assert.ok(route(path).full, path);
+  ]) {
+    assert.ok(route(path).api && route(path).web);
+    assert.equal(route(path).full, false);
+  }
   assert.ok(route('packages/api-client/src/client.ts').web);
   assert.ok(route('packages/api-client/src/client.ts').api);
   assert.ok(route('apps/api/drizzle/0001.sql').api);
@@ -146,13 +148,20 @@ test('gate rejects missing results, failures, cancellations and unexpected skips
 });
 
 test('publication gate rejects a failed or skipped required image', () => {
-  const flags = { image: 'true', caddy: 'false', gotenberg: 'false' };
+  const flags = { api_image: 'true', caddy: 'false', gotenberg: 'false' };
   const needs = {
     publish: { result: 'success' },
     'publish-caddy': { result: 'skipped' },
     'publish-gotenberg': { result: 'skipped' },
   };
   publicationGate(flags, needs);
+  assert.throws(
+    () =>
+      publicationGate(flags, needs, {
+        error: 'Trusted manifest missing; bootstrap required',
+      }),
+    /bootstrap/,
+  );
   for (const result of ['failure', 'cancelled', 'skipped'])
     assert.throws(() =>
       publicationGate(flags, { ...needs, publish: { result } }),

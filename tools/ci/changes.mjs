@@ -1,3 +1,4 @@
+import { githubCli } from './github-cli.mjs';
 // GitHub supplies paths; Turbo supplies the workspace dependency graph. Custom
 // routing is needed for jobs outside that graph (images, DBs and generators).
 import { appendFileSync, readFileSync } from 'node:fs';
@@ -20,6 +21,7 @@ export const keys = [
   'ci',
   'generator',
   'image',
+  'api_image',
   'full',
 ];
 const roots =
@@ -39,10 +41,8 @@ export function classify({ files, full = false, complete = true }) {
       continue;
     }
     if (inert.test(file)) continue;
-    if (
-      roots.test(file) ||
-      /^(\.github\/actions\/|packages\/(?!api-client\/|ui\/))/.test(file)
-    )
+    if (roots.test(file)) return { ...all(), full: false };
+    if (/^(\.github\/actions\/|packages\/(?!api-client\/|ui\/))/.test(file))
       return all();
     flags.code = true;
     if (/^(tools\/|knip\.jsonc$)/.test(file)) {
@@ -53,10 +53,10 @@ export function classify({ files, full = false, complete = true }) {
       flags.image ||= file.startsWith('tools/deploy/');
       continue;
     }
-    if (/^(apps\/api\/|packages\/api-client\/)/.test(file)) {
-      flags.app = flags.api = flags.image = true;
+    if (/^(apps\/api\/|packages\/api-client\/|\.dockerignore$)/.test(file)) {
+      flags.app = flags.api = flags.image = flags.api_image = true;
       flags.generator ||=
-        /^(apps\/api\/(src\/platform\/|src\/core\/|test\/fixtures\/)|packages\/api-client\/)/.test(
+        /^(apps\/api\/(src\/(platform|core|iam)\/|src\/app.module\.ts$|test\/fixtures\/)|packages\/api-client\/)/.test(
           file,
         );
       if (file.startsWith('packages/') || file === 'apps/api/package.json')
@@ -81,7 +81,12 @@ export function classify({ files, full = false, complete = true }) {
     } else if (/^(env\.example|\.prettierrc|\.prettierignore)$/.test(file)) {
       flags.tools = flags.lint = flags.generator = true;
     } else if (file === '.trivyignore.yaml') {
-      flags.image = flags.backup = flags.gotenberg = flags.caddy = true;
+      flags.image =
+        flags.api_image =
+        flags.backup =
+        flags.gotenberg =
+        flags.caddy =
+          true;
     } else return all(); // Unknown paths fail towards comprehensive validation.
   }
   return flags;
@@ -100,7 +105,18 @@ export function comparisonFiles(data, { pr = false, expected } = {}) {
   if (!pr && !['ahead', 'identical'].includes(data.status)) return null;
   if (
     entries.some(
-      (f) => !f.filename || (f.status === 'renamed' && !f.previous_filename),
+      (f) =>
+        !f.filename ||
+        ![
+          'added',
+          'removed',
+          'modified',
+          'renamed',
+          'copied',
+          'changed',
+          'unchanged',
+        ].includes(f.status) ||
+        (f.status === 'renamed' && !f.previous_filename),
     )
   )
     return null;
@@ -174,13 +190,13 @@ export function gitFiles(base, head, run = execFileSync) {
 
 export function runChanges(
   env = process.env,
-  gh = (args) => execFileSync('gh', args, { encoding: 'utf8' }),
+  gh = (args) => execFileSync(githubCli(), args, { encoding: 'utf8' }),
 ) {
   const event = JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8'));
   const full =
     !['push', 'pull_request'].includes(env.GITHUB_EVENT_NAME) ||
     env.GITHUB_REF.startsWith('refs/tags/');
-  const base = event.pull_request?.base.sha ?? event.before ?? '';
+  let base = event.pull_request?.base.sha ?? event.before ?? '';
   const head = event.pull_request?.head.sha ?? env.GITHUB_SHA;
   let files;
   if (!full && /^[a-f0-9]{40}$/.test(base) && !/^0+$/.test(base)) {
@@ -200,13 +216,20 @@ export function runChanges(
     }
   }
   const flags = classify({ files, full, complete: Boolean(files) });
-  // Turbo must use the same comparison; a missing ref disables affected mode.
-  const affected =
-    !flags.full &&
-    files.every((file) => /^(apps\/api\/|apps\/web\/|packages\/)/.test(file)) &&
-    Boolean(gitFiles(base, head));
   const benchmark = event.inputs?.benchmark ?? 'off';
   const plan = releasePlan(flags, env, event, classify, gitFiles);
+  if (plan.previous) {
+    base = plan.previous.sourceSha;
+    files = gitFiles(base, head);
+  }
+  // A main release validates cumulative changes, including components whose
+  // intervening release failed. Turbo must use that same base, too.
+  const affected =
+    !flags.full &&
+    Array.isArray(files) &&
+    files.length > 0 &&
+    files.every((file) => /^(apps\/api\/|apps\/web\/|packages\/)/.test(file)) &&
+    Boolean(gitFiles(base, head));
   const unitWhole = event.inputs?.unit_layout === 'whole';
   const outputs = {
     ...flags,

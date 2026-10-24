@@ -1997,7 +1997,8 @@ settings in production (the captcha stub, text logs) reads it.
 On affected pushes to `main` and every `v*` tag, CI publishes verified images
 to `ghcr.io/<owner>/<repo>` (here `ghcr.io/lamberto15/nestjs-monorepo-template`).
 Each affected image is built once, scanned and runtime-validated. A Docker image
-archive transfers that exact build to runtime and publish jobs; publication does
+archive, checksum and image config ID transfer that exact build to runtime and
+publish jobs; publication does
 not run another build. The pushed immutable digest is scanned before signing,
 provenance and SBOM generation. Publication requires **CI gate** success.
 
@@ -2006,11 +2007,14 @@ The versioned `release-manifest-v1` artifact contains `release-manifest.json`:
 repositories/digests, plus each image's producer SHA/run. Unchanged images retain
 their producer evidence. Rebuild decisions include all component changes since
 the trusted manifest, so failed or skipped intervening releases cannot lose work.
+Those cumulative component changes are revalidated against the same Turbo base.
+Runtime-only infrastructure checks may build an API artifact without publishing
+an unchanged API image.
 
 Reuse requires a successful `main` CI run's manifest, source ancestry, registry
 availability, an exact main-workflow cosign identity, a signed CycloneDX SBOM and
 source-bound GitHub provenance. Invalid/missing/expired evidence blocks the release;
-mutable tags are never a fallback. The lookup is bounded to 1000 successful runs.
+mutable tags are never a fallback. The lookup is bounded to 1000 matching manifest artifacts.
 To bootstrap or recover expired evidence, explicitly dispatch CI on `main` with
 `bootstrap_release=true`: comprehensive validation and all three builds/publications,
 with deployment still disabled. Ordinary manual and nightly runs do not publish.

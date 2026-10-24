@@ -1,3 +1,4 @@
+import { githubCli } from './github-cli.mjs';
 // Jobs API timestamps expose scheduling delay, not the runner allocator's
 // internal queue. Report dependency/matrix waits separately and label the
 // remaining delay as scheduling (which includes runner queueing).
@@ -117,7 +118,7 @@ if (
   else if (command === 'collect') {
     const [repository, id, output] = args;
     const gh = (more) =>
-      execFileSync('gh', more, {
+      execFileSync(githubCli(), more, {
         encoding: 'utf8',
         maxBuffer: 128 * 1024 * 1024,
       });

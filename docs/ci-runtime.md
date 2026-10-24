@@ -13,7 +13,8 @@ with `benchmark=e2e` and `e2e_shards=2`, `3`, or `6`; only API E2E runs, with at
 most two shards concurrently. Use `benchmark=unit` and `unit_layout=whole` or
 `sharded` to compare full unit coverage with the current matrices. Coverage
 benchmarks bypass task-cache replay; thresholds and isolated services are unchanged.
-Keep benchmark runs sequential to avoid consuming the shared pool all at once.
+Keep each benchmark family sequential. At most one E2E run and one unit run may
+measure concurrently: two E2E runners and at most four unit runners.
 Ordinary validation, publication and deployment are excluded from benchmark mode.
 
 ```bash
@@ -31,7 +32,7 @@ coverage merging only if sharding wins. Do not lower coverage thresholds.
 
 ## Reading the evidence
 
-[Before measurements](../tools/ci/evidence/) contain run IDs, source revisions,
+[Before measurements](https://github.com/lamberto15/nestjs-monorepo-template/tree/main/tools/ci/evidence) contain run IDs, source revisions,
 elapsed/validation minutes, runner-minutes, peak occupied runners, job scheduling
 delay and observed Turbo task cache hits/misses. Runner-minutes sum active job
 durations, not wall-clock duration or GitHub's rounded billing units. Gate completion
