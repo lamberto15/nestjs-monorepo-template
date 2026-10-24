@@ -63,7 +63,26 @@ jobs:
             echo '| Entry | Size | Limit | |'
             echo '| --- | --- | --- | --- |'
             pnpm exec size-limit --json | jq -r '.[] | "| \(.name) | \(.size) B | \(.sizeLimit) B | \(if .passed then "ok" else "over" end) |"'
+            echo
+            echo '### Largest JavaScript chunks'
+            echo
+            echo '| Chunk | Raw | gzip | brotli |'
+            echo '| --- | ---: | ---: | ---: |'
+            jq -r '.chunks[:10][] | "| \(.file) | \(.bytes) B | \(.gzipBytes) B | \(.brotliBytes) B |"' .bundle-analysis/bundle.json
+            echo
+            echo '### Largest modules in the biggest chunk'
+            echo
+            echo '| Module | Rendered |'
+            echo '| --- | ---: |'
+            jq -r '.chunks[0].modules[:15][] | "| `\(.id)` | \(.renderedBytes) B |"' .bundle-analysis/bundle.json
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Bundle analysis
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-bundle-analysis
+          path: apps/web/.bundle-analysis/bundle.json
+          retention-days: 14
 
   storybook:
     runs-on: ubuntu-24.04
