@@ -297,6 +297,8 @@ jobs:
       - name: api answers its readiness check
         run: |
           kubectl -n nestjs-monorepo port-forward svc/app-api 3000:3000 &
+          forward_pid=$!
+          trap 'kill "$forward_pid" 2>/dev/null || true' EXIT
           sleep 5
           curl -fsS http://127.0.0.1:3000/health
 
@@ -333,7 +335,7 @@ jobs:
           kubectl run obs-log-smoke -n nestjs-monorepo --image=busybox:1.37.0 --restart=Never \
             --command -- sh -c 'echo k3s-observability-smoke; sleep 600'
           kubectl wait -n nestjs-monorepo --for=condition=Ready pod/obs-log-smoke --timeout=120s
-          kubectl -n monitoring port-forward svc/monitoring-grafana 3000:80 > "$RUNNER_TEMP/grafana-forward.log" 2>&1 &
+          kubectl -n monitoring port-forward svc/monitoring-grafana 3001:80 > "$RUNNER_TEMP/grafana-forward.log" 2>&1 &
           forward_pid=$!
           trap 'kill "$forward_pid" 2>/dev/null || true' EXIT
           grafana_password=$(kubectl get secret monitoring-grafana -n monitoring -o jsonpath='{.data.admin-password}' | base64 -d)
@@ -343,7 +345,7 @@ jobs:
             if curl -fsSG --user "admin:$grafana_password" \
               --data-urlencode 'query={namespace="nestjs-monorepo",container="obs-log-smoke"} |= "k3s-observability-smoke"' \
               --data-urlencode "start=$start" --data-urlencode "end=$end" --data-urlencode 'limit=50' \
-              http://127.0.0.1:3000/api/datasources/proxy/uid/loki/loki/api/v1/query_range \
+              http://127.0.0.1:3001/api/datasources/proxy/uid/loki/loki/api/v1/query_range \
               > "$RUNNER_TEMP/log-query.json" && jq -e '.data.result | length > 0' "$RUNNER_TEMP/log-query.json" >/dev/null; then
               break
             fi
