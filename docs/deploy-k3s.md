@@ -112,12 +112,13 @@ only; GitHub deploys through Tailscale.
 ## GitHub deploy identity
 
 Apply [`deploy/k3s/deployer-rbac.yaml`](../deploy/k3s/deployer-rbac.yaml) as an
-administrator. Its ServiceAccount can manage the resource kinds in this one
-namespace that Helm owns, including the versioned Secret records Helm uses for
-release history. It cannot change RBAC, namespaces, nodes, or cluster
-resources. The namespace contains app Secrets, so keep the credential only in
-the protected `production` GitHub environment. Verify denial of cluster-wide
-operations with `kubectl auth can-i` before storing it in GitHub.
+administrator. Its ServiceAccount can manage the Helm release resources in
+this namespace, including the versioned Secret records Helm uses for release
+history. It can only read ReplicaSets for rollout status checks. It cannot
+change RBAC, namespaces, nodes, or cluster resources. The namespace contains
+app Secrets, so keep the credential only in the protected `production` GitHub
+environment. Verify denial of ReplicaSet writes and cluster-wide operations
+with `kubectl auth can-i` before storing it in GitHub.
 
 Create a kubeconfig for `github-deployer` with server
 `https://<TAILSCALE_K3S_ADDRESS>:6443`, the K3s CA, the ServiceAccount token,

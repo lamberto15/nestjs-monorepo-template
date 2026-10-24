@@ -154,6 +154,18 @@ jobs:
           # cluster does not install. Still parse its YAML.
           yq eval '.' deploy/k3s/cloudflare-issuer.yaml > /dev/null
 
+      - name: Verify deployer can read but cannot change ReplicaSets
+        run: |
+          kubectl apply -f deploy/k3s/deployer-rbac.yaml
+          subject=system:serviceaccount:nestjs-monorepo:github-deployer
+          for verb in get list watch; do
+            test "$(kubectl auth can-i "$verb" replicasets.apps -n nestjs-monorepo --as="$subject")" = yes
+          done
+          for verb in create update patch delete; do
+            test "$(kubectl auth can-i "$verb" replicasets.apps -n nestjs-monorepo --as="$subject")" = no
+          done
+          test "$(kubectl auth can-i create clusterrolebindings.rbac.authorization.k8s.io --as="$subject")" = no
+
       - name: Build the API image and load it into the cluster
         run: |
           docker build -f apps/api/Dockerfile -t app:ci .
