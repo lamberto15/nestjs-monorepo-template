@@ -44,6 +44,8 @@ export const tenants = pgTable(
     /** A short handle in URLs and logs (`acme`), unique. */
     slug: text('slug').notNull().unique(),
     name: text('name').notNull(),
+    /** Immutable local-storage object key for the current branding logo. */
+    logoKey: text('logo_key'),
     /**
      * Off: nobody acts in it (its sessions and tokens stop, ended by the
      * deactivation; its API keys stop), its jobs are skipped.
