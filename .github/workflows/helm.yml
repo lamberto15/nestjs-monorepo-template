@@ -96,7 +96,7 @@ jobs:
           yq -e 'select(.kind == "DaemonSet" and .metadata.name == "alloy") | .spec.template.spec.containers[] | select(.name == "alloy") | .resources.limits.memory == "384Mi"' "$RUNNER_TEMP/alloy.yaml"
           yq -e 'select(.kind == "DaemonSet" and .metadata.name == "alloy") | .spec.template.spec.containers[] | select(.name == "config-reloader") | .resources.limits.memory == "128Mi"' "$RUNNER_TEMP/alloy.yaml"
           grep -q 'retention_period: 168h' "$RUNNER_TEMP/loki.yaml"
-          grep -q 'type: filesystem' "$RUNNER_TEMP/loki.yaml"
+          grep -q 'object_store: filesystem' "$RUNNER_TEMP/loki.yaml"
           grep -q 'stage.cri {}' "$RUNNER_TEMP/alloy.yaml"
           grep -q 'loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push' "$RUNNER_TEMP/alloy.yaml"
           if grep -Eqi 'docker.sock|request_id' deploy/k3s/monitoring/alloy.values.yaml; then exit 1; fi

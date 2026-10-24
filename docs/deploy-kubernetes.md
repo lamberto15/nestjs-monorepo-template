@@ -10,8 +10,8 @@ For a single-node K3s deployment, use the dedicated
 [single-node guide](deploy-k3s.md) and `values.single-node.yaml`. It covers the
 separate database, Redis, backups, namespace-scoped CI identity, Tailscale,
 Cloudflare Tunnel, and the `ReadWriteOnce` local storage profile. The separate
-[observability guide](../deploy/k3s/monitoring/README.md) covers its pinned
-Prometheus, Grafana, Alertmanager, Loki and Alloy releases.
+[observability guide](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/monitoring/README.md)
+covers its pinned Prometheus, Grafana, Alertmanager, Loki and Alloy releases.
 
 <!-- markdownlint-disable MD013 -->
 
@@ -123,4 +123,4 @@ a SHA pin; the job prints their versions.
 The chart does not deploy the backup service or implement zero-downtime
 blue-green releases; use `helm rollback` for an application rollback. The
 single-node observability stack and its recovery limits are documented in the
-[K3s observability guide](../deploy/k3s/monitoring/README.md).
+[K3s observability guide](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/monitoring/README.md).

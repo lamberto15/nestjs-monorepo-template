@@ -6,7 +6,7 @@ Traefik inside the cluster. The production host runs K3s and pulls images; it
 needs neither Docker nor a source checkout. Replace each `example.com` value
 with a domain you control, and keep cluster addresses and account identifiers
 in private configuration. For the separate single-node monitoring stack, see
-[the observability runbook](../deploy/k3s/monitoring/README.md).
+[the observability runbook](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/monitoring/README.md).
 
 The checked-in manifests are reviewed on a branch and merged through CI. An
 administrator applies infrastructure resources from a workstation with an
