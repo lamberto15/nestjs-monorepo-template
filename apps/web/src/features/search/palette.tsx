@@ -100,18 +100,11 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
     kind: QuickCommandKind;
     heading: string;
     commands: QuickCommand[];
-  }> = [
-    {
-      kind: 'page',
-      heading: t('pages'),
-      commands: shownCommands.filter(({ kind }) => kind === 'page'),
-    },
-    {
-      kind: 'action',
-      heading: t('actions'),
-      commands: shownCommands.filter(({ kind }) => kind === 'action'),
-    },
-  ];
+  }> = (['page', 'action'] as const).map((kind) => ({
+    kind,
+    heading: t(kind === 'page' ? 'pages' : 'actions'),
+    commands: shownCommands.filter((command) => command.kind === kind),
+  }));
 
   const go = (href: string | undefined) => {
     // A link comes from the API: only a path of this app is followed.
