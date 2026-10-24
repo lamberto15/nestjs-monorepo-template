@@ -10,7 +10,8 @@
     "active": "Active",
     "revoked": "Revoked",
     "empty": "No API clients yet. Create one first: webhooks belong to a client.",
-    "senders": "Incoming senders"
+    "senders": "Incoming senders",
+    "createClient": "Create API client"
   },
   "endpoints": {
     "back": "All clients",
