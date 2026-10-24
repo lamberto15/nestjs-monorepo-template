@@ -6,6 +6,7 @@ export default {
   cards: [
     {
       id: 'notes-recent',
+      label: 'notes:dashboard.recent.title',
       order: 40,
       permission: 'Note.read',
       component: lazy(() =>
