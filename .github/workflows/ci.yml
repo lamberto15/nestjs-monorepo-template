@@ -99,7 +99,7 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           CI_BEFORE: ${{ github.event.before }}
         run: |
-          keys='code api web tools stack services backup gotenberg caddy ci'
+          keys='code app lint api web tools stack services backup gotenberg caddy ci'
           all() {
             for key in $keys; do echo "$key=true"; done | tee -a "$GITHUB_OUTPUT"
             exit 0
