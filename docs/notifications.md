@@ -134,6 +134,13 @@ same tenant only (or among the account's own).
   and `daily` bundle them (one mail listing them, times in the user's
   zone), the daily one at `NOTIFICATIONS_DIGEST_HOUR` in the user's time
   zone. After downtime, everything due goes in the next run.
+- **Email policy** (`notifications.emailPolicy`, [settings](settings.md)):
+  `all` (the default) follows each person’s per-type email preference, including
+  disabled and digest choices. `essential` sends notification email only for
+  types declared `mandatory`; in-app, realtime and webhook delivery are
+  unchanged. The operator’s platform value is the default for every tenant,
+  and a tenant setting overrides it. This applies only to notification email,
+  not account or other mail.
 - **Unsubscribe** (RFC 8058, which Gmail and Yahoo require of bulk senders):
   every notification and digest mail carries `List-Unsubscribe: <https://…/v1/notifications/unsubscribe/{token}>`
   (and a `mailto:` when `MAIL_UNSUBSCRIBE_MAILTO` is set), `List-Unsubscribe-Post: List-Unsubscribe=One-Click`,
