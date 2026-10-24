@@ -310,7 +310,7 @@ const ALWAYS = ['changes'];
 // App-facing changes need the full build/DB check, Compose service outputs,
 // and security. Tooling changes get independent lint and smoke verification.
 const CODE_PREREQS = ['compose-images', 'security'];
-const TOOLING_ONLY = ['compose-images', 'security', 'tooling-lint'];
+const TOOLING_ONLY = ['compose-images', 'security'];
 const PUSH_ONLY = [
   'publish',
   'publish-gotenberg',
@@ -472,6 +472,14 @@ test('the lockfile runs everything that installs or builds the workspace', (t) =
     ['pnpm-lock.yaml'],
     only(ALWAYS, CODE, API, WEB, 'caddy-image'),
   );
+});
+
+test('generator smoke reuses its runner for tooling-only lint', () => {
+  const smoke = jobs(TEXT).find((job) => job.id === 'feature-smoke');
+  const text = smoke.lines.join('\n');
+  assert.match(text, /- name: Lint tooling and unused dependencies\n\s+if: needs\.changes\.outputs\.lint == 'true' && needs\.changes\.outputs\.app != 'true'\n\s+run: pnpm lint/);
+  const lint = jobs(TEXT).find((job) => job.id === 'tooling-lint');
+  assert.match(lint.if, /needs\.changes\.outputs\.tools != 'true'/);
 });
 
 test('Knip config alone gets lint, without containers, app builds or security scans', (t) => {
