@@ -478,6 +478,9 @@ test('generator smoke reuses its runner for tooling-only lint', () => {
   const smoke = jobs(TEXT).find((job) => job.id === 'feature-smoke');
   const text = smoke.lines.join('\n');
   assert.match(text, /- name: Lint tooling and unused dependencies\n\s+if: needs\.changes\.outputs\.lint == 'true' && needs\.changes\.outputs\.app != 'true'\n\s+run: pnpm lint/);
+  assert.match(text, /- name: Release, i18n and environment tooling invariants\n\s+if: needs\.changes\.outputs\.lint == 'true' && needs\.changes\.outputs\.app != 'true'/);
+  assert.match(text, /node --test tools\/release\/notes\.test\.mjs tools\/i18n\/check\.test\.mjs/);
+  assert.match(text, /pnpm env:check --templates/);
   const lint = jobs(TEXT).find((job) => job.id === 'tooling-lint');
   assert.match(lint.if, /needs\.changes\.outputs\.tools != 'true'/);
 });
