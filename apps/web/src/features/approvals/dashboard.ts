@@ -6,6 +6,7 @@ export default {
   cards: [
     {
       id: 'approvals',
+      label: 'approvals:dashboard.title',
       order: 10,
       component: lazy(() =>
         import('./dashboard-cards').then((m) => ({
