@@ -1,0 +1,66 @@
+# Kubernetes-native log collection, not the Compose Docker-socket collector.
+controller:
+  type: daemonset
+alloy:
+  mounts:
+    varlog: true
+    dockercontainers: false
+  resources:
+    requests: {cpu: 75m, memory: 128Mi}
+    limits: {cpu: 250m, memory: 384Mi}
+  configMap:
+    create: true
+    content: |-
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      discovery.relabel "pod_logs" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label = "node"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+          separator = "/"
+          target_label = "__path__"
+          replacement = "/var/log/pods/*$1/*.log"
+        }
+        rule {
+          action = "replace"
+          source_labels = ["__meta_kubernetes_pod_container_id"]
+          regex = "^(\\w+):\\/\\/.+$"
+          replacement = "$1"
+          target_label = "runtime"
+        }
+      }
+
+      loki.source.file "pods" {
+        targets = discovery.relabel.pod_logs.output
+        forward_to = [loki.process.pods.receiver]
+      }
+
+      loki.process "pods" {
+        stage.cri {}
+        forward_to = [loki.write.default.receiver]
+      }
+
+      loki.write "default" {
+        endpoint {
+          url = "http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push"
+        }
+      }
