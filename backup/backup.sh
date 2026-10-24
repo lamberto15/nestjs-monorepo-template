@@ -172,6 +172,12 @@ SQL
   files=$sealed
 fi
 
+# The dump and manifest have both imported it; do not hold an old database
+# snapshot open during archive compression, upload or retention.
+kill "$snapshot_pid" 2>/dev/null || true
+wait "$snapshot_pid" 2>/dev/null || true
+snapshot_pid=''
+
 # Seal the database only after local file references have passed validation.
 step=seal
 seal ".partial-$db_file" "$db_file"
