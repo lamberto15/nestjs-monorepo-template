@@ -1,9 +1,12 @@
-# K3s single-node profile. Managed in a separate monitoring namespace and Helm release.
-# Review chart version and render output before installing. No external ingress.
+# Helm chart: prometheus-community/kube-prometheus-stack 92.11.0.
+# Release: monitoring in namespace monitoring. All endpoints remain ClusterIP.
 grafana:
   enabled: true
+  replicas: 1
   ingress:
     enabled: false
+  service:
+    type: ClusterIP
   persistence:
     enabled: true
     type: pvc
@@ -11,8 +14,16 @@ grafana:
     accessModes: [ReadWriteOnce]
     size: 5Gi
   resources:
-    requests: {cpu: 100m, memory: 128Mi}
-    limits: {cpu: 500m, memory: 512Mi}
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+  sidecar:
+    resources:
+      requests: { cpu: 25m, memory: 32Mi }
+      limits: { cpu: 100m, memory: 128Mi }
+  initChownData:
+    resources:
+      requests: { cpu: 25m, memory: 32Mi }
+      limits: { cpu: 100m, memory: 128Mi }
   additionalDataSources:
     - name: Loki
       type: loki
@@ -22,39 +33,65 @@ grafana:
       isDefault: false
 
 prometheus:
+  enabled: true
+  ingress:
+    enabled: false
+  service:
+    type: ClusterIP
   prometheusSpec:
+    replicas: 1
     retention: 10d
     retentionSize: 15GB
-    replicas: 1
     storageSpec:
       volumeClaimTemplate:
         spec:
           storageClassName: local-ssd
           accessModes: [ReadWriteOnce]
           resources:
-            requests: {storage: 20Gi}
+            requests:
+              storage: 20Gi
     resources:
-      requests: {cpu: 250m, memory: 512Mi}
-      limits: {cpu: "1", memory: 2Gi}
-    # Allow discovery of namespaced ServiceMonitors, but keep explicit selectors.
-    serviceMonitorSelectorNilUsesHelmValues: false
+      requests: { cpu: 250m, memory: 512Mi }
+      limits: { cpu: '1', memory: 2Gi }
+    # Match only monitors and rules explicitly labelled for this release.
+    serviceMonitorSelector:
+      matchLabels:
+        release: monitoring
     serviceMonitorNamespaceSelector: {}
-    ruleSelectorNilUsesHelmValues: false
+    ruleSelector:
+      matchLabels:
+        release: monitoring
     ruleNamespaceSelector: {}
 
 alertmanager:
+  enabled: true
+  ingress:
+    enabled: false
   alertmanagerSpec:
     replicas: 1
     resources:
-      requests: {cpu: 50m, memory: 96Mi}
-      limits: {cpu: 250m, memory: 256Mi}
+      requests: { cpu: 50m, memory: 96Mi }
+      limits: { cpu: 250m, memory: 256Mi }
     storage:
       volumeClaimTemplate:
         spec:
           storageClassName: local-ssd
           accessModes: [ReadWriteOnce]
           resources:
-            requests: {storage: 2Gi}
+            requests:
+              storage: 2Gi
 
-# Keep Kubernetes component exporters intentionally enabled.
-# Node exporter / kube-state-metrics expose metrics only inside the cluster.
+prometheusOperator:
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+
+kube-state-metrics:
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 250m, memory: 256Mi }
+
+prometheus-node-exporter:
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 250m, memory: 128Mi }

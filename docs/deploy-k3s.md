@@ -5,7 +5,8 @@ private to your tailnet; Cloudflare Tunnel carries public HTTPS traffic to
 Traefik inside the cluster. The production host runs K3s and pulls images; it
 needs neither Docker nor a source checkout. Replace each `example.com` value
 with a domain you control, and keep cluster addresses and account identifiers
-in private configuration.
+in private configuration. For the separate single-node monitoring stack, see
+[the observability runbook](../deploy/k3s/monitoring/README.md).
 
 The checked-in manifests are reviewed on a branch and merged through CI. An
 administrator applies infrastructure resources from a workstation with an
@@ -15,14 +16,14 @@ time and inspect its result before the next one.
 
 ## Layout
 
-| Component              | Storage or access         | Owner              |
-| ---------------------- | ------------------------- | ------------------ |
-| API, worker, web, PDFs | GHCR digests              | `app` Helm release |
-| PostgreSQL and Redis   | retained RWO SSD class   | administrator      |
-| Uploaded files         | retained RWO HDD class   | `app` Helm release |
-| Backups                | Not configured            | operator decision  |
-| Cloudflare Tunnel      | Outbound connector        | administrator      |
-| ACME certificate       | DNS-01                    | administrator      |
+| Component              | Storage or access      | Owner              |
+| ---------------------- | ---------------------- | ------------------ |
+| API, worker, web, PDFs | GHCR digests           | `app` Helm release |
+| PostgreSQL and Redis   | retained RWO SSD class | administrator      |
+| Uploaded files         | retained RWO HDD class | `app` Helm release |
+| Backups                | Not configured         | operator decision  |
+| Cloudflare Tunnel      | Outbound connector     | administrator      |
+| ACME certificate       | DNS-01                 | administrator      |
 
 The local-path provisioner offers `ReadWriteOnce`. The API and worker share the
 file claim on this single node. Before adding a second node, move files to an
@@ -151,11 +152,11 @@ checks. Add the following deployment-specific values as variables to the
 protected `production` environment. The workflow uses these values at deploy
 time rather than checking your domain into this repository:
 
-| Variable      | Example value             |
-| ------------- | ------------------------- |
-| `APP_DOMAIN`  | `app.example.com`         |
-| `APP_URL`     | `https://app.example.com` |
-| `MAIL_FROM`   | `no-reply@example.com`    |
+| Variable     | Example value             |
+| ------------ | ------------------------- |
+| `APP_DOMAIN` | `app.example.com`         |
+| `APP_URL`    | `https://app.example.com` |
+| `MAIL_FROM`  | `no-reply@example.com`    |
 
 Set `K3S_DEPLOY_ENABLED` to `true` only after the database, certificate, route,
 and deploy identity have passed their checks. Backups are optional for
