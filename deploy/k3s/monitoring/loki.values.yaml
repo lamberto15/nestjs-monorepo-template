@@ -1,0 +1,77 @@
+# Helm chart: grafana-community/loki 19.1.1 (Loki 3.7.9).
+# Release: loki in namespace monitoring. Gateway remains ClusterIP.
+deploymentMode: Monolithic
+loki:
+  image:
+    tag: 3.7.9
+  auth_enabled: false
+  commonConfig:
+    path_prefix: /var/loki
+    replication_factor: 1
+  storage:
+    type: filesystem
+    filesystem:
+      chunks_directory: /var/loki/chunks
+      rules_directory: /var/loki/rules
+  schemaConfig:
+    configs:
+      - from: '2024-04-01'
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+  limits_config:
+    retention_period: 168h
+    max_query_lookback: 168h
+  compactor:
+    working_directory: /var/loki/compactor
+    retention_enabled: true
+    delete_request_store: filesystem
+
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: true
+    storageClass: local-hdd
+    accessModes: [ReadWriteOnce]
+    size: 50Gi
+    enableStatefulSetAutoDeletePVC: true
+    whenDeleted: Retain
+    whenScaled: Retain
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: '1', memory: 2Gi }
+
+gateway:
+  enabled: true
+  replicas: 1
+  service:
+    type: ClusterIP
+  resources:
+    requests: { cpu: 25m, memory: 32Mi }
+    limits: { cpu: 250m, memory: 128Mi }
+
+lokiCanary:
+  enabled: true
+  resources:
+    requests: { cpu: 25m, memory: 32Mi }
+    limits: { cpu: 100m, memory: 128Mi }
+sidecar:
+  resources:
+    requests: { cpu: 25m, memory: 32Mi }
+    limits: { cpu: 100m, memory: 128Mi }
+
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+
+# These components belong to SimpleScalable/Distributed modes only.
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0

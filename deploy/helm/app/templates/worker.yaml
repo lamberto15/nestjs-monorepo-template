@@ -101,3 +101,19 @@ spec:
     matchLabels:
       {{- include "app.selector" (dict "ctx" . "component" "worker") | nindent 6 }}
 {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "app.fullname" . }}-worker
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "app.selector" (dict "ctx" . "component" "worker") | nindent 4 }}
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
