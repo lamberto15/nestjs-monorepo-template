@@ -92,6 +92,8 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
   const shownCommands = commands.filter((c) =>
     c.label.toLowerCase().includes(filter),
   );
+  const pageCommands = shownCommands.filter((c) => c.kind === 'page');
+  const actionCommands = shownCommands.filter((c) => c.kind === 'action');
 
   const go = (href: string | undefined) => {
     // A link comes from the API: only a path of this app is followed.
@@ -124,18 +126,34 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
               {shownCommands.length === 0 && (
                 <CommandEmpty>{t('noCommands')}</CommandEmpty>
               )}
-              <CommandGroup heading={t('commands')}>
-                {shownCommands.map((command) => (
-                  <CommandItem
-                    key={command.to}
-                    value={`command:${command.to}`}
-                    onSelect={() => go(command.to)}
-                  >
-                    <command.icon />
-                    {command.label}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
+              {pageCommands.length > 0 && (
+                <CommandGroup heading={t('pages')}>
+                  {pageCommands.map((command) => (
+                    <CommandItem
+                      key={`page:${command.to}`}
+                      value={`page:${command.to}`}
+                      onSelect={() => go(command.to)}
+                    >
+                      <command.icon />
+                      {command.label}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              {actionCommands.length > 0 && (
+                <CommandGroup heading={t('actions')}>
+                  {actionCommands.map((command) => (
+                    <CommandItem
+                      key={`action:${command.to}`}
+                      value={`action:${command.to}`}
+                      onSelect={() => go(command.to)}
+                    >
+                      <command.icon />
+                      {command.label}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
             </>
           ) : searching ? (
             <>
