@@ -1,9 +1,7 @@
-# The Helm chart's checks (docs/deploy-kubernetes.md): helm lint and template,
-# the rules copy against monitoring/prometheus/alerts.yml, then a smoke test
-# on a kind cluster: the image is built, the migrate hook runs against
-# PostgreSQL, api becomes ready. Helm, kind and kubectl are the ones the
-# runner image ships (no third-party action to pin); the versions are
-# printed in the log.
+# App chart validation plus the pinned K3s observability charts and rendered
+# manifest assertions. The kind smoke installs the app and monitoring stack,
+# then checks authenticated API/worker scrapes, app rule selection and a pod
+# log query through Grafana and Loki. Helm, kind and kubectl are the runner's.
 name: Helm
 
 on:
@@ -11,11 +9,13 @@ on:
     branches: [main]
     paths:
       - deploy/helm/**
+      - deploy/k3s/**
       - monitoring/prometheus/alerts.yml
       - .github/workflows/helm.yml
   pull_request:
     paths:
       - deploy/helm/**
+      - deploy/k3s/**
       - monitoring/prometheus/alerts.yml
       - .github/workflows/helm.yml
 
@@ -33,8 +33,93 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Install Helm 4.3.1
+        run: |
+          curl --proto '=https' --proto-redir '=https' -fsSL https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz -o "$RUNNER_TEMP/helm.tar.gz"
+          echo '0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b  helm.tar.gz' |
+            (cd "$RUNNER_TEMP" && sha256sum -c -)
+          mkdir -p "$RUNNER_TEMP/helm-bin"
+          tar -xzf "$RUNNER_TEMP/helm.tar.gz" -C "$RUNNER_TEMP" linux-amd64/helm
+          install -m 0755 "$RUNNER_TEMP/linux-amd64/helm" "$RUNNER_TEMP/helm-bin/helm"
+          echo "$RUNNER_TEMP/helm-bin" >> "$GITHUB_PATH"
+
       - name: Tool versions
         run: helm version --short && kind version && kubectl version --client
+
+      - name: Render the pinned K3s monitoring charts and assert the manifests
+        run: |
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo add grafana https://grafana.github.io/helm-charts
+          helm repo add grafana-community https://grafana-community.github.io/helm-charts
+          helm repo update
+          mkdir -p "$RUNNER_TEMP/charts"
+          helm pull prometheus-community/kube-prometheus-stack --version 92.11.0 --untar --untardir "$RUNNER_TEMP/charts"
+          helm pull grafana-community/loki --version 19.1.1 --untar --untardir "$RUNNER_TEMP/charts"
+          helm pull grafana/alloy --version 1.14.3 --untar --untardir "$RUNNER_TEMP/charts"
+          helm lint "$RUNNER_TEMP/charts/kube-prometheus-stack" --strict -f deploy/k3s/monitoring/kube-prometheus-stack.values.yaml
+          helm lint "$RUNNER_TEMP/charts/loki" --strict -f deploy/k3s/monitoring/loki.values.yaml
+          helm lint "$RUNNER_TEMP/charts/alloy" --strict -f deploy/k3s/monitoring/alloy.values.yaml
+          helm template monitoring "$RUNNER_TEMP/charts/kube-prometheus-stack" -n monitoring -f deploy/k3s/monitoring/kube-prometheus-stack.values.yaml > "$RUNNER_TEMP/kps.yaml"
+          helm template loki "$RUNNER_TEMP/charts/loki" -n monitoring -f deploy/k3s/monitoring/loki.values.yaml > "$RUNNER_TEMP/loki.yaml"
+          helm template alloy "$RUNNER_TEMP/charts/alloy" -n monitoring -f deploy/k3s/monitoring/alloy.values.yaml > "$RUNNER_TEMP/alloy.yaml"
+          digest="sha256:$(printf '%064d' 0)"
+          helm template app deploy/helm/app -n nestjs-monorepo -f deploy/helm/app/values.single-node.yaml \
+            --set image.digest="$digest" --set web.image.digest="$digest" \
+            --set gotenberg.image.digest="$digest" > "$RUNNER_TEMP/app-single-node.yaml"
+
+          # One of each main service, with no public ingress or LoadBalancer.
+          test "$(yq 'select(.kind == "Deployment" and .metadata.name == "monitoring-grafana") | .spec.replicas' "$RUNNER_TEMP/kps.yaml")" = 1
+          test "$(yq 'select(.kind == "Prometheus") | .spec.replicas' "$RUNNER_TEMP/kps.yaml")" = 1
+          test "$(yq 'select(.kind == "Alertmanager") | .spec.replicas' "$RUNNER_TEMP/kps.yaml")" = 1
+          test "$(yq 'select(.kind == "StatefulSet" and .metadata.name == "loki") | .spec.replicas' "$RUNNER_TEMP/loki.yaml")" = 1
+          if grep -Eq '^kind: Ingress$|type: LoadBalancer' "$RUNNER_TEMP/kps.yaml" "$RUNNER_TEMP/loki.yaml" "$RUNNER_TEMP/alloy.yaml"; then
+            echo "monitoring must not render public ingress or LoadBalancer services"; exit 1
+          fi
+          grep -q 'storageClassName: local-ssd' "$RUNNER_TEMP/kps.yaml"
+          grep -q 'storageClassName: local-hdd' "$RUNNER_TEMP/loki.yaml"
+          yq -e 'select(.kind == "StatefulSet" and .metadata.name == "loki") | .spec.persistentVolumeClaimRetentionPolicy.whenDeleted == "Retain"' "$RUNNER_TEMP/loki.yaml"
+          grep -q 'http://loki-gateway.monitoring.svc.cluster.local' "$RUNNER_TEMP/kps.yaml"
+          yq -e 'select(.kind == "PersistentVolumeClaim" and .metadata.name == "monitoring-grafana") | .spec.storageClassName == "local-ssd"' "$RUNNER_TEMP/kps.yaml"
+          yq -e 'select(.kind == "Prometheus" and .metadata.name == "monitoring-kube-prometheus-prometheus") | .spec.retention == "10d"' "$RUNNER_TEMP/kps.yaml"
+          yq -e 'select(.kind == "Prometheus" and .metadata.name == "monitoring-kube-prometheus-prometheus") | .spec.retentionSize == "15GB"' "$RUNNER_TEMP/kps.yaml"
+          yq -e 'select(.kind == "Prometheus" and .metadata.name == "monitoring-kube-prometheus-prometheus") | .spec.storage.volumeClaimTemplate.spec.storageClassName == "local-ssd"' "$RUNNER_TEMP/kps.yaml"
+          yq -e 'select(.kind == "Service" and .metadata.name == "loki-gateway") | .spec.type == "ClusterIP"' "$RUNNER_TEMP/loki.yaml"
+          yq -e 'select(.kind == "Prometheus" and .metadata.name == "monitoring-kube-prometheus-prometheus") | .spec.serviceMonitorSelector.matchLabels.release == "monitoring"' "$RUNNER_TEMP/kps.yaml"
+          yq -e 'select(.kind == "Prometheus" and .metadata.name == "monitoring-kube-prometheus-prometheus") | .spec.ruleSelector.matchLabels.release == "monitoring"' "$RUNNER_TEMP/kps.yaml"
+          yq -e 'select(.kind == "Prometheus" and .metadata.name == "monitoring-kube-prometheus-prometheus") | (.spec.serviceMonitorNamespaceSelector | length) == 0' "$RUNNER_TEMP/kps.yaml"
+          yq -e 'select(.kind == "Prometheus" and .metadata.name == "monitoring-kube-prometheus-prometheus") | (.spec.ruleNamespaceSelector | length) == 0' "$RUNNER_TEMP/kps.yaml"
+          yq -e 'select(.kind == "Prometheus" and .metadata.name == "monitoring-kube-prometheus-prometheus") | .spec.resources.limits.memory == "2Gi"' "$RUNNER_TEMP/kps.yaml"
+          yq -e 'select(.kind == "Alertmanager" and .metadata.name == "monitoring-kube-prometheus-alertmanager") | .spec.storage.volumeClaimTemplate.spec.storageClassName == "local-ssd"' "$RUNNER_TEMP/kps.yaml"
+          yq -e 'select(.kind == "Alertmanager" and .metadata.name == "monitoring-kube-prometheus-alertmanager") | .spec.resources.limits.memory == "256Mi"' "$RUNNER_TEMP/kps.yaml"
+          yq -e 'select(.kind == "Deployment" and .metadata.name == "monitoring-grafana") | .spec.template.spec.containers[] | select(.name == "grafana") | .resources.limits.memory == "512Mi"' "$RUNNER_TEMP/kps.yaml"
+          yq -e 'select(.kind == "StatefulSet" and .metadata.name == "loki") | .spec.template.spec.containers[] | select(.name == "loki") | .resources.limits.memory == "2Gi"' "$RUNNER_TEMP/loki.yaml"
+          yq -e 'select(.kind == "DaemonSet" and .metadata.name == "alloy") | .spec.template.spec.containers[] | select(.name == "alloy") | .resources.limits.memory == "384Mi"' "$RUNNER_TEMP/alloy.yaml"
+          yq -e 'select(.kind == "DaemonSet" and .metadata.name == "alloy") | .spec.template.spec.containers[] | select(.name == "config-reloader") | .resources.limits.memory == "128Mi"' "$RUNNER_TEMP/alloy.yaml"
+          grep -q 'retention_period: 168h' "$RUNNER_TEMP/loki.yaml"
+          grep -q 'object_store: filesystem' "$RUNNER_TEMP/loki.yaml"
+          grep -q 'stage.cri {}' "$RUNNER_TEMP/alloy.yaml"
+          grep -q 'loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push' "$RUNNER_TEMP/alloy.yaml"
+          if grep -Eqi 'docker.sock|request_id' deploy/k3s/monitoring/alloy.values.yaml; then exit 1; fi
+          grep -q 'dockercontainers: false' deploy/k3s/monitoring/alloy.values.yaml
+
+          # Both authenticated monitors are selected by Prometheus and use the external Secret.
+          for monitor in deploy/k3s/monitoring/targets/*servicemonitor.yaml; do
+            yq -e '.metadata.namespace == "monitoring" and .metadata.labels.release == "monitoring" and .spec.endpoints[0].path == "/metrics" and .spec.endpoints[0].port == "http" and .spec.endpoints[0].authorization.type == "Bearer" and .spec.endpoints[0].authorization.credentials.name == "metrics-token" and .spec.endpoints[0].authorization.credentials.key == "token"' "$monitor"
+          done
+          yq -e '.metadata.name == "app-api" and .spec.selector.matchLabels."app.kubernetes.io/component" == "api" and .spec.jobLabel == "app.kubernetes.io/component" and .spec.namespaceSelector.matchNames[0] == "nestjs-monorepo"' deploy/k3s/monitoring/targets/api-servicemonitor.yaml
+          yq -e '.metadata.name == "app-worker" and .spec.selector.matchLabels."app.kubernetes.io/component" == "worker" and .spec.jobLabel == "app.kubernetes.io/component" and .spec.namespaceSelector.matchNames[0] == "nestjs-monorepo"' deploy/k3s/monitoring/targets/worker-servicemonitor.yaml
+          yq -e 'select(.kind == "Service" and .metadata.name == "app-worker") | .spec.type == "ClusterIP"' "$RUNNER_TEMP/app-single-node.yaml"
+          yq -e 'select(.kind == "Service" and .metadata.name == "app-worker") | .spec.ports[0].port == 3000' "$RUNNER_TEMP/app-single-node.yaml"
+          test "$(yq 'select(.kind == "Service" and .metadata.name == "app-worker") | .spec.ports | length' "$RUNNER_TEMP/app-single-node.yaml")" = 1
+          yq -e 'select(.kind == "Deployment" and .metadata.name == "app-api") | .spec.template.spec.containers[0].env[] | select(.name == "METRICS_TOKEN_FILE") | .value == "/run/secrets/metrics_token"' "$RUNNER_TEMP/app-single-node.yaml"
+          yq -e 'select(.kind == "Deployment" and .metadata.name == "app-worker") | .spec.template.spec.containers[0].env[] | select(.name == "METRICS_TOKEN_FILE") | .value == "/run/secrets/metrics_token"' "$RUNNER_TEMP/app-single-node.yaml"
+          yq -e 'select(.kind == "Deployment" and .metadata.name == "app-api") | .spec.template.spec.volumes[] | select(.name == "secrets") | .secret.secretName == "app-secrets"' "$RUNNER_TEMP/app-single-node.yaml"
+          yq -e 'select(.kind == "Deployment" and .metadata.name == "app-api") | .spec.template.spec.volumes[] | select(.name == "secrets") | .secret.items[].key | select(. == "metrics_token")' "$RUNNER_TEMP/app-single-node.yaml"
+          yq -e 'select(.kind == "PrometheusRule" and .metadata.name == "app") | .metadata.labels.release == "monitoring"' "$RUNNER_TEMP/app-single-node.yaml"
+          yq -e 'select(.kind == "PrometheusRule" and .metadata.name == "app") | (.spec.groups | length) > 0' "$RUNNER_TEMP/app-single-node.yaml"
+          if grep -q 'path: /metrics' "$RUNNER_TEMP/app-single-node.yaml"; then
+            echo "the public app ingress must not route /metrics"; exit 1
+          fi
 
       - name: The rules copy matches monitoring/prometheus/alerts.yml
         run: |
@@ -43,6 +128,29 @@ jobs:
 
       - name: helm lint
         run: helm lint deploy/helm/app --strict -f deploy/helm/ci/values.yaml
+
+      - name: single-node profile renders with RWO storage and immutable images
+        run: |
+          digest="sha256:$(printf '%064d' 0)"
+          helm lint deploy/helm/app --strict \
+            -f deploy/helm/app/values.single-node.yaml \
+            --set image.digest="$digest" \
+            --set web.image.digest="$digest" \
+            --set gotenberg.image.digest="$digest"
+          helm template app deploy/helm/app -n nestjs-monorepo \
+            -f deploy/helm/app/values.single-node.yaml \
+            --set image.digest="$digest" \
+            --set web.image.digest="$digest" \
+            --set gotenberg.image.digest="$digest" > "$RUNNER_TEMP/single-node.yaml"
+          grep -q 'storageClassName: "local-hdd"' "$RUNNER_TEMP/single-node.yaml"
+          grep -q 'ReadWriteOnce' "$RUNNER_TEMP/single-node.yaml"
+          test "$(grep -Fc "@$digest" "$RUNNER_TEMP/single-node.yaml")" -ge 5
+          api_keys=$(yq 'select(.kind == "Deployment" and .metadata.name == "app-api") | .spec.template.spec.volumes[] | select(.name == "secrets") | .secret.items[].key' "$RUNNER_TEMP/single-node.yaml")
+          worker_keys=$(yq 'select(.kind == "Deployment" and .metadata.name == "app-worker") | .spec.template.spec.volumes[] | select(.name == "secrets") | .secret.items[].key' "$RUNNER_TEMP/single-node.yaml")
+          migrate_keys=$(yq 'select(.kind == "Job" and .metadata.name == "app-migrate") | .spec.template.spec.volumes[] | select(.name == "secrets") | .secret.items[].key' "$RUNNER_TEMP/single-node.yaml")
+          if grep -q '^database_owner_url$' <<< "$api_keys"; then exit 1; fi
+          if grep -q '^database_owner_url$' <<< "$worker_keys"; then exit 1; fi
+          grep -q '^database_owner_url$' <<< "$migrate_keys"
 
       - name: helm template
         run: |
@@ -95,8 +203,48 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Install Helm 4.3.1
+        run: |
+          curl --proto '=https' --proto-redir '=https' -fsSL https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz -o "$RUNNER_TEMP/helm.tar.gz"
+          echo '0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b  helm.tar.gz' |
+            (cd "$RUNNER_TEMP" && sha256sum -c -)
+          mkdir -p "$RUNNER_TEMP/helm-bin"
+          tar -xzf "$RUNNER_TEMP/helm.tar.gz" -C "$RUNNER_TEMP" linux-amd64/helm
+          install -m 0755 "$RUNNER_TEMP/linux-amd64/helm" "$RUNNER_TEMP/helm-bin/helm"
+          echo "$RUNNER_TEMP/helm-bin" >> "$GITHUB_PATH"
+
+      - name: Add the pinned monitoring chart repositories
+        run: |
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo add grafana https://grafana.github.io/helm-charts
+          helm repo add grafana-community https://grafana-community.github.io/helm-charts
+          helm repo update
+
       - name: kind cluster
         run: kind create cluster --wait 120s
+
+      - name: Validate K3s infrastructure manifests against Kubernetes
+        run: |
+          kubectl create namespace nestjs-monorepo
+          kubectl create namespace cloudflare-tunnel
+          for file in deploy/k3s/data.yaml deploy/k3s/backups.yaml deploy/k3s/deployer-rbac.yaml deploy/k3s/cloudflare.yaml; do
+            kubectl apply --dry-run=server -f "$file"
+          done
+          # The ClusterIssuer needs cert-manager's CRD, which this smoke
+          # cluster does not install. Still parse its YAML.
+          yq eval '.' deploy/k3s/cloudflare-issuer.yaml > /dev/null
+
+      - name: Verify deployer can read but cannot change ReplicaSets
+        run: |
+          kubectl apply -f deploy/k3s/deployer-rbac.yaml
+          subject=system:serviceaccount:nestjs-monorepo:github-deployer
+          for verb in get list watch; do
+            test "$(kubectl auth can-i "$verb" replicasets.apps -n nestjs-monorepo --as="$subject")" = yes
+          done
+          for verb in create update patch delete; do
+            test "$(kubectl auth can-i "$verb" replicasets.apps -n nestjs-monorepo --as="$subject")" = no
+          done
+          test "$(kubectl auth can-i create clusterrolebindings.rbac.authorization.k8s.io --as="$subject")" = no
 
       - name: Build the API image and load it into the cluster
         run: |
@@ -105,8 +253,8 @@ jobs:
 
       - name: PostgreSQL and Redis
         run: |
-          kubectl apply -f deploy/helm/ci/deps.yaml
-          kubectl rollout status deploy/postgres deploy/redis --timeout=180s
+          kubectl apply -n nestjs-monorepo -f deploy/helm/ci/deps.yaml
+          kubectl rollout status -n nestjs-monorepo deploy/postgres deploy/redis --timeout=180s
 
       - name: Test keys for the encrypted columns (required in production)
         run: |
@@ -114,34 +262,109 @@ jobs:
             echo "MFA_KEY=$(openssl rand -base64 32)"
             echo "DATA_KEY=$(openssl rand -base64 32)"
             echo "BLIND_KEY=$(openssl rand -base64 32)"
+            echo "METRICS_TOKEN=$(openssl rand -hex 24)"
           } >> "$GITHUB_ENV"
+
+      - name: Install Prometheus and provision an ephemeral scrape Secret
+        run: |
+          kubectl create namespace monitoring
+          kubectl create secret generic metrics-token -n monitoring --from-literal=token="$METRICS_TOKEN"
+          helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+            --version 92.11.0 -n monitoring \
+            -f deploy/k3s/monitoring/kube-prometheus-stack.values.yaml \
+            --set grafana.persistence.enabled=false \
+            --set prometheus.prometheusSpec.storageSpec=null \
+            --set alertmanager.alertmanagerSpec.storage=null \
+            --wait --timeout 8m
+
+      - name: Verify deployer can manage namespaced PrometheusRules
+        run: |
+          subject=system:serviceaccount:nestjs-monorepo:github-deployer
+          for verb in get list watch create update patch delete; do
+            test "$(kubectl auth can-i "$verb" prometheusrules.monitoring.coreos.com -n nestjs-monorepo --as="$subject")" = yes
+          done
+
+      - name: Provision the ephemeral app Secret outside Helm values
+        run: |
+          kubectl create secret generic app-secrets -n nestjs-monorepo \
+            --from-literal=database_url=postgres://app_runtime:ci@postgres:5432/app \
+            --from-literal=database_owner_url=postgres://app:ci@postgres:5432/app \
+            --from-literal=database_maintenance_url=postgres://app_maintenance:ci@postgres:5432/app \
+            --from-literal=jwt_secret=ci-only-secret-ci-only-secret-ci-only-secret \
+            --from-literal=mfa_encryption_keys="$MFA_KEY" \
+            --from-literal=data_encryption_keys="$DATA_KEY" \
+            --from-literal=blind_index_keys="$BLIND_KEY" \
+            --from-literal=metrics_token="$METRICS_TOKEN"
 
       - name: Install the chart (the migrate hook runs first)
         run: |
-          helm upgrade --install ci deploy/helm/app --wait --timeout 8m \
-            -f deploy/helm/ci/values.yaml -f deploy/helm/ci/smoke.values.yaml \
-            --set-string secret.data.mfa_encryption_keys="$MFA_KEY" \
-            --set-string secret.data.data_encryption_keys="$DATA_KEY" \
-            --set-string secret.data.blind_index_keys="$BLIND_KEY"
+          helm upgrade --install app deploy/helm/app --namespace nestjs-monorepo --wait --timeout 8m \
+            -f deploy/helm/ci/values.yaml -f deploy/helm/ci/smoke.values.yaml
 
       - name: api answers its readiness check
         run: |
-          kubectl port-forward svc/ci-app-api 3000:3000 &
+          kubectl -n nestjs-monorepo port-forward svc/app-api 3000:3000 &
+          forward_pid=$!
+          trap 'kill "$forward_pid" 2>/dev/null || true' EXIT
           sleep 5
           curl -fsS http://127.0.0.1:3000/health
 
       - name: Upgrade again (the hook reruns against a migrated database)
         run: |
-          helm upgrade ci deploy/helm/app --wait --timeout 8m \
-            -f deploy/helm/ci/values.yaml -f deploy/helm/ci/smoke.values.yaml \
-            --set-string secret.data.mfa_encryption_keys="$MFA_KEY" \
-            --set-string secret.data.data_encryption_keys="$DATA_KEY" \
-            --set-string secret.data.blind_index_keys="$BLIND_KEY"
+          helm upgrade app deploy/helm/app --namespace nestjs-monorepo --wait --timeout 8m \
+            -f deploy/helm/ci/values.yaml -f deploy/helm/ci/smoke.values.yaml
+
+      - name: Verify authenticated scrapes and app alert rules
+        run: |
+          kubectl apply -f deploy/k3s/monitoring/targets/
+          kubectl -n monitoring port-forward svc/monitoring-kube-prometheus-prometheus 9090:9090 > "$RUNNER_TEMP/prometheus-forward.log" 2>&1 &
+          forward_pid=$!
+          trap 'kill "$forward_pid" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:9090/api/v1/targets?state=active > "$RUNNER_TEMP/targets.json" && \
+              jq -e '[.data.activeTargets[] | select(.labels.job == "api" and .health == "up")] | length == 2' "$RUNNER_TEMP/targets.json" >/dev/null && \
+              jq -e '[.data.activeTargets[] | select(.labels.job == "worker" and .health == "up")] | length == 1' "$RUNNER_TEMP/targets.json" >/dev/null; then
+              break
+            fi
+            sleep 5
+          done
+          jq -e '[.data.activeTargets[] | select(.labels.job == "api" and .health == "up")] | length == 2' "$RUNNER_TEMP/targets.json"
+          jq -e '[.data.activeTargets[] | select(.labels.job == "worker" and .health == "up")] | length == 1' "$RUNNER_TEMP/targets.json"
+          curl -fsS http://127.0.0.1:9090/api/v1/rules | jq -e 'any(.data.groups[]; .name == "app")'
+
+      - name: Install Loki and Alloy, query a pod log through Grafana
+        run: |
+          helm upgrade --install loki grafana-community/loki --version 19.1.1 -n monitoring \
+            -f deploy/k3s/monitoring/loki.values.yaml \
+            --set singleBinary.persistence.enabled=false --wait --timeout 8m
+          helm upgrade --install alloy grafana/alloy --version 1.14.3 -n monitoring \
+            -f deploy/k3s/monitoring/alloy.values.yaml --wait --timeout 8m
+          kubectl run obs-log-smoke -n nestjs-monorepo --image=busybox:1.37.0 --restart=Never \
+            --command -- sh -c 'echo k3s-observability-smoke; sleep 600'
+          kubectl wait -n nestjs-monorepo --for=condition=Ready pod/obs-log-smoke --timeout=120s
+          kubectl -n monitoring port-forward svc/monitoring-grafana 3001:80 > "$RUNNER_TEMP/grafana-forward.log" 2>&1 &
+          forward_pid=$!
+          trap 'kill "$forward_pid" 2>/dev/null || true' EXIT
+          grafana_password=$(kubectl get secret monitoring-grafana -n monitoring -o jsonpath='{.data.admin-password}' | base64 -d)
+          start=$(date -u -d '10 minutes ago' +%s%N)
+          end=$(date -u +%s%N)
+          for _ in $(seq 1 24); do
+            if curl -fsSG --user "admin:$grafana_password" \
+              --data-urlencode 'query={namespace="nestjs-monorepo",container="obs-log-smoke"} |= "k3s-observability-smoke"' \
+              --data-urlencode "start=$start" --data-urlencode "end=$end" --data-urlencode 'limit=50' \
+              http://127.0.0.1:3001/api/datasources/proxy/uid/loki/loki/api/v1/query_range \
+              > "$RUNNER_TEMP/log-query.json" && jq -e '.data.result | length > 0' "$RUNNER_TEMP/log-query.json" >/dev/null; then
+              break
+            fi
+            sleep 5
+          done
+          jq -e '.data.result | length > 0' "$RUNNER_TEMP/log-query.json"
 
       - name: Diagnostics
         if: failure()
         run: |
-          kubectl get pods,jobs,serviceaccounts,secrets -o wide
-          kubectl get events --sort-by=.lastTimestamp | tail -40
-          kubectl describe pods | tail -80
-          kubectl logs -l app.kubernetes.io/instance=ci --all-containers --tail=100 || true
+          kubectl get pods,jobs,serviceaccounts,secrets -A -o wide
+          kubectl get events -A --sort-by=.lastTimestamp | tail -60
+          kubectl describe pods -A | tail -120
+          kubectl logs -n nestjs-monorepo -l app.kubernetes.io/instance=app --all-containers --tail=100 || true
+          kubectl logs -n monitoring -l app.kubernetes.io/instance=alloy --all-containers --tail=100 || true

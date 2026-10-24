@@ -7,11 +7,20 @@ web:
 gotenberg:
   enabled: false
 prometheusRule:
-  enabled: false
+  enabled: true
+  labels:
+    release: monitoring
+secret:
+  existingSecret: app-secrets
+secretFiles:
+  api:
+    METRICS_TOKEN_FILE: metrics_token
+  worker:
+    METRICS_TOKEN_FILE: metrics_token
 api:
   autoscaling:
     enabled: false
-  replicas: 1
+  replicas: 2
   podDisruptionBudget:
     enabled: false
 env:

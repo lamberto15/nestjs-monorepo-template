@@ -783,14 +783,14 @@ ROW LEVEL SECURITY` on every tenant table (drizzle-kit emits only
   `tenant_id` lacks RLS, FORCE or its four policies. FORCE binds a table's
   owner too, unless it is a superuser (Compose's owner is): the owner never
   serves a request, and the app role, which does, is neither.
-- **Upgrading to tenancy (1a)** is a reset, not a migration of data (the
-  owner's call for app10). Add `POSTGRES_MAINTENANCE_PASSWORD=$(openssl rand -hex 24)`
+- **Upgrading to tenancy (1a)** is a reset, not a migration of data for a
+  disposable demo deployment. Add `POSTGRES_MAINTENANCE_PASSWORD=$(openssl rand -hex 24)`
   to `.env` first: the tenancy migration adds `tenant_id NOT NULL`
   with no default, which fails on tables that hold rows. Back up, then start
   from an empty database (`docker compose down`, remove the `postgres_data`
   volume, `docker compose up -d --build --remove-orphans`); the first start
   makes the operator tenant (`ADMIN_TENANT_NAME`) and the administrator.
-- **Upgrading a deployment made before the roles** (app10): add
+- **Upgrading a deployment made before the roles:** add
   `POSTGRES_APP_PASSWORD=$(openssl rand -hex 24)` to `.env` and redeploy
   (`docker compose up -d --build --remove-orphans`). `migrate` creates
   `app_runtime` and grants it everything; api and worker start on it. The
@@ -1199,8 +1199,8 @@ without a paid key, both off until you set them up:
    skipped, not failed, and costs nothing. A failed run is the alert (GitHub
    mails the watchers; Settings, Notifications). Limits: hourly (to spare
    Actions minutes; scheduled runs can be late), disabled after 60 days
-   without repository activity, and the URL must resolve publicly (not
-   app10, whose name only `/etc/hosts` knows).
+   without repository activity, and the URL must resolve publicly. A host
+   name known only to a local hosts file cannot be probed from GitHub.
 2. **The dead man's switch** (below) already alarms when the host stops
    sending: that covers a dead host without a public name. For a faster
    check, an uptime service's free tier (UptimeRobot, healthchecks.io's
@@ -1992,7 +1992,7 @@ may hide any path).
 
 | Output      | Paths                                                                                                                                                                                                                                                                          |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `code`      | anything but what no job of `ci.yml` reads: `docs/`, Markdown at the root and at a package's root, `.claude/`, the changesets' notes, `.devcontainer/` and `deploy/helm/` (their own workflows check them), `.github/ISSUE_TEMPLATE/`, `CODEOWNERS`, `dependabot.yml`, the pull request template, `LICENSE`, `.editorconfig`. The other workflows and `lefthook.yml` count: knip reads them |
+| `code`      | anything but what no job of `ci.yml` reads: `docs/`, Markdown at the root and at a package's root, `.claude/`, the changesets' notes, `.devcontainer/`, `deploy/helm/` and `deploy/k3s/` (their own workflow checks them), `.github/ISSUE_TEMPLATE/`, `CODEOWNERS`, `dependabot.yml`, the pull request template, `LICENSE`, `.editorconfig`. The other workflows and `lefthook.yml` count: knip reads them |
 | `api`       | `apps/api/`, `packages/api-client/`, `.dockerignore`, `.trivyignore.yaml` and the workspace's roots: `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `turbo.json`, `tsconfig*.json`, `.oxlintrc.json`, `.npmrc`, `.nvmrc` |
 | `web`       | `apps/web/`, `apps/web-e2e/`, `packages/`, `caddy/Caddyfile` (`apps/web/pwa-paths.test.ts` reads it) and the roots |
 | `tools`     | `tools/`, and the files its tests read: `env.example`, `.prettierrc`, `.prettierignore` |

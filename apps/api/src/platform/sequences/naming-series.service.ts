@@ -231,6 +231,80 @@ export class NamingSeriesService {
     return { value, formatted: counter.render(value) };
   }
 
+  /** Reserves a contiguous range per rendered counter key for a group of records. */
+  async nextMany(
+    tx: Transaction,
+    subject: string,
+    inputs: readonly {
+      seriesId?: string;
+      values?: Readonly<Record<string, unknown>>;
+      at?: Date;
+    }[],
+  ) {
+    if (!inputs.length) return [];
+    const numbered = this.numbered(subject);
+    const chosenRows = await tx
+      .select()
+      .from(namingSeries)
+      .where(eq(namingSeries.subject, subject))
+      .orderBy(
+        desc(namingSeries.priority),
+        asc(namingSeries.createdAt),
+        asc(namingSeries.id),
+      );
+    const counters = await Promise.all(
+      inputs.map(async (input) => {
+        const values = input.values ?? {};
+        const series = input.seriesId
+          ? await this.named(tx, subject, input.seriesId)
+          : (chosenRows.find(
+              (row) =>
+                row.conditions.length > 0 &&
+                row.conditions.every((condition) =>
+                  holds(
+                    condition,
+                    numbered.fields?.[condition.field],
+                    values[condition.field],
+                  ),
+                ),
+            ) ?? chosenRows.find((row) => row.isDefault));
+        return this.counter(
+          numbered,
+          series ?? { pattern: patternOf(numbered.declared), dateField: null },
+          {
+            at: input.at ?? new Date(),
+            values,
+            strict: { path: (name) => name },
+          },
+        );
+      }),
+    );
+    const groups = new Map<string, { counter: Counter; indexes: number[] }>();
+    counters.forEach((counter, index) => {
+      const id = JSON.stringify([counter.name, counter.key, counter.carryFrom]);
+      const group = groups.get(id) ?? { counter, indexes: [] };
+      group.indexes.push(index);
+      groups.set(id, group);
+    });
+    const formatted: { value: number; formatted: string }[] = Array(
+      inputs.length,
+    );
+    for (const { counter, indexes } of groups.values()) {
+      const values = await this.sequences.takeMany(
+        tx,
+        counter.name,
+        counter.key,
+        indexes.length,
+        { carryFrom: counter.carryFrom },
+      );
+      indexes.forEach((index, offset) => {
+        const value = values[offset]!;
+        formatted[index] = { value, formatted: counter.render(value) };
+      });
+    }
+    return formatted;
+  }
+
   /** A page of series, newest first unless the query sorts; each with the number it gives next. */
   async list(query: ListQuery) {
     const where = NAMING_SERIES_LIST.where(query);

@@ -7,7 +7,7 @@
 # Off by default: nothing runs until the repository variable UPTIME_PROBE_URL
 # is set (Settings > Secrets and variables > Actions > Variables), e.g.
 # https://api.example.com/health/live. No paid key, no secret. It needs a
-# public name: a host only /etc/hosts knows (app10) can't be probed from here.
+# public name: a host reachable only through a local hosts file cannot be probed here.
 #
 # Hourly, to spare Actions minutes (a run takes seconds, billed as a
 # minute): GitHub also delays or drops scheduled runs under load, and

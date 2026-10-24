@@ -6,6 +6,15 @@ with the same settings, secret files and migrations. It is for adopters on a
 managed cluster; on one host, [rolling](deploy-rolling.md),
 [blue-green](deploy-blue-green.md) or [Swarm](deploy-swarm.md) stay simpler.
 
+For a single-node K3s deployment, use the dedicated
+[single-node guide](deploy-k3s.md) and `values.single-node.yaml`. It covers the
+separate database, Redis, backups, namespace-scoped CI identity, Tailscale,
+Cloudflare Tunnel, and the `ReadWriteOnce` local storage profile. The separate
+[observability guide](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/monitoring/README.md)
+covers its pinned Prometheus, Grafana, Alertmanager, Loki and Alloy releases.
+
+<!-- markdownlint-disable MD013 -->
+
 | Compose / Swarm                        | The chart                                                                                                                                                                                                                                                                          |
 | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `api` (`APP_ROLE=api`), `API_REPLICAS` | Deployment `-api` (rolling, `maxUnavailable: 0`), Service, HPA on CPU, PodDisruptionBudget                                                                                                                                                                                         |
@@ -17,6 +26,8 @@ managed cluster; on one host, [rolling](deploy-rolling.md),
 | `monitoring/prometheus/alerts.yml`     | a `PrometheusRule` (`prometheusRule.enabled`, needs the prometheus-operator CRDs)                                                                                                                                                                                                  |
 | PostgreSQL, Redis                      | external: managed services, or charts installed beside this one (below)                                                                                                                                                                                                            |
 | Backups (`backup` service)             | not in the chart: use the managed database's backups                                                                                                                                                                                                                               |
+
+<!-- markdownlint-enable MD013 -->
 
 ## Install
 
@@ -90,24 +101,26 @@ old version runs against the new schema ([deployment.md](deployment.md),
   per client (Caddy's cookie in Compose).
 - **Alerts:** `prometheusRule.enabled=true` renders `monitoring/prometheus/alerts.yml`
   as a PrometheusRule (`files/alerts.yml` is its copy: `deploy/helm/sync-rules.sh`
-  refreshes it, CI compares). The rules read `job="api"` and `job="worker"`;
-  scrape the pods' `/metrics` (`METRICS_TOKEN`) with those job names.
+  refreshes it, CI compares). The single-node profile labels it for the separate
+  monitoring release. Its authenticated ServiceMonitors scrape API replicas and
+  the worker at `/metrics` with the `api` and `worker` job names.
 
 ## CI
 
-`.github/workflows/helm.yml` runs on changes to the chart or the rules:
-`helm lint --strict`, `helm template` (no `:latest`, the hook present, an
-image without a tag refused), the rules copy against the original, and a
-**kind** smoke test: the API image is built and loaded, PostgreSQL and Redis
-are applied from `deploy/helm/ci/deps.yaml`, the chart is installed (the
-migrate hook runs first), `/health` answers, and a second upgrade reruns the
-hook on a migrated database. The smoke test leaves out the Ingress, `web`
-and Gotenberg (no controller, and their images are not built there).
+`.github/workflows/helm.yml` runs on changes to the chart or K3s manifests.
+It renders the exact pinned kube-prometheus-stack, Loki and Alloy chart versions,
+checks their storage, resources, selectors, authentication and internal service
+configuration, and verifies the rules copy against its source. A **kind** smoke
+test builds the API image, installs the app with an ephemeral metrics token,
+checks API and worker scrapes plus rule selection, then queries a test pod log
+through Grafana's Loki data source. It leaves out the app Ingress, `web` and
+Gotenberg (no controller, and their images are not built there).
 Helm, kind and kubectl are the runner image's, so no third-party action needs
 a SHA pin; the job prints their versions.
 
 ## Not covered
 
-No Kubernetes cluster was available while writing the chart, so the first CI
-run is its first render. Left out: the backup service, a ServiceMonitor,
-Alertmanager, and zero-downtime blue-green (use `helm rollback`).
+The chart does not deploy the backup service or implement zero-downtime
+blue-green releases; use `helm rollback` for an application rollback. The
+single-node observability stack and its recovery limits are documented in the
+[K3s observability guide](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/monitoring/README.md).

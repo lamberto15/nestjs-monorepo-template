@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ExampleSenderWebhookController } from './example-sender-webhook.controller.js';
-import { NotePublicationWorkflow } from './note-publication.workflow.js';
+import {
+  NoteBatchPublicationWorkflow,
+  NotePublicationWorkflow,
+} from './note-publication.workflow.js';
 import { NotePublisher } from './note-publisher.service.js';
 import { NotePolicy } from './note.policy.js';
 import { NotesController } from './notes.controller.js';
@@ -73,6 +76,7 @@ import { NOTE_LIST } from './note.list.js';
     NotePublisher,
     NotePolicy,
     NotePublicationWorkflow,
+    NoteBatchPublicationWorkflow,
     NoteTransfer,
     NoteSearch,
     NoteBulk,

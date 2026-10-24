@@ -68,7 +68,8 @@ COPY --chmod=755 entrypoint.sh /usr/local/bin/backup-entrypoint
 # only here), owned like the app image's /app/.data/storage (uid 1000, node).
 # gosu goes: this image never switches users (USER below), and its old Go
 # build is what a scan of the PostgreSQL image finds.
-RUN apk add --no-cache age \
+RUN apk upgrade --no-cache brotli-libs \
+ && apk add --no-cache age \
  && rm -f /usr/local/bin/gosu \
  && mkdir -p /backups /storage \
  && chown postgres:postgres /backups \

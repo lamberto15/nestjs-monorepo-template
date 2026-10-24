@@ -33,6 +33,8 @@ import {
 import { NOTIFICATION_DELIVERY_JOB } from '../platform.jobs.js';
 import { notifications } from './notifications.tables.js';
 import { NotificationsService } from './notifications.service.js';
+import { SettingsService } from '../settings/settings.service.js';
+import { NOTIFICATION_EMAIL_POLICY } from './notification-email-policy.setting.js';
 
 /**
  * Delivers a stored notification through its channels, on a worker, once
@@ -64,6 +66,7 @@ export class NotificationDeliveryHandler {
     private readonly i18n: I18nService,
     private readonly system: SystemContext,
     private readonly config: ConfigService<CoreEnv, true>,
+    private readonly settingsService: SettingsService,
   ) {}
 
   @OnOutboxMessage(NOTIFICATIONS_TOPIC, { consumer: 'notifications' })
@@ -109,6 +112,9 @@ export class NotificationDeliveryHandler {
           overrides[row.type],
           recipient,
         );
+        const emailPolicy = await this.settingsService.get(
+          NOTIFICATION_EMAIL_POLICY,
+        );
         const locale =
           recipient.kind === 'user' && recipient.locale
             ? recipient.locale
@@ -133,6 +139,13 @@ export class NotificationDeliveryHandler {
         }[] = [];
         for (const channel of this.registry.all()) {
           if (!channel.supports(recipient)) continue;
+          if (
+            channel.name === 'email' &&
+            emailPolicy === 'essential' &&
+            !declaration.mandatory
+          ) {
+            continue;
+          }
           const setting = channel.settings ? settings[channel.name] : true;
           if (channel.settings && same(setting, channel.settings.off)) continue;
           deliveries.push({

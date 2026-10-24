@@ -75,7 +75,7 @@ Ask with AskUserQuestion where it fits, in at most two rounds:
      with `settings.get(recordSettings(INVOICE).paymentDays)`.
 7. **Business rules.** What must be true on create and update, what happens
    after (notifications, webhooks, workflows), anything slow
-   (that goes to a queue worker, never the request: CLAUDE.md).
+   (that goes to a queue worker, never the request: AGENTS.md).
 
 ## 2. Confirm the command
 
@@ -92,7 +92,7 @@ Wait for the user's go-ahead.
 
 ## 3. Generate, in a worktree
 
-Follow CLAUDE.md's git workflow (a branch in a worktree, never `main`), then:
+Follow AGENTS.md's git workflow (a branch in a worktree, never `main`), then:
 
 ```bash
 pnpm feature:add <name> …      # the standard parts, appended to features/index.ts
@@ -108,7 +108,7 @@ the user they are to translate.
 - In `<x>.service.ts`, where it says `// Business logic:` (before the
   transaction, inside it, before an update). Keep writes in the one
   transaction with the audit entry.
-- Use the template's tools instead of new code; CLAUDE.md's map points to
+- Use the template's tools instead of new code; AGENTS.md's map points to
   each doc: notifications (`docs/notifications.md`), outgoing webhook events
   and workflows (`docs/background-work.md`), approvals beyond a record's
   declared actions (`docs/approvals.md`), settings and flags beyond its
@@ -163,7 +163,7 @@ declares its fields, capabilities, recycle bin (`softDelete`) and teams
 
 ## 5. Check and hand back
 
-Run the check before every commit (CLAUDE.md: build, lint, test, test:e2e,
+Run the check before every commit (AGENTS.md: build, lint, test, test:e2e,
 db:check, client:check), commit, push, open the pull request. Tell the user
 what was generated, what you wrote by hand, and which texts await
 translation.

@@ -65,12 +65,17 @@ export function ImportPage(props: { name?: string }) {
   const [chosen, setChosen] = useState(props.name);
   const [files, setFiles] = useState<File[]>([]);
   const [dryRun, setDryRun] = useState(true);
+  const [matchOn, setMatchOn] = useState('');
   const [percent, setPercent] = useState<number>();
   const [jobId, setJobId] = useState<string>();
   // A refused upload (415, 413, 403) is a toast: the global handler's.
   const upload = useMutation({
-    mutationFn: (input: { name: string; file: File; dryRun: boolean }) =>
-      startImport(input, setPercent),
+    mutationFn: (input: {
+      name: string;
+      file: File;
+      dryRun: boolean;
+      matchOn?: string;
+    }) => startImport(input, setPercent),
     onMutate: () => setPercent(0),
     onSettled: () => setPercent(undefined),
     onSuccess: (started) => {
@@ -88,10 +93,17 @@ export function ImportPage(props: { name?: string }) {
   }
   const imports = catalog.data.imports;
   const importer = imports.find((i) => i.name === (chosen ?? imports[0]?.name));
+  const matchKeys = importer?.matchKeys ?? [];
   const file = files[0];
 
   const start = () => {
-    if (importer && file) upload.mutate({ name: importer.name, file, dryRun });
+    if (importer && file)
+      upload.mutate({
+        name: importer.name,
+        file,
+        dryRun,
+        matchOn: matchOn || undefined,
+      });
   };
 
   return (
@@ -115,6 +127,7 @@ export function ImportPage(props: { name?: string }) {
               value={importer.name}
               onValueChange={(value) => {
                 setChosen(value ?? undefined);
+                setMatchOn('');
                 setJobId(undefined);
               }}
             >
@@ -130,6 +143,34 @@ export function ImportPage(props: { name?: string }) {
               </SelectContent>
             </Select>
           </Field>
+
+          {matchKeys.length > 0 && (
+            <Field>
+              <FieldLabel htmlFor="import-match-on">
+                {t('import.matchOn')}
+              </FieldLabel>
+              <Select
+                value={matchOn || '__insert'}
+                onValueChange={(value) =>
+                  setMatchOn(value === '__insert' ? '' : (value ?? ''))
+                }
+              >
+                <SelectTrigger id="import-match-on" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__insert">
+                    {t('import.insertOnly')}
+                  </SelectItem>
+                  {matchKeys.map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {t('import.updateMatching', { key })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
 
           <div className="overflow-hidden rounded-md border">
             <Table aria-label={t('import.columns')}>
@@ -173,8 +214,19 @@ export function ImportPage(props: { name?: string }) {
           <FileUpload
             value={files}
             onValueChange={(next) => {
-              setFiles(next.slice(-1));
+              const selected = next.slice(-1);
+              setFiles(selected);
+              setMatchOn('');
               setJobId(undefined);
+              const chosenFile = selected[0];
+              if (chosenFile && matchKeys.length) {
+                void matchableHeaders(chosenFile).then((headers) => {
+                  const matches = matchKeys.filter((key) =>
+                    headers.includes(key),
+                  );
+                  if (matches.length === 1) setMatchOn(matches[0]!);
+                });
+              }
             }}
             maxFiles={1}
             maxSize={IMPORT_MAX_BYTES}
@@ -274,4 +326,22 @@ export function ImportPage(props: { name?: string }) {
       )}
     </section>
   );
+}
+
+async function matchableHeaders(file: File): Promise<string[]> {
+  const text = await file.text().catch(() => '');
+  if (file.name.toLowerCase().endsWith('.json')) {
+    try {
+      const value: unknown = JSON.parse(text);
+      const first = Array.isArray(value) ? value[0] : undefined;
+      return first && typeof first === 'object' ? Object.keys(first) : [];
+    } catch {
+      return [];
+    }
+  }
+  if (!file.name.toLowerCase().endsWith('.csv')) return [];
+  const firstLine = text.split(/\r?\n/, 1)[0] ?? '';
+  return firstLine
+    .split(',')
+    .map((cell) => cell.trim().replace(/^"|"$/g, '').replaceAll('""', '"'));
 }

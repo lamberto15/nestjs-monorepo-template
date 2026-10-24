@@ -1,0 +1,66 @@
+# Apply with an administrator once. The GitHub workflow receives only this
+# service account's kubeconfig; it cannot create namespaces or change RBAC.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: github-deployer
+  namespace: nestjs-monorepo
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: helm-app-deployer
+  namespace: nestjs-monorepo
+rules:
+  # Helm's default release driver stores versioned release records as Secrets.
+  # Keep this namespace dedicated to the app; this rule also permits reading
+  # app-secrets, so never grant this credential to pull request workflows.
+  - apiGroups: ['']
+    resources:
+      [secrets, configmaps, services, serviceaccounts, persistentvolumeclaims]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [get, list, watch, create, update, patch, delete]
+  # Helm's legacy readiness waiter reads ReplicaSets while checking a
+  # Deployment rollout. It must not mutate the controller-owned ReplicaSets.
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [statefulsets]
+    verbs: [get, list, watch]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [policy]
+    resources: [poddisruptionbudgets]
+    verbs: [get, list, watch, create, update, patch, delete]
+  # The app chart owns its namespaced PrometheusRule when observability is enabled.
+  - apiGroups: [monitoring.coreos.com]
+    resources: [prometheusrules]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses, networkpolicies]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: ['']
+    resources: [pods, events]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: helm-app-deployer
+  namespace: nestjs-monorepo
+subjects:
+  - kind: ServiceAccount
+    name: github-deployer
+    namespace: nestjs-monorepo
+roleRef:
+  kind: Role
+  name: helm-app-deployer
+  apiGroup: rbac.authorization.k8s.io

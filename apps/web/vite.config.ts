@@ -13,8 +13,17 @@ import { apiPathPattern } from './pwa-paths.ts';
 const api = process.env.API_URL ?? 'http://localhost:3000';
 const proxy = devProxy(api);
 
+const gitSha = process.env.GIT_SHA ?? '';
 export default defineConfig({
+  define: { __APP_GIT_SHA__: JSON.stringify(gitSha) },
   plugins: [
+    {
+      name: 'build-version-manifest',
+      apply: 'build',
+      generateBundle() {
+        this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ sha: gitSha }) });
+      },
+    },
     // Before react(): it writes src/routeTree.gen.ts and splits routes.
     tanstackRouter({ target: 'react', autoCodeSplitting: true }),
     react(),

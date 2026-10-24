@@ -462,5 +462,20 @@
     "done": "Teruskan ke aplikasi",
     "doneHint": "Semua langkah yang diperlukan telah selesai.",
     "redirected": "Siapkan akaun pentadbir dahulu sebelum meneruskan."
+  },
+  "build": {
+    "title": "Maklumat binaan",
+    "tab": "Tab ini",
+    "web": "Web yang digunakan",
+    "api": "API",
+    "notChecked": "Belum disemak",
+    "current": "Sama dengan web yang digunakan",
+    "stale": "Kemas kini tersedia",
+    "unknownStatus": "Versi tidak diketahui",
+    "unknown": "Tidak diketahui",
+    "check": "Semak versi",
+    "checking": "Menyemak…",
+    "reload": "Muat semula",
+    "copy": "Salin butiran"
   }
 }

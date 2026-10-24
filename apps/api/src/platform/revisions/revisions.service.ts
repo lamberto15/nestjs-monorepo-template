@@ -159,6 +159,73 @@ export class RevisionsService implements PersonalDataSource {
     return row!;
   }
 
+  /** Saves a group's revisions in grouped reads/inserts; revision 1 for new records takes no advisory lock. */
+  async recordMany(
+    tx: Transaction,
+    subject: string,
+    items: readonly {
+      recordId: string;
+      snapshot: Snapshot;
+      before?: Snapshot;
+      by: Principal;
+      restoredFrom?: number;
+    }[],
+  ) {
+    if (!items.length) return;
+    const ids = items.map(({ recordId }) => recordId);
+    const updates = items.filter(({ before }) => before !== undefined);
+    if (updates.length) {
+      // One statement obtains the same per-record serialization locks as record(), for updates only.
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`revisions:${subject}:`} || id::text, 0)) from unnest(array[${sql.join(
+          updates.map((item) => sql`${item.recordId}::uuid`),
+          sql`, `,
+        )}]) as ids(id)`,
+      );
+    }
+    const latest = await tx
+      .selectDistinctOn([revisions.recordId], {
+        recordId: revisions.recordId,
+        number: revisions.number,
+        snapshot: revisions.snapshot,
+      })
+      .from(revisions)
+      .where(
+        and(eq(revisions.subject, subject), inArray(revisions.recordId, ids)),
+      )
+      .orderBy(revisions.recordId, desc(revisions.number));
+    const previous = new Map(latest.map((row) => [row.recordId, row]));
+    const insert: (typeof revisions.$inferInsert)[] = [];
+    for (const item of items) {
+      const snapshot = withoutEncrypted(item.snapshot);
+      const before = item.before && withoutEncrypted(item.before);
+      let last = previous.get(item.recordId);
+      if (!last && before) {
+        insert.push({
+          subject,
+          recordId: item.recordId,
+          number: 1,
+          snapshot: before,
+          changes: null,
+          changedBy: UNKNOWN_CHANGER,
+        });
+        last = { number: 1, snapshot: before, recordId: item.recordId };
+      }
+      const changes = last ? diff(last.snapshot, snapshot) : null;
+      if (changes && Object.keys(changes).length === 0) continue;
+      insert.push({
+        subject,
+        recordId: item.recordId,
+        number: (last?.number ?? 0) + 1,
+        snapshot,
+        changes,
+        restoredFrom: item.restoredFrom ?? null,
+        changedBy: principalKey(item.by),
+      });
+    }
+    if (insert.length) await tx.insert(revisions).values(insert);
+  }
+
   /** A page of a record's revisions, newest first unless the query sorts (a 404 when the principal may not read the record). */
   async list(principal: Principal, record: RecordRef, query: ListQuery) {
     const target = await this.readable(principal, record);

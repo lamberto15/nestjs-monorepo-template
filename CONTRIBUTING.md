@@ -2,8 +2,20 @@
 
 Thanks for helping. This page is the short version; the full workflow is in
 [docs/development.md](docs/development.md) ("Git workflow", "Issues and labels",
-"Git hooks"), and the rules for the code are in [CLAUDE.md](CLAUDE.md) and
+"Git hooks"), and the rules for the code are in [AGENTS.md](AGENTS.md) and
 [docs/architecture.md](docs/architecture.md).
+
+## Coding agents
+
+All agents share [AGENTS.md](AGENTS.md). Claude Code loads it through the
+`@AGENTS.md` import in [CLAUDE.md](CLAUDE.md), which also keeps Claude-only model
+settings. Edit shared instructions in `AGENTS.md` to keep every agent in sync.
+For tools that do not discover this filename, configure their project context to
+read `AGENTS.md`; for example, Gemini CLI supports
+`{ "context": { "fileName": "AGENTS.md" } }` in `.gemini/settings.json`.
+
+See the [AGENTS.md guide](https://agents.md/) and
+[Claude Code memory documentation](https://code.claude.com/docs/en/memory).
 
 ## Setup
 

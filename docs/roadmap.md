@@ -17,7 +17,7 @@ more scalable model. Pick the right design, not the compatible one.
 
 What still holds:
 - migrations are generated, never hand-written;
-- app10's data is reset at the breaking migrations (owner's answer);
+- disposable demo data is reset at breaking migrations;
 - every break is listed in the PR.
 
 Expand/contract (20) and oasdiff (21) protect adopters. They become blocking once the
@@ -85,8 +85,7 @@ first project is built on the template; until then they report only.
   to set it.
 - **Owner actions (from #8):** squash commits titled by the PR (`PR_TITLE`); allow
   GitHub Actions to create pull requests; push the first tag, `v0.1.0`.
-- **Cleanup (owner's call):** the old checkout `nestjs-backend-template` and the
-  `nestjs-template_*` volumes are no longer used by app10.
+- **Cleanup:** review unused checkouts and their data volumes before deleting them.
 
 ## Decisions for the owner (recommendation first)
 
@@ -117,7 +116,7 @@ first project is built on the template; until then they report only.
   ships with the receiver configurable and off.
 - 6: tenant + groups.
 
-Also answered: **app10's data is reset** when tenancy lands (it is a demo), rather than
+Also answered: **demo data is reset** when tenancy lands, rather than
 carried over.
 
 1. **How the tenant is resolved (blocks 1a; decides 3's RP ID and 7's cookies).**
@@ -154,8 +153,8 @@ carried over.
    tenant. A way one customer organizes itself is a group. Never make each team a
    tenant.
 
-Settled: app10 has no public DNS record (`/etc/hosts` points it at 127.0.0.1, see
-CLAUDE.md), so no outside probe can reach it; 16a probes from inside the stack.
+Settled: deployments without public DNS cannot be reached by an outside probe;
+16a probes from inside the stack.
 
 ## Order
 
@@ -194,8 +193,8 @@ Split into **1a** (core) and **1b** (per-tenant product features).
 
   *Open:* drizzle-kit doesn't emit `CREATE ROLE`, `GRANT` or `ALTER DEFAULT PRIVILEGES`
   (verify). Do that bootstrap idempotently in `migrate.ts` as code, which is cluster
-  setup rather than a schema migration. app10 needs the same step once (no
-  init-script re-run).
+  setup rather than a schema migration. Existing deployments need the same
+  step once (no init-script re-run).
 - **The settings.** Use `set_config(..., true)` at the start of every transaction,
   issued by the transaction adapter. Never a plain `SET`, which outlives the pooled
   connection. There are two settings:
@@ -244,7 +243,7 @@ Split into **1a** (core) and **1b** (per-tenant product features).
     are prefix operations.
 - **Uniques** become per tenant, except global user identity (email).
 - **Impersonation** never crosses tenants.
-- **Migration:** app10's database is reset when 1a lands (owner's answer), so
+- **Migration:** the initial database is empty when 1a lands, so
   `tenant_id` is `NOT NULL` from its first generated migration. The column has **no**
   default, so a forgotten tenant fails instead of landing in a default one. The
   nullable → backfill → `NOT NULL` sequence is needed only once a deployment's data
@@ -488,7 +487,7 @@ After 10's commit hooks.
   - generates passwords and prints them once (seeded fixed passwords trip the breach
     check);
   - refuses production through a **positive** check: `NODE_ENV` plus a
-    database marker. app10 runs the same image.
+    database marker. Development and production may run the same image.
 - **lefthook:** Prettier (not on `docs/`, which reflows tables) and oxlint on staged
   files, plus a commit-message check. There is no `db:check` or `client:check` in the
   hooks; CI owns those.
@@ -586,7 +585,7 @@ After 1a and 5.
     `Docker.raw` is what fills.
   - The Mac itself needs a Homebrew `node_exporter` scraped through
     `host.docker.internal`.
-  - An outside-world probe applies only to deployments with public DNS (not app10).
+  - An outside-world probe applies only to deployments with public DNS.
 
 ## 17. Load tests
 
@@ -725,7 +724,7 @@ What changes:
 - **1a, added:**
   - role and grant bootstrap is outside drizzle-kit (open);
   - the cost of holding a pooled connection for a whole request;
-  - app10's one-time role setup.
+  - one-time role setup for existing databases.
 - **5, added:**
   - the DB-generated UUIDv7 makes row-bound AAD need app-side ids;
   - moving the existing MFA key out of `app_secrets`;

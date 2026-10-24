@@ -63,12 +63,13 @@ export const templateUrl = (name: string, format: TransferFormat) =>
 
 /** Starts an import (multipart: `name`, `dryRun`, `file`), with upload progress. */
 export function startImport(
-  input: { name: string; file: File; dryRun: boolean },
+  input: { name: string; file: File; dryRun: boolean; matchOn?: string },
   onProgress: (percent: number) => void,
 ): Promise<{ id: string; status: 'queued' }> {
   const form = new FormData();
   form.append('name', input.name);
   form.append('dryRun', String(input.dryRun));
+  if (input.matchOn) form.append('matchOn', input.matchOn);
   form.append('file', input.file);
   return postMultipart('/v1/data/imports', form, onProgress);
 }

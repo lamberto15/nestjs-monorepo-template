@@ -32,6 +32,7 @@ const catalog = {
     {
       name: 'test-items',
       formats: ['csv', 'json', 'xlsx'],
+      matchKeys: [] as string[],
       columns: [
         { name: 'title', type: 'string', required: true, max: 200 },
         { name: 'body', type: 'string', required: false },
@@ -100,6 +101,7 @@ function useTransferApi(
       calls.imports.push({
         name: part('name') ?? '',
         dryRun: part('dryRun') ?? '',
+        ...(part('matchOn') && { matchOn: part('matchOn') }),
         file: /filename="([^"]*)"/.exec(raw)?.[1] ?? '',
       });
       return HttpResponse.json(
@@ -243,6 +245,43 @@ describe('exporting from a list', () => {
     expect(
       await within(dialog).findByText('The storage is unavailable.'),
     ).toBeVisible();
+  });
+});
+
+describe('matched imports', () => {
+  it('sends only the match key the user selected', async () => {
+    useSignedIn(ALL);
+    const calls = useTransferApi({
+      catalog: {
+        ...catalog,
+        imports: [{ ...catalog.imports[0]!, matchKeys: ['id', 'number'] }],
+      },
+    });
+    await renderApp('/transfers/import?name=test-items');
+    const user = userEvent.setup();
+    const match = await screen.findByRole('combobox', {
+      name: 'Match on (optional)',
+    });
+    await user.click(match);
+    await user.click(
+      await screen.findByRole('option', { name: 'Update matching id' }),
+    );
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    await user.upload(
+      input,
+      new File(
+        ['id,title\n00000000-0000-4000-8000-000000000001,A\n'],
+        'notes.csv',
+        { type: 'text/csv' },
+      ),
+    );
+    await user.click(
+      await screen.findByRole('button', { name: 'Check the file' }),
+    );
+    await waitFor(() => expect(calls.imports).toHaveLength(1));
+    expect(calls.imports[0]).toMatchObject({ matchOn: 'id' });
   });
 });
 

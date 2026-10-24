@@ -1,0 +1,63 @@
+# The tunnel is separate from the app namespace and release. Create the
+# cloudflare-tunnel namespace and tunnel-token Secret before applying.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  namespace: cloudflare-tunnel
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app: cloudflared }
+  template:
+    metadata:
+      labels: { app: cloudflared }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:2026.10.3@sha256:faa8e0a1475f137c910be6025f43c8e4092fdd35461b31e19fd1390657a1ff39
+          imagePullPolicy: IfNotPresent
+          command:
+            [
+              cloudflared,
+              tunnel,
+              --no-autoupdate,
+              --loglevel,
+              info,
+              --metrics,
+              '0.0.0.0:2000',
+              run,
+            ]
+          env:
+            - name: TUNNEL_TOKEN
+              valueFrom:
+                secretKeyRef: { name: tunnel-token, key: token }
+          ports:
+            - { name: metrics, containerPort: 2000 }
+          startupProbe:
+            httpGet: { path: /ready, port: metrics }
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: { path: /ready, port: metrics }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /ready, port: metrics }
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 50m, memory: 64Mi, ephemeral-storage: 64Mi }
+            limits: { cpu: 500m, memory: 256Mi, ephemeral-storage: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
