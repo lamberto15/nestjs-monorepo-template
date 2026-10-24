@@ -17,6 +17,7 @@ export default {
     },
     {
       id: 'notes-per-week',
+      label: 'notes:dashboard.chart.title',
       order: 50,
       wide: true,
       permission: 'Note.read',
