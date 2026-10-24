@@ -1,4 +1,4 @@
-import { DOMParser } from '@xmldom/xmldom';
+import { DOMParser, type Document, type Element } from '@xmldom/xmldom';
 
 const DSIG = 'http://www.w3.org/2000/09/xmldsig#';
 const XMLENC = 'http://www.w3.org/2001/04/xmlenc#';
@@ -41,16 +41,8 @@ export const parse = (xml: string) =>
   new DOMParser({
     // A document that doesn't parse cleanly is refused, never repaired:
     // xmldom reports an unclosed tag as a mere warning.
-    errorHandler: {
-      warning: (message) => {
-        throw new Error(message);
-      },
-      error: (message) => {
-        throw new Error(message);
-      },
-      fatalError: (message) => {
-        throw new Error(message);
-      },
+    onError: (_level, message) => {
+      throw new Error(message);
     },
   }).parseFromString(xml, 'text/xml');
 
