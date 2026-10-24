@@ -1808,9 +1808,9 @@ jobs:
           fi
 
   # The three digests come from this run's tested, scanned publish jobs. Only a
-  # successful push to main can request the production environment. The repo
-  # variable keeps deployment off until the namespace, backups and environment
-  # protection are ready; no PR or tag run can reach the cluster.
+  # successful push to main can request the protected production environment;
+  # no PR or tag run can reach the cluster. Off-server backups are optional and
+  # are not a prerequisite when an operator has chosen a strict zero-cost setup.
   deploy-k3s:
     if: >-
       github.event_name == 'push' && github.ref == 'refs/heads/main' &&
@@ -1894,7 +1894,6 @@ jobs:
             jq -e '.data as $data | ["database_url", "database_owner_url", "database_maintenance_url", "jwt_secret", "mfa_encryption_keys", "data_encryption_keys", "blind_index_keys", "redis_password", "mail_api_key"] | all(. as $key | $data[$key] != null)' > /dev/null
           kubectl -n nestjs-monorepo rollout status statefulset/postgres --timeout=2m
           kubectl -n nestjs-monorepo rollout status statefulset/redis --timeout=2m
-          kubectl -n nestjs-monorepo get cronjob postgres-backup files-backup redis-backup -o name
       - name: Install the CI-verified release
         env:
           APP_DIGEST: ${{ needs.publish.outputs.digest }}

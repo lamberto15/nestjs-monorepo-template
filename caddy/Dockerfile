@@ -28,7 +28,8 @@ RUN xcaddy build --with github.com/caddy-dns/cloudflare@v0.2.4 \
 
 FROM caddy:2.11.7
 # Stable IDs also used by the one-time certificate-volume migration.
-RUN addgroup -S -g 10001 caddy \
+RUN apk upgrade --no-cache brotli-libs \
+ && addgroup -S -g 10001 caddy \
  && adduser -S -D -H -u 10001 -G caddy caddy \
  && chown -R 10001:10001 /data /config
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
