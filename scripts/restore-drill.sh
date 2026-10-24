@@ -146,6 +146,11 @@ dump=$(compose exec -T backup sh -c 'ls -1t /backups/db-*.dump | head -n 1' | tr
   exit 1
 }
 echo "Dump: $dump (${backup_seconds}s)"
+files=$(compose exec -T backup sh -c 'ls -1t /backups/files-*.tar.gz | head -n 1' | tr -d '\r')
+[[ -n "$files" ]] || {
+  echo "No local files archive in /backups." >&2
+  exit 1
+}
 
 step "Destroying PostgreSQL's volume (a new, empty cluster)"
 compose stop postgres
@@ -166,6 +171,21 @@ if ! diff <(echo "$before") <(echo "$after"); then
   exit 1
 fi
 echo "$tables tables, every count identical."
+
+step "Checking restored file references against the archived files"
+compose exec -T backup psql --no-psqlrc --tuples-only --no-align -v ON_ERROR_STOP=1 -c "
+SELECT key FROM attachments
+UNION SELECT r.value->>'key' FROM attachments a CROSS JOIN LATERAL jsonb_each(COALESCE(a.renditions, '{}'::jsonb)) r
+UNION SELECT avatar_key FROM users WHERE avatar_key IS NOT NULL
+UNION SELECT logo_key FROM tenants WHERE logo_key IS NOT NULL;
+" | tr -d '\r' | while IFS= read -r key; do
+  [[ -n "$key" ]] || continue
+  if ! compose exec -T backup tar -tzf "$files" "./$key" >/dev/null 2>&1; then
+    echo "Restored database references $key, missing from $files." >&2
+    exit 1
+  fi
+done
+echo "Every persisted file reference in the restored database exists in the archive."
 
 step "Starting the stack on the restored database"
 # migrate runs again: it grants the app role the tables the dump left

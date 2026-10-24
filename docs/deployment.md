@@ -1622,8 +1622,14 @@ copies only: a lost disk loses them too, so set it.
 - **What:** `pg_dump --format=custom` of `POSTGRES_DB`, one consistent
   snapshot taken while the app runs, checked by reading its contents back
   (`db-<time>.dump`). With `STORAGE_DRIVER=local`, the uploaded files too
-  (`files-<time>.tar.gz` of the `app_storage` volume, mounted read only),
-  taken after the dump, so every file a row points to is in it. With
+  (`files-<time>.tar.gz` of the `app_storage` volume, mounted read only).
+  The backup exports a PostgreSQL snapshot shared by the dump and a manifest
+  of persisted attachment originals and renditions, avatars, and tenant logos.
+  It checks every manifest key against the completed archive before sealing,
+  uploading or pruning. A concurrent deletion or an incomplete archive fails
+  the run; retry it after the file operation settles. Tenant logo uploads use
+  unique keys recorded in the database, so replacing a logo cannot change the
+  bytes for an earlier snapshot. With
   `STORAGE_DRIVER=s3` the files stay in their bucket: turn on its
   versioning. Each backup has a `.sha256` beside it.
 - **When:** `BACKUP_SCHEDULE` (cron, UTC; `0 3 * * *`). An hourly check
@@ -1892,8 +1898,7 @@ shows red.
 
 **What it does not prove:** the off-host copy (no `BACKUP_S3_BUCKET` in a
 throwaway stack: `backup-fetch` from your bucket needs your keys, so try it
-by hand now and then), the uploaded files' archive (written, not extracted
-and compared), or a restore of **your** data's size: the drill's database is
+by hand now and then), or a restore of **your** data's size: the drill's database is
 a few hundred rows, so its durations show the procedure works, not how long
 yours takes. Time a restore of a real dump once and set
 `RESTORE_DRILL_MAX_SECONDS` and your own expectations from that.

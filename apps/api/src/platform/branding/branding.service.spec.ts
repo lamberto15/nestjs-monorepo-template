@@ -40,8 +40,9 @@ describe('BrandingService', () => {
     // The public route's lookup of an active tenant: the select chain, answered.
     const txHost = {
       tx: {
+        update: () => ({ set: () => ({ where: async () => [] }) }),
         select: () => ({
-          from: () => ({ where: async () => [{ id: TENANT }] }),
+          from: () => ({ where: async () => [{ id: TENANT, logoKey: key }] }),
         }),
       },
     } as unknown as TransactionHost<DrizzleTransactions>;

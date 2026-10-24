@@ -118,8 +118,11 @@ export class BrandingService implements MailBranding {
   }
 
   /** The disk key of a tenant's logo. */
-  static logoKey(tenantId: string) {
-    return tenantFileKey(tenantId, 'branding/logo');
+  static logoKey(tenantId: string, version = 'current') {
+    return tenantFileKey(
+      tenantId,
+      `branding/${version === 'current' ? 'logo' : `logo-${version}`}`,
+    );
   }
 
   /** What the caller sees: the tenant's branding, and whether they may change it. */
@@ -208,14 +211,18 @@ export class BrandingService implements MailBranding {
   /**
    * The upload is already on the disk (BrandingLogoUpload, which checked
    * the lock and recognized the bytes). Audited; the old one is replaced
-   * by the new at the same key.
+   * by the new immutable key recorded on the tenant row.
    */
   async logoUploaded(
     actor: Principal,
-    file: { contentType: string; size: number },
+    file: { contentType: string; size: number; key: string },
     ip?: string,
   ): Promise<Branding> {
     const tenantId = this.tenantId();
+    await database(this.txHost)
+      .update(tenants)
+      .set({ logoKey: file.key })
+      .where(eq(tenants.id, tenantId));
     this.logos.delete(tenantId);
     await this.audit.record(actor, {
       action: 'branding.logo-changed',
@@ -233,7 +240,15 @@ export class BrandingService implements MailBranding {
     if (!(await this.logo(tenantId, true))) {
       throw new NotFoundException('There is no logo.');
     }
-    await this.disk.delete(BrandingService.logoKey(tenantId));
+    const [tenant] = await database(this.txHost)
+      .select({ logoKey: tenants.logoKey })
+      .from(tenants)
+      .where(eq(tenants.id, tenantId));
+    if (tenant?.logoKey) await this.disk.delete(tenant.logoKey);
+    await database(this.txHost)
+      .update(tenants)
+      .set({ logoKey: null })
+      .where(eq(tenants.id, tenantId));
     this.logos.delete(tenantId);
     await this.audit.record(actor, {
       action: 'branding.logo-removed',
@@ -257,7 +272,7 @@ export class BrandingService implements MailBranding {
     body: Readable;
   } | null> {
     const [tenant] = await database(this.txHost)
-      .select({ id: tenants.id })
+      .select({ id: tenants.id, logoKey: tenants.logoKey })
       .from(tenants)
       .where(and(eq(tenants.id, requestedId), eq(tenants.active, true)));
     const logo = tenant ? await this.logo(tenant.id) : null;
@@ -265,7 +280,7 @@ export class BrandingService implements MailBranding {
       return null;
     }
     try {
-      const file = await this.disk.get(BrandingService.logoKey(tenant.id));
+      const file = await this.disk.get(tenant.logoKey!);
       return {
         contentType: logo.contentType,
         size: file.size,
@@ -321,7 +336,7 @@ export class BrandingService implements MailBranding {
     if (logo) {
       try {
         const bytes = await this.disk.getBuffer(
-          BrandingService.logoKey(tenantId),
+          await this.currentLogoKey(tenantId),
         );
         // The type the bytes say (again: the file may have changed since it
         // was cached), from the allowlist, never the stored metadata.
@@ -362,10 +377,18 @@ export class BrandingService implements MailBranding {
     if (!fresh && cached && Date.now() - cached.at < LOGO_CACHE_MS) {
       return cached.info;
     }
-    const key = BrandingService.logoKey(tenantId);
+    const key = await this.currentLogoKey(tenantId);
     let info: LogoInfo | null = null;
     try {
       if (await this.disk.exists(key)) {
+        // Adopt a logo from before keys became versioned so backups can see
+        // its exact object key in the tenant snapshot.
+        if (key === BrandingService.logoKey(tenantId)) {
+          await database(this.txHost)
+            .update(tenants)
+            .set({ logoKey: key })
+            .where(eq(tenants.id, tenantId));
+        }
         const { size } = await this.disk.stat(key);
         // What the first bytes say, not what the file was stored as: only
         // the allowlist's images are served as the tenant's logo.
@@ -390,5 +413,13 @@ export class BrandingService implements MailBranding {
     }
     this.logos.set(tenantId, { at: Date.now(), info });
     return info;
+  }
+
+  private async currentLogoKey(tenantId: string) {
+    const [tenant] = await database(this.txHost)
+      .select({ logoKey: tenants.logoKey })
+      .from(tenants)
+      .where(eq(tenants.id, tenantId));
+    return tenant?.logoKey ?? BrandingService.logoKey(tenantId);
   }
 }

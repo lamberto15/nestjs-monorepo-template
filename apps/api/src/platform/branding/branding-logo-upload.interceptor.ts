@@ -5,6 +5,7 @@ import {
   type NestInterceptor,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { randomUUID } from 'node:crypto';
 import { uploadToDisk } from '@nestjs/storage';
 import type { Principal } from '../../iam/auth/principal.js';
 import {
@@ -33,11 +34,12 @@ export class BrandingLogoUpload implements NestInterceptor {
       storage: uploadToDisk({
         // The request's tenant (the principal's, authenticated before any
         // interceptor runs), never the client's.
-        key: (_file, req) =>
-          BrandingService.logoKey(
-            (req as unknown as { user: Principal & { tenantId: string } }).user
-              .tenantId,
-          ),
+        key: (_file, req) => {
+          const tenantId = (
+            req as unknown as { user: Principal & { tenantId: string } }
+          ).user.tenantId;
+          return BrandingService.logoKey(tenantId, randomUUID());
+        },
         contentTypes: [...LOGO_TYPES],
       }),
       limits: { fileSize: LOGO_MAX_BYTES, files: 1 },

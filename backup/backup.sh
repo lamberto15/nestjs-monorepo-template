@@ -87,6 +87,8 @@ seal() {
 
 finish() {
   code=$?
+  if [ -n "${snapshot_pid:-}" ]; then kill "$snapshot_pid" 2>/dev/null || true; wait "$snapshot_pid" 2>/dev/null || true; fi
+  rm -f "$BACKUP_DIR"/.snapshot-*
   # Half-written files of this run never count as backups.
   rm -f "$BACKUP_DIR"/.partial-*
   if [ "$code" -ne 0 ]; then
@@ -107,20 +109,26 @@ fi
 # Left by a run killed mid-way (the lock is ours, so none is being written).
 rm -f .partial-*
 
-# 1. The database: one consistent snapshot (pg_dump runs in a single
-# repeatable-read transaction), so the app keeps running meanwhile.
+# Hold an exported PostgreSQL snapshot open for the dump and file manifest.
+step=snapshot
+snapshot_file="$BACKUP_DIR/.snapshot-$stamp"
+psql --no-psqlrc --tuples-only --quiet -v ON_ERROR_STOP=1 >"$snapshot_file" <<'SQL' &
+BEGIN ISOLATION LEVEL REPEATABLE READ;
+SELECT pg_export_snapshot();
+SELECT pg_sleep(3600);
+SQL
+snapshot_pid=$!
+n=0
+while [ ! -s "$snapshot_file" ] && kill -0 "$snapshot_pid" 2>/dev/null && [ "$n" -lt 100 ]; do sleep 0.1; n=$((n + 1)); done
+snapshot=$(sed -n '1{s/^[[:space:]]*//;s/[[:space:]]*$//;p;}' "$snapshot_file")
+case $snapshot in *[!0-9A-Fa-f-]* | '') echo "could not export PostgreSQL snapshot" >&2; exit 1 ;; esac
+# 1. The database and manifest use the exact same snapshot while the app runs.
 step=dump
-pg_dump --format=custom --file=".partial-$db_file"
+pg_dump --snapshot="$snapshot" --format=custom --file=".partial-$db_file"
 step=verify
 toc=$(pg_restore --list ".partial-$db_file")
 objects=$(printf '%s\n' "$toc" | grep -vc '^;' || true)
-step=seal
-seal ".partial-$db_file" "$db_file"
-db_file=$sealed
-db_bytes=$(wc -c <"$db_file" | tr -d ' ')
-
-# 2. Uploaded files, after the dump: every file a dumped row points to is in
-# the archive (files added meanwhile are orphans the app's sweep removes).
+# 2. Uploaded files, checked against snapshot-consistent persisted references.
 files='skipped'
 if [ "${STORAGE_DRIVER:-local}" = local ]; then
   step=files
@@ -128,11 +136,47 @@ if [ "${STORAGE_DRIVER:-local}" = local ]; then
     echo "STORAGE_DRIVER=local, but the files volume is not mounted at $STORAGE_DIR" >&2
     exit 1
   fi
+  step=manifest
+  psql --no-psqlrc --tuples-only --no-align -v ON_ERROR_STOP=1 >".partial-files-$stamp.manifest" <<SQL
+BEGIN ISOLATION LEVEL REPEATABLE READ;
+SET TRANSACTION SNAPSHOT '$snapshot';
+SELECT key FROM attachments
+UNION SELECT r.value->>'key' FROM attachments a CROSS JOIN LATERAL jsonb_each(COALESCE(a.renditions, '{}'::jsonb)) r
+UNION SELECT avatar_key FROM users WHERE avatar_key IS NOT NULL
+UNION SELECT logo_key FROM tenants WHERE logo_key IS NOT NULL
+UNION SELECT 'legacy_logo:' || 'tenants/' || id::text || '/branding/logo' FROM tenants WHERE logo_key IS NULL;
+COMMIT;
+SQL
+  # Old logos used a fixed key without a database pointer. Include those that
+  # exist; current uploads always have the persisted logo_key above.
+  mv ".partial-files-$stamp.manifest" ".partial-files-$stamp.raw"
+  while IFS= read -r key; do
+    case $key in
+      legacy_logo:*) key=${key#legacy_logo:}; [ -f "$STORAGE_DIR/$key" ] || continue ;;
+    esac
+    printf '%s\n' "$key"
+  done <".partial-files-$stamp.raw" >".partial-files-$stamp.manifest"
+  rm -f ".partial-files-$stamp.raw"
   tar -czf ".partial-$files_file" -C "$STORAGE_DIR" .
   gzip -t ".partial-$files_file"
+  step=validate-files
+  while IFS= read -r key; do
+    [ -n "$key" ] || continue
+    if ! tar -tzf ".partial-$files_file" "./$key" >/dev/null 2>&1; then
+      echo "referenced file missing from backup archive: $key" >&2
+      exit 1
+    fi
+  done <".partial-files-$stamp.manifest"
+  rm -f ".partial-files-$stamp.manifest"
   seal ".partial-$files_file" "$files_file"
   files=$sealed
 fi
+
+# Seal the database only after local file references have passed validation.
+step=seal
+seal ".partial-$db_file" "$db_file"
+db_file=$sealed
+db_bytes=$(wc -c <"$db_file" | tr -d ' ')
 
 # 2b. Point-in-time recovery: a base backup of the whole cluster. WAL from its
 # start on (kept in the archive, shipped off the host) replays it to any moment
