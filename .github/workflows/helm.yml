@@ -101,6 +101,7 @@ jobs:
           grep -q 'object_store: filesystem' "$RUNNER_TEMP/loki.yaml"
           grep -q 'stage.cri {}' "$RUNNER_TEMP/alloy.yaml"
           grep -q 'stage.json' deploy/k3s/monitoring/alloy.values.yaml
+          grep -q 'stage.template' deploy/k3s/monitoring/alloy.values.yaml
           grep -q 'stage.labels' deploy/k3s/monitoring/alloy.values.yaml
           grep -q 'loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push' "$RUNNER_TEMP/alloy.yaml"
           if grep -Eqi 'docker.sock|request_id' deploy/k3s/monitoring/alloy.values.yaml; then exit 1; fi
