@@ -46,8 +46,8 @@ jobs:
   # open pull request (GitHub's concurrent-jobs limit), so a job that has
   # nothing to prove costs every other run its wait in the queue. Regular
   # main code pushes, tags and nightly runs keep full validation to protect
-  # image publication. CI-only PRs/merges instead run ci-validate; changing
-  # orchestration should not start every app suite. The paths come from
+  # image publication. Workflow-only PRs/merges instead run ci-validate;
+  # editing an unrelated workflow must not start every app suite. The paths come from
   # GitHub's PR file list or push comparison (no checkout needed).
   # Each job's `if` names the outputs it reads
   # (docs/deployment.md, "Which jobs a pull request runs"), and
@@ -107,7 +107,7 @@ jobs:
             if ! files=$(gh api "repos/$GITHUB_REPOSITORY/compare/$CI_BEFORE...$GITHUB_SHA" --jq '.files[] | .filename, (.previous_filename // empty)'); then all; fi
             # Compare returns up to 300 files; ambiguity runs full checks.
             if [ -z "$files" ] || [ "$(wc -l <<< "$files")" -ge 300 ]; then all; fi
-            light='^(tools/ci/|\.github/workflows/ci\.yml$|docs/|README\.md$|CLAUDE\.md$|\.claude/)'
+            light='^(tools/ci/|\.github/workflows/|docs/|README\.md$|CLAUDE\.md$|\.claude/)'
             if grep -qEv "$light" <<< "$files"; then all; fi
           else
             # A renamed file counts at both paths: its old place changed too.
@@ -121,7 +121,7 @@ jobs:
           # repository settings, Helm and K3s manifests, and the devcontainer
           # (their own workflows check those). Not the other workflows: knip
           # reads them (its GitHub Actions plugin), as it reads lefthook.yml.
-          inert='^(tools/ci/|\.github/workflows/ci\.yml$|docs/|\.claude/|\.changeset/[^/]*\.md$|\.devcontainer/|deploy/(helm|k3s)/|\.github/(ISSUE_TEMPLATE/|CODEOWNERS$|dependabot\.yml$|PULL_REQUEST_TEMPLATE\.md$)|LICENSE$|\.editorconfig$|[^/]*\.md$|packages/[^/]+/[^/]*\.md$)'
+          inert='^(tools/ci/|\.github/workflows/|docs/|\.claude/|\.changeset/[^/]*\.md$|\.devcontainer/|deploy/(helm|k3s)/|\.github/(ISSUE_TEMPLATE/|CODEOWNERS$|dependabot\.yml$|PULL_REQUEST_TEMPLATE\.md$)|LICENSE$|\.editorconfig$|[^/]*\.md$|packages/[^/]+/[^/]*\.md$)'
           read=$(grep -vE "$inert" <<< "$files" || true)
           # code: any path a job reads.
           if [ -n "$read" ]; then echo code=true; else echo code=false; fi | tee -a "$GITHUB_OUTPUT"
@@ -129,7 +129,7 @@ jobs:
           touched() {
             if grep -qE "$2" <<< "$read"; then echo "$1=true"; else echo "$1=false"; fi | tee -a "$GITHUB_OUTPUT"
           }
-          if grep -qE '^(tools/ci/|\.github/workflows/ci\.yml$)' <<< "$files"; then echo ci=true; else echo ci=false; fi | tee -a "$GITHUB_OUTPUT"
+          if grep -qE '^(tools/ci/|\.github/workflows/)' <<< "$files"; then echo ci=true; else echo ci=false; fi | tee -a "$GITHUB_OUTPUT"
           roots='package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|tsconfig[^/]*\.json$|\.oxlintrc\.json$|\.npmrc$|\.nvmrc$'
           # The images' scans read it.
           scan='\.trivyignore\.yaml$'
@@ -145,7 +145,7 @@ jobs:
           # (caddy/Dockerfile.dockerignore: the API's package.json too).
           touched caddy "^(caddy/|apps/web/|packages/|apps/api/package\.json$|$roots|$scan)"
 
-  # CI-only changes require the classifier and workflow invariants, not apps.
+  # Workflow-only changes require orchestration tests, not application suites.
   ci-validate:
     needs: changes
     if: needs.changes.outputs.ci == 'true'
