@@ -1,0 +1,134 @@
+{
+  "2": [
+    {
+      "runId": 40082457232,
+      "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "elapsedMinutes": 8.033333333333333,
+      "validationMinutes": 8.033333333333333,
+      "runnerMinutes": 12.583333333333336,
+      "peakRunners": 2,
+      "schedulingSeconds": 65,
+      "matrixWaitSeconds": 0,
+      "cacheHits": 0,
+      "cacheMisses": 2
+    },
+    {
+      "runId": 40084264563,
+      "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "elapsedMinutes": 5.966666666666667,
+      "validationMinutes": 5.966666666666667,
+      "runnerMinutes": 10.466666666666667,
+      "peakRunners": 2,
+      "schedulingSeconds": 11,
+      "matrixWaitSeconds": 0,
+      "cacheHits": 0,
+      "cacheMisses": 2
+    },
+    {
+      "runId": 40085866632,
+      "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "elapsedMinutes": 6.366666666666666,
+      "validationMinutes": 6.366666666666666,
+      "runnerMinutes": 11.299999999999999,
+      "peakRunners": 2,
+      "schedulingSeconds": 9,
+      "matrixWaitSeconds": 0,
+      "cacheHits": 0,
+      "cacheMisses": 2
+    }
+  ],
+  "3": [
+    {
+      "runId": 40083001308,
+      "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "elapsedMinutes": 9.633333333333333,
+      "validationMinutes": 9.633333333333333,
+      "runnerMinutes": 13.816666666666668,
+      "peakRunners": 2,
+      "schedulingSeconds": 12,
+      "matrixWaitSeconds": 253,
+      "cacheHits": 0,
+      "cacheMisses": 3
+    },
+    {
+      "runId": 40084696467,
+      "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "elapsedMinutes": 8.516666666666667,
+      "validationMinutes": 8.516666666666667,
+      "runnerMinutes": 12.75,
+      "peakRunners": 2,
+      "schedulingSeconds": 11,
+      "matrixWaitSeconds": 191,
+      "cacheHits": 0,
+      "cacheMisses": 3
+    },
+    {
+      "runId": 40086330380,
+      "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "elapsedMinutes": 8.55,
+      "validationMinutes": 8.55,
+      "runnerMinutes": 12.200000000000001,
+      "peakRunners": 2,
+      "schedulingSeconds": 11,
+      "matrixWaitSeconds": 208,
+      "cacheHits": 0,
+      "cacheMisses": 3
+    }
+  ],
+  "6": [
+    {
+      "runId": 40083660113,
+      "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "elapsedMinutes": 8.833333333333334,
+      "validationMinutes": 8.833333333333334,
+      "runnerMinutes": 15.55,
+      "peakRunners": 2,
+      "schedulingSeconds": 18,
+      "matrixWaitSeconds": 914,
+      "cacheHits": 0,
+      "cacheMisses": 6
+    },
+    {
+      "runId": 40085291387,
+      "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "elapsedMinutes": 8.233333333333333,
+      "validationMinutes": 8.233333333333333,
+      "runnerMinutes": 14.450000000000001,
+      "peakRunners": 2,
+      "schedulingSeconds": 19,
+      "matrixWaitSeconds": 850,
+      "cacheHits": 0,
+      "cacheMisses": 6
+    },
+    {
+      "runId": 40086915546,
+      "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "elapsedMinutes": 8.766666666666667,
+      "validationMinutes": 8.766666666666667,
+      "runnerMinutes": 14.666666666666666,
+      "peakRunners": 2,
+      "schedulingSeconds": 16,
+      "matrixWaitSeconds": 838,
+      "cacheHits": 0,
+      "cacheMisses": 6
+    }
+  ]
+}

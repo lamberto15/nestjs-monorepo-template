@@ -1,0 +1,79 @@
+{
+  "runId": 40087286611,
+  "sha": "42a43182f7eb253747f49a6fd68b128a2852b2d5",
+  "event": "workflow_dispatch",
+  "conclusion": "success",
+  "elapsedMinutes": 6.233333333333333,
+  "validationMinutes": 6.233333333333333,
+  "runnerMinutes": 15.000000000000002,
+  "peakRunners": 6,
+  "schedulingSeconds": 16,
+  "matrixWaitSeconds": 0,
+  "cacheHits": 1,
+  "cacheMisses": 14,
+  "jobs": [
+    {
+      "name": "changes",
+      "runnerMinutes": 0.15,
+      "createdAfterRunSeconds": 2,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 1
+    },
+    {
+      "name": "caddy-image",
+      "runnerMinutes": 5.9,
+      "createdAfterRunSeconds": 12,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 1
+    },
+    {
+      "name": "compose-images",
+      "runnerMinutes": 0.1,
+      "createdAfterRunSeconds": 12,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "security",
+      "runnerMinutes": 0.4,
+      "createdAfterRunSeconds": 12,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "unit (packages)",
+      "runnerMinutes": 0.5666666666666667,
+      "createdAfterRunSeconds": 12,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "unit (web whole)",
+      "runnerMinutes": 3.7333333333333334,
+      "createdAfterRunSeconds": 12,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "check",
+      "runnerMinutes": 1.45,
+      "createdAfterRunSeconds": 20,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "e2e-web",
+      "runnerMinutes": 2.6166666666666667,
+      "createdAfterRunSeconds": 20,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "CI gate",
+      "runnerMinutes": 0.08333333333333333,
+      "createdAfterRunSeconds": 367,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    }
+  ]
+}

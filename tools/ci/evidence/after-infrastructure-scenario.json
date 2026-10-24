@@ -1,0 +1,65 @@
+{
+  "runId": 40086741483,
+  "sha": "42a43182f7eb253747f49a6fd68b128a2852b2d5",
+  "event": "workflow_dispatch",
+  "conclusion": "success",
+  "elapsedMinutes": 7.733333333333333,
+  "validationMinutes": 7.733333333333333,
+  "runnerMinutes": 13.633333333333335,
+  "peakRunners": 4,
+  "schedulingSeconds": 14,
+  "matrixWaitSeconds": 0,
+  "cacheHits": 0,
+  "cacheMisses": 0,
+  "jobs": [
+    {
+      "name": "changes",
+      "runnerMinutes": 0.13333333333333333,
+      "createdAfterRunSeconds": 2,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 1
+    },
+    {
+      "name": "compose-secrets",
+      "runnerMinutes": 0.5,
+      "createdAfterRunSeconds": 11,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "swarm-stack",
+      "runnerMinutes": 0.35,
+      "createdAfterRunSeconds": 11,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "backup-image",
+      "runnerMinutes": 5.933333333333334,
+      "createdAfterRunSeconds": 11,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "image",
+      "runnerMinutes": 5.2,
+      "createdAfterRunSeconds": 11,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 3
+    },
+    {
+      "name": "hardened-stack",
+      "runnerMinutes": 1.4,
+      "createdAfterRunSeconds": 369,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "CI gate",
+      "runnerMinutes": 0.11666666666666667,
+      "createdAfterRunSeconds": 455,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    }
+  ]
+}

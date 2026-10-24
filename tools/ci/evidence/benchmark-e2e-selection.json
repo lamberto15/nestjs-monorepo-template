@@ -1,0 +1,25 @@
+{
+  "winner": {
+    "name": "2",
+    "runnerMinutes": 11.299999999999999,
+    "validationMinutes": 6.366666666666666
+  },
+  "meetsTarget": true,
+  "configurations": [
+    {
+      "name": "2",
+      "runnerMinutes": 11.299999999999999,
+      "validationMinutes": 6.366666666666666
+    },
+    {
+      "name": "3",
+      "runnerMinutes": 12.75,
+      "validationMinutes": 8.55
+    },
+    {
+      "name": "6",
+      "runnerMinutes": 14.666666666666666,
+      "validationMinutes": 8.766666666666667
+    }
+  ]
+}

@@ -44,8 +44,8 @@ on:
       e2e_shards:
         description: 'API E2E shards (at most two run concurrently)'
         type: choice
-        options: ['6', '3', '2']
-        default: '6'
+        options: ['2', '3', '6']
+        default: '2'
       unit_layout:
         description: 'Unit coverage layout for measurement'
         type: choice
@@ -717,8 +717,8 @@ jobs:
       # Reserve runner capacity for other pull requests.
       max-parallel: 2
       matrix:
-        shard: ${{ fromJSON(inputs.e2e_shards == '2' && '[1,2]' || inputs.e2e_shards == '3' && '[1,2,3]' || '[1,2,3,4,5,6]') }}
-    name: e2e (${{ matrix.shard }}/${{ inputs.e2e_shards || '6' }})
+        shard: ${{ fromJSON(inputs.e2e_shards == '2' && '[1,2]' || inputs.e2e_shards == '3' && '[1,2,3]' || inputs.e2e_shards == '6' && '[1,2,3,4,5,6]' || '[1,2]') }}
+    name: e2e (${{ matrix.shard }}/${{ inputs.e2e_shards || '2' }})
     services:
       # Redis: queues, rate limits, realtime; each file keeps to its own prefix.
       redis:
@@ -742,7 +742,7 @@ jobs:
         with:
           runtime: node@24
           cache: true
-      - run: pnpm test:e2e --shard=${{ matrix.shard }}/${{ inputs.e2e_shards || '6' }}
+      - run: pnpm test:e2e --shard=${{ matrix.shard }}/${{ inputs.e2e_shards || '2' }}
         env:
           REDIS_URL: redis://localhost:6379
           # The tests create their databases here (a template, then a copy per app).

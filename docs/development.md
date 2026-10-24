@@ -291,7 +291,7 @@ workspace with Node.js 24 and pnpm 12.15.0 (the versions of `package.json`'s
     full cost made the suite several times slower. Same code path; never
     assert the production parameters in an e2e test.
   - One file: `pnpm test:e2e test/tags.e2e-spec.ts` (the path inside
-    `apps/api`). One shard, as CI runs it: `pnpm test:e2e --shard=1/6`.
+    `apps/api`). One shard, as CI runs it: `pnpm test:e2e --shard=1/2`.
     One unit test file: `pnpm --filter @nestjs-monorepo-template/api test
     src/core/http/route-key.spec.ts`.
 - **The platform's record is test-only** (`apps/api/test/fixtures`): the
@@ -322,14 +322,12 @@ a drop fails CI.
 
 - **Locally:** `pnpm --filter @nestjs-monorepo-template/web test:cov` (or
   `api`, `api-client`); `pnpm test` stays without coverage.
-- **In CI:** the unit jobs' shards (`unit-api`, `unit-web`) run `test:cov`
-  (the same run, not a second one): each writes a blob report
-  (`.vitest/blob`) and checks no threshold of its own, since a share of the
-  tests covers a share of the code. The `coverage` job merges the blobs
-  (`vitest --merge-reports --coverage`) and enforces the thresholds; on a
-  pull request that ran one side's unit job only (deployment.md, "Which jobs
-  a pull request runs"), that side's. The packages job runs whole and
-  enforces its own.
+- **In CI:** `unit-api` and `unit-web` run whole `test:cov` tasks and enforce
+  each package's thresholds directly. Three-run benchmarks selected this layout
+  for lower runner consumption. An explicit `unit_layout=sharded` manual run
+  retains three shards per app and their blob reports; the `coverage` job merges
+  those reports and enforces the same thresholds. Coverage outputs are cached;
+  database and browser E2E are not. See [CI measurements](ci-runtime.md).
 - **Measure again** before raising: run `test:cov` and read the summary; set
   each threshold to the figure rounded down.
 

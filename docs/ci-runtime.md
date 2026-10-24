@@ -36,6 +36,18 @@ application edits. These scenarios do not publish; `full` remains the manual
 default, and bootstrap requires comprehensive validation. Scenario timings measure
 the primary workflow, not the sum of companion workflows or account-wide billing.
 
+## Selected API E2E layout
+
+Three runs per configuration selected **two API E2E shards**, at most two
+concurrently. All layouts met the ten-minute median validation target; two shards
+used the fewest median runner-minutes. Services and test isolation are unchanged.
+
+| Shards | Median validation minutes | Median runner-minutes |
+| --- | --- | --- |
+| 2 | 6.37 | 11.30 |
+| 3 | 8.55 | 12.75 |
+| 6 | 8.77 | 14.67 |
+
 ## Selected unit coverage layout
 
 Three comparable runs per layout selected **unsharded unit coverage**. Median
@@ -67,6 +79,20 @@ The successful `main` push for #628, run `40059092538`, ran only `changes` and
 its `main` counterpart `40077288057` consumed about 86. These are historical
 observations, not a controlled before/after speedup claim. Benchmarks and affected
 post-change runs must supply that comparison.
+
+## Representative affected validation
+
+These are primary-workflow observations. The before runs are historical PRs;
+after runs explicitly select a manual scenario on one revision. Different code,
+cache and scheduling conditions mean these are not controlled speedup percentages.
+The shard/coverage comparisons above are controlled on one source revision.
+
+| Scenario | Historical PR runner-minutes | After runner-minutes | After validation minutes | After peak runners |
+| --- | --- | --- | --- | --- |
+| api | 41.30 | 22.93 | 5.95 | 8 |
+| web | 27.65 | 15.00 | 6.23 | 6 |
+| infrastructure | 41.25 | 13.63 | 7.73 | 4 |
+| ci | 0.12 | 0.47 | 0.58 | 1 |
 
 ## Where the test time goes
 
