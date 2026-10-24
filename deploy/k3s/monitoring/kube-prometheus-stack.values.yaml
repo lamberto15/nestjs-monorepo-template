@@ -1,0 +1,60 @@
+# K3s single-node profile. Managed in a separate monitoring namespace and Helm release.
+# Review chart version and render output before installing. No external ingress.
+grafana:
+  enabled: true
+  ingress:
+    enabled: false
+  persistence:
+    enabled: true
+    type: pvc
+    storageClassName: local-ssd
+    accessModes: [ReadWriteOnce]
+    size: 5Gi
+  resources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {cpu: 500m, memory: 512Mi}
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki
+      access: proxy
+      url: http://loki-gateway.monitoring.svc.cluster.local
+      isDefault: false
+
+prometheus:
+  prometheusSpec:
+    retention: 10d
+    retentionSize: 15GB
+    replicas: 1
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-ssd
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests: {storage: 20Gi}
+    resources:
+      requests: {cpu: 250m, memory: 512Mi}
+      limits: {cpu: "1", memory: 2Gi}
+    # Allow discovery of namespaced ServiceMonitors, but keep explicit selectors.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}
+    ruleSelectorNilUsesHelmValues: false
+    ruleNamespaceSelector: {}
+
+alertmanager:
+  alertmanagerSpec:
+    replicas: 1
+    resources:
+      requests: {cpu: 50m, memory: 96Mi}
+      limits: {cpu: 250m, memory: 256Mi}
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-ssd
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests: {storage: 2Gi}
+
+# Keep Kubernetes component exporters intentionally enabled.
+# Node exporter / kube-state-metrics expose metrics only inside the cluster.
