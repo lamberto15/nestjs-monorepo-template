@@ -19,7 +19,7 @@
         "!**/*.test.ts",
         "!**/*.test.tsx"
       ],
-      "outputs": ["dist/**", "*.tsbuildinfo"],
+      "outputs": ["dist/**", ".bundle-analysis/**", "*.tsbuildinfo"],
       "env": ["GIT_SHA", "VITE_*"]
     },
     "size": {
