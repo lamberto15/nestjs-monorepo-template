@@ -105,7 +105,7 @@ jobs:
             if ! files=$(gh api "repos/$GITHUB_REPOSITORY/compare/$CI_BEFORE...$GITHUB_SHA" --jq '.files[] | .filename, (.previous_filename // empty)'); then all; fi
             # Compare returns up to 300 files; ambiguity runs full checks.
             if [ -z "$files" ] || [ "$(wc -l <<< "$files")" -ge 300 ]; then all; fi
-            light='^(tools/ci/|\\.github/workflows/ci\\.yml$|docs/|README\\.md$|CLAUDE\\.md$|\\.claude/)'
+            light='^(tools/ci/|\.github/workflows/ci\.yml$|docs/|README\.md$|CLAUDE\.md$|\.claude/)'
             if grep -qEv "$light" <<< "$files"; then all; fi
           else
             # A renamed file counts at both paths: its old place changed too.
@@ -115,7 +115,7 @@ jobs:
           echo "$files"
           # CI orchestration/tests are validated separately, never by fanning
           # out API, web, tools, stack and container builds.
-                    # Read by no job here: the docs, Markdown at the root and at a
+          # Read by no job here: the docs, Markdown at the root and at a
           # package's root, Claude's files, the changesets' notes, GitHub's
           # repository settings, Helm and K3s manifests, and the devcontainer
           # (their own workflows check those). Not the other workflows: knip
@@ -128,7 +128,7 @@ jobs:
           touched() {
             if grep -qE "$2" <<< "$read"; then echo "$1=true"; else echo "$1=false"; fi | tee -a "$GITHUB_OUTPUT"
           }
-          touched ci '^(tools/ci/|\.github/workflows/ci\.yml$)'
+          if grep -qE '^(tools/ci/|\.github/workflows/ci\.yml$)' <<< "$files"; then echo ci=true; else echo ci=false; fi | tee -a "$GITHUB_OUTPUT"
           roots='package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|tsconfig[^/]*\.json$|\.oxlintrc\.json$|\.npmrc$|\.nvmrc$'
           # The images' scans read it.
           scan='\.trivyignore\.yaml$'
