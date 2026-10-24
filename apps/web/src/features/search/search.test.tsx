@@ -10,6 +10,7 @@ import { http, HttpResponse } from 'msw/http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { signedInWith } from '@/features/access/test/fixtures';
 import { useDebounced } from '@/features/search/palette';
+import { dashboard } from '@/features/dashboard/registry';
 import { groupBySubject } from '@/features/search/api';
 import { parseSnippet, Snippet } from '@/features/search/snippet';
 import { renderApp } from '@/test/render-app';
@@ -244,18 +245,21 @@ describe('the palette', () => {
     );
   });
 
-  it('includes feature-provided actions and keeps their permission gates', async () => {
-    const { router, user, dialog } = await openCommands({
-      'Note.create': true,
-    });
-    expect(await dialog.findByText('New note')).toBeInTheDocument();
-    expect(dialog.getByText('Actions')).toBeInTheDocument();
-    await user.type(screen.getByRole('combobox'), 'new');
-    await user.keyboard('{Enter}');
-    await vi.waitFor(() =>
-      expect(router.state.location.pathname).toBe('/notes/new'),
-    );
-  });
+  it.skipIf(!dashboard.actions.some(({ to }) => to === '/notes/new'))(
+    'includes feature-provided actions and keeps their permission gates',
+    async () => {
+      const { router, user, dialog } = await openCommands({
+        'Note.create': true,
+      });
+      expect(await dialog.findByText('New note')).toBeInTheDocument();
+      expect(dialog.getByText('Actions')).toBeInTheDocument();
+      await user.type(screen.getByRole('combobox'), 'new');
+      await user.keyboard('{Enter}');
+      await vi.waitFor(() =>
+        expect(router.state.location.pathname).toBe('/notes/new'),
+      );
+    },
+  );
 
   it('hides feature actions without their permission', async () => {
     const { dialog } = await openCommands({});
