@@ -113,7 +113,7 @@ data:
           "gridPos": { "h": 10, "w": 24, "x": 0, "y": 20 },
           "id": 9,
           "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
-          "targets": [{ "datasource": { "type": "loki", "uid": "loki" }, "editorMode": "code", "expr": "{namespace=\"nestjs-monorepo\",container=~\"api|worker\"} |~ \"(?i)(error|exception|failed)\"", "queryType": "range", "refId": "A" }],
+          "targets": [{ "datasource": { "type": "loki", "uid": "loki" }, "editorMode": "code", "expr": "{namespace=\"nestjs-monorepo\",container=~\"api|worker\",level=~\"error|warn\"}", "queryType": "range", "refId": "A" }],
           "title": "Recent API and worker errors",
           "type": "logs"
         }

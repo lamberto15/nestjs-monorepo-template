@@ -119,7 +119,8 @@ selected by `release: monitoring` from the app chart's `PrometheusRule`.
 In Grafana Explore, select Loki and query `{namespace="nestjs-monorepo", container="api"}`. Alloy
 discovers pod logs on each node, parses the CRI envelope and labels streams with bounded Kubernetes
 metadata (namespace, container, node and component). It does not mount the Docker socket or use request
-IDs as labels.
+IDs as labels. Alloy parses the JSON `level` field into a low-cardinality Loki label so Grafana can
+filter errors and warnings without parsing request IDs or other per-request fields.
 
 The provisioned **Application Overview** dashboard is under **Dashboards**. It shows API request rate,
 5xx ratio and p95 latency; worker queue backlog and outbox lag; database pool waits; and recent API/worker
