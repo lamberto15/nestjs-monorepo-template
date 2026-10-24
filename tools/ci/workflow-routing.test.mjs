@@ -144,7 +144,7 @@ function evaluate(expression, context) {
 
 function actual(
   flags,
-  { event = 'pull_request', benchmark = 'off', whole = false } = {},
+  { event = 'pull_request', benchmark = 'off', whole = true } = {},
 ) {
   const all = jobs(text).slice(
     0,
@@ -200,7 +200,7 @@ test('real workflow conditions and dependencies agree with the gate for affected
     for (const event of ['pull_request', 'push'])
       assert.deepEqual(
         actual(flags, { event }).sort(),
-        expectedJobs(flags, event).sort(),
+        expectedJobs(flags, event, 'off', true).sort(),
         file + ' ' + event,
       );
   }
@@ -208,7 +208,7 @@ test('real workflow conditions and dependencies agree with the gate for affected
     const flags = classify({ full: true });
     assert.deepEqual(
       actual(flags, { event }).sort(),
-      expectedJobs(flags, event).sort(),
+      expectedJobs(flags, event, 'off', true).sort(),
       event,
     );
   }

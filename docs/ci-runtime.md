@@ -36,6 +36,14 @@ application edits. These scenarios do not publish; `full` remains the manual
 default, and bootstrap requires comprehensive validation. Scenario timings measure
 the primary workflow, not the sum of companion workflows or account-wide billing.
 
+## Selected unit coverage layout
+
+Three comparable runs per layout selected **unsharded unit coverage**. Median
+runner-minutes fell from 9.95 to 6.83 (31.3% less); median validation elapsed was
+4.68 versus 4.93 minutes. Both meet the ten-minute target, so runner cost decides.
+Ordinary runs enforce thresholds directly. Sharded reports and merging remain
+available for explicit measurement, with the same thresholds enforced after merging.
+
 ## Reading the evidence
 
 [Before measurements](https://github.com/lamberto15/nestjs-monorepo-template/tree/main/tools/ci/evidence) contain run IDs, source revisions,
@@ -59,6 +67,21 @@ The successful `main` push for #628, run `40059092538`, ran only `changes` and
 its `main` counterpart `40077288057` consumed about 86. These are historical
 observations, not a controlled before/after speedup claim. Benchmarks and affected
 post-change runs must supply that comparison.
+
+## Where the test time goes
+
+The saved `test-profile.json` records Vitest's own timing breakdown. API unit
+coverage took 56.19 seconds and attributed 82% of tracked time to imports:
+626 modules evaluated 2265 times. Web coverage took 243.89 seconds, with 57%
+tests, 22% imports and 11% environment setup. API E2E shards attributed 66–76%
+to test work and 22–32% to imports. Tracked percentages aggregate work across
+workers; they are not a partition of wall-clock elapsed time.
+
+Vitest is not the dominant explanation by itself. Future test-level optimization
+should profile repeated imports and heavyweight web render fixtures, preserving
+isolation and thresholds. The web filesystem module cache remains disabled for
+its documented typed-glob invalidation bug; reducing CI matrices does not remove
+that guard or disable test isolation.
 
 ## Release rollout
 

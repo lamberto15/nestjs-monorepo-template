@@ -49,8 +49,8 @@ on:
       unit_layout:
         description: 'Unit coverage layout for measurement'
         type: choice
-        options: [sharded, whole]
-        default: sharded
+        options: [whole, sharded]
+        default: whole
   # A nightly run of everything on main, the checks a pull request skips
   # included (below): new advisories in the images, the generated template.
   schedule:

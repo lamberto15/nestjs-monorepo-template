@@ -181,5 +181,24 @@ test('benchmark routing preserves coverage merging only for sharded runs', () =>
     'unit-api',
     'unit-web',
   ]);
-  assert.ok(expectedJobs({}, 'workflow_dispatch', 'unit').includes('coverage'));
+  assert.ok(
+    expectedJobs({}, 'workflow_dispatch', 'unit', false).includes('coverage'),
+  );
+});
+
+test('root dependency routing never hides another affected image or an unknown path', () => {
+  for (const files of [
+    ['pnpm-lock.yaml', 'gotenberg/Dockerfile', 'backup/Dockerfile'],
+    ['backup/Dockerfile', 'gotenberg/Dockerfile', 'pnpm-lock.yaml'],
+  ]) {
+    const flags = classify({ files });
+    assert.ok(
+      flags.api && flags.web && flags.gotenberg && flags.backup && flags.stack,
+    );
+  }
+  for (const files of [
+    ['package.json', 'unknown'],
+    ['unknown', 'package.json'],
+  ])
+    assert.ok(classify({ files }).full);
 });

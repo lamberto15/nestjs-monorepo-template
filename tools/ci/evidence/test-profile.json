@@ -1,0 +1,12 @@
+{
+  "sourceSha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+  "unitRunId": 40084340061,
+  "e2eRunId": 40084264563,
+  "note": "Vitest percentages describe tracked time across workers, not a partition of wall-clock elapsed time.",
+  "unitApi": {"durationSeconds": 56.19, "trackedPercent": {"import": 82, "tests": 10, "transform": 5, "worker": 3}},
+  "unitWeb": {"durationSeconds": 243.89, "trackedPercent": {"tests": 57, "import": 22, "environment": 11, "setup": 6, "transform": 4, "worker": 1}},
+  "e2e": [
+    {"shard": "1/2", "durationSeconds": 288.05, "trackedPercent": {"tests": 66, "import": 32, "transform": 2}},
+    {"shard": "2/2", "durationSeconds": 233.60, "trackedPercent": {"tests": 76, "import": 22, "transform": 2}}
+  ]
+}

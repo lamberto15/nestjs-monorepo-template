@@ -1,0 +1,90 @@
+{
+  "sharded": [
+    {
+      "runId": 40084010563,
+      "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "elapsedMinutes": 4.566666666666666,
+      "validationMinutes": 4.566666666666666,
+      "runnerMinutes": 9.9,
+      "peakRunners": 4,
+      "schedulingSeconds": 26,
+      "matrixWaitSeconds": 289,
+      "cacheHits": 0,
+      "cacheMisses": 0
+    },
+    {
+      "runId": 40084699876,
+      "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "elapsedMinutes": 4.683333333333334,
+      "validationMinutes": 4.683333333333334,
+      "runnerMinutes": 9.950000000000001,
+      "peakRunners": 4,
+      "schedulingSeconds": 22,
+      "matrixWaitSeconds": 288,
+      "cacheHits": 0,
+      "cacheMisses": 0
+    },
+    {
+      "runId": 40085426408,
+      "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "elapsedMinutes": 4.916666666666667,
+      "validationMinutes": 4.916666666666667,
+      "runnerMinutes": 10,
+      "peakRunners": 4,
+      "schedulingSeconds": 22,
+      "matrixWaitSeconds": 309,
+      "cacheHits": 0,
+      "cacheMisses": 0
+    }
+  ],
+  "whole": [
+    {
+      "runId": 40084340061,
+      "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "elapsedMinutes": 4.933333333333334,
+      "validationMinutes": 4.933333333333334,
+      "runnerMinutes": 6.833333333333333,
+      "peakRunners": 3,
+      "schedulingSeconds": 14,
+      "matrixWaitSeconds": 0,
+      "cacheHits": 0,
+      "cacheMisses": 0
+    },
+    {
+      "runId": 40085043752,
+      "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "elapsedMinutes": 5.283333333333333,
+      "validationMinutes": 5.283333333333333,
+      "runnerMinutes": 7.333333333333333,
+      "peakRunners": 3,
+      "schedulingSeconds": 9,
+      "matrixWaitSeconds": 0,
+      "cacheHits": 0,
+      "cacheMisses": 0
+    },
+    {
+      "runId": 40085776781,
+      "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "elapsedMinutes": 4.75,
+      "validationMinutes": 4.75,
+      "runnerMinutes": 6.733333333333333,
+      "peakRunners": 3,
+      "schedulingSeconds": 10,
+      "matrixWaitSeconds": 0,
+      "cacheHits": 0,
+      "cacheMisses": 0
+    }
+  ]
+}

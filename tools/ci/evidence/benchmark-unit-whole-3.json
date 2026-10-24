@@ -1,0 +1,51 @@
+{
+  "runId": 40085776781,
+  "sha": "8d285e9edaf26c0db4ff4960fbdff28997fa1e25",
+  "event": "workflow_dispatch",
+  "conclusion": "success",
+  "elapsedMinutes": 4.75,
+  "validationMinutes": 4.75,
+  "runnerMinutes": 6.733333333333333,
+  "peakRunners": 3,
+  "schedulingSeconds": 10,
+  "matrixWaitSeconds": 0,
+  "cacheHits": 0,
+  "cacheMisses": 0,
+  "jobs": [
+    {
+      "name": "changes",
+      "runnerMinutes": 0.1,
+      "createdAfterRunSeconds": 1,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "unit (api whole)",
+      "runnerMinutes": 1.5,
+      "createdAfterRunSeconds": 9,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "unit (packages)",
+      "runnerMinutes": 0.6,
+      "createdAfterRunSeconds": 9,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "unit (web whole)",
+      "runnerMinutes": 4.416666666666667,
+      "createdAfterRunSeconds": 9,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    },
+    {
+      "name": "CI gate",
+      "runnerMinutes": 0.11666666666666667,
+      "createdAfterRunSeconds": 276,
+      "matrixWaitSeconds": 0,
+      "schedulingSeconds": 2
+    }
+  ]
+}

@@ -68,9 +68,14 @@ test(
       }
       assert.ok(ready, 'the disposable registry is ready');
       const repository = `${address}/ci-handoff`;
-      execFileSync('docker', ['build', '-t', 'app:ci', '-'], {
-        input: 'FROM scratch\nLABEL ci.handoff="verified"\n',
-        stdio: ['pipe', 'pipe', 'pipe'],
+      // A real filesystem layer: Docker cannot save an empty scratch image.
+      writeFileSync(join(directory, 'marker'), 'verified build contents\n');
+      writeFileSync(
+        join(directory, 'Dockerfile'),
+        'FROM scratch\nCOPY marker /verified\nLABEL ci.handoff="verified"\n',
+      );
+      execFileSync('docker', ['build', '-t', 'app:ci', directory], {
+        stdio: 'pipe',
       });
       const original = docker([
         'image',

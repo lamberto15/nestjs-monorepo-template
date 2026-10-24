@@ -41,8 +41,10 @@ export function classify({ files, full = false, complete = true }) {
       continue;
     }
     if (inert.test(file)) continue;
-    if (roots.test(file))
-      return {
+    if (roots.test(file)) {
+      // Root dependency changes validate all applications. Merge only true
+      // contributions so another path can still require an infrastructure job.
+      const application = {
         ...all(),
         full: false,
         stack: false,
@@ -50,6 +52,10 @@ export function classify({ files, full = false, complete = true }) {
         backup: false,
         gotenberg: false,
       };
+      for (const [key, needed] of Object.entries(application))
+        if (needed) flags[key] = true;
+      continue;
+    }
     if (/^(\.github\/actions\/|packages\/(?!api-client\/|ui\/))/.test(file))
       return all();
     flags.code = true;
@@ -138,7 +144,7 @@ export function expectedJobs(
   f,
   event = 'pull_request',
   benchmark = 'off',
-  unitWhole = false,
+  unitWhole = true,
 ) {
   if (benchmark === 'e2e') return ['changes', 'compose-images', 'e2e'];
   if (benchmark === 'unit')
@@ -264,7 +270,7 @@ export function runChanges(
     files.length > 0 &&
     files.every((file) => /^(apps\/api\/|apps\/web\/|packages\/)/.test(file)) &&
     Boolean(compare(base, head));
-  const unitWhole = event.inputs?.unit_layout === 'whole';
+  const unitWhole = (event.inputs?.unit_layout ?? 'whole') === 'whole';
   const outputs = {
     ...flags,
     base,
