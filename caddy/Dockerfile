@@ -7,14 +7,15 @@
 # image, the store in an image layer (#480), the workspace's packages the
 # app needs (the typed client, the shared UI).
 FROM ghcr.io/pnpm/pnpm:12.15.0 AS web
-ARG GIT_SHA=""
-ENV GIT_SHA=${GIT_SHA}
 WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN CI=true pnpm fetch --store-dir /pnpm-store
 COPY . .
 RUN CI=true pnpm install --store-dir /pnpm-store --frozen-lockfile --offline \
       --filter @nestjs-monorepo-template/web...
+# Only the build output depends on the commit SHA. Leave fetch/install layers
+# cacheable when a new commit changes no dependencies.
+ARG GIT_SHA=""
 RUN pnpm --filter @nestjs-monorepo-template/web... build
 
 FROM caddy:2.11.7-builder AS builder
