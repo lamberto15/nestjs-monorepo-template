@@ -37,7 +37,14 @@ A signed-in user manages a chosen client's webhooks on its behalf, under
 `/v1/access/clients/{clientId}/`: `webhook-endpoints…` and
 `webhook-deliveries…`, the same routes as above
 (`platform/webhooks/client-webhooks.controller.ts`; one
-`WebhookManagementService` behind both doors). Each route wants:
+`WebhookManagementService` behind both doors). In the web app,
+`/webhooks` is the **outgoing** endpoint setup: when no API client exists it
+links to `/api-clients` to create one first. `/webhooks/senders` is the
+separate **incoming** sender setup. An API client's daily request quota applies
+to HTTP API calls made with that client's key; it does not meter outgoing
+webhook deliveries or retries.
+
+Each route wants:
 
 - a user (a session or a user token; an API key is a 401) with
   `Access.manageClients` (never while impersonating), and API_CLIENTS on;
