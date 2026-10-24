@@ -307,8 +307,10 @@ function expectJobs(t, files, expected, options) {
 }
 
 const ALWAYS = ['changes'];
-// Meaningful code changes also run the service-image detector and security scan.
+// App-facing changes need the full build/DB check, Compose service outputs,
+// and security. Tooling changes get independent lint and smoke verification.
 const CODE_PREREQS = ['compose-images', 'security'];
+const TOOLING_ONLY = ['compose-images', 'security'];
 const PUSH_ONLY = [
   'publish',
   'publish-gotenberg',
@@ -321,7 +323,7 @@ const PUSH_ONLY = [
 // (`only` counts it once). A case expects ALWAYS plus the groups of the
 // outputs its paths set; the images that build one thing (backup, Caddy,
 // Gotenberg) are named in the case.
-/** `code`: any path a job reads: lint and knip, the build, the migrations. */
+/** App-relevant paths need the full lint, build, client and migration checks. */
 const CODE = ['check', ...CODE_PREREQS];
 /** `services`: the suites that run on CI's PostgreSQL and Redis (compose.yaml). */
 const SERVICES = [
@@ -436,8 +438,8 @@ test('every job whose services run compose.yaml images reads the services output
       continue;
     }
     if (job.id === 'check') {
-      // Gated on `code`, which compose.yaml sets too.
-      assert.match(job.if, /needs\.changes\.outputs\.code == 'true'/);
+      // Gated on `app`, which compose.yaml sets too.
+      assert.match(job.if, /needs\.changes\.outputs\.app == 'true'/);
       continue;
     }
     assert.match(
@@ -448,9 +450,12 @@ test('every job whose services run compose.yaml images reads the services output
   }
 });
 
-test("a change to the generator's tools runs feature-smoke and the template check", (t) => {
-  expectJobs(t, ['tools/feature/add.mjs'], only(ALWAYS, CODE, TOOLS));
-  expectJobs(t, ['tools/deploy/swarm.mjs'], only(ALWAYS, CODE, TOOLS, STACK));
+test("tooling-only changes lint and smoke-test generators without DB-backed app checks", (t) => {
+  const inputs = expectJobs(t, ['tools/feature/add.mjs'], only(ALWAYS, TOOLING_ONLY, TOOLS));
+  assert.equal(inputs.code, 'true');
+  assert.equal(inputs.app, 'false');
+  assert.equal(inputs.lint, 'true');
+  expectJobs(t, ['tools/deploy/swarm.mjs'], only(ALWAYS, TOOLING_ONLY, TOOLS, STACK));
 });
 
 test("the Caddyfile runs the web unit tests (one reads it) and Caddy's image", (t) => {
@@ -467,6 +472,61 @@ test('the lockfile runs everything that installs or builds the workspace', (t) =
     ['pnpm-lock.yaml'],
     only(ALWAYS, CODE, API, WEB, 'caddy-image'),
   );
+});
+
+test('generator smoke reuses its runner for tooling-only lint', () => {
+  const smoke = jobs(TEXT).find((job) => job.id === 'feature-smoke');
+  const text = smoke.lines.join('\n');
+  assert.match(text, /- name: Lint tooling and unused dependencies\n\s+if: needs\.changes\.outputs\.lint == 'true' && needs\.changes\.outputs\.app != 'true'\n\s+run: pnpm lint/);
+  assert.match(text, /- name: Release, i18n and environment tooling invariants\n\s+if: needs\.changes\.outputs\.lint == 'true' && needs\.changes\.outputs\.app != 'true'/);
+  assert.match(text, /node --test tools\/release\/notes\.test\.mjs tools\/i18n\/check\.test\.mjs/);
+  assert.match(text, /pnpm env:check --templates/);
+  const lint = jobs(TEXT).find((job) => job.id === 'tooling-lint');
+  assert.match(lint.if, /needs\.changes\.outputs\.tools != 'true'/);
+});
+
+test('Knip config alone gets lint, without containers, app builds or security scans', (t) => {
+  const outputs = expectJobs(t, ['knip.jsonc'], only(ALWAYS, 'tooling-lint'));
+  assert.equal(outputs.code, 'true');
+  assert.equal(outputs.app, 'false');
+  assert.equal(outputs.lint, 'true');
+});
+
+test('the agent documentation PR runs generator checks but not unrelated app validation', (t) => {
+  const outputs = expectJobs(
+    t,
+    [
+      '.claude/skills/add-feature/SKILL.md',
+      '.github/workflows/ci.yml',
+      'AGENTS.md',
+      'CLAUDE.md',
+      'CONTRIBUTING.md',
+      'docs/development.md',
+      'docs/upgrading.md',
+      'knip.jsonc',
+      'tools/ci/changes.test.mjs',
+      'tools/feature/add.mjs',
+      'tools/feature/remove.mjs',
+    ],
+    only(ALWAYS, 'ci-validate', TOOLING_ONLY, TOOLS),
+  );
+  assert.equal(outputs.api, 'false');
+  assert.equal(outputs.web, 'false');
+  assert.equal(outputs.app, 'false');
+});
+
+test('a tooling and API change runs the full check without duplicate lint', (t) => {
+  const outputs = expectJobs(
+    t,
+    ['tools/feature/add.mjs', 'apps/api/src/main.ts', 'knip.jsonc'],
+    only(ALWAYS, CODE, API, TOOLS),
+  );
+  assert.equal(outputs.app, 'true');
+  assert.equal(outputs.lint, 'true');
+});
+
+test('unknown root config is app-relevant rather than silently excluded', (t) => {
+  expectJobs(t, ['new-config.jsonc'], only(ALWAYS, CODE));
 });
 
 test('other workflow-only edits run CI validation, not unrelated application checks', (t) => {
@@ -527,7 +587,8 @@ test("a list at the API's 3000-file limit runs everything", () => {
 });
 
 test('main can deploy only when enabled; tags and the nightly run never do', (t) => {
-  const every = jobs(TEXT).map((j) => j.id);
+  // tooling-lint never duplicates lint on full pushes, tags or nightly checks.
+  const every = jobs(TEXT).map((j) => j.id).filter((id) => id !== 'tooling-lint');
   expectJobs(
     t,
     [],

@@ -66,6 +66,10 @@ jobs:
       # Anything but the paths no job here reads (docs, Markdown, Claude's
       # files, the Helm chart...): lint and knip, the build, the migrations.
       code: ${{ steps.paths.outputs.code }}
+      # App, shared runtime, or unknown sources that need the full build/DB check.
+      app: ${{ steps.paths.outputs.app }}
+      # Tooling scripts/Knip config need lint, but no database-backed app checks.
+      lint: ${{ steps.paths.outputs.lint }}
       # The API, its client, the workspace's roots, the image's build
       # context: the API's unit and e2e tests, the app image, the OpenAPI
       # diff.
@@ -95,7 +99,7 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           CI_BEFORE: ${{ github.event.before }}
         run: |
-          keys='code api web tools stack services backup gotenberg caddy ci'
+          keys='code app lint api web tools stack services backup gotenberg caddy ci'
           all() {
             for key in $keys; do echo "$key=true"; done | tee -a "$GITHUB_OUTPUT"
             exit 0
@@ -126,6 +130,12 @@ jobs:
           read=$(grep -vE "$inert" <<< "$files" || true)
           # code: any path a job reads.
           if [ -n "$read" ]; then echo code=true; else echo code=false; fi | tee -a "$GITHUB_OUTPUT"
+          # Tooling files can change independently of API, web, or the runtime
+          # contract. An unknown file stays app-relevant (conservative fallback).
+          app_inputs=$(grep -vE '^(tools/|knip\.jsonc$)' <<< "$read" || true)
+          if [ -n "$app_inputs" ]; then echo app=true; else echo app=false; fi | tee -a "$GITHUB_OUTPUT"
+          tooling_inputs=$(grep -E '^(tools/|knip\.jsonc$)' <<< "$read" || true)
+          if [ -n "$tooling_inputs" ]; then echo lint=true; else echo lint=false; fi | tee -a "$GITHUB_OUTPUT"
           # touched <key> <regex>: true when a path a job reads matches.
           touched() {
             if grep -qE "$2" <<< "$read"; then echo "$1=true"; else echo "$1=false"; fi | tee -a "$GITHUB_OUTPUT"
@@ -162,7 +172,8 @@ jobs:
   # (a change to compose.yaml runs the jobs on them: changes' `services`).
   compose-images:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    # Only jobs that use the Compose service image outputs need this runner.
+    if: needs.changes.outputs.app == 'true' || needs.changes.outputs.tools == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -439,11 +450,34 @@ jobs:
           CLOUDFLARE_API_TOKEN: ci
         run: node tools/deploy/swarm.mjs check --stack ci
 
+  # A Knip-only pull request needs lint/Knip validation, but does not
+  # need PostgreSQL, application builds or a generator-smoke runner.
+  # Mixed app+tooling changes run the full check below (which includes lint).
+  tooling-lint:
+    needs: changes
+    # Generator smoke already installs dependencies and can run lint there.
+    # This separate runner is only needed when Knip changed without tools.
+    if: >-
+      needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true' &&
+      needs.changes.outputs.tools != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm and Node.js
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - name: Lint the workspace and check unused dependencies
+        run: pnpm lint
+
   # Lint, build, the typed client and migrations. The unit tests (the unit
   # job) and the e2e tests (the e2e job) run beside it, not after it.
   check:
     needs: [compose-images, changes]
-    if: needs.changes.outputs.code == 'true'
+    # Tooling-only edits already get lint and relevant generator smoke checks.
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
@@ -929,6 +963,18 @@ jobs:
         with:
           runtime: node@24
           cache: true
+      # Reuse this already-installed workspace for tooling-only lint, avoiding
+      # a second GitHub runner (and do it before generators modify the tree).
+      - name: Lint tooling and unused dependencies
+        if: needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true'
+        run: pnpm lint
+      # The full app check usually runs these guards. Keep them when only
+      # scripts change, so moving lint to this job does not lose coverage.
+      - name: Release, i18n and environment tooling invariants
+        if: needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true'
+        run: |
+          node --test tools/release/notes.test.mjs tools/i18n/check.test.mjs
+          pnpm env:check --templates
       - name: The generator's tests
         run: node --test 'tools/feature/*.test.mjs'
       - name: The setup wizard's tests (tools/setup, `pnpm setup`)
@@ -1170,7 +1216,8 @@ jobs:
   # private repository on the free plan, so the results are the job's log.
   security:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    # Scan runtime/deploy changes and executable tooling, not Knip-only edits.
+    if: needs.changes.outputs.app == 'true' || needs.changes.outputs.tools == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
