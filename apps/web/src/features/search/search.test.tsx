@@ -245,7 +245,7 @@ describe('the palette', () => {
     );
   });
 
-  it.skipIf(!dashboard.actions.some(({ to }) => to === '/notes/new'))(
+  it.skipIf(!dashboard.actions.some(({ to }) => String(to) === '/notes/new'))(
     'includes feature-provided actions and keeps their permission gates',
     async () => {
       const { router, user, dialog } = await openCommands({
