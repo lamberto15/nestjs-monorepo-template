@@ -232,7 +232,10 @@ export function runChanges(
     }
   }
   let flags = classify({ files, full, complete: Boolean(files) });
-  const benchmark = event.inputs?.benchmark ?? 'off';
+  // Older workflow dispatch defaults parsed bare YAML `off` as false.
+  const benchmark = [false, 'false'].includes(event.inputs?.benchmark)
+    ? 'off'
+    : (event.inputs?.benchmark ?? 'off');
   if (event.inputs?.bootstrap_release === 'true' && benchmark !== 'off')
     throw new Error(
       'Bootstrap requires comprehensive validation, not benchmark mode',

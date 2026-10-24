@@ -34,8 +34,8 @@ on:
       benchmark:
         description: 'Run only the selected benchmark suites'
         type: choice
-        options: [off, e2e, unit]
-        default: off
+        options: ['off', e2e, unit]
+        default: 'off'
       validation_scope:
         description: 'Manual timing scenario; full is comprehensive (no publication)'
         type: choice

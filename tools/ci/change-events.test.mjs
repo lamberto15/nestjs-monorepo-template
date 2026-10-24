@@ -194,3 +194,15 @@ test('bootstrap cannot use a unit-only benchmark gate', () => {
     /comprehensive/,
   );
 });
+
+test('legacy YAML false benchmark defaults retain normal manual validation', () => {
+  for (const benchmark of [false, 'false', 'off']) {
+    const { result } = eventOutput(
+      'workflow_dispatch',
+      { inputs: { benchmark, validation_scope: 'ci' } },
+      null,
+    );
+    assert.equal(result.benchmark, 'off');
+    assert.deepEqual(JSON.parse(result.expected), ['changes', 'ci-validate']);
+  }
+});
