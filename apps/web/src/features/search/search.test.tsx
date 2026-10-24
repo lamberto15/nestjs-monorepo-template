@@ -251,10 +251,10 @@ describe('the palette', () => {
       const { router, user, dialog } = await openCommands({
         'Note.create': true,
       });
-    expect(await dialog.findByText('New note')).toBeInTheDocument();
-    expect(dialog.getByText('Actions')).toBeInTheDocument();
-    await user.type(screen.getByRole('combobox'), 'new');
-    await user.keyboard('{Enter}');
+      expect(await dialog.findByText('New note')).toBeInTheDocument();
+      expect(dialog.getByText('Actions')).toBeInTheDocument();
+      await user.type(screen.getByRole('combobox'), 'new');
+      await user.keyboard('{Enter}');
       await vi.waitFor(() =>
         expect(router.state.location.pathname).toBe('/notes/new'),
       );
