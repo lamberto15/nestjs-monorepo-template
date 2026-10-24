@@ -303,7 +303,9 @@ function expectJobs(t, files, expected, options) {
   return outputs;
 }
 
-const ALWAYS = ['changes', 'compose-images', 'security'];
+const ALWAYS = ['changes'];
+// Meaningful code changes also run the service-image detector and security scan.
+const CODE_PREREQS = ['compose-images', 'security'];
 const PUSH_ONLY = [
   'publish',
   'publish-gotenberg',
@@ -317,7 +319,7 @@ const PUSH_ONLY = [
 // outputs its paths set; the images that build one thing (backup, Caddy,
 // Gotenberg) are named in the case.
 /** `code`: any path a job reads: lint and knip, the build, the migrations. */
-const CODE = ['check'];
+const CODE = ['check', ...CODE_PREREQS];
 /** `services`: the suites that run on CI's PostgreSQL and Redis (compose.yaml). */
 const SERVICES = [
   'e2e',
@@ -350,7 +352,7 @@ const only = (...ids) =>
     .map((j) => j.id)
     .filter((id) => ids.flat().includes(id));
 
-test('a docs-only pull request runs the change classifier, the images list and security', (t) => {
+test('a docs-only pull request runs only the change classifier', (t) => {
   expectJobs(
     t,
     [
@@ -588,4 +590,17 @@ test('coverage merges the side whose unit job ran, and skips when none did', () 
       assert.match(steps, step, `${name} runs only when ${job} ran`);
     }
   }
+});
+
+
+test('runner-heavy matrices leave capacity for other pull requests', () => {
+  for (const id of ['unit-api', 'unit-web', 'e2e', 'template-without-notes']) {
+    const job = jobs(TEXT).find((candidate) => candidate.id === id);
+    assert.match(job.lines.join('\n'), /    strategy:\n      fail-fast: false\n      # Reserve runner capacity for other pull requests\.\n      max-parallel: 2\n/, id);
+  }
+});
+
+test('doc-only merges do not trigger full main CI while release tags stay enabled', () => {
+  assert.match(TEXT, /push:\n    branches: \[main\]\n    tags: \['v\*'\]\n    # Documentation-only merges/);
+  assert.match(TEXT, /paths-ignore:\n      - 'docs\/\*\*'/);
 });
