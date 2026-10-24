@@ -111,8 +111,9 @@ that guard or disable test isolation.
 
 ## Release rollout
 
-Production rollout is hard-disabled in the workflow until separate review and
-green CI. No production variables or credentials are changed. Manifest bootstrap
+Automatic rollout remains hard-disabled in CI. The separately reviewed manual
+Deploy workflow consumes a successful main release manifest through the protected
+production environment. No production variables or credentials are changed. Manifest bootstrap
 is an explicit full manual build on `main`; it does not deploy. Mixed digest
 render tests prove the chart receives the manifest's rebuilt API digest and reused
 web/Gotenberg digests. See [CI and publishing](deployment.md#ci) for trust checks

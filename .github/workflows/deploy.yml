@@ -1,0 +1,180 @@
+# Explicit deployment of an already tested, scanned and signed main release.
+# Image producers stay in ci.yml; this workflow never builds or publishes images.
+name: Deploy
+run-name: Deploy release run ${{ inputs.release_run_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_run_id:
+        description: 'Successful main CI run containing release-manifest-v1'
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: ${{ vars.APP_URL }}
+    concurrency:
+      group: production-k3s
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: read
+      packages: read
+      attestations: read
+      id-token: write
+    env:
+      APP_DOMAIN: ${{ vars.APP_DOMAIN }}
+      APP_URL: ${{ vars.APP_URL }}
+      MAIL_FROM: ${{ vars.MAIL_FROM }}
+    steps:
+      - name: Require production deployment to be enabled
+        env:
+          DEPLOY_ENABLED: ${{ vars.K3S_DEPLOY_ENABLED }}
+        run: |
+          if [ "$DEPLOY_ENABLED" != true ]; then
+            echo '::error::Set K3S_DEPLOY_ENABLED=true after production prerequisites are checked.'
+            exit 1
+          fi
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Authenticate for immutable image verification
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify the selected release and every image
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+        run: node tools/ci/deploy-release.mjs
+      - name: Use the chart from the verified release source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.release.outputs.source_sha }}
+          persist-credentials: false
+      - name: Verify the CI image digests
+        env:
+          APP_DIGEST: ${{ steps.release.outputs.api }}
+          WEB_DIGEST: ${{ steps.release.outputs.caddy }}
+          GOTENBERG_DIGEST: ${{ steps.release.outputs.gotenberg }}
+        run: |
+          for digest in "$APP_DIGEST" "$WEB_DIGEST" "$GOTENBERG_DIGEST"; do
+            [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || exit 1
+          done
+      - name: Install Helm 4.3.1
+        run: |
+          curl --proto '=https' --proto-redir '=https' -fsSL https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz -o "$RUNNER_TEMP/helm.tar.gz"
+          echo '0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b  helm.tar.gz' |
+            (cd "$RUNNER_TEMP" && sha256sum -c -)
+          mkdir -p "$RUNNER_TEMP/helm-bin"
+          tar -xzf "$RUNNER_TEMP/helm.tar.gz" -C "$RUNNER_TEMP" linux-amd64/helm
+          install -m 0755 "$RUNNER_TEMP/linux-amd64/helm" "$RUNNER_TEMP/helm-bin/helm"
+          echo "$RUNNER_TEMP/helm-bin" >> "$GITHUB_PATH"
+      - name: Validate the exact production render
+        env:
+          APP_DIGEST: ${{ steps.release.outputs.api }}
+          WEB_DIGEST: ${{ steps.release.outputs.caddy }}
+          GOTENBERG_DIGEST: ${{ steps.release.outputs.gotenberg }}
+        run: |
+          test -n "$APP_DOMAIN" && test -n "$APP_URL" && test -n "$MAIL_FROM"
+          test "$APP_URL" = "https://$APP_DOMAIN"
+          helm version --short
+          helm lint deploy/helm/app --strict \
+            -f deploy/helm/app/values.single-node.yaml \
+            --set image.digest="$APP_DIGEST" \
+            --set web.image.digest="$WEB_DIGEST" \
+            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
+            --set-string domain="$APP_DOMAIN" \
+            --set-string env.WEB_URL="$APP_URL" \
+            --set-string env.CORS_ORIGINS="$APP_URL" \
+            --set-string env.MAIL_FROM="$MAIL_FROM"
+          helm template app deploy/helm/app \
+            -n nestjs-monorepo \
+            -f deploy/helm/app/values.single-node.yaml \
+            --set image.digest="$APP_DIGEST" \
+            --set web.image.digest="$WEB_DIGEST" \
+            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
+            --set-string domain="$APP_DOMAIN" \
+            --set-string env.WEB_URL="$APP_URL" \
+            --set-string env.CORS_ORIGINS="$APP_URL" \
+            --set-string env.MAIL_FROM="$MAIL_FROM" > "$RUNNER_TEMP/app.yaml"
+          for digest in "$APP_DIGEST" "$WEB_DIGEST" "$GOTENBERG_DIGEST"; do
+            grep -Fq "@$digest" "$RUNNER_TEMP/app.yaml"
+          done
+          for value in "$APP_DOMAIN" "$APP_URL" "$MAIL_FROM"; do
+            grep -Fq "$value" "$RUNNER_TEMP/app.yaml"
+          done
+      - name: Join the deployment tailnet
+        uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4.3.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:github-k3s-deploy
+          version: 1.104.2
+      - name: Use the namespace-scoped kubeconfig
+        env:
+          K3S_KUBECONFIG: ${{ secrets.K3S_KUBECONFIG }}
+        run: |
+          umask 077
+          printf '%s' "$K3S_KUBECONFIG" > "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+      - name: Check namespace and prerequisite Secret
+        run: |
+          test "$(kubectl -n nestjs-monorepo auth can-i create deployments)" = yes
+          test "$(kubectl -n nestjs-monorepo auth can-i create clusterrolebindings)" = no
+          for verb in get list watch create update patch delete; do
+            if [ "$(kubectl -n nestjs-monorepo auth can-i "$verb" prometheusrules.monitoring.coreos.com)" != yes ]; then
+              echo "::error::github-deployer cannot $verb PrometheusRules; apply deploy/k3s/deployer-rbac.yaml as a cluster administrator"
+              exit 1
+            fi
+          done
+          kubectl -n nestjs-monorepo get secret app-secrets -o json |
+            jq -e '.data as $data | ["database_url", "database_owner_url", "database_maintenance_url", "jwt_secret", "mfa_encryption_keys", "data_encryption_keys", "blind_index_keys", "redis_password", "mail_api_key", "metrics_token"] | all(. as $key | $data[$key] != null)' > /dev/null
+          kubectl -n nestjs-monorepo rollout status statefulset/postgres --timeout=2m
+          kubectl -n nestjs-monorepo rollout status statefulset/redis --timeout=2m
+      - name: Upgrade to the CI-verified release
+        env:
+          APP_DIGEST: ${{ steps.release.outputs.api }}
+          WEB_DIGEST: ${{ steps.release.outputs.caddy }}
+          GOTENBERG_DIGEST: ${{ steps.release.outputs.gotenberg }}
+        run: |
+          helm upgrade --install app deploy/helm/app \
+            --namespace nestjs-monorepo \
+            --rollback-on-failure --wait=legacy --wait-for-jobs --timeout 12m \
+            --history-max 10 \
+            -f deploy/helm/app/values.single-node.yaml \
+            --set image.digest="$APP_DIGEST" \
+            --set web.image.digest="$WEB_DIGEST" \
+            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
+            --set-string domain="$APP_DOMAIN" \
+            --set-string env.WEB_URL="$APP_URL" \
+            --set-string env.CORS_ORIGINS="$APP_URL" \
+            --set-string env.MAIL_FROM="$MAIL_FROM"
+      - name: Verify API rollout
+        run: kubectl -n nestjs-monorepo rollout status deployment/app-api --timeout=3m
+      - name: Verify web rollout
+        run: kubectl -n nestjs-monorepo rollout status deployment/app-web --timeout=3m
+      - name: Verify worker rollout
+        run: kubectl -n nestjs-monorepo rollout status deployment/app-worker --timeout=3m
+      - name: Verify Gotenberg rollout
+        run: kubectl -n nestjs-monorepo rollout status deployment/app-gotenberg --timeout=3m
+      - name: Verify public readiness
+        run: |
+          curl --fail --silent --show-error --retry 12 --retry-all-errors --retry-delay 5 --max-time 10 \
+            "$APP_URL/health" -o "$RUNNER_TEMP/readiness.json"
+          jq -e '.status == "ok"' "$RUNNER_TEMP/readiness.json" > /dev/null
+          echo 'Public readiness passed.' >> "$GITHUB_STEP_SUMMARY"
