@@ -104,6 +104,21 @@ jobs:
           if grep -Eqi 'docker.sock|request_id' deploy/k3s/monitoring/alloy.values.yaml; then exit 1; fi
           grep -q 'dockercontainers: false' deploy/k3s/monitoring/alloy.values.yaml
 
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          text = Path("deploy/k3s/monitoring/dashboards/app-overview.yaml").read_text()
+          marker = "  app-overview.json: |\n"
+          dashboard = json.loads("\n".join(line[4:] for line in text.split(marker, 1)[1].splitlines()))
+          titles = {panel["title"] for panel in dashboard["panels"]}
+          assert dashboard["uid"] == "app-overview"
+          assert dashboard["title"] == "Application Overview"
+          assert "API requests / second" in titles
+          assert "Worker queue backlog" in titles
+          assert any(panel["title"] == "Recent API and worker errors" and panel["datasource"]["uid"] == "loki" for panel in dashboard["panels"])
+          PY
+
           # Both authenticated monitors are selected by Prometheus and use the external Secret.
           for monitor in deploy/k3s/monitoring/targets/*servicemonitor.yaml; do
             yq -e '.metadata.namespace == "monitoring" and .metadata.labels.release == "monitoring" and .spec.endpoints[0].path == "/metrics" and .spec.endpoints[0].port == "http" and .spec.endpoints[0].authorization.type == "Bearer" and .spec.endpoints[0].authorization.credentials.name == "metrics-token" and .spec.endpoints[0].authorization.credentials.key == "token"' "$monitor"
@@ -341,6 +356,7 @@ jobs:
             --set singleBinary.persistence.enabled=false --wait --timeout 8m
           helm upgrade --install alloy grafana/alloy --version 1.14.3 -n monitoring \
             -f deploy/k3s/monitoring/alloy.values.yaml --wait --timeout 8m
+          kubectl apply -f deploy/k3s/monitoring/dashboards/app-overview.yaml
           kubectl run obs-log-smoke -n nestjs-monorepo --image=busybox:1.37.0 --restart=Never \
             --command -- sh -c 'echo k3s-observability-smoke; sleep 600'
           kubectl wait -n nestjs-monorepo --for=condition=Ready pod/obs-log-smoke --timeout=120s
@@ -348,6 +364,16 @@ jobs:
           forward_pid=$!
           trap 'kill "$forward_pid" 2>/dev/null || true' EXIT
           grafana_password=$(kubectl get secret monitoring-grafana -n monitoring -o jsonpath='{.data.admin-password}' | base64 -d)
+          for _ in $(seq 1 24); do
+            if curl -fsS --user "admin:$grafana_password" \
+              http://127.0.0.1:3001/api/dashboards/uid/app-overview \
+              > "$RUNNER_TEMP/dashboard.json" && \
+              jq -e '.dashboard.title == "Application Overview"' "$RUNNER_TEMP/dashboard.json" >/dev/null; then
+              break
+            fi
+            sleep 5
+          done
+          jq -e '.dashboard.title == "Application Overview"' "$RUNNER_TEMP/dashboard.json"
           start=$(date -u -d '10 minutes ago' +%s%N)
           end=$(date -u +%s%N)
           for _ in $(seq 1 24); do

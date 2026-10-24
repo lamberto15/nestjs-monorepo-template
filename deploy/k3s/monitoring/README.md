@@ -85,6 +85,7 @@ helm upgrade --install alloy grafana/alloy \
   --namespace monitoring --version 1.14.3 \
   -f deploy/k3s/monitoring/alloy.values.yaml --wait
 kubectl apply -f deploy/k3s/monitoring/targets/
+kubectl apply -f deploy/k3s/monitoring/dashboards/app-overview.yaml
 ```
 
 These are independent releases. Do not install them into the app release. Updating the API/worker targets
@@ -120,11 +121,17 @@ discovers pod logs on each node, parses the CRI envelope and labels streams with
 metadata (namespace, container, node and component). It does not mount the Docker socket or use request
 IDs as labels.
 
+The provisioned **Application Overview** dashboard is under **Dashboards**. It shows API request rate,
+5xx ratio and p95 latency; worker queue backlog and outbox lag; database pool waits; and recent API/worker
+error logs. Use **Last 1 hour** for a quick operational overview. The standard kube-prometheus-stack
+dashboards remain available for node and Kubernetes resource health.
+
 ## Rollback and PVC recovery
 
 Roll back each release independently to its previous Helm revision; use `helm history -n monitoring
 <release>` to select the revision. Remove or restore the ServiceMonitor manifests separately with
-`kubectl apply -f deploy/k3s/monitoring/targets/` or `kubectl delete -f ...`.
+`kubectl apply -f deploy/k3s/monitoring/targets/` or `kubectl delete -f ...`. Remove the provisioned
+dashboard with `kubectl delete -f deploy/k3s/monitoring/dashboards/app-overview.yaml` if needed.
 
 ```sh
 helm history monitoring -n monitoring

@@ -1,0 +1,131 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-app-overview
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  app-overview.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "description": "API health, worker backlog, database pressure and recent application logs.",
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "unit": "reqps", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } }, "overrides": [] },
+          "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+          "id": 1,
+          "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+          "targets": [{ "editorMode": "code", "expr": "sum(rate(http_request_duration_seconds_count{job=\"api\"}[5m]))", "instant": true, "legendFormat": "requests/s", "refId": "A" }],
+          "title": "API requests / second",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "unit": "percent", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 5 }] } }, "overrides": [] },
+          "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+          "id": 2,
+          "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+          "targets": [{ "editorMode": "code", "expr": "100 * sum(rate(http_request_duration_seconds_count{job=\"api\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_request_duration_seconds_count{job=\"api\"}[5m])), 1e-9)", "instant": true, "legendFormat": "5xx %", "refId": "A" }],
+          "title": "API requests returning 5xx",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "s", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 12, "showPoints": "never", "spanNulls": false } }, "overrides": [] },
+          "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+          "id": 3,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": false }, "tooltip": { "mode": "single", "sort": "none" } },
+          "targets": [{ "editorMode": "code", "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"api\"}[5m])))", "legendFormat": "p95", "refId": "A" }],
+          "title": "API p95 response time",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "unit": "short", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } }, "overrides": [] },
+          "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+          "id": 4,
+          "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+          "targets": [{ "editorMode": "code", "expr": "sum(http_requests_in_flight{job=\"api\"})", "instant": true, "legendFormat": "in flight", "refId": "A" }],
+          "title": "Requests in flight",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 12, "showPoints": "never" } }, "overrides": [] },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+          "id": 5,
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [{ "editorMode": "code", "expr": "max by (queue) (queue_jobs{job=\"worker\",state=\"waiting\"})", "legendFormat": "{{queue}} waiting", "refId": "A" }],
+          "title": "Worker queue backlog",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "s", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 12, "showPoints": "never" } }, "overrides": [] },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+          "id": 6,
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [{ "editorMode": "code", "expr": "max(outbox_lag_seconds{job=\"worker\"})", "legendFormat": "oldest due message", "refId": "A" }],
+          "title": "Outbox delivery lag",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 12, "showPoints": "never" } }, "overrides": [] },
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 13 },
+          "id": 7,
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [{ "editorMode": "code", "expr": "max by (queue,state) (queue_jobs{job=\"worker\",state=~\"active|failed\"})", "legendFormat": "{{queue}} {{state}}", "refId": "A" }],
+          "title": "Worker active and failed jobs",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "unit": "short", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }] } }, "overrides": [] },
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 13 },
+          "id": 8,
+          "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+          "targets": [{ "editorMode": "code", "expr": "max by (job) (db_pool_connections{state=\"waiting\"})", "instant": true, "legendFormat": "{{job}}", "refId": "A" }],
+          "title": "Database pool connections waiting",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 20 },
+          "id": 9,
+          "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+          "targets": [{ "datasource": { "type": "loki", "uid": "loki" }, "editorMode": "code", "expr": "{namespace=\"nestjs-monorepo\",container=~\"api|worker\"} |~ \"(?i)(error|exception|failed)\"", "queryType": "range", "refId": "A" }],
+          "title": "Recent API and worker errors",
+          "type": "logs"
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 39,
+      "tags": ["application", "kubernetes"],
+      "templating": { "list": [] },
+      "time": { "from": "now-1h", "to": "now" },
+      "timepicker": { "refresh_intervals": ["30s", "1m", "5m", "15m", "30m", "1h"] },
+      "timezone": "browser",
+      "title": "Application Overview",
+      "uid": "app-overview",
+      "version": 1
+    }
