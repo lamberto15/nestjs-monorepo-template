@@ -468,8 +468,9 @@ test('the lockfile runs everything that installs or builds the workspace', (t) =
   );
 });
 
-test('another workflow runs check: knip reads the workflows', (t) => {
-  expectJobs(t, ['.github/workflows/web.yml'], only(ALWAYS, CODE));
+test('other workflow-only edits run CI validation, not unrelated application checks', (t) => {
+  expectJobs(t, ['.github/workflows/web.yml'], only(ALWAYS, 'ci-validate'));
+  expectJobs(t, ['.github/workflows/migrations.yml'], only(ALWAYS, 'ci-validate'));
 });
 
 test('CI workflow-only PRs validate routing without any app, e2e or image jobs', (t) => {
@@ -495,7 +496,7 @@ test('CI config and API changes both run, without accidentally testing the web a
 test('CI-only main merges skip publishing and K3s; app changes keep full validation', (t) => {
   expectJobs(
     t,
-    ['.github/workflows/ci.yml', 'tools/ci/changes.test.mjs'],
+    ['.github/workflows/ci.yml', '.github/workflows/migrations.yml', 'tools/ci/changes.test.mjs'],
     only(ALWAYS, 'ci-validate'),
     { event: 'push' },
   );
