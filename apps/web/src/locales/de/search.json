@@ -10,5 +10,7 @@
   "empty": "Nichts gefunden für „{{q}}“.",
   "recent": "Letzte Suchen",
   "clearRecent": "Letzte Suchen löschen",
-  "hint": "Tippen zum Suchen; > zeigt Befehle."
+  "hint": "Tippen zum Suchen; > zeigt Befehle.",
+  "pages": "Seiten",
+  "actions": "Aktionen"
 }

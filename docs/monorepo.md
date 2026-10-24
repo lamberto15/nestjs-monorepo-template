@@ -76,6 +76,14 @@ holds its components. It talks to the API only through REST and socket.io,
 same-origin: in development through Vite's proxy, in production through
 Caddy.
 
+Every production web build also writes `apps/web/.bundle-analysis/bundle.json`
+outside `dist/`. It records each JavaScript chunk's raw/gzip/Brotli size and
+the rendered bytes of its modules, so it is measurement evidence rather than a
+deployed asset. The Web workflow shows the largest chunks/modules in its job
+summary and uploads the complete report for 14 days. The existing Size Limit
+budget remains the blocking aggregate guard; use the report before choosing a
+manual chunk boundary instead of raising Vite's warning limit blindly.
+
 ### Running it
 
 ```bash

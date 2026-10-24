@@ -121,6 +121,19 @@ describe('the debounce', () => {
   });
 });
 
+async function openCommands(can: Record<string, boolean>) {
+  signedInWith(can);
+  const rendered = await renderApp('/');
+  const user = userEvent.setup();
+  await user.keyboard('{Control>}k{/Control}');
+  await user.type(await screen.findByRole('combobox'), '>');
+  return {
+    ...rendered,
+    user,
+    dialog: within(await screen.findByRole('dialog')),
+  };
+}
+
 describe('the palette', () => {
   it('opens with Ctrl+K and closes with Escape', async () => {
     signedInWith({});
@@ -215,12 +228,9 @@ describe('the palette', () => {
   });
 
   it('lists the commands the user may see after ">" and goes there', async () => {
-    signedInWith({ 'Access.manageUsers': true });
-    const { router } = await renderApp('/');
-    const user = userEvent.setup();
-    await user.keyboard('{Control>}k{/Control}');
-    await user.type(await screen.findByRole('combobox'), '>');
-    const dialog = within(await screen.findByRole('dialog'));
+    const { router, user, dialog } = await openCommands({
+      'Access.manageUsers': true,
+    });
     expect(await dialog.findByText('Dashboard')).toBeInTheDocument();
     expect(dialog.getByText('Users')).toBeInTheDocument();
     // Gated: this user may not read the audit log or manage roles.
@@ -232,6 +242,24 @@ describe('the palette', () => {
     await vi.waitFor(() =>
       expect(router.state.location.pathname).toBe('/access/users'),
     );
+  });
+
+  it('includes feature-provided actions and keeps their permission gates', async () => {
+    const { router, user, dialog } = await openCommands({
+      'Note.create': true,
+    });
+    expect(await dialog.findByText('New note')).toBeInTheDocument();
+    expect(dialog.getByText('Actions')).toBeInTheDocument();
+    await user.type(screen.getByRole('combobox'), 'new');
+    await user.keyboard('{Enter}');
+    await vi.waitFor(() =>
+      expect(router.state.location.pathname).toBe('/notes/new'),
+    );
+  });
+
+  it('hides feature actions without their permission', async () => {
+    const { dialog } = await openCommands({});
+    expect(dialog.queryByText('New note')).toBeNull();
   });
 
   it('lists the audit log for someone who may read it', async () => {
