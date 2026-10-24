@@ -84,6 +84,8 @@ jobs:
           yq -e 'select(.kind == "Prometheus" and .metadata.name == "monitoring-kube-prometheus-prometheus") | .spec.retentionSize == "15GB"' "$RUNNER_TEMP/kps.yaml"
           yq -e 'select(.kind == "Prometheus" and .metadata.name == "monitoring-kube-prometheus-prometheus") | .spec.storage.volumeClaimTemplate.spec.storageClassName == "local-ssd"' "$RUNNER_TEMP/kps.yaml"
           yq -e 'select(.kind == "Service" and .metadata.name == "loki-gateway") | .spec.type == "ClusterIP"' "$RUNNER_TEMP/loki.yaml"
+          yq -e 'select(.kind == "Service" and .metadata.name == "loki-memberlist") | .spec.publishNotReadyAddresses == true' "$RUNNER_TEMP/loki.yaml"
+          test "$(yq 'select(.kind == "StatefulSet" and .metadata.name == "loki") | .spec.template.spec.containers | length' "$RUNNER_TEMP/loki.yaml")" = 1
           yq -e 'select(.kind == "Prometheus" and .metadata.name == "monitoring-kube-prometheus-prometheus") | .spec.serviceMonitorSelector.matchLabels.release == "monitoring"' "$RUNNER_TEMP/kps.yaml"
           yq -e 'select(.kind == "Prometheus" and .metadata.name == "monitoring-kube-prometheus-prometheus") | .spec.ruleSelector.matchLabels.release == "monitoring"' "$RUNNER_TEMP/kps.yaml"
           yq -e 'select(.kind == "Prometheus" and .metadata.name == "monitoring-kube-prometheus-prometheus") | (.spec.serviceMonitorNamespaceSelector | length) == 0' "$RUNNER_TEMP/kps.yaml"

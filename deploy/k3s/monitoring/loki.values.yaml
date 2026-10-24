@@ -1,6 +1,10 @@
 # Helm chart: grafana-community/loki 19.1.1 (Loki 3.7.9).
 # Release: loki in namespace monitoring. Gateway remains ClusterIP.
 deploymentMode: Monolithic
+memberlist:
+  service:
+    # Loki's single replica must be resolvable before it passes readiness.
+    publishNotReadyAddresses: true
 loki:
   image:
     tag: 3.7.9
@@ -59,6 +63,9 @@ lokiCanary:
     requests: { cpu: 25m, memory: 32Mi }
     limits: { cpu: 100m, memory: 128Mi }
 sidecar:
+  rules:
+    # This deployment does not use Loki ruler rules; avoid an unnecessary pod sidecar.
+    enabled: false
   resources:
     requests: { cpu: 25m, memory: 32Mi }
     limits: { cpu: 100m, memory: 128Mi }
