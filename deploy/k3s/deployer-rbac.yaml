@@ -23,6 +23,11 @@ rules:
   - apiGroups: [apps]
     resources: [deployments]
     verbs: [get, list, watch, create, update, patch, delete]
+  # Helm's legacy readiness waiter reads ReplicaSets while checking a
+  # Deployment rollout. It must not mutate the controller-owned ReplicaSets.
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get, list, watch]
   - apiGroups: [apps]
     resources: [statefulsets]
     verbs: [get, list, watch]
