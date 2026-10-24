@@ -26,6 +26,12 @@ name: Migrations
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
+    # Only migration-affecting PRs need the SQL lint or its label re-check.
+    paths:
+      - apps/api/drizzle/**
+      - apps/api/drizzle.config.ts
+      - tools/migration-lint/**
+      - .github/workflows/migrations.yml
 
 permissions:
   contents: read
