@@ -56,25 +56,25 @@ jobs:
       - name: helm lint
         run: helm lint deploy/helm/app --strict -f deploy/helm/ci/values.yaml
 
-      - name: lab01 profile renders with RWO storage and immutable images
+      - name: single-node profile renders with RWO storage and immutable images
         run: |
           digest="sha256:$(printf '%064d' 0)"
           helm lint deploy/helm/app --strict \
-            -f deploy/helm/app/values.lab01.yaml \
+            -f deploy/helm/app/values.single-node.yaml \
             --set image.digest="$digest" \
             --set web.image.digest="$digest" \
             --set gotenberg.image.digest="$digest"
           helm template app deploy/helm/app -n nestjs-monorepo \
-            -f deploy/helm/app/values.lab01.yaml \
+            -f deploy/helm/app/values.single-node.yaml \
             --set image.digest="$digest" \
             --set web.image.digest="$digest" \
-            --set gotenberg.image.digest="$digest" > "$RUNNER_TEMP/lab01.yaml"
-          grep -q 'storageClassName: "local-hdd"' "$RUNNER_TEMP/lab01.yaml"
-          grep -q 'ReadWriteOnce' "$RUNNER_TEMP/lab01.yaml"
-          test "$(grep -Fc "@$digest" "$RUNNER_TEMP/lab01.yaml")" -ge 5
-          api_keys=$(yq 'select(.kind == "Deployment" and .metadata.name == "app-api") | .spec.template.spec.volumes[] | select(.name == "secrets") | .secret.items[].key' "$RUNNER_TEMP/lab01.yaml")
-          worker_keys=$(yq 'select(.kind == "Deployment" and .metadata.name == "app-worker") | .spec.template.spec.volumes[] | select(.name == "secrets") | .secret.items[].key' "$RUNNER_TEMP/lab01.yaml")
-          migrate_keys=$(yq 'select(.kind == "Job" and .metadata.name == "app-migrate") | .spec.template.spec.volumes[] | select(.name == "secrets") | .secret.items[].key' "$RUNNER_TEMP/lab01.yaml")
+            --set gotenberg.image.digest="$digest" > "$RUNNER_TEMP/single-node.yaml"
+          grep -q 'storageClassName: "local-hdd"' "$RUNNER_TEMP/single-node.yaml"
+          grep -q 'ReadWriteOnce' "$RUNNER_TEMP/single-node.yaml"
+          test "$(grep -Fc "@$digest" "$RUNNER_TEMP/single-node.yaml")" -ge 5
+          api_keys=$(yq 'select(.kind == "Deployment" and .metadata.name == "app-api") | .spec.template.spec.volumes[] | select(.name == "secrets") | .secret.items[].key' "$RUNNER_TEMP/single-node.yaml")
+          worker_keys=$(yq 'select(.kind == "Deployment" and .metadata.name == "app-worker") | .spec.template.spec.volumes[] | select(.name == "secrets") | .secret.items[].key' "$RUNNER_TEMP/single-node.yaml")
+          migrate_keys=$(yq 'select(.kind == "Job" and .metadata.name == "app-migrate") | .spec.template.spec.volumes[] | select(.name == "secrets") | .secret.items[].key' "$RUNNER_TEMP/single-node.yaml")
           if grep -q '^database_owner_url$' <<< "$api_keys"; then exit 1; fi
           if grep -q '^database_owner_url$' <<< "$worker_keys"; then exit 1; fi
           grep -q '^database_owner_url$' <<< "$migrate_keys"
@@ -143,7 +143,7 @@ jobs:
       - name: kind cluster
         run: kind create cluster --wait 120s
 
-      - name: Validate lab01 infrastructure manifests against Kubernetes
+      - name: Validate K3s infrastructure manifests against Kubernetes
         run: |
           kubectl create namespace nestjs-monorepo
           kubectl create namespace cloudflare-tunnel

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create the lab01 R2 backup Secret without exposing keys in shell history."""
+"""Create the optional R2 backup Secret without exposing keys in shell history."""
 
 import getpass
 import json

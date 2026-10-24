@@ -367,7 +367,7 @@ matters.)
   lets them through.
 - **Early stage:** until the first project is built on the template, breaking
   changes are accepted ([roadmap](roadmap.md), "Early stage"): one release
-  may drop or rename, app10's data is reset at the breaking migrations, and
+  may drop or rename, disposable demo data is reset at the breaking migrations, and
   the pull request lists the break. The lint still reports it.
 - **`ConditionalModule.registerWhen` needs a long `timeout`:** its timer starts
   when the module file is imported, not when `ConfigModule.forRoot` runs, so the

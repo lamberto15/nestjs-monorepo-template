@@ -4,11 +4,11 @@ import type { Transaction } from '../core/database/drizzle.js';
 /**
  * The demo seed runs only where both halves of a positive check say it
  * may: NODE_ENV says development (or test), and the database itself is
- * marked as a development database. app10 runs the same image as a
- * development machine, so NODE_ENV alone proves nothing; the marker is a
- * database-wide setting only a superuser can write (the app role, an
- * administrator or a SQL injection can't), which the development services
- * set when they create their database (dev/postgres/10-dev-database.sql).
+ * marked as a development database. Development and production may run the
+ * same image, so NODE_ENV alone proves nothing; the marker is a database-wide
+ * setting only a superuser can write (the app role, an administrator or a SQL
+ * injection can't), which development services set when they create their
+ * database (dev/postgres/10-dev-database.sql).
  * Nothing is refused for looking like production: anything not shown to
  * be development is refused.
  */

@@ -1,6 +1,6 @@
-# Single-node lab01 profile. Keep credentials in the existing Kubernetes Secret.
+# Single-node profile. Keep credentials in the existing Kubernetes Secret.
 # The deploy job supplies the three CI image digests.
-domain: nestjs-monorepo.lamby.dev
+domain: example.com
 redisUrl: redis://redis:6379/0
 image:
   repository: ghcr.io/lamberto15/nestjs-monorepo-template
@@ -15,14 +15,14 @@ gotenberg:
     repository: ghcr.io/lamberto15/nestjs-monorepo-template/gotenberg
 
 env:
-  WEB_URL: https://nestjs-monorepo.lamby.dev
-  CORS_ORIGINS: https://nestjs-monorepo.lamby.dev
+  WEB_URL: https://example.com
+  CORS_ORIGINS: https://example.com
   STORAGE_DRIVER: local
   OPENAPI: 'off'
   AUTH_SIGN_UP: 'off'
   TENANT_SIGN_UP: 'off'
   MAIL_TRANSPORT: resend
-  MAIL_FROM: no-reply@lamby.dev
+  MAIL_FROM: no-reply@example.com
 
 secret:
   existingSecret: app-secrets
@@ -57,6 +57,6 @@ ingress:
   annotations:
     cert-manager.io/cluster-issuer: cloudflare-dns01
 
-# A PrometheusRule requires the operator CRD, which is not installed on lab01.
+# A PrometheusRule requires the Prometheus Operator CRD.
 prometheusRule:
   enabled: false

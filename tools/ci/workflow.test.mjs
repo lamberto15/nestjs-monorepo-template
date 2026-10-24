@@ -109,3 +109,32 @@ test('a hidden path without include-hidden-files, and a glob, are reported', () 
     "coverage-api-1: apps/*/.vitest/blob/ nests the blobs, upload one app's directory",
   ]);
 });
+
+test('the K3s release rolls back and waits with Helm legacy status checks', () => {
+  const text = readFileSync(WORKFLOW, 'utf8');
+  const all = steps(text);
+  const upgrade = all.find(
+    (s) => s[0].trim() === '- name: Upgrade to the CI-verified release',
+  );
+  assert.ok(upgrade, 'the deploy job has a named Helm upgrade step');
+  assert.match(
+    upgrade.join('\n'),
+    /--rollback-on-failure --wait=legacy --wait-for-jobs --timeout 12m/,
+  );
+
+  const rollouts = [
+    ['API', 'deployment/app-api'],
+    ['web', 'deployment/app-web'],
+    ['worker', 'deployment/app-worker'],
+    ['Gotenberg', 'deployment/app-gotenberg'],
+  ];
+  for (const [name, deployment] of rollouts) {
+    const step = all.find(
+      (s) => s[0].trim() === `- name: Verify ${name} rollout`,
+    );
+    assert.ok(step, `the deploy job has a separate ${name} rollout step`);
+    assert.ok(
+      step.join('\n').includes(`rollout status ${deployment} --timeout=3m`),
+    );
+  }
+});
