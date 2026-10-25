@@ -21,7 +21,8 @@
     "mine": "Your exports and imports",
     "done_one": "{{count}} row exported.",
     "done_other": "{{count}} rows exported.",
-    "download": "Download ({{format}})"
+    "download": "Download ({{format}})",
+    "openInAnalytics": "Open in Data Explorer"
   },
   "mine": {
     "title": "Exports and imports",
@@ -91,7 +92,11 @@
     "message": "Reason",
     "moreErrors_one": "And {{count}} more in the report.",
     "moreErrors_other": "And {{count}} more in the report.",
-    "downloadErrors": "Download the refused rows (CSV)"
+    "downloadErrors": "Download the refused rows (CSV)",
+    "rowLimit": "This import can contain up to {{count}} rows.",
+    "profile": "File columns match {{matched}} of {{expected}} import columns. Missing: {{missing}}. This preview is informational.",
+    "noneMissing": "none",
+    "profileLocally": "Analyze this file locally"
   },
   "status": {
     "queued": "Waiting for a worker…",

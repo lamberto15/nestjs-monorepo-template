@@ -12,6 +12,8 @@ export type NavItem = {
   icon: LucideIcon;
   /** Shown only when this switch is on (`GET /v1/features`). */
   feature?: FeatureName;
+  /** A tenant/principal settings flag, read from GET /v1/settings. */
+  settingFlag?: string;
   /**
    * Shown only with this permission, `Subject.action` (`me.can`), or with
    * any of a list.
@@ -74,6 +76,7 @@ export function visibleGroups(
   can: Record<string, boolean> | undefined,
   operator = false,
   operatorTenant = false,
+  settingFlags?: Record<string, boolean>,
 ): NavGroup[] {
   return groups
     .map((group) => ({
@@ -81,7 +84,8 @@ export function visibleGroups(
       items: visible(group.items, features, can).filter(
         (item) =>
           (!item.operator || operator) &&
-          (!item.operatorTenant || operatorTenant),
+          (!item.operatorTenant || operatorTenant) &&
+          (!item.settingFlag || settingFlags?.[item.settingFlag] === true),
       ),
     }))
     .filter((group) => group.items.length > 0);

@@ -36,6 +36,7 @@ const technical = [
     ['Authentication', '/auth'],
     ['Permissions', '/permissions'],
     ['Tenancy', '/tenancy'],
+    ['Analytics feasibility', '/analytics'],
     ['Encryption', '/encryption'],
     ['Retention', '/retention'],
     ['Money', '/money'],

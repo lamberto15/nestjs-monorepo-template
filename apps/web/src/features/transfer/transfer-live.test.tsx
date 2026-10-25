@@ -30,6 +30,7 @@ vi.mock('@nestjs-monorepo-template/api-client', async (importOriginal) => ({
 
 beforeEach(() => {
   connections.length = 0;
+  vi.unstubAllGlobals();
 });
 
 /** Longer than the 1 s fast poll: it would have run by now. */
@@ -106,12 +107,16 @@ describe('an export or import on screen', () => {
 
     state.a = exported('a');
     act(() => fake.emit('data.export-ready', exportReady('a')));
-    expect(await screen.findByRole('link', download)).toHaveAttribute(
-      'href',
-      'https://files.test/a.csv',
-    );
     // The first load and the event's refetch: no poll in between.
-    expect(calls.get).toBe(2);
+    await waitFor(() => expect(calls.get).toBe(2));
+    const tab = { location: { href: '' }, close: vi.fn() };
+    vi.stubGlobal(
+      'open',
+      vi.fn(() => tab),
+    );
+    await userEvent.setup().click(await screen.findByRole('button', download));
+    await waitFor(() => expect(calls.get).toBe(3));
+    expect(tab.location.href).toBe('https://files.test/a.csv');
   });
 
   it('finishes on data.import-finished', async () => {
@@ -198,7 +203,7 @@ describe('an export or import on screen', () => {
     await mountStatus(['a', 'b']);
     const fake = await socket();
     connect(fake);
-    await screen.findByRole('link', download);
+    await screen.findByRole('button', download);
     await screen.findByText(/Working… 40 rows/);
     act(() => {
       for (const id of ['a', 'other']) {
@@ -212,7 +217,7 @@ describe('an export or import on screen', () => {
     });
     await pollsWouldHaveRun();
     expect(screen.queryByText(/Working… 99 rows/)).toBeNull();
-    expect(screen.getByRole('link', download)).toBeVisible();
+    expect(screen.getByRole('button', download)).toBeVisible();
     expect(screen.getByText(/Working… 40 rows/)).toBeVisible();
   });
 
@@ -262,7 +267,7 @@ describe('an export or import on screen', () => {
     await mountStatus(['a', 'b']);
     const fake = await socket();
     connect(fake);
-    await screen.findByRole('link', download);
+    await screen.findByRole('button', download);
     await screen.findByText(/Working… 40 rows/);
     expect(counts).toEqual({ a: 1, b: 1 });
 
@@ -282,7 +287,7 @@ describe('an export or import on screen', () => {
 
     act(() => fake.emit('disconnect'));
     state.a = exported('a');
-    expect(await screen.findByRole('link', download, slow)).toBeVisible();
+    expect(await screen.findByRole('button', download, slow)).toBeVisible();
     const done = calls.get;
     await pollsWouldHaveRun();
     expect(calls.get).toBe(done);
@@ -295,7 +300,7 @@ describe('an export or import on screen', () => {
     await screen.findByText(/Working… 40 rows/);
     // Never connected: the poll is the only way to learn.
     state.a = exported('a');
-    expect(await screen.findByRole('link', download, slow)).toBeVisible();
+    expect(await screen.findByRole('button', download, slow)).toBeVisible();
   });
 
   it('ignores the events of other transfers', async () => {
@@ -313,7 +318,7 @@ describe('an export or import on screen', () => {
     act(() => fake.emit('data.export-ready', exportReady('b')));
     // Only b is asked for again; a stays as it was.
     expect(
-      await within(screen.getByTestId('b')).findByRole('link', download),
+      await within(screen.getByTestId('b')).findByRole('button', download),
     ).toBeVisible();
     expect(calls.get).toBe(before + 1);
     expect(
@@ -335,7 +340,7 @@ describe('an export or import on screen', () => {
     act(() => fake.emit('data.export-ready', exportReady('a')));
     await waitFor(() => expect(calls.get).toBe(before + 1));
     state.a = exported('a');
-    expect(await screen.findByRole('link', download, slow)).toBeVisible();
+    expect(await screen.findByRole('button', download, slow)).toBeVisible();
   });
 
   it('refetches after a reconnect (events sent while offline are lost)', async () => {
@@ -350,7 +355,7 @@ describe('an export or import on screen', () => {
     state.a = exported('a');
     // The second 'connect': the provider refetches what was missed.
     connect(fake);
-    expect(await screen.findByRole('link', download)).toBeVisible();
+    expect(await screen.findByRole('button', download)).toBeVisible();
   });
 });
 

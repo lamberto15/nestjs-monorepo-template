@@ -36,11 +36,13 @@ import {
   TableRow,
 } from '@nestjs-monorepo-template/ui/components/table';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { DownloadIcon, UploadIcon, XIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { useFlag } from '@/features/settings/use-flag';
+import { stageAnalyticsFile } from '@/features/analytics/handoff';
 import { formatSize } from '@/components/records/panels/attachments-panel';
 import {
   catalogQuery,
@@ -50,9 +52,6 @@ import {
 } from './api';
 import { TransferStatus } from './transfer-status';
 
-/** The API's limit (docs/data-transfer.md); it holds the upload to it anyway (413). */
-export const IMPORT_MAX_BYTES = 50 * 1024 * 1024;
-
 /**
  * Import into a subject: the columns it takes (and a template to fill), the
  * file, optionally a check without writing (`dryRun`), then the job's
@@ -61,9 +60,12 @@ export const IMPORT_MAX_BYTES = 50 * 1024 * 1024;
  */
 export function ImportPage(props: { name?: string }) {
   const { t, i18n } = useTranslation('transfer');
+  const navigate = useNavigate();
+  const analytics = useFlag('analytics.browser.enabled');
   const catalog = useQuery({ ...catalogQuery, meta: { errorToast: false } });
   const [chosen, setChosen] = useState(props.name);
   const [files, setFiles] = useState<File[]>([]);
+  const [fileHeaders, setFileHeaders] = useState<string[]>([]);
   const [dryRun, setDryRun] = useState(true);
   const [matchOn, setMatchOn] = useState('');
   const [percent, setPercent] = useState<number>();
@@ -92,6 +94,10 @@ export function ImportPage(props: { name?: string }) {
     );
   }
   const imports = catalog.data.imports;
+  // The server's catalog is authoritative: operators and tenant admins can
+  // change both limits without rebuilding the web app.
+  const importLimits = catalog.data.importLimits;
+  const { maxBytes, maxRows } = importLimits;
   const importer = imports.find((i) => i.name === (chosen ?? imports[0]?.name));
   const matchKeys = importer?.matchKeys ?? [];
   const file = files[0];
@@ -216,11 +222,13 @@ export function ImportPage(props: { name?: string }) {
             onValueChange={(next) => {
               const selected = next.slice(-1);
               setFiles(selected);
+              setFileHeaders([]);
               setMatchOn('');
               setJobId(undefined);
               const chosenFile = selected[0];
-              if (chosenFile && matchKeys.length) {
+              if (chosenFile) {
                 void matchableHeaders(chosenFile).then((headers) => {
+                  setFileHeaders(headers);
                   const matches = matchKeys.filter((key) =>
                     headers.includes(key),
                   );
@@ -229,7 +237,7 @@ export function ImportPage(props: { name?: string }) {
               }
             }}
             maxFiles={1}
-            maxSize={IMPORT_MAX_BYTES}
+            maxSize={maxBytes}
             accept=".csv,.json,.xlsx"
             onFileReject={(rejected, message) =>
               toast.error(
@@ -238,7 +246,7 @@ export function ImportPage(props: { name?: string }) {
                   reason:
                     message === 'File too large'
                       ? t('import.tooLarge', {
-                          max: formatSize(IMPORT_MAX_BYTES, i18n.language),
+                          max: formatSize(maxBytes, i18n.language),
                         })
                       : message,
                 }),
@@ -251,7 +259,7 @@ export function ImportPage(props: { name?: string }) {
                 <p className="text-sm font-medium">{t('import.drop')}</p>
                 <p className="text-xs text-muted-foreground">
                   {t('import.limit', {
-                    max: formatSize(IMPORT_MAX_BYTES, i18n.language),
+                    max: formatSize(maxBytes, i18n.language),
                   })}
                 </p>
               </div>
@@ -282,6 +290,26 @@ export function ImportPage(props: { name?: string }) {
               ))}
             </FileUploadList>
           </FileUpload>
+          {file && fileHeaders.length > 0 && (
+            <p role="status" className="-mt-3 text-xs text-muted-foreground">
+              {t('import.profile', {
+                matched: importer.columns.filter((column) =>
+                  fileHeaders.includes(column.name),
+                ).length,
+                expected: importer.columns.length,
+                missing:
+                  importer.columns
+                    .filter((column) => !fileHeaders.includes(column.name))
+                    .map((column) => column.name)
+                    .join(', ') || t('import.noneMissing'),
+              })}
+            </p>
+          )}
+          {maxRows !== undefined && (
+            <p className="-mt-3 text-xs text-muted-foreground">
+              {t('import.rowLimit', { count: maxRows })}
+            </p>
+          )}
 
           <div className="flex items-center gap-2">
             <Switch
@@ -293,6 +321,22 @@ export function ImportPage(props: { name?: string }) {
               {t('import.dryRun')}
             </label>
           </div>
+          {analytics.enabled && file && /\.(csv|json)$/i.test(file.name) && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                stageAnalyticsFile({
+                  file,
+                  expectedColumns: importer.columns.map(
+                    (column) => column.name,
+                  ),
+                });
+                void navigate({ to: '/analytics' });
+              }}
+            >
+              {t('import.profileLocally')}
+            </Button>
+          )}
           <p className="-mt-2 text-xs text-muted-foreground">
             {dryRun ? t('import.dryRunHint') : t('import.writeHint')}
           </p>
@@ -329,7 +373,12 @@ export function ImportPage(props: { name?: string }) {
 }
 
 async function matchableHeaders(file: File): Promise<string[]> {
-  const text = await file.text().catch(() => '');
+  // This optional matched-import hint needs only the first JSON object/header;
+  // keep it bounded so a large upload is never copied wholesale to JS memory.
+  const text = await file
+    .slice(0, 1024 * 1024)
+    .text()
+    .catch(() => '');
   if (file.name.toLowerCase().endsWith('.json')) {
     try {
       const value: unknown = JSON.parse(text);

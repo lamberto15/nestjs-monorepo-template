@@ -110,7 +110,7 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
   `write()` row by row. A group-level 4xx rolls the group back and the
   processor retries each row alone, so one bad row does not refuse its
   neighbors. `dryRun=true` runs the schema and permission checks, writing
-  nothing. Files up to 50 MB, recognized by their content.
+  nothing. File size and data-row limits are configurable in Settings (defaults 50 MiB and 1,000,000 rows); see [Import limits](import-limits.md). Files are recognized by their content.
 - **Matched imports**: an importer may declare `matchKeys` (columns unique
   within the tenant). The caller may send `matchOn` with one of those exact
   keys; the key must be present in the file. Without it, imports insert as
@@ -157,6 +157,6 @@ processed }` (an import also `imported`, `failed`; an export's at most once
   (`custom.<key>`).
 - Imports aren't retried automatically: a retry could write rows twice.
   Make `write()` idempotent (an upsert on a natural key) to allow it.
-- Excel through exceljs (4.4, last released Dec 2024): exports stream;
-  imports read the workbook whole (exceljs' streaming reader fails on some
-  valid files). The libraries are used only in `formats.ts`.
+- CSV and JSON imports stream; Excel imports use disk-backed ZIP/XML parsing
+  and a SQLite shared-string index. A complete validation/count pass precedes
+  writes. Exports continue through the existing streaming writers.

@@ -44,6 +44,8 @@ import {
   type TemplateGuide,
 } from './formats.js';
 import { columnsOf } from './import-columns.js';
+import { importLimits } from './import-limits.js';
+import { SettingsService } from '../settings/settings.service.js';
 
 /** A column's example as the guide's cell shows it. */
 const shown = (example: unknown) =>
@@ -165,10 +167,12 @@ export class DataTransferService {
     private readonly i18n: I18nService,
     private readonly tenancy: Tenancy,
     private readonly jobs: JobIndex,
+    private readonly settings: SettingsService,
   ) {}
 
   /** What the caller may export and import. */
   async catalog(principal: Principal) {
+    const limits = await importLimits(this.settings, this.config, principal);
     const exports = [];
     for (const exporter of this.registry.allExporters()) {
       if (!exporter.internal && (await this.mayExport(principal, exporter))) {
@@ -206,7 +210,7 @@ export class DataTransferService {
         });
       }
     }
-    return { exports, imports };
+    return { importLimits: limits, exports, imports };
   }
 
   async startExport(
@@ -284,6 +288,7 @@ export class DataTransferService {
       format: TransferFormat;
       dryRun: boolean;
       matchOn?: string;
+      limits?: { maxBytes: number; maxRows: number };
     },
   ) {
     const importer = this.registry.importer(input.name);
@@ -322,6 +327,7 @@ export class DataTransferService {
       kind: 'import',
       tenantId: transferTenant(principal),
       ...input,
+      limits: input.limits,
       principal,
     });
   }
@@ -672,6 +678,9 @@ const PUBLIC_REASONS = [
   /^Unknown columns: .*\. Check the template\.$/,
   /^A JSON import is an array of objects\.$/,
   /^The spreadsheet is too large/,
+  /^The file has more than the \d+ row limit\.$/,
+  /^The file (?:has \d+ rows; the limit is \d+|is larger than the \d+ byte limit)\./,
+  /^The file has more than the \d+ row limit\./,
   /^Unexpected token|^Invalid|is not valid JSON/,
 ];
 const publicReason = (reason: string | undefined) =>

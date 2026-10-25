@@ -25,7 +25,8 @@
     "done_zero": "عدد الصفوف المصدّرة: {{count}}.",
     "done_two": "عدد الصفوف المصدّرة: {{count}}.",
     "done_few": "عدد الصفوف المصدّرة: {{count}}.",
-    "done_many": "عدد الصفوف المصدّرة: {{count}}."
+    "done_many": "عدد الصفوف المصدّرة: {{count}}.",
+    "openInAnalytics": "افتح في مستكشف البيانات"
   },
   "mine": {
     "title": "التصدير والاستيراد",
@@ -99,7 +100,11 @@
     "moreErrors_zero": "و{{count}} أخرى في التقرير.",
     "moreErrors_two": "و{{count}} أخرى في التقرير.",
     "moreErrors_few": "و{{count}} أخرى في التقرير.",
-    "moreErrors_many": "و{{count}} أخرى في التقرير."
+    "moreErrors_many": "و{{count}} أخرى في التقرير.",
+    "rowLimit": "يمكن أن يحتوي هذا الاستيراد على {{count}} صفًا كحد أقصى.",
+    "profile": "تتطابق أعمدة الملف مع {{matched}} من أصل {{expected}} من أعمدة الاستيراد. المفقود: {{missing}}. هذه المعاينة للمعلومات فقط.",
+    "noneMissing": "لا شيء",
+    "profileLocally": "حلّل هذا الملف محليًا"
   },
   "status": {
     "queued": "في انتظار عامل…",

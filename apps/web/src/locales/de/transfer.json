@@ -21,7 +21,8 @@
     "mine": "Ihre Exporte und Importe",
     "done_one": "{{count}} Zeile exportiert.",
     "done_other": "{{count}} Zeilen exportiert.",
-    "download": "Herunterladen ({{format}})"
+    "download": "Herunterladen ({{format}})",
+    "openInAnalytics": "Im Daten-Explorer öffnen"
   },
   "mine": {
     "title": "Exporte und Importe",
@@ -91,7 +92,11 @@
     "message": "Grund",
     "moreErrors_one": "Und {{count}} weitere im Bericht.",
     "moreErrors_other": "Und {{count}} weitere im Bericht.",
-    "downloadErrors": "Abgelehnte Zeilen herunterladen (CSV)"
+    "downloadErrors": "Abgelehnte Zeilen herunterladen (CSV)",
+    "rowLimit": "Dieser Import kann bis zu {{count}} Zeilen enthalten.",
+    "profile": "Dateispalten stimmen mit {{matched}} von {{expected}} Importspalten überein. Fehlend: {{missing}}. Diese Vorschau dient nur zur Information.",
+    "noneMissing": "keine",
+    "profileLocally": "Diese Datei lokal analysieren"
   },
   "status": {
     "queued": "Wartet auf einen Worker…",

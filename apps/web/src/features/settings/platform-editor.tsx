@@ -24,6 +24,7 @@ import { ConfirmButton } from '@/components/confirm-button';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { RulesEditor } from './rules-editor';
 import { api } from '@/lib/api';
+import { catalogQuery } from '@/features/transfer/api';
 import { errorMessage } from '@/lib/errors';
 import { FormAlert } from '@/lib/form';
 import {
@@ -70,7 +71,10 @@ export function PlatformEditor({ setting }: { setting: Setting }) {
   const rolling = setting.flag && mode === 'rollout';
   const hint = boundsHint(setting, t);
   const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: settingsQuery.queryKey });
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: settingsQuery.queryKey }),
+      queryClient.invalidateQueries({ queryKey: catalogQuery.queryKey }),
+    ]);
   const save = useMutation({
     mutationFn: (body: {
       value?: unknown;
@@ -320,7 +324,9 @@ export function PlatformEditor({ setting }: { setting: Setting }) {
           if (!open) setPendingMode(null);
         }}
         title={modeT(`confirm.${pendingMode?.value ?? 'maintenance'}.title`)}
-        description={modeT(`confirm.${pendingMode?.value ?? 'maintenance'}.description`)}
+        description={modeT(
+          `confirm.${pendingMode?.value ?? 'maintenance'}.description`,
+        )}
         confirm={modeT('confirm.apply')}
         onConfirm={async () => {
           if (!pendingMode) return;

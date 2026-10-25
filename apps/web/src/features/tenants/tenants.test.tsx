@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { visibleGroups, nav } from '@/nav';
 import { renderApp } from '@/test/render-app';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
@@ -616,17 +616,25 @@ async function confirmReauth(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('exporting a tenant', () => {
-  it('starts the export with a key, follows the transfer and offers the link', async () => {
+  it('starts the export with a key, follows the transfer and opens a fresh download', async () => {
     const state = api();
     await renderApp(`/tenants/${GLOBEX}`);
     const user = userEvent.setup();
     await user.click(
       await screen.findByRole('button', { name: 'Export tenant data' }),
     );
-    const download = await screen.findByRole('link', {
+    const download = await screen.findByRole('button', {
       name: 'Download (json)',
     });
-    expect(download).toHaveAttribute('href', 'https://files.test/tenant.json');
+    const tab = { location: { href: '' }, close: vi.fn() };
+    vi.stubGlobal(
+      'open',
+      vi.fn(() => tab),
+    );
+    await user.click(download);
+    await waitFor(() =>
+      expect(tab.location.href).toBe('https://files.test/tenant.json'),
+    );
     expect(screen.getByText('12 rows exported.')).toBeVisible();
     expect(state.exports).toHaveLength(1);
     expect(state.exports[0]).toMatchObject({
@@ -647,7 +655,7 @@ describe('exporting a tenant', () => {
     await user.click(
       screen.getByRole('button', { name: 'Export tenant data' }),
     );
-    await screen.findByRole('link', { name: /Download/ });
+    await screen.findByRole('button', { name: /Download/ });
     expect(state.exports.map((call) => call.body)).toEqual([
       { format: 'xlsx' },
     ]);
@@ -663,7 +671,7 @@ describe('exporting a tenant', () => {
       await screen.findByRole('button', { name: 'Export tenant data' }),
     );
     await confirmReauth(user);
-    await screen.findByRole('link', { name: 'Download (json)' });
+    await screen.findByRole('button', { name: 'Download (json)' });
     expect(state.exports).toHaveLength(1);
   });
 });

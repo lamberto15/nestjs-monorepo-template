@@ -8293,6 +8293,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        importLimits: {
+                            maxBytes: number;
+                            maxRows: number;
+                        };
                         /** @description The data you may export: POST /v1/data/exports { name }. */
                         exports: {
                             /** @example notes */
