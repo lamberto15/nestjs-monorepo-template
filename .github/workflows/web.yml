@@ -13,6 +13,7 @@ on:
     tags: ['v*']
     paths:
       - 'apps/web/**'
+      - 'apps/web-e2e/scripts/analytics-smoke.mjs'
       - 'packages/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -21,6 +22,7 @@ on:
   pull_request:
     paths:
       - 'apps/web/**'
+      - 'apps/web-e2e/scripts/analytics-smoke.mjs'
       - 'packages/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -39,6 +41,36 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  analytics-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - name: Build the shared API client
+        run: pnpm --filter @nestjs-monorepo-template/api-client build
+      - name: Install the browser
+        run: pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright install --with-deps ${{ matrix.browser }}
+      - name: Local file analytics without external requests
+        env:
+          ANALYTICS_BROWSER: ${{ matrix.browser }}
+        run: |
+          pnpm --filter @nestjs-monorepo-template/web exec vite --host 127.0.0.1 --port 5178 > "$RUNNER_TEMP/analytics-vite.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" || true' EXIT
+          pnpm --filter @nestjs-monorepo-template/web-e2e exec node scripts/analytics-smoke.mjs
+      - name: Vite diagnostics
+        if: failure()
+        run: cat "$RUNNER_TEMP/analytics-vite.log"
+
   bundle-size:
     runs-on: ubuntu-24.04
     timeout-minutes: 15

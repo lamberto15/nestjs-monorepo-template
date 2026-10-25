@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { chromium } from '@playwright/test';
+import { chromium, firefox, webkit } from '@playwright/test';
 
 const repoRoot = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 const webRequire = createRequire(resolve(repoRoot, 'apps/web/package.json'));
@@ -22,6 +22,9 @@ const parquetBytes = parquetWasm.writeParquet(
 );
 const harnessPath = resolve(repoRoot, 'apps/web/analytics-smoke.html');
 const baseUrl = process.env.ANALYTICS_SMOKE_URL ?? 'http://127.0.0.1:5178';
+const browserName = process.env.ANALYTICS_BROWSER ?? 'chromium';
+const browserType = { chromium, firefox, webkit }[browserName];
+if (!browserType) throw new Error(`Unsupported browser: ${browserName}`);
 const html = `<!doctype html><script type="module">
 import {loadLocalFile,queryDataset,disposeDataset,terminateAnalyticsEngine} from '/src/features/analytics/engine.ts';
 window.runAnalyticsSmoke = async () => {
@@ -44,12 +47,25 @@ window.runAnalyticsSmoke = async () => {
 if (existsSync(harnessPath))
   throw new Error(`Refusing to overwrite ${harnessPath}`);
 writeFileSync(harnessPath, html);
-const browser = await chromium.launch({
-  headless: true,
-  executablePath: process.env.CHROMIUM_PATH,
-  args: ['--no-sandbox'],
-});
+let browser;
 try {
+  const deadline = Date.now() + 60_000;
+  while (true) {
+    try {
+      const response = await fetch(baseUrl);
+      if (response.ok) break;
+    } catch {
+      // CI starts Vite just before this script; wait for its listener.
+    }
+    if (Date.now() >= deadline) throw new Error(`Server not ready: ${baseUrl}`);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  browser = await browserType.launch({
+    headless: true,
+    ...(browserName === 'chromium'
+      ? { executablePath: process.env.CHROMIUM_PATH, args: ['--no-sandbox'] }
+      : {}),
+  });
   const page = await browser.newPage();
   const outsideRequests = [];
   page.on('request', (request) => {
@@ -97,6 +113,7 @@ try {
     JSON.stringify(
       {
         engineVersion: result.csv.engineVersion,
+        browser: browserName,
         csvRows: result.csv.rowCount,
         sortedSample: result.sorted.rows,
         jsonSample: result.jsonRows.rows,
@@ -109,6 +126,6 @@ try {
     ),
   );
 } finally {
-  await browser.close();
+  await browser?.close();
   unlinkSync(harnessPath);
 }
