@@ -56,6 +56,7 @@ function maxRssMiB() {
 
 if (worker) {
   let directory;
+  let ownsInput = false;
   try {
     const modeEntry = [...WORKER_MODES.entries()].find(
       ([knownMode]) => knownMode === process.argv[3],
@@ -63,13 +64,13 @@ if (worker) {
     if (process.argv.length !== 4 || !modeEntry) throw benchmarkError();
     const [mode, format] = modeEntry;
     if (!fstatSync(3).isFile()) throw benchmarkError();
+    ownsInput = true;
     directory = await mkdtemp(join(tmpdir(), 'duckdb-feasibility-worker-'));
     const file = join(directory, `source.${format}`);
     await pipeline(
       createReadStream(null, { fd: 3, autoClose: false }),
       createWriteStream(file, { flags: 'wx', mode: 0o600 }),
     );
-    closeSync(3);
     const inputBytes = (await stat(file)).size;
     const cpu = process.cpuUsage();
     const started = performance.now();
@@ -172,11 +173,9 @@ if (worker) {
       }),
     );
   } finally {
-    try {
-      closeSync(3);
-    } catch {
-      // The descriptor may already have been closed after staging.
-    }
+    // Close once: freeing this number earlier could let another resource
+    // reuse it and then be accidentally closed during cleanup.
+    if (ownsInput) closeSync(3);
     if (directory && process.env.BENCH_KEEP_FILES !== '1')
       await rm(directory, { recursive: true, force: true });
   }
