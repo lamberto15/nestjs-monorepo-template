@@ -134,7 +134,9 @@ beforeEach(() => {
 describe('the bell and realtime', () => {
   it('shows the unread count and follows the socket', async () => {
     api();
-    await renderApp('/');
+    // The dashboard mounts another unread observer; its initial HTTP response
+    // can overwrite this test's synthetic socket count before it is asserted.
+    await renderApp('/approvals');
     expect(await bellWith(2)).toBeVisible();
     expect(connections).toHaveLength(1);
     expect(connections[0]!.connects).toBe(1);
