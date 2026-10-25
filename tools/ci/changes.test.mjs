@@ -59,8 +59,20 @@ test('shared, migrations, infrastructure, tooling, CI and unknown paths', () => 
     'docs/deployment.md',
     'deploy/helm/app/values.yaml',
     'deploy/k3s/data.yaml',
+    'packages/api-client/CHANGELOG.md',
   ])
     assert.deepEqual(selected(route(file)), []);
+});
+
+test('shared actions validate everything and documents beside code add nothing', () => {
+  // A .github/actions change is consumed by every workflow routing it:
+  // validation is comprehensive, never guessed from the caller's paths.
+  assert.ok(route('.github/actions/sign-image/action.yml').full);
+  // A documented path does not widen the route the code it sits next to keeps.
+  assert.deepEqual(
+    route('docs/deployment.md', 'apps/api/src/features/notes/notes.service.ts'),
+    route('apps/api/src/features/notes/notes.service.ts'),
+  );
 });
 
 test('ambiguous comparisons and comprehensive triggers never skip checks', () => {

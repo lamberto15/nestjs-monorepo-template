@@ -83,6 +83,33 @@ test('PR event reads paginated files and shares explicit base/head with Turbo', 
   assert.ok(JSON.parse(result.expected).includes('e2e'));
 });
 
+test('paths outside the workspace graph keep whole-workspace affected validation', () => {
+  const { result } = eventOutput(
+    'pull_request',
+    {
+      number: 630,
+      pull_request: {
+        base: { sha: base },
+        head: { sha: head },
+        changed_files: 2,
+      },
+    },
+    [
+      [
+        {
+          filename: 'apps/api/src/features/notes/notes.service.ts',
+          status: 'modified',
+        },
+        { filename: 'caddy/Caddyfile', status: 'modified' },
+      ],
+    ],
+  );
+  assert.equal(result.full, false);
+  assert.equal(result.api, true);
+  assert.equal(result.web, true);
+  assert.equal(result.affected, false);
+});
+
 test('ordinary main uses before/head comparisons rather than unconditional full validation', () => {
   const { result, calls } = eventOutput(
     'push',
@@ -172,6 +199,15 @@ test('manual timing scenarios preserve explicit routing and cannot publish a par
     assert.equal(result.affected, false);
     assert.equal(result.publish, false);
   }
+  assert.throws(
+    () =>
+      eventOutput(
+        'workflow_dispatch',
+        { inputs: { validation_scope: 'nonsense' } },
+        null,
+      ),
+    /Unknown validation timing scenario/,
+  );
   assert.throws(
     () =>
       eventOutput(
