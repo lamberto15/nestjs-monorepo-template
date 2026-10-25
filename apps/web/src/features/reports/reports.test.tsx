@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderApp } from '@/test/render-app';
 import { renderComponent } from '@/test/render-component';
 import { allFeatures, problem, server } from '@/test/server';
@@ -274,9 +274,17 @@ describe("a report's actions", () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Run now' }));
     await findToast('Weekly drafts is running.');
     const dialog = await screen.findByRole('dialog', { name: 'Weekly drafts' });
-    expect(
-      await within(dialog).findByRole('link', { name: 'Download (xlsx)' }),
-    ).toHaveAttribute('href', 'https://files.test/run-1.xlsx');
+    const tab = { location: { href: '' }, close: vi.fn() };
+    vi.stubGlobal(
+      'open',
+      vi.fn(() => tab),
+    );
+    await user.click(
+      await within(dialog).findByRole('button', { name: 'Download (xlsx)' }),
+    );
+    await waitFor(() =>
+      expect(tab.location.href).toBe('https://files.test/run-1.xlsx'),
+    );
     expect(calls.ran).toEqual([REPORT_ID]);
   });
 

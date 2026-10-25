@@ -83,6 +83,14 @@ There are no 50 MiB results. An earlier fixture generator retained the full Exce
 
 ## Browser exploration
 
+A single headless Chromium probe loaded synthetic CSV files of 50,200,014,
+251,000,014, and 502,000,014 bytes and returned a 100-row query in 2.40, 5.51,
+and 7.50 seconds, respectively. Each case used a fresh browser, a numeric group
+column, and a repetitive 1,000-character text column (50,000 / 250,000 / 500,000
+rows). No page error or browser crash occurred. RSS was not sampled; these
+low-cardinality fixtures do not establish memory limits or performance for
+typical user data. Large-file Firefox/WebKit cases remain unmeasured.
+
 The existing application script budget remains 1.1 MB Brotli and the entry
 budgets remain unchanged. Optional analytics scripts have a separate 250 kB
 Brotli budget; their self-hosted Wasm assets have a 50 MB uncompressed budget.
