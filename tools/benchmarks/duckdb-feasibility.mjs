@@ -2,29 +2,32 @@
 /** Isolated DuckDB and data-transfer reader probe; see docs/analytics.md. */
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { createReadStream, createWriteStream } from 'node:fs';
 import {
-  lstat,
-  mkdtemp,
-  readFile,
-  readdir,
-  realpath,
-  rm,
-  stat,
-} from 'node:fs/promises';
+  closeSync,
+  createReadStream,
+  createWriteStream,
+  fstatSync,
+  openSync,
+} from 'node:fs';
+import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { once } from 'node:events';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
+import { pipeline } from 'node:stream/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { performance } from 'node:perf_hooks';
 
 const worker = process.argv[2] === '--worker';
 const jsonOnly = process.env.BENCH_JSON_ONLY === '1';
 const apiReaderUrl = pathToFileURL(
-  resolve(
-    process.env.TRANSFER_READER_ENTRY ??
-      'apps/api/dist/platform/data-transfer/formats.js',
-  ),
+  process.env.TRANSFER_READER_ENTRY
+    ? resolve(process.env.TRANSFER_READER_ENTRY)
+    : fileURLToPath(
+        new URL(
+          '../../apps/api/dist/platform/data-transfer/formats.js',
+          import.meta.url,
+        ),
+      ),
 );
 const require = createRequire(import.meta.url);
 const ExcelJS = require('../../apps/api/node_modules/exceljs');
@@ -45,67 +48,6 @@ function benchmarkError(message = 'Invalid benchmark worker request.') {
   return new Error(message);
 }
 
-async function validateWorkerInput(mode, file) {
-  const format = WORKER_MODES.get(mode);
-  if (!format || typeof file !== 'string' || !file || resolve(file) !== file) {
-    throw benchmarkError();
-  }
-
-  const expectedName =
-    /^rows-(?:\d+(?:\.\d+)?|\d+(?:\.\d+)?e[+-]?\d+)\.(json|xlsx)$/i;
-  const nameMatch = expectedName.exec(basename(file));
-  if (!nameMatch || nameMatch[1].toLowerCase() !== format) {
-    throw benchmarkError();
-  }
-
-  const tempRoot = await realpath(tmpdir()).catch(() => {
-    throw benchmarkError();
-  });
-  const directory = dirname(file);
-  const directoryInfo = await lstat(directory).catch(() => {
-    throw benchmarkError();
-  });
-  const realDirectory = await realpath(directory).catch(() => {
-    throw benchmarkError();
-  });
-  if (
-    !directoryInfo.isDirectory() ||
-    directoryInfo.isSymbolicLink() ||
-    dirname(realDirectory) !== tempRoot ||
-    basename(realDirectory) !== basename(directory) ||
-    !/^duckdb-feasibility-[A-Za-z0-9_-]+$/.test(basename(realDirectory)) ||
-    (directoryInfo.mode & 0o077) !== 0 ||
-    (typeof process.getuid === 'function' &&
-      directoryInfo.uid !== process.getuid())
-  ) {
-    throw benchmarkError();
-  }
-
-  const inputInfo = await lstat(file).catch(() => {
-    throw benchmarkError();
-  });
-  if (
-    !inputInfo.isFile() ||
-    inputInfo.isSymbolicLink() ||
-    inputInfo.nlink !== 1 ||
-    (typeof process.getuid === 'function' && inputInfo.uid !== process.getuid())
-  ) {
-    throw benchmarkError();
-  }
-
-  return { format, inputBytes: inputInfo.size, directory: realDirectory };
-}
-
-async function assertOutputDoesNotExist(path) {
-  try {
-    await lstat(path);
-  } catch (error) {
-    if (error?.code === 'ENOENT') return;
-    throw benchmarkError();
-  }
-  throw benchmarkError('Benchmark output already exists.');
-}
-
 function maxRssMiB() {
   // Node reports ru_maxrss in bytes on macOS, KiB on Linux and other Unix.
   const raw = process.resourceUsage().maxRSS;
@@ -113,97 +55,131 @@ function maxRssMiB() {
 }
 
 if (worker) {
-  const [, , , mode, file] = process.argv;
-  if (process.argv.length !== 5 || !WORKER_MODES.has(mode)) {
-    throw benchmarkError();
-  }
-  const { inputBytes, directory } = await validateWorkerInput(mode, file);
-  const cpu = process.cpuUsage();
-  const started = performance.now();
-  let rows = 0;
-  let spoolBytes;
-  if (mode === 'baseline-json') {
-    rows = JSON.parse(await readFile(file, 'utf8')).length;
-  } else if (mode === 'baseline-xlsx') {
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(await readFile(file));
-    rows = Math.max(0, (workbook.worksheets[0]?.rowCount ?? 1) - 1);
-  } else if (mode === 'spooled-json' || mode === 'spooled-xlsx') {
-    const { spoolImportRecords, readImportSpool } = await import(
-      process.env.TRANSFER_SPOOL_ENTRY
+  let directory;
+  try {
+    const modeEntry = [...WORKER_MODES.entries()].find(
+      ([knownMode]) => knownMode === process.argv[3],
     );
-    const format = mode.endsWith('json') ? 'json' : 'xlsx';
-    const spoolPath = `${file}.normalized.ndjson`;
-    await assertOutputDoesNotExist(spoolPath);
-    const inspected = await spoolImportRecords(format, file, spoolPath, {
-      dateColumns: new Set(),
-      maxRows: 2_000_000,
-      scratchDirectory: join(directory, 'scratch'),
+    if (process.argv.length !== 4 || !modeEntry) throw benchmarkError();
+    const [mode, format] = modeEntry;
+    if (!fstatSync(3).isFile()) throw benchmarkError();
+    directory = await mkdtemp(join(tmpdir(), 'duckdb-feasibility-worker-'));
+    const file = join(directory, `source.${format}`);
+    await pipeline(
+      createReadStream(null, { fd: 3, autoClose: false }),
+      createWriteStream(file, { flags: 'wx', mode: 0o600 }),
+    );
+    closeSync(3);
+    const inputBytes = (await stat(file)).size;
+    const cpu = process.cpuUsage();
+    const started = performance.now();
+    let rows = 0;
+    let spoolBytes;
+    let parquetBytes;
+    let temporaryDatabaseBytes;
+    if (mode === 'baseline-json') {
+      rows = JSON.parse(await readFile(file, 'utf8')).length;
+    } else if (mode === 'baseline-xlsx') {
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(await readFile(file));
+      rows = Math.max(0, (workbook.worksheets[0]?.rowCount ?? 1) - 1);
+    } else if (mode === 'spooled-json' || mode === 'spooled-xlsx') {
+      const { spoolImportRecords, readImportSpool } = await import(
+        process.env.TRANSFER_SPOOL_ENTRY
+      );
+      const spoolPath = join(directory, 'normalized.ndjson');
+      const inspected = await spoolImportRecords(format, file, spoolPath, {
+        dateColumns: new Set(),
+        maxRows: 2_000_000,
+        scratchDirectory: join(directory, 'scratch'),
+      });
+      for await (const _ of readImportSpool(spoolPath)) rows++;
+      if (rows !== inspected.rowCount)
+        throw new Error(
+          `Spool replay returned ${rows} rows; expected ${inspected.rowCount}.`,
+        );
+      spoolBytes = (await stat(spoolPath)).size;
+      if (process.env.BENCH_KEEP_FILES !== '1')
+        await rm(spoolPath, { force: true });
+    } else if (
+      mode === 'revised-json' ||
+      mode === 'revised-xlsx' ||
+      mode === 'revised-two-pass-json' ||
+      mode === 'revised-two-pass-xlsx'
+    ) {
+      const { inspectRecords, readRecords } = await import(apiReaderUrl.href);
+      if (mode.startsWith('revised-two-pass')) {
+        await inspectRecords(format, createReadStream(file));
+      }
+      for await (const _ of readRecords(format, createReadStream(file))) rows++;
+    } else if (mode === 'duckdb-json-transform') {
+      const { DuckDBInstance } = await import(process.env.DUCKDB_NODE_API);
+      const dbFile = join(directory, 'benchmark.duckdb');
+      const parquet = join(directory, 'result.parquet');
+      const instance = await DuckDBInstance.create(dbFile, { threads: '2' });
+      const db = await instance.connect();
+      try {
+        const escaped = file.replaceAll("'", "''");
+        const escapedParquet = parquet.replaceAll("'", "''");
+        await db.run(
+          `CREATE TABLE source AS SELECT * FROM read_json_auto('${escaped}')`,
+        );
+        await db.run(
+          'CREATE TABLE grouped AS SELECT group_id, count(*) AS n, sum(amount) AS total FROM source GROUP BY group_id',
+        );
+        await db.run(
+          'CREATE TABLE joined AS SELECT s.id, s.category, g.n, g.total FROM source s JOIN grouped g USING (group_id)',
+        );
+        await db.run(
+          `COPY (SELECT * FROM joined) TO '${escapedParquet}' (FORMAT PARQUET)`,
+        );
+        const result = await db.run('SELECT count(*) AS n FROM joined');
+        rows = Number((await result.getRows())[0][0]);
+      } finally {
+        db.closeSync();
+      }
+      parquetBytes = (await stat(parquet)).size;
+      temporaryDatabaseBytes = (await stat(dbFile)).size;
+    }
+    const used = process.cpuUsage(cpu);
+    const durationMs = +(performance.now() - started).toFixed(1);
+    const files = await readdir(directory, {
+      recursive: true,
+      withFileTypes: true,
     });
-    for await (const _ of readImportSpool(spoolPath)) rows++;
-    if (rows !== inspected.rowCount)
-      throw new Error(
-        `Spool replay returned ${rows} rows; expected ${inspected.rowCount}.`,
-      );
-    spoolBytes = (await stat(spoolPath)).size;
-    await rm(spoolPath, { force: true });
-  } else if (
-    mode === 'revised-json' ||
-    mode === 'revised-xlsx' ||
-    mode === 'revised-two-pass-json' ||
-    mode === 'revised-two-pass-xlsx'
-  ) {
-    const { inspectRecords, readRecords } = await import(apiReaderUrl.href);
-    const format = mode.endsWith('json') ? 'json' : 'xlsx';
-    if (mode.startsWith('revised-two-pass')) {
-      await inspectRecords(format, createReadStream(file));
-    }
-    for await (const _ of readRecords(format, createReadStream(file))) rows++;
-  } else if (mode === 'duckdb-json-transform') {
-    const { DuckDBInstance } = await import(process.env.DUCKDB_NODE_API);
-    const dbFile = `${file}.duckdb`;
-    const parquet = `${file}.parquet`;
-    await assertOutputDoesNotExist(dbFile);
-    await assertOutputDoesNotExist(parquet);
-    const instance = await DuckDBInstance.create(dbFile, { threads: '2' });
-    const db = await instance.connect();
+    let workspaceBytes = 0;
+    for (const entry of files)
+      if (entry.isFile())
+        workspaceBytes += (await stat(join(entry.parentPath, entry.name))).size;
+    if (process.env.BENCH_KEEP_FILES !== '1') workspaceBytes += spoolBytes ?? 0;
+    console.log(
+      JSON.stringify({
+        mode,
+        inputMiB: +(inputBytes / 1048576).toFixed(2),
+        rows,
+        durationMs,
+        throughputMiBps: +(inputBytes / 1048576 / (durationMs / 1000)).toFixed(
+          2,
+        ),
+        cpuMs: +((used.user + used.system) / 1000).toFixed(1),
+        maxRssMiB: maxRssMiB(),
+        workspaceBytes,
+        ...(spoolBytes === undefined ? {} : { spoolBytes }),
+        ...(parquetBytes === undefined ? {} : { parquetBytes }),
+        ...(temporaryDatabaseBytes === undefined
+          ? {}
+          : { temporaryDatabaseBytes }),
+      }),
+    );
+  } finally {
     try {
-      const escaped = file.replaceAll("'", "''");
-      const escapedParquet = parquet.replaceAll("'", "''");
-      await db.run(
-        `CREATE TABLE source AS SELECT * FROM read_json_auto('${escaped}')`,
-      );
-      await db.run(
-        'CREATE TABLE grouped AS SELECT group_id, count(*) AS n, sum(amount) AS total FROM source GROUP BY group_id',
-      );
-      await db.run(
-        'CREATE TABLE joined AS SELECT s.id, s.category, g.n, g.total FROM source s JOIN grouped g USING (group_id)',
-      );
-      await db.run(
-        `COPY (SELECT * FROM joined) TO '${escapedParquet}' (FORMAT PARQUET)`,
-      );
-      const result = await db.run('SELECT count(*) AS n FROM joined');
-      rows = Number((await result.getRows())[0][0]);
-    } finally {
-      db.closeSync();
+      closeSync(3);
+    } catch {
+      // The descriptor may already have been closed after staging.
     }
-  } else {
-    throw new Error(`Unknown worker mode: ${mode}`);
+    if (directory && process.env.BENCH_KEEP_FILES !== '1')
+      await rm(directory, { recursive: true, force: true });
   }
-  const used = process.cpuUsage(cpu);
-  const durationMs = +(performance.now() - started).toFixed(1);
-  console.log(
-    JSON.stringify({
-      mode,
-      inputMiB: +(inputBytes / 1048576).toFixed(2),
-      rows,
-      durationMs,
-      throughputMiBps: +(inputBytes / 1048576 / (durationMs / 1000)).toFixed(2),
-      cpuMs: +((used.user + used.system) / 1000).toFixed(1),
-      maxRssMiB: maxRssMiB(),
-      ...(spoolBytes === undefined ? {} : { spoolBytes }),
-    }),
-  );
 } else {
   const sizes = (process.env.BENCH_SIZES_MB ?? '5,25,50')
     .split(',')
@@ -211,6 +187,8 @@ if (worker) {
     .filter((n) => Number.isFinite(n) && n > 0);
   const tmp = await mkdtemp(join(tmpdir(), 'duckdb-feasibility-'));
   const results = [];
+  let peakTemporaryDiskBytes = 0;
+  let retainedWorkerWorkspaceBytes = 0;
   const initialInput = {
     id: 1,
     group_id: 1,
@@ -219,22 +197,47 @@ if (worker) {
     label: 'synthetic row 1 with representative text payload',
   };
   const rowBytes = JSON.stringify(initialInput).length + 1;
+  async function fixtureDiskBytes() {
+    const entries = await readdir(tmp, {
+      recursive: true,
+      withFileTypes: true,
+    });
+    let bytes = 0;
+    for (const entry of entries)
+      if (entry.isFile())
+        bytes += (await stat(join(entry.parentPath, entry.name))).size;
+    return bytes;
+  }
   async function run(mode, file) {
     if (!WORKER_MODES.has(mode)) throw benchmarkError();
-    const child = spawnSync(
-      process.execPath,
-      [fileURLToPath(import.meta.url), '--worker', mode, file],
-      {
-        encoding: 'utf8',
-        env: process.env,
-        maxBuffer: 1024 * 1024,
-      },
-    );
+    const inputFd = openSync(file, 'r');
+    let child;
+    try {
+      child = spawnSync(
+        process.execPath,
+        [fileURLToPath(import.meta.url), '--worker', mode],
+        {
+          encoding: 'utf8',
+          env: process.env,
+          maxBuffer: 1024 * 1024,
+          stdio: ['ignore', 'pipe', 'pipe', inputFd],
+        },
+      );
+    } finally {
+      closeSync(inputFd);
+    }
     if (child.status !== 0)
       throw new Error(
         `${mode} failed (worker exit ${child.status ?? 'unavailable'}).`,
       );
-    return JSON.parse(child.stdout.trim().split('\n').at(-1));
+    const result = JSON.parse(child.stdout.trim().split('\n').at(-1));
+    peakTemporaryDiskBytes = Math.max(
+      peakTemporaryDiskBytes,
+      (await fixtureDiskBytes()) + result.workspaceBytes,
+    );
+    if (process.env.BENCH_KEEP_FILES === '1')
+      retainedWorkerWorkspaceBytes += result.workspaceBytes;
+    return result;
   }
   try {
     if (!jsonOnly && !process.env.DUCKDB_NODE_API)
@@ -300,10 +303,6 @@ if (worker) {
             result.mode === 'duckdb-json-transform' &&
             result.inputMiB === +(jsonBytes / 1048576).toFixed(2),
         );
-        duckdbResult.parquetBytes = (await stat(`${jsonPath}.parquet`)).size;
-        duckdbResult.temporaryDatabaseBytes = (
-          await stat(`${jsonPath}.duckdb`)
-        ).size;
         duckdbResult.sourceFileBytes = jsonBytes;
         duckdbResult.xlsxFileBytes = (await stat(xlsxPath)).size;
       }
@@ -318,11 +317,11 @@ if (worker) {
         }),
       );
     }
-    const files = await readdir(tmp, { recursive: true, withFileTypes: true });
-    let tempDiskBytes = 0;
-    for (const entry of files)
-      if (entry.isFile())
-        tempDiskBytes += (await stat(join(entry.parentPath, entry.name))).size;
+    const generatedInputBytes = await fixtureDiskBytes();
+    const tempDiskBytes =
+      process.env.BENCH_KEEP_FILES === '1'
+        ? generatedInputBytes + retainedWorkerWorkspaceBytes
+        : peakTemporaryDiskBytes;
     console.log(
       JSON.stringify(
         {

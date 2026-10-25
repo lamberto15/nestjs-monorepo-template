@@ -199,19 +199,20 @@ function isDateFormat(code: string) {
   // the same suffix quadratically. Each successful search below skips its
   // entire span, and a failed bracket search is never repeated.
   let noClosingBracket = false;
-  for (let index = 0; index < code.length; index++) {
+  let index = 0;
+  while (index < code.length) {
     const character = code[index]!;
     if (character === '[' && !noClosingBracket) {
       const end = code.indexOf(']', index + 1);
       if (end !== -1) {
-        index = end;
+        index = end + 1;
         continue;
       }
       noClosingBracket = true;
     } else if (character === '"') {
       const end = code.indexOf('"', index + 1);
       if (end !== -1) {
-        index = end;
+        index = end + 1;
         continue;
       }
     } else if (
@@ -219,10 +220,11 @@ function isDateFormat(code: string) {
       index + 1 < code.length &&
       !/[\n\r\u2028\u2029]/.test(code[index + 1]!)
     ) {
-      index++;
+      index += 2;
       continue;
     }
     if (/[ymdhMsb]/.test(character)) return true;
+    index++;
   }
   return false;
 }
