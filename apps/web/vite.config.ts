@@ -26,6 +26,11 @@ const bundleReportFile = fileURLToPath(
 );
 
 export default defineConfig({
+  // Discover worker-only dependencies before serving a fresh dev session.
+  // Late optimization otherwise reloads the page during the first file import.
+  optimizeDeps: {
+    include: ['@duckdb/duckdb-wasm', 'apache-arrow', 'parquet-wasm/esm'],
+  },
   define: { __APP_GIT_SHA__: JSON.stringify(gitSha) },
   plugins: [
     {
