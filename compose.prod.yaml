@@ -39,6 +39,9 @@ x-app: &app
     CORS_ORIGINS: ${CORS_ORIGINS:-}
     SERVICE_NAME: ${SERVICE_NAME:-${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}}
     APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
+    IMPORT_MAX_BYTES: ${IMPORT_MAX_BYTES:-52428800}
+    IMPORT_MAX_ROWS: ${IMPORT_MAX_ROWS:-1000000}
+    IMPORT_TEMP_DIR: /app/.data/import-scratch
     # Forces the mode (normal, read-only, maintenance) over the operators'
     # platform.mode setting (docs/settings.md). This file lists the variables
     # the containers get (no env_file), so a variable missing here never arrives.
@@ -405,6 +408,8 @@ services:
       start_interval: 2s
     volumes:
       - app_storage:/app/.data/storage
+      # Per-container disk scratch; /tmp remains a small RAM-backed tmpfs.
+      - /app/.data/import-scratch
     # `documents`: Gotenberg's network, which only the workers join.
     networks:
       - default

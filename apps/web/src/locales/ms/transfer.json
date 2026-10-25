@@ -20,7 +20,8 @@
     "start": "Mulakan eksport",
     "mine": "Eksport dan import anda",
     "done_other": "{{count}} baris dieksport.",
-    "download": "Muat turun ({{format}})"
+    "download": "Muat turun ({{format}})",
+    "openInAnalytics": "Buka dalam Penjelajah Data"
   },
   "mine": {
     "title": "Eksport dan import",
@@ -89,7 +90,11 @@
     "field": "Medan",
     "message": "Sebab",
     "moreErrors_other": "Dan {{count}} lagi dalam laporan.",
-    "downloadErrors": "Muat turun baris yang ditolak (CSV)"
+    "downloadErrors": "Muat turun baris yang ditolak (CSV)",
+    "rowLimit": "Import ini boleh mengandungi sehingga {{count}} baris.",
+    "profile": "Lajur fail sepadan dengan {{matched}} daripada {{expected}} lajur import. Tiada: {{missing}}. Pratonton ini untuk maklumat sahaja.",
+    "noneMissing": "tiada",
+    "profileLocally": "Analisis fail ini secara setempat"
   },
   "status": {
     "queued": "Menunggu pekerja…",

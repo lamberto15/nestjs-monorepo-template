@@ -20,3 +20,7 @@ validation errors retain the existing partial-success behavior.
 
 Uploads and validation scratch files remain private. Operators raising limits
 must provision temporary disk and worker capacity for concurrent imports.
+`IMPORT_TEMP_DIR` defaults to `.data/import-scratch` beside the API. Use a
+disk-backed filesystem, not a RAM-backed `/tmp`. Production Compose gives each
+worker its own anonymous scratch volume; Helm uses a disk-backed `emptyDir`.
+Keep scratch private to one container/process namespace for safe crash recovery.

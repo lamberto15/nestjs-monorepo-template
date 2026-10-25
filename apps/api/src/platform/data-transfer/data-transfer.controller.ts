@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   Body,
@@ -10,15 +9,15 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  Req,
   StreamableFile,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { CurrentUser } from '@nestjs/authentication';
 import { Can } from '@nestjs/authorization';
-import { FileInterceptor } from '@nestjs/platform-express';
 import type { StoredUpload } from '@nestjs/storage';
-import { StorageDisk, uploadToDisk } from '@nestjs/storage';
+import { StorageDisk } from '@nestjs/storage';
 import {
   ApiAcceptedResponse,
   ApiBearerAuth,
@@ -39,18 +38,12 @@ import {
 } from '../../core/http/pagination.js';
 import { timezone } from '../../iam/account/account.schemas.js';
 import type { RequestPrincipal } from '../../iam/auth/principal.js';
-import {
-  DataTransferService,
-  principalTenant,
-  transferKey,
-} from './data-transfer.service.js';
+import { DataTransferService } from './data-transfer.service.js';
 import { jobStatusFilter } from '../queues/job-status.js';
 import { startedSchema, statusSchema } from './data-transfer.schemas.js';
 import { TRANSFER_FORMATS } from './data-transfer.types.js';
-import { CONTENT_TYPES, detectTextFormat, formatOf } from './formats.js';
-
-/** Imports up to this size. Larger data: split the file, or use the API directly. */
-const MAX_IMPORT_BYTES = 50 * 1024 * 1024;
+import { CONTENT_TYPES, formatOf } from './formats.js';
+import { ImportUpload } from './import-upload.interceptor.js';
 
 const exportSchema = z.object({
   name: z.string().min(1).max(80).meta({ example: 'notes' }),
@@ -99,6 +92,7 @@ const importFieldsSchema = z.object({
   }),
 });
 const catalogSchema = z.object({
+  importLimits: z.object({ maxBytes: z.number(), maxRows: z.number() }),
   exports: z
     .array(
       z.object({
@@ -222,28 +216,7 @@ export class DataTransferController {
 
   @Post('imports')
   @HttpCode(HttpStatus.ACCEPTED)
-  @UseInterceptors(
-    FileInterceptor('file', {
-      // Streamed onto the private disk, never into memory; recognized by its bytes, not its name.
-      storage: uploadToDisk({
-        // Under the caller's tenant (docs/tenancy.md): the request's user,
-        // authenticated before any interceptor runs.
-        key: (_file, req) =>
-          transferKey(
-            principalTenant((req as { user: RequestPrincipal }).user),
-            `uploads/${randomUUID()}`,
-          ),
-        contentTypes: [
-          'text/csv',
-          'application/json',
-          'application/zip',
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        ],
-        detectContentType: detectTextFormat,
-      }),
-      limits: { fileSize: MAX_IMPORT_BYTES, files: 1 },
-    }),
-  )
+  @UseInterceptors(ImportUpload())
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary:
@@ -252,6 +225,7 @@ export class DataTransferController {
   @ApiAcceptedResponse({ standardSchema: startedSchema })
   async startImport(
     @CurrentUser() user: RequestPrincipal,
+    @Req() request: { importLimits: { maxBytes: number; maxRows: number } },
     @UploadedFile() file: StoredUpload | undefined,
     @Body({ schema: importFieldsSchema })
     body: z.infer<typeof importFieldsSchema>,
@@ -271,6 +245,7 @@ export class DataTransferController {
       format,
       dryRun: body.dryRun,
       matchOn: body.matchOn,
+      limits: request.importLimits,
     });
   }
 

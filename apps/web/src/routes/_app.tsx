@@ -16,6 +16,7 @@ import { ImpersonationBanner } from '@/components/impersonation-banner';
 import { MaintenanceNotice } from '@/components/maintenance-notice';
 import { ModeBanner } from '@/components/mode-banner';
 import { SessionIdleWarning } from '@/components/session-idle-warning';
+import { clearAnalyticsFile } from '@/features/analytics/handoff';
 import { UnverifiedBanner } from '@/components/unverified-banner';
 import { SearchPalette } from '@/features/search/palette';
 import { NotificationsBell } from '@/features/notifications/bell';
@@ -64,6 +65,10 @@ export const Route = createFileRoute('/_app')({
 });
 
 function AppLayout() {
+  const identity = useQuery(meQuery).data;
+  useEffect(() => {
+    clearAnalyticsFile();
+  }, [identity?.user.id, identity?.tenant?.id]);
   useSavedLanguage();
   const mode = useModeWatch();
   // Maintenance: the API refuses everything, so no page, menu or socket

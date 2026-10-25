@@ -301,7 +301,7 @@ function TransferRows(props: {
               </span>
             )}
           </p>
-          <TransferView transfer={item} />
+          <TransferView transfer={item} account={props.account} />
         </li>
       ))}
     </ul>

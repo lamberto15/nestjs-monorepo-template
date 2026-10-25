@@ -20,6 +20,7 @@ import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppAnalyticsRouteImport } from './routes/_app/analytics'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppBrandingRouteImport } from './routes/_app/branding'
 import { Route as AppCustomFieldsRouteImport } from './routes/_app/custom-fields'
@@ -121,6 +122,11 @@ const VerifyEmailRoute = VerifyEmailRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAuditRoute = AppAuditRouteImport.update({
@@ -377,6 +383,7 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof SignUpRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/analytics': typeof AppAnalyticsRoute
   '/audit': typeof AppAuditRoute
   '/branding': typeof AppBrandingRoute
   '/custom-fields': typeof AppCustomFieldsRoute
@@ -436,6 +443,7 @@ export interface FileRoutesByTo {
   '/sign-up': typeof SignUpRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/analytics': typeof AppAnalyticsRoute
   '/audit': typeof AppAuditRoute
   '/branding': typeof AppBrandingRoute
   '/custom-fields': typeof AppCustomFieldsRoute
@@ -498,6 +506,7 @@ export interface FileRoutesById {
   '/sign-up': typeof SignUpRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/_app/analytics': typeof AppAnalyticsRoute
   '/_app/audit': typeof AppAuditRoute
   '/_app/branding': typeof AppBrandingRoute
   '/_app/custom-fields': typeof AppCustomFieldsRoute
@@ -561,6 +570,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/unsubscribe'
     | '/verify-email'
+    | '/analytics'
     | '/audit'
     | '/branding'
     | '/custom-fields'
@@ -620,6 +630,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/unsubscribe'
     | '/verify-email'
+    | '/analytics'
     | '/audit'
     | '/branding'
     | '/custom-fields'
@@ -681,6 +692,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/unsubscribe'
     | '/verify-email'
+    | '/_app/analytics'
     | '/_app/audit'
     | '/_app/branding'
     | '/_app/custom-fields'
@@ -822,6 +834,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/analytics': {
+      id: '/_app/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AppAnalyticsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/audit': {
@@ -1164,6 +1183,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppAnalyticsRoute: typeof AppAnalyticsRoute
   AppAuditRoute: typeof AppAuditRoute
   AppBrandingRoute: typeof AppBrandingRoute
   AppCustomFieldsRoute: typeof AppCustomFieldsRoute
@@ -1216,6 +1236,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAnalyticsRoute: AppAnalyticsRoute,
   AppAuditRoute: AppAuditRoute,
   AppBrandingRoute: AppBrandingRoute,
   AppCustomFieldsRoute: AppCustomFieldsRoute,

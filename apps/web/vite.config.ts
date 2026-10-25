@@ -112,6 +112,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        // The optional local explorer loads its engine only when used.
+        globIgnores: ['**/*duckdb*', '**/*parquet*'],
         cleanupOutdatedCaches: true,
         navigateFallback: 'index.html',
         // What Caddy sends to the API (routes, Swagger UI and its documents,

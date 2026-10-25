@@ -20,6 +20,7 @@ import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { holds, useMe, type Permission } from '@/lib/features';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { teamRefsQuery } from '@/lib/list-refs';
+import { catalogQuery } from '@/features/transfer/api';
 import { usePeopleNames, useTeamNames } from '@/lib/people';
 import { PlatformEditor } from './platform-editor';
 import { RulesEditor } from './rules-editor';
@@ -115,6 +116,7 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
   const refresh = () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: settingsQuery.queryKey }),
+      queryClient.invalidateQueries({ queryKey: catalogQuery.queryKey }),
       queryClient.invalidateQueries({
         queryKey: overridesQuery(setting.key).queryKey,
       }),

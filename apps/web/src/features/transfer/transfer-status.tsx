@@ -3,7 +3,10 @@ import {
   Alert,
   AlertDescription,
 } from '@nestjs-monorepo-template/ui/components/alert';
-import { buttonVariants } from '@nestjs-monorepo-template/ui/components/button';
+import {
+  Button,
+  buttonVariants,
+} from '@nestjs-monorepo-template/ui/components/button';
 import { Progress } from '@nestjs-monorepo-template/ui/components/progress';
 import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
 import {
@@ -15,12 +18,14 @@ import {
   TableRow,
 } from '@nestjs-monorepo-template/ui/components/table';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { CircleAlertIcon, DownloadIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useLivePoll, useRealtimeEvent, withProgress } from '@/lib/realtime';
 import { useIsPast } from '@/lib/use-is-past';
 import { parseRowErrors } from './csv';
-import { POLL, transferQuery, type Transfer } from './api';
+import { freshExportUrl, POLL, transferQuery, type Transfer } from './api';
+import { useState } from 'react';
 
 /** The report shows this many refused rows; the CSV has all of them. */
 const SHOWN_ERRORS = 100;
@@ -92,7 +97,7 @@ export function TransferStatus(props: { id: string }) {
  * the answer of the single route. Once `expiresAt` has passed the links are
  * not offered: the API no longer gives them.
  */
-export function TransferView(props: { transfer: Transfer }) {
+export function TransferView(props: { transfer: Transfer; account?: boolean }) {
   const { t } = useTranslation('transfer');
   const { transfer } = props;
   // The API stops giving the links after `expiresAt`; a page left open past
@@ -133,30 +138,53 @@ export function TransferView(props: { transfer: Transfer }) {
     );
   }
   return transfer.kind === 'export' ? (
-    <ExportDone transfer={transfer} />
+    <ExportDone transfer={transfer} account={props.account} />
   ) : (
     <ImportReport transfer={transfer} />
   );
 }
 
-function ExportDone(props: { transfer: Transfer }) {
+function ExportDone(props: { transfer: Transfer; account?: boolean }) {
   const { t } = useTranslation('transfer');
   const { result } = props.transfer;
+  const [opening, setOpening] = useState(false);
+  const download = async () => {
+    setOpening(true);
+    const tab = window.open('', '_blank');
+    try {
+      const url = await freshExportUrl(props.transfer.id, props.account);
+      if (tab && url) tab.location.href = url;
+      else tab?.close();
+    } catch {
+      tab?.close();
+    } finally {
+      setOpening(false);
+    }
+  };
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <p role="status" className="text-sm">
         {t('export.done', { count: result?.rows ?? 0 })}
       </p>
       {result?.url && (
-        // A signed link (30 minutes) that names the file itself.
-        <a
-          href={result.url}
-          download
-          className={buttonVariants({ variant: 'default', size: 'sm' })}
-        >
+        // Re-read status on demand so every open gets a fresh signed link.
+        <Button size="sm" disabled={opening} onClick={download}>
           <DownloadIcon />
           {t('export.download', { format: props.transfer.format })}
-        </a>
+        </Button>
+      )}
+      {(props.transfer.format === 'csv' ||
+        props.transfer.format === 'json') && (
+        <Link
+          to="/analytics"
+          search={{
+            transferId: props.transfer.id,
+            ...(props.account && { account: true }),
+          }}
+          className={buttonVariants({ variant: 'outline', size: 'sm' })}
+        >
+          {t('export.openInAnalytics')}
+        </Link>
       )}
     </div>
   );

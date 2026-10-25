@@ -1,5 +1,9 @@
 # Configuration
 
+Import file-size and row-count limits can be changed at runtime in Settings.
+See [Import limits](import-limits.md) for tenant/platform overrides, job snapshots,
+and the `IMPORT_MAX_BYTES` / `IMPORT_MAX_ROWS` deployment fallback defaults.
+
 Every variable is validated at startup (`apps/api/src/env.ts` merges each group's
 `*.env.ts`): a missing or malformed one stops the app with its name, never its
 value. Every secret can come from a file instead ([Secrets](#secrets)). Read

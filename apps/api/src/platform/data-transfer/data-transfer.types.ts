@@ -188,6 +188,8 @@ export type TransferJob = TenantEnvelope &
         key: string;
         dryRun: boolean;
         matchOn?: string;
+        /** Limits resolved before multipart parsing and snapshotted with this accepted job. */
+        limits?: { maxBytes: number; maxRows: number };
         principal: RequestPrincipal;
       }
   );

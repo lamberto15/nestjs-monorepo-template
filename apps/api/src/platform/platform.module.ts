@@ -95,6 +95,10 @@ import { DataTransferController } from './data-transfer/data-transfer.controller
 import { DataTransferProcessor } from './data-transfer/data-transfer.processor.js';
 import { DataTransferRegistry } from './data-transfer/data-transfer.registry.js';
 import { DataTransferService } from './data-transfer/data-transfer.service.js';
+import {
+  DATA_TRANSFER_SETTINGS,
+  ANALYTICS_SETTINGS,
+} from './data-transfer/data-transfer.settings.js';
 import { integrations } from './integrations/integrations.js';
 import { BulkController } from './bulk/bulk.controller.js';
 import { BulkProcessor } from './bulk/bulk.processor.js';
@@ -498,6 +502,8 @@ export class PlatformModule {
               ...DASHBOARD_SETTINGS,
               ...AI_SETTINGS,
               ...NOTIFICATION_SETTINGS,
+              ...DATA_TRANSFER_SETTINGS,
+              ...ANALYTICS_SETTINGS,
               ...(options.settings ?? []),
             ],
           },
