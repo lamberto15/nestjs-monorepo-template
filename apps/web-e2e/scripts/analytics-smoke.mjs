@@ -72,8 +72,28 @@ try {
     if (!request.url().startsWith(baseUrl)) outsideRequests.push(request.url());
   });
   await page.goto(new URL('/analytics-smoke.html', baseUrl).href);
-  await page.waitForFunction(() => window.runAnalyticsSmoke);
-  const result = await page.evaluate(() => window.runAnalyticsSmoke());
+  let result;
+  let developmentReloads = 0;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await page.waitForFunction(() => window.runAnalyticsSmoke);
+      result = await page.evaluate(() => window.runAnalyticsSmoke());
+      break;
+    } catch (error) {
+      // Vite can reload once when the lazy Parquet decoder is first optimized
+      // in a clean checkout. Run the entire test in the replacement context.
+      if (
+        attempt === 2 ||
+        !/Execution context was destroyed|because of a navigation/.test(
+          error.message,
+        )
+      ) {
+        throw error;
+      }
+      developmentReloads++;
+      await page.reload();
+    }
+  }
   assert.equal(result.csv.engineVersion, 'v1.4.3');
   assert.equal(result.csv.rowCount, 2);
   assert.equal(
@@ -114,6 +134,7 @@ try {
       {
         engineVersion: result.csv.engineVersion,
         browser: browserName,
+        developmentReloads,
         csvRows: result.csv.rowCount,
         sortedSample: result.sorted.rows,
         jsonSample: result.jsonRows.rows,
