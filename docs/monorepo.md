@@ -151,6 +151,24 @@ web app needs the API, so `dev:web` alone suits an API already running.
   while signed in ends the session (to sign-in, back to the page after),
   anything else is a toast with the problem's `detail` unless the query sets
   `meta: { errorToast: false }`.
+- **Cross-tab sessions** (`lib/session-bus.ts`, `lib/session.ts`): the tabs
+  share the one `__Host-sid` cookie, so what one tab does to the session the
+  others must follow. A tab's session watcher (`lib/errors.ts`) records the
+  identity of every `me` answer (`sessionIdentity`: user id, tenant id,
+  impersonator) and forgets the previous context's queries, mutations and
+  in-flight work whenever it changes (`createSession().reset()`, the same as
+  the tab that switched runs) — a tenant switch, another account, an
+  impersonation started or stopped, not just signed-in ↔ signed-out. The
+  re-issued cookie is announced over a BroadcastChannel
+  (`app-session-identity`), so the other tabs reset at once, not at their
+  next stale refetch of `me` (up to a minute); a sign-out (or an idle or
+  absolute limit) announced there ends their sessions the same way their own
+  401 would. A tab with no BroadcastChannel (an old browser, or tests
+  without the fake) still discovers every change on its own refetches —
+  correct, just slower. Tests stand one in per suite
+  (`lib/session-identity.test.tsx`); the real channel across real tabs is
+  shown by the browser test in `apps/web-e2e` (`session-identity.spec.ts`,
+  two tabs of one browser through an impersonation).
 - **Routes:** `__root.tsx` (router context `{ queryClient, session }`),
   `_app.tsx` (the signed-in layout and its guard, shadcn's `sidebar-07`
   block), `_app/index.tsx` (dashboard), the signed-out pages beside them. A
