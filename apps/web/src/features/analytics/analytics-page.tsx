@@ -505,7 +505,13 @@ function FilterSelect(props: {
 
 function display(value: unknown) {
   if (value === null || value === undefined) return '—';
-  return typeof value === 'object' ? JSON.stringify(value) : String(value);
+  return typeof value === 'object'
+    ? JSON.stringify(value, (_, child: unknown) => {
+        if (typeof child === 'bigint') return child.toString();
+        if (child instanceof Map) return Array.from(child);
+        return child;
+      })
+    : String(value);
 }
 
 function isNumericColumn(type: string) {

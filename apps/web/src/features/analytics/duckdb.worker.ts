@@ -9,6 +9,7 @@ import {
 } from './query';
 import type { DatasetQuery } from './engine';
 import { jsonRowsToArrow } from './json-table';
+import { arrowTableRows } from './arrow-rows';
 
 type Column = {
   name: string;
@@ -71,16 +72,6 @@ async function resetDatabase() {
   connection = undefined;
   initializing = undefined;
   datasets.clear();
-}
-
-function resultRows(table: {
-  schema: { fields: { name: string }[] };
-  toArray(): Record<string, unknown>[];
-}) {
-  return {
-    columns: table.schema.fields.map((field) => field.name),
-    rows: table.toArray().map((row) => Object.fromEntries(Object.entries(row))),
-  };
 }
 
 function jsonRows(
@@ -251,7 +242,7 @@ async function queryDataset(datasetId: string, query: Query = {}) {
   const result = await conn.query(
     `SELECT ${select} FROM ${table}${where}${group}${order} LIMIT ${limit} OFFSET ${offset}`,
   );
-  const mapped = resultRows(result);
+  const mapped = arrowTableRows(result);
   return {
     ...mapped,
     totalRows: Number((total.toArray()[0] as Record<string, unknown>).count),

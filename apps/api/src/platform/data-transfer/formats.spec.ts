@@ -298,6 +298,33 @@ describe('streaming imports', () => {
     ]);
   });
 
+  it('ignores quoted, bracketed, and escaped date tokens without rescanning unmatched brackets', async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Data');
+    sheet.addRow(['value']);
+    const formats = [
+      '[Red]"day"0',
+      '\\y0',
+      '[year]0',
+      '['.repeat(100_000) + '0',
+      '"literal"yyyy-mm-dd',
+      '[yyyy',
+    ];
+    for (const format of formats) sheet.addRow([2]).getCell(1).numFmt = format;
+    const file = Buffer.from(await workbook.xlsx.writeBuffer());
+    const rows = [];
+    for await (const { record } of readRecords('xlsx', Readable.from(file)))
+      rows.push(record.value);
+    expect(rows).toEqual([
+      '2',
+      '2',
+      '2',
+      '2',
+      '1900-01-02T00:00:00.000Z',
+      '1900-01-02T00:00:00.000Z',
+    ]);
+  });
+
   it('stores and cleans its XLSX SQLite workspace under the configured scratch directory', async () => {
     const scratchDirectory = await mkdtemp(join(tmpdir(), 'transfer-test-'));
     try {

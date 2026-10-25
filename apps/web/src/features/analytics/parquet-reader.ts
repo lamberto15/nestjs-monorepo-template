@@ -7,7 +7,11 @@ let initialization: Promise<unknown> | undefined;
 export async function parquetToArrowIPC(
   buffer: ArrayBuffer,
 ): Promise<Uint8Array> {
-  initialization ??= initParquetWasm(parquetWasmUrl);
+  initialization ??= initParquetWasm(parquetWasmUrl).catch((error) => {
+    // A temporary asset download failure must not poison later file imports.
+    initialization = undefined;
+    throw error;
+  });
   await initialization;
 
   const table = readParquet(new Uint8Array(buffer));

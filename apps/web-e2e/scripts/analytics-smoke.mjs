@@ -16,6 +16,10 @@ const arrow = await import(
 const parquetSource = arrow.tableFromArrays({
   name: ['epsilon', 'zeta'],
   amount: new Int32Array([3, 11]),
+  details: arrow.vectorFromArray(
+    [{ count: 9007199254740993n }, { count: 9007199254740994n }],
+    new arrow.Struct([new arrow.Field('count', new arrow.Int64(), true)]),
+  ),
 });
 const parquetBytes = parquetWasm.writeParquet(
   parquetWasm.Table.fromIPCStream(arrow.tableToIPC(parquetSource, 'stream')),
@@ -127,6 +131,9 @@ try {
     '11',
   );
   assert.equal(result.parquetRows.rows[0].name, 'zeta');
+  assert.deepEqual(result.parquetRows.rows[0].details, {
+    count: 9007199254740994n,
+  });
   assert.equal(result.cancelled, true);
   assert.deepEqual(outsideRequests, []);
   console.log(

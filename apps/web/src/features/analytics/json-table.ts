@@ -1,10 +1,4 @@
-import {
-  Bool,
-  Float64,
-  Utf8,
-  tableFromArrays,
-  vectorFromArray,
-} from 'apache-arrow';
+import { Bool, Float64, Utf8, Table, vectorFromArray } from 'apache-arrow';
 
 /**
  * Build Arrow columns from the union of JSON row keys. Heterogeneous and nested
@@ -50,5 +44,7 @@ export function jsonRowsToArrow(rows: Record<string, unknown>[]) {
       return [name, vectorFromArray(jsonValues, new Utf8())];
     }),
   );
-  return tableFromArrays(columns);
+  // Arrow 17's tableFromArrays copies through {}, where a __proto__ column
+  // changes the object's prototype. These values are already typed vectors.
+  return new Table(columns);
 }

@@ -195,8 +195,36 @@ function excelDate(serial: number, date1904: boolean) {
 }
 
 function isDateFormat(code: string) {
-  const normalized = code.replace(/\[[^\]]*\]|"[^"]*"|\\./g, '');
-  return /[ymdhMsb]/.test(normalized);
+  // Repeated unmatched '[' characters make a global replacement regex scan
+  // the same suffix quadratically. Each successful search below skips its
+  // entire span, and a failed bracket search is never repeated.
+  let noClosingBracket = false;
+  for (let index = 0; index < code.length; index++) {
+    const character = code[index]!;
+    if (character === '[' && !noClosingBracket) {
+      const end = code.indexOf(']', index + 1);
+      if (end !== -1) {
+        index = end;
+        continue;
+      }
+      noClosingBracket = true;
+    } else if (character === '"') {
+      const end = code.indexOf('"', index + 1);
+      if (end !== -1) {
+        index = end;
+        continue;
+      }
+    } else if (
+      character === '\\' &&
+      index + 1 < code.length &&
+      !/[\n\r\u2028\u2029]/.test(code[index + 1]!)
+    ) {
+      index++;
+      continue;
+    }
+    if (/[ymdhMsb]/.test(character)) return true;
+  }
+  return false;
 }
 
 async function readStyles(stream: Readable, count: (n: number) => void) {

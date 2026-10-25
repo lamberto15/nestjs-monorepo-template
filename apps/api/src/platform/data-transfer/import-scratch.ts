@@ -40,6 +40,8 @@ async function processIdentity(pid: number): Promise<string | undefined> {
   }
 }
 
+const ownerProbes = { exists: processExists, identity: processIdentity };
+
 /** Testable PID liveness decision; identity mismatch proves PID reuse. */
 export async function scratchOwnerIsStale(
   pid: number,
@@ -47,7 +49,7 @@ export async function scratchOwnerIsStale(
   probes: {
     exists: (pid: number) => boolean;
     identity: (pid: number) => Promise<string | undefined>;
-  } = { exists: processExists, identity: processIdentity },
+  } = ownerProbes,
 ) {
   const [exists, currentIdentity] = await Promise.all([
     Promise.resolve(probes.exists(pid)),
