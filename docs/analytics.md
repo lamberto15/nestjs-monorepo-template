@@ -83,6 +83,11 @@ There are no 50 MiB results. An earlier fixture generator retained the full Exce
 
 ## Browser exploration
 
+The existing application script budget remains 1.1 MB Brotli and the entry
+budgets remain unchanged. Optional analytics scripts have a separate 250 kB
+Brotli budget; their self-hosted Wasm assets have a 50 MB uncompressed budget.
+These engine assets are fetched on use and excluded from PWA precaching.
+
 The UI's browser explorer is behind the tenant setting `analytics.browser.enabled`, default off. The engine supports CSV, JSON, JSON Lines, NDJSON, and Parquet. Parquet uses the lazy, self-hosted `parquet-wasm@0.9.0` decoder to produce Arrow IPC for DuckDB; it does not download a DuckDB extension. JSON uses an explicit Arrow schema: primitive columns keep their types and mixed or structured columns retain their values as JSON text. The import is materialized in the page's worker memory, and replacing a file, leaving the page, signing out, or changing user/tenant terminates the worker. It does not persist data in OPFS. Query SQL is constructed internally from validated columns, escaped identifiers, and escaped literals; the page cannot submit SQL or file paths. DuckDB auto-install and auto-load of extensions are disabled, and no remote extension fallback is used. The 1 GiB file-size check is a hard ceiling, not a promise that every browser/device can safely use that much memory. The PWA precache excludes `**/*duckdb*` and `**/*parquet*` so the optional engine does not inflate the offline bundle. The WASM engine is a separately versioned experiment on SQL 1.4.3; file import, memory, and performance still need real-browser measurements before broader use.
 
 Before considering a production dependency, compare the existing and revised `readRecords()` behavior for JSON and XLSX with the same files, measure inside the deployment container, and verify graceful shutdown, native package availability for every published image architecture, temporary disk bounds, and any extensions needed for Parquet. A positive aggregate benchmark alone is insufficient: DuckDB must improve a real supported path while preserving these application contracts. The decision should be revisited only with those results.
