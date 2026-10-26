@@ -222,6 +222,9 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
           // Only a new note, and only when the user had a choice.
           ...(series.length > 1 && seriesId && { namingSeriesId: seriesId }),
         });
+        if (note && identity && tenantId) {
+          discardEditorDraft(identity, tenantId, note.id);
+        }
         // A new note is in no record query yet (it was just seeded).
         await (note ? invalidate() : invalidateLists());
         toast.success(note ? t('form.saved') : t('form.created'));
