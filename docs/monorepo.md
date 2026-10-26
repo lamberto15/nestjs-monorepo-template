@@ -160,15 +160,25 @@ web app needs the API, so `dev:web` alone suits an API already running.
   the tab that switched runs) — a tenant switch, another account, an
   impersonation started or stopped, not just signed-in ↔ signed-out. The
   re-issued cookie is announced over a BroadcastChannel
-  (`app-session-identity`), so the other tabs reset at once, not at their
-  next stale refetch of `me` (up to a minute); a sign-out (or an idle or
-  absolute limit) announced there ends their sessions the same way their own
-  401 would. A tab with no BroadcastChannel (an old browser, or tests
-  without the fake) still discovers every change on its own refetches —
-  correct, just slower. Tests stand one in per suite
-  (`lib/session-identity.test.tsx`); the real channel across real tabs is
-  shown by the browser test in `apps/web-e2e` (`session-identity.spec.ts`,
-  two tabs of one browser through an impersonation).
+  (`app-session-identity`), so the other tabs follow at once, not at their
+  next stale refetch of `me` (up to a minute). An announcement is a hint,
+  never a decision — it may be stale (a sign out another tab undid by signing
+  back in) or forged (BroadcastChannel takes any script of the origin), so
+  the receiving tab reads `me` back and what the server answers decides:
+  nothing is reset or signed out on a message's word alone, and a message
+  that matches the session costs one read. A tab with no BroadcastChannel
+  (an old browser, or tests without the fake) still discovers every change
+  on its own refetches — correct, just slower. A client thrown away ends its
+  bus listener with it (`sessionWatch().offBus()`; the tests' teardown does
+  it), so the registry holds nothing of it. A form's unsaved draft, though,
+  is component state the reset cannot touch: a draft begun under another
+  session is not sent until the user says so — `useStaleDraftSession()`
+  (`lib/form.tsx`) at the top of a form's `onSubmit` (the note form has it;
+  other record forms should adopt it as they edit records). Tests stand a
+  channel in per suite (`lib/session-identity.test.tsx`); the real channel
+  across real tabs is shown by the browser test in `apps/web-e2e`
+  (`session-identity.spec.ts`, two tabs of one browser through an
+  impersonation).
 - **Routes:** `__root.tsx` (router context `{ queryClient, session }`),
   `_app.tsx` (the signed-in layout and its guard, shadcn's `sidebar-07`
   block), `_app/index.tsx` (dashboard), the signed-out pages beside them. A

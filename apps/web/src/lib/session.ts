@@ -61,6 +61,12 @@ export function sessionIdentity(me: Me | null | undefined): string | null {
 export type SessionWatch = {
   identity: string | null;
   applying: boolean;
+  /**
+   * Ends this client's session-bus listener (session-bus.ts): a page's one
+   * client keeps it for its life; a client thrown away (a test's) ends it
+   * with itself, so the bus's registry holds nothing of the client.
+   */
+  offBus?: () => void;
 };
 
 const watching = new WeakMap<QueryClient, SessionWatch>();

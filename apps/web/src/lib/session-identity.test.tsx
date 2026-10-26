@@ -9,11 +9,12 @@ import {
   createSession,
   meQuery,
   sessionIdentity,
+  sessionWatch,
   type Me,
 } from '@/lib/session';
 import { trackClient } from '@/test/app-clients';
 import { renderApp } from '@/test/render-app';
-import { server, signedInUser } from '@/test/server';
+import { problem, server, signedInUser } from '@/test/server';
 import { useSignedIn } from '@/test/signed-in';
 
 /**
@@ -405,14 +406,87 @@ describe('the session another tab announced', () => {
       meInTenant(signedInUser.tenant!.id),
     );
 
-    // Another tab signed out (its `clear` announced): this one, signed in by
-    // the cookie they share a moment ago, does what its own 401 would.
+    // Another tab signed out (its `clear` announced): the cookie is read
+    // back, and the 401 the SERVER answers — not the message — ends this
+    // tab's session too, exactly as its own 401 would have.
+    server.use(http.get('/v1/auth/me', () => problem(401, 'unauthorized')));
     announceSessionIdentity(null);
 
-    expect(to.toSignIn).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(to.toSignIn).toHaveBeenCalledTimes(1));
     expect(queryClient.getQueryData(meQuery.queryKey)).toBeNull();
     expect(queryClient.getQueryData(recordKey)).toBeUndefined();
     expect(queryClient.getQueryData(['orphan'])).toBeUndefined();
+  });
+
+  it('changes nothing for a sign-out announcement another tab undid', async () => {
+    const { to, queryClient } = await watchedClient(
+      meInTenant(signedInUser.tenant!.id),
+    );
+
+    // Signed out there, then signed back in before this tab read the
+    // announcement: the message is stale, the cookie is alive — the read
+    // back says so, and the tab stays signed in with its data.
+    announceSessionIdentity(null);
+
+    await vi.waitFor(() =>
+      expect(queryClient.getQueryData(meQuery.queryKey)).toMatchObject({
+        tenant: { id: signedInUser.tenant!.id },
+      }),
+    );
+    expect(to.toSignIn).not.toHaveBeenCalled();
+    expect(queryClient.getQueryData(recordKey)).toMatchObject({
+      title: 'Old tenant note',
+    });
+    expect(queryClient.getQueryData(['orphan'])).toEqual('old tenant');
+  });
+
+  it('reads a forged identity announcement back and changes nothing', async () => {
+    const { to, queryClient } = await watchedClient(
+      meInTenant(signedInUser.tenant!.id),
+    );
+    // What a script of this origin could post: another identity than the
+    // cookie's. It is read back once; the server's answer (this session's
+    // own) decides, so nothing is reset, dropped or navigated.
+    let meReads = 0;
+    server.use(
+      http.get('/v1/auth/me', () => {
+        meReads += 1;
+        return HttpResponse.json(meInTenant(signedInUser.tenant!.id));
+      }),
+    );
+
+    announceSessionIdentity(sessionIdentity(meInTenant(otherTenantId)));
+
+    await vi.waitFor(() => expect(meReads).toBe(1));
+    expect(queryClient.getQueryData(meQuery.queryKey)).toMatchObject({
+      tenant: { id: signedInUser.tenant!.id },
+    });
+    expect(queryClient.getQueryData(recordKey)).toMatchObject({
+      title: 'Old tenant note',
+    });
+    expect(queryClient.getQueryData(['orphan'])).toEqual('old tenant');
+    expect(to.toSignIn).not.toHaveBeenCalled();
+  });
+
+  it('changes nothing for an announcement that cannot be read back', async () => {
+    const { to, queryClient } = await watchedClient(
+      meInTenant(signedInUser.tenant!.id),
+    );
+
+    // The network is down when the announcement arrives: ending or
+    // resetting a session on a message's word is exactly what must not
+    // happen — the next refetch, or a 401, says what the session is.
+    server.use(http.get('/v1/auth/me', () => HttpResponse.error()));
+    announceSessionIdentity(null);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(queryClient.getQueryData(meQuery.queryKey)).toMatchObject({
+      tenant: { id: signedInUser.tenant!.id },
+    });
+    expect(to.toSignIn).not.toHaveBeenCalled();
+    expect(queryClient.getQueryData(recordKey)).toMatchObject({
+      title: 'Old tenant note',
+    });
   });
 });
 
@@ -465,7 +539,8 @@ describe('the watcher on the rendered app', () => {
     // POST /v1/auth/tenant in another tab re-issued the shared cookie: its
     // reset announces this session's new tenant, and this tab follows at
     // once — the old tenant's data is dropped, the page refetches as the
-    // new session's. Exactly one read of `me` under the new cookie follows.
+    // new session's. Two reads of `me` under the new cookie follow: one that
+    // confirms the announcement against the server, and the reset's own.
     let meCalls = 0;
     server.use(
       http.get('/v1/auth/me', () => {
@@ -482,7 +557,7 @@ describe('the watcher on the rendered app', () => {
     expect(queryClient.getQueryData(meQuery.queryKey)).toMatchObject({
       tenant: { id: otherTenantId },
     });
-    await waitFor(() => expect(meCalls).toBe(1));
+    await waitFor(() => expect(meCalls).toBe(2));
   });
 
   it('does not reset again for its own announcement, mid-apply', async () => {
@@ -506,5 +581,41 @@ describe('the watcher on the rendered app', () => {
 
     expect(meCalls).toBe(1);
     expect(queryClient.getQueryData(recordKey)).toBeUndefined();
+  });
+});
+
+describe('the bus listener of a thrown-away client', () => {
+  it('hears nothing after it is disposed, and only the live one reads', async () => {
+    // Repeated client creation must not accumulate live listeners: the bus
+    // registry is module state (session-bus.ts). Five clients come and go —
+    // each ends its listener when it is thrown away (teardownApps does this
+    // after every test; here it is done at once) — then one live client.
+    const thrownAway = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        watchedClient(meInTenant(signedInUser.tenant!.id)),
+      ),
+    );
+    for (const { queryClient } of thrownAway) {
+      sessionWatch(queryClient).offBus?.();
+    }
+    const live = await watchedClient(meInTenant(signedInUser.tenant!.id));
+
+    // The sign-out is real now: the server says so.
+    let meReads = 0;
+    server.use(
+      http.get('/v1/auth/me', () => {
+        meReads += 1;
+        return problem(401, 'unauthorized');
+      }),
+    );
+    announceSessionIdentity(null);
+
+    await waitFor(() => expect(live.to.toSignIn).toHaveBeenCalledTimes(1));
+    // Only the live client's listener read the cookie back: had any of the
+    // thrown-away ones still been listening, it would have read too.
+    expect(meReads).toBe(1);
+    for (const { to } of thrownAway) {
+      expect(to.toSignIn).not.toHaveBeenCalled();
+    }
   });
 });

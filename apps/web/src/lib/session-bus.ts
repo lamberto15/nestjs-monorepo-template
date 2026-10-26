@@ -32,21 +32,32 @@ export function announceSessionIdentity(identity: string | null) {
   }
 }
 
-/** The session's identity as another tab announced it. */
-export function onSessionIdentity(handler: (identity: string | null) => void) {
+/**
+ * The session's identity as another tab announced it. Returns the
+ * registration's end: a page keeps its (one) query client, and with it this
+ * listener, for its life, and a client thrown away — a test's, or several
+ * clients in one page — ends its listener with it, so the registry holds
+ * nothing of it. An announcement is a hint, never a decision: the cookie is
+ * what the server says it is (lib/errors.ts reads it back).
+ */
+export function onSessionIdentity(
+  handler: (identity: string | null) => void,
+): () => void {
   listeners.add(handler);
-  if (typeof BroadcastChannel === 'undefined' || channel) {
-    return;
+  if (typeof BroadcastChannel !== 'undefined' && !channel) {
+    try {
+      channel = new BroadcastChannel(CHANNEL);
+      channel.onmessage = (event: MessageEvent<string | null>) => {
+        const identity = event.data ?? null;
+        for (const listener of listeners) {
+          listener(identity);
+        }
+      };
+    } catch (error) {
+      console.warn('the session identity channel could not be opened', error);
+    }
   }
-  try {
-    channel ??= new BroadcastChannel(CHANNEL);
-    channel.onmessage = (event: MessageEvent<string | null>) => {
-      const identity = event.data ?? null;
-      for (const listener of listeners) {
-        listener(identity);
-      }
-    };
-  } catch (error) {
-    console.warn('the session identity channel could not be opened', error);
-  }
+  return () => {
+    listeners.delete(handler);
+  };
 }

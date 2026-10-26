@@ -191,16 +191,27 @@ export function createQueryClient(
  *   loaded): nothing cached belongs to a previous context — kept, announced
  *   to the other tabs.
  *
- * Another tab's announcement only acts when this tab has read `me` at least
- * once (the same reason a switched tab resets before showing anything): with
- * nothing read, its own first read answers under the shared new cookie.
+ * Another tab's announcement (the session bus, below) only acts when this
+ * tab has read `me` at least once (the same reason a switched tab resets
+ * before showing anything): with nothing read, its own first read answers
+ * under the shared new cookie. And it acts by asking, not by obeying: the
+ * announcement is read back against the server, and what `me` answers above
+ * decides — a stale, out-of-order or forged message changes nothing.
  */
 function watchSession(
   queryClient: QueryClient,
   target: () => ErrorHandlerTarget | undefined,
 ) {
   const watch = sessionWatch(queryClient);
-  onSessionIdentity((identity) => {
+  // Another tab's announcement is a hint of a re-issued cookie, never a
+  // decision: it may be stale (a sign out that another tab undid by signing
+  // back in), delivered among others, or forged outright — BroadcastChannel
+  // takes a script of this origin, and a compromised page can say anything.
+  // So the cookie is read back, and the `me` watcher above compares what the
+  // SERVER answers: nothing irreversible (a reset, a sign-out) happens on a
+  // message's word alone, and a message that matches the session costs one
+  // read and no more.
+  watch.offBus = onSessionIdentity((identity) => {
     if (
       watch.applying ||
       identity === watch.identity ||
@@ -211,20 +222,12 @@ function watchSession(
     ) {
       return;
     }
-    if (identity === null) {
-      // The session ended under another tab (a sign out, the idle or
-      // absolute limit): this one, signed in a moment ago, does what its
-      // own 401 would have.
-      endSession(queryClient, target());
-      return;
-    }
-    // The reset's final fetch of `me` records and announces under the
-    // re-issued cookie; a network failure is not a reason a session keeps
-    // another one's data failing this (the next refetch answers).
-    void createSession(queryClient)
-      .reset()
+    // A forced refetch (`me` would answer the cache while fresh): a network
+    // failure ends nothing — the next refetch, or a 401, says.
+    void queryClient
+      .fetchQuery({ ...meQuery, staleTime: 0 })
       .catch((error) =>
-        console.warn('the session identity change could not be re-read', error),
+        console.warn('an announced session change could not be re-read', error),
       );
   });
   const meHash = JSON.stringify(meQuery.queryKey);

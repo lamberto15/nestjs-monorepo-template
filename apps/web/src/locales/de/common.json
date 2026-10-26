@@ -1,6 +1,7 @@
 {
   "app": {
-    "name": "App"
+    "name": "App",
+    "staleDraft": "Die Sitzung hat sich geändert, während Sie geschrieben haben (in einem anderen Tab oder Fenster). Es wurde nichts gesendet — prüfen Sie, was Sie geschrieben haben, und senden Sie es unter der neuen Sitzung erneut ab."
   },
   "nav": {
     "platform": "Plattform",
