@@ -57,8 +57,22 @@ jobs:
           cache: true
       - name: Build the shared API client
         run: pnpm --filter @nestjs-monorepo-template/api-client build
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+      - name: Playwright browser cache
+        id: browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ matrix.browser }}-${{ steps.playwright.outputs.version }}
       - name: Install the browser
-        run: pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright install --with-deps ${{ matrix.browser }}
+        run: |
+          if [ "${{ steps.browsers.outputs.cache-hit }}" = true ]; then
+            pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright install-deps ${{ matrix.browser }}
+          else
+            pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright install --with-deps ${{ matrix.browser }}
+          fi
       - name: Local file analytics without external requests
         env:
           ANALYTICS_BROWSER: ${{ matrix.browser }}
@@ -81,10 +95,12 @@ jobs:
         with:
           runtime: node@24
           cache: true
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
       # `turbo run size` builds the web app first (turbo.json).
       - name: Bundle budget
         run: |
-          pnpm exec turbo run size --filter=@nestjs-monorepo-template/web
+          pnpm turbo run size --filter=@nestjs-monorepo-template/web
       - name: Sizes in the job summary
         if: ${{ !cancelled() }}
         working-directory: apps/web
@@ -126,7 +142,9 @@ jobs:
         with:
           runtime: node@24
           cache: true
-      - run: pnpm exec turbo run build-storybook --filter=@nestjs-monorepo-template/ui
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
+      - run: pnpm turbo run build-storybook --filter=@nestjs-monorepo-template/ui
       - name: Storybook
         uses: actions/upload-artifact@v7
         with:
@@ -148,8 +166,10 @@ jobs:
         with:
           runtime: node@24
           cache: true
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
       - name: Lighthouse CI on the built app
-        run: pnpm exec turbo run lighthouse --filter=@nestjs-monorepo-template/web
+        run: pnpm turbo run lighthouse --filter=@nestjs-monorepo-template/web
       - name: Scores in the job summary
         if: ${{ !cancelled() }}
         working-directory: apps/web/.lighthouseci

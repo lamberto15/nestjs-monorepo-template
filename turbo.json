@@ -40,10 +40,25 @@
       "persistent": true
     },
     "lint": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "outputs": []
     },
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "//#client:generate": {
+      "dependsOn": ["@nestjs-monorepo-template/api#build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "apps/api/**",
+        "packages/api-client/**"
+      ],
+      "outputs": [
+        "packages/api-client/openapi.json",
+        "packages/api-client/src/schema.ts",
+        "packages/api-client/src/realtime-events.ts"
+      ]
     },
     "test:browser": {
       "dependsOn": [

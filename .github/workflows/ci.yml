@@ -2,8 +2,8 @@
 # (https://pnpm.io/continuous-integration#github-actions): pnpm/setup installs
 # pnpm (devEngines.packageManager), Node (devEngines.runtime) and the
 # dependencies from the lockfile. The checks are the root's scripts: Turborepo
-# (turbo.json) runs each workspace package's task, its local cache kept
-# between runs with actions/cache, as Turborepo's GitHub Actions guide does.
+# (turbo.json) runs each workspace package's task, with the GitHub-native
+# cache proxy sharing task artifacts between jobs and runs.
 # Then the security scans, and on main and v* tags the image is published to
 # GHCR (docs/deployment.md, "CI"); a v* tag then gets its GitHub release
 # (docs/releases.md).
@@ -462,6 +462,8 @@ jobs:
         with:
           runtime: node@24
           cache: true
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
       - name: Lint the workspace and check unused dependencies
         run: pnpm lint
 
@@ -496,16 +498,12 @@ jobs:
         with:
           runtime: node@24
           cache: true
-      - name: Turborepo's cache (tasks whose inputs didn't change are replayed)
-        uses: actions/cache@v6
-        with:
-          path: .turbo/cache
-          key: turbo-v2-${{ runner.os }}-check-${{ github.sha }}
-          restore-keys: turbo-v2-${{ runner.os }}-check-
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
       # Oxlint in every package, the translation parity check, then knip:
       # unused files, exports and dependencies (knip.jsonc).
-      - run: pnpm exec turbo run lint ${{ needs.changes.outputs.affected == 'true' && '--affected' || '' }} && pnpm i18n:check && pnpm knip
-      - run: pnpm exec turbo run build ${{ needs.changes.outputs.affected == 'true' && '--affected' || '' }}
+      - run: pnpm turbo run lint ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }} && pnpm i18n:check && pnpm knip
+      - run: pnpm turbo run build ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }}
       # The typed client's OpenAPI document and types must match the routes.
       - run: pnpm client:check
         if: needs.changes.outputs.api == 'true'
@@ -577,22 +575,18 @@ jobs:
         with:
           runtime: node@24
           cache: true
-      - name: Turborepo's cache (tasks whose inputs didn't change are replayed)
-        uses: actions/cache@v6
-        with:
-          path: .turbo/cache
-          key: turbo-v2-${{ runner.os }}-unit-api-${{ matrix.name }}-${{ github.sha }}
-          restore-keys: turbo-v2-${{ runner.os }}-unit-api-${{ matrix.name }}-
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
       - name: A shard (blob report, coverage; thresholds are checked when merged)
         if: matrix.blob
         run: >-
-          pnpm exec turbo run test:cov ${{ needs.changes.outputs.benchmark == 'unit' && '--force' || '' }} ${{ needs.changes.outputs.affected == 'true' && '--affected' || '' }} ${{ matrix.filter }} --
+          pnpm turbo run test:cov ${{ needs.changes.outputs.benchmark == 'unit' && '--force' || '' }} ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }} ${{ matrix.filter }} --
           ${{ matrix.args }} --reporter=default --reporter=blob
           --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
           --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
       - name: Whole (coverage and its thresholds)
         if: ${{ !matrix.blob }}
-        run: pnpm exec turbo run test:cov ${{ needs.changes.outputs.benchmark == 'unit' && '--force' || '' }} ${{ needs.changes.outputs.affected == 'true' && '--affected' || '' }} ${{ matrix.filter }}
+        run: pnpm turbo run test:cov ${{ needs.changes.outputs.benchmark == 'unit' && '--force' || '' }} ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }} ${{ matrix.filter }}
       - name: The shard's blob report
         if: matrix.blob
         uses: actions/upload-artifact@v7
@@ -633,22 +627,18 @@ jobs:
         with:
           runtime: node@24
           cache: true
-      - name: Turborepo's cache (tasks whose inputs didn't change are replayed)
-        uses: actions/cache@v6
-        with:
-          path: .turbo/cache
-          key: turbo-v2-${{ runner.os }}-unit-web-${{ matrix.name }}-${{ github.sha }}
-          restore-keys: turbo-v2-${{ runner.os }}-unit-web-${{ matrix.name }}-
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
       - name: A shard (blob report, coverage; thresholds are checked when merged)
         if: matrix.blob
         run: >-
-          pnpm exec turbo run test:cov ${{ needs.changes.outputs.benchmark == 'unit' && '--force' || '' }} ${{ needs.changes.outputs.affected == 'true' && '--affected' || '' }} ${{ matrix.filter }} --
+          pnpm turbo run test:cov ${{ needs.changes.outputs.benchmark == 'unit' && '--force' || '' }} ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }} ${{ matrix.filter }} --
           ${{ matrix.args }} --reporter=default --reporter=blob
           --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
           --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
       - name: Whole (coverage and its thresholds)
         if: ${{ !matrix.blob }}
-        run: pnpm exec turbo run test:cov ${{ needs.changes.outputs.benchmark == 'unit' && '--force' || '' }} ${{ needs.changes.outputs.affected == 'true' && '--affected' || '' }} ${{ matrix.filter }}
+        run: pnpm turbo run test:cov ${{ needs.changes.outputs.benchmark == 'unit' && '--force' || '' }} ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }} ${{ matrix.filter }}
       - name: The shard's blob report
         if: matrix.blob
         uses: actions/upload-artifact@v7
@@ -747,6 +737,8 @@ jobs:
         with:
           runtime: node@24
           cache: true
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
       - run: pnpm test:e2e --shard=${{ matrix.shard }}/${{ inputs.e2e_shards || '2' }}
         env:
           REDIS_URL: redis://localhost:6379
@@ -792,6 +784,8 @@ jobs:
         with:
           runtime: node@24
           cache: true
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
       - name: The stub collector (OTLP/HTTP and Sentry's envelope endpoint)
         run: |
           nohup node apps/api/test/telemetry-stub.mjs serve 4318 > "$RUNNER_TEMP/stub.log" 2>&1 &
@@ -866,12 +860,8 @@ jobs:
         with:
           runtime: node@24
           cache: true
-      - name: Turborepo's cache (the API and the web app are built first)
-        uses: actions/cache@v6
-        with:
-          path: .turbo/cache
-          key: turbo-v2-${{ runner.os }}-e2e-web-${{ github.sha }}
-          restore-keys: turbo-v2-${{ runner.os }}-e2e-web-
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
       # Playwright's browsers, kept between runs by its version; the system
       # libraries are installed each time (`--with-deps`: apt, a few seconds).
       - name: Playwright's version
@@ -944,6 +934,8 @@ jobs:
         with:
           runtime: node@24
           cache: true
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
       # Reuse this already-installed workspace for tooling-only lint, avoiding
       # a second GitHub runner (and do it before generators modify the tree).
       - name: Lint tooling and unused dependencies
@@ -998,7 +990,7 @@ jobs:
       - run: pnpm lint:code
       - run: pnpm build
       - run: pnpm db:check
-      - run: pnpm client:generate
+      - run: pnpm turbo run client:generate
       - name: Their generated e2e tests, and the OpenAPI document's paths
         run: pnpm --filter @nestjs-monorepo-template/api exec vitest run --config ./vitest.config.e2e.ts test/smoke-widgets.e2e-spec.ts test/smoke-parts.e2e-spec.ts test/smoke-entries.e2e-spec.ts test/openapi.e2e-spec.ts
         env:
@@ -1051,6 +1043,8 @@ jobs:
         with:
           runtime: node@24
           cache: true
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
       - name: Remove the example feature
         run: pnpm feature:remove notes
       - name: 'Its table dropped (a generated migration: drizzle-kit asks nothing)'
@@ -1066,7 +1060,7 @@ jobs:
         run: pnpm lint:code
       - run: pnpm build
       - run: pnpm db:check
-      - run: pnpm client:generate
+      - run: pnpm turbo run client:generate
       # The web app types its calls with the client: built again on the one
       # without notes (Turborepo rebuilds the client and the web app only).
       - name: 'Build on the regenerated client (once: shard 1)'
@@ -1079,12 +1073,12 @@ jobs:
         run: |
           shard=${{ matrix.shard }}
           if [ "$shard" -le 3 ]; then
-            pnpm exec turbo run test --filter=@nestjs-monorepo-template/api -- --shard="$shard/3"
+            pnpm turbo run test --filter=@nestjs-monorepo-template/api -- --shard="$shard/3"
           else
-            pnpm exec turbo run test --filter=@nestjs-monorepo-template/web -- --shard="$((shard - 3))/3"
+            pnpm turbo run test --filter=@nestjs-monorepo-template/web -- --shard="$((shard - 3))/3"
           fi
           if [ "$shard" -eq 1 ]; then
-            pnpm exec turbo run test --filter='!@nestjs-monorepo-template/api' --filter='!@nestjs-monorepo-template/web'
+            pnpm turbo run test --filter='!@nestjs-monorepo-template/api' --filter='!@nestjs-monorepo-template/web'
           fi
       - name: Every e2e test (this shard's sixth; not on pull requests)
         if: needs.changes.outputs.full == 'true'
