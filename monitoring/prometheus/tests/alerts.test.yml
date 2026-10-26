@@ -409,8 +409,6 @@ tests:
   - name: outbox and webhooks
     interval: 1m
     input_series:
-      - series: 'outbox_lag_seconds{job="api",instance="10.0.0.2:3000"}'
-        values: '0 0 400x20'
       - series: 'outbox_lag_seconds{job="worker",instance="10.0.0.4:3000"}'
         values: '0 0 400x20'
       - series: 'outbox_dead_letters{job="worker",instance="10.0.0.4:3000"}'
@@ -553,10 +551,10 @@ tests:
   - name: stores unreachable
     interval: 1m
     input_series:
-      # The api answers and reads PostgreSQL, but its queue gauges are gone: Redis.
-      - series: 'up{job="api",instance="10.0.0.2:3000"}'
+      # The worker answers and reads PostgreSQL, but its queue gauges are gone: Redis.
+      - series: 'up{job="worker",instance="10.0.0.4:3000"}'
         values: '1x10'
-      - series: 'outbox_undelivered{job="api",instance="10.0.0.2:3000"}'
+      - series: 'outbox_undelivered{job="worker",instance="10.0.0.4:3000"}'
         values: '0x10'
       - series: 'pg_up{job="postgres",instance="postgres-exporter:9187"}'
         values: '1 0x10'
@@ -574,10 +572,10 @@ tests:
         exp_alerts:
           - exp_labels:
               severity: critical
-              job: api
-              instance: 10.0.0.2:3000
+              job: worker
+              instance: 10.0.0.4:3000
             exp_annotations:
-              summary: api 10.0.0.2:3000 cannot read Redis
+              summary: worker 10.0.0.4:3000 cannot read Redis
               description: The process answers, but its queue gauges have failed (or taken more than 2 s) for 2 minutes. Queues, rate limits and realtime need Redis.
       - eval_time: 3m
         alertname: DatabaseUnreachableFromApp

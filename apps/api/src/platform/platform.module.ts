@@ -26,6 +26,7 @@ import { FeaturesService } from './features/features.service.js';
 import { OpsPolicy } from './ops/ops.policy.js';
 import { OpsQueues } from './ops/ops-queues.service.js';
 import { OpsMetrics } from './ops/ops-metrics.js';
+import { OutboxMetricsReader } from './ops/outbox-metrics.reader.js';
 import type { PlatformEnv } from './platform.env.js';
 import { PLATFORM_OPTIONS, type PlatformOptions } from './platform.options.js';
 import { IAM_NOTIFIER } from '../iam/iam-notifications.js';
@@ -511,6 +512,7 @@ export class PlatformModule {
         OpsQueues,
         // Queue depths and the outbox on core's /metrics.
         OpsMetrics,
+        OutboxMetricsReader,
         {
           // Instances and journals in your database, in a schema of their own (nest_workflows)
           provide: PostgresWorkflowStore,
