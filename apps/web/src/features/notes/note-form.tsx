@@ -63,6 +63,38 @@ type NoteDraft = {
   base: { title: string; body: string; custom: CustomDrafts };
 };
 const EMPTY_FIELDS: never[] = [];
+const sameValue = (left: unknown, right: unknown) =>
+  JSON.stringify(left) === JSON.stringify(right);
+
+function isCustomDrafts(value: unknown): value is CustomDrafts {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Object.values(value).every(
+      (draft) =>
+        draft === undefined ||
+        typeof draft === 'string' ||
+        typeof draft === 'boolean' ||
+        (Array.isArray(draft) &&
+          draft.every((item) => typeof item === 'string')),
+    )
+  );
+}
+
+function isNoteDraft(value: unknown): value is NoteDraft {
+  if (!value || typeof value !== 'object') return false;
+  const draft = value as Partial<NoteDraft>;
+  return (
+    typeof draft.title === 'string' &&
+    typeof draft.body === 'string' &&
+    isCustomDrafts(draft.custom) &&
+    !!draft.base &&
+    typeof draft.base.title === 'string' &&
+    typeof draft.base.body === 'string' &&
+    isCustomDrafts(draft.base.custom)
+  );
+}
 
 /**
  * Create (no `note`) or edit (`note` and the `etag` it was read with): one
@@ -86,10 +118,12 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
   const me = queryClient.getQueryData(meQuery.queryKey);
   const identity = note ? sessionIdentity(me) : null;
   const tenantId = note ? (me?.tenant?.id ?? '') : '';
-  const savedDraft =
+  const storedDraft =
     note && identity && tenantId
       ? readEditorDraft<NoteDraft>(identity, tenantId, note.id)
       : undefined;
+  const savedDraft =
+    storedDraft && isNoteDraft(storedDraft.value) ? storedDraft : undefined;
   const [draftDecision, setDraftDecision] = useState(!savedDraft);
   const [latest, setLatest] = useState<{ note: Note; etag?: string }>();
   const [latestUnavailable, setLatestUnavailable] = useState(false);
@@ -306,7 +340,7 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
   async function reconcile() {
     if (!note || !latest?.etag || !reconcileDraft) return;
     const choose = (key: string, draft: unknown, base: unknown) =>
-      choices[key] ?? (draft === base ? 'server' : 'draft');
+      choices[key] ?? (sameValue(draft, base) ? 'server' : 'draft');
     const currentCustom = initialDrafts(fields, latest.note.custom);
     const mergedCustom = { ...currentCustom };
     for (const field of fields) {
@@ -470,7 +504,7 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
                         size="sm"
                         variant={
                           (choices[field.key] ??
-                            (field.draft === field.base
+                            (sameValue(field.draft, field.base)
                               ? 'server'
                               : 'draft')) === 'draft'
                             ? 'default'
@@ -490,7 +524,7 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
                         size="sm"
                         variant={
                           (choices[field.key] ??
-                            (field.draft === field.base
+                            (sameValue(field.draft, field.base)
                               ? 'server'
                               : 'draft')) === 'server'
                             ? 'default'
