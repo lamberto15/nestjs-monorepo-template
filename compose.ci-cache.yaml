@@ -1,0 +1,10 @@
+# GitHub Actions only: keep the normal Compose files portable while allowing
+# the hardened-stack job to persist the backup image's BuildKit layers.
+services:
+  backup:
+    build:
+      context: ./backup
+      cache_from:
+        - type=gha,scope=backup
+      cache_to:
+        - type=gha,scope=backup,mode=max

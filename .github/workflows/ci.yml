@@ -142,7 +142,8 @@ jobs:
           curl --proto '=https' --proto-redir '=https' -fsSL https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz -o "$RUNNER_TEMP/actionlint.tar.gz"
           echo '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  actionlint.tar.gz' | (cd "$RUNNER_TEMP" && sha256sum -c -)
           tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
-          "$RUNNER_TEMP/actionlint" -shellcheck=
+          # actionlint 1.7.12 predates GitHub's documented service `command` key.
+          "$RUNNER_TEMP/actionlint" -shellcheck= -ignore 'unexpected key "command" for "services" section'
       - name: Validate mixed release digests with Helm
         run: |
           curl --proto '=https' --proto-redir '=https' -fsSL https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz -o "$RUNNER_TEMP/helm.tar.gz"
@@ -484,6 +485,8 @@ jobs:
           POSTGRES_USER: app
           POSTGRES_PASSWORD: app
           POSTGRES_DB: app
+          POSTGRES_INITDB_ARGS: --nosync
+        command: postgres -c fsync=off -c synchronous_commit=off -c full_page_writes=off
         ports: ['5432:5432']
         options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
     env:
@@ -728,6 +731,8 @@ jobs:
           POSTGRES_USER: app
           POSTGRES_PASSWORD: app
           POSTGRES_DB: app
+          POSTGRES_INITDB_ARGS: --nosync
+        command: postgres -c fsync=off -c synchronous_commit=off -c full_page_writes=off
         ports: ['5432:5432']
         options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
@@ -775,6 +780,8 @@ jobs:
           POSTGRES_USER: app
           POSTGRES_PASSWORD: app
           POSTGRES_DB: app
+          POSTGRES_INITDB_ARGS: --nosync
+        command: postgres -c fsync=off -c synchronous_commit=off -c full_page_writes=off
         ports: ['5432:5432']
         options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
@@ -1358,10 +1365,12 @@ jobs:
     env:
       # loadtest/run.sh's names only: its `down` removes the project's volumes.
       LOADTEST_PROJECT: loadtest-hardened
+      LOADTEST_GHA_CACHE: '1'
       # run.sh's default; ignored by git.
       LOADTEST_OUT: loadtest/results
     steps:
       - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
       - uses: actions/download-artifact@v8
         with:
           name: image-app
@@ -1399,7 +1408,7 @@ jobs:
           compose() {
             API_REPLICAS=2 LOADTEST_CAPTCHA=off docker compose \
               --project-name "$LOADTEST_PROJECT" --env-file "$LOADTEST_OUT/stack.env" \
-              -f compose.yaml -f compose.prod.yaml -f compose.loadtest.yaml \
+              -f compose.yaml -f compose.prod.yaml -f compose.loadtest.yaml -f compose.ci-cache.yaml \
               --profile backup "$@"
           }
           # The backup service writes /backups as `postgres`: its first run

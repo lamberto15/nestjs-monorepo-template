@@ -10,9 +10,15 @@ FROM ghcr.io/pnpm/pnpm:12.15.0 AS web
 WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN CI=true pnpm fetch --store-dir /pnpm-store
-COPY . .
+COPY package.json ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/web/package.json apps/web/package.json
+COPY apps/web-e2e/package.json apps/web-e2e/package.json
+COPY packages/api-client/package.json packages/api-client/package.json
+COPY packages/ui/package.json packages/ui/package.json
 RUN CI=true pnpm install --store-dir /pnpm-store --frozen-lockfile --offline \
       --filter @nestjs-monorepo-template/web...
+COPY . .
 # Only the build output depends on the commit SHA. Leave fetch/install layers
 # cacheable when a new commit changes no dependencies.
 ARG GIT_SHA=""

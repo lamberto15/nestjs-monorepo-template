@@ -20,8 +20,16 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 # CI=true here and in the install: lefthook's postinstall leaves git hooks
 # alone (the image has neither .git nor git).
 RUN CI=true pnpm fetch --store-dir /pnpm-store
-COPY . .
+# Resolve the workspace graph from manifests alone so source edits don't
+# invalidate the dependency installation layer.
+COPY package.json ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/web/package.json apps/web/package.json
+COPY apps/web-e2e/package.json apps/web-e2e/package.json
+COPY packages/api-client/package.json packages/api-client/package.json
+COPY packages/ui/package.json packages/ui/package.json
 RUN CI=true pnpm install --store-dir /pnpm-store --frozen-lockfile --offline
+COPY . .
 RUN pnpm --filter @nestjs-monorepo-template/api build
 # The API as a package of its own: its package.json, the files it lists
 # (dist, drizzle) and a node_modules of its production dependencies only.
