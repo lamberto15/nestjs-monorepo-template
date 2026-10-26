@@ -33,7 +33,13 @@ export default defineConfig({
       name: 'chromium',
       dependencies: ['setup'],
       testIgnore: /auth\.setup\.ts/,
-      use: { ...devices['Desktop Chrome'] },
+      // E2E_BROWSER_CHANNEL=chrome (CI): the machine's own Google Chrome
+      // rather than Playwright's Chromium, which needs a download and its
+      // system libraries from apt (docs/ci-runtime.md). Unset: the bundled one.
+      use: {
+        ...devices['Desktop Chrome'],
+        channel: process.env.E2E_BROWSER_CHANNEL || undefined,
+      },
     },
   ],
   webServer: [
