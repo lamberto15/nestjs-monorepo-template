@@ -526,6 +526,27 @@ describe('the session another tab announced', () => {
 });
 
 describe('the session a flow here applies, announced to the other tabs', () => {
+  it('resets another tab when a tenant switch is announced', async () => {
+    const tenantA = meInTenant(signedInUser.tenant!.id);
+    const firstTab = await watchedClient(tenantA);
+    const secondTab = await watchedClient(tenantA);
+
+    meAfter(meInTenant(otherTenantId));
+    await createSession(firstTab.queryClient).reset();
+
+    // Separate watched clients stand in for two open tabs sharing the
+    // BroadcastChannel and cookie. The receiver verifies the hint through
+    // /auth/me before resetting its own tenant-A cache.
+    await waitFor(() => {
+      expect(
+        secondTab.queryClient.getQueryData(meQuery.queryKey),
+      ).toMatchObject({ tenant: { id: otherTenantId } });
+      expect(secondTab.queryClient.getQueryData(recordKey)).toBeUndefined();
+      expect(secondTab.queryClient.getQueryData(['orphan'])).toBeUndefined();
+      expect(secondTab.queryClient.getMutationCache().getAll()).toHaveLength(0);
+    });
+  });
+
   it('announces the reset after a switch, and applies it once', async () => {
     const received: (string | null)[] = [];
     const inbox = new BroadcastChannel('app-session-identity');
