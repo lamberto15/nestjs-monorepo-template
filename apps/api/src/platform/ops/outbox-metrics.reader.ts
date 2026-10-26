@@ -58,12 +58,13 @@ export class OutboxMetricsReader {
         await tx.execute(sql`SET LOCAL statement_timeout = '1500ms'`);
         return tx.execute(sql`
           SELECT
-            (SELECT count(*) FROM nest_outbox.messages)::text AS pending,
+            count(*)::text AS pending,
             (SELECT count(*) FROM nest_outbox.dead_letters)::text AS dead_letters,
-            (SELECT min(CASE
+            min(CASE
               WHEN attempts > 0 THEN created_at
               WHEN available_at <= (extract(epoch FROM statement_timestamp()) * 1000)::bigint THEN available_at
-            END) FROM nest_outbox.messages)::text AS oldest_due_at
+            END)::text AS oldest_due_at
+          FROM nest_outbox.messages
         `);
       },
       { accessMode: 'read only' },
