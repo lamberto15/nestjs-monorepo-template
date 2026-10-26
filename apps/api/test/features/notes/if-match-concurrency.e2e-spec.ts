@@ -5,6 +5,46 @@ import { revisions } from '../../../src/platform/revisions/revisions.tables.js';
 import { bootApp, type TestApp } from '../../support.js';
 import { writeNote } from './notes-support.js';
 
+/** Holds the note's write lock until both requests have reached it. */
+async function concurrentOnNoteLock<T>(
+  node: TestApp,
+  id: string,
+  start: () => Promise<T>[],
+) {
+  let release!: () => void;
+  let acquired!: () => void;
+  const lockAcquired = new Promise<void>((resolve) => {
+    acquired = resolve;
+  });
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const blocker = node.inTenant(() =>
+    node.db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${`approval-record:Note:${id}`}))`,
+      );
+      acquired();
+      await held;
+    }),
+  );
+  await lockAcquired;
+
+  const requests = start();
+  try {
+    await vi.waitFor(async () => {
+      const result = (await node.db.execute(
+        sql`select count(*)::int as count from pg_locks where database = (select oid from pg_database where datname = current_database()) and locktype = 'advisory' and not granted`,
+      )) as { rows: { count: number }[] };
+      expect(Number(result.rows[0]!.count)).toBe(requests.length);
+    });
+  } finally {
+    release();
+  }
+  await blocker;
+  return Promise.all(requests);
+}
+
 describe('conditional note writes under concurrency (e2e)', () => {
   let node: TestApp;
 
@@ -22,28 +62,7 @@ describe('conditional note writes under concurrency (e2e)', () => {
     const id = created.body.id as string;
     const original = await owner.agent.get(`/v1/notes/${id}`).expect(200);
     const etag = original.headers.etag as string;
-    const lockKey = `approval-record:Note:${id}`;
-
-    let release!: () => void;
-    let acquired!: () => void;
-    const lockAcquired = new Promise<void>((resolve) => {
-      acquired = resolve;
-    });
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    const blocker = node.inTenant(() =>
-      node.db.transaction(async (tx) => {
-        await tx.execute(
-          sql`select pg_advisory_xact_lock(hashtext(${lockKey}))`,
-        );
-        acquired();
-        await held;
-      }),
-    );
-    await lockAcquired;
-
-    const updates = [
+    const responses = await concurrentOnNoteLock(node, id, () => [
       owner.agent
         .patch(`/v1/notes/${id}`)
         .set('If-Match', etag)
@@ -54,21 +73,7 @@ describe('conditional note writes under concurrency (e2e)', () => {
         .set('If-Match', etag)
         .send({ title: 'Second concurrent edit' })
         .then((response) => response),
-    ];
-
-    try {
-      await vi.waitFor(async () => {
-        const result = (await node.db.execute(
-          sql`select count(*)::int as count from pg_locks where database = (select oid from pg_database where datname = current_database()) and locktype = 'advisory' and not granted`,
-        )) as { rows: { count: number }[] };
-        expect(Number(result.rows[0]!.count)).toBe(2);
-      });
-    } finally {
-      release();
-    }
-    await blocker;
-
-    const responses = await Promise.all(updates);
+    ]);
     expect(
       responses.map((response) => response.status).sort((a, b) => a - b),
     ).toEqual([200, 412]);
@@ -116,28 +121,7 @@ describe('conditional note writes under concurrency (e2e)', () => {
     const id = created.body.id as string;
     const original = await owner.agent.get(`/v1/notes/${id}`).expect(200);
     const etag = original.headers.etag as string;
-    const lockKey = `approval-record:Note:${id}`;
-
-    let release!: () => void;
-    let acquired!: () => void;
-    const lockAcquired = new Promise<void>((resolve) => {
-      acquired = resolve;
-    });
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    const blocker = node.inTenant(() =>
-      node.db.transaction(async (tx) => {
-        await tx.execute(
-          sql`select pg_advisory_xact_lock(hashtext(${lockKey}))`,
-        );
-        acquired();
-        await held;
-      }),
-    );
-    await lockAcquired;
-
-    const deletes = [
+    const responses = await concurrentOnNoteLock(node, id, () => [
       owner.agent
         .delete(`/v1/notes/${id}`)
         .set('If-Match', etag)
@@ -146,21 +130,7 @@ describe('conditional note writes under concurrency (e2e)', () => {
         .delete(`/v1/notes/${id}`)
         .set('If-Match', etag)
         .then((response) => response),
-    ];
-
-    try {
-      await vi.waitFor(async () => {
-        const result = (await node.db.execute(
-          sql`select count(*)::int as count from pg_locks where database = (select oid from pg_database where datname = current_database()) and locktype = 'advisory' and not granted`,
-        )) as { rows: { count: number }[] };
-        expect(Number(result.rows[0]!.count)).toBe(2);
-      });
-    } finally {
-      release();
-    }
-    await blocker;
-
-    const responses = await Promise.all(deletes);
+    ]);
     expect(
       responses.map((response) => response.status).sort((a, b) => a - b),
     ).toEqual([204, 404]);
