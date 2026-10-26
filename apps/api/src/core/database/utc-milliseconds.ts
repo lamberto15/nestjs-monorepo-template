@@ -6,4 +6,4 @@ import { sql, type AnyColumn, type SQL } from 'drizzle-orm';
  * expression can also back an expression index.
  */
 export const utcMilliseconds = (column: AnyColumn | SQL) =>
-  sql`date_trunc('milliseconds', ${column} at time zone 'UTC') at time zone 'UTC'`;
+  sql`(date_trunc('milliseconds', ${column} at time zone 'UTC') at time zone 'UTC')`;

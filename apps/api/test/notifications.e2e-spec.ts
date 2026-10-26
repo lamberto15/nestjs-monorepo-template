@@ -95,20 +95,28 @@ describe('notifications (e2e)', () => {
     const recipient = `user:${editor.id}`;
     const ids = [randomUUID(), randomUUID(), randomUUID()];
     // The owner connection seeds all three scopes; the HTTP reads use RLS.
-    await db().insert(notifications).values(
-      [node.tenantId, null, other.id].map((tenantId, index) => ({
-        id: ids[index]!,
-        tenantId,
-        recipient,
-        type: 'testItem.commented',
-        data: commentData('Tenant visibility'),
-      })),
-    );
-    const unread = await editor.agent.get('/v1/notifications/unread-count').expect(200);
+    await db()
+      .insert(notifications)
+      .values(
+        [node.tenantId, null, other.id].map((tenantId, index) => ({
+          id: ids[index]!,
+          tenantId,
+          recipient,
+          type: 'testItem.commented',
+          data: commentData('Tenant visibility'),
+        })),
+      );
+    const unread = await editor.agent
+      .get('/v1/notifications/unread-count')
+      .expect(200);
     expect(unread.body).toEqual({ unread: 2 });
-    const page = await editor.agent.get('/v1/notifications?count=true').expect(200);
+    const page = await editor.agent
+      .get('/v1/notifications?count=true')
+      .expect(200);
     expect(page.body.total).toBe(2);
-    expect(page.body.items.map((item: { id: string }) => item.id).sort()).toEqual(ids.slice(0, 2).sort());
+    expect(
+      page.body.items.map((item: { id: string }) => item.id).sort(),
+    ).toEqual(ids.slice(0, 2).sort());
   });
 
   /** The mail a user got but their invitation: what notifications sent them. */

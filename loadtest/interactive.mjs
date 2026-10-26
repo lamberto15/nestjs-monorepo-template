@@ -1,11 +1,10 @@
-import { readFile } from 'node:fs/promises';
 import { performance } from 'node:perf_hooks';
 
-// Private input: { baseUrl, headers, requests: [{ name, path }] }. Keep the
-// file outside the checkout; headers may contain a session cookie or token.
-// Run the same file before and after deployment. Output contains no URLs,
+// Private INTERACTIVE_REQUESTS_JSON input: { baseUrl, headers, requests: [{ name, path }] }.
+// Supply it through the environment; headers may contain a session cookie or token.
+// Run the same input before and after deployment. Output contains no URLs,
 // headers, response bodies, or tenant identifiers.
-const config = JSON.parse(await readFile(process.argv[2], 'utf8'));
+const config = JSON.parse(process.env.INTERACTIVE_REQUESTS_JSON ?? '{}');
 const base = new URL(config.baseUrl);
 if (!['http:', 'https:'].includes(base.protocol)) throw new Error('HTTP URL required');
 if (!config.requests?.length) throw new Error('At least one request required');

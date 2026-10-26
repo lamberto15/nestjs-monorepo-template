@@ -79,7 +79,9 @@ describe('OutboxMetricsReader', () => {
     expect(options).toEqual({ accessMode: 'read only' });
     expect(execute).toHaveBeenCalledTimes(2);
     const dialect = new PgDialect();
-    expect(dialect.sqlToQuery(execute.mock.calls[0]![0]).sql).toContain('1500ms');
+    expect(dialect.sqlToQuery(execute.mock.calls[0]![0]).sql).toContain(
+      '1500ms',
+    );
     expect(dialect.sqlToQuery(execute.mock.calls[1]![0]).sql).toContain(
       'nest_outbox.messages',
     );

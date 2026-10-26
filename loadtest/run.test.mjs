@@ -3,7 +3,7 @@
 // and the overlay it always applies, whatever COMPOSE_FILE says.
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -23,13 +23,11 @@ test('interactive benchmark measures 100 requests at each concurrency and fails 
     res.writeHead(req.url === '/bad' ? 503 : 200).end('private response');
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const dir = mkdtempSync(join(tmpdir(), 'interactive-benchmark-'));
   try {
-    const file = join(dir, 'requests.json');
-    writeFileSync(file, JSON.stringify({ baseUrl: `http://127.0.0.1:${server.address().port}`,
+    const input = JSON.stringify({ baseUrl: `http://127.0.0.1:${server.address().port}`,
       headers: { authorization: 'Bearer private-test-token' },
-      requests: [{ name: 'ok', path: '/ok' }, { name: 'bad', path: '/bad' }] }));
-    const child = spawn(process.execPath, [fileURLToPath(new URL('./interactive.mjs', import.meta.url)), file]);
+      requests: [{ name: 'ok', path: '/ok' }, { name: 'bad', path: '/bad' }] });
+    const child = spawn(process.execPath, [fileURLToPath(new URL('./interactive.mjs', import.meta.url))], { env: { ...process.env, INTERACTIVE_REQUESTS_JSON: input } });
     let output = '';
     child.stdout.on('data', (chunk) => { output += chunk; });
     const code = await new Promise((resolve, reject) => {
@@ -49,7 +47,6 @@ test('interactive benchmark measures 100 requests at each concurrency and fails 
     assert.doesNotMatch(output, /private|127\.0\.0\.1/);
   } finally {
     await new Promise((resolve) => server.close(resolve));
-    rmSync(dir, { recursive: true });
   }
 });
 

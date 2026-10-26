@@ -271,9 +271,7 @@ tests:
   - name: queues
     interval: 1m
     input_series:
-      # Every replica reports the same shared numbers: one alert per queue, not per replica.
-      - series: 'queue_jobs{job="api",instance="10.0.0.2:3000",queue="mail",state="waiting"}'
-        values: '5x40'
+      # Worker-capable replicas report the same shared numbers: one alert per queue, not per replica.
       - series: 'queue_jobs{job="worker",instance="10.0.0.4:3000",queue="mail",state="waiting"}'
         values: '5x40'
       - series: 'queue_jobs{job="worker",instance="10.0.0.4:3000",queue="mail",state="active"}'
