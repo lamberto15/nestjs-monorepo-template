@@ -38,6 +38,7 @@ describe('notes in the OpenAPI document (e2e)', () => {
     ).toEqual([
       '/v1/notes',
       '/v1/notes/bulk',
+      '/v1/notes/dashboard/weekly-counts',
       '/v1/notes/{id}',
       '/v1/notes/{id}/attachments',
       '/v1/notes/{id}/attachments/complete',

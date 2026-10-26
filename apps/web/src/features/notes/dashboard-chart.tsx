@@ -6,7 +6,7 @@ import {
   type ChartConfig,
 } from '@nestjs-monorepo-template/ui/components/chart';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
-import { queryOptions, useQueries } from '@tanstack/react-query';
+import { queryOptions, useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
@@ -43,34 +43,18 @@ export function weekRanges(now = new Date(), weeks = WEEKS) {
 }
 
 /**
- * Notes created in one week: a one-row page with `count=true`, so the API
- * counts and no rows travel (there is no aggregate route). Under the notes'
- * list key, so a write refreshes the chart.
+ * The week's counts in one bounded aggregate request. Under the notes' list
+ * key, so a write refreshes the chart.
  */
-export const weeklyCountQuery = (range: { from: string; to: string }) =>
+export const weeklyCountsQuery = (from: string) =>
   queryOptions({
-    queryKey: [
-      ...recordKeys.lists(NOTES_PATH),
-      'dashboard',
-      'week',
-      range.from,
-    ],
-    queryFn: async () =>
-      (
-        await unwrap(
-          api.GET('/v1/notes', {
-            params: {
-              query: {
-                'createdAt.between': `${range.from},${range.to}`,
-                limit: 1,
-                page: 1,
-                count: 'true',
-                fields: 'id',
-              },
-            },
-          }),
-        )
-      ).total ?? 0,
+    queryKey: [...recordKeys.lists(NOTES_PATH), 'dashboard', 'weeks', from],
+    queryFn: () =>
+      unwrap(
+        api.GET('/v1/notes/dashboard/weekly-counts', {
+          params: { query: { from, weeks: WEEKS } },
+        }),
+      ),
     // A hint on the home page: a failure is not worth a toast.
     meta: { errorToast: false },
   });
@@ -79,16 +63,15 @@ export const weeklyCountQuery = (range: { from: string; to: string }) =>
 export function NotesPerWeekCard() {
   const { t } = useTranslation('notes');
   const ranges = useMemo(() => weekRanges(), []);
-  const results = useQueries({
-    queries: ranges.map((range) => weeklyCountQuery(range)),
-  });
+  const query = useQuery(weeklyCountsQuery(ranges[0]!.week));
   const config = {
     count: { label: t('dashboard.chart.series'), color: 'var(--primary)' },
   } satisfies ChartConfig;
-  const pending = results.some((result) => result.isPending);
-  const data = ranges.map((range, i) => ({
+  const counts = new Map(query.data?.map((item) => [item.week, item.count]));
+  const pending = query.isPending;
+  const data = ranges.map((range) => ({
     week: range.week,
-    count: results[i]?.data ?? 0,
+    count: counts.get(range.week) ?? 0,
   }));
   const total = data.reduce((sum, row) => sum + row.count, 0);
   return (

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -53,7 +54,10 @@ import {
   type CreateNoteDto,
   type Note,
   updateNoteSchema,
+  weeklyNoteCountsQuerySchema,
+  weeklyNoteCountsSchema,
   type UpdateNoteDto,
+  type WeeklyNoteCountsQuery,
 } from './note.schemas.js';
 import {
   IncludePipe,
@@ -223,6 +227,40 @@ export class NotesController {
       ...picked,
       items: picked.items.map((item) => withIncluded(item, included)),
     };
+  }
+
+  @Get('dashboard/weekly-counts')
+  @Can.Anyone()
+  @ApiOperation({
+    summary: 'Count visible notes by UTC week for the dashboard',
+    description:
+      'Returns 1–12 Monday-starting weeks in one aggregate query. Only live notes the caller may read are counted.',
+  })
+  @ApiOkResponse({ standardSchema: weeklyNoteCountsSchema })
+  @ApiBadRequestResponse({
+    description: '`from` must be a Monday in UTC; `weeks` must be 1–12.',
+  })
+  async weeklyCounts(
+    @CurrentUser() user: RequestPrincipal,
+    @Query({ schema: weeklyNoteCountsQuerySchema })
+    query: WeeklyNoteCountsQuery,
+  ) {
+    const from = new Date(`${query.from}T00:00:00.000Z`);
+    if (from.getUTCDay() !== 1) {
+      throw new BadRequestException('from must be a Monday in UTC.');
+    }
+    const to = new Date(from.getTime() + query.weeks * 7 * 24 * 60 * 60 * 1000);
+    const list = await this.customFields.extendList(NOTE_LIST, 'Note');
+    const filters = list.parse({
+      'createdAt.gte': from.toISOString(),
+      'createdAt.lt': to.toISOString(),
+    });
+    await this.access.assertQueryFields(user, 'Note', filters);
+    const where = and(
+      await this.access.sqlFilter(user, 'Note', 'read'),
+      list.where(filters),
+    );
+    return this.notes.weeklyCounts(where, from, query.weeks);
   }
 
   @Get(':id')

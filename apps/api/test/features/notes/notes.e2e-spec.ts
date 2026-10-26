@@ -22,6 +22,46 @@ describe('the example feature: notes (e2e)', () => {
     await node.close();
   });
 
+  it('aggregates weekly counts while respecting the caller’s note access', async () => {
+    const client = await node.client();
+    await writeNote(node, client.auth, {
+      title: 'Dashboard count',
+      body: 'Visible to this client.',
+    }).expect(201);
+
+    const now = new Date();
+    const monday = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() - ((now.getUTCDay() + 6) % 7),
+      ),
+    );
+    const from = new Date(monday.getTime() - 7 * 7 * 24 * 60 * 60 * 1000);
+    const response = await node
+      .http()
+      .get('/v1/notes/dashboard/weekly-counts')
+      .query({ from: from.toISOString().slice(0, 10), weeks: 8 })
+      .set('Authorization', client.auth)
+      .expect(200);
+
+    expect(response.body).toHaveLength(8);
+    expect(response.body.at(-1)).toEqual({
+      week: monday.toISOString().slice(0, 10),
+      count: 1,
+    });
+    await node
+      .http()
+      .get('/v1/notes/dashboard/weekly-counts')
+      .query({
+        from: new Date(from.getTime() + 24 * 60 * 60 * 1000)
+          .toISOString()
+          .slice(0, 10),
+      })
+      .set('Authorization', client.auth)
+      .expect(400);
+  });
+
   it('keeps grouped create and update side effects equivalent to single writes', async () => {
     const client = await node.client();
     const principal = {
