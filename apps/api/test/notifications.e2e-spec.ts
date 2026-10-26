@@ -115,8 +115,10 @@ describe('notifications (e2e)', () => {
       .expect(200);
     expect(page.body.total).toBe(2);
     expect(
-      page.body.items.map((item: { id: string }) => item.id).sort(),
-    ).toEqual(ids.slice(0, 2).sort());
+      page.body.items
+        .map((item: { id: string }) => item.id)
+        .sort((a: string, b: string) => a.localeCompare(b)),
+    ).toEqual(ids.slice(0, 2).sort((a, b) => a.localeCompare(b)));
   });
 
   /** The mail a user got but their invitation: what notifications sent them. */
