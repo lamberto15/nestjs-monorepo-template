@@ -525,8 +525,9 @@ contract step: release the code that no longer uses it first
 Nothing else depends on a feature: the platform's own tests run on a
 test-only record (`apps/api/test/fixtures/test-items`, made by the generator,
 its migrations in `test/fixtures/drizzle`, `pnpm db:generate:fixtures`), and
-CI's `template-without-notes` job removes notes on every change and runs
-everything. The web app's shared tests do the same: they mount the shared
+CI checks it: every pull request removes notes and fails on a reference left
+behind (`check`), and the `template-without-notes` job (nightly, tags) builds
+and runs everything without them. The web app's shared tests do the same: they mount the shared
 components alone (`renderComponent()`) on a test-only subject (`TestItem`),
 and the tests of a feature's pages sit in its folder. A feature's own tests live in `test/<name>.e2e-spec.ts` or
 `test/features/<name>/`, with their helpers next to them.

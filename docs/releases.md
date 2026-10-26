@@ -17,7 +17,7 @@ from an adopter's side:
 - **major**: an update needs more than the merge: a contract step (a
   migration that drops or renames what an earlier release stopped using), a
   removed or renamed variable, a breaking change to the API (CI's
-  `openapi-diff`), a new required service, a Node.js major;
+  OpenAPI diff in `check`), a new required service, a Node.js major;
 - **minor**: features and modules, new optional variables;
 - **patch**: fixes.
 
@@ -118,7 +118,7 @@ pnpm changeset            # pick the bump, describe the change for the client's 
 Commit the new `.changeset/*.md` with the change.
 
 - **The bump:** major for what breaks a consumer (a removed endpoint, field or
-  enum value, a new required parameter: CI's `openapi-diff` lists them),
+  enum value, a new required parameter: the OpenAPI diff in CI's `check` lists them),
   minor for additions, patch for fixes.
 - `pnpm changeset --empty` records that a change needs no release (a
   refactor, a test).
