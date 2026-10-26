@@ -2,8 +2,9 @@
 // run.sh's guards: the project names it accepts (`down` removes volumes),
 // and the overlay it always applies, whatever COMPOSE_FILE says.
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -13,6 +14,41 @@ const script = fileURLToPath(new URL('./run.sh', import.meta.url));
 const run = (command, env) =>
   spawnSync('bash', [script, command], { encoding: 'utf8', env: { ...process.env, ...env } });
 const docker = spawnSync('docker', ['compose', 'version'], { encoding: 'utf8' }).status === 0;
+
+test('interactive benchmark measures 100 requests at each concurrency and fails on HTTP errors', async () => {
+  const seen = new Map();
+  const server = createServer((req, res) => {
+    assert.equal(req.headers.authorization, 'Bearer private-test-token');
+    seen.set(req.url, (seen.get(req.url) ?? 0) + 1);
+    res.writeHead(req.url === '/bad' ? 503 : 200).end('private response');
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const input = JSON.stringify({ baseUrl: `http://127.0.0.1:${server.address().port}`,
+      headers: { authorization: 'Bearer private-test-token' },
+      requests: [{ name: 'ok', path: '/ok' }, { name: 'bad', path: '/bad' }] });
+    const child = spawn(process.execPath, [fileURLToPath(new URL('./interactive.mjs', import.meta.url))], { env: { ...process.env, INTERACTIVE_REQUESTS_JSON: input } });
+    let output = '';
+    child.stdout.on('data', (chunk) => { output += chunk; });
+    const code = await new Promise((resolve, reject) => {
+      child.on('error', reject);
+      child.on('close', resolve);
+    });
+    assert.equal(code, 1);
+    const rows = output.trim().split('\n').map((line) => JSON.parse(line));
+    assert.deepEqual(rows.map(({ concurrency, requests, failures, passed }) =>
+      ({ concurrency, requests, failures, passed })), [
+      { concurrency: 1, requests: 100, failures: 0, passed: true },
+      { concurrency: 3, requests: 100, failures: 0, passed: true },
+      { concurrency: 1, requests: 100, failures: 100, passed: false },
+      { concurrency: 3, requests: 100, failures: 100, passed: false },
+    ]);
+    assert.deepEqual([...seen], [['/ok', 200], ['/bad', 200]]);
+    assert.doesNotMatch(output, /private|127\.0\.0\.1/);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
 
 test('refuses any project not named loadtest-<name>, before touching anything', () => {
   for (const project of ['acme-api', 'nestjs-template', 'nestjs-monorepo-template', 'loadtest-', 'LOADTEST-x', 'loadtest', 'x-loadtest-1', 'loadtest-a b']) {

@@ -1108,7 +1108,7 @@ on every process, api and worker alike (port 3000): HTTP request durations
 pattern such as `GET /v1/notes/{id}`, unmatched requests `unmatched`; the
 scrape and `/health` are not measured), `http_requests_in_flight`, the
 process's pool (`db_pool_connections{state="total|idle|waiting"}`), jobs
-per queue and state (`queue_jobs{queue,state}`), the outbox
+per queue and state (`queue_jobs{queue,state}`; worker-capable processes only), the outbox
 (`outbox_undelivered`, `outbox_dead_letters`, `outbox_lag_seconds`), the
 outgoing webhooks (`webhook_deliveries{state="pending|due|failed"}`,
 `webhook_delivery_lag_seconds`), approvals (`approvals_open{status="pending|changes_requested"}`,
@@ -1126,9 +1126,13 @@ process, [Resource limits](#resource-limits)), mail (`mail_sent_total`,
 ([money](money.md)), `telemetry_rejected_total{target,status}` (uploads a
 collector refused: 401, 403, 429; [Telemetry](#telemetry)), Node's defaults (`process_cpu_seconds_total`,
 heap, event loop lag, GC) and the heap's limit (`nodejs_heap_size_limit_bytes`).
-Queue, outbox, webhook and approval gauges are shared state: every process reports the
-same values, so aggregate them with `max()`, not `sum()`. A gauge whose read
-fails (PostgreSQL or Redis away) is left out of that scrape, not set to 0.
+Queue, outbox and webhook gauges are shared state: worker-capable processes
+(`APP_ROLE=worker` or `all`) report them, so aggregate them with `max()`, not
+`sum()`. Outbox pending, dead-letter and due-lag values share one read-only
+aggregate query per process, cached for 30 seconds; the due lag continues to
+age between reads. The query has a 1500 ms PostgreSQL statement timeout. A
+gauge whose read fails (PostgreSQL or Redis away) is left out of that scrape,
+not set to 0 or reused from an earlier snapshot.
 
 - **Off by default:** without `METRICS_TOKEN`, `/metrics` answers 404. Set it
   (`openssl rand -hex 24`, at least 16 characters); Prometheus then sends

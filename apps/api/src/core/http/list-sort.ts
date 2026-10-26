@@ -13,6 +13,7 @@ import {
 import { z } from 'zod';
 import { openCursor, sealCursor } from './cursor-seal.js';
 import type { FilterField } from './list-query.js';
+import { utcMilliseconds } from '../database/utc-milliseconds.js';
 
 /*
  * `?sort=-createdAt,title`: the order of a list, on declared `sortable`
@@ -58,8 +59,8 @@ const sortExpression = (field: FilterField): ListColumn => {
     return column;
   }
   return typeof column === 'function'
-    ? (query) => sql`date_trunc('milliseconds', ${column(query)})`
-    : sql`date_trunc('milliseconds', ${column})`;
+    ? (query) => utcMilliseconds(column(query))
+    : utcMilliseconds(column);
 };
 
 /**

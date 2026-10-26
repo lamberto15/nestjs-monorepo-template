@@ -8,6 +8,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { searchVector } from '../../core/database/search.js';
+import { utcMilliseconds } from '../../core/database/utc-milliseconds.js';
 import {
   at,
   softDeletable,
@@ -65,6 +66,21 @@ export const notes = pgTable(
       .where(sql`deleted_at is null`),
     index('notes_tenant_updated_at_idx')
       .on(table.tenantId, table.updatedAt.desc(), table.id.desc())
+      .where(sql`deleted_at is null`),
+    // The API's list sort truncates timestamps to JavaScript's millisecond precision.
+    index('notes_tenant_created_ms_idx')
+      .on(
+        table.tenantId,
+        sql`${utcMilliseconds(table.createdAt)} desc nulls first`,
+        table.id.desc(),
+      )
+      .where(sql`deleted_at is null`),
+    index('notes_tenant_updated_ms_idx')
+      .on(
+        table.tenantId,
+        sql`${utcMilliseconds(table.updatedAt)} desc nulls first`,
+        table.id.desc(),
+      )
       .where(sql`deleted_at is null`),
     index('notes_owner_id_idx').on(table.ownerId),
     // The purge job finds old deleted rows by it.

@@ -1,10 +1,14 @@
 import { Injectable, type OnModuleInit } from '@nestjs/common';
-import { OutboxRelay } from '@nestjs/outbox';
 import { WebhookDeliveries } from '@nestjs/webhooks';
+import { runsWorkers } from '../../core/config/core.env.js';
 import { MetricsService } from '../../core/metrics/metrics.service.js';
 import { OpsQueues, QUEUE_GAUGE_STATES } from './ops-queues.service.js';
+import {
+  MetricSnapshot,
+  OutboxMetricsReader,
+} from './outbox-metrics.reader.js';
 
-/** One read per scrape, shared by the gauges that scrape collects at once. */
+/** Share webhook statistics among the gauges in a scrape. */
 const oncePerScrape = <T>(read: () => Promise<T>) => {
   let pending: Promise<T> | undefined;
   return () => {
@@ -27,11 +31,14 @@ export class OpsMetrics implements OnModuleInit {
   constructor(
     private readonly metrics: MetricsService,
     private readonly queues: OpsQueues,
-    private readonly outbox: OutboxRelay,
+    private readonly outbox: OutboxMetricsReader,
     private readonly webhookDeliveries: WebhookDeliveries,
   ) {}
 
   onModuleInit() {
+    // These are deployment-wide backlogs, sampled only by worker-capable processes.
+    if (!runsWorkers()) return;
+
     this.metrics.collect(
       'queue_jobs',
       'Background jobs per queue and state.',
@@ -44,21 +51,31 @@ export class OpsMetrics implements OnModuleInit {
         ),
       ['queue', 'state'],
     );
-    const outboxStats = oncePerScrape(() => this.outbox.stats());
+    const outboxStats = new MetricSnapshot(() => this.outbox.read());
     this.metrics.collect(
       'outbox_undelivered',
       'Outbox messages not yet published (ready, delayed or leased).',
-      async () => [{ value: (await outboxStats()).pending }],
+      async () => [{ value: (await outboxStats.get()).pending }],
     );
     this.metrics.collect(
       'outbox_dead_letters',
       'Outbox messages given up on (requeue or purge them in /v1/ops).',
-      async () => [{ value: (await outboxStats()).deadLetters }],
+      async () => [{ value: (await outboxStats.get()).deadLetters }],
     );
     this.metrics.collect(
       'outbox_lag_seconds',
       'How long the longest-waiting due outbox message has waited.',
-      async () => [{ value: (await outboxStats()).lagMs / 1000 }],
+      async () => {
+        const oldestDueAt = (await outboxStats.get()).oldestDueAt;
+        return [
+          {
+            value:
+              oldestDueAt === null
+                ? 0
+                : Math.max(0, Date.now() - oldestDueAt) / 1000,
+          },
+        ];
+      },
     );
     const webhookStats = oncePerScrape(() => this.webhookDeliveries.stats());
     this.metrics.collect(

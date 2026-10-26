@@ -264,7 +264,7 @@ groups:
       # From the app's own gauges: they go absent when their read fails, so
       # these work with managed PostgreSQL and Redis too (no exporter needed).
       - alert: DatabaseUnreachableFromApp
-        expr: up{job=~"api|worker"} == 1 unless on (job, instance) outbox_undelivered
+        expr: up{job="worker"} == 1 unless on (job, instance) outbox_undelivered
         for: 2m
         labels:
           severity: critical
@@ -273,7 +273,7 @@ groups:
           description: The process answers, but its database gauges have failed (or taken more than 2 s) for 2 minutes. /health answers 503 there.
 
       - alert: RedisUnreachableFromApp
-        expr: up{job=~"api|worker"} == 1 unless on (job, instance) queue_jobs
+        expr: up{job="worker"} == 1 unless on (job, instance) queue_jobs
         for: 2m
         labels:
           severity: critical
