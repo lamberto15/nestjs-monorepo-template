@@ -341,13 +341,18 @@ const formHooks = createFormHook({
  */
 function useAppFormImpl(props: unknown) {
   const staleDraftSession = useStaleDraftSession();
-  const form = formHooks.useAppForm(props as never);
-  const handleSubmit = form.handleSubmit.bind(form);
-  form.handleSubmit = ((...submitArgs: []) => {
-    if (staleDraftSession()) return Promise.resolve();
-    return handleSubmit(...submitArgs);
-  }) as typeof form.handleSubmit;
-  return form;
+  const options = props as {
+    onSubmit?: (args: unknown) => unknown;
+    [key: string]: unknown;
+  };
+  const onSubmit = options.onSubmit;
+  return formHooks.useAppForm({
+    ...options,
+    onSubmit: async (args: unknown) => {
+      if (staleDraftSession()) return;
+      return onSubmit?.(args);
+    },
+  } as never);
 }
 
 // Keep TanStack Form's generic call signature. Extracting it with
