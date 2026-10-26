@@ -1576,8 +1576,8 @@ by the validation, which stops the app.
 - **Compatibility with the instrumentation.** Observe's proxies broke the
   mail transports and lock-decorated jobs (`skipObserve`, above).
   OpenTelemetry and Sentry patch module functions, not provider instances,
-  so they need no such exclusion, and CI proves it: e2e shard 2 of 2
-  runs the e2e suite with `OTEL_EXPORTER_OTLP_ENDPOINT` and
+  so they need no such exclusion, and CI proves it: `e2e-web` runs a sixth
+  of the e2e suite with `OTEL_EXPORTER_OTLP_ENDPOINT` and
   `SENTRY_DSN` pointing at a stub collector
   (`apps/api/test/telemetry-stub.mjs`) and fails if no span of a request the
   app served reached it. `apps/api/test/setup-env.ts` starts the SDKs when
@@ -2001,7 +2001,7 @@ manual full runs and `v*` tags are comprehensive too.
 
 | Change | Validation |
 | --- | --- |
-| API | lint/build, API unit coverage, API E2E (one shard instrumented), browser/accessibility tests, migrations, security, API image and hardened runtime |
+| API | lint/build, API unit coverage, API E2E (a sixth again, instrumented), browser/accessibility tests, migrations, security, API image and hardened runtime |
 | Web/UI | lint/build, web/package coverage, browser/accessibility tests, security and Caddy image/runtime checks |
 | Typed client/shared roots | dependent packages; shared root dependencies run comprehensive validation |
 | Generator/platform contracts | generator smoke checks in addition to affected application checks |
@@ -2021,7 +2021,7 @@ the necessary tasks. Knip and translation parity still inspect the whole workspa
 | `changes` | classification, expected jobs and cumulative image rebuild plan |
 | `check` | affected lint/build, API and package unit coverage, API client/migrations when relevant, OpenAPI breaking-change report, bundle budget and Storybook, leftover-notes guard |
 | `unit-web` | web unit coverage, whole, thresholds enforced directly |
-| `e2e`, `e2e-web` | isolated API/database (shard 2 of 2 instrumented) and browser/accessibility tests, with the built app's trace check |
+| `e2e`, `e2e-web` | isolated API/database and browser/accessibility tests; `e2e-web` also runs a sixth of the e2e suite instrumented and the built app's trace check |
 | `feature-smoke` | generated features, schema/client generation and their E2E tests |
 | `template-without-notes` | exhaustive generated-template variant; nightly/manual/release or conservative full fallback |
 | `stack-config` | Compose secrets, hardening and settings, then the Swarm stack render |

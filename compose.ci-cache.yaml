@@ -1,10 +1,10 @@
-# GitHub Actions only: keep the normal Compose files portable while allowing
-# the image job's hardened stack to persist the backup image's BuildKit layers.
+# GitHub Actions only: keep the normal Compose files portable while letting
+# the image job's hardened stack build the backup image from the BuildKit
+# layers backup-image writes on main and in the nightly run. Read only: the
+# export (mode=max) took ~290 s of a pull request's run (issue #681).
 services:
   backup:
     build:
       context: ./backup
       cache_from:
         - type=gha,scope=backup
-      cache_to:
-        - type=gha,scope=backup,mode=max

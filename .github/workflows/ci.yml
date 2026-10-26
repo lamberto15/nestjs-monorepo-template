@@ -678,19 +678,8 @@ jobs:
   # The e2e tests in two shards, each on its own runner with its own Redis
   # and PostgreSQL: the slowest step of CI. Vitest's --shard, split by file
   # size (apps/api/test/size-sequencer.ts). They run the sources (no build
-  # needed). Raise the list and --shard's total together.
-  #
-  # Shard 2 (the lighter) runs with the instrumentation on: OpenTelemetry
-  # (OTEL_EXPORTER_OTLP_ENDPOINT) and Sentry (SENTRY_DSN) pointing at a stub
-  # collector on loopback (apps/api/test/telemetry-stub.mjs). test/setup-env.ts
-  # starts the SDKs when either is set, as main.ts does, so http, Express, pg
-  # and ioredis are patched while half the suite runs: the instrumentation
-  # must not break the app (as NestJS Observe's proxies broke the mail
-  # transports and the lock-decorated jobs, issue #392), and the collector
-  # must have received the spans of requests the app served (docs/deployment.md,
-  # "Telemetry"). The built app started as production starts it is e2e-web's
-  # last step. Hosted vendors need credentials CI doesn't have, so NestJS
-  # Observe's own path is covered by observe.spec.ts.
+  # needed). Raise the list and --shard's total together. A sixth of the
+  # suite runs again with the instrumentation on, in e2e-web.
   e2e:
     needs: changes
     if: needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'
@@ -699,11 +688,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - shard: 1
-            telemetry: false
-          - shard: 2
-            telemetry: true
+        shard: [1, 2]
     name: e2e (${{ matrix.shard }}/2)
     services:
       # Redis: queues, rate limits, realtime; each file keeps to its own prefix.
@@ -732,33 +717,11 @@ jobs:
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
         uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
-      - name: The stub collector (OTLP/HTTP and Sentry's envelope endpoint)
-        if: matrix.telemetry
-        run: |
-          nohup node apps/api/test/telemetry-stub.mjs serve 4318 > "$RUNNER_TEMP/stub.log" 2>&1 &
-          for _ in $(seq 1 20); do
-            curl -fs http://127.0.0.1:4318/stats && break
-            sleep 0.5
-          done
-      - name: The e2e tests${{ matrix.telemetry && ' with OpenTelemetry and Sentry on' || '' }}
+      - run: pnpm test:e2e --shard=${{ matrix.shard }}/2
         env:
           REDIS_URL: redis://localhost:6379
           # The tests create their databases here (a template, then a copy per app).
           TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
-          TELEMETRY: ${{ matrix.telemetry }}
-        # Unset, not empty, without the instrumentation: test/setup-env.ts
-        # starts the SDKs when either variable is set.
-        run: |
-          if [ "$TELEMETRY" = true ]; then
-            export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
-            # Spans leave the process every second, not every five.
-            export OTEL_BSP_SCHEDULE_DELAY=1000
-            export SENTRY_DSN=http://public@127.0.0.1:4318/1
-          fi
-          pnpm test:e2e --shard=${{ matrix.shard }}/2
-      - name: The collector received the spans of requests served
-        if: matrix.telemetry
-        run: node apps/api/test/telemetry-stub.mjs check 4318
 
   # The browser tests (apps/web-e2e, docs/development.md, "Browser tests"):
   # Playwright drives the built web app on the built API with the demo data,
@@ -768,13 +731,26 @@ jobs:
   # are uploaded when it fails). Accessibility findings (axe) go to the job
   # summary; serious and critical ones fail the tests. Then, on the same
   # build and services: the analytics engine in Chromium (Firefox and WebKit
-  # in web.yml), and the built API started as production starts it, traced.
+  # in web.yml), and the instrumentation (below).
+  #
+  # The instrumentation: a sixth of the e2e suite with OpenTelemetry
+  # (OTEL_EXPORTER_OTLP_ENDPOINT) and Sentry (SENTRY_DSN) pointing at a stub
+  # collector on loopback (apps/api/test/telemetry-stub.mjs). test/setup-env.ts
+  # starts the SDKs when either is set, as main.ts does, so http, Express, pg
+  # and ioredis are patched while the tests run: the instrumentation must not
+  # break the app (as NestJS Observe's proxies broke the mail transports and
+  # the lock-decorated jobs, issue #392), and the collector must have received
+  # the spans of requests the app served (docs/deployment.md, "Telemetry").
+  # A sixth, not more: on half the suite it cost ~100 s of an e2e shard (#681).
+  # Then the built app started as production starts it. Hosted vendors need
+  # credentials CI doesn't have, so NestJS Observe's own path is covered by
+  # observe.spec.ts.
   e2e-web:
     needs: changes
     if: >-
       needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true' || needs.changes.outputs.services == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     services:
       redis:
         image: ${{ needs.changes.outputs.redis }}
@@ -786,6 +762,8 @@ jobs:
           POSTGRES_USER: app
           POSTGRES_PASSWORD: app
           POSTGRES_DB: app
+          POSTGRES_INITDB_ARGS: --nosync
+        command: postgres -c fsync=off -c synchronous_commit=off -c full_page_writes=off
         ports: ['5432:5432']
         options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
     env:
@@ -844,11 +822,30 @@ jobs:
       - name: Vite diagnostics
         if: failure()
         run: cat "$RUNNER_TEMP/analytics-vite.log" || true
-      # The start-up order: the SDKs must be running before main.ts loads the
-      # app, or http, Express and pg are loaded unpatched and nothing is traced
-      # (the e2e suite, which starts them itself, cannot show it). The built
-      # API (the browser tests built it), with the credentials as `_FILE`
-      # secrets and its own collector, on this job's database and Redis.
+      - name: The stub collector (OTLP/HTTP and Sentry's envelope endpoint)
+        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'
+        run: |
+          nohup node apps/api/test/telemetry-stub.mjs serve 4318 > "$RUNNER_TEMP/stub.log" 2>&1 &
+          for _ in $(seq 1 20); do
+            curl -fs http://127.0.0.1:4318/stats && break
+            sleep 0.5
+          done
+      - name: A sixth of the e2e tests with OpenTelemetry and Sentry on
+        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'
+        run: pnpm test:e2e --shard=1/6
+        env:
+          # Its own databases on this server (a template, then a copy per app).
+          TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
+          OTEL_EXPORTER_OTLP_ENDPOINT: http://127.0.0.1:4318
+          # Spans leave the process every second, not every five.
+          OTEL_BSP_SCHEDULE_DELAY: '1000'
+          SENTRY_DSN: http://public@127.0.0.1:4318/1
+      - name: The collector received the spans of requests served
+        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'
+        run: node apps/api/test/telemetry-stub.mjs check 4318
+      # The start-up order, which the suite (it starts the SDKs itself) cannot
+      # show: the built API (the browser tests built it), with the credentials
+      # as `_FILE` secrets and its own collector, on this job's services.
       - name: The built app, started as production starts it, is traced
         if: needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'
         run: node apps/api/test/telemetry-stub.mjs boot
@@ -1116,6 +1113,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          # The runner is thrown away: removing the builder took 30-90 s.
+          cleanup: false
       - name: Build the production image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -1253,6 +1253,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          # The runner is thrown away: removing the builder took 30-90 s.
+          cleanup: false
       - name: Build the backup image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -1294,6 +1297,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          # The runner is thrown away: removing the builder took 30-90 s.
+          cleanup: false
       - name: Build the Caddy image (with the web app)
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -1412,6 +1418,9 @@ jobs:
             exit 1
           fi
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          # The runner is thrown away: removing the builder took 30-90 s.
+          cleanup: false
       - name: The day (a pull request's Debian upgrade)
         id: day
         run: echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
