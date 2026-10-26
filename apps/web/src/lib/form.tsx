@@ -1,5 +1,6 @@
 import { createFormHook, createFormHookContexts } from '@tanstack/react-form';
-import { useQueryClient } from '@tanstack/react-query';
+import { QueryClientContext } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   AlertDescription,
@@ -30,7 +31,7 @@ import { LazyMarkdownEditor } from '@/components/markdown/lazy';
 import { useWritesPaused } from '@/lib/mode';
 import { meQuery, sessionIdentity, type Me } from '@/lib/session';
 import { CircleAlertIcon } from 'lucide-react';
-import { useId, useRef, type ReactNode } from 'react';
+import { useContext, useId, useRef, type ReactNode } from 'react';
 
 // TanStack Form's form composition (its "Form Composition" guide): the
 // shadcn Field markup of its TanStack Form docs, bound once, so a form is
@@ -318,7 +319,7 @@ function SubmitButton(props: {
   );
 }
 
-export const { useAppForm } = createFormHook({
+const formHooks = createFormHook({
   fieldContext,
   formContext,
   fieldComponents: {
@@ -332,35 +333,48 @@ export const { useAppForm } = createFormHook({
 });
 
 /**
- * A form's draft belongs to the session it was begun under (`sessionIdentity`
- * in lib/session.ts: who was signed in, in which tenant, acting as whom).
- * Another tab of the same browser can re-issue the shared `__Host-sid`
- * cookie while the user types (a tenant switch, another account, an
- * impersonation — the caches reset, lib/errors.ts, but a draft is component
- * state and survives), and submitting it would then send the old session's
- * words under the new one's cookie: a note landing in the wrong tenant.
- *
- * A form behind the signed-in layout (where these live — its guard has read
- * `me` before the form mounts) calls what this returns at the top of its
- * `onSubmit`: `true` when the draft's session is gone — the form sends
- * nothing, keeps the draft, and says why; the NEXT submit is the user's own
- * decision, made under the session they can see — and `false` when the
- * draft's session is still the current one.
+ * Shared submit fence for forms: a form keeps its draft in component state,
+ * while another tab can change the cookie and the server-confirmed session.
+ * The first submit after that change asks before sending the existing values;
+ * cancelling leaves the draft untouched. Keeping this at the app form hook
+ * protects every editor that uses the established form pattern.
+ */
+export function useAppForm(...args: Parameters<typeof formHooks.useAppForm>) {
+  const staleDraftSession = useStaleDraftSession();
+  const form = formHooks.useAppForm(...args);
+  const handleSubmit = form.handleSubmit.bind(form);
+  form.handleSubmit = (...submitArgs) => {
+    if (staleDraftSession()) return Promise.resolve();
+    return handleSubmit(...submitArgs);
+  };
+  return form;
+}
+
+/**
+ * The shared app form hook calls this before every submit. The non-form
+ * composer calls it at its own submit boundary. `true` means the server-read
+ * identity changed since the draft was opened: the first attempt sends
+ * nothing, keeps the input and warns; the next explicit submit is the user's
+ * decision to send those same values under the session now on screen.
  */
 export function useStaleDraftSession() {
-  const queryClient = useQueryClient();
+  const queryClient = useContext(QueryClientContext);
+  const { t } = useTranslation();
   const begun = useRef(
-    sessionIdentity(queryClient.getQueryData<Me | null>(meQuery.queryKey)),
+    sessionIdentity(queryClient?.getQueryData<Me | null>(meQuery.queryKey)),
   );
   return () => {
+    if (!queryClient) return false;
     const now = sessionIdentity(
       queryClient.getQueryData<Me | null>(meQuery.queryKey),
     );
     if (now === begun.current) {
       return false;
     }
-    // Warned once: the next submit is on purpose, under the new session.
+    // The first attempt is held. The user reads the warning, then chooses
+    // whether to submit these same values under the session now on screen.
     begun.current = now;
+    window.alert(t('app.staleDraft'));
     return true;
   };
 }

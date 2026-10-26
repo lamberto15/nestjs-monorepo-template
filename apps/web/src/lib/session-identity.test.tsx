@@ -303,6 +303,41 @@ describe('a refetch of `me` that changes the session', () => {
     );
     unsubscribe();
   });
+
+  it('does not treat clearing the mutation cache as aborting a sent mutation', async () => {
+    const { queryClient } = await watchedClient(
+      meInTenant(signedInUser.tenant!.id),
+    );
+    let started!: () => void;
+    let finish!: () => void;
+    const requestStarted = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const response = new Promise<string>((resolve) => {
+      finish = () => resolve('request completed');
+    });
+    const mutation = queryClient.getMutationCache().build(queryClient, {
+      mutationFn: async () => {
+        started();
+        return response;
+      },
+    });
+    const inFlight = mutation.execute(undefined);
+    await requestStarted;
+
+    // The server has already received the request. A session change clears
+    // its client cache entry but cannot promise to abort the server work.
+    meAfter(otherUserMe);
+    await fetchMe(queryClient);
+    await waitFor(() =>
+      expect(queryClient.getMutationCache().getAll()).toHaveLength(0),
+    );
+    finish();
+
+    await expect(inFlight).resolves.toBe('request completed');
+    expect(queryClient.getMutationCache().getAll()).toHaveLength(0);
+    expect(queryClient.getQueryData(recordKey)).toBeUndefined();
+  });
 });
 
 describe('a refetch of `me` that does not change the session', () => {

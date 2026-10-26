@@ -1,4 +1,4 @@
-import { QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import {
   RouterProvider,
   createMemoryHistory,
@@ -15,6 +15,7 @@ import { resourcesFrom } from '@/i18n';
 import { createQueryClient } from '@/lib/errors';
 import { featuresQuery, meQuery, type Features, type Me } from '@/lib/session';
 import { allFeatures, signedInUser } from '@/test/server';
+import { trackClient } from '@/test/app-clients';
 
 /**
  * One component with what the app gives it (the texts, the query client
@@ -31,6 +32,8 @@ export async function renderComponent(
     can?: readonly string[];
     /** The switches `GET /v1/features` gave, over `allFeatures`: none given, none known. */
     features?: Partial<Features>;
+    /** An isolated cache for component tests that do not mount the session watcher. */
+    queryClient?: QueryClient;
   } = {},
 ) {
   const i18n = i18next.createInstance();
@@ -44,7 +47,8 @@ export async function renderComponent(
     ),
     defaultNS: 'common',
   });
-  const queryClient = createQueryClient(() => undefined);
+  const queryClient = options.queryClient ?? createQueryClient(() => undefined);
+  trackClient(queryClient);
   queryClient.setDefaultOptions({
     ...queryClient.getDefaultOptions(),
     queries: { ...queryClient.getDefaultOptions().queries, retry: false },

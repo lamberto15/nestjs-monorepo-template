@@ -27,6 +27,7 @@ import { api } from '@/lib/api';
 import { catalogQuery } from '@/features/transfer/api';
 import { errorMessage } from '@/lib/errors';
 import { FormAlert } from '@/lib/form';
+import { useStaleDraftSession } from '@/lib/form';
 import {
   fromDraft,
   settingsQuery,
@@ -58,6 +59,7 @@ export function PlatformEditor({ setting }: { setting: Setting }) {
   } | null>(null);
   const queryClient = useQueryClient();
   const [error, setError] = useState<string>();
+  const staleDraftSession = useStaleDraftSession();
   const stored = setting.platform;
   const [draft, setDraft] = useState<Draft>(
     toDraft(setting, stored?.value ?? setting.default),
@@ -118,6 +120,7 @@ export function PlatformEditor({ setting }: { setting: Setting }) {
    * goes.
    */
   const saveRules = async (rules: Rule[]) => {
+    if (staleDraftSession()) return;
     const own = stored && (stored.rollout != null || stored.value != null);
     if (!rules.length && !own) {
       if (stored) await remove.mutateAsync();
@@ -134,6 +137,7 @@ export function PlatformEditor({ setting }: { setting: Setting }) {
     toast.success(t('rules.saved'));
   };
   const submit = async () => {
+    if (staleDraftSession()) return;
     setError(undefined);
     const percent = Number(rollout);
     if (rolling && !(percent >= 0 && percent <= 100)) {
@@ -330,6 +334,7 @@ export function PlatformEditor({ setting }: { setting: Setting }) {
         confirm={modeT('confirm.apply')}
         onConfirm={async () => {
           if (!pendingMode) return;
+          if (staleDraftSession()) return;
           try {
             await save.mutateAsync({
               value: pendingMode.value,

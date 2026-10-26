@@ -10,6 +10,7 @@ import { Section } from '@/components/account/section';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import { FormAlert } from '@/lib/form';
+import { useStaleDraftSession } from '@/lib/form';
 import { SourceBadge } from './source-badge';
 import { fromDraft, settingsQuery, toDraft, type Setting } from './settings';
 import {
@@ -46,6 +47,7 @@ function PreferenceRow({ setting }: { setting: Setting }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(toDraft(setting, setting.value));
   const [error, setError] = useState<string>();
+  const staleDraftSession = useStaleDraftSession();
   const parsed = fromDraft(setting, draft);
   const dirty = draft !== toDraft(setting, setting.value);
   const hint = boundsHint(setting, t);
@@ -86,6 +88,7 @@ function PreferenceRow({ setting }: { setting: Setting }) {
   });
   const id = `preference-${setting.key}`;
   const run = async (action: () => Promise<unknown>) => {
+    if (staleDraftSession()) return;
     setError(undefined);
     try {
       await action();
