@@ -111,6 +111,7 @@ generator and CI, the heaviest shape (compare with "API + web + stack"):
 | 40369590382, first push (cold Turbo and backup caches) | 11.3 min | 40.4 | 13 | 11 | 2 s |
 | 40371891394, after the fixes below (warm Turbo cache) | 5.8 min | 25.4 | 13 | 11 | 3 s |
 | 40373581160, the same jobs one push later | 7.3 min (+2.2 waiting for the run it replaced to cancel) | | 13 | | 13 s |
+| 40374480913, a docs commit later | 12.0 min, 7.1 of it apt (below) | | 13 | | 2 s |
 
 The first run measured two mistakes, fixed before the second. An
 instrumented e2e half-suite cost +20% test time and 8% setup (358 s against
@@ -135,6 +136,17 @@ were not run separately, so they are estimates):
 - **Web:** `changes` and `unit (web)` cold (4.8 min): about 5 min, against
   5.2 at the median and 6.9 at most. `caddy-image` (2.3–2.6 min) is off the
   critical path. 6 CI / CD runners and no `web.yml` jobs, against 9 + 5.
+
+The tail that remains: `playwright install-deps` (apt, from the runner's
+Ubuntu mirror) took 20 s at the median and 47 s at p95 over 97 runs, but 6–8
+min in 3 of them (`Fetched 25.9 MB in 6min 56s (62.4 kB/s)`). It is the
+critical path when it happens. The ways out each cost something:
+Playwright's container image (no apt, but the services move from
+`localhost` to their hostnames, a pull of over a gigabyte, and a tag
+Dependabot doesn't keep in step with `@playwright/test`), or the runner's
+own Google Chrome (`channel: 'chrome'`: no download, but the browser follows
+the runner image instead of the pinned Chromium). Undecided; not changed
+here.
 
 Still to measure: these shapes on real pull requests after the merge, and
 a cold Turbo cache on the second layout. Collect them with `metrics.mjs`
