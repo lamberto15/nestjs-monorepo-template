@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  type OnModuleInit,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
@@ -44,7 +45,7 @@ import {
   type TemplateGuide,
 } from './formats.js';
 import { columnsOf } from './import-columns.js';
-import { importLimits } from './import-limits.js';
+import { importLimits, restrictImportLimits } from './import-limits.js';
 import { SettingsService } from '../settings/settings.service.js';
 
 /** A column's example as the guide's cell shows it. */
@@ -155,7 +156,7 @@ export const TRANSFER_LINK_TTL = '30m';
  * reports them to the principal who started them, and to nobody else.
  */
 @Injectable()
-export class DataTransferService {
+export class DataTransferService implements OnModuleInit {
   constructor(
     @InjectQueue(DATA_TRANSFERS)
     private readonly queue: Queue<TransferJob, TransferResult>,
@@ -169,6 +170,11 @@ export class DataTransferService {
     private readonly jobs: JobIndex,
     private readonly settings: SettingsService,
   ) {}
+
+  /** The deployment's ceilings on the import limit settings. */
+  onModuleInit() {
+    restrictImportLimits(this.settings, this.config);
+  }
 
   /** What the caller may export and import. */
   async catalog(principal: Principal) {
