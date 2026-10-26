@@ -3,8 +3,8 @@ import { Logger } from '@nestjs/common';
 import { getDrizzleToken } from '@nestjs/drizzle';
 import { sql } from 'drizzle-orm';
 import type { Database } from '../src/core/database/drizzle.js';
-import { NotesService } from '../src/features/notes/notes.service.js';
 import { bootApp, type TestApp } from './support.js';
+import { TestItemsService } from './fixtures/test-items/test-items.service.js';
 
 // Read when AppModule loads: this file's apps serve /metrics. Without it
 // (every other file), /metrics answers 404: test/metrics-off.e2e-spec.ts.
@@ -112,7 +112,7 @@ describe('GET /metrics (e2e)', () => {
     // Run a controlled cancellation on the real database inside an HTTP call.
     // SET LOCAL ends with this test transaction and never changes pool defaults.
     const page = vi
-      .spyOn(node.app.get(NotesService), 'findPage')
+      .spyOn(node.app.get(TestItemsService), 'findPage')
       .mockImplementationOnce(() =>
         node.app.get<Database>(getDrizzleToken()).transaction(async (tx) => {
           await tx.execute(sql`set local statement_timeout = 50`);
@@ -123,7 +123,7 @@ describe('GET /metrics (e2e)', () => {
     try {
       const response = await node
         .admin()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('X-Request-Id', requestId)
         .expect(503);
       expect(response.body).toMatchObject({
@@ -135,7 +135,7 @@ describe('GET /metrics (e2e)', () => {
         'Database incident',
         expect.objectContaining({
           requestId,
-          route: 'GET /v1/notes',
+          route: 'GET /v1/test-items',
           trigger: 'database_timeout',
           reason: 'statement_timeout',
           captureStatus: 'unconfigured',
