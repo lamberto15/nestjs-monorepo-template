@@ -717,7 +717,11 @@ pages, ETags. Usage, the bell-icon recipe included:
    (`.claude/worktrees/` is in `.git/info/exclude`; `--no-track`, or the branch
    tracks `main` and a plain `git push` fails). Push with `git push -u origin HEAD`.
    Parallel work gets one worktree each, on disjoint files where possible.
-2. **The check** (see AGENTS.md) passes in the worktree. Commits follow
+2. **Push reviewable commits early and validate in CI** (see AGENTS.md).
+   Open a draft PR after the first implementation commit while work continues;
+   push incremental commits so CI runs during implementation. Do not run the
+   full build/test suite locally and then repeat it in CI. Use focused local
+   checks only to investigate CI failures or when the owner asks. Commits follow
    Conventional Commits. The squash commit takes the commit's subject when the
    PR has one commit and the PR title otherwise (the repository's
    `COMMIT_OR_PR_TITLE` setting; GitHub counts merge commits too), so both

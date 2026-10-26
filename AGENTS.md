@@ -23,6 +23,13 @@ CLI commands.
   request to `origin` (GitHub) and green CI; then the worktree is removed and
   the PR squash-merged with its branch deleted. Never rebase or force-push:
   update a branch with `git merge origin/main`. See docs/development.md, "Git workflow".
+- **Open a draft PR early and use CI for validation.** Push the first
+  reviewable implementation commit and open its draft PR while work is still
+  ongoing. Push incremental commits so CI runs during implementation. Do not
+  run the full build/test suite locally before pushing and then repeat it in
+  CI; use focused local checks only when needed to investigate a CI failure
+  or when the owner explicitly requests them. Keep the PR draft until ready
+  for review, and require green CI before merging.
 - **Label every pull request, and claim the issue you work.** Label a PR by
   what it changes: `frontend` (apps/web, packages/ui), `backend` (apps/api, the
   client's generation, migrations), `ci` (workflows, images, deploys),
@@ -126,7 +133,11 @@ CLI commands.
 | Mistakes already made | [docs/pitfalls.md](docs/pitfalls.md) |
 | What gets built next, in order (items 0–24, open decisions, status) | [docs/roadmap.md](docs/roadmap.md) |
 
-## The check before every commit
+## Validation in CI
+
+These are the required CI checks, not a mandatory local gate before every
+commit. Open the draft PR and push changes early; inspect CI results and fix
+failures with further commits. Do not duplicate the full suite locally.
 
 ```bash
 pnpm build && pnpm lint && pnpm test && pnpm test:e2e   # e2e starts redis-server and PostgreSQL (Docker)
