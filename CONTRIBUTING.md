@@ -49,7 +49,8 @@ and pull request:
    issue closes on merge, and label it: an area (`frontend`, `backend`, `ci`,
    `documentation`) plus `enhancement` or `bug`. Fill in the
    [pull request template](.github/PULL_REQUEST_TEMPLATE.md).
-5. **Run the check** in your worktree before you ask for review:
+5. **Let CI run the check**: push early and fix failures with further commits;
+   run a focused check locally only to investigate a CI failure. CI runs:
    ```bash
    pnpm build && pnpm lint && pnpm test && pnpm test:e2e   # e2e needs Docker
    pnpm db:check      # after changing a *.tables.ts
