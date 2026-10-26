@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
@@ -12,6 +13,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { at, timestamps, uuidPk } from '../core/database/columns.js';
+import { utcMilliseconds } from '../core/database/utc-milliseconds.js';
 import { closureTable } from '../core/database/tree.js';
 import { tenants } from '../core/tenancy/tenancy.tables.js';
 import {
@@ -448,6 +450,11 @@ export const auditLog = pgTable(
     index('audit_log_tenant_at_id_idx').on(
       table.tenantId,
       table.at.desc().nullsFirst(),
+      table.id.desc(),
+    ),
+    index('audit_log_tenant_at_ms_id_idx').on(
+      table.tenantId,
+      sql`${utcMilliseconds(table.at)} desc nulls first`,
       table.id.desc(),
     ),
     index('audit_log_tenant_id_id_idx').on(table.tenantId, table.id),

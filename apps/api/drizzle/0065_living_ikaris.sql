@@ -1,0 +1,1 @@
+CREATE INDEX "audit_log_tenant_at_ms_id_idx" ON "audit_log" USING btree ("tenant_id",date_trunc('milliseconds', "at" at time zone 'UTC') at time zone 'UTC' desc nulls first,"id" DESC NULLS LAST);
