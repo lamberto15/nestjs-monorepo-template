@@ -213,6 +213,9 @@ x-app: &app
     # names a file on the host, mounted as a Docker secret; the app then reads
     # /run/secrets/x. Unset, the app gets no X_FILE and X stays the source.
     DATABASE_URL_FILE: ${DATABASE_URL_FILE:+/run/secrets/database_url}
+    # Optional statistics credential for independent incident snapshots.
+    DATABASE_MONITOR_URL: ${DATABASE_MONITOR_URL:-}
+    DATABASE_MONITOR_URL_FILE: ${DATABASE_MONITOR_URL_FILE:+/run/secrets/database_monitor_url}
     REDIS_PASSWORD_FILE: ${REDIS_PASSWORD_FILE:+/run/secrets/redis_password}
     ADMIN_PASSWORD_FILE: ${ADMIN_PASSWORD_FILE:+/run/secrets/admin_password}
     JWT_SECRET_FILE: ${JWT_SECRET_FILE:+/run/secrets/jwt_secret}
@@ -236,6 +239,7 @@ x-app: &app
   # Every secret is mounted; those without X_FILE in .env are the empty secret.empty.
   secrets:
     - database_url
+    - database_monitor_url
     - redis_password
     - admin_password
     - jwt_secret
@@ -371,6 +375,7 @@ services:
     # x-app's, and the maintenance role's URL: the worker's alone.
     secrets:
       - database_url
+      - database_monitor_url
       - redis_password
       - admin_password
       - jwt_secret
@@ -681,6 +686,8 @@ services:
 secrets:
   database_url:
     file: ${DATABASE_URL_FILE:-./secret.empty}
+  database_monitor_url:
+    file: ${DATABASE_MONITOR_URL_FILE:-./secret.empty}
   # The owner's URL: mounted on `migrate` only.
   database_owner_url:
     file: ${DATABASE_OWNER_URL_FILE:-./secret.empty}

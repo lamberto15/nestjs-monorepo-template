@@ -12,6 +12,7 @@ import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import * as schema from '../../schema.js';
 import { migrateAll } from './migrate-all.js';
 import { registerTenantTables, TenantPool } from '../tenancy/tenant-pool.js';
+import { DatabaseObserver } from './database-observer.js';
 
 /** A Drizzle PostgreSQL database (node-postgres). */
 export type Database = PgDatabase<PgQueryResultHKT, typeof schema>;
@@ -48,6 +49,8 @@ export async function createDatabase(options: {
    * pool serves `Tenancy.bypass()` and the metrics across tenants.
    */
   maintenanceUrl?: string;
+  /** Optional pg_monitor connection; no fallback to application/owner credentials. */
+  monitorUrl?: string;
   migrate?: boolean;
   pool?: PoolSettings;
 }): Promise<Database> {
@@ -71,7 +74,16 @@ export async function createDatabase(options: {
     statement_timeout: pool?.statementTimeoutMs || undefined,
     idle_in_transaction_session_timeout: pool?.idleTxTimeoutMs || undefined,
   };
-  const client = new TenantPool(
+  const observer: DatabaseObserver = new DatabaseObserver(
+    () => ({
+      max: client.options.max ?? 10,
+      inUse: client.totalCount - client.idleCount,
+      idle: client.idleCount,
+      waiting: client.waitingCount,
+    }),
+    options.monitorUrl,
+  );
+  const client: TenantPool = new TenantPool(
     {
       connectionString: options.url,
       // Fail fast when the pool is exhausted (503 database_busy), never hang.
@@ -93,6 +105,7 @@ export async function createDatabase(options: {
           application_name: `${pool?.applicationName ?? 'app'}:maintenance`,
         }
       : undefined,
+    observer,
   );
   // Every transaction carries the tenant of its context (core/tenancy/tenant-pool.ts).
   const db = drizzleNodePg({ client, schema });

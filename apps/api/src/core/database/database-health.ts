@@ -8,6 +8,7 @@ import { InjectDrizzle } from '@nestjs/drizzle';
 import { sql } from 'drizzle-orm';
 import type { Pool } from 'pg';
 import { refusals } from './database-errors.js';
+import type { TenantPool } from '../tenancy/tenant-pool.js';
 import type { Database } from './drizzle.js';
 
 export type PoolStats = {
@@ -27,6 +28,10 @@ export class DatabaseHealth {
 
   async ping() {
     await this.db.execute(sql`select 1`);
+  }
+
+  observer() {
+    return (this.db as unknown as { $client: TenantPool }).$client.observer;
   }
 
   /** The pool's use now. */
@@ -59,6 +64,7 @@ export class DatabasePoolMonitor
   private readonly logger = new Logger('DatabasePool');
   private timer?: NodeJS.Timeout;
   private saturated = false;
+  private waitingChecks = 0;
 
   constructor(private readonly health: DatabaseHealth) {}
 
@@ -73,12 +79,20 @@ export class DatabasePoolMonitor
 
   check() {
     const pool = this.health.pool();
+    this.waitingChecks = pool.waiting > 0 ? this.waitingChecks + 1 : 0;
+    if (this.waitingChecks >= 2) {
+      this.health.observer()?.incidents.record({
+        trigger: 'pool_waiting',
+        reason: 'sustained_connection_wait',
+      });
+      this.waitingChecks = 0;
+    }
     const refused = refusals.busy;
     refusals.busy = 0;
     if (pool.waiting > 0 || refused > 0) {
       this.saturated = true;
       this.logger.warn(
-        `Pool short: ${pool.waiting} queries waiting, ${refused} requests refused (database_busy) in ${EVERY_MS / 1000} s; ${pool.inUse}/${pool.max} in use. Raise DATABASE_POOL_MAX, or find what holds connections (pg_stat_activity).`,
+        `Pool short: ${pool.waiting} queries waiting, ${refused} requests refused (database_busy) in ${EVERY_MS / 1000} s; ${pool.inUse}/${pool.max} in use. Inspect database_incident and database_snapshot evidence in the Database Incidents dashboard.`,
       );
     } else if (this.saturated) {
       this.saturated = false;

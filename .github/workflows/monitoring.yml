@@ -93,7 +93,7 @@ jobs:
         run: |
           docker run --rm -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
             --entrypoint promtool "$PROMETHEUS_IMAGE" \
-            test rules /etc/prometheus/tests/alerts.test.yml
+            test rules /etc/prometheus/tests/alerts.test.yml /etc/prometheus/tests/database-alerts.test.yml
 
       - name: Alertmanager configuration, no receiver (amtool check-config)
         run: |

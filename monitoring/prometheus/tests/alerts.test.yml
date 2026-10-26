@@ -177,7 +177,7 @@ tests:
       - series: 'nodejs_eventloop_lag_p99_seconds{job="worker",instance="10.0.0.4:3000"}'
         values: '0.8x15'
     alert_rule_test:
-      # Waiting at every scrape for 5 minutes, then 5 more: only the first replica.
+      # Continuous waiting: only the first replica passes the 30-second threshold.
       - eval_time: 13m
         alertname: DatabasePoolSaturated
         exp_alerts:
@@ -188,7 +188,7 @@ tests:
               state: waiting
             exp_annotations:
               summary: api 10.0.0.2:3000 waits for database connections
-              description: 'Queries have been waiting for a pool connection at every scrape for 10 minutes (3 now). Requests that wait longer than DATABASE_POOL_TIMEOUT_MS answer 503 database_busy. See docs/deployment.md, "Database connections".'
+              description: 'Queries have waited for database connections for 30 seconds (3 now). Inspect database_incident and database_snapshot logs on this replica. See docs/deployment.md, "Automatic database incidents".'
       - eval_time: 11m
         alertname: HeapNearLimit
         exp_alerts:

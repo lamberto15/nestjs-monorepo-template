@@ -82,6 +82,7 @@ const CURSOR_KEYS = Symbol('CURSOR_KEYS');
         db: await createDatabase({
           url: config.get('DATABASE_URL', { infer: true }),
           ownerUrl: config.get('DATABASE_OWNER_URL', { infer: true }),
+          monitorUrl: config.get('DATABASE_MONITOR_URL', { infer: true }),
           // Workers only (Compose gives it to them alone): the bypass's pool.
           maintenanceUrl: runsWorkers()
             ? config.get('DATABASE_MAINTENANCE_URL', { infer: true })

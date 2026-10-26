@@ -1,4 +1,5 @@
 import pg from 'pg';
+import type { DatabaseObserver } from '../database/database-observer.js';
 import {
   currentTenantScope,
   scopeOpensTenants,
@@ -126,12 +127,29 @@ const STATE = Symbol('tenancy.client');
 export class TenantPool extends pg.Pool {
   private readonly maintenance?: pg.Pool;
 
-  constructor(config?: pg.PoolConfig, maintenance?: pg.PoolConfig) {
+  constructor(
+    config?: pg.PoolConfig,
+    maintenance?: pg.PoolConfig,
+    readonly observer?: DatabaseObserver,
+  ) {
     super(config);
-    this.on('connect', (client) => tenantAware(client));
+    this.on('connect', (client) => {
+      tenantAware(client);
+      observer?.instrument(client);
+    });
     if (maintenance) {
       this.maintenance = new pg.Pool(maintenance);
-      this.maintenance.on('connect', (client) => readOnlyAware(client));
+      if (observer) {
+        const connect = this.maintenance.connect.bind(this.maintenance) as (
+          ...args: unknown[]
+        ) => unknown;
+        this.maintenance.connect = ((...args: unknown[]) =>
+          observer.acquire(connect, args)) as pg.Pool['connect'];
+      }
+      this.maintenance.on('connect', (client) => {
+        readOnlyAware(client);
+        observer?.instrument(client);
+      });
       // A dropped idle connection is the pool's to replace, not a crash.
       this.maintenance.on('error', () => undefined);
       maintenanceInProcess = true;
@@ -175,7 +193,7 @@ export class TenantPool extends pg.Pool {
       return (super.query as (...a: unknown[]) => never)(config, values);
     }
     return inTransaction(
-      () => super.connect() as Promise<pg.PoolClient>,
+      () => this.connect() as Promise<pg.PoolClient>,
       config,
       values,
     ) as never;
@@ -184,16 +202,23 @@ export class TenantPool extends pg.Pool {
   // Drizzle's `db.transaction()` checks a client out here: in the bypass's
   // scope, the maintenance role's.
   override connect(...args: unknown[]): never {
+    const acquire = (...values: unknown[]) =>
+      (super.connect as (...a: unknown[]) => never)(...values);
     if (currentTenantScope()?.bypass) {
-      return (this.maintenancePool().connect as (...a: unknown[]) => never)(
-        ...args,
-      );
+      const pool = this.maintenancePool();
+      return (pool.connect as (...values: unknown[]) => never)(...args);
     }
-    return (super.connect as (...a: unknown[]) => never)(...args);
+    return (
+      this.observer ? this.observer.acquire(acquire, args) : acquire(...args)
+    ) as never;
   }
 
   override async end() {
-    await Promise.all([super.end(), this.maintenance?.end()]);
+    await Promise.all([
+      super.end(),
+      this.maintenance?.end(),
+      this.observer?.incidents.close(),
+    ]);
   }
 
   private maintenancePool() {

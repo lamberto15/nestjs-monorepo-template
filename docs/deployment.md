@@ -843,6 +843,73 @@ Raising the pools: more API replicas need a smaller pool each, or
 pool at least as large as what they run at once (workflow steps, job
 concurrency).
 
+### Automatic database incidents
+
+Every API and worker process measures database connection acquisition separately from command
+execution. Acquisition includes establishing a connection; command duration includes network and
+lock waits. `database_busy` and SQLSTATE `57014` cancellations produce structured
+`event=database_incident` warning logs. A statement still running after one second also produces an
+incident; pool waiting across two five-second checks produces `pool_waiting`. Cancellation reasons
+are restricted to fixed values (`statement_timeout`, `user_cancellation`, `query_cancellation`),
+without the driver's SQL text, detail, or parameter values.
+
+Incident evidence is in the JSON log entry's `params` object (for example `params.incidentId`).
+Each incident includes an `incidentId`, replica, request/trace IDs when present, matched route
+pattern, operation, SHA-256 query-template fingerprint, duration, backend PID when available, and
+application pool state. A fingerprint identifies the submitted SQL template; it is not a database
+execution plan or a guarantee that two queries differing in literal SQL have the same fingerprint.
+No request IDs, fingerprints, or SQL values become metric labels. HTTP problem responses are unchanged.
+
+Set optional `DATABASE_MONITOR_URL` **or** `DATABASE_MONITOR_URL_FILE` to the existing statistics-only
+`pg_monitor` credential to enable snapshots. The monitor role is provisioned as described in
+"Database roles"; never use the owner, application, or maintenance URL. Runtime checks reject a
+superuser, BYPASSRLS role, or a role without pg_monitor membership. The collector only reads role
+metadata and `pg_stat_activity`, never application tables or query text. It does not run EXPLAIN,
+replay statements, create indexes, cancel application queries, change pool limits, or restart services.
+
+The diagnostics pool has one connection per process, independently of application connections.
+Include these extra connections and the existing exporters in the deployment's PostgreSQL connection
+budget. Each snapshot has a one-second **overall** deadline and at most 20 sessions, with query and
+transaction ages, query IDs when PostgreSQL supplies them, wait events, and blocking PIDs. Capture
+starts asynchronously while slow statements are still running. A busy collector or the 30-second
+per-process cooldown suppresses only the snapshot; every incident is recorded with `captureStatus`.
+Missing credentials produce `unconfigured`; connection, role, or deadline failures produce a correlated
+`database_snapshot` log with `captureStatus=unavailable`. Diagnostic failures never change the original
+request's result. Observed blockers/waits are evidence, not an automatically confirmed root cause.
+
+**Enable and verify:** inspect the deployed runtime before changing it. For Compose, check
+`docker compose ps`, active profiles, `/metrics` authentication, and Prometheus targets; enable the
+existing monitoring overlay with `logs,grafana` when needed. For K3s, use
+[the observability runbook](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/monitoring/README.md) to inspect the monitoring releases,
+ServiceMonitors, app PrometheusRule, and Alloy/Loki. This repository's presence does not establish
+that any component is deployed. Keep credentials in the protected deployment secret store; agents
+must not edit live env files.
+
+Compose mounts `DATABASE_MONITOR_URL_FILE` for API/worker when configured. In Helm, provision the
+`database_monitor_url` key in the existing app Secret and add
+`DATABASE_MONITOR_URL_FILE: database_monitor_url` to each desired role's `secretFiles.api` /
+`secretFiles.worker` mapping; it is optional to avoid breaking installations without that key.
+Apply `deploy/k3s/monitoring/dashboards/` after the rollout. Compose provisions the same **Database
+Incidents** dashboard through its existing Grafana provisioning mount. It shows pool usage/limit,
+acquisition and command p95, failures, incident triggers, and Loki evidence filterable by incident or
+request ID. Snapshots remain available when the application pool is exhausted.
+
+Prometheus exposes `db_connection_acquire_duration_seconds`, `db_query_duration_seconds`,
+`db_failures_total{code}`, `db_last_failure_timestamp_seconds{code}`, `db_incidents_total{trigger}`, and `db_pool_max_connections` alongside the
+existing pool gauge. `DatabaseFailures` uses the last-failure timestamp to detect events in the last five minutes,
+including a failure before the first counter scrape;
+`DatabasePoolSaturated` fires after 30 seconds of continuously observed waiting. Alerts group through
+the existing Alertmanager policy and resolve when the conditions clear. No external receiver is added;
+view alerts in Prometheus/Alertmanager and evidence in Grafana/logs. Enabling this feature does not
+send email, Slack messages, or webhook notifications.
+
+**Staging acceptance:** deploy the candidate and optional monitor credential, confirm API/worker
+scrapes and log shipping, then generate controlled slow statements, a lock wait, acquisition exhaustion,
+and a statement timeout against an isolated staging database. Confirm each incident log, its snapshot
+(or explicit unavailable reason), the metric increase, the alert in the UI, and recovery after the
+condition ends. Check the original request/health behavior remains unchanged, capture deadlines and
+cooldowns hold, and raw SQL/parameters never appear in evidence. Do not generate overload on production.
+
 ### PgBouncer
 
 Optional, off by default: `compose.pgbouncer.yaml` puts PgBouncer between
@@ -1124,7 +1191,7 @@ warning: look today):
 | `AppRestarting`                                              | a process never stays up 10 min within 30 min (crash loop, killed at its memory limit)                                                                                              | warning           |
 | `HighErrorRate`                                              | over 5% of requests answer 5xx for 10 min (at least 0.1 request/s)                                                                                                                  | critical          |
 | `HighLatency`                                                | api p95 above 1 s for 15 min (the SSE stream and unmatched requests left out)                                                                                                       | warning           |
-| `DatabasePoolSaturated`                                      | queries wait for a pool connection at every scrape for 10 min (`503 database_busy` next)                                                                                            | warning           |
+| `DatabasePoolSaturated`                                      | queries wait continuously for a pool connection for 30 s; correlated incident evidence is logged                                                                                            | warning           |
 | `PasswordHashingSaturated`                                   | a process refused password hashes (503 `server_busy`) in every 5 min for 10 min: a sign-in flood or too little capacity ([Resource limits](#resource-limits))                       | warning           |
 | `HeapNearLimit`                                              | heap above 85% of `API_HEAP_MB`/`WORKER_HEAP_MB` for 10 min                                                                                                                         | warning           |
 | `EventLoopLag`                                               | event loop p99 above 500 ms for 10 min                                                                                                                                              | warning           |

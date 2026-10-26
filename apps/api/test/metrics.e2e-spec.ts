@@ -1,4 +1,9 @@
 import { randomUUID } from 'node:crypto';
+import { Logger } from '@nestjs/common';
+import { getDrizzleToken } from '@nestjs/drizzle';
+import { sql } from 'drizzle-orm';
+import type { Database } from '../src/core/database/drizzle.js';
+import { NotesService } from '../src/features/notes/notes.service.js';
 import { bootApp, type TestApp } from './support.js';
 
 // Read when AppModule loads: this file's apps serve /metrics. Without it
@@ -97,5 +102,63 @@ describe('GET /metrics (e2e)', () => {
       paths: Record<string, unknown>;
     };
     expect(Object.keys(document.paths)).not.toContain('/metrics');
+  });
+
+  it('correlates a real database cancellation with its HTTP request and exported metrics', async () => {
+    const requestId = randomUUID();
+    const warnings = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    // Run a controlled cancellation on the real database inside an HTTP call.
+    // SET LOCAL ends with this test transaction and never changes pool defaults.
+    const page = vi
+      .spyOn(node.app.get(NotesService), 'findPage')
+      .mockImplementationOnce(() =>
+        node.app.get<Database>(getDrizzleToken()).transaction(async (tx) => {
+          await tx.execute(sql`set local statement_timeout = 50`);
+          await tx.execute(sql`select pg_sleep(1)`);
+          return { items: [], nextCursor: null };
+        }),
+      );
+    try {
+      const response = await node
+        .admin()
+        .get('/v1/notes')
+        .set('X-Request-Id', requestId)
+        .expect(503);
+      expect(response.body).toMatchObject({
+        code: 'database_timeout',
+        requestId,
+      });
+      expect(response.body.incidentId).toBeUndefined();
+      expect(warnings.mock.calls).toContainEqual([
+        'Database incident',
+        expect.objectContaining({
+          requestId,
+          route: 'GET /v1/notes',
+          trigger: 'database_timeout',
+          reason: 'statement_timeout',
+          captureStatus: 'unconfigured',
+          fingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
+        }),
+      ]);
+      const text = (await scrape().expect(200)).text;
+      expect(text).toMatch(
+        /^db_failures_total\{code="database_timeout"\} [1-9]\d*$/m,
+      );
+      expect(text).toMatch(
+        /^db_last_failure_timestamp_seconds\{code="database_timeout"\} [1-9]\d*(\.\d+)?$/m,
+      );
+      expect(text).toContain(
+        'db_connection_acquire_duration_seconds_count{outcome="success"}',
+      );
+      expect(text).toContain(
+        'db_query_duration_seconds_count{operation="select",outcome="error"}',
+      );
+      expect(text).not.toContain(requestId);
+    } finally {
+      page.mockRestore();
+      warnings.mockRestore();
+    }
   });
 });

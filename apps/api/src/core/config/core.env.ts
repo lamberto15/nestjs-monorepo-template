@@ -102,6 +102,8 @@ export const coreEnv = z.object({
    * `node dist/migrate` once per deploy.
    */
   MIGRATE_ON_START: flag('on'),
+  /** Statistics only, through an independent single-connection pool. */
+  DATABASE_MONITOR_URL: secret(optional()),
   /**
    * The pool, per process (PostgreSQL only). Every process holds up to MAX
    * connections: replicas × MAX for the API, plus the workers', must stay

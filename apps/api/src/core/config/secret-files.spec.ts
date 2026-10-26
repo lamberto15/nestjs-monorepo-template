@@ -344,6 +344,7 @@ describe('the environment (env.ts)', () => {
         'DATA_ENCRYPTION_KEYS',
         'FCM_PRIVATE_KEY',
         'DATABASE_MAINTENANCE_URL',
+        'DATABASE_MONITOR_URL',
         'DATABASE_OWNER_URL',
         'DATABASE_URL',
         'GITHUB_CLIENT_SECRET',
