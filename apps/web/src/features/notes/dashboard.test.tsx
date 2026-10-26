@@ -24,14 +24,27 @@ beforeEach(() => {
   );
 });
 
-function useNotes(seen: string[] = []) {
+function useNotes(
+  seen: { recent: string[]; weekly: string[] } = { recent: [], weekly: [] },
+) {
   server.use(
+    http.get('/v1/notes/dashboard/weekly-counts', ({ request }) => {
+      const url = new URL(request.url);
+      seen.weekly.push(url.search);
+      const start = new Date(`${url.searchParams.get('from')}T00:00:00Z`);
+      const weeks = Number(url.searchParams.get('weeks'));
+      return HttpResponse.json(
+        Array.from({ length: weeks }, (_, index) => {
+          const week = new Date(start.getTime() + index * 7 * 24 * 3600 * 1000)
+            .toISOString()
+            .slice(0, 10);
+          return { week, count: index === weeks - 1 ? 2 : 0 };
+        }),
+      );
+    }),
     http.get('/v1/notes', ({ request }) => {
       const url = new URL(request.url);
-      seen.push(url.search);
-      if (url.searchParams.has('createdAt.between')) {
-        return HttpResponse.json({ items: [], nextCursor: null, total: 2 });
-      }
+      seen.recent.push(url.search);
       return HttpResponse.json({
         items: [
           {
@@ -50,7 +63,7 @@ function useNotes(seen: string[] = []) {
 
 describe('the notes on the dashboard', () => {
   it('shows the recent notes, the weekly chart and the new-note action', async () => {
-    const seen: string[] = [];
+    const seen = { recent: [], weekly: [] };
     useSignedIn(['Note.read', 'Note.create']);
     useNotes(seen);
     await renderApp('/');
@@ -61,10 +74,8 @@ describe('the notes on the dashboard', () => {
     expect(
       await screen.findByRole('heading', { name: 'Notes per week' }),
     ).toBeVisible();
-    // One count request per week of the chart.
-    expect(
-      seen.filter((search) => search.includes('createdAt.between')),
-    ).toHaveLength(8);
+    expect(seen.weekly).toHaveLength(1);
+    expect(new URLSearchParams(seen.weekly[0]).get('weeks')).toBe('8');
     const quick = screen
       .getByRole('heading', { name: 'Quick actions' })
       .closest('[data-slot="card"]') as HTMLElement;
@@ -124,7 +135,7 @@ describe('the notes on the dashboard', () => {
   });
 
   it('shows nothing of the notes without Note.read, and asks nothing', async () => {
-    const seen: string[] = [];
+    const seen = { recent: [], weekly: [] };
     useSignedIn([]);
     useNotes(seen);
     await renderApp('/');
@@ -137,7 +148,7 @@ describe('the notes on the dashboard', () => {
       screen.queryByRole('heading', { name: 'Notes per week' }),
     ).toBeNull();
     expect(screen.queryByRole('button', { name: 'New note' })).toBeNull();
-    expect(seen).toEqual([]);
+    expect(seen).toEqual({ recent: [], weekly: [] });
   });
 });
 

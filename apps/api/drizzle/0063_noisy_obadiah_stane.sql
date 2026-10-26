@@ -1,0 +1,2 @@
+CREATE INDEX "notes_tenant_created_at_idx" ON "notes" USING btree ("tenant_id","created_at" DESC NULLS LAST,"id" DESC NULLS LAST) WHERE deleted_at is null;--> statement-breakpoint
+CREATE INDEX "notes_tenant_updated_at_idx" ON "notes" USING btree ("tenant_id","updated_at" DESC NULLS LAST,"id" DESC NULLS LAST) WHERE deleted_at is null;

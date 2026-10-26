@@ -4301,6 +4301,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notes/dashboard/weekly-counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Count visible notes by UTC week for the dashboard
+         * @description Returns 1–12 Monday-starting weeks in one aggregate query. Only live notes the caller may read are counted.
+         */
+        get: operations["NotesController_weeklyCounts_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/notes/{id}": {
         parameters: {
             query?: never;
@@ -25484,6 +25504,53 @@ export interface operations {
             };
             /** @description This Idempotency-Key was used for a different request. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotesController_weeklyCounts_v1: {
+        parameters: {
+            query: {
+                from: string;
+                weeks?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: date */
+                        week: string;
+                        count: number;
+                    }[];
+                };
+            };
+            /** @description `from` must be a Monday in UTC; `weeks` must be 1–12. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -343,6 +343,28 @@ export class NotesService {
     return toPage(rows, query, total);
   }
 
+  /** Counts visible, live notes by UTC week in one grouped query. */
+  async weeklyCounts(where: SQL | undefined, from: Date, weeks: number) {
+    const week = sql<string>`to_char(
+      date_trunc('week', ${notes.createdAt} at time zone 'UTC'),
+      'YYYY-MM-DD'
+    )`;
+    const rows = await this.db
+      .select({ week, count: sql<number>`count(*)::int` })
+      .from(notes)
+      .where(where)
+      .groupBy(week)
+      .orderBy(week);
+    const counts = new Map(rows.map((row) => [row.week, row.count]));
+    const millisecondsPerWeek = 7 * 24 * 60 * 60 * 1000;
+    return Array.from({ length: weeks }, (_, index) => {
+      const weekStart = new Date(from.getTime() + index * millisecondsPerWeek)
+        .toISOString()
+        .slice(0, 10);
+      return { week: weekStart, count: counts.get(weekStart) ?? 0 };
+    });
+  }
+
   /** Runs a read of your own on the notes' database (exports, reports). */
   query<T>(read: (db: Database) => Promise<T>) {
     return read(this.db);

@@ -59,6 +59,13 @@ export const notes = pgTable(
   (table) => [
     // Uniques are per tenant: each numbers its own notes.
     uniqueIndex('notes_number_idx').on(table.tenantId, table.number),
+    // The dashboard's week range and the notes list's default ordering.
+    index('notes_tenant_created_at_idx')
+      .on(table.tenantId, table.createdAt.desc(), table.id.desc())
+      .where(sql`deleted_at is null`),
+    index('notes_tenant_updated_at_idx')
+      .on(table.tenantId, table.updatedAt.desc(), table.id.desc())
+      .where(sql`deleted_at is null`),
     index('notes_owner_id_idx').on(table.ownerId),
     // The purge job finds old deleted rows by it.
     index('notes_deleted_at_idx').on(table.deletedAt),
