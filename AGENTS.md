@@ -99,6 +99,8 @@ CLI commands.
 | Roles, conditions, field-level, grants, teams, audit | [docs/permissions.md](docs/permissions.md) |
 | Queues, mail, outbox, workflows, cron, realtime | [docs/background-work.md](docs/background-work.md) |
 | Exports and imports | [docs/data-transfer.md](docs/data-transfer.md) |
+| Import size and row limits (`dataTransfer.importMaxMiB`/`importMaxRows` settings, `IMPORT_MAX_*`, `IMPORT_TEMP_DIR`) | [docs/import-limits.md](docs/import-limits.md) |
+| Analytics: the backend DuckDB go/no-go, the probe; the web app's local data explorer | [docs/analytics.md](docs/analytics.md) |
 | Bulk operations (delete, restore, change many records; 202 jobs) | [docs/bulk-operations.md](docs/bulk-operations.md) |
 | Custom fields (runtime fields, JSONB values) | [docs/custom-fields.md](docs/custom-fields.md) |
 | Notifications (in-app, realtime, mail, webhook, push, SMS; preferences, digests, devices, toll-fraud caps, STOP) | [docs/notifications.md](docs/notifications.md) |
@@ -128,12 +130,15 @@ CLI commands.
 | Rolling deploys with Compose (`pnpm deploy:rolling`), graceful shutdown | [docs/deploy-rolling.md](docs/deploy-rolling.md) |
 | Blue-green deploys: two api colours, switching the traffic, instant rollback (`pnpm deploy:blue-green`, `compose.blue-green.yaml`) | [docs/deploy-blue-green.md](docs/deploy-blue-green.md) |
 | Docker Swarm: the stack, rolling updates, automatic rollback, nodes and secrets (`pnpm deploy:swarm`, `compose.swarm.yaml`) | [docs/deploy-swarm.md](docs/deploy-swarm.md) |
+| Single-node K3s: the manifests, Tailscale, Cloudflare Tunnel, manual verified-release deploys (the `deploy-k3s` job) | [docs/deploy-k3s.md](docs/deploy-k3s.md) |
 | Kubernetes: the Helm chart (`deploy/helm/app`): api, worker, migrate hook, HPA, Ingress, secret files, PrometheusRule; the kind smoke test | [docs/deploy-kubernetes.md](docs/deploy-kubernetes.md) |
 | Template releases (`v*` tags, generated notes, migrations section), the typed client's changesets (`pnpm changeset`, the version PR, npm publishing off) | [docs/releases.md](docs/releases.md) |
 | Projects built on the template pulling its updates (upstream remote, merging a tag, conflicts, the migrations caveat) | [docs/upgrading.md](docs/upgrading.md) |
 | Log redaction (secret headers and fields, text patterns; `logRedaction.declare*()` at import time, the registry item 5 extends) | [docs/deployment.md](docs/deployment.md), "Log redaction" |
 | Prometheus metrics (`GET /metrics`, METRICS_TOKEN; platform gauges via `MetricsService.collect()`) | [docs/deployment.md](docs/deployment.md), "Metrics" |
 | Alerts (`monitoring/`: rules, their promtool tests; optional `compose.monitoring.yaml` with Prometheus + Alertmanager) | [docs/deployment.md](docs/deployment.md), "Alerting" |
+| The deployed build's commit (`/version.json`, `/health/version`, the stale-tab notice) | [docs/build-version.md](docs/build-version.md) |
+| This documentation site (VitePress, `pnpm docs:check`/`docs:dev`/`docs:build`) and how docs are kept current | [docs/documentation-tooling.md](docs/documentation-tooling.md), [docs/documentation-maintenance.md](docs/documentation-maintenance.md) |
 | Mistakes already made | [docs/pitfalls.md](docs/pitfalls.md) |
 | What gets built next, in order (items 0–24, open decisions, status) | [docs/roadmap.md](docs/roadmap.md) |
 
