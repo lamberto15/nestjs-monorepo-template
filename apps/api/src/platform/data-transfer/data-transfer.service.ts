@@ -44,7 +44,7 @@ import {
   type TemplateGuide,
 } from './formats.js';
 import { columnsOf } from './import-columns.js';
-import { importLimits } from './import-limits.js';
+import { importLimits, restrictImportLimits } from './import-limits.js';
 import { SettingsService } from '../settings/settings.service.js';
 
 /** A column's example as the guide's cell shows it. */
@@ -168,7 +168,9 @@ export class DataTransferService {
     private readonly tenancy: Tenancy,
     private readonly jobs: JobIndex,
     private readonly settings: SettingsService,
-  ) {}
+  ) {
+    restrictImportLimits(settings, config);
+  }
 
   /** What the caller may export and import. */
   async catalog(principal: Principal) {

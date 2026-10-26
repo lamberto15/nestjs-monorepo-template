@@ -6,8 +6,11 @@ Defaults are 50 MiB and 1,000,000 data rows; headers are not data rows.
 Tenant overrides and operators' platform defaults/enforced values follow the
 existing settings permissions and audit rules. No restart is required.
 
-`IMPORT_MAX_BYTES` (52428800) and `IMPORT_MAX_ROWS` (1000000) supply deployment
-fallbacks when no runtime value applies. They are not ceilings on UI settings.
+`IMPORT_MAX_BYTES` (52428800) and `IMPORT_MAX_ROWS` (1000000) are the
+deployment's ceilings and the values used when no runtime value applies. A
+setting may only lower them: a higher value is refused (400
+`setting_not_allowed`), and one stored before the ceiling existed is capped
+when read. To allow larger imports, raise the environment values and restart.
 Reverse proxies may impose a lower request-size limit; configure those separately.
 Spreadsheet ZIP expansion safeguards remain independent of upload size.
 

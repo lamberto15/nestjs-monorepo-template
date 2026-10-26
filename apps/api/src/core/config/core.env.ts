@@ -227,13 +227,13 @@ export const coreEnv = z.object({
   SENTRY_TRACES_SAMPLE_RATE: optional(),
   /** Off for the docs at /api in production. */
   OPENAPI: flag('on'),
-  /** Default data import limit, in bytes; tenant settings can override it. */
+  /** Data import size ceiling, in bytes; settings may only lower it. */
   IMPORT_MAX_BYTES: z.coerce
     .number()
     .int()
     .positive()
     .default(50 * 1024 * 1024),
-  /** Default data import row limit; tenant settings can override it. */
+  /** Data import row ceiling; settings may only lower it. */
   IMPORT_MAX_ROWS: z.coerce.number().int().positive().default(1_000_000),
   /** Disk-backed scratch directory for staged and expanded data imports. */
   IMPORT_TEMP_DIR: pathWithDefault('.data/import-scratch'),
