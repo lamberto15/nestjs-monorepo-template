@@ -64,13 +64,23 @@ groups:
           description: The 95th percentile of request durations has been above 1 s for 15 minutes. Look for slow routes (`http_request_duration_seconds` by route), the database pool and the event loop.
 
       - alert: DatabasePoolSaturated
-        expr: min_over_time(db_pool_connections{state="waiting"}[5m]) > 0
-        for: 5m
+        expr: db_pool_connections{state="waiting"} > 0
+        for: 30s
         labels:
           severity: warning
         annotations:
           summary: '{{ $labels.job }} {{ $labels.instance }} waits for database connections'
-          description: 'Queries have been waiting for a pool connection at every scrape for 10 minutes ({{ $value }} now). Requests that wait longer than DATABASE_POOL_TIMEOUT_MS answer 503 database_busy. See docs/deployment.md, "Database connections".'
+          description: 'Queries have waited for database connections for 30 seconds ({{ $value }} now). Inspect database_incident and database_snapshot logs on this replica. See docs/deployment.md, "Automatic database incidents".'
+
+      - alert: DatabaseFailures
+        expr: >
+          db_last_failure_timestamp_seconds > 0
+          and time() - db_last_failure_timestamp_seconds < 300
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.job }} {{ $labels.instance }} reports {{ $labels.code }}'
+          description: 'A database acquisition failure or statement cancellation occurred within five minutes. Open the Database Incidents dashboard and correlate database_incident logs by incidentId or requestId; snapshots show observed waits and blockers, not a confirmed root cause.'
 
       - alert: PasswordHashingSaturated
         expr: sum by (job, instance) (increase(password_hashes_rejected_total[5m])) > 0

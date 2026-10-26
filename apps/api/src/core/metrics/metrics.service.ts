@@ -59,6 +59,45 @@ export class MetricsService {
     registers: [this.registry],
   });
 
+  readonly databaseAcquire = new Histogram({
+    name: 'db_connection_acquire_duration_seconds',
+    help: 'Time waiting for a database connection, including connection establishment.',
+    labelNames: ['outcome'] as const,
+    buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10],
+    registers: [this.registry],
+  });
+
+  readonly databaseQuery = new Histogram({
+    name: 'db_query_duration_seconds',
+    help: 'Client-observed database command duration, excluding pool acquisition; includes network and lock waits.',
+    labelNames: ['operation', 'outcome'] as const,
+    buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30],
+    registers: [this.registry],
+  });
+
+  readonly databaseFailures = new Counter({
+    name: 'db_failures_total',
+    help: 'Database connection-acquisition failures and statement cancellations.',
+    labelNames: ['code'] as const,
+    registers: [this.registry],
+  });
+
+  // A counter's first sample can already be 1. A timestamp also detects a
+  // failure before Prometheus obtained its initial counter baseline.
+  readonly databaseLastFailure = new Gauge({
+    name: 'db_last_failure_timestamp_seconds',
+    help: 'Unix timestamp of the last database failure, including before the first scrape.',
+    labelNames: ['code'] as const,
+    registers: [this.registry],
+  });
+
+  readonly databaseIncidents = new Counter({
+    name: 'db_incidents_total',
+    help: 'Database incidents, including those whose activity snapshot was suppressed.',
+    labelNames: ['trigger'] as const,
+    registers: [this.registry],
+  });
+
   /**
    * Telemetry the collector turned away (401, 403, 429), by pipeline: a
    * dead export that the app itself would never notice
@@ -80,6 +119,17 @@ export class MetricsService {
   });
 
   constructor() {
+    for (const code of ['database_busy', 'database_timeout']) {
+      this.databaseFailures.inc({ code }, 0);
+      this.databaseLastFailure.set({ code }, 0);
+    }
+    for (const trigger of [
+      'database_busy',
+      'database_timeout',
+      'slow_query',
+      'pool_waiting',
+    ])
+      this.databaseIncidents.inc({ trigger }, 0);
     collectDefaultMetrics({ register: this.registry });
     // Every series a refusal can make, at 0 from the start: Prometheus'
     // increase() needs a sample before the first count, and a refusal that

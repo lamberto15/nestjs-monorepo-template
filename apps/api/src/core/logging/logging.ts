@@ -8,6 +8,8 @@ import {
   type NestMiddleware,
 } from '@nestjs/common';
 import { trace } from '@opentelemetry/api';
+import { inDatabaseContext } from '../database/database-observer.js';
+import { matchedRouteKey } from '../http/route-key.js';
 import type { NextFunction, Request, Response } from 'express';
 import {
   observeRefusalStatus,
@@ -208,6 +210,6 @@ export class RequestLogMiddleware implements NestMiddleware {
         this.logger.log(message, fields);
       }
     });
-    next();
+    inDatabaseContext({ requestId, route: () => matchedRouteKey(req) }, next);
   }
 }

@@ -5,6 +5,7 @@ import {
   Module,
   type NestModule,
   type OnModuleInit,
+  type OnModuleDestroy,
 } from '@nestjs/common';
 import { DatabaseHealth } from '../database/database-health.js';
 import { HttpMetricsMiddleware } from './http-metrics.middleware.js';
@@ -13,13 +14,50 @@ import { MetricsService } from './metrics.service.js';
 
 /** The database pool's connections, by state (core's own gauge). */
 @Injectable()
-class DatabasePoolMetrics implements OnModuleInit {
+class DatabasePoolMetrics implements OnModuleInit, OnModuleDestroy {
+  private readonly unsubscribe: (() => void)[] = [];
   constructor(
     private readonly metrics: MetricsService,
     private readonly database: DatabaseHealth,
   ) {}
 
   onModuleInit() {
+    const observer = this.database.observer();
+    if (observer) {
+      this.unsubscribe.push(
+        observer.subscribe((sample) => {
+          const duration = sample.durationMs / 1000;
+          if (sample.phase === 'acquire')
+            this.metrics.databaseAcquire.observe(
+              { outcome: sample.outcome },
+              duration,
+            );
+          else
+            this.metrics.databaseQuery.observe(
+              { operation: sample.operation, outcome: sample.outcome },
+              duration,
+            );
+        }),
+        observer.incidents.subscribe((incident) => {
+          this.metrics.databaseIncidents.inc({ trigger: incident.trigger });
+          if (
+            incident.trigger === 'database_busy' ||
+            incident.trigger === 'database_timeout'
+          ) {
+            this.metrics.databaseFailures.inc({ code: incident.trigger });
+            this.metrics.databaseLastFailure.set(
+              { code: incident.trigger },
+              Date.now() / 1000,
+            );
+          }
+        }),
+      );
+    }
+    this.metrics.collect(
+      'db_pool_max_connections',
+      'Configured application pool connection limit.',
+      () => [{ value: this.database.pool().max }],
+    );
     this.metrics.collect(
       'db_pool_connections',
       "This process's PostgreSQL pool: connections open (total), idle, and queries waiting for one.",
@@ -33,6 +71,10 @@ class DatabasePoolMetrics implements OnModuleInit {
       },
       ['state'],
     );
+  }
+
+  onModuleDestroy() {
+    for (const unsubscribe of this.unsubscribe) unsubscribe();
   }
 }
 

@@ -1,0 +1,230 @@
+{
+  "uid": "database-incidents",
+  "title": "Database Incidents",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "tags": [
+    "database",
+    "incidents"
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Application pool connections",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "db_pool_connections{instance=~\"$instance\"}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Configured application pool limit",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "db_pool_max_connections{instance=~\"$instance\"}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Connection acquisition p95",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, instance) (rate(db_connection_acquire_duration_seconds_bucket{instance=~\"$instance\"}[5m])))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Database command p95 by operation",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, instance, operation) (rate(db_query_duration_seconds_bucket{instance=~\"$instance\"}[5m])))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "Database failures in five minutes",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, code) (increase(db_failures_total{instance=~\"$instance\"}[5m]))"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Incident triggers in five minutes",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, trigger) (increase(db_incidents_total{instance=~\"$instance\"}[5m]))"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Incident evidence and activity snapshots",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "$loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 24,
+        "h": 14
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{container=~\".*(api|worker).*\"} | json event=\"params.event\", incidentId=\"params.incidentId\", requestId=\"params.requestId\" | event=~\"database_incident|database_snapshot\" | incidentId=~\"$incident\" | requestId=~\"$request\""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "showLabels": false
+      }
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "prometheus",
+        "type": "datasource",
+        "query": "prometheus"
+      },
+      {
+        "name": "loki",
+        "type": "datasource",
+        "query": "loki"
+      },
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$prometheus"
+        },
+        "query": "label_values(db_pool_connections, instance)",
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "incident",
+        "label": "Incident ID (regex)",
+        "type": "textbox",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        }
+      },
+      {
+        "name": "request",
+        "label": "Request ID (regex)",
+        "type": "textbox",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        }
+      }
+    ]
+  }
+}

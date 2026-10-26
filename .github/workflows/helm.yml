@@ -114,6 +114,12 @@ jobs:
           text = Path("deploy/k3s/monitoring/dashboards/app-overview.yaml").read_text()
           marker = "  app-overview.json: |\n"
           dashboard = json.loads("\n".join(line[4:] for line in text.split(marker, 1)[1].splitlines()))
+          incident_text = Path("deploy/k3s/monitoring/dashboards/database-incidents.yaml").read_text()
+          incident_payload = incident_text.split("  database-incidents.json: |\n", 1)[1]
+          incident_dashboard = json.loads("\n".join(line[4:] for line in incident_payload.splitlines()))
+          assert incident_dashboard == json.loads(Path("monitoring/grafana/provisioning/dashboards/database-incidents.json").read_text())
+          assert incident_dashboard["uid"] == "database-incidents"
+          assert "params.incidentId" in incident_dashboard["panels"][-1]["targets"][0]["expr"]
           titles = {panel["title"] for panel in dashboard["panels"]}
           assert dashboard["uid"] == "app-overview"
           assert dashboard["title"] == "Application Overview"
@@ -359,7 +365,7 @@ jobs:
             --set singleBinary.persistence.enabled=false --wait --timeout 8m
           helm upgrade --install alloy grafana/alloy --version 1.14.3 -n monitoring \
             -f deploy/k3s/monitoring/alloy.values.yaml --wait --timeout 8m
-          kubectl apply -f deploy/k3s/monitoring/dashboards/app-overview.yaml
+          kubectl apply -f deploy/k3s/monitoring/dashboards/
           kubectl run obs-log-smoke -n nestjs-monorepo --image=busybox:1.37.0 --restart=Never \
             --command -- sh -c 'echo k3s-observability-smoke; sleep 600'
           kubectl wait -n nestjs-monorepo --for=condition=Ready pod/obs-log-smoke --timeout=120s

@@ -50,6 +50,8 @@ secret:
 # list it; the key must exist in the Secret. DATABASE_URL_FILE is the app
 # role's URL, DATABASE_OWNER_URL_FILE the owner's (migrate only).
 secretFiles:
+  # Optional per-role mapping: DATABASE_MONITOR_URL_FILE: database_monitor_url
+  # Provision the pg_monitor credential in the Secret before enabling it.
   common:
     DATABASE_URL_FILE: database_url
     JWT_SECRET_FILE: jwt_secret

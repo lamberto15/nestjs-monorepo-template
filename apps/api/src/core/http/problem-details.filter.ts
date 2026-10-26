@@ -12,6 +12,10 @@ import {
 import { HttpAdapterHost } from '@nestjs/core';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { ErrorTracker } from '../observability/error-tracker.js';
+import {
+  databaseFailure,
+  databaseIncident,
+} from '../database/database-observer.js';
 
 /** One field that failed validation. */
 export interface ProblemFieldError {
@@ -228,6 +232,11 @@ export class ProblemDetailsFilter implements ExceptionFilter {
       this.logger.warn(`${problem.instance ?? 'ws'} refused: ${problem.code}`, {
         requestId: problem.requestId,
         code: problem.code,
+        ...(databaseFailure(exception) && {
+          cancellationReason: databaseFailure(exception)?.reason,
+          sqlstate: databaseFailure(exception)?.sqlstate,
+          incidentId: databaseIncident(exception)?.incidentId,
+        }),
       });
       return;
     }

@@ -1,0 +1,58 @@
+rule_files:
+- ../alerts.yml
+evaluation_interval: 15s
+tests:
+- name: failures fire within five minutes and resolve
+  interval: 15s
+  input_series:
+  - series: db_last_failure_timestamp_seconds{job="api",instance="replica-1",code="database_timeout"}
+    values: 0 15+0x30
+  alert_rule_test:
+  - eval_time: 30s
+    alertname: DatabaseFailures
+    exp_alerts: &id001
+    - exp_labels:
+        severity: warning
+        job: api
+        instance: replica-1
+        code: database_timeout
+      exp_annotations:
+        summary: api replica-1 reports database_timeout
+        description: A database acquisition failure or statement cancellation occurred within five minutes. Open the Database Incidents dashboard
+          and correlate database_incident logs by incidentId or requestId; snapshots show observed waits and blockers, not a confirmed root cause.
+  - eval_time: 6m
+    alertname: DatabaseFailures
+    exp_alerts: []
+- name: pool waits need thirty seconds and resolve
+  interval: 15s
+  input_series:
+  - series: db_pool_connections{job="api",instance="replica-1",state="waiting"}
+    values: 0 4 4 4 0 0
+  alert_rule_test:
+  - eval_time: 30s
+    alertname: DatabasePoolSaturated
+    exp_alerts: []
+  - eval_time: 45s
+    alertname: DatabasePoolSaturated
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+        job: api
+        instance: replica-1
+        state: waiting
+      exp_annotations:
+        summary: api replica-1 waits for database connections
+        description: Queries have waited for database connections for 30 seconds (4 now). Inspect database_incident and database_snapshot logs
+          on this replica. See docs/deployment.md, "Automatic database incidents".
+  - eval_time: 1m
+    alertname: DatabasePoolSaturated
+    exp_alerts: []
+- name: failure before initial counter scrape is still detected
+  interval: 15s
+  input_series:
+  - series: db_last_failure_timestamp_seconds{job="api",instance="replica-1",code="database_timeout"}
+    values: _ _ 30+0x6
+  alert_rule_test:
+  - eval_time: 45s
+    alertname: DatabaseFailures
+    exp_alerts: *id001
