@@ -110,6 +110,7 @@ generator and CI, the heaviest shape (compare with "API + web + stack"):
 | --- | --- | --- | --- | --- | --- |
 | 40369590382, first push (cold Turbo and backup caches) | 11.3 min | 40.4 | 13 | 11 | 2 s |
 | 40371891394, after the fixes below (warm Turbo cache) | 5.8 min | 25.4 | 13 | 11 | 3 s |
+| 40373581160, the same jobs one push later | 7.3 min (+2.2 waiting for the run it replaced to cancel) | | 13 | | 13 s |
 
 The first run measured two mistakes, fixed before the second. An
 instrumented e2e half-suite cost +20% test time and 8% setup (358 s against
@@ -117,7 +118,9 @@ instrumented e2e half-suite cost +20% test time and 8% setup (358 s against
 The backup cache's export from `compose.ci-cache.yaml` took 291 s: the
 overlay now only reads it.
 
-Job times on the second run: `e2e (1/2)` 5.3 min (its tests 259 s, the
+The same tests ran 30% slower on the third run's runners (the heavier shard
+341 s against 259 s, the instrumented sixth 151 s against 101 s): a single
+run is a sample, not a figure. Job times on the second run: `e2e (1/2)` 5.3 min (its tests 259 s, the
 critical path), `e2e (2/2)` 4.4, `e2e-web` 4.2 (browser tests 52 s, the
 instrumented sixth 103 s), `image` with the hardened stack 3.0, `caddy-image`
 2.3, `feature-smoke` 3.0. With a warm Turbo cache, `check` and `unit (web)`
@@ -126,9 +129,9 @@ replayed (1.2 and 0.6 min). Cold, they took 3.2 and 4.8 min on the first run.
 What that gives the ordinary shapes, from those measured job times (they
 were not run separately, so they are estimates):
 
-- **API:** `changes` (10 s) and the heavier e2e shard (5.1–5.3 min): about
-  5.5 min, against 8.7 at the median. 6 CI / CD runners, against 14 jobs and
-  a peak of 8.
+- **API:** `changes` (10 s) and the heavier e2e shard (5.1–6.9 min over
+  three runs): about 5.5–7 min, against 8.7 at the median. 6 CI / CD
+  runners, against 14 jobs and a peak of 8.
 - **Web:** `changes` and `unit (web)` cold (4.8 min): about 5 min, against
   5.2 at the median and 6.9 at most. `caddy-image` (2.3–2.6 min) is off the
   critical path. 6 CI / CD runners and no `web.yml` jobs, against 9 + 5.
