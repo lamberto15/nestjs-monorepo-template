@@ -139,6 +139,25 @@ export function approvalsHarness() {
     return { testItem: created.body.id as string, approval: item.id as string };
   }
 
+  /** A write to the test item, refused while its approval is pending (409 `approval_pending`). */
+  async function refusedWhilePending(
+    user: User,
+    testItem: string,
+    title: string,
+  ) {
+    const refused = await user.agent
+      .patch(`/v1/test-items/${testItem}`)
+      .send({ title })
+      .expect(409);
+    expect(refused.body.code).toBe('approval_pending');
+  }
+
+  /** The test item once its approved outcome is applied: published, with this title. */
+  async function publishedAs(user: User, testItem: string, title: string) {
+    const read = await user.agent.get(`/v1/test-items/${testItem}`).expect(200);
+    expect(read.body).toMatchObject({ publishedAt: expect.any(String), title });
+  }
+
   return {
     get node() {
       return node;
@@ -155,5 +174,7 @@ export function approvalsHarness() {
     types,
     approve,
     publication,
+    refusedWhilePending,
+    publishedAs,
   };
 }

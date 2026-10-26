@@ -35,6 +35,8 @@ describe('approvals (e2e)', () => {
     types,
     approve,
     publication,
+    refusedWhilePending,
+    publishedAs,
   } = harness;
   let node: TestApp;
 
@@ -491,21 +493,9 @@ describe('approvals (e2e)', () => {
       await node.worker.drain(); // round 1's first stage
       await approve(editor, approval).expect(200);
       // Approved, not applied yet: still locked.
-      expect(
-        (
-          await owner.agent
-            .patch(`/v1/test-items/${testItem}`)
-            .send({ title: 'Sneaked in' })
-            .expect(409)
-        ).body.code,
-      ).toBe('approval_pending');
+      await refusedWhilePending(owner, testItem, 'Sneaked in');
       await node.worker.drain(); // round 1 concludes: published
-      expect(
-        (await owner.agent.get(`/v1/test-items/${testItem}`).expect(200)).body,
-      ).toMatchObject({
-        publishedAt: expect.any(String),
-        title: 'A better title',
-      });
+      await publishedAs(owner, testItem, 'A better title');
     });
 
     it('N2: a handler may apply the change through the feature’s guarded writes', async () => {
@@ -533,21 +523,9 @@ describe('approvals (e2e)', () => {
       });
       await approve(editor, approval).expect(200);
       // Outside the handler, the same guarded write is still refused while approved, not applied.
-      expect(
-        (
-          await owner.agent
-            .patch(`/v1/test-items/${testItem}`)
-            .send({ title: 'Not through the handler' })
-            .expect(409)
-        ).body.code,
-      ).toBe('approval_pending');
+      await refusedWhilePending(owner, testItem, 'Not through the handler');
       await node.worker.drain();
-      expect(
-        (await owner.agent.get(`/v1/test-items/${testItem}`).expect(200)).body,
-      ).toMatchObject({
-        publishedAt: expect.any(String),
-        title: 'Applied through the guarded path',
-      });
+      await publishedAs(owner, testItem, 'Applied through the guarded path');
     });
 
     it('N1: resubmitted before round 0 concluded, round 1 is still applied when approved', async () => {
