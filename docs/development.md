@@ -411,10 +411,10 @@ settings pages. It is not part of `pnpm test:e2e` (the API's).
 - **In CI:** the `e2e-web` job of `.github/workflows/ci.yml`, on every pull
   request, beside the API's e2e shards: its own PostgreSQL and Redis service
   containers, the database marked as a development one, Turborepo's cache for
-  the builds, Chromium cached by Playwright's version
-  (`~/.cache/ms-playwright`; the system libraries installed with
-  `--with-deps`), one retry. On a failure the HTML report and the traces
-  (`playwright-report` artifact, 14 days) are uploaded.
+  the builds, the runner's own Google Chrome (`E2E_BROWSER_CHANNEL=chrome`:
+  no browser download and no apt; unset, as locally, Playwright's Chromium),
+  one retry. When an attempt failed, a retried one included, the HTML report
+  and the traces (`playwright-report` artifact, 14 days) are uploaded.
 
 ## Load tests
 

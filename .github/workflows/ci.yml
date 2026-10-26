@@ -730,7 +730,7 @@ jobs:
   # to install, and a different failure to read (the HTML report and traces
   # are uploaded when it fails). Accessibility findings (axe) go to the job
   # summary; serious and critical ones fail the tests. Then, on the same
-  # build and services: the analytics engine in Chromium (Firefox and WebKit
+  # build and services: the analytics engine in Chrome (Firefox and WebKit
   # in web.yml), and the instrumentation (below).
   #
   # The instrumentation: a sixth of the e2e suite with OpenTelemetry
@@ -772,6 +772,8 @@ jobs:
       DATABASE_OWNER_URL: postgres://app:app@localhost:5432/app
       DATABASE_MAINTENANCE_URL: postgres://app_maintenance:app_maintenance@localhost:5432/app
       REDIS_URL: redis://localhost:6379
+      # The browser tests and the analytics smoke run in the runner's Chrome.
+      E2E_BROWSER_CHANNEL: chrome
     steps:
       - uses: actions/checkout@v7
       - name: Install pnpm, Node.js and the dependencies
@@ -781,24 +783,12 @@ jobs:
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
         uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
-      # Playwright's browsers, kept between runs by its version; the system
-      # libraries are installed each time (`--with-deps`: apt, a few seconds).
-      - name: Playwright's version
-        id: playwright
-        run: echo "version=$(pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
-      - name: Playwright's browsers (cache)
-        id: browsers
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      - name: Install Chromium
-        run: |
-          if [ "${{ steps.browsers.outputs.cache-hit }}" = true ]; then
-            pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright install-deps chromium
-          else
-            pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright install --with-deps chromium
-          fi
+      # The runner's own Google Chrome (E2E_BROWSER_CHANNEL, below), not
+      # Playwright's Chromium: no download and no apt, whose mirror took 6-8
+      # minutes in 3 of 97 runs (docs/ci-runtime.md). Its version is the
+      # runner image's, named here for the log.
+      - name: The browser (the runner's Google Chrome)
+        run: google-chrome --version
       # The seed runs only on a database marked as a development one
       # (docs/development.md, "Demo data"): what the development services do
       # when they create theirs (dev/postgres/10-dev-database.sql).
@@ -810,7 +800,7 @@ jobs:
           CI: 'true'
       # The local-file analytics (DuckDB-WASM in a worker) with no external
       # request, on Vite's dev server: apps/web-e2e/scripts/analytics-smoke.mjs.
-      - name: Local file analytics without external requests (Chromium)
+      - name: Local file analytics without external requests (Chrome)
         if: needs.changes.outputs.web == 'true'
         env:
           ANALYTICS_BROWSER: chromium

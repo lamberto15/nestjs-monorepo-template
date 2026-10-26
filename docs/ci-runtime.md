@@ -137,16 +137,17 @@ were not run separately, so they are estimates):
   5.2 at the median and 6.9 at most. `caddy-image` (2.3–2.6 min) is off the
   critical path. 6 CI / CD runners and no `web.yml` jobs, against 9 + 5.
 
-The tail that remains: `playwright install-deps` (apt, from the runner's
+The Playwright tail: `playwright install-deps` (apt, from the runner's
 Ubuntu mirror) took 20 s at the median and 47 s at p95 over 97 runs, but 6–8
-min in 3 of them (`Fetched 25.9 MB in 6min 56s (62.4 kB/s)`). It is the
-critical path when it happens. The ways out each cost something:
-Playwright's container image (no apt, but the services move from
-`localhost` to their hostnames, a pull of over a gigabyte, and a tag
-Dependabot doesn't keep in step with `@playwright/test`), or the runner's
-own Google Chrome (`channel: 'chrome'`: no download, but the browser follows
-the runner image instead of the pinned Chromium). Undecided; not changed
-here.
+min in 3 of them (`Fetched 25.9 MB in 6min 56s (62.4 kB/s)`), the critical
+path when it happened. `e2e-web` now runs in the runner's own Google Chrome
+(`E2E_BROWSER_CHANNEL=chrome`, Playwright's `channel: 'chrome'`): no
+download, no apt. The cost: the browser is the runner image's Chrome stable
+(its version is in the job's log), not the Chromium pinned with
+`@playwright/test`. Playwright's container image was the other way out,
+declined: the services would move from `localhost` to their hostnames, a pull
+of over a gigabyte each run, and a tag Dependabot doesn't keep in step with
+`@playwright/test`. `web.yml`'s Firefox and WebKit still install theirs.
 
 Still to measure: these shapes on real pull requests after the merge, and
 a cold Turbo cache on the second layout. Collect them with `metrics.mjs`

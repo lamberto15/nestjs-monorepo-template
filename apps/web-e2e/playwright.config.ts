@@ -24,6 +24,11 @@ export default defineConfig({
     // The trace of a test that failed, kept with the HTML report.
     trace: 'retain-on-failure',
     locale: 'en-US',
+    // E2E_BROWSER_CHANNEL=chrome (CI): the machine's own Google Chrome for
+    // every project (the setup project's sign-ins too) rather than
+    // Playwright's Chromium, which needs a download and its system libraries
+    // from apt (docs/ci-runtime.md). Unset: the bundled one.
+    channel: process.env.E2E_BROWSER_CHANNEL || undefined,
   },
   projects: [
     // Signs in once per role; the others reuse the saved state (storageState)

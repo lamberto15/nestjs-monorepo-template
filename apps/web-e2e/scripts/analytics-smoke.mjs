@@ -67,7 +67,12 @@ try {
   browser = await browserType.launch({
     headless: true,
     ...(browserName === 'chromium'
-      ? { executablePath: process.env.CHROMIUM_PATH, args: ['--no-sandbox'] }
+      ? {
+          executablePath: process.env.CHROMIUM_PATH,
+          // As playwright.config.ts: CI's own Google Chrome.
+          channel: process.env.E2E_BROWSER_CHANNEL || undefined,
+          args: ['--no-sandbox'],
+        }
       : {}),
   });
   const page = await browser.newPage();
