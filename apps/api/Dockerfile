@@ -24,10 +24,7 @@ RUN CI=true pnpm fetch --store-dir /pnpm-store
 # invalidate the dependency installation layer.
 COPY package.json ./
 COPY apps/api/package.json apps/api/package.json
-COPY apps/web/package.json apps/web/package.json
-COPY apps/web-e2e/package.json apps/web-e2e/package.json
 COPY packages/api-client/package.json packages/api-client/package.json
-COPY packages/ui/package.json packages/ui/package.json
 RUN CI=true pnpm install --store-dir /pnpm-store --frozen-lockfile --offline
 COPY . .
 RUN pnpm --filter @nestjs-monorepo-template/api build
