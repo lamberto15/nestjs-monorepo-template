@@ -69,9 +69,15 @@ export class OutboxMetricsReader {
       },
       { accessMode: 'read only' },
     );
-    const row = result.rows[0] as
-      | { pending: string; dead_letters: string; oldest_due_at: string | null }
-      | undefined;
+    // Database's portable query-result type is unknown; node-postgres returns rows.
+    const { rows } = result as {
+      rows: {
+        pending: string;
+        dead_letters: string;
+        oldest_due_at: string | null;
+      }[];
+    };
+    const row = rows[0];
     if (!row) throw new Error('Outbox metrics query returned no row');
     return {
       pending: Number(row.pending),
