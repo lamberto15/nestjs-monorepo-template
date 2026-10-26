@@ -31,10 +31,12 @@ secretFiles:
     MAIL_API_KEY_FILE: mail_api_key
     REDIS_PASSWORD_FILE: redis_password
     METRICS_TOKEN_FILE: metrics_token
+    DATABASE_MONITOR_URL_FILE: database_monitor_url
   worker:
     MAIL_API_KEY_FILE: mail_api_key
     REDIS_PASSWORD_FILE: redis_password
     METRICS_TOKEN_FILE: metrics_token
+    DATABASE_MONITOR_URL_FILE: database_monitor_url
 
 # local-path provisioned volumes support RWO. On one node the API and worker
 # can mount the same claim; this profile must be changed before adding nodes.
@@ -44,6 +46,9 @@ persistence:
   size: 100Gi
   accessModes: [ReadWriteOnce]
 
+# With two API replicas and one worker, diagnostics adds three connections
+# when configured. Include them alongside the unchanged 10/20 app pools and
+# exporter/other clients in PostgreSQL's max_connections budget.
 api:
   replicas: 2
   autoscaling:
