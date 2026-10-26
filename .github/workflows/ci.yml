@@ -1370,7 +1370,7 @@ jobs:
       LOADTEST_OUT: loadtest/results
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
       - uses: actions/download-artifact@v8
         with:
           name: image-app
