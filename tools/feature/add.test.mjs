@@ -256,6 +256,24 @@ describe('addFeature', () => {
       readFileSync(api('src/features/invoices/invoices.tables.ts'), 'utf8'),
       /recordTable\(INVOICE\)/,
     );
+    const service = readFileSync(
+      api('src/features/invoices/invoices.service.ts'),
+      'utf8',
+    );
+    assert.match(service, /records\.lock<Invoice>\(tx, row\.id\)/);
+    assert.match(service, /prepareCurrent\(current\)/);
+    assert.match(service, /assertCurrent\?\.\(current, currentDto\)/);
+    assert.ok(
+      service.indexOf('lifecycle.assertNotPending(row.id)') <
+        service.indexOf('records.lock<Invoice>(tx, row.id)'),
+    );
+    assert.match(service, /records\.lock<Invoice>\(tx, row\.id\)/);
+    const controller = readFileSync(
+      api('src/features/invoices/invoices.controller.ts'),
+      'utf8',
+    );
+    assert.match(controller, /assertCurrent: async \(current\)/);
+    assert.match(controller, /delete\(user, row, ip, async \(current\)/);
   });
 
   it('adds the paths to the OpenAPI test in its sorted order', async () => {

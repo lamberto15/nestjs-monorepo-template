@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -376,30 +375,67 @@ export class NotesService {
   /** Changes a note; the audit entry holds what changed, from → to. */
   async update(
     by: Principal,
-    note: Note,
+    note: Pick<Note, 'id'>,
     dto: UpdateNoteDto,
     ip?: string,
     /** Set when a revision is restored (NoteRevisions): marks the new revision. */
-    { restoredFrom }: { restoredFrom?: number } = {},
-  ) {
-    const { custom, ...changes } = dto;
-    // Only the keys sent change (jsonb ||); null removes one.
-    const patch = await this.customFields.parseValues('Note', custom, 'update');
-    const values = {
-      ...changes,
-      ...(Object.keys(patch).length > 0 && {
-        custom: this.customFields.mergeValues(notes.custom, patch),
-      }),
+    {
+      restoredFrom,
+      prepareCurrent,
+      assertCurrent,
+    }: {
+      restoredFrom?: number;
+      prepareCurrent?: (
+        current: Note,
+      ) => Promise<UpdateNoteDto> | UpdateNoteDto;
+      assertCurrent?: (
+        current: Note,
+        dto: UpdateNoteDto,
+      ) => Promise<void> | void;
+    } = {},
+  ): Promise<Note> {
+    const valuesFor = async (currentDto: UpdateNoteDto) => {
+      const { custom, ...changes } = currentDto;
+      // Only the keys sent change (jsonb ||); null removes one.
+      const patch = await this.customFields.parseValues(
+        'Note',
+        custom,
+        'update',
+      );
+      return {
+        ...changes,
+        ...(Object.keys(patch).length > 0 && {
+          custom: this.customFields.mergeValues(notes.custom, patch),
+        }),
+      };
     };
-    if (Object.keys(values).length === 0) {
-      return note; // nothing to change
+    const values = prepareCurrent ? undefined : await valuesFor(dto);
+    if (
+      values &&
+      Object.keys(values).length === 0 &&
+      !assertCurrent &&
+      !prepareCurrent
+    ) {
+      return note as Note; // normal callers pass the loaded Note; restoration prepares under lock
     }
     const updated = await inTransaction(this.txHost, async (tx) => {
       // Not while an approver decides on it (409 approval_pending): sent back for changes, it may change.
-      await this.approvals.assertNotPending('Note', note.id);
+      if (prepareCurrent || (values && Object.keys(values).length > 0)) {
+        await this.approvals.assertNotPending('Note', note.id);
+      }
+      const [current] = await tx
+        .select()
+        .from(notes)
+        .where(and(eq(notes.id, note.id), isNull(notes.deletedAt)))
+        .for('update');
+      if (!current) throw new NotFoundException(`Note ${note.id} not found.`);
+      const currentDto = prepareCurrent ? await prepareCurrent(current) : dto;
+      const currentValues = values ?? (await valuesFor(currentDto));
+      await assertCurrent?.(current, currentDto);
+      if (Object.keys(currentValues).length === 0) return current;
       const [row] = await tx
         .update(notes)
-        .set(values)
+        .set(currentValues)
         .where(eq(notes.id, note.id))
         .returning();
       // Whoever watches the note hears of it, but the one who changed it;
@@ -416,14 +452,14 @@ export class NotesService {
       await this.audit.recordChange(
         by,
         NOTE,
-        { action: 'updated', id: note.id, before: note, after: row },
+        { action: 'updated', id: note.id, before: current, after: row },
         tx,
         ip,
       );
       await this.revisions.record(tx, 'Note', note.id, {
         snapshot: noteSnapshot(row!),
         // A note from before revisions were kept gets its first state as revision 1.
-        before: noteSnapshot(note),
+        before: noteSnapshot(current),
         by,
         restoredFrom,
       });
@@ -564,30 +600,43 @@ export class NotesService {
   }
 
   /** To the recycle bin (soft delete): hidden everywhere, restorable until purged. */
-  async delete(by: Principal, note: Note, ip?: string) {
+  async delete(
+    by: Principal,
+    note: Note,
+    ip?: string,
+    assertCurrent?: (current: Note) => Promise<void> | void,
+  ) {
     await inTransaction(this.txHost, async (tx) => {
-      // Not under a legal hold (a 409 legal_hold).
-      await this.holds.assertNotHeld('Note', [note.id], tx);
-      // Not while an approver decides on it; a request sent back for changes is withdrawn with the note.
+      // Keep the approval lock before the row lock, as update() does.
       await this.approvals.assertNotPending('Note', note.id);
-      await this.approvals.withdraw(tx, by, 'Note', note.id);
+      const [current] = await tx
+        .select()
+        .from(notes)
+        .where(and(eq(notes.id, note.id), isNull(notes.deletedAt)))
+        .for('update');
+      if (!current) throw new NotFoundException(`Note ${note.id} not found.`);
+      await assertCurrent?.(current);
+      // Not under a legal hold (a 409 legal_hold).
+      await this.holds.assertNotHeld('Note', [current.id], tx);
+      // Not while an approver decides on it; a request sent back for changes is withdrawn with the note.
+      await this.approvals.withdraw(tx, by, 'Note', current.id);
       await tx
         .update(notes)
         .set({ deletedAt: new Date(), deletedBy: principalKey(by) })
-        .where(eq(notes.id, note.id));
-      await this.publisher.dispatch(tx, 'note.deleted', note);
-      if (note.ownerId !== principalKey(by)) {
+        .where(eq(notes.id, current.id));
+      await this.publisher.dispatch(tx, 'note.deleted', current);
+      if (current.ownerId !== principalKey(by)) {
         // Someone else's doing: the owner is told (and can't switch it off).
         await this.notifications.notify(tx, {
           type: 'note.deleted',
-          to: note.ownerId,
-          data: { noteId: note.id, title: note.title, by: by.name },
+          to: current.ownerId,
+          data: { noteId: current.id, title: current.title, by: by.name },
         });
       }
       await this.audit.recordChange(
         by,
         NOTE,
-        { action: 'deleted', id: note.id, before: note },
+        { action: 'deleted', id: current.id, before: current },
         tx,
         ip,
       );

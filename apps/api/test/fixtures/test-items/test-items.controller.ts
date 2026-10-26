@@ -217,12 +217,20 @@ export class TestItemsController {
     @Ip() ip: string,
   ) {
     const row = await this.testItems.findOne(id);
-    await this.authorization.authorize(TestItemPolicy, 'update', user, row);
-    assertUnchanged(ifMatch, await this.presenter.one(user, row));
-    await this.assertFields(user, 'update', dto, row);
     return this.presenter.one(
       user,
-      await this.testItems.update(user, row, dto, ip),
+      await this.testItems.update(user, row, dto, ip, {
+        assertCurrent: async (current) => {
+          await this.authorization.authorize(
+            TestItemPolicy,
+            'update',
+            user,
+            current,
+          );
+          assertUnchanged(ifMatch, await this.presenter.one(user, current));
+          await this.assertFields(user, 'update', dto, current);
+        },
+      }),
     );
   }
 
@@ -264,9 +272,15 @@ export class TestItemsController {
     @Ip() ip: string,
   ) {
     const row = await this.testItems.findOne(id);
-    await this.authorization.authorize(TestItemPolicy, 'delete', user, row);
-    assertUnchanged(ifMatch, await this.presenter.one(user, row));
-    await this.testItems.delete(user, row, ip);
+    await this.testItems.delete(user, row, ip, async (current) => {
+      await this.authorization.authorize(
+        TestItemPolicy,
+        'delete',
+        user,
+        current,
+      );
+      assertUnchanged(ifMatch, await this.presenter.one(user, current));
+    });
   }
 
   /** Field-level: a 403 naming the fields this caller may not set. */

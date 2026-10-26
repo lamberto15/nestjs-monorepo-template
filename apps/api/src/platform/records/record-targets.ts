@@ -468,43 +468,60 @@ export class RecordRevisions {
     principal: Principal,
     id: string,
     fields: Record<string, unknown>,
-    { ip, restoredFrom }: { ip?: string; restoredFrom: number },
-  ) {
-    const row = await this.c.service.findOne(id);
-    const now = this.snapshot(row);
-    const changes: Record<string, unknown> = Object.fromEntries(
-      Object.entries(fields).filter(
-        ([field, value]) =>
-          field !== 'custom' &&
-          field in now &&
-          JSON.stringify(value) !== JSON.stringify(now[field]),
-      ),
-    );
-    if (takes(this.c.declaration, 'custom')) {
-      const patch = await this.customPatch(fields.custom, row.custom);
-      if (Object.keys(patch).length > 0) changes.custom = patch;
-    }
-    const parsed = this.c.schemas.update.safeParse(changes);
-    if (!parsed.success) {
-      throw validationException(parsed.error.issues);
-    }
-    const dto = parsed.data as Record<string, unknown>;
-    const forbidden = await this.access.forbiddenFields(
-      principal,
-      'update',
-      this.subject,
-      sentFields(dto),
-      row,
-    );
-    if (forbidden.length) {
-      throw new ForbiddenException({
-        code: 'field_forbidden',
-        message: `You may not change: ${forbidden.join(', ')}.`,
-        fields: forbidden,
-      });
-    }
-    const updated = await this.c.service.update(principal, row, dto, ip, {
+    {
+      ip,
       restoredFrom,
+      unchanged,
+    }: {
+      ip?: string;
+      restoredFrom: number;
+      unchanged?: (current: object) => void;
+    },
+  ) {
+    const updated = await this.c.service.update(principal, { id }, {}, ip, {
+      restoredFrom,
+      prepareCurrent: async (current) => {
+        const now = this.snapshot(current);
+        const changes: Record<string, unknown> = Object.fromEntries(
+          Object.entries(fields).filter(
+            ([field, value]) =>
+              field !== 'custom' &&
+              field in now &&
+              JSON.stringify(value) !== JSON.stringify(now[field]),
+          ),
+        );
+        if (takes(this.c.declaration, 'custom')) {
+          const patch = await this.customPatch(fields.custom, current.custom);
+          if (Object.keys(patch).length > 0) changes.custom = patch;
+        }
+        const parsed = this.c.schemas.update.safeParse(changes);
+        if (!parsed.success) {
+          throw validationException(parsed.error.issues);
+        }
+        return parsed.data as Record<string, unknown>;
+      },
+      assertCurrent: async (current, dto) => {
+        if (!(await this.c.policy.update(principal, current))) {
+          throw new ForbiddenException(
+            `You may not change this ${this.c.declaration.noun}.`,
+          );
+        }
+        unchanged?.(await this.presenter.one(principal, current));
+        const currentForbidden = await this.access.forbiddenFields(
+          principal,
+          'update',
+          this.subject,
+          sentFields(dto),
+          current,
+        );
+        if (currentForbidden.length) {
+          throw new ForbiddenException({
+            code: 'field_forbidden',
+            message: `You may not change: ${currentForbidden.join(', ')}.`,
+            fields: currentForbidden,
+          });
+        }
+      },
     });
     return this.presenter.one(principal, updated);
   }

@@ -310,23 +310,26 @@ export class NotesController {
     @Ip() ip: string,
   ) {
     const note = await this.notes.findOne(id);
-    await this.authorization.authorize(NotePolicy, 'update', user, note);
-    assertUnchanged(ifMatch, await this.shown(user, note));
-    const forbidden = await this.access.forbiddenFields(
-      user,
-      'update',
-      'Note',
-      dto,
-      note,
-    );
-    if (forbidden.length) {
-      throw new ForbiddenException({
-        code: 'field_forbidden',
-        message: `You may not change: ${forbidden.join(', ')}.`,
-        fields: forbidden,
-      });
-    }
-    const updated = await this.notes.update(user, note, dto, ip);
+    const updated = await this.notes.update(user, note, dto, ip, {
+      assertCurrent: async (current) => {
+        await this.authorization.authorize(NotePolicy, 'update', user, current);
+        assertUnchanged(ifMatch, await this.shown(user, current));
+        const forbidden = await this.access.forbiddenFields(
+          user,
+          'update',
+          'Note',
+          dto,
+          current,
+        );
+        if (forbidden.length) {
+          throw new ForbiddenException({
+            code: 'field_forbidden',
+            message: `You may not change: ${forbidden.join(', ')}.`,
+            fields: forbidden,
+          });
+        }
+      },
+    });
     return this.shown(user, updated);
   }
 
@@ -371,9 +374,10 @@ export class NotesController {
     @Ip() ip: string,
   ) {
     const note = await this.notes.findOne(id);
-    await this.authorization.authorize(NotePolicy, 'delete', user, note);
-    assertUnchanged(ifMatch, await this.shown(user, note));
-    await this.notes.delete(user, note, ip);
+    await this.notes.delete(user, note, ip, async (current) => {
+      await this.authorization.authorize(NotePolicy, 'delete', user, current);
+      assertUnchanged(ifMatch, await this.shown(user, current));
+    });
   }
 
   /** A note as this caller reads it: its tags and active custom fields, less the fields they may not see (what the ETag covers). */
