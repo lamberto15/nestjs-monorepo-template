@@ -105,7 +105,11 @@ test('another account signing in in a second tab updates the open tab', async ({
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 
   const other = await page.context().newPage();
-  await other.goto('/');
+  // A page of this origin with no app in it (the API's JSON, through the
+  // proxy): an app booting here would lose its first queries to the sign-out
+  // (401), end its session and announce it, and this tab would follow it out
+  // before the sign-in below. A trace showed that race (issue #683).
+  await other.goto('/v1/auth/methods');
   const signedOut = await other.evaluate(async () => {
     const response = await fetch('/v1/auth/sign-out', { method: 'POST' });
     return response.ok;
