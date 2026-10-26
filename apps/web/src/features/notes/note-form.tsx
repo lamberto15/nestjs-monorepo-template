@@ -32,7 +32,7 @@ import {
 import { isApiError } from '@nestjs-monorepo-template/api-client';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { useSubjectNamingSeries } from '@/lib/naming-series';
-import { FormAlert, useAppForm } from '@/lib/form';
+import { FormAlert, useAppForm, useStaleDraftSession } from '@/lib/form';
 import {
   isPreconditionFailed,
   recordKeys,
@@ -60,6 +60,7 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
   const { note, etag } = props;
   const { t } = useTranslation('notes');
   const { t: tRecords } = useTranslation('records');
+  const { t: tCommon } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const invalidate = useInvalidateRecords(NOTES_PATH);
@@ -68,6 +69,9 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
   const [error, setError] = useState<string>();
   const [conflict, setConflict] = useState(false);
   const [reloading, setReloading] = useState(false);
+  // The draft belongs to the session it was begun under: another tab may
+  // re-issue the shared cookie while the user types (lib/form.tsx).
+  const staleDraftSession = useStaleDraftSession();
   const showBody = !note || note.body !== undefined;
   // With `notes.richText` on, the body is Markdown, edited in an editor.
   const { richText, pending: settingsPending } = useRichTextOnOpen();
@@ -137,6 +141,13 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
     onSubmit: async ({ value }) => {
       setError(undefined);
       setConflict(false);
+      // The draft was begun under another session (another tab re-issued the
+      // shared cookie): nothing is sent, the draft is kept, the user decides
+      // — the next submit is theirs, under the session they can see.
+      if (staleDraftSession()) {
+        setError(tCommon('app.staleDraft'));
+        return;
+      }
       const found = draftErrors(fields, drafts, tRecords);
       setCustomErrors(found);
       if (Object.keys(found).length > 0) return;

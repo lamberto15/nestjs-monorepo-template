@@ -45,6 +45,10 @@ export default defineConfig({
       timeout: 120_000,
       stdout: 'pipe',
       stderr: 'pipe',
+      // The session-identity spec impersonates a user: an identity change
+      // the other tabs must follow (issue #555), and impersonation is off by
+      // default. api.mjs takes anything else from the environment.
+      env: { IMPERSONATION: 'on' },
     },
     {
       command:

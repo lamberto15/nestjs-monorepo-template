@@ -1,14 +1,17 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import openapi from '@nestjs-monorepo-template/api-client/openapi.json';
+import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { NOTE_LIMITS } from '@/features/notes/api';
+import { meQuery } from '@/lib/session';
 import { renderApp } from '@/test/render-app';
 import {
   NOTE_ID,
   sampleNote,
   useNotesApi,
 } from '@/features/notes/test/notes-api';
+import { server, signedInUser } from '@/test/server';
 import { findToast } from '@/test/toast';
 
 /** The request schemas of the API's routes, as the typed client's document has them. */
@@ -180,6 +183,56 @@ describe('creating a note', () => {
       key: expect.stringMatching(/./),
     });
     expect(await screen.findByRole('heading', { name: 'Hello' })).toBeVisible();
+  });
+
+  it('sends nothing of a draft begun under another session, until the user says so', async () => {
+    const api = useNotesApi({ can: ALL, notes: [] });
+    const { queryClient } = await renderApp('/notes/new');
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('Title'), 'Q3 for Globex');
+    await user.type(screen.getByLabelText('Text'), 'Old tenant plans');
+
+    // Another tab re-issued the shared cookie for another tenant: the
+    // watcher here resets the caches, but the draft is component state and
+    // survives — a submit must not send the old session's words under the
+    // new one's cookie.
+    const otherTenant = '0199a3f2-0000-7000-8000-00000000002a';
+    server.use(
+      http.get('/v1/auth/me', () =>
+        HttpResponse.json({
+          ...signedInUser,
+          tenant: {
+            ...signedInUser.tenant!,
+            id: otherTenant,
+            slug: 'globex',
+            name: 'Globex',
+          },
+          can: Object.fromEntries(ALL.map((permission) => [permission, true])),
+        }),
+      ),
+    );
+    await queryClient.fetchQuery({ ...meQuery, staleTime: 0 });
+
+    // The draft is kept as it was written.
+    expect(screen.getByLabelText('Title')).toHaveValue('Q3 for Globex');
+    expect(screen.getByLabelText('Text')).toHaveValue('Old tenant plans');
+
+    // The first submit after the change sends nothing: it says why and lets
+    // the user decide, instead of silently dropping the draft.
+    await user.click(screen.getByRole('button', { name: 'Create note' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Nothing was sent',
+    );
+    expect(api.calls.created).toHaveLength(0);
+    expect(screen.getByLabelText('Title')).toHaveValue('Q3 for Globex');
+    expect(screen.getByLabelText('Text')).toHaveValue('Old tenant plans');
+
+    // The next submit is the user's own decision, under the new session.
+    await user.click(screen.getByRole('button', { name: 'Create note' }));
+    await waitFor(() => expect(api.calls.created).toHaveLength(1));
+    expect(api.calls.created[0]).toMatchObject({
+      body: { title: 'Q3 for Globex', body: 'Old tenant plans' },
+    });
   });
 
   it("shows the created note from the create's answer, and its ETag goes with the first edit", async () => {

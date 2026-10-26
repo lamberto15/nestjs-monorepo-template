@@ -5,6 +5,7 @@ import {
   type GetResponse,
 } from '@nestjs-monorepo-template/api-client';
 import { api } from '@/lib/api';
+import { announceSessionIdentity } from '@/lib/session-bus';
 
 export type Me = GetResponse<'/v1/auth/me'>;
 export type Methods = GetResponse<'/v1/auth/methods'>;
@@ -29,6 +30,55 @@ export const meQuery = queryOptions({
   staleTime: 60_000,
   retry: false,
 });
+
+/**
+ * The session's identity: who is signed in, in which tenant, acting as whom —
+ * null when nobody is. A refetch of `me` that answers with a different one
+ * means the cookie was re-issued for another context (a sign-in, `POST
+ * /v1/auth/tenant`, an impersonation started or stopped), and nothing cached
+ * belongs to it any more (the session watcher, lib/errors.ts). Realtime's
+ * socket keys the same three parts plus `authenticatedAt` (`connectionKey`,
+ * lib/realtime.tsx): it reopens per re-issued cookie, whatever the identity;
+ * the session's part in those three alone decides the cached data's context.
+ */
+export function sessionIdentity(me: Me | null | undefined): string | null {
+  if (!me) {
+    return null;
+  }
+  return [me.user.id, me.tenant?.id ?? '', me.user.impersonator?.id ?? ''].join(
+    '|',
+  );
+}
+
+/**
+ * What the session watcher (lib/errors.ts) and the flows below know about
+ * one query client's session: the identity of the `me` answer it saw last
+ * (null: nobody, or not yet read at all — both have no context to forget)
+ * and, while `applying`, that one of the flows here is resetting or clearing
+ * the cache and announces the identity itself, so the watcher does not
+ * reapply it from the `me` event that the flow's own refetch answers.
+ */
+export type SessionWatch = {
+  identity: string | null;
+  applying: boolean;
+  /**
+   * Ends this client's session-bus listener (session-bus.ts): a page's one
+   * client keeps it for its life; a client thrown away (a test's) ends it
+   * with itself, so the bus's registry holds nothing of the client.
+   */
+  offBus?: () => void;
+};
+
+const watching = new WeakMap<QueryClient, SessionWatch>();
+
+export function sessionWatch(queryClient: QueryClient): SessionWatch {
+  let watch = watching.get(queryClient);
+  if (!watch) {
+    watch = { identity: null, applying: false };
+    watching.set(queryClient, watch);
+  }
+  return watch;
+}
 
 /** The sign-in options (public): drives the sign-in page. */
 export const methodsQuery = queryOptions({
@@ -73,20 +123,40 @@ export function createSession(queryClient: QueryClient) {
     reset: async () => {
       // Mutations too: their variables and results (a password change,
       // recovery codes, a TOTP secret) must not outlive the session.
-      queryClient.getMutationCache().clear();
-      await queryClient.resetQueries();
-      // Not mounted anywhere (a sign-in page): fetch it, so the route
-      // guards find the new user. Fresh after the reset's refetch otherwise.
-      await queryClient.fetchQuery(meQuery);
+      const watch = sessionWatch(queryClient);
+      watch.applying = true;
+      try {
+        queryClient.getMutationCache().clear();
+        await queryClient.resetQueries();
+        // Not mounted anywhere (a sign-in page): fetch it, so the route
+        // guards find the new user. Fresh after the reset's refetch otherwise.
+        const me = await queryClient.fetchQuery(meQuery);
+        watch.identity = sessionIdentity(me);
+        // The browser's other tabs share the new cookie: with this they
+        // forget the previous context now, not at their next refetch.
+        announceSessionIdentity(watch.identity);
+      } finally {
+        watch.applying = false;
+      }
     },
     /** Signed out (or the session ended): forget the user and their data. */
     clear: () => {
       // The sign-in options are public: the only thing worth keeping.
-      queryClient.getMutationCache().clear();
-      queryClient.removeQueries({
-        predicate: (query) => query.queryHash !== methodsHash,
-      });
-      queryClient.setQueryData(meQuery.queryKey, null);
+      const watch = sessionWatch(queryClient);
+      watch.applying = true;
+      try {
+        queryClient.getMutationCache().clear();
+        queryClient.removeQueries({
+          predicate: (query) => query.queryHash !== methodsHash,
+        });
+        queryClient.setQueryData(meQuery.queryKey, null);
+        watch.identity = null;
+        // Other tabs now hold a session nobody does (a sign-out, an idle or
+        // absolute limit): they end theirs at once, not at their next 401.
+        announceSessionIdentity(null);
+      } finally {
+        watch.applying = false;
+      }
     },
   };
 }

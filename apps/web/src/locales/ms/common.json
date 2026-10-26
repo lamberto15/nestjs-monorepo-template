@@ -1,6 +1,7 @@
 {
   "app": {
-    "name": "App"
+    "name": "App",
+    "staleDraft": "Sesi berubah semasa anda menulis (dalam tab atau tetingkap lain). Tiada apa-apa dihantar — semak apa yang anda tulis dan hantar semula di bawah sesi baharu."
   },
   "nav": {
     "platform": "Platform",

@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { sessionWatch } from '@/lib/session';
 
 // The query clients of the apps a test rendered (renderApp). A test may end
 // while one still has work in flight: a navigation's fetch, or a result whose
@@ -15,10 +16,14 @@ export function trackClient(client: QueryClient) {
  * Stops every tracked client's work (TanStack Query's testing guide: one
  * client per test, cleared after it): in-flight queries are cancelled and the
  * cache emptied, then one macrotask passes so an update already scheduled
- * runs while the environment still exists, against nothing mounted.
+ * runs while the environment still exists, against nothing mounted. The
+ * session bus's listener registry is module state (lib/session-bus.ts), so a
+ * client's watcher ends here too — nothing of a finished test's client stays
+ * to hear the next test's announcements.
  */
 export async function teardownApps() {
   for (const client of clients) {
+    sessionWatch(client).offBus?.();
     await client.cancelQueries();
     client.getMutationCache().clear();
     client.clear();

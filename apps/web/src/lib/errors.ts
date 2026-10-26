@@ -4,7 +4,14 @@ import { isApiError } from '@nestjs-monorepo-template/api-client';
 import { toast } from 'sonner';
 import { i18n } from '@/i18n';
 import { isModeRefusal } from '@/lib/mode';
-import { createSession, featuresQuery, meQuery } from '@/lib/session';
+import { announceSessionIdentity, onSessionIdentity } from '@/lib/session-bus';
+import {
+  createSession,
+  featuresQuery,
+  meQuery,
+  sessionIdentity,
+  sessionWatch,
+} from '@/lib/session';
 
 declare module '@tanstack/react-query' {
   interface Register {
@@ -159,34 +166,110 @@ export function createQueryClient(
 }
 
 /**
- * `me` refetched (a window focus, an invalidation) and nobody is signed in
- * any more: the session ended without a 401 anyone else saw. A null that
- * the app set itself (sign-out, endSession: setQueryData) is no news.
+ * `me` refetched (a window focus, an invalidation, a route guard) answers
+ * with the session's ends and its identity's changes (`sessionIdentity`):
+ *
+ * - The same identity as last seen, or one a reset or clear of this tab is
+ *   applying itself (they record and announce it): nothing to do, the cache
+ *   keeps its data.
+ * - Nobody signed in (null), and not what the app set itself (sign out,
+ *   endSession: setQueryData): the session ended without a 401 anyone else
+ *   saw. `endSession` clears the data and the mutations; its `clear` tells
+ *   the other tabs, so they end theirs at once too (`watchSession` below
+ *   hears it there).
+ * - A different identity signed in (another user or tenant, an impersonation
+ *   started or stopped): the cookie was re-issued for another context —
+ *   switched in this tab (whose flow's `reset` announces the outcome), or in
+ *   another tab, which announced it and the identity this refetch answers is
+ *   the re-issued cookie's. Either way the previous context's queries and
+ *   mutations are forgotten the same way as by the tab that switched
+ *   (`createSession().reset()`: every query back to its initial state, its
+ *   in-flight fetch cancelled, the mounted ones refetched under the new
+ *   cookie), so no record of the old tenant is shown or submitted as the
+ *   new one's.
+ * - The first identity this tab has read (it was nobody's, or it just
+ *   loaded): nothing cached belongs to a previous context — kept, announced
+ *   to the other tabs.
+ *
+ * Another tab's announcement (the session bus, below) only acts when this
+ * tab has read `me` at least once (the same reason a switched tab resets
+ * before showing anything): with nothing read, its own first read answers
+ * under the shared new cookie. And it acts by asking, not by obeying: the
+ * announcement is read back against the server, and what `me` answers above
+ * decides — a stale, out-of-order or forged message changes nothing.
  */
 function watchSession(
   queryClient: QueryClient,
   target: () => ErrorHandlerTarget | undefined,
 ) {
+  const watch = sessionWatch(queryClient);
+  // Another tab's announcement is a hint of a re-issued cookie, never a
+  // decision: it may be stale (a sign out that another tab undid by signing
+  // back in), delivered among others, or forged outright — BroadcastChannel
+  // takes a script of this origin, and a compromised page can say anything.
+  // So the cookie is read back, and the `me` watcher above compares what the
+  // SERVER answers: nothing irreversible (a reset, a sign-out) happens on a
+  // message's word alone, and a message that matches the session costs one
+  // read and no more.
+  watch.offBus = onSessionIdentity((identity) => {
+    if (
+      watch.applying ||
+      identity === watch.identity ||
+      // Nothing read yet under this client: no context of this tab's to
+      // forget (the guard keeps an app's several clients — tests render
+      // more than one — from reapplying the same change to each other).
+      queryClient.getQueryData(meQuery.queryKey) === undefined
+    ) {
+      return;
+    }
+    // A forced refetch (`me` would answer the cache while fresh): a network
+    // failure ends nothing — the next refetch, or a 401, says.
+    void queryClient
+      .fetchQuery({ ...meQuery, staleTime: 0 })
+      .catch((error) =>
+        console.warn('an announced session change could not be re-read', error),
+      );
+  });
   const meHash = JSON.stringify(meQuery.queryKey);
-  let signedIn = false;
   queryClient.getQueryCache().subscribe((event) => {
     if (event.query.queryHash !== meHash) {
       return;
     }
     if (event.type === 'removed') {
-      signedIn = false;
+      watch.identity = null;
       return;
     }
     if (event.type !== 'updated' || event.action.type !== 'success') {
       return;
     }
-    const now = event.action.data != null;
-    if (signedIn && !now && !event.action.manual) {
-      signedIn = false;
+    const next = sessionIdentity(event.action.data);
+    if (watch.applying || next === watch.identity) {
+      return;
+    }
+    if (watch.identity === null) {
+      // The first `me` read here (just opened, or nobody was signed in and
+      // the refetch says the session is somebody's now): no previous
+      // context under the cache to forget.
+      watch.identity = next;
+      announceSessionIdentity(next);
+      return;
+    }
+    if (next === null) {
+      // Not what the app set itself (sign-out and endSession: setQueryData,
+      // whose `clear` records the null and announces): a refetch found the
+      // session over without a 401 anyone else saw.
       endSession(queryClient, target());
       return;
     }
-    signedIn = now;
+    // Whoever switched (this tab's flow announced and is applying, or
+    // another tab announced and this refetch confirms): forget the previous
+    // context's data and mutations now, before anything of it is shown or
+    // submitted again.
+    void createSession(queryClient)
+      .reset()
+      .catch((error) =>
+        console.warn('the session identity change could not be re-read', error),
+      );
   });
 }
 

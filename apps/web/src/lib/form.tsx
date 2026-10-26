@@ -1,4 +1,5 @@
 import { createFormHook, createFormHookContexts } from '@tanstack/react-form';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
   AlertDescription,
@@ -27,8 +28,9 @@ import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import { Textarea } from '@nestjs-monorepo-template/ui/components/textarea';
 import { LazyMarkdownEditor } from '@/components/markdown/lazy';
 import { useWritesPaused } from '@/lib/mode';
+import { meQuery, sessionIdentity, type Me } from '@/lib/session';
 import { CircleAlertIcon } from 'lucide-react';
-import { useId, type ReactNode } from 'react';
+import { useId, useRef, type ReactNode } from 'react';
 
 // TanStack Form's form composition (its "Form Composition" guide): the
 // shadcn Field markup of its TanStack Form docs, bound once, so a form is
@@ -328,6 +330,40 @@ export const { useAppForm } = createFormHook({
   },
   formComponents: { SubmitButton },
 });
+
+/**
+ * A form's draft belongs to the session it was begun under (`sessionIdentity`
+ * in lib/session.ts: who was signed in, in which tenant, acting as whom).
+ * Another tab of the same browser can re-issue the shared `__Host-sid`
+ * cookie while the user types (a tenant switch, another account, an
+ * impersonation — the caches reset, lib/errors.ts, but a draft is component
+ * state and survives), and submitting it would then send the old session's
+ * words under the new one's cookie: a note landing in the wrong tenant.
+ *
+ * A form behind the signed-in layout (where these live — its guard has read
+ * `me` before the form mounts) calls what this returns at the top of its
+ * `onSubmit`: `true` when the draft's session is gone — the form sends
+ * nothing, keeps the draft, and says why; the NEXT submit is the user's own
+ * decision, made under the session they can see — and `false` when the
+ * draft's session is still the current one.
+ */
+export function useStaleDraftSession() {
+  const queryClient = useQueryClient();
+  const begun = useRef(
+    sessionIdentity(queryClient.getQueryData<Me | null>(meQuery.queryKey)),
+  );
+  return () => {
+    const now = sessionIdentity(
+      queryClient.getQueryData<Me | null>(meQuery.queryKey),
+    );
+    if (now === begun.current) {
+      return false;
+    }
+    // Warned once: the next submit is on purpose, under the new session.
+    begun.current = now;
+    return true;
+  };
+}
 
 /** A form's error that belongs to no field (the problem's `detail`). */
 export function FormAlert(props: { message?: string }) {

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeRealtime, type FakeRealtime } from '@/test/fake-realtime';
+import { createSession } from '@/lib/session';
 import { renderApp } from '@/test/render-app';
 import { allFeatures, server, signedInUser } from '@/test/server';
 import { findToast } from '@/test/toast';
@@ -201,16 +202,42 @@ describe('the bell and realtime', () => {
     await waitFor(() => expect(state.unreadCalls).toBe(2));
   });
 
-  it('closes the socket and opens another when the session changes', async () => {
+  it('closes the socket and opens another when the session is re-authenticated', async () => {
     api();
     const { queryClient } = await renderApp('/');
     await bell();
+    // A re-authentication (step-up) re-issues the cookie: the same identity,
+    // so the session watcher (lib/errors.ts) resets nothing, but realtime
+    // keys it too (`connectionKey` includes `authenticatedAt`) and reopens.
     act(() => {
       queryClient.setQueryData(['auth', 'me'], {
         ...signedInUser,
-        tenant: { ...signedInUser.tenant!, id: 'other' },
+        authentication: {
+          ...signedInUser.authentication!,
+          authenticatedAt: '2026-10-17T10:00:00.000Z',
+        },
       });
     });
+    await waitFor(() => expect(connections).toHaveLength(2));
+    expect(connections[0]!.closed).toBe(true);
+    expect(connections[1]!.closed).toBe(false);
+  });
+
+  it('ends on a socket of the new session after a switch', async () => {
+    api();
+    const { queryClient } = await renderApp('/');
+    await bell();
+    // The switcher's flow: the re-issued cookie is read back (a reset), and
+    // realtime, whose key now names another tenant, opens a new socket.
+    server.use(
+      http.get('/v1/auth/me', () =>
+        HttpResponse.json({
+          ...signedInUser,
+          tenant: { ...signedInUser.tenant!, id: 'other' },
+        }),
+      ),
+    );
+    await createSession(queryClient).reset();
     await waitFor(() => expect(connections).toHaveLength(2));
     expect(connections[0]!.closed).toBe(true);
     expect(connections[1]!.closed).toBe(false);
