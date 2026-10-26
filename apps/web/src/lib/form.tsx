@@ -370,14 +370,26 @@ export const useAppForm =
 export function useStaleDraftSession() {
   const queryClient = useContext(QueryClientContext);
   const { t } = useTranslation();
-  const begun = useRef(
-    sessionIdentity(queryClient?.getQueryData<Me | null>(meQuery.queryKey)),
+  const initialSession = queryClient?.getQueryState<Me | null>(
+    meQuery.queryKey,
+  );
+  const begun = useRef<string | null | undefined>(
+    initialSession?.status === 'success'
+      ? sessionIdentity(initialSession.data)
+      : undefined,
   );
   return () => {
     if (!queryClient) return false;
     const now = sessionIdentity(
       queryClient.getQueryData<Me | null>(meQuery.queryKey),
     );
+    // Public auth forms can mount before /auth/me has answered. Their first
+    // submit establishes the session baseline; signed-in app forms mount only
+    // after the route's session read and therefore still detect later changes.
+    if (begun.current === undefined) {
+      begun.current = now;
+      return false;
+    }
     if (now === begun.current) {
       return false;
     }
