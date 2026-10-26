@@ -78,52 +78,45 @@ export class NoteRevisions implements RevisionTarget {
       unchanged?: (current: object) => void;
     },
   ) {
-    const note = await this.notes.findOne(id);
-    const dto: UpdateNoteDto = {};
-    if (typeof fields.title === 'string' && fields.title !== note.title) {
-      dto.title = fields.title;
-    }
-    if (typeof fields.body === 'string' && fields.body !== note.body) {
-      dto.body = fields.body;
-    }
-    const [then, now] = await this.customFields.visible('Note', [
-      { custom: (fields.custom ?? {}) as Record<string, unknown> },
-      { custom: note.custom },
-    ]);
-    const custom: Record<string, unknown> = {};
-    for (const key of new Set([
-      ...Object.keys(then!.custom),
-      ...Object.keys(now!.custom),
-    ])) {
-      const value = then!.custom[key] ?? null;
-      if (JSON.stringify(value) !== JSON.stringify(now!.custom[key] ?? null)) {
-        custom[key] = value;
-      }
-    }
-    if (Object.keys(custom).length > 0) {
-      dto.custom = custom as UpdateNoteDto['custom'];
-    }
-    const parsed = updateNoteSchema.safeParse(dto);
-    if (!parsed.success) {
-      throw validationException(parsed.error.issues);
-    }
-    const forbidden = await this.access.forbiddenFields(
-      principal,
-      'update',
-      'Note',
-      parsed.data,
-      note,
-    );
-    if (forbidden.length) {
-      throw new ForbiddenException({
-        code: 'field_forbidden',
-        message: `You may not change: ${forbidden.join(', ')}.`,
-        fields: forbidden,
-      });
-    }
-    const updated = await this.notes.update(principal, note, parsed.data, ip, {
+    const updated = await this.notes.update(principal, { id }, {}, ip, {
       restoredFrom,
-      assertCurrent: async (current) => {
+      prepareCurrent: async (current) => {
+        const dto: UpdateNoteDto = {};
+        if (
+          typeof fields.title === 'string' &&
+          fields.title !== current.title
+        ) {
+          dto.title = fields.title;
+        }
+        if (typeof fields.body === 'string' && fields.body !== current.body) {
+          dto.body = fields.body;
+        }
+        const [then, now] = await this.customFields.visible('Note', [
+          { custom: (fields.custom ?? {}) as Record<string, unknown> },
+          { custom: current.custom },
+        ]);
+        const custom: Record<string, unknown> = {};
+        for (const key of new Set([
+          ...Object.keys(then!.custom),
+          ...Object.keys(now!.custom),
+        ])) {
+          const value = then!.custom[key] ?? null;
+          if (
+            JSON.stringify(value) !== JSON.stringify(now!.custom[key] ?? null)
+          ) {
+            custom[key] = value;
+          }
+        }
+        if (Object.keys(custom).length > 0) {
+          dto.custom = custom as UpdateNoteDto['custom'];
+        }
+        const parsed = updateNoteSchema.safeParse(dto);
+        if (!parsed.success) {
+          throw validationException(parsed.error.issues);
+        }
+        return parsed.data;
+      },
+      assertCurrent: async (current, dto) => {
         if (!(await this.policy.update(principal, current))) {
           throw new ForbiddenException('You may not change this Note.');
         }
@@ -132,7 +125,7 @@ export class NoteRevisions implements RevisionTarget {
           principal,
           'update',
           'Note',
-          parsed.data,
+          dto,
           current,
         );
         if (currentForbidden.length) {

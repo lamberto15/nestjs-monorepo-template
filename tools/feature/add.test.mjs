@@ -261,7 +261,12 @@ describe('addFeature', () => {
       'utf8',
     );
     assert.match(service, /records\.lock<Invoice>\(tx, row\.id\)/);
-    assert.match(service, /assertCurrent\?\.\(current\)/);
+    assert.match(service, /prepareCurrent\(current\)/);
+    assert.match(service, /assertCurrent\?\.\(current, currentDto\)/);
+    assert.ok(
+      service.indexOf('lifecycle.assertNotPending(row.id)') <
+        service.indexOf('records.lock<Invoice>(tx, row.id)'),
+    );
     assert.match(service, /records\.lock<Invoice>\(tx, row\.id\)/);
     const controller = readFileSync(
       api('src/features/invoices/invoices.controller.ts'),

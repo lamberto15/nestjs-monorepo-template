@@ -375,33 +375,52 @@ export class NotesService {
   /** Changes a note; the audit entry holds what changed, from → to. */
   async update(
     by: Principal,
-    note: Note,
+    note: Pick<Note, 'id'>,
     dto: UpdateNoteDto,
     ip?: string,
     /** Set when a revision is restored (NoteRevisions): marks the new revision. */
     {
       restoredFrom,
+      prepareCurrent,
       assertCurrent,
     }: {
       restoredFrom?: number;
-      assertCurrent?: (current: Note) => Promise<void> | void;
+      prepareCurrent?: (
+        current: Note,
+      ) => Promise<UpdateNoteDto> | UpdateNoteDto;
+      assertCurrent?: (
+        current: Note,
+        dto: UpdateNoteDto,
+      ) => Promise<void> | void;
     } = {},
-  ) {
-    const { custom, ...changes } = dto;
-    // Only the keys sent change (jsonb ||); null removes one.
-    const patch = await this.customFields.parseValues('Note', custom, 'update');
-    const values = {
-      ...changes,
-      ...(Object.keys(patch).length > 0 && {
-        custom: this.customFields.mergeValues(notes.custom, patch),
-      }),
+  ): Promise<Note> {
+    const valuesFor = async (currentDto: UpdateNoteDto) => {
+      const { custom, ...changes } = currentDto;
+      // Only the keys sent change (jsonb ||); null removes one.
+      const patch = await this.customFields.parseValues(
+        'Note',
+        custom,
+        'update',
+      );
+      return {
+        ...changes,
+        ...(Object.keys(patch).length > 0 && {
+          custom: this.customFields.mergeValues(notes.custom, patch),
+        }),
+      };
     };
-    if (Object.keys(values).length === 0 && !assertCurrent) {
-      return note; // nothing to change
+    const values = prepareCurrent ? undefined : await valuesFor(dto);
+    if (
+      values &&
+      Object.keys(values).length === 0 &&
+      !assertCurrent &&
+      !prepareCurrent
+    ) {
+      return note as Note; // normal callers pass the loaded Note; restoration prepares under lock
     }
     const updated = await inTransaction(this.txHost, async (tx) => {
       // Not while an approver decides on it (409 approval_pending): sent back for changes, it may change.
-      if (Object.keys(values).length > 0) {
+      if (prepareCurrent || (values && Object.keys(values).length > 0)) {
         await this.approvals.assertNotPending('Note', note.id);
       }
       const [current] = await tx
@@ -410,11 +429,13 @@ export class NotesService {
         .where(and(eq(notes.id, note.id), isNull(notes.deletedAt)))
         .for('update');
       if (!current) throw new NotFoundException(`Note ${note.id} not found.`);
-      await assertCurrent?.(current);
-      if (Object.keys(values).length === 0) return current;
+      const currentDto = prepareCurrent ? await prepareCurrent(current) : dto;
+      const currentValues = values ?? (await valuesFor(currentDto));
+      await assertCurrent?.(current, currentDto);
+      if (Object.keys(currentValues).length === 0) return current;
       const [row] = await tx
         .update(notes)
-        .set(values)
+        .set(currentValues)
         .where(eq(notes.id, note.id))
         .returning();
       // Whoever watches the note hears of it, but the one who changed it;

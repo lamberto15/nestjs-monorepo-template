@@ -121,25 +121,40 @@ export class TestItemsService {
     ip?: string,
     {
       restoredFrom,
+      prepareCurrent,
       assertCurrent,
     }: {
       restoredFrom?: number;
-      assertCurrent?: (current: TestItem) => Promise<void> | void;
+      prepareCurrent?: (
+        current: TestItem,
+      ) => Promise<UpdateTestItemDto> | UpdateTestItemDto;
+      assertCurrent?: (
+        current: TestItem,
+        dto: UpdateTestItemDto,
+      ) => Promise<void> | void;
     } = {},
   ) {
-    const changes = await this.lifecycle.values(dto, 'update');
-    if (Object.keys(changes).length === 0 && !assertCurrent) {
+    const changes = prepareCurrent
+      ? undefined
+      : await this.lifecycle.values(dto, 'update');
+    if (changes && Object.keys(changes).length === 0 && !assertCurrent) {
       return row; // nothing to change
     }
     // Business logic: what a change must respect, here.
     return inTransaction(this.txHost, async (tx) => {
-      // Not while an approver decides on it (409 approval_pending): RecordLifecycle.updated.
+      // Keep approval record locks before the record's row lock.
+      if (prepareCurrent || (changes && Object.keys(changes).length > 0)) {
+        await this.lifecycle.assertNotPending(row.id);
+      }
       const current = await this.records.lock<TestItem>(tx, row.id);
-      await assertCurrent?.(current);
-      if (Object.keys(changes).length === 0) return current;
+      const currentDto = prepareCurrent ? await prepareCurrent(current) : dto;
+      const currentChanges =
+        changes ?? (await this.lifecycle.values(currentDto, 'update'));
+      await assertCurrent?.(current, currentDto);
+      if (Object.keys(currentChanges).length === 0) return current;
       const [updated] = await tx
         .update(testItems)
-        .set(changes)
+        .set(currentChanges)
         .where(eq(testItems.id, row.id))
         .returning()
         .catch(taken);
@@ -174,7 +189,8 @@ export class TestItemsService {
   ) {
     // Business logic: what a delete must respect, here.
     await inTransaction(this.txHost, async (tx) => {
-      // Not while an approver decides on it, and its sent-back requests go: RecordStore.delete.
+      // Keep approval record locks before the record's row lock.
+      await this.lifecycle.assertNotPending(row.id);
       const current = await this.records.lock<TestItem>(tx, row.id);
       await assertCurrent?.(current);
       await this.records.delete(tx, by, current);

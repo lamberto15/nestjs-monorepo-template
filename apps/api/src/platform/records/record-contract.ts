@@ -64,12 +64,18 @@ export interface RecordServiceContract {
   ): Promise<RecordRow>;
   update(
     by: Principal,
-    row: RecordRow,
+    row: Pick<RecordRow, 'id'>,
     dto: Record<string, unknown>,
     ip?: string,
     options?: {
       restoredFrom?: number;
-      assertCurrent?: (current: RecordRow) => Promise<void> | void;
+      prepareCurrent?: (
+        current: RecordRow,
+      ) => Promise<Record<string, unknown>> | Record<string, unknown>;
+      assertCurrent?: (
+        current: RecordRow,
+        dto: Record<string, unknown>,
+      ) => Promise<void> | void;
     },
   ): Promise<RecordRow>;
   delete(by: Principal, row: RecordRow, ip?: string): Promise<void>;
@@ -258,14 +264,19 @@ export class RecordLifecycle {
    * doesn't stall them.
    */
   private async waiting(tx: Transaction, by: Principal | null, id: string) {
-    if (Object.keys(this.declaration.approvals ?? {}).length === 0) {
-      return;
-    }
-    if (!applyingEffect()) {
-      await this.approvals.assertNotPending(this.declaration.subject, id);
-    }
+    await this.assertNotPending(id);
+    if (Object.keys(this.declaration.approvals ?? {}).length === 0) return;
     if (by) {
       await this.approvals.withdraw(tx, by, this.declaration.subject, id);
+    }
+  }
+
+  /** Takes the approval lock before the record row lock for a conditional write. */
+  async assertNotPending(id: string) {
+    if (Object.keys(this.declaration.approvals ?? {}).length > 0) {
+      if (!applyingEffect()) {
+        await this.approvals.assertNotPending(this.declaration.subject, id);
+      }
     }
   }
 

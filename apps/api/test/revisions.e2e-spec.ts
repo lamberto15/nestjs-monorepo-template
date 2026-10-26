@@ -8,6 +8,7 @@ import { revisions as revisionsTable } from '../src/platform/revisions/revisions
 import { recordSubscriptions } from '../src/platform/subscriptions/subscriptions.tables.js';
 import { recordTags } from '../src/platform/tags/tags.tables.js';
 import { RevisionRetentionJob } from '../src/platform/revisions/revision-retention.job.js';
+import { TestItemsService } from './fixtures/test-items/test-items.service.js';
 import { bootApp, type TestApp } from './support.js';
 
 type Agent = ReturnType<TestApp['admin']>;
@@ -182,6 +183,33 @@ describe('record revisions of test items (e2e)', () => {
     await editor.agent
       .post(`/v1/test-items/${id}/revisions/8/restore`)
       .expect(404);
+  });
+
+  it('builds the restore patch from the row locked after an intervening edit', async () => {
+    const editor = await node.user(['editor']);
+    const id = await writeItem(editor.agent);
+    const service = node.app.get(TestItemsService);
+    const originalUpdate = service.update.bind(service);
+    let interposed = false;
+    vi.spyOn(service, 'update').mockImplementation(async (...args) => {
+      const [by, row, _dto, ip, options] = args;
+      if (options?.restoredFrom === 1 && !interposed) {
+        interposed = true;
+        await originalUpdate(by, row, { title: 'Intervening edit' }, ip);
+      }
+      return originalUpdate(...args);
+    });
+
+    const restored = await editor.agent
+      .post(`/v1/test-items/${id}/revisions/1/restore`)
+      .expect(200);
+    expect(interposed).toBe(true);
+    expect(restored.body).toMatchObject({ id, title: 'Draft', body: 'v1' });
+    expect((await revisions(editor.agent, id)).items[0]).toMatchObject({
+      restoredFrom: 1,
+      snapshot: { title: 'Draft', body: 'v1' },
+      changes: { title: { from: 'Intervening edit', to: 'Draft' } },
+    });
   });
 
   it("hides another's record (404) and an unknown one", async () => {

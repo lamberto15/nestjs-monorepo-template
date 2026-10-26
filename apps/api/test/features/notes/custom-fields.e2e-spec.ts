@@ -1,5 +1,8 @@
 import { bootApp, type TestApp } from '../../support.js';
 import { writeNote } from './notes-support.js';
+import { NotesService } from '../../../src/features/notes/notes.service.js';
+import { revisions } from '../../../src/platform/revisions/revisions.tables.js';
+import { and, desc, eq } from 'drizzle-orm';
 
 /**
  * Notes' hand-written custom fields (note.resource.ts, NotesService,
@@ -79,5 +82,67 @@ describe('notes: custom fields (e2e)', () => {
     );
     expect(notes.columns.slice(0, 3)).toEqual(['id', 'number', 'title']);
     expect(notes.columns).toContain('custom.amount');
+  });
+
+  it('restores custom fields using the row locked after an intervening edit', async () => {
+    await node
+      .admin()
+      .post('/v1/custom-fields')
+      .send({
+        subject: 'Note',
+        key: 'region',
+        label: 'Region',
+        type: 'select',
+        options: [
+          { value: 'eu', label: 'Europe' },
+          { value: 'us', label: 'Americas' },
+        ],
+      })
+      .expect(201);
+    const editor = await node.user(['editor']);
+    const id = (
+      await writeNote(node, editor.agent, {
+        title: 'Plan',
+        body: 'x',
+        custom: { region: 'eu' },
+      }).expect(201)
+    ).body.id as string;
+    await editor.agent
+      .patch(`/v1/notes/${id}`)
+      .send({ custom: { region: 'us' } })
+      .expect(200);
+    await editor.agent
+      .patch(`/v1/notes/${id}`)
+      .send({ custom: { region: 'eu' } })
+      .expect(200);
+
+    const service = node.app.get(NotesService);
+    const originalUpdate = service.update.bind(service);
+    let interposed = false;
+    vi.spyOn(service, 'update').mockImplementation(async (...args) => {
+      const [by, note, _dto, ip, options] = args;
+      if (options?.restoredFrom === 1 && !interposed) {
+        interposed = true;
+        await originalUpdate(by, note, { custom: { region: 'us' } }, ip);
+      }
+      return originalUpdate(...args);
+    });
+
+    const restored = await editor.agent
+      .post(`/v1/notes/${id}/revisions/1/restore`)
+      .expect(200);
+    expect(interposed).toBe(true);
+    expect(restored.body.custom).toEqual({ region: 'eu' });
+    const history = await node.inTenant(() =>
+      node.db
+        .select()
+        .from(revisions)
+        .where(and(eq(revisions.subject, 'Note'), eq(revisions.recordId, id)))
+        .orderBy(desc(revisions.number)),
+    );
+    expect(history[0]).toMatchObject({
+      restoredFrom: 1,
+      snapshot: { custom: { region: 'eu' } },
+    });
   });
 });
