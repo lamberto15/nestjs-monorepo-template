@@ -17,6 +17,7 @@ import { actorOf, type Principal } from '../auth/principal.js';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { encryptedProperties } from '../../core/encryption/encrypted-columns.js';
 import { auditLog } from '../iam.tables.js';
+import { inTenant } from '../../core/tenancy/tenant-query.js';
 import { PermissionCatalog } from '../access/permission-catalog.js';
 import { ACTOR_NAMES, type ActorNames } from './actor-names.js';
 import type {
@@ -207,11 +208,16 @@ export class AuditService {
       this.db
         .select()
         .from(auditLog)
-        .where(and(where, afterCursor(auditLog.id, query)))
+        .where(
+          and(
+            inTenant(auditLog.tenantId, where),
+            afterCursor(auditLog.id, query),
+          ),
+        )
         .orderBy(...pageOrder(auditLog.id, query))
         .limit(query.limit + 1)
         .offset(pageOffset(query)),
-      countPage(this.db, auditLog, where, query),
+      countPage(this.db, auditLog, inTenant(auditLog.tenantId, where), query),
     ]);
     return toPage(rows, query, total);
   }

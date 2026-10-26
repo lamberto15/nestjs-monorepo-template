@@ -50,6 +50,7 @@ import { RetentionRegistry } from '../../platform/retention/retention.registry.j
 import { principalKey, type Principal } from '../../iam/auth/principal.js';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { notes } from './notes.tables.js';
+import { inTenant } from '../../core/tenancy/tenant-query.js';
 import { NOTE_PUBLICATION_JOB } from './note.policy.js';
 import { publishNow } from './note-events.js';
 import {
@@ -334,11 +335,13 @@ export class NotesService {
       this.db
         .select({ ...getTableColumns(notes), ...extra })
         .from(notes)
-        .where(and(where, afterCursor(notes.id, query)))
+        .where(
+          and(inTenant(notes.tenantId, where), afterCursor(notes.id, query)),
+        )
         .orderBy(...pageOrder(notes.id, query))
         .limit(query.limit + 1)
         .offset(pageOffset(query)),
-      countPage(this.db, notes, where, query),
+      countPage(this.db, notes, inTenant(notes.tenantId, where), query),
     ]);
     return toPage(rows, query, total);
   }
@@ -352,7 +355,7 @@ export class NotesService {
     const rows = await this.db
       .select({ week, count: sql<number>`count(*)::int` })
       .from(notes)
-      .where(where)
+      .where(inTenant(notes.tenantId, where))
       .groupBy(week)
       .orderBy(week);
     const counts = new Map(rows.map((row) => [row.week, row.count]));
