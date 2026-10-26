@@ -7,7 +7,9 @@
 # leaves the host (BACKUP_ENCRYPTION_KEY; Alpine's package, current with the
 # base image), pg_basebackup and pg_archivecleanup (in the PostgreSQL image)
 # for point-in-time recovery. CI scans it like the app
-# image (Trivy: no fixable high or critical vulnerability).
+# image (Trivy: no fixable high or critical vulnerability). Upgrade curl and
+# libcurl from the pinned Alpine branch so newly published security fixes are
+# present even when the upstream PostgreSQL image tag has not been rebuilt.
 
 # supercronic built from its release tag with a current Go: the release's
 # binaries carry the Go standard library they were built with, and its fixes
@@ -68,7 +70,7 @@ COPY --chmod=755 entrypoint.sh /usr/local/bin/backup-entrypoint
 # only here), owned like the app image's /app/.data/storage (uid 1000, node).
 # gosu goes: this image never switches users (USER below), and its old Go
 # build is what a scan of the PostgreSQL image finds.
-RUN apk upgrade --no-cache brotli-libs \
+RUN apk upgrade --no-cache brotli-libs curl libcurl \
  && apk add --no-cache age \
  && rm -f /usr/local/bin/gosu \
  && mkdir -p /backups /storage \
