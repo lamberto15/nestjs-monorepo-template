@@ -46,18 +46,20 @@ export type NoteChanges = NonNullable<
  * ETag is read from the response headers, which openapi-fetch returns next
  * to the data.
  */
+export const readNote = async (id: string) => {
+  const result = await api.GET('/v1/notes/{id}', {
+    params: { path: { id }, query: WITH_CAN_WATCHING },
+  });
+  return {
+    note: await unwrap(Promise.resolve(result)),
+    etag: etagOf(result),
+  };
+};
+
 export const noteQuery = (id: string) =>
   queryOptions({
     queryKey: recordKeys.detail(NOTES_PATH, id),
-    queryFn: async () => {
-      const result = await api.GET('/v1/notes/{id}', {
-        params: { path: { id }, query: WITH_CAN_WATCHING },
-      });
-      return {
-        note: await unwrap(Promise.resolve(result)),
-        etag: etagOf(result),
-      };
-    },
+    queryFn: () => readNote(id),
     // A note this tab just created is in the cache with the create's ETag
     // (seedCreatedNote): it is not read again at once. It carries no `can`
     // (the create takes no `include`), which is how it is told apart; any

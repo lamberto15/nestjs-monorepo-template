@@ -47,6 +47,13 @@
     "numbering": "Penomboran",
     "numberingHint": "Siri mana yang memberi nota ini nombornya."
   },
+  "draft": {
+    "recoveryTitle": "Draf ditemui",
+    "recoveryDescription": "Draf nota ini yang disimpan dalam pelayar tersedia.",
+    "unavailable": "Nota ini tidak lagi tersedia untuk diedit dalam sesi ini. Draf yang disimpan dikekalkan.",
+    "recover": "Pulihkan draf",
+    "discard": "Buang draf"
+  },
   "detail": {
     "back": "Kembali ke nota"
   },
@@ -73,8 +80,17 @@
   },
   "conflict": {
     "title": "Orang lain telah mengubah nota ini",
-    "description": "Muat semula untuk melihat versi terkini. Perubahan anda yang belum disimpan akan dibuang.",
-    "reload": "Muat semula nota"
+    "etagUnavailable": "Versi nota tidak dapat disemak. Muat semula nota sebelum menyimpan; draf anda dikekalkan.",
+    "loading": "Memuatkan versi terkini…",
+    "unavailable": "Nota terkini tidak dapat dibaca atau diedit sekarang. Draf anda dikekalkan; tiada perubahan dihantar.",
+    "reconcileHint": "Pilih nilai untuk dikekalkan bagi setiap medan yang berubah. Simpanan menggunakan semakan versi terkini.",
+    "serverValue": "Nilai semasa",
+    "yourValue": "Draf anda",
+    "empty": "(kosong)",
+    "keepDraft": "Kekalkan nilai saya",
+    "useServer": "Gunakan nilai semasa",
+    "saveReconciled": "Simpan perubahan yang diselaraskan",
+    "retry": "Cuba muatkan versi terkini lagi"
   },
   "notFound": {
     "title": "Nota tidak ditemui",
