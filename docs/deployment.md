@@ -551,17 +551,18 @@ What each one may write, and the capabilities it gets back:
   a `type: tmpfs` volume (the size only: Gotenberg's `uid` and `gid` have no
   Swarm equivalent, the mount is writable by anyone). `security_opt` is
   dropped there.
-- **CI** (`.github/workflows/ci.yml`): `compose-secrets` fails when a service
+- **CI** (`.github/workflows/ci.yml`): `stack-config` fails when a service
   lacks the keys (`read_only`, `cap_drop`, `no-new-privileges`, a `/tmp`
   tmpfs), whichever service it is. It renders `compose.yaml` +
   `compose.prod.yaml` alone, then with each overlay on top (`clamav`,
   `monitoring` with every profile, `blue-green`), and checks that the overlay's
   services are in the render. The exceptions are a list in that step, by
-  service and key. `hardened-stack` starts the stack on new volumes and fails
-  when a container exits, restarts, is unhealthy or logs `Read-only file
-  system`. Not started there: the production Caddy (its certificate needs a
-  public name; the job runs the stock Caddy image on plain HTTP, with the
-  `caddy_data` and `caddy_config` volumes `compose.loadtest.yaml` names: the
+  service and key. The `image` job, after its Trivy scan, starts the stack on
+  new volumes (for API or stack changes) and fails when a container exits,
+  restarts, is unhealthy or logs `Read-only file system`. Not started there:
+  the production Caddy (its certificate needs a public name; the job runs
+  the stock Caddy image on plain HTTP, with the `caddy_data` and
+  `caddy_config` volumes `compose.loadtest.yaml` names: the
   stock image has no `VOLUME` there, so under `read_only` they would be
   read-only) and Gotenberg. The overlays are started where they change:
   `.github/workflows/monitoring.yml` starts every service of
@@ -1575,14 +1576,14 @@ by the validation, which stops the app.
 - **Compatibility with the instrumentation.** Observe's proxies broke the
   mail transports and lock-decorated jobs (`skipObserve`, above).
   OpenTelemetry and Sentry patch module functions, not provider instances,
-  so they need no such exclusion, and CI proves it: the `e2e-telemetry` job
-  runs a shard of the e2e suite with `OTEL_EXPORTER_OTLP_ENDPOINT` and
+  so they need no such exclusion, and CI proves it: `e2e-web` runs a sixth
+  of the e2e suite with `OTEL_EXPORTER_OTLP_ENDPOINT` and
   `SENTRY_DSN` pointing at a stub collector
   (`apps/api/test/telemetry-stub.mjs`) and fails if no span of a request the
   app served reached it. `apps/api/test/setup-env.ts` starts the SDKs when
   either variable is set, before it loads the app: the order that works, so
-  the suite alone cannot show a wrong one in `main.ts`. The job ends by
-  building the API and starting `node dist/main` against a collector of its
+  the suite alone cannot show a wrong one in `main.ts`. The last step of
+  `e2e-web` starts the built API (`node dist/main`) against a collector of its
   own (`node apps/api/test/telemetry-stub.mjs boot`, with `DATABASE_URL`,
   `DATABASE_OWNER_URL`, `DATABASE_MAINTENANCE_URL` and `REDIS_URL` set, as for
   the browser tests): the credentials are `_FILE` secrets, and it fails unless
@@ -2000,12 +2001,12 @@ manual full runs and `v*` tags are comprehensive too.
 
 | Change | Validation |
 | --- | --- |
-| API | lint/build, API unit coverage, API E2E, instrumented E2E, browser/accessibility tests, migrations, security, API image and hardened runtime |
+| API | lint/build, API unit coverage, API E2E (a sixth again, instrumented), browser/accessibility tests, migrations, security, API image and hardened runtime |
 | Web/UI | lint/build, web/package coverage, browser/accessibility tests, security and Caddy image/runtime checks |
 | Typed client/shared roots | dependent packages; shared root dependencies run comprehensive validation |
 | Generator/platform contracts | generator smoke checks in addition to affected application checks |
 | Compose service images | database/browser E2E and generator smoke on those images |
-| Stack/images | relevant Compose secrets, Swarm, hardened runtime and image checks |
+| Stack/images | stack config (secrets, hardening, Swarm render) and image checks, with the hardened runtime |
 | CI orchestration | routing, gate, manifest and workflow syntax tests |
 | Docs, Helm/K3s, devcontainer | the corresponding companion workflow |
 
@@ -2018,14 +2019,13 @@ the necessary tasks. Knip and translation parity still inspect the whole workspa
 | Job | Purpose |
 | --- | --- |
 | `changes` | classification, expected jobs and cumulative image rebuild plan |
-| `check` | affected lint/build, API client/migrations when relevant, tooling invariants |
-| `unit-api`, `unit-web`, `coverage` | unit coverage; merge blob reports and enforce unchanged package thresholds when sharded |
-| `e2e`, `e2e-telemetry`, `e2e-web` | isolated API/database, instrumentation and browser/accessibility tests |
+| `check` | affected lint/build, API and package unit coverage, API client/migrations when relevant, OpenAPI breaking-change report, bundle budget and Storybook, leftover-notes guard |
+| `unit-web` | web unit coverage, whole, thresholds enforced directly |
+| `e2e`, `e2e-web` | isolated API/database and browser/accessibility tests; `e2e-web` also runs a sixth of the e2e suite instrumented and the built app's trace check |
 | `feature-smoke` | generated features, schema/client generation and their E2E tests |
 | `template-without-notes` | exhaustive generated-template variant; nightly/manual/release or conservative full fallback |
-| `compose-secrets`, `swarm-stack`, `hardened-stack` | runtime and infrastructure contracts |
-| `security`, `image`, `backup-image`, `caddy-image`, `gotenberg-image` | dependency/secret/configuration scans and relevant image builds/scans/runtime checks |
-| `openapi-diff` | PR API compatibility report; enforcement controlled by `OASDIFF_FAIL_ON` |
+| `stack-config` | Compose secrets, hardening and settings, then the Swarm stack render |
+| `security`, `image`, `backup-image`, `caddy-image`, `gotenberg-image` | dependency/secret/configuration scans and relevant image builds/scans/runtime checks (`image` also starts the production stack) |
 | `ci-gate` (**CI gate**) | requires every classified job to succeed; rejects missing results, failures, cancellations and unexpected skips |
 | `publish`, `publish-caddy`, `publish-gotenberg` | push the verified artifacts without rebuilding, scan the pushed digest, then sign/attest |
 | `release-manifest` | verify reuse evidence and preserve the complete immutable release image set |
@@ -2037,15 +2037,18 @@ their checks. Any new validation job must be added to the classifier's expected
 jobs and gate dependencies; tests compare real workflow conditions with that list.
 
 Turbo caches are namespaced by job and matrix entry, with matching restore
-prefixes. `test:cov` stores both `.vitest/**` (blobs and raw coverage) and
-`coverage/**`; artifact uploads fail on missing blobs. CI mode, Node mode,
+prefixes. `test:cov` stores both `.vitest/**` (raw coverage) and
+`coverage/**`. CI mode, Node mode,
 root configuration, public build variables and the build SHA participate in
 relevant hashes. Database and browser E2E remain uncached. Cache keys do not
-replace task-input hashing. See [CI measurements](ci-runtime.md) for the benchmark
-protocol, evidence and chosen defaults.
+replace task-input hashing. See [CI measurements](ci-runtime.md) for the
+runner budget, the evidence and the chosen defaults.
 
-The Web workflow retains bundle budgets and Storybook checks for frontend
-changes. Report-only Lighthouse runs nightly, manually and for version tags.
+The bundle budget and the Storybook build run in `check` for frontend changes,
+and the Chromium analytics smoke in `e2e-web`. The Web workflow holds only the
+analytics smoke in Firefox and WebKit (pull requests touching the analytics
+engine) and report-only Lighthouse, which runs nightly, manually and for
+version tags.
 Migration lint retains its separate PR workflow and existing acceptance controls
 ([migrations](development.md#migrations)). Third-party actions remain pinned;
 Dependabot proposes updates. PostgreSQL and Redis are read from `compose.yaml`,

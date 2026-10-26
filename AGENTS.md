@@ -122,6 +122,7 @@ CLI commands.
 | Languages, time zones | [docs/i18n-and-time.md](docs/i18n-and-time.md) |
 | Environment variables | [docs/configuration.md](docs/configuration.md) |
 | Compose, staging, scaling, CI and its scans, published images (GHCR, `APP_IMAGE`, `CADDY_IMAGE`, rollback) | [docs/deployment.md](docs/deployment.md) |
+| CI's runner budget: which jobs a pull request runs, where a check belongs, measuring a run (`tools/ci/metrics.mjs`) | [docs/ci-runtime.md](docs/ci-runtime.md) |
 | Zero-downtime deploys: `pnpm deploy:rolling`, `deploy:blue-green`, `deploy:swarm` | [docs/deployment.md](docs/deployment.md), "Zero-downtime deploys: three ways"; [rolling](docs/deploy-rolling.md), [blue-green](docs/deploy-blue-green.md), [Swarm](docs/deploy-swarm.md) |
 | Zero-downtime deploys: which of the three, and what each needs | [docs/deployment.md](docs/deployment.md), "Zero-downtime deploys" |
 | Rolling deploys with Compose (`pnpm deploy:rolling`), graceful shutdown | [docs/deploy-rolling.md](docs/deploy-rolling.md) |

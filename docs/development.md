@@ -322,12 +322,12 @@ a drop fails CI.
 
 - **Locally:** `pnpm --filter @nestjs-monorepo-template/web test:cov` (or
   `api`, `api-client`); `pnpm test` stays without coverage.
-- **In CI:** `unit-api` and `unit-web` run whole `test:cov` tasks and enforce
-  each package's thresholds directly. Three-run benchmarks selected this layout
-  for lower runner consumption. An explicit `unit_layout=sharded` manual run
-  retains three shards per app and their blob reports; the `coverage` job merges
-  those reports and enforces the same thresholds. Coverage outputs are cached;
-  database and browser E2E are not. See [CI measurements](ci-runtime.md).
+- **In CI:** the API's and the packages' unit tests run as steps of `check`,
+  and the web app's in the `unit-web` job (check name "unit (web)"). Each runs
+  a whole `test:cov` task, not shards, and enforces the package's thresholds
+  directly. Three-run benchmarks selected this layout for lower runner
+  consumption. Coverage outputs are cached; database and browser E2E are not.
+  See [CI measurements](ci-runtime.md).
 - **Measure again** before raising: run `test:cov` and read the summary; set
   each threshold to the figure rounded down.
 
@@ -614,15 +614,16 @@ pages, ETags. Usage, the bell-icon recipe included:
 - `pnpm client:check` regenerates both in a temporary directory and fails
   when the committed ones differ; `apps/api/test/api-client.e2e-spec.ts` also fails
   when the committed document isn't what the app serves.
-- **Breaking changes:** on a pull request, CI's `openapi-diff` job compares the
+- **Breaking changes:** on a pull request with API changes, a step of CI's
+  `check` job ("Breaking changes in the OpenAPI document") compares the
   committed `openapi.json` with the base branch's using
   [oasdiff](https://github.com/oasdiff/oasdiff). `client:check` only catches
   drift; this catches what breaks a client: removed endpoints, fields and
-  enum values, a new required parameter, a tightened request. The job's
+  enum values, a new required parameter, a tightened request. The step's
   summary lists the breaking changes (errors and warnings) and the full
   changelog. A pull request without a base document (the first one) passes.
 - **Report-only for now:** breaking changes are accepted while the template
-  has no adopters, so the job never fails on them. Once the first project is
+  has no adopters, so the step never fails on them. Once the first project is
   built on the template, make it blocking: set `OASDIFF_FAIL_ON: ERR` in
   `.github/workflows/ci.yml` (`WARN` also fails on warnings). A deliberate
   break then ships as a new version (`/v2` next to `/v1`,

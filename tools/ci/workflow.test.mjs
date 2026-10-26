@@ -83,17 +83,6 @@ test('the workflow uploads its hidden blob reports, and fails when there are non
   assert.deepEqual(problems(readFileSync(WORKFLOW, 'utf8')), []);
 });
 
-test("the coverage shards upload one app's blob directory", () => {
-  const text = readFileSync(WORKFLOW, 'utf8');
-  const shard = steps(text).find((s) =>
-    field(s, 'name')?.startsWith('coverage-'),
-  );
-  assert.ok(shard, 'the unit job uploads a coverage-* artifact');
-  assert.deepEqual(uploadPaths(shard), [
-    'apps/${{ matrix.app }}/.vitest/blob/',
-  ]);
-});
-
 test('a hidden path without include-hidden-files, and a glob, are reported', () => {
   const before = `
       - name: The shard's blob report

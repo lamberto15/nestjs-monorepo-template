@@ -29,7 +29,7 @@ import { useSignedIn } from '@/test/signed-in';
 
 const otherTenantId = '0199a3f2-0000-7000-8000-00000000002a';
 const otherUserId = '0199a3f2-0000-7000-8000-00000000000b';
-const recordKey = recordKeys.detail('/v1/notes', 'note-a');
+const recordKey = recordKeys.detail('/v1/tags', 'tag-a');
 
 /** The signed-in `me`: this account, in tenant `tenantId`. */
 const meInTenant = (tenantId: string) =>
@@ -91,7 +91,7 @@ const watchedClient = async (me: Me) => {
   trackClient(queryClient);
   await queryClient.fetchQuery(meQuery);
   queryClient.setQueryData(recordKey, {
-    id: 'note-a',
+    id: 'tag-a',
     title: 'Old tenant note',
   });
   queryClient.setQueryData(['orphan'], 'old tenant');
@@ -346,7 +346,7 @@ describe('a refetch of `me` that does not change the session', () => {
     const { queryClient } = await renderApp('/notifications');
     await screen.findByText('Acme');
     queryClient.setQueryData(recordKey, {
-      id: 'note-a',
+      id: 'tag-a',
       title: 'Old tenant note',
     });
     queryClient.setQueryData(['orphan'], 'old tenant');

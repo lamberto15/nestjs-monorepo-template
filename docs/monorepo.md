@@ -79,7 +79,7 @@ Caddy.
 Every production web build also writes `apps/web/.bundle-analysis/bundle.json`
 outside `dist/`. It records each JavaScript chunk's raw/gzip/Brotli size and
 the rendered bytes of its modules, so it is measurement evidence rather than a
-deployed asset. The Web workflow shows the largest chunks/modules in its job
+deployed asset. CI's `check` job shows the largest chunks/modules in its job
 summary and uploads the complete report for 14 days. The existing Size Limit
 budget remains the blocking aggregate guard; use the report before choosing a
 manual chunk boundary instead of raising Vite's warning limit blindly.
@@ -612,7 +612,7 @@ rather than a component alone.
 - **`findToast(text)`** (`src/test/toast.ts`) waits until a sonner toast is
   visible: sonner mounts it hidden, so `findByText` alone may return it
   before `toBeVisible()` holds.
-- **Timing** (`vitest.config.ts`, `src/test/setup.ts`): `maxWorkers: '50%'` (`'100%'` when `CI` is set: CI's web job
+- **Timing** (`vitest.config.ts`, `src/test/setup.ts`): `maxWorkers: '50%'` (`'100%'` when `CI` is set: CI's `unit-web` job
   runs this package alone),
   because `pnpm test` runs every package's Vitest at once; `testTimeout`
   15 s and Testing Library's `asyncUtilTimeout` 3 s, headroom for a loaded
@@ -623,8 +623,9 @@ rather than a component alone.
 
 ### Developer tooling: Storybook, the bundle budget, Lighthouse
 
-CI runs these in `.github/workflows/web.yml` (pull requests touching
-`apps/web` or `packages/`, and `main`).
+CI runs the bundle budget and the Storybook build in `check`
+(`.github/workflows/ci.yml`, on web changes); Lighthouse runs in
+`.github/workflows/web.yml` (nightly, manually and for version tags).
 
 - **Storybook** (`packages/ui`, Vite + React, set up with `storybook init`):
   `pnpm --filter @nestjs-monorepo-template/ui storybook` serves it on
@@ -640,8 +641,9 @@ CI runs these in `.github/workflows/web.yml` (pull requests touching
   builds the app and measures, in brotli, the entry script, the entry styles
   and all scripts. The limits sit about 10% above the measured sizes
   (entry 64.6 kB, styles 19.6 kB, all 1.01 MB at the time); over a limit, the
-  job fails the pull request, and its summary lists every size against its
-  limit. Raise a limit in the same pull request that justifies it, never to
+  `check` job fails the pull request, and its summary lists every size
+  against its limit (the bundle analysis is the `web-bundle-analysis`
+  artifact). Raise a limit in the same pull request that justifies it, never to
   get past a check.
 - **Lighthouse CI** (`apps/web/lighthouserc.json`, `@lhci/cli`):
   `pnpm --filter @nestjs-monorepo-template/web lighthouse` audits the built

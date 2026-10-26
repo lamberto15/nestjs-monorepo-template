@@ -1,7 +1,9 @@
-# The web app's developer checks (docs/monorepo.md, "The web app"): the bundle
-# budget (size-limit; fails a pull request over its limits), Storybook for
-# packages/ui (built, published as an artifact) and Lighthouse CI (a report,
-# never a failure). Only for pull requests that touch the frontend.
+# The web app's checks that need more than CI / CD gives a pull request
+# (docs/monorepo.md, "The web app"): the local-file analytics in Firefox and
+# WebKit, and Lighthouse CI (a report, never a failure). The bundle budget,
+# Storybook and the analytics in Chromium run in ci.yml (check, e2e-web) on
+# every web change. Here: pull requests that touch the analytics engine or
+# its libraries, main, the nightly run and a manual one.
 #
 # Third-party actions are pinned by commit SHA (the comment names the
 # release); Dependabot proposes newer ones.
@@ -12,23 +14,16 @@ on:
     branches: [main]
     tags: ['v*']
     paths:
-      - 'apps/web/**'
+      - 'apps/web/src/features/analytics/**'
       - 'apps/web-e2e/scripts/analytics-smoke.mjs'
-      - 'packages/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'turbo.json'
+      - 'apps/web/package.json'
       - '.github/workflows/web.yml'
   pull_request:
     paths:
-      - 'apps/web/**'
+      - 'apps/web/src/features/analytics/**'
       - 'apps/web-e2e/scripts/analytics-smoke.mjs'
-      - 'packages/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'turbo.json'
+      - 'apps/web/package.json'
       - '.github/workflows/web.yml'
-
   workflow_dispatch:
   schedule:
     - cron: '47 3 * * *'
@@ -41,13 +36,16 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # The local-file analytics (DuckDB-WASM in a worker, no external request)
+  # in the engines besides Chromium, which CI's e2e-web job runs on every
+  # web change.
   analytics-smoke:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        browser: [chromium, firefox, webkit]
+        browser: [firefox, webkit]
     steps:
       - uses: actions/checkout@v7
       - name: Install pnpm, Node.js and the dependencies
@@ -84,73 +82,6 @@ jobs:
       - name: Vite diagnostics
         if: failure()
         run: cat "$RUNNER_TEMP/analytics-vite.log"
-
-  bundle-size:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install pnpm, Node.js and the dependencies
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
-        with:
-          runtime: node@24
-          cache: true
-      - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
-      # `turbo run size` builds the web app first (turbo.json).
-      - name: Bundle budget
-        run: |
-          pnpm turbo run size --filter=@nestjs-monorepo-template/web
-      - name: Sizes in the job summary
-        if: ${{ !cancelled() }}
-        working-directory: apps/web
-        run: |
-          {
-            echo '### Bundle size (brotli) against the budget'
-            echo
-            echo '| Entry | Size | Limit | |'
-            echo '| --- | --- | --- | --- |'
-            pnpm exec size-limit --json | jq -r '.[] | "| \(.name) | \(.size) B | \(.sizeLimit) B | \(if .passed then "ok" else "over" end) |"'
-            echo
-            echo '### Largest JavaScript chunks'
-            echo
-            echo '| Chunk | Raw | gzip | brotli |'
-            echo '| --- | ---: | ---: | ---: |'
-            jq -r '.chunks[:10][] | "| \(.file) | \(.bytes) B | \(.gzipBytes) B | \(.brotliBytes) B |"' .bundle-analysis/bundle.json
-            echo
-            echo '### Largest modules in the biggest chunk'
-            echo
-            echo '| Module | Rendered |'
-            echo '| --- | ---: |'
-            jq -r '.chunks[0].modules[:15][] | "| `\(.id)` | \(.renderedBytes) B |"' .bundle-analysis/bundle.json
-          } >> "$GITHUB_STEP_SUMMARY"
-      - name: Bundle analysis
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: web-bundle-analysis
-          path: apps/web/.bundle-analysis/bundle.json
-          retention-days: 14
-
-  storybook:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install pnpm, Node.js and the dependencies
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
-        with:
-          runtime: node@24
-          cache: true
-      - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
-      - run: pnpm turbo run build-storybook --filter=@nestjs-monorepo-template/ui
-      - name: Storybook
-        uses: actions/upload-artifact@v7
-        with:
-          name: storybook
-          path: packages/ui/storybook-static/
-          retention-days: 14
 
   # A report first (assertions are warnings): the scores are in the summary and
   # the reports in the artifact; nothing fails.

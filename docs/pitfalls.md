@@ -111,8 +111,8 @@
   the e2e suite, which starts the SDKs before it loads the app, looked fine.
   `main.ts` loads the app with `await import()` after the SDKs; a static
   import there brings the bug back (`node apps/api/test/telemetry-stub.mjs boot`,
-  CI's `e2e-telemetry`, starts the built app and fails on it). The SDKs also
-  run before the environment is validated, so a secret they use read from
+  the last step of CI's `e2e-web`, starts the built app and fails on it). The
+  SDKs also run before the environment is validated, so a secret they use read from
   its `_FILE` is read by them (`secretValue()`), not left to ConfigModule.
 
 - **`Promise.all` of two queries takes two connections** (a page and its

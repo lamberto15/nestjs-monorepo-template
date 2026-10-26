@@ -140,42 +140,24 @@ export function comparisonFiles(data, { pr = false, expected } = {}) {
   ]);
 }
 
-export function expectedJobs(
-  f,
-  event = 'pull_request',
-  benchmark = 'off',
-  unitWhole = true,
-) {
-  if (benchmark === 'e2e') return ['changes', 'compose-images', 'e2e'];
-  if (benchmark === 'unit')
-    return [
-      'changes',
-      'unit-api',
-      'unit-web',
-      ...(!unitWhole ? ['coverage'] : []),
-    ];
+// The jobs a run must pass (ci.yml's ci-gate), by the classified paths. A
+// check folded into a job (the OpenAPI diff in check, the hardened stack in
+// image) runs as one of its steps, under the same flags.
+export function expectedJobs(f) {
   const rules = {
     changes: true,
     'ci-validate': f.ci,
-    'compose-images':
-      f.app || f.tools || f.services || f.generator || f.full || f.web,
-    'compose-secrets': f.stack,
-    'swarm-stack': f.stack,
+    'stack-config': f.stack,
     'tooling-lint': f.lint && !f.app && !f.tools,
     check: f.app,
-    'unit-api': f.api,
     'unit-web': f.web,
-    coverage: !unitWhole && (f.api || f.web),
     e2e: f.api || f.services,
-    'e2e-telemetry': f.api || f.services,
     'e2e-web': f.api || f.web || f.services,
     'feature-smoke': f.generator || f.tools || f.services,
     'template-without-notes': f.full,
-    'openapi-diff': event === 'pull_request' && f.api,
     security: f.app || f.tools,
     image: f.image,
     'backup-image': f.backup,
-    'hardened-stack': f.api || f.stack,
     'caddy-image': f.caddy,
     'gotenberg-image': f.gotenberg,
   };
@@ -231,35 +213,7 @@ export function runChanges(
       files = null;
     }
   }
-  let flags = classify({ files, full, complete: Boolean(files) });
-  // Older workflow dispatch defaults parsed bare YAML `off` as false.
-  const benchmark = [false, 'false'].includes(event.inputs?.benchmark)
-    ? 'off'
-    : (event.inputs?.benchmark ?? 'off');
-  if (event.inputs?.bootstrap_release === 'true' && benchmark !== 'off')
-    throw new Error(
-      'Bootstrap requires comprehensive validation, not benchmark mode',
-    );
-  const scenarios = {
-    api: ['apps/api/src/features/notes/notes.service.ts'],
-    web: ['apps/web/src/main.tsx'],
-    shared: ['package.json'],
-    infrastructure: ['backup/Dockerfile'],
-    ci: ['tools/ci/changes.mjs'],
-  };
-  const scope = event.inputs?.validation_scope ?? 'full';
-  if (
-    env.GITHUB_EVENT_NAME === 'workflow_dispatch' &&
-    benchmark === 'off' &&
-    scope !== 'full'
-  ) {
-    if (!scenarios[scope])
-      throw new Error('Unknown validation timing scenario');
-    if (event.inputs?.bootstrap_release === 'true')
-      throw new Error('Bootstrap requires comprehensive validation');
-    flags = classify({ files: scenarios[scope] });
-    files = null; // Explicit routing: there is no synthetic Git comparison.
-  }
+  const flags = classify({ files, full, complete: Boolean(files) });
   const plan = planning(flags, env, event, classify, compare);
   if (plan.previous) {
     base = plan.previous.sourceSha;
@@ -273,19 +227,14 @@ export function runChanges(
     files.length > 0 &&
     files.every((file) => /^(apps\/api\/|apps\/web\/|packages\/)/.test(file)) &&
     Boolean(compare(base, head));
-  const unitWhole = (event.inputs?.unit_layout ?? 'whole') === 'whole';
   const outputs = {
     ...flags,
     base,
     head,
     affected,
-    benchmark,
-    unit_whole: unitWhole,
     publish: plan.publish,
     release_ready: !plan.error,
-    expected: JSON.stringify(
-      expectedJobs(flags, env.GITHUB_EVENT_NAME, benchmark, unitWhole),
-    ),
+    expected: JSON.stringify(expectedJobs(flags)),
   };
   appendFileSync(
     env.GITHUB_OUTPUT,
