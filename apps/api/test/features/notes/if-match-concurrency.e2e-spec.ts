@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { asc, sql } from 'drizzle-orm';
 import { auditLog } from '../../../src/iam/iam.tables.js';
 import { notes } from '../../../src/features/notes/notes.tables.js';
 import { revisions } from '../../../src/platform/revisions/revisions.tables.js';
@@ -59,7 +59,7 @@ describe('conditional note writes under concurrency (e2e)', () => {
     try {
       await vi.waitFor(async () => {
         const result = (await node.db.execute(
-          sql`select count(*)::int as count from pg_locks where locktype = 'advisory' and not granted`,
+          sql`select count(*)::int as count from pg_locks where database = (select oid from pg_database where datname = current_database()) and locktype = 'advisory' and not granted`,
         )) as { rows: { count: number }[] };
         expect(Number(result.rows[0]!.count)).toBe(2);
       });
@@ -89,7 +89,8 @@ describe('conditional note writes under concurrency (e2e)', () => {
         node.db
           .select()
           .from(revisions)
-          .where(sql`${revisions.recordId} = ${id}`),
+          .where(sql`${revisions.recordId} = ${id}`)
+          .orderBy(asc(revisions.number)),
       ]),
     );
     expect(
@@ -150,7 +151,7 @@ describe('conditional note writes under concurrency (e2e)', () => {
     try {
       await vi.waitFor(async () => {
         const result = (await node.db.execute(
-          sql`select count(*)::int as count from pg_locks where locktype = 'advisory' and not granted`,
+          sql`select count(*)::int as count from pg_locks where database = (select oid from pg_database where datname = current_database()) and locktype = 'advisory' and not granted`,
         )) as { rows: { count: number }[] };
         expect(Number(result.rows[0]!.count)).toBe(2);
       });
