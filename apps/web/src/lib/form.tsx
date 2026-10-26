@@ -339,16 +339,21 @@ const formHooks = createFormHook({
  * cancelling leaves the draft untouched. Keeping this at the app form hook
  * protects every editor that uses the established form pattern.
  */
-export function useAppForm(...args: Parameters<typeof formHooks.useAppForm>) {
+function useAppFormImpl(props: unknown) {
   const staleDraftSession = useStaleDraftSession();
-  const form = formHooks.useAppForm(...args);
+  const form = formHooks.useAppForm(props as never);
   const handleSubmit = form.handleSubmit.bind(form);
-  form.handleSubmit = (...submitArgs) => {
+  form.handleSubmit = ((...submitArgs: []) => {
     if (staleDraftSession()) return Promise.resolve();
     return handleSubmit(...submitArgs);
-  };
+  }) as typeof form.handleSubmit;
   return form;
 }
+
+// Keep TanStack Form's generic call signature. Extracting it with
+// `Parameters<>` would turn each form's values into `unknown` at its callers.
+export const useAppForm =
+  useAppFormImpl as unknown as typeof formHooks.useAppForm;
 
 /**
  * The shared app form hook calls this before every submit. The non-form
