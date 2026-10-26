@@ -11,6 +11,7 @@ import { and, eq, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import type { Transaction } from '../../core/database/drizzle.js';
 import { currentTenantId } from '../../core/tenancy/tenant-scope.js';
+import { tenantPredicate } from '../../core/tenancy/tenant-query.js';
 import {
   database,
   type DrizzleTransactions,
@@ -331,6 +332,7 @@ export class NotificationsService {
   async page(principal: Principal, query: ListQuery, locale?: string) {
     const where = and(
       eq(notifications.recipient, principalKey(principal)),
+      tenantPredicate(notifications.tenantId, { includeNullRows: true }),
       shownTo(principal),
       NOTIFICATION_LIST.where(query),
     );
@@ -379,6 +381,7 @@ export class NotificationsService {
       .where(
         and(
           eq(notifications.recipient, principalKey(principal)),
+          tenantPredicate(notifications.tenantId, { includeNullRows: true }),
           shownTo(principal),
           isNull(notifications.readAt),
         ),
