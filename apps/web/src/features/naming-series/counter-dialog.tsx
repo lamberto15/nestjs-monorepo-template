@@ -21,6 +21,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/errors';
+import { useStaleDraftSession } from '@/lib/form';
 import {
   numberedSubjectsQuery,
   patternFields,
@@ -52,6 +53,7 @@ export function CounterDialog(props: {
 }) {
   const { t } = useTranslation('naming-series');
   const { series } = props;
+  const staleDraftSession = useStaleDraftSession();
   const counter = useQuery(counterQuery(series.id));
   const subjects = useQuery({
     ...numberedSubjectsQuery,
@@ -91,6 +93,7 @@ export function CounterDialog(props: {
   const shown = value ?? (shownCounter ? String(shownCounter.current) : '');
 
   const submit = async () => {
+    if (staleDraftSession()) return;
     setError(undefined);
     const current = Number(shown);
     if (shown.trim() === '' || !Number.isSafeInteger(current) || current < 0) {

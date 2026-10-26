@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { formatDateTime } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
+import { useStaleDraftSession } from '@/lib/form';
 import { CopyValue } from './copy-value';
 import {
   domainsQuery,
@@ -29,6 +30,7 @@ export function DomainsSection() {
   const remove = useRemoveDomain();
   const [domain, setDomain] = useState('');
   const [error, setError] = useState<string>();
+  const staleDraftSession = useStaleDraftSession();
 
   return (
     <section className="flex flex-col gap-4" aria-labelledby="sso-domains">
@@ -44,6 +46,7 @@ export function DomainsSection() {
         className="flex flex-wrap items-end gap-2"
         onSubmit={(event) => {
           event.preventDefault();
+          if (staleDraftSession()) return;
           setError(undefined);
           create.mutate(domain.trim().toLowerCase(), {
             onSuccess: () => setDomain(''),

@@ -27,6 +27,7 @@ import {
 import { labelFor, toBody, toDraft, type Picked } from './comment-draft';
 import { CommentText, useMentionNames } from './comment-text';
 import { usePeople } from './users';
+import { useStaleDraftSession } from '@/lib/form';
 
 /** The API's limit (docs/comments.md): 1 to 10 000 characters. */
 const MAX_LENGTH = 10_000;
@@ -43,7 +44,7 @@ const MAX_LENGTH = 10_000;
  * given `value`, and after a send the `Mention` is made anew (`key`), the only
  * way to make it forget the places of the mentions just sent.
  */
-function CommentEditor(props: {
+export function CommentEditor(props: {
   /** The body to edit; its mentions show by name (`names`). */
   initial?: string;
   /** The names of the people `initial` mentions (`mentionNames`). */
@@ -56,6 +57,7 @@ function CommentEditor(props: {
   onCancel?: () => void;
 }) {
   const { t } = useTranslation('records');
+  const staleDraftSession = useStaleDraftSession();
   const [draft] = useState(() => toDraft(props.initial ?? '', props.names));
   const [text, setText] = useState(draft.text);
   // Whom each label in the box stands for. Only added to: Dice UI drops every
@@ -84,6 +86,9 @@ function CommentEditor(props: {
   const send = async (event: FormEvent) => {
     event.preventDefault();
     if (!trimmed || body.length > MAX_LENGTH) {
+      return;
+    }
+    if (staleDraftSession()) {
       return;
     }
     try {

@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import openapi from '@nestjs-monorepo-template/api-client/openapi.json';
 import { http, HttpResponse } from 'msw/http';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { NOTE_LIMITS } from '@/features/notes/api';
 import { meQuery } from '@/lib/session';
 import { renderApp } from '@/test/render-app';
@@ -188,6 +188,7 @@ describe('creating a note', () => {
   it('sends nothing of a draft begun under another session, until the user says so', async () => {
     const api = useNotesApi({ can: ALL, notes: [] });
     const { queryClient } = await renderApp('/notes/new');
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText('Title'), 'Q3 for Globex');
     await user.type(screen.getByLabelText('Text'), 'Old tenant plans');
@@ -217,11 +218,11 @@ describe('creating a note', () => {
     expect(screen.getByLabelText('Title')).toHaveValue('Q3 for Globex');
     expect(screen.getByLabelText('Text')).toHaveValue('Old tenant plans');
 
-    // The first submit after the change sends nothing: it says why and lets
-    // the user decide, instead of silently dropping the draft.
+    // The first submit warns and holds the draft; a second explicit submit
+    // is required before the API request is sent under the new session.
     await user.click(screen.getByRole('button', { name: 'Create note' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Nothing was sent',
+    expect(alert).toHaveBeenCalledWith(
+      expect.stringContaining('Nothing was sent'),
     );
     expect(api.calls.created).toHaveLength(0);
     expect(screen.getByLabelText('Title')).toHaveValue('Q3 for Globex');
@@ -233,6 +234,7 @@ describe('creating a note', () => {
     expect(api.calls.created[0]).toMatchObject({
       body: { title: 'Q3 for Globex', body: 'Old tenant plans' },
     });
+    alert.mockRestore();
   });
 
   it("shows the created note from the create's answer, and its ETag goes with the first edit", async () => {

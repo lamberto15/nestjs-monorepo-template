@@ -303,6 +303,41 @@ describe('a refetch of `me` that changes the session', () => {
     );
     unsubscribe();
   });
+
+  it('does not treat clearing the mutation cache as aborting a sent mutation', async () => {
+    const { queryClient } = await watchedClient(
+      meInTenant(signedInUser.tenant!.id),
+    );
+    let started!: () => void;
+    let finish!: () => void;
+    const requestStarted = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const response = new Promise<string>((resolve) => {
+      finish = () => resolve('request completed');
+    });
+    const mutation = queryClient.getMutationCache().build(queryClient, {
+      mutationFn: async () => {
+        started();
+        return response;
+      },
+    });
+    const inFlight = mutation.execute(undefined);
+    await requestStarted;
+
+    // The server has already received the request. A session change clears
+    // its client cache entry but cannot promise to abort the server work.
+    meAfter(otherUserMe);
+    await fetchMe(queryClient);
+    await waitFor(() =>
+      expect(queryClient.getMutationCache().getAll()).toHaveLength(0),
+    );
+    finish();
+
+    await expect(inFlight).resolves.toBe('request completed');
+    expect(queryClient.getMutationCache().getAll()).toHaveLength(0);
+    expect(queryClient.getQueryData(recordKey)).toBeUndefined();
+  });
 });
 
 describe('a refetch of `me` that does not change the session', () => {
@@ -491,6 +526,27 @@ describe('the session another tab announced', () => {
 });
 
 describe('the session a flow here applies, announced to the other tabs', () => {
+  it('resets another tab when a tenant switch is announced', async () => {
+    const tenantA = meInTenant(signedInUser.tenant!.id);
+    const firstTab = await watchedClient(tenantA);
+    const secondTab = await watchedClient(tenantA);
+
+    meAfter(meInTenant(otherTenantId));
+    await createSession(firstTab.queryClient).reset();
+
+    // Separate watched clients stand in for two open tabs sharing the
+    // BroadcastChannel and cookie. The receiver verifies the hint through
+    // /auth/me before resetting its own tenant-A cache.
+    await waitFor(() => {
+      expect(
+        secondTab.queryClient.getQueryData(meQuery.queryKey),
+      ).toMatchObject({ tenant: { id: otherTenantId } });
+      expect(secondTab.queryClient.getQueryData(recordKey)).toBeUndefined();
+      expect(secondTab.queryClient.getQueryData(['orphan'])).toBeUndefined();
+      expect(secondTab.queryClient.getMutationCache().getAll()).toHaveLength(0);
+    });
+  });
+
   it('announces the reset after a switch, and applies it once', async () => {
     const received: (string | null)[] = [];
     const inbox = new BroadcastChannel('app-session-identity');

@@ -25,6 +25,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { formatDateTime } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
+import { useStaleDraftSession } from '@/lib/form';
 import {
   retentionRulesQuery,
   useSetRetention,
@@ -82,6 +83,7 @@ function RuleCard({ rule }: { rule: RetentionRule }) {
   const [enabled, setEnabled] = useState(rule.enabled);
   const [days, setDays] = useState(String(rule.days));
   const [error, setError] = useState<string>();
+  const staleDraftSession = useStaleDraftSession();
 
   const parsed = Number(days);
   const dirty = enabled !== rule.enabled || days !== String(rule.days);
@@ -90,6 +92,7 @@ function RuleCard({ rule }: { rule: RetentionRule }) {
 
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (staleDraftSession()) return;
     if (!Number.isInteger(parsed) || parsed < rule.minDays) {
       setError(t('minDays', { n: rule.minDays }));
       return;

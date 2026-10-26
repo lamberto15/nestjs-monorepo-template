@@ -25,6 +25,7 @@ import { HexPicker } from '@/features/tags/tag-dialog';
 import { api } from '@/lib/api';
 import { brandingQuery, type Branding } from '@/lib/branding';
 import { errorMessage } from '@/lib/errors';
+import { useStaleDraftSession } from '@/lib/form';
 import { postMultipart } from '@/lib/upload';
 
 /** What the API takes of a logo (BrandingService): the browser checks the same, the API decides by the bytes. */
@@ -83,6 +84,7 @@ function ValuesForm(props: { branding: Branding }) {
   const editable = branding.canEdit;
   const [color, setColor] = useState(branding.primaryColor ?? '');
   const [name, setName] = useState(branding.mailFromName ?? '');
+  const staleDraftSession = useStaleDraftSession();
   const save = useBrandingMutation(
     (body: { primaryColor: string | null; mailFromName: string | null }) =>
       unwrap(api.PUT('/v1/branding', { body })),
@@ -96,6 +98,7 @@ function ValuesForm(props: { branding: Branding }) {
       className="flex flex-col gap-6"
       onSubmit={(event) => {
         event.preventDefault();
+        if (staleDraftSession()) return;
         save.mutate(
           { primaryColor: color || null, mailFromName: trimmed || null },
           { onSuccess: () => toast.success(t('saved')) },

@@ -6,11 +6,12 @@ import {
   within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw/http';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RealtimeProvider } from '@/lib/realtime';
 import { recordKeys } from '@/lib/records';
-import type { Features } from '@/lib/session';
+import { meQuery, type Features } from '@/lib/session';
 import { createFakeRealtime, type FakeRealtime } from '@/test/fake-realtime';
 import {
   MAYA,
@@ -21,6 +22,7 @@ import {
 import { renderComponent } from '@/test/render-component';
 import { findToast } from '@/test/toast';
 import { problem, server, signedInUser } from '@/test/server';
+import { CommentEditor } from './comments-panel';
 import { splitMentions } from './comment-text';
 import { RecordPanels } from './record-panels';
 
@@ -195,6 +197,56 @@ describe('comments', () => {
         'Please check, @Maya Patel thanks',
       ),
     );
+  });
+
+  it('holds a comment draft after a verified session change until the user submits again', async () => {
+    usePanelsApi({ people: [] });
+    const queryClient = new QueryClient();
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+    const submit = vi.fn().mockResolvedValue(undefined);
+    await renderComponent(
+      <CommentEditor
+        label="Write a comment"
+        placeholder="Write a comment"
+        submit="Comment"
+        busy={false}
+        onSubmit={submit}
+      />,
+      { can: ALL, queryClient },
+    );
+    const user = userEvent.setup({ delay: null });
+    const box = await screen.findByLabelText('Write a comment');
+    await user.type(box, 'Keep this comment');
+
+    const nextTenant = '0199a3f2-0000-7000-8000-00000000002a';
+    server.use(
+      http.get('/v1/auth/me', () =>
+        HttpResponse.json({
+          ...signedInUser,
+          tenant: {
+            ...signedInUser.tenant!,
+            id: nextTenant,
+            slug: 'globex',
+            name: 'Globex',
+          },
+        }),
+      ),
+    );
+    await queryClient.fetchQuery({ ...meQuery, staleTime: 0 });
+
+    await send(user);
+    expect(alert).toHaveBeenCalledWith(
+      expect.stringContaining('Nothing was sent'),
+    );
+    expect(submit).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Write a comment')).toHaveValue(
+      'Keep this comment',
+    );
+
+    await send(user);
+    await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
+    expect(submit).toHaveBeenCalledWith('Keep this comment');
+    alert.mockRestore();
   });
 
   it('sends each id when two people have one name', async () => {
