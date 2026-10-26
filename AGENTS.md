@@ -30,6 +30,9 @@ CLI commands.
   CI; use focused local checks only when needed to investigate a CI failure
   or when the owner explicitly requests them. Keep the PR draft until ready
   for review, and require green CI before merging.
+- **Verify every PR check before reporting success.** Inspect the complete
+  check-run list and review comments, including external quality gates such
+  as SonarQube Cloud; passing GitHub Actions workflows alone is not enough.
 - **Label every pull request, and claim the issue you work.** Label a PR by
   what it changes: `frontend` (apps/web, packages/ui), `backend` (apps/api, the
   client's generation, migrations), `ci` (workflows, images, deploys),

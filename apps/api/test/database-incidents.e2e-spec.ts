@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { Logger } from '@nestjs/common';
 import { Client, type Pool } from 'pg';
 import { inject } from 'vitest';
@@ -125,7 +125,7 @@ describe('automatic database incidents on PostgreSQL', () => {
     const pool = await poolOf(5000);
     const blocker = new Client({ connectionString: database.ownerUrl });
     await blocker.connect();
-    const key = Math.floor(Math.random() * 1_000_000_000);
+    const key = randomInt(1_000_000_000);
     let running: Promise<unknown> | undefined;
     try {
       await blocker.query('begin');
