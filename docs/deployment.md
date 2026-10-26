@@ -880,7 +880,7 @@ request's result. Observed blockers/waits are evidence, not an automatically con
 **Enable and verify:** inspect the deployed runtime before changing it. For Compose, check
 `docker compose ps`, active profiles, `/metrics` authentication, and Prometheus targets; enable the
 existing monitoring overlay with `logs,grafana` when needed. For K3s, use
-[the observability runbook](../deploy/k3s/monitoring/README.md) to inspect the monitoring releases,
+[the observability runbook](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/monitoring/README.md) to inspect the monitoring releases,
 ServiceMonitors, app PrometheusRule, and Alloy/Loki. This repository's presence does not establish
 that any component is deployed. Keep credentials in the protected deployment secret store; agents
 must not edit live env files.
