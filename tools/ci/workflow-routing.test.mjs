@@ -142,16 +142,13 @@ function evaluate(expression, context) {
   return value;
 }
 
-function actual(
-  flags,
-  { event = 'pull_request', benchmark = 'off', whole = true } = {},
-) {
+function actual(flags, { event = 'pull_request' } = {}) {
   const all = jobs(text).slice(
     0,
     jobs(text).findIndex((j) => j.id === 'ci-gate'),
   );
   const outputs = Object.fromEntries(
-    Object.entries({ ...flags, benchmark, unit_whole: whole }).map(([k, v]) => [
+    Object.entries(flags).map(([k, v]) => [
       k,
       String(v),
     ]),
@@ -200,7 +197,7 @@ test('real workflow conditions and dependencies agree with the gate for affected
     for (const event of ['pull_request', 'push'])
       assert.deepEqual(
         actual(flags, { event }).sort(),
-        expectedJobs(flags, event, 'off', true).sort(),
+        expectedJobs(flags).sort(),
         file + ' ' + event,
       );
   }
@@ -208,19 +205,10 @@ test('real workflow conditions and dependencies agree with the gate for affected
     const flags = classify({ full: true });
     assert.deepEqual(
       actual(flags, { event }).sort(),
-      expectedJobs(flags, event, 'off', true).sort(),
+      expectedJobs(flags).sort(),
       event,
     );
   }
-});
-test('benchmark workflows run only measured jobs and the expected coverage merge', () => {
-  const flags = classify({ full: true });
-  for (const benchmark of ['e2e', 'unit'])
-    for (const whole of [false, true])
-      assert.deepEqual(
-        actual(flags, { event: 'workflow_dispatch', benchmark, whole }).sort(),
-        expectedJobs(flags, 'workflow_dispatch', benchmark, whole).sort(),
-      );
 });
 test('the stable gate needs every validation job and production rollout is disabled', () => {
   const all = jobs(text),
@@ -248,7 +236,6 @@ test('every release image is built once and handed off with integrity evidence',
     ['image', 'publish', 'app'],
     ['caddy-image', 'publish-caddy', 'caddy'],
     ['gotenberg-image', 'publish-gotenberg', 'gotenberg'],
-    ['backup-image', null, 'backup'],
   ]) {
     const build = all.find((job) => job.id === builder).lines.join('\n');
     assert.equal(
@@ -259,7 +246,13 @@ test('every release image is built once and handed off with integrity evidence',
     assert.ok(build.includes(`name: image-${image}`), builder);
     assert.ok(build.includes(`${image}.tar.sha256`), builder);
     assert.ok(build.includes(`${image}.id`), builder);
-    if (!publisher) continue;
+    // Handed over only to this run's publish job: a pull request uploads none.
+    assert.ok(
+      build.includes(
+        "- name: Transfer the verified image\n        if: needs.changes.outputs.publish == 'true'",
+      ),
+      builder,
+    );
     const publish = all.find((job) => job.id === publisher).lines.join('\n');
     assert.ok(!publish.includes('uses: docker/build-push-action@'), publisher);
     assert.ok(publish.includes(`sha256sum -c ${image}.tar.sha256`), publisher);
