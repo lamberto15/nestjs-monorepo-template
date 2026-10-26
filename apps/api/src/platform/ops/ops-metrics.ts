@@ -8,6 +8,17 @@ import {
   OutboxMetricsReader,
 } from './outbox-metrics.reader.js';
 
+/** Share webhook statistics among the gauges in a scrape. */
+const oncePerScrape = <T>(read: () => Promise<T>) => {
+  let pending: Promise<T> | undefined;
+  return () => {
+    pending ??= read().finally(() => {
+      setImmediate(() => (pending = undefined));
+    });
+    return pending;
+  };
+};
+
 /**
  * The platform's gauges on core's `/metrics`, read at each scrape: jobs per
  * queue and state, the outbox and the outgoing webhooks (what /v1/ops and
@@ -28,12 +39,11 @@ export class OpsMetrics implements OnModuleInit {
     // These are deployment-wide backlogs, sampled only by worker-capable processes.
     if (!runsWorkers()) return;
 
-    const queueStats = new MetricSnapshot(() => this.queues.counts());
     this.metrics.collect(
       'queue_jobs',
       'Background jobs per queue and state.',
       async () =>
-        (await queueStats.get()).flatMap(({ name, counts }) =>
+        (await this.queues.counts()).flatMap(({ name, counts }) =>
           QUEUE_GAUGE_STATES.map((state) => ({
             labels: { queue: name, state },
             value: counts[state] ?? 0,
@@ -67,14 +77,12 @@ export class OpsMetrics implements OnModuleInit {
         ];
       },
     );
-    const webhookStats = new MetricSnapshot(() =>
-      this.webhookDeliveries.stats(),
-    );
+    const webhookStats = oncePerScrape(() => this.webhookDeliveries.stats());
     this.metrics.collect(
       'webhook_deliveries',
       'Outgoing webhook deliveries: pending (not delivered yet), due (pending and ready for an attempt), failed (given up on, kept until pruned).',
       async () => {
-        const stats = await webhookStats.get();
+        const stats = await webhookStats();
         return [
           { labels: { state: 'pending' }, value: stats.pending },
           { labels: { state: 'due' }, value: stats.due },
@@ -86,7 +94,7 @@ export class OpsMetrics implements OnModuleInit {
     this.metrics.collect(
       'webhook_delivery_lag_seconds',
       'How long the most overdue webhook delivery has waited.',
-      async () => [{ value: (await webhookStats.get()).lagMs / 1000 }],
+      async () => [{ value: (await webhookStats()).lagMs / 1000 }],
     );
   }
 }
