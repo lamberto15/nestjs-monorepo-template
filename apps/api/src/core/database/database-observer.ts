@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash } from 'node:crypto';
+import { errorMonitor } from 'node:events';
 import { trace } from '@opentelemetry/api';
 import type pg from 'pg';
 import {
@@ -284,12 +285,13 @@ export class DatabaseObserver {
         ) {
           const query = result as {
             once(
-              event: string,
+              event: string | symbol,
               listener: (...args: unknown[]) => void,
             ): unknown;
           };
           query.once('end', () => done());
-          query.once('error', (error) => done(error));
+          // errorMonitor observes without consuming an otherwise unhandled error.
+          query.once(errorMonitor, (error) => done(error));
         }
         return result;
       } catch (error) {

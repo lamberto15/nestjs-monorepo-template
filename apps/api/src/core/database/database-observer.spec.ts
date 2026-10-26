@@ -169,9 +169,16 @@ describe('database observer', () => {
     observer.instrument(stream);
     expect(stream.query('select 1')).toBe(events);
     events.emit('end');
+    const failedEvents = new EventEmitter();
+    const failedStream = clientOf(() => failedEvents);
+    observer.instrument(failedStream);
+    failedStream.query('select 1');
+    // Instrumentation must not turn an unhandled stream error into a silent failure.
+    expect(() => failedEvents.emit('error', error)).toThrow(error);
     expect(samples.mock.calls.map(([s]) => s.outcome)).toEqual([
       'error',
       'success',
+      'error',
     ]);
   });
 
