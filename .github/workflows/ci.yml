@@ -1400,6 +1400,9 @@ jobs:
         env:
           APP_IMAGE: app:hardened
         run: loadtest/run.sh up
+      # `docker compose up --build` invokes Buildx directly, so expose the
+      # GitHub cache runtime URL and token for the `type=gha` build cache.
+      - uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
       - name: Every container runs, healthy and never restarted
         env:
           BACKUP_VERIFIED: ${{ needs.backup-image.result == 'success' }}
