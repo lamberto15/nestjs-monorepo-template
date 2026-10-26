@@ -69,9 +69,9 @@ describe('conditional note writes under concurrency (e2e)', () => {
     await blocker;
 
     const responses = await Promise.all(updates);
-    expect(responses.map((response) => response.status).sort()).toEqual([
-      200, 412,
-    ]);
+    expect(
+      responses.map((response) => response.status).sort((a, b) => a - b),
+    ).toEqual([200, 412]);
     expect(
       responses.find((response) => response.status === 412)?.body.code,
     ).toBe('precondition_failed');
@@ -160,9 +160,9 @@ describe('conditional note writes under concurrency (e2e)', () => {
     await blocker;
 
     const responses = await Promise.all(deletes);
-    expect(responses.map((response) => response.status).sort()).toEqual([
-      204, 404,
-    ]);
+    expect(
+      responses.map((response) => response.status).sort((a, b) => a - b),
+    ).toEqual([204, 404]);
     const audit = await node.inTenant(() =>
       node.db
         .select()
