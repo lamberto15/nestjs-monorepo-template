@@ -468,7 +468,15 @@ export class RecordRevisions {
     principal: Principal,
     id: string,
     fields: Record<string, unknown>,
-    { ip, restoredFrom }: { ip?: string; restoredFrom: number },
+    {
+      ip,
+      restoredFrom,
+      unchanged,
+    }: {
+      ip?: string;
+      restoredFrom: number;
+      unchanged?: (current: object) => void;
+    },
   ) {
     const row = await this.c.service.findOne(id);
     const now = this.snapshot(row);
@@ -505,6 +513,28 @@ export class RecordRevisions {
     }
     const updated = await this.c.service.update(principal, row, dto, ip, {
       restoredFrom,
+      assertCurrent: async (current) => {
+        if (!(await this.c.policy.update(principal, current))) {
+          throw new ForbiddenException(
+            `You may not change this ${this.c.declaration.noun}.`,
+          );
+        }
+        unchanged?.(await this.presenter.one(principal, current));
+        const currentForbidden = await this.access.forbiddenFields(
+          principal,
+          'update',
+          this.subject,
+          sentFields(dto),
+          current,
+        );
+        if (currentForbidden.length) {
+          throw new ForbiddenException({
+            code: 'field_forbidden',
+            message: `You may not change: ${currentForbidden.join(', ')}.`,
+            fields: currentForbidden,
+          });
+        }
+      },
     });
     return this.presenter.one(principal, updated);
   }

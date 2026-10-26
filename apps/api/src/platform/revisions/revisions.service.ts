@@ -273,9 +273,9 @@ export class RevisionsService implements PersonalDataSource {
   /**
    * Sets the record back to a revision's fields, through the feature's own
    * update (its checks, audit entry and a new revision marked
-   * `restoredFrom`); answers the record as its GET does. `unchanged` sees
-   * the record as the principal reads it now, before anything is written
-   * (the route's If-Match).
+   * `restoredFrom`); answers the record as its GET does. `unchanged` runs
+   * against the locked current row before anything is written (the route's
+   * If-Match).
    */
   async restore(
     principal: Principal,
@@ -293,10 +293,10 @@ export class RevisionsService implements PersonalDataSource {
         `You may not change this ${record.subject}.`,
       );
     }
-    unchanged?.(await target.shown(principal, record.recordId));
     return target.apply(principal, record.recordId, revision.snapshot, {
       ip,
       restoredFrom: number,
+      unchanged,
     });
   }
 

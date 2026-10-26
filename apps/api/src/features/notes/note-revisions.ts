@@ -68,7 +68,15 @@ export class NoteRevisions implements RevisionTarget {
     principal: Principal,
     id: string,
     fields: Record<string, unknown>,
-    { ip, restoredFrom }: { ip?: string; restoredFrom: number },
+    {
+      ip,
+      restoredFrom,
+      unchanged,
+    }: {
+      ip?: string;
+      restoredFrom: number;
+      unchanged?: (current: object) => void;
+    },
   ) {
     const note = await this.notes.findOne(id);
     const dto: UpdateNoteDto = {};
@@ -115,6 +123,26 @@ export class NoteRevisions implements RevisionTarget {
     }
     const updated = await this.notes.update(principal, note, parsed.data, ip, {
       restoredFrom,
+      assertCurrent: async (current) => {
+        if (!(await this.policy.update(principal, current))) {
+          throw new ForbiddenException('You may not change this Note.');
+        }
+        unchanged?.(await this.present(principal, current));
+        const currentForbidden = await this.access.forbiddenFields(
+          principal,
+          'update',
+          'Note',
+          parsed.data,
+          current,
+        );
+        if (currentForbidden.length) {
+          throw new ForbiddenException({
+            code: 'field_forbidden',
+            message: `You may not change: ${currentForbidden.join(', ')}.`,
+            fields: currentForbidden,
+          });
+        }
+      },
     });
     return this.present(principal, updated);
   }

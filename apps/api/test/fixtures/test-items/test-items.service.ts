@@ -119,15 +119,24 @@ export class TestItemsService {
     row: TestItem,
     dto: UpdateTestItemDto,
     ip?: string,
-    { restoredFrom }: { restoredFrom?: number } = {},
+    {
+      restoredFrom,
+      assertCurrent,
+    }: {
+      restoredFrom?: number;
+      assertCurrent?: (current: TestItem) => Promise<void> | void;
+    } = {},
   ) {
     const changes = await this.lifecycle.values(dto, 'update');
-    if (Object.keys(changes).length === 0) {
+    if (Object.keys(changes).length === 0 && !assertCurrent) {
       return row; // nothing to change
     }
     // Business logic: what a change must respect, here.
     return inTransaction(this.txHost, async (tx) => {
       // Not while an approver decides on it (409 approval_pending): RecordLifecycle.updated.
+      const current = await this.records.lock<TestItem>(tx, row.id);
+      await assertCurrent?.(current);
+      if (Object.keys(changes).length === 0) return current;
       const [updated] = await tx
         .update(testItems)
         .set(changes)
@@ -135,7 +144,7 @@ export class TestItemsService {
         .returning()
         .catch(taken);
       await this.lifecycle.updated(tx, {
-        before: row,
+        before: current,
         after: updated!,
         by,
         restoredFrom,
@@ -146,7 +155,7 @@ export class TestItemsService {
         {
           action: 'updated',
           id: row.id,
-          before: recordView(TEST_ITEM, row),
+          before: recordView(TEST_ITEM, current),
           after: recordView(TEST_ITEM, updated!),
         },
         tx,
@@ -157,15 +166,26 @@ export class TestItemsService {
   }
 
   /** Deletes one: to the recycle bin (restorable until purged) when it has one, else for good. */
-  async delete(by: Principal, row: TestItem, ip?: string) {
+  async delete(
+    by: Principal,
+    row: TestItem,
+    ip?: string,
+    assertCurrent?: (current: TestItem) => Promise<void> | void,
+  ) {
     // Business logic: what a delete must respect, here.
     await inTransaction(this.txHost, async (tx) => {
       // Not while an approver decides on it, and its sent-back requests go: RecordStore.delete.
-      await this.records.delete(tx, by, row);
+      const current = await this.records.lock<TestItem>(tx, row.id);
+      await assertCurrent?.(current);
+      await this.records.delete(tx, by, current);
       await this.audit.recordChange(
         by,
         TEST_ITEM_RESOURCE,
-        { action: 'deleted', id: row.id, before: recordView(TEST_ITEM, row) },
+        {
+          action: 'deleted',
+          id: row.id,
+          before: recordView(TEST_ITEM, current),
+        },
         tx,
         ip,
       );

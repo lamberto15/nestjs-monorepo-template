@@ -67,7 +67,10 @@ export interface RecordServiceContract {
     row: RecordRow,
     dto: Record<string, unknown>,
     ip?: string,
-    options?: { restoredFrom?: number },
+    options?: {
+      restoredFrom?: number;
+      assertCurrent?: (current: RecordRow) => Promise<void> | void;
+    },
   ): Promise<RecordRow>;
   delete(by: Principal, row: RecordRow, ip?: string): Promise<void>;
   restore?(by: Principal, row: RecordRow, ip?: string): Promise<RecordRow>;

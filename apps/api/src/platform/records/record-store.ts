@@ -136,6 +136,28 @@ export class RecordStore {
     return row as Row;
   }
 
+  /** One live record locked until the caller's transaction ends, or a 404. */
+  async lock<Row extends RecordRow>(tx: Transaction, id: string): Promise<Row> {
+    const table = this.table;
+    const [row] = await tx
+      .select()
+      .from(table)
+      .where(
+        and(
+          eq(table.id!, id),
+          this.declaration.softDelete ? isNull(table.deletedAt!) : undefined,
+        ),
+      )
+      .for('update');
+    if (!row) {
+      const noun = this.declaration.noun;
+      throw new NotFoundException(
+        `${noun[0]!.toUpperCase()}${noun.slice(1)} ${id} not found.`,
+      );
+    }
+    return row as Row;
+  }
+
   /**
    * A page of those matching `where` (the caller's read filter, from
    * AccessService: it keeps the recycle bin apart), newest first. `extra`:

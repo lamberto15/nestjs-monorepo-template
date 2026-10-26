@@ -34,7 +34,11 @@ export interface RevisionTarget {
     principal: Principal,
     recordId: string,
     fields: Record<string, unknown>,
-    options: { ip?: string; restoredFrom: number },
+    options: {
+      ip?: string;
+      restoredFrom: number;
+      unchanged?: (current: object) => void;
+    },
   ): Promise<object>;
   /** The record as its GET answers it to the principal (what its ETag covers). */
   shown(principal: Principal, recordId: string): Promise<object>;

@@ -380,7 +380,13 @@ export class NotesService {
     dto: UpdateNoteDto,
     ip?: string,
     /** Set when a revision is restored (NoteRevisions): marks the new revision. */
-    { restoredFrom }: { restoredFrom?: number } = {},
+    {
+      restoredFrom,
+      assertCurrent,
+    }: {
+      restoredFrom?: number;
+      assertCurrent?: (current: Note) => Promise<void> | void;
+    } = {},
   ) {
     const { custom, ...changes } = dto;
     // Only the keys sent change (jsonb ||); null removes one.
@@ -391,12 +397,22 @@ export class NotesService {
         custom: this.customFields.mergeValues(notes.custom, patch),
       }),
     };
-    if (Object.keys(values).length === 0) {
+    if (Object.keys(values).length === 0 && !assertCurrent) {
       return note; // nothing to change
     }
     const updated = await inTransaction(this.txHost, async (tx) => {
       // Not while an approver decides on it (409 approval_pending): sent back for changes, it may change.
-      await this.approvals.assertNotPending('Note', note.id);
+      if (Object.keys(values).length > 0) {
+        await this.approvals.assertNotPending('Note', note.id);
+      }
+      const [current] = await tx
+        .select()
+        .from(notes)
+        .where(and(eq(notes.id, note.id), isNull(notes.deletedAt)))
+        .for('update');
+      if (!current) throw new NotFoundException(`Note ${note.id} not found.`);
+      await assertCurrent?.(current);
+      if (Object.keys(values).length === 0) return current;
       const [row] = await tx
         .update(notes)
         .set(values)
@@ -416,14 +432,14 @@ export class NotesService {
       await this.audit.recordChange(
         by,
         NOTE,
-        { action: 'updated', id: note.id, before: note, after: row },
+        { action: 'updated', id: note.id, before: current, after: row },
         tx,
         ip,
       );
       await this.revisions.record(tx, 'Note', note.id, {
         snapshot: noteSnapshot(row!),
         // A note from before revisions were kept gets its first state as revision 1.
-        before: noteSnapshot(note),
+        before: noteSnapshot(current),
         by,
         restoredFrom,
       });
@@ -564,30 +580,43 @@ export class NotesService {
   }
 
   /** To the recycle bin (soft delete): hidden everywhere, restorable until purged. */
-  async delete(by: Principal, note: Note, ip?: string) {
+  async delete(
+    by: Principal,
+    note: Note,
+    ip?: string,
+    assertCurrent?: (current: Note) => Promise<void> | void,
+  ) {
     await inTransaction(this.txHost, async (tx) => {
-      // Not under a legal hold (a 409 legal_hold).
-      await this.holds.assertNotHeld('Note', [note.id], tx);
-      // Not while an approver decides on it; a request sent back for changes is withdrawn with the note.
+      // Keep the approval lock before the row lock, as update() does.
       await this.approvals.assertNotPending('Note', note.id);
-      await this.approvals.withdraw(tx, by, 'Note', note.id);
+      const [current] = await tx
+        .select()
+        .from(notes)
+        .where(and(eq(notes.id, note.id), isNull(notes.deletedAt)))
+        .for('update');
+      if (!current) throw new NotFoundException(`Note ${note.id} not found.`);
+      await assertCurrent?.(current);
+      // Not under a legal hold (a 409 legal_hold).
+      await this.holds.assertNotHeld('Note', [current.id], tx);
+      // Not while an approver decides on it; a request sent back for changes is withdrawn with the note.
+      await this.approvals.withdraw(tx, by, 'Note', current.id);
       await tx
         .update(notes)
         .set({ deletedAt: new Date(), deletedBy: principalKey(by) })
-        .where(eq(notes.id, note.id));
-      await this.publisher.dispatch(tx, 'note.deleted', note);
-      if (note.ownerId !== principalKey(by)) {
+        .where(eq(notes.id, current.id));
+      await this.publisher.dispatch(tx, 'note.deleted', current);
+      if (current.ownerId !== principalKey(by)) {
         // Someone else's doing: the owner is told (and can't switch it off).
         await this.notifications.notify(tx, {
           type: 'note.deleted',
-          to: note.ownerId,
-          data: { noteId: note.id, title: note.title, by: by.name },
+          to: current.ownerId,
+          data: { noteId: current.id, title: current.title, by: by.name },
         });
       }
       await this.audit.recordChange(
         by,
         NOTE,
-        { action: 'deleted', id: note.id, before: note },
+        { action: 'deleted', id: current.id, before: current },
         tx,
         ip,
       );
