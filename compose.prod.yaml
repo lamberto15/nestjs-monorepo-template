@@ -375,6 +375,7 @@ services:
     # x-app's, and the maintenance role's URL: the worker's alone.
     secrets:
       - database_url
+      - database_monitor_url
       - redis_password
       - admin_password
       - jwt_secret

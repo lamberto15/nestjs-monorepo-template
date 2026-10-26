@@ -323,7 +323,7 @@ jobs:
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
           dir=$(mktemp -d)
-          for name in POSTGRES_PASSWORD DATABASE_URL DATABASE_OWNER_URL POSTGRES_MONITOR_PASSWORD POSTGRES_REPORTING_PASSWORD REDIS_PASSWORD CLOUDFLARE_API_TOKEN JWT_SECRET SMTP_URL ANTHROPIC_API_KEY BACKUP_ENCRYPTION_KEY; do
+          for name in POSTGRES_PASSWORD DATABASE_URL DATABASE_OWNER_URL DATABASE_MONITOR_URL POSTGRES_MONITOR_PASSWORD POSTGRES_REPORTING_PASSWORD REDIS_PASSWORD CLOUDFLARE_API_TOKEN JWT_SECRET SMTP_URL ANTHROPIC_API_KEY BACKUP_ENCRYPTION_KEY; do
             echo ci > "$dir/$name"
             export "${name}_FILE=$dir/$name"
           done
@@ -331,6 +331,11 @@ jobs:
           api() { jq -r ".services.api.environment.$1" files.json; }
           test "$(api DATABASE_URL)" = ''
           test "$(api DATABASE_URL_FILE)" = /run/secrets/database_url
+          for service in api worker; do
+            test "$(jq -r ".services.$service.environment.DATABASE_MONITOR_URL_FILE" files.json)" = /run/secrets/database_monitor_url
+            test "$(jq -r ".services.$service.secrets | map(.source) | index(\"database_monitor_url\") != null" files.json)" = true
+          done
+          test "$(jq -r .secrets.database_monitor_url.file files.json)" = "$dir/DATABASE_MONITOR_URL"
           test "$(jq -r .services.migrate.environment.DATABASE_URL files.json)" = ''
           test "$(jq -r .services.migrate.environment.DATABASE_URL_FILE files.json)" = /run/secrets/database_url
           test "$(jq -r .services.migrate.environment.DATABASE_OWNER_URL files.json)" = ''
