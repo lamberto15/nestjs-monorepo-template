@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { and, desc, getTableColumns } from 'drizzle-orm';
+import { and, desc, getTableColumns, inArray } from 'drizzle-orm';
 import {
+  RANK_CAP,
   headline,
   matches,
   rank,
@@ -64,7 +65,21 @@ export class NoteSearch implements SearchSource {
           bodySnippet: headline(notes.body, q),
         })
         .from(notes)
-        .where(where)
+        // The best of the newest RANK_CAP matches: ranking reads every row it ranks.
+        .where(
+          and(
+            where,
+            inArray(
+              notes.id,
+              db
+                .select({ id: notes.id })
+                .from(notes)
+                .where(where)
+                .orderBy(desc(notes.id))
+                .limit(RANK_CAP),
+            ),
+          ),
+        )
         .orderBy(desc(score), desc(notes.id))
         .limit(limit),
     );
