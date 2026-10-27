@@ -136,6 +136,19 @@ test.describe('signed in as the administrator', () => {
         await expectAccessible(page, nameOf(path, 'phone'));
       });
     }
+
+    // Reflow (WCAG 1.4.10): the dashboard's chart fits the screen rather
+    // than widening the page into a sideways scroll.
+    test('the dashboard fits the screen', async ({ page }) => {
+      await page.goto('/');
+      await expect(page.locator('[data-slot="chart"]')).toBeVisible();
+      const overflow = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      );
+      expect(overflow).toBe(0);
+    });
   });
 
   test.describe('open overlays', () => {

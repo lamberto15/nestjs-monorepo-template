@@ -146,9 +146,12 @@ export function Dashboard() {
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         {cards.map((card) => (
+          // min-w-0: a grid item is at least as wide as its content, and a
+          // chart first renders 320px wide, so on a phone it would widen the
+          // column (and the page) instead of shrinking to fit.
           <div
             key={card.id}
-            className={card.wide ? 'lg:col-span-2' : undefined}
+            className={card.wide ? 'min-w-0 lg:col-span-2' : 'min-w-0'}
           >
             <Suspense fallback={<Spinner />}>
               <card.component />
