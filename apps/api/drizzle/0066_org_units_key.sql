@@ -1,0 +1,2 @@
+ALTER TABLE "organizational_units" DROP CONSTRAINT "teams_tenant_id_id_key";--> statement-breakpoint
+ALTER TABLE "organizational_units" ADD CONSTRAINT "organizational_units_tenant_id_id_key" UNIQUE("tenant_id","id");

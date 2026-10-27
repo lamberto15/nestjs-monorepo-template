@@ -1098,7 +1098,7 @@ export interface paths {
         };
         /**
          * Every setting and flag, with your value of each
-         * @description Your value: the operators' enforced value, else your own, else your team's, else your tenant's (or a rollout), else the operators' value for every tenant, else the default. Settings not marked public show only to those who manage settings.
+         * @description Your value: the operators' enforced value, else your own, else your unit's, else your tenant's (or a rollout), else the operators' value for every tenant, else the default. Settings not marked public show only to those who manage settings.
          */
         get: operations["SettingsController_list_v1"];
         put?: never;
@@ -1119,7 +1119,7 @@ export interface paths {
         /** One setting, with your value */
         get: operations["SettingsController_get_v1"];
         /**
-         * Set a setting for everyone, a team, or one principal
+         * Set a setting for everyone, a unit, or one principal
          * @description Replaces what that scope had, in the caller's tenant. A flag at the tenant scope may take `rollout` (a percentage) instead of a value. Applies on the next request. Audited.
          */
         put: operations["SettingsController_set_v1"];
@@ -1641,7 +1641,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/teams": {
+    "/v1/organizational-units": {
         parameters: {
             query?: never;
             header?: never;
@@ -1649,10 +1649,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Your tenant's teams: names and tree, for pickers
-         * @description Every team of your tenant, newest first in cursor pages (`limit`: 50 a page by default, 100 at most; follow `nextCursor` to read them all): its id (what `teamId` holds), name, parent and depth, nothing else. `q`: a part of the name; `id=<id>,<id>`: these teams (100 ids at most; an id your tenant has no team of is left out). For any member; managing teams is /v1/access/teams.
+         * Your tenant's organizational units: names and tree, for pickers
+         * @description Every organizational unit of your tenant, newest first in cursor pages (`limit`: 50 a page by default, 100 at most; follow `nextCursor` to read them all): its id (what `unitId` holds), name, parent and depth, nothing else. `q`: a part of the name; `id=<id>,<id>`: these units (100 ids at most; an id your tenant has no unit of is left out). For any member; managing units is /v1/access/organizational-units.
          */
-        get: operations["TeamDirectoryController_list_v1"];
+        get: operations["UnitDirectoryController_list_v1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1951,13 +1951,13 @@ export interface paths {
         };
         /**
          * The saved views you see
-         * @description Yours, those shared with your teams and the tenant-wide ones, of the lists you may read. `?subject=Note`, `?visibility=team`, `?name.contains=`, `?sort=name`; newest first; cursor pages.
+         * @description Yours, those shared with your units and the tenant-wide ones, of the lists you may read. `?subject=Note`, `?visibility=unit`, `?name.contains=`, `?sort=name`; newest first; cursor pages.
          */
         get: operations["ViewsController_list_v1"];
         put?: never;
         /**
          * Save a view of a list
-         * @description The list's filters, sort and search as its route takes them (`query`) and the item fields to show (`columns`), validated against the list as it is now (custom fields included). `visibility`: `private` (default), `team` (with `teamId`: a team you belong to) or `tenant` (`Access.manageViews`). The name is unique per list and place, whatever its case. Audited (`view.created`).
+         * @description The list's filters, sort and search as its route takes them (`query`) and the item fields to show (`columns`), validated against the list as it is now (custom fields included). `visibility`: `private` (default), `unit` (with `unitId`: an organizational unit you belong to) or `tenant` (`Access.manageViews`). The name is unique per list and place, whatever its case. Audited (`view.created`).
          */
         post: operations["ViewsController_create_v1"];
         delete?: never;
@@ -3322,13 +3322,13 @@ export interface paths {
         };
         /**
          * The users, with their role ids, newest first
-         * @description Filter flat (`?active=true&email.contains=@example.com`, a team's members with `?teamId=<id>` or `?teamId.in=<id>,<id>`: those in it, not in the teams below) or with `filter` (and/or groups), sort with `sort=-createdAt`, pick fields with `fields=email,name`; each parameter lists what it takes. GET /v1/lists/User describes it.
+         * @description Filter flat (`?active=true&email.contains=@example.com`, a unit's current members with `?unitId=<id>` or `?unitId.in=<id>,<id>`: those in it, not in the units below) or with `filter` (and/or groups), sort with `sort=-createdAt`, pick fields with `fields=email,name`; each parameter lists what it takes. GET /v1/lists/User describes it.
          */
         get: operations["AccessController_users_v1"];
         put?: never;
         /**
          * Invite someone to this tenant
-         * @description The address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). A new address chooses its password with it; an existing account accepts while signed in (POST /auth/invitations/accept). The membership, with these roles and teams, comes then. The answer is the same whether or not the address has an account; nobody sets another person's password.
+         * @description The address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). A new address chooses its password with it; an existing account accepts while signed in (POST /auth/invitations/accept). The membership, with these roles and units, comes then. The answer is the same whether or not the address has an account; nobody sets another person's password.
          */
         post: operations["AccessController_createUser_v1"];
         delete?: never;
@@ -3344,7 +3344,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** One member of this tenant, with their role grants and teams */
+        /** One member of this tenant, with their role grants and units */
         get: operations["AccessController_user_v1"];
         put?: never;
         post?: never;
@@ -3353,7 +3353,7 @@ export interface paths {
         head?: never;
         /**
          * Change a member's membership; only what is sent changes
-         * @description Its activation, roles and teams in this tenant: never the account (its name, its password), which is its owner's. A deactivation ends their sessions and tokens in this tenant. The last active administrator stays.
+         * @description Its activation, roles and units in this tenant: never the account (its name, its password), which is its owner's. A deactivation ends their sessions and tokens in this tenant. The last active administrator stays.
          */
         patch: operations["AccessController_updateUser_v1"];
         trace?: never;
@@ -3386,7 +3386,7 @@ export interface paths {
         put?: never;
         /**
          * Send a pending invitation again: a new link and expiry
-         * @description Expired or not. The previous link stops working; the roles, their ends (`roleExpiresAt`) and the teams stay as they were. You must be able to grant its roles, as when inviting.
+         * @description Expired or not. The previous link stops working; the roles, their ends (`roleExpiresAt`) and the units stay as they were. You must be able to grant its roles, as when inviting.
          */
         post: operations["AccessController_resendInvitation_v1"];
         delete?: never;
@@ -3609,25 +3609,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/access/teams": {
+    "/v1/access/organizational-units": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Every team, top-level first, with its parent and depth */
-        get: operations["TeamsController_list_v1"];
+        /** Every organizational unit, top-level first, with its depth */
+        get: operations["OrganizationalUnitsController_list_v1"];
         put?: never;
-        /** Create a team */
-        post: operations["TeamsController_create_v1"];
+        /** Create an organizational unit */
+        post: operations["OrganizationalUnitsController_create_v1"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/access/teams/{id}": {
+    "/v1/access/organizational-units/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -3637,12 +3637,48 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Delete an empty team */
-        delete: operations["TeamsController_remove_v1"];
+        /** Delete an empty organizational unit */
+        delete: operations["OrganizationalUnitsController_remove_v1"];
         options?: never;
         head?: never;
-        /** Rename a team, or move it with everything under it */
-        patch: operations["TeamsController_update_v1"];
+        /** Rename or retype an organizational unit, or move it with everything under it */
+        patch: operations["OrganizationalUnitsController_update_v1"];
+        trace?: never;
+    };
+    "/v1/access/organizational-units/{id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A unit's memberships, current and ended, latest first */
+        get: operations["OrganizationalUnitsController_members_v1"];
+        put?: never;
+        /** Add a user to a unit, as a member or its lead, optionally dated */
+        post: operations["OrganizationalUnitsController_addMember_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/organizational-units/{id}/members/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a user from a unit: their membership ends now (kept) */
+        delete: operations["OrganizationalUnitsController_removeMember_v1"];
+        options?: never;
+        head?: never;
+        /** Change a member's role: their membership ends now and a new one starts */
+        patch: operations["OrganizationalUnitsController_changeMember_v1"];
         trace?: never;
     };
     "/v1/legal-holds": {
@@ -4264,12 +4300,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * The groups (teams) made over SCIM
+         * The groups (organizational units) made over SCIM
          * @description Filter: `eq` on `displayName`, `externalId` or `id`, joined with `and`. `excludedAttributes=members` leaves the members out.
          */
         get: operations["ScimController_listGroups_v1"];
         put?: never;
-        /** Make a group: a top-level team, its members provisioned users */
+        /** Make a group: a top-level unit of type team, its members provisioned users */
         post: operations["ScimController_createGroup_v1"];
         delete?: never;
         options?: never;
@@ -4289,7 +4325,7 @@ export interface paths {
         /** Replace a group: its name and members */
         put: operations["ScimController_replaceGroup_v1"];
         post?: never;
-        /** Delete a group: its team goes, not its members */
+        /** Delete a group: its unit goes, not its members */
         delete: operations["ScimController_deleteGroup_v1"];
         options?: never;
         head?: never;
@@ -4913,9 +4949,9 @@ export interface components {
             /** @example My drafts */
             name: string;
             /** @enum {string} */
-            visibility: "private" | "team" | "tenant";
-            /** @description Set for a `team` view. */
-            teamId: string | null;
+            visibility: "private" | "unit" | "tenant";
+            /** @description Set for a `unit` view. */
+            unitId: string | null;
             /** @description `user:<id>` or `client:<id>`; `anonymous` once its owner’s account is gone. */
             owner: string;
             /** @description You own it. */
@@ -10466,14 +10502,14 @@ export interface operations {
                             /** @description A feature flag (boolean, may roll out to a share of principals). */
                             flag: boolean;
                             /** @description Where it may be set; `user`: you may set it for yourself. */
-                            scopes: ("tenant" | "team" | "user")[];
+                            scopes: ("tenant" | "unit" | "user")[];
                             public: boolean;
                             value: unknown;
                             /**
                              * @description Where your value comes from.
                              * @enum {string}
                              */
-                            source: "tenant" | "team" | "user" | "rule" | "rollout" | "platform" | "default";
+                            source: "tenant" | "unit" | "user" | "rule" | "rollout" | "platform" | "default";
                             default: unknown;
                             /**
                              * @description The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what.
@@ -10494,7 +10530,7 @@ export interface operations {
                             schema: {
                                 [key: string]: unknown;
                             };
-                            /** @description You may set and remove its value for the tenant, a team or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating. */
+                            /** @description You may set and remove its value for the tenant, a unit or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating. */
                             canEdit: boolean;
                             /** @description You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`. */
                             canSetMine: boolean;
@@ -10502,7 +10538,7 @@ export interface operations {
                             platform: {
                                 /** @description Null: only `rollout` applies. */
                                 value: unknown;
-                                /** @description Beats every tenant's, team's and principal's value (a kill switch). */
+                                /** @description Beats every tenant's, unit's and principal's value (a kill switch). */
                                 enforced: boolean;
                                 /** @description Flags: the percentage of each tenant's principals it is on for, when no value is set. */
                                 rollout: number | null;
@@ -10569,14 +10605,14 @@ export interface operations {
                         /** @description A feature flag (boolean, may roll out to a share of principals). */
                         flag: boolean;
                         /** @description Where it may be set; `user`: you may set it for yourself. */
-                        scopes: ("tenant" | "team" | "user")[];
+                        scopes: ("tenant" | "unit" | "user")[];
                         public: boolean;
                         value: unknown;
                         /**
                          * @description Where your value comes from.
                          * @enum {string}
                          */
-                        source: "tenant" | "team" | "user" | "rule" | "rollout" | "platform" | "default";
+                        source: "tenant" | "unit" | "user" | "rule" | "rollout" | "platform" | "default";
                         default: unknown;
                         /**
                          * @description The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what.
@@ -10597,7 +10633,7 @@ export interface operations {
                         schema: {
                             [key: string]: unknown;
                         };
-                        /** @description You may set and remove its value for the tenant, a team or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating. */
+                        /** @description You may set and remove its value for the tenant, a unit or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating. */
                         canEdit: boolean;
                         /** @description You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`. */
                         canSetMine: boolean;
@@ -10605,7 +10641,7 @@ export interface operations {
                         platform: {
                             /** @description Null: only `rollout` applies. */
                             value: unknown;
-                            /** @description Beats every tenant's, team's and principal's value (a kill switch). */
+                            /** @description Beats every tenant's, unit's and principal's value (a kill switch). */
                             enforced: boolean;
                             /** @description Flags: the percentage of each tenant's principals it is on for, when no value is set. */
                             rollout: number | null;
@@ -10669,8 +10705,8 @@ export interface operations {
                      * @default tenant
                      * @enum {string}
                      */
-                    scope?: "tenant" | "team" | "user";
-                    /** @description For team: the team's id; for user: the principal's key (`user:<id>`, `client:<id>`). */
+                    scope?: "tenant" | "unit" | "user";
+                    /** @description For unit: the organizational unit's id; for user: the principal's key (`user:<id>`, `client:<id>`). */
                     scopeId?: string;
                     /** @description The value; left out with `rollout`: the flag's rollout alone applies. */
                     value?: unknown;
@@ -10705,8 +10741,8 @@ export interface operations {
                         /** @example notes.publishDelay */
                         key: string;
                         /** @enum {string} */
-                        scope: "tenant" | "team" | "user";
-                        /** @description The team's id, the principal's key (`user:<id>`), or '' for the tenant. */
+                        scope: "tenant" | "unit" | "user";
+                        /** @description The unit's id, the principal's key (`user:<id>`), or '' for the tenant. */
                         scopeId: string;
                         value: unknown;
                         rollout: number | null;
@@ -10753,7 +10789,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description No such setting, team or principal. */
+            /** @description No such setting, unit or principal. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -10772,7 +10808,7 @@ export interface operations {
     SettingsController_unset_v1: {
         parameters: {
             query?: {
-                scope?: "tenant" | "team" | "user";
+                scope?: "tenant" | "unit" | "user";
                 scopeId?: string;
             };
             header?: never;
@@ -10841,14 +10877,14 @@ export interface operations {
                         /** @description A feature flag (boolean, may roll out to a share of principals). */
                         flag: boolean;
                         /** @description Where it may be set; `user`: you may set it for yourself. */
-                        scopes: ("tenant" | "team" | "user")[];
+                        scopes: ("tenant" | "unit" | "user")[];
                         public: boolean;
                         value: unknown;
                         /**
                          * @description Where your value comes from.
                          * @enum {string}
                          */
-                        source: "tenant" | "team" | "user" | "rule" | "rollout" | "platform" | "default";
+                        source: "tenant" | "unit" | "user" | "rule" | "rollout" | "platform" | "default";
                         default: unknown;
                         /**
                          * @description The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what.
@@ -10869,7 +10905,7 @@ export interface operations {
                         schema: {
                             [key: string]: unknown;
                         };
-                        /** @description You may set and remove its value for the tenant, a team or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating. */
+                        /** @description You may set and remove its value for the tenant, a unit or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating. */
                         canEdit: boolean;
                         /** @description You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`. */
                         canSetMine: boolean;
@@ -10877,7 +10913,7 @@ export interface operations {
                         platform: {
                             /** @description Null: only `rollout` applies. */
                             value: unknown;
-                            /** @description Beats every tenant's, team's and principal's value (a kill switch). */
+                            /** @description Beats every tenant's, unit's and principal's value (a kill switch). */
                             enforced: boolean;
                             /** @description Flags: the percentage of each tenant's principals it is on for, when no value is set. */
                             rollout: number | null;
@@ -10956,14 +10992,14 @@ export interface operations {
                         /** @description A feature flag (boolean, may roll out to a share of principals). */
                         flag: boolean;
                         /** @description Where it may be set; `user`: you may set it for yourself. */
-                        scopes: ("tenant" | "team" | "user")[];
+                        scopes: ("tenant" | "unit" | "user")[];
                         public: boolean;
                         value: unknown;
                         /**
                          * @description Where your value comes from.
                          * @enum {string}
                          */
-                        source: "tenant" | "team" | "user" | "rule" | "rollout" | "platform" | "default";
+                        source: "tenant" | "unit" | "user" | "rule" | "rollout" | "platform" | "default";
                         default: unknown;
                         /**
                          * @description The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what.
@@ -10984,7 +11020,7 @@ export interface operations {
                         schema: {
                             [key: string]: unknown;
                         };
-                        /** @description You may set and remove its value for the tenant, a team or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating. */
+                        /** @description You may set and remove its value for the tenant, a unit or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating. */
                         canEdit: boolean;
                         /** @description You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`. */
                         canSetMine: boolean;
@@ -10992,7 +11028,7 @@ export interface operations {
                         platform: {
                             /** @description Null: only `rollout` applies. */
                             value: unknown;
-                            /** @description Beats every tenant's, team's and principal's value (a kill switch). */
+                            /** @description Beats every tenant's, unit's and principal's value (a kill switch). */
                             enforced: boolean;
                             /** @description Flags: the percentage of each tenant's principals it is on for, when no value is set. */
                             rollout: number | null;
@@ -11055,7 +11091,7 @@ export interface operations {
                     /** @description The value, checked by the setting's schema; left out with `rollout`: the flag's rollout alone applies. */
                     value?: unknown;
                     /**
-                     * @description true: beats every tenant's, team's and principal's value (a kill switch; needs a value); false: the default for every tenant that set nothing.
+                     * @description true: beats every tenant's, unit's and principal's value (a kill switch; needs a value); false: the default for every tenant that set nothing.
                      * @default false
                      */
                     enforced?: boolean;
@@ -11210,8 +11246,8 @@ export interface operations {
                             /** @example notes.publishDelay */
                             key: string;
                             /** @enum {string} */
-                            scope: "tenant" | "team" | "user";
-                            /** @description The team's id, the principal's key (`user:<id>`), or '' for the tenant. */
+                            scope: "tenant" | "unit" | "user";
+                            /** @description The unit's id, the principal's key (`user:<id>`), or '' for the tenant. */
                             scopeId: string;
                             value: unknown;
                             rollout: number | null;
@@ -12577,7 +12613,7 @@ export interface operations {
                              */
                             operators: ("eq" | "ne" | "in" | "notIn" | "contains" | "notContains" | "startsWith" | "endsWith" | "gt" | "gte" | "lt" | "lte" | "between" | "isNull")[];
                             /**
-                             * @description What the field's values are ids of, for a picker instead of a text box: `tag` (GET /v1/tags), `team` (GET /v1/teams: search with `q`, name ids with `id=`), `principal` (a user's or an API client's key, `user:<id>` or `client:<id>`: GET /v1/people searches users with `q`, names keys with `key=`) or a record's subject (`Invoice`: GET its list). Absent for any other field.
+                             * @description What the field's values are ids of, for a picker instead of a text box: `tag` (GET /v1/tags), `unit` (GET /v1/organizational-units: search with `q`, name ids with `id=`), `principal` (a user's or an API client's key, `user:<id>` or `client:<id>`: GET /v1/people searches users with `q`, names keys with `key=`) or a record's subject (`Invoice`: GET its list). Absent for any other field.
                              * @example tag
                              */
                             ref?: string;
@@ -12822,14 +12858,14 @@ export interface operations {
             };
         };
     };
-    TeamDirectoryController_list_v1: {
+    UnitDirectoryController_list_v1: {
         parameters: {
             query?: {
-                /** @description Part of the team name, any case (`%` and `_` are themselves). */
+                /** @description Part of the unit name, any case (`%` and `_` are themselves). */
                 q?: string;
-                /** @description Team ids to name, comma-separated, 100 at most: an id your tenant has no team of is left out of the answer. */
+                /** @description Unit ids to name, comma-separated, 100 at most: an id your tenant has no unit of is left out of the answer. */
                 id?: string;
-                /** @description Teams a page holds: 50 without it, 100 at most (more is a 400). It applies with `id` too: send at least as many as the ids. */
+                /** @description Units a page holds: 50 without it, 100 at most (more is a 400). It applies with `id` too: send at least as many as the ids. */
                 limit?: number;
                 /** @description `nextCursor` of the previous page (the same `q` and `id`). */
                 cursor?: string;
@@ -12850,17 +12886,19 @@ export interface operations {
                         items: {
                             /**
                              * Format: uuid
-                             * @description What a record's `teamId` holds.
+                             * @description What a record's `unitId` holds.
                              */
                             id: string;
+                            /** @enum {string} */
+                            type: "division" | "department" | "team";
                             /** @example North */
                             name: string;
                             /**
                              * Format: uuid
-                             * @description The team it is under; null for a top-level team.
+                             * @description The unit it is under; null for a top-level unit.
                              */
                             parentId: string | null;
-                            /** @description 0 for a top-level team. */
+                            /** @description 0 for a top-level unit. */
                             depth: number;
                         }[];
                         /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
@@ -14003,11 +14041,11 @@ export interface operations {
                 /** @description Filter: subject in */
                 "subject.in"?: string;
                 /** @description Filter: visibility = */
-                visibility?: "private" | "team" | "tenant";
+                visibility?: "private" | "unit" | "tenant";
                 /** @description Filter: visibility in */
                 "visibility.in"?: string;
-                /** @description Filter: teamId = */
-                teamId?: string;
+                /** @description Filter: unitId = */
+                unitId?: string;
                 /** @description Filter: name = */
                 name?: string;
                 /** @description Filter: name contains */
@@ -14032,11 +14070,11 @@ export interface operations {
                 "updatedAt.lte"?: string;
                 /** @description Filter: updatedAt between */
                 "updatedAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"subject","op":"eq","value":…},{…}]}. Fields and operators: subject (eq, in); visibility (eq, in); teamId (eq); name (eq, contains); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"subject","op":"eq","value":…},{…}]}. Fields and operators: subject (eq, in); visibility (eq, in); unitId (eq); name (eq, contains); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,name. Fields: id, subject, name, visibility, teamId, owner, mine, editable, query, columns, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,name. Fields: id, subject, name, visibility, unitId, owner, mine, editable, query, columns, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -14083,12 +14121,12 @@ export interface operations {
                      * @default private
                      * @enum {string}
                      */
-                    visibility?: "private" | "team" | "tenant";
+                    visibility?: "private" | "unit" | "tenant";
                     /**
                      * Format: uuid
-                     * @description For `visibility: "team"`: a team you belong to.
+                     * @description For `visibility: "unit"`: an organizational unit you belong to.
                      */
-                    teamId?: string;
+                    unitId?: string;
                     /**
                      * @description The list's query parameters as its route takes them: flat filters (`status`, `title.contains`), `filter` (the JSON tree as a string), `sort`, `q`. Never paging (`limit`, `cursor`, `page`, `count`), `fields`, `deleted` or `lang`.
                      * @default {}
@@ -14117,7 +14155,7 @@ export interface operations {
                     "application/json": components["schemas"]["SavedView"];
                 };
             };
-            /** @description An unknown list (`subject`), a query the list refuses (`query.<parameter>`: paging, `fields`, `deleted` and `lang` are not filters), a column not in its `select` (`columns`), a team that does not exist, more than 100 views (validation_failed). */
+            /** @description An unknown list (`subject`), a query the list refuses (`query.<parameter>`: paging, `fields`, `deleted` and `lang` are not filters), a column not in its `select` (`columns`), a unit that does not exist, more than 100 views (validation_failed). */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14235,12 +14273,12 @@ export interface operations {
                     /** @example My drafts */
                     name?: string;
                     /** @enum {string} */
-                    visibility?: "private" | "team" | "tenant";
+                    visibility?: "private" | "unit" | "tenant";
                     /**
                      * Format: uuid
-                     * @description For `visibility: "team"`: a team you belong to.
+                     * @description For `visibility: "unit"`: an organizational unit you belong to.
                      */
-                    teamId?: string | null;
+                    unitId?: string | null;
                     /**
                      * @description The list's query parameters as its route takes them: flat filters (`status`, `title.contains`), `filter` (the JSON tree as a string), `sort`, `q`. Never paging (`limit`, `cursor`, `page`, `count`), `fields`, `deleted` or `lang`.
                      * @example {
@@ -14265,7 +14303,7 @@ export interface operations {
                     "application/json": components["schemas"]["SavedView"];
                 };
             };
-            /** @description An unknown list (`subject`), a query the list refuses (`query.<parameter>`: paging, `fields`, `deleted` and `lang` are not filters), a column not in its `select` (`columns`), a team that does not exist, more than 100 views (validation_failed). */
+            /** @description An unknown list (`subject`), a query the list refuses (`query.<parameter>`: paging, `fields`, `deleted` and `lang` are not filters), a column not in its `select` (`columns`), a unit that does not exist, more than 100 views (validation_failed). */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -20560,10 +20598,10 @@ export interface operations {
                 active?: "true" | "false";
                 /** @description Filter: emailVerified = */
                 emailVerified?: "true" | "false";
-                /** @description Filter: teamId = */
-                teamId?: string;
-                /** @description Filter: teamId in */
-                "teamId.in"?: string;
+                /** @description Filter: unitId = */
+                unitId?: string;
+                /** @description Filter: unitId in */
+                "unitId.in"?: string;
                 /** @description Filter: createdAt gt */
                 "createdAt.gt"?: string;
                 /** @description Filter: createdAt gte */
@@ -20584,11 +20622,11 @@ export interface operations {
                 "updatedAt.lte"?: string;
                 /** @description Filter: updatedAt between */
                 "updatedAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"email","op":"eq","value":…},{…}]}. Fields and operators: email (eq, contains, startsWith, endsWith); name (contains, startsWith); active (eq); emailVerified (eq); teamId (eq, in); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"email","op":"eq","value":…},{…}]}. Fields and operators: email (eq, contains, startsWith, endsWith); name (contains, startsWith); active (eq); emailVerified (eq); unitId (eq, in); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -email. Sortable: email, name, createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: kind,email. Fields: id, kind, email, name, emailVerified, locale, timezone, active, hasPassword, createdAt, updatedAt, roleIds, roles, teamIds. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: kind,email. Fields: id, kind, email, name, emailVerified, locale, timezone, active, hasPassword, createdAt, updatedAt, roleIds, roles, unitIds. */
                 fields?: string;
             };
             header?: never;
@@ -20635,7 +20673,8 @@ export interface operations {
                                  */
                                 expiresAt: string | null;
                             }[];
-                            teamIds: string[];
+                            /** @description The organizational units they are a current member of. */
+                            unitIds: string[];
                         }[];
                         /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
                         nextCursor: string | null;
@@ -20688,8 +20727,8 @@ export interface operations {
                     roleExpiresAt?: {
                         [key: string]: string;
                     };
-                    /** @description The teams the user belongs to. */
-                    teamIds?: string[];
+                    /** @description The organizational units the user belongs to, as a member. */
+                    unitIds?: string[];
                 };
             };
         };
@@ -20772,7 +20811,8 @@ export interface operations {
                              */
                             expiresAt: string | null;
                         }[];
-                        teamIds: string[];
+                        /** @description The organizational units they are a current member of. */
+                        unitIds: string[];
                     };
                 };
             };
@@ -20818,7 +20858,8 @@ export interface operations {
                     roleExpiresAt?: {
                         [key: string]: string;
                     };
-                    teamIds?: string[];
+                    /** @description Replaces the units they belong to: a unit left ends its membership, a new one starts as a member. */
+                    unitIds?: string[];
                 };
             };
         };
@@ -20885,7 +20926,7 @@ export interface operations {
                             roleExpiresAt: {
                                 [key: string]: string;
                             };
-                            teamIds: string[];
+                            unitIds: string[];
                             invitedBy: string;
                             expired: boolean;
                             /** Format: date-time */
@@ -21965,7 +22006,7 @@ export interface operations {
             };
         };
     };
-    TeamsController_list_v1: {
+    OrganizationalUnitsController_list_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -21983,14 +22024,20 @@ export interface operations {
                         items: {
                             /** Format: uuid */
                             id: string;
+                            /**
+                             * @description A label of the unit: it grants nothing by itself.
+                             * @enum {string}
+                             */
+                            type: "division" | "department" | "team";
                             name: string;
                             /** Format: uuid */
                             parentId: string | null;
-                            /** @description 0 for a top-level team. */
+                            /** @description 0 for a top-level unit. */
                             depth: number;
+                            /** @description Its current members (leads included). */
                             members: number;
-                            /** @description Always sent. The IdP manages it over SCIM: its name, place and members change there (409 `team_managed_by_scim` here). */
-                            managedByScim?: boolean;
+                            /** @description The IdP manages it over SCIM: its name, place and members change there (409 `unit_managed_by_scim` here). */
+                            managedByScim: boolean;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -22001,7 +22048,7 @@ export interface operations {
             };
         };
     };
-    TeamsController_create_v1: {
+    OrganizationalUnitsController_create_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -22011,10 +22058,13 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    /** @enum {string} */
+                    type: "division" | "department" | "team";
+                    /** @description Unique among its siblings, ignoring case. */
                     name: string;
                     /**
                      * Format: uuid
-                     * @description Leave out for a top-level team.
+                     * @description Leave out for a top-level unit.
                      */
                     parentId?: string | null;
                 };
@@ -22029,6 +22079,11 @@ export interface operations {
                     "application/json": {
                         /** Format: uuid */
                         id: string;
+                        /**
+                         * @description A label of the unit: it grants nothing by itself.
+                         * @enum {string}
+                         */
+                        type: "division" | "department" | "team";
                         name: string;
                         /** Format: uuid */
                         parentId: string | null;
@@ -22039,9 +22094,16 @@ export interface operations {
                     };
                 };
             };
+            /** @description `unit_name_taken`: a sibling has the name (any case). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
-    TeamsController_remove_v1: {
+    OrganizationalUnitsController_remove_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -22064,7 +22126,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description It still has teams under it, or members; or `team_managed_by_scim`. */
+            /** @description `unit_not_empty`: units under it, current members, or records or saved views of it; or `unit_managed_by_scim`. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -22073,7 +22135,7 @@ export interface operations {
             };
         };
     };
-    TeamsController_update_v1: {
+    OrganizationalUnitsController_update_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -22085,10 +22147,12 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    /** @enum {string} */
+                    type?: "division" | "department" | "team";
                     name?: string;
                     /**
                      * Format: uuid
-                     * @description Moves the team, with every team under it; null: to the top.
+                     * @description Moves the unit, with every unit under it; null: to the top.
                      */
                     parentId?: string | null;
                 };
@@ -22103,6 +22167,11 @@ export interface operations {
                     "application/json": {
                         /** Format: uuid */
                         id: string;
+                        /**
+                         * @description A label of the unit: it grants nothing by itself.
+                         * @enum {string}
+                         */
+                        type: "division" | "department" | "team";
                         name: string;
                         /** Format: uuid */
                         parentId: string | null;
@@ -22119,7 +22188,228 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `team_managed_by_scim`: the IdP manages it. */
+            /** @description `unit_name_taken`; `unit_managed_by_scim`: the IdP manages it; or a move under itself. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OrganizationalUnitsController_members_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            /** Format: uuid */
+                            unitId: string;
+                            /** Format: uuid */
+                            userId: string;
+                            /** @enum {string} */
+                            role: "member" | "lead";
+                            /** Format: date-time */
+                            validFrom: string;
+                            /**
+                             * Format: date-time
+                             * @description Null: open-ended.
+                             */
+                            validTo: string | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        }[];
+                    };
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OrganizationalUnitsController_addMember_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    userId: string;
+                    /**
+                     * @description Default: member.
+                     * @enum {string}
+                     */
+                    role?: "member" | "lead";
+                    /**
+                     * Format: date-time
+                     * @description Default: now. Later: dated ahead (a re-org).
+                     */
+                    validFrom?: string;
+                    /**
+                     * Format: date-time
+                     * @description Default: open-ended.
+                     */
+                    validTo?: string | null;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** Format: uuid */
+                        unitId: string;
+                        /** Format: uuid */
+                        userId: string;
+                        /** @enum {string} */
+                        role: "member" | "lead";
+                        /** Format: date-time */
+                        validFrom: string;
+                        /**
+                         * Format: date-time
+                         * @description Null: open-ended.
+                         */
+                        validTo: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description Yourself, or `authority_required`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Already a member; or `unit_managed_by_scim`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OrganizationalUnitsController_removeMember_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `unit_managed_by_scim`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OrganizationalUnitsController_changeMember_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    role: "member" | "lead";
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** Format: uuid */
+                        unitId: string;
+                        /** Format: uuid */
+                        userId: string;
+                        /** @enum {string} */
+                        role: "member" | "lead";
+                        /** Format: date-time */
+                        validFrom: string;
+                        /**
+                         * Format: date-time
+                         * @description Null: open-ended.
+                         */
+                        validTo: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `unit_managed_by_scim`. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -25287,12 +25577,12 @@ export interface operations {
                 "title.endsWith"?: string;
                 /** @description Filter: ownerId = */
                 ownerId?: string;
-                /** @description Filter: teamId = */
-                teamId?: string;
-                /** @description Filter: teamId in */
-                "teamId.in"?: string;
-                /** @description Filter: teamId isNull */
-                "teamId.isNull"?: "true" | "false";
+                /** @description Filter: unitId = */
+                unitId?: string;
+                /** @description Filter: unitId in */
+                "unitId.in"?: string;
+                /** @description Filter: unitId isNull */
+                "unitId.isNull"?: "true" | "false";
                 /** @description Filter: createdAt gt */
                 "createdAt.gt"?: string;
                 /** @description Filter: createdAt gte */
@@ -25325,13 +25615,13 @@ export interface operations {
                 "publishedAt.between"?: string;
                 /** @description Filter: publishedAt isNull */
                 "publishedAt.isNull"?: "true" | "false";
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"q","op":"eq","value":…},{…}]}. Fields and operators: q (eq); tag (eq, in); number (eq, startsWith); status (eq, ne, in, notIn); title (contains, notContains, startsWith, endsWith); ownerId (eq); teamId (eq, in, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between); publishedAt (gt, gte, lt, lte, between, isNull). */
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"q","op":"eq","value":…},{…}]}. Fields and operators: q (eq); tag (eq, in); number (eq, startsWith); status (eq, ne, in, notIn); title (contains, notContains, startsWith, endsWith); ownerId (eq); unitId (eq, in, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between); publishedAt (gt, gte, lt, lte, between, isNull). */
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -rank. Sortable: rank, number, status, title, createdAt, updatedAt, publishedAt. */
                 sort?: string;
                 /** @description true: the recycle bin (deleted records), for those who may restore them. */
                 deleted?: "true" | "false";
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: number,ownerId. Fields: id, number, ownerId, teamId, title, body, status, custom, createdAt, updatedAt, deletedAt, deletedBy, publishedAt, tags. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: number,ownerId. Fields: id, number, ownerId, unitId, title, body, status, custom, createdAt, updatedAt, deletedAt, deletedBy, publishedAt, tags. */
                 fields?: string;
                 /** @description Custom fields (GET /v1/custom-fields?subject=Note) filter, sort and select like the fields above: `custom.region=eu`, `custom.amount.gte=10`, in `filter` and `sort` as `custom.<key>`, `fields=custom.region`. */
                 "custom.<key>[.<op>]"?: string;
@@ -25356,9 +25646,9 @@ export interface operations {
                             ownerId: string;
                             /**
                              * Format: uuid
-                             * @description The author's team.
+                             * @description The author's organizational unit, when they were in exactly one.
                              */
-                            teamId: string | null;
+                            unitId: string | null;
                             title: string;
                             /** @description Left out when your permissions don't include the note's text. */
                             body?: string;
@@ -25480,9 +25770,9 @@ export interface operations {
                         ownerId: string;
                         /**
                          * Format: uuid
-                         * @description The author's team.
+                         * @description The author's organizational unit, when they were in exactly one.
                          */
-                        teamId: string | null;
+                        unitId: string | null;
                         title: string;
                         /** @description Left out when your permissions don't include the note's text. */
                         body?: string;
@@ -25637,9 +25927,9 @@ export interface operations {
                         ownerId: string;
                         /**
                          * Format: uuid
-                         * @description The author's team.
+                         * @description The author's organizational unit, when they were in exactly one.
                          */
-                        teamId: string | null;
+                        unitId: string | null;
                         title: string;
                         /** @description Left out when your permissions don't include the note's text. */
                         body?: string;
@@ -25796,9 +26086,9 @@ export interface operations {
                         ownerId: string;
                         /**
                          * Format: uuid
-                         * @description The author's team.
+                         * @description The author's organizational unit, when they were in exactly one.
                          */
-                        teamId: string | null;
+                        unitId: string | null;
                         title: string;
                         /** @description Left out when your permissions don't include the note's text. */
                         body?: string;
@@ -25892,9 +26182,9 @@ export interface operations {
                         ownerId: string;
                         /**
                          * Format: uuid
-                         * @description The author's team.
+                         * @description The author's organizational unit, when they were in exactly one.
                          */
-                        teamId: string | null;
+                        unitId: string | null;
                         title: string;
                         /** @description Left out when your permissions don't include the note's text. */
                         body?: string;
@@ -26795,9 +27085,9 @@ export interface operations {
                         ownerId: string;
                         /**
                          * Format: uuid
-                         * @description The author's team.
+                         * @description The author's organizational unit, when they were in exactly one.
                          */
-                        teamId: string | null;
+                        unitId: string | null;
                         title: string;
                         /** @description Left out when your permissions don't include the note's text. */
                         body?: string;

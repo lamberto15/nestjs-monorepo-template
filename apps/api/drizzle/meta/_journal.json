@@ -456,6 +456,27 @@
       "when": 1792996264916,
       "tag": "0064_far_shadow_king",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1793118902970,
+      "tag": "0065_org_units_rename",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1793118926142,
+      "tag": "0066_org_units_key",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1793118927177,
+      "tag": "0067_org_units_foreign_keys",
+      "breakpoints": true
     }
   ]
 }
