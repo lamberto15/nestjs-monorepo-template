@@ -326,7 +326,8 @@
       "tag": "Tag",
       "ownerId": "Eigentümer",
       "teamId": "Team",
-      "actor": "Akteur"
+      "actor": "Akteur",
+      "user": "Benutzer"
     },
     "refs": {
       "searching": "Wird gesucht…",

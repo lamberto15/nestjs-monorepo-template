@@ -325,7 +325,8 @@
       "tag": "Tag",
       "ownerId": "Pemilik",
       "teamId": "Pasukan",
-      "actor": "Pelaku"
+      "actor": "Pelaku",
+      "user": "Pengguna"
     },
     "refs": {
       "searching": "Mencari…",
