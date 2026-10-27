@@ -5,57 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1792228016489,
+      "when": 1793120683804,
       "tag": "0000_test_items",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1792230561878,
-      "tag": "0001_bizarre_blacklash",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1792232418499,
-      "tag": "0002_unknown_solo",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1792234519387,
-      "tag": "0003_rare_boom_boom",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1792235432666,
-      "tag": "0004_typical_mister_sinister",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1792502754807,
-      "tag": "0005_tenant_tree",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1792508114879,
-      "tag": "0006_encrypted_records",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1793118939662,
-      "tag": "0007_cloudy_sauron",
       "breakpoints": true
     }
   ]
