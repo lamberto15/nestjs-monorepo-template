@@ -1,5 +1,5 @@
 {
-  "id": "5d9fa5d6-480a-49ab-8a37-9b4a1a17e917",
+  "id": "bdc1d03d-2aa3-4271-93a7-f4a46b3b3738",
   "prevId": "d70f28a0-bd34-462e-a639-055931599cf3",
   "version": "7",
   "dialect": "postgresql",
@@ -8723,12 +8723,6 @@
           "notNull": true,
           "default": "'{}'::jsonb"
         },
-        "sort": {
-          "name": "sort",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "timezone": {
           "name": "timezone",
           "type": "text",
@@ -10632,6 +10626,22 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "approval_requests_unapplied_idx": {
+          "name": "approval_requests_unapplied_idx",
+          "columns": [
+            {
+              "expression": "ended_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "status = 'approved' and outcome_applied_at is null",
           "concurrently": false,
           "method": "btree",
           "with": {}

@@ -51,7 +51,8 @@ Every error, whatever produced it, is `application/problem+json`:
 ```
 
 - `code` is stable and machine-readable: `validation_failed`, `unauthorized`,
-  `forbidden`, `field_forbidden`, `not_found`, `conflict`, `rate_limited`,
+  `forbidden`, `field_forbidden`, `search_too_broad` (400: `?sort=-rank` with a `q`
+  matching more than 1,000 records), `not_found`, `conflict`, `rate_limited`,
   `mfa_required`, `password_breached` (a new password found in data
   breaches, 400 with the field in `errors`), `reauthentication_required`
   (403 on a sensitive route: no sign-in in the last
@@ -107,7 +108,7 @@ Every resource has the same shape and the same routes:
 - **What you may do with it:** `?include=can` on `GET /v1/<x>/{id}` and on
   the list adds `can` to each record, `{ update, delete, restore, issue }`
   (restore with a recycle bin, issue where it takes PDFs: `POST
-  …/{id}/pdf`, false while documents are off): what its routes would answer you now, by your
+…/{id}/pdf`, false while documents are off): what its routes would answer you now, by your
   permissions and their conditions (a published note is no longer an
   editor's to change: `update: false`, the PATCH a 403). A record you may not
   read is a 404 on every route of it, the same as one that doesn't exist (a
@@ -158,7 +159,10 @@ Newest first. Ids are UUIDv7 (time-ordered), so the cursor is the last id:
 no offsets, stable while rows are added. With a `sort`, the cursor is
 opaque (the last row's sort values and id, encrypted and authenticated by
 the server with `CURSOR_KEYS`: keyset pagination, as cheap on page 1,000 as
-on page 1); pass it back unchanged with the same `sort`, or it is a 400.
+on page 1, when an index on the sort exists); pass it back unchanged with
+the same `sort`, or it is a 400. A nullable field sorted ascending past its
+values, or descending while still inside its NULLs, reads the rows already
+passed (no index bound for those two pages).
 Clients can't read it: it may hold values of fields they can't see.
 
 Screens that jump to a page number ask by number instead:
@@ -181,7 +185,7 @@ GET /v1/notes?count=true&status=draft          → { items, nextCursor, total: 1
 - It counts what the filters match and the caller may see, on every page
   the same (the cursor doesn't change it). Ask on the first page and keep it.
 - Counting stops at 10,000 (`COUNT_CAP`): past it, `total: 10000,
-  totalCapped: true`, shown as "10,000+". A large table never makes a list slow.
+totalCapped: true`, shown as "10,000+". A large table never makes a list slow.
 - Without `count=true`, nothing is counted: infinite scroll, syncs and
   exports pay nothing.
 
@@ -217,14 +221,14 @@ it; `custom.<key>` counts as `custom`, a money field's `<x>Currency` as
 report. `GET /v1/lists/{subject}` already leaves those out (and says
 `search: false`).
 
-| Operator | Means | Flat value | `filter` value |
-| --- | --- | --- | --- |
-| `eq`, `ne` | equal, not equal | `draft` | `"draft"`, `3`, `true` |
-| `in`, `notIn` | one of, none of | `draft,published` | `["draft", "published"]` |
-| `contains`, `notContains`, `startsWith`, `endsWith` | text, case-insensitive | `report` | `"report"` |
-| `gt`, `gte`, `lt`, `lte` | compare | `2026-01-01T00:00:00Z` | `"2026-01-01T00:00:00Z"`, `10` |
-| `between` | both ends included | `1,10` | `[1, 10]` |
-| `isNull` | no value (`false`: has one) | `true` | `true` (the default) |
+| Operator                                            | Means                       | Flat value             | `filter` value                 |
+| --------------------------------------------------- | --------------------------- | ---------------------- | ------------------------------ |
+| `eq`, `ne`                                          | equal, not equal            | `draft`                | `"draft"`, `3`, `true`         |
+| `in`, `notIn`                                       | one of, none of             | `draft,published`      | `["draft", "published"]`       |
+| `contains`, `notContains`, `startsWith`, `endsWith` | text, case-insensitive      | `report`               | `"report"`                     |
+| `gt`, `gte`, `lt`, `lte`                            | compare                     | `2026-01-01T00:00:00Z` | `"2026-01-01T00:00:00Z"`, `10` |
+| `between`                                           | both ends included          | `1,10`                 | `[1, 10]`                      |
+| `isNull`                                            | no value (`false`: has one) | `true`                 | `true` (the default)           |
 
 Dates are ISO 8601 with an offset (`Z` or `+04:00`), numbers and booleans
 are JSON's own in `filter`. `%` and `_` are searched for as characters.
@@ -266,13 +270,16 @@ caller's permissions.
 A searchable list takes `?q=` (`core/database/search.ts`): words match
 anywhere in the record's text, `"quoted words"` as a phrase, `-word`
 excludes, `or` between words; `?sort=-rank` puts the best match first
-(`rank` is a sortable field of such lists, 0 without `q`). PostgreSQL's
+(`rank` is a sortable field of such lists, 0 without `q`, and the id orders).
+Ranking reads every match, so `?sort=-rank` is refused with a 400
+`search_too_broad` when `q` matches more than 1,000 records (`RANK_CAP`):
+narrow `q`, or sort by another field. PostgreSQL's
 full-text search, on a generated `tsvector` column with a GIN index; the
 `simple` configuration (every language, no stemming).
 
 `GET /v1/search?q=…[&subject=Note&limit=20]` searches every kind of record
 the caller may read at once: `{ subject, subjectLabel, id, title, snippet,
-score, link }`, best first; `subjectLabel` is `{ singular, plural }`
+score, link }`, best first (the best of the newest 1,000 matches per kind); `subjectLabel` is `{ singular, plural }`
 (`Note`, `Notes`), in the response's language (the subject's `names`,
 [permissions](permissions.md)); the snippet marks matches with `<b>…</b>` and is null for a text
 the caller may not read. A text the caller may read on no record isn't
@@ -303,24 +310,66 @@ repeating the declaration:
 {
   "subject": "Note",
   "fields": [
-    { "name": "status", "type": "enum", "options": ["draft", "published"],
-      "operators": ["eq", "ne", "in", "notIn"], "sortable": true, "custom": false },
-    { "name": "tag", "type": "uuid", "operators": ["eq", "in"], "sortable": false,
-      "custom": false, "ref": "tag" },
-    { "name": "custom.region", "type": "enum", "options": ["eu", "us"],
-      "operators": ["eq", "ne", "in", "notIn", "isNull"], "sortable": true,
-      "custom": true, "label": "Region" }
+    {
+      "name": "status",
+      "type": "enum",
+      "options": ["draft", "published"],
+      "operators": ["eq", "ne", "in", "notIn"],
+      "sortable": true,
+      "custom": false
+    },
+    {
+      "name": "tag",
+      "type": "uuid",
+      "operators": ["eq", "in"],
+      "sortable": false,
+      "custom": false,
+      "ref": "tag"
+    },
+    {
+      "name": "custom.region",
+      "type": "enum",
+      "options": ["eu", "us"],
+      "operators": ["eq", "ne", "in", "notIn", "isNull"],
+      "sortable": true,
+      "custom": true,
+      "label": "Region"
+    }
   ],
   "select": ["title", "status", "body", "custom", "custom.region"],
   "search": true,
   "recycleBin": false,
   "defaultSort": "-createdAt",
-  "limits": { "defaultLimit": 50, "maxLimit": 100, "maxOffset": 10000, "countCap": 10000,
-              "maxSort": 3, "maxConditions": 30, "maxDepth": 3, "maxValues": 50 },
-  "capabilities": { "tags": true, "comments": true, "attachments": true, "revisions": true,
-                    "pdf": false, "bulk": true, "watch": true, "search": true, "transfer": true,
-                    "custom": true, "events": true, "numbered": true, "approvals": true },
-  "attachmentLimits": { "maxBytes": 26214400, "maxMb": 25, "types": ["image/png", "application/pdf", "…"] }
+  "limits": {
+    "defaultLimit": 50,
+    "maxLimit": 100,
+    "maxOffset": 10000,
+    "countCap": 10000,
+    "maxSort": 3,
+    "maxConditions": 30,
+    "maxDepth": 3,
+    "maxValues": 50
+  },
+  "capabilities": {
+    "tags": true,
+    "comments": true,
+    "attachments": true,
+    "revisions": true,
+    "pdf": false,
+    "bulk": true,
+    "watch": true,
+    "search": true,
+    "transfer": true,
+    "custom": true,
+    "events": true,
+    "numbered": true,
+    "approvals": true
+  },
+  "attachmentLimits": {
+    "maxBytes": 26214400,
+    "maxMb": 25,
+    "types": ["image/png", "application/pdf", "…"]
+  }
 }
 ```
 
@@ -410,18 +459,36 @@ conditions, its join operator the group, its sorting `[{ id, desc }]` the
 with `count=true` for the page count.
 
 ```ts
-const OPS = { iLike: 'contains', notILike: 'notContains', eq: 'eq', ne: 'ne',
-  inArray: 'in', notInArray: 'notIn', lt: 'lt', lte: 'lte', gt: 'gt',
-  gte: 'gte', isBetween: 'between', isEmpty: 'isNull', isNotEmpty: 'isNull' };
+const OPS = {
+  iLike: 'contains',
+  notILike: 'notContains',
+  eq: 'eq',
+  ne: 'ne',
+  inArray: 'in',
+  notInArray: 'notIn',
+  lt: 'lt',
+  lte: 'lte',
+  gt: 'gt',
+  gte: 'gte',
+  isBetween: 'between',
+  isEmpty: 'isNull',
+  isNotEmpty: 'isNull',
+};
 
 function listParams(state: DataTableQuery, visible: string[]) {
   const conditions = state.filters.map((f) => ({
     field: f.id,
     op: OPS[f.operator],
-    value: f.operator === 'isEmpty' ? true : f.operator === 'isNotEmpty' ? false
-      : f.variant === 'number' || f.variant === 'range' ? toNumbers(f.value)
-      : f.variant === 'date' || f.variant === 'dateRange' ? toIsoDates(f.value)
-      : f.value,
+    value:
+      f.operator === 'isEmpty'
+        ? true
+        : f.operator === 'isNotEmpty'
+          ? false
+          : f.variant === 'number' || f.variant === 'range'
+            ? toNumbers(f.value)
+            : f.variant === 'date' || f.variant === 'dateRange'
+              ? toIsoDates(f.value)
+              : f.value,
   }));
   return new URLSearchParams({
     page: String(state.page),
@@ -513,11 +580,11 @@ tenant A); a user acting in no tenant has an `account:` scope of their own.
 
 ## Credentials
 
-| Who | How |
-| --- | --- |
-| A browser | the session cookie (`__Host-sid`), from `POST /v1/auth/sign-in` |
-| A mobile app or CLI | `Authorization: Bearer <JWT>`, from `POST /v1/auth/token` |
-| A system | `Authorization: Bearer sk_<id>_<secret>`, an API client's key |
+| Who                 | How                                                             |
+| ------------------- | --------------------------------------------------------------- |
+| A browser           | the session cookie (`__Host-sid`), from `POST /v1/auth/sign-in` |
+| A mobile app or CLI | `Authorization: Bearer <JWT>`, from `POST /v1/auth/token`       |
+| A system            | `Authorization: Bearer sk_<id>_<secret>`, an API client's key   |
 
 Writes from other websites' pages are refused (CSRF), except from
 `CORS_ORIGINS`. A browser app on one of them may read these response
@@ -530,11 +597,11 @@ headers (`Access-Control-Expose-Headers`, `CORS_EXPOSED_HEADERS` in
 600 requests a minute per IP. Routes that take credentials are tighter, per
 15 minutes:
 
-| Limit | Routes |
-| --- | --- |
-| 5 | sign-in, sign-up, forgot password, change password, `POST /v1/auth/token`, magic link, re-authenticate, resend verification without a session |
-| 10 | reset password, magic-link verify, MFA verify, email verify |
-| 3 | resend verification (signed in) |
+| Limit | Routes                                                                                                                                        |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 5     | sign-in, sign-up, forgot password, change password, `POST /v1/auth/token`, magic link, re-authenticate, resend verification without a session |
+| 10    | reset password, magic-link verify, MFA verify, email verify                                                                                   |
+| 3     | resend verification (signed in)                                                                                                               |
 
 Token refresh: 60 a minute. When the body has an `email`, the key is the
 email and the IP; otherwise the IP alone. Over the limit: 429 `rate_limited`.

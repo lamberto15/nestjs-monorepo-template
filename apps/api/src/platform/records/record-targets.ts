@@ -9,6 +9,7 @@ import { AuthorizationService } from '@nestjs/authorization';
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { and, desc, eq, getTableColumns, inArray, lt } from 'drizzle-orm';
 import {
+  RANK_CAP,
   headline,
   matches,
   rank,
@@ -387,7 +388,21 @@ export class RecordSearch {
           ),
         })
         .from(table as never)
-        .where(where)
+        // The best of the newest RANK_CAP matches: ranking reads every row it ranks.
+        .where(
+          and(
+            where,
+            inArray(
+              table.id!,
+              db
+                .select({ id: table.id! })
+                .from(table as never)
+                .where(where)
+                .orderBy(desc(table.id!))
+                .limit(RANK_CAP),
+            ),
+          ),
+        )
         .orderBy(desc(score), desc(table.id!))
         .limit(limit),
     )) as Record<string, unknown>[];

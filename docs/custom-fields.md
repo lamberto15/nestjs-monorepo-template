@@ -15,8 +15,11 @@ declaration; notes is the example. The code is in `apps/api/src/platform/custom-
   `validation`, `position`, `filterable`, `sortable`, `active`.
 - **Values**: on the feature's own table, in one JSONB column
   (`notes.custom jsonb not null default '{}'`), keyed by the field's key,
-  with a GIN index. `custom ? 'region'` (has a value) and
-  `custom @> '{"region":"eu"}'` (equals, holds a choice) use the index.
+  with a GIN index. The filters `eq`, `in`, a multiSelect's `in` and
+  `isNull=false` compile to `custom @> '{"region":"eu"}'` and
+  `custom ? 'region'`, which use it. A value is never stored as JSON `null`
+  (removing one removes the key), which is what makes them equal to the
+  plain comparison.
 
 | Type | Stored as | Validation it takes |
 | --- | --- | --- |
@@ -175,8 +178,10 @@ GET /v1/notes?sort=-custom.amount,title&fields=title,custom.region
   ones; every active field can be picked with `fields` (inside `custom`).
 - Operators per type: text types the text ones (`contains`, `startsWith`…),
   number and date the ordered ones (`gt`, `between`…; dates as
-  `YYYY-MM-DD`), select `eq`/`in`/`notIn`, multiSelect `in` (holds any of,
-  on the GIN index); all take `isNull`.
+  `YYYY-MM-DD`), select `eq`/`in`/`notIn`, multiSelect `in` (holds any of);
+  all take `isNull`. On the GIN index: `eq`, `in` and `isNull=false`;
+  `ne`, `notIn`, `isNull=true`, ranges and text operators read every row
+  the other filters leave.
 - A new or changed field applies on the next request: the route validates
   its query with `customFields.extendList(NOTE_LIST, 'Note')` (built once
   per definitions version), `list.parse(raw)`, and selects sort values with
@@ -200,10 +205,15 @@ reached, cached definitions are used for 5 seconds at most.
   encrypted column of its own.
 - One permission for all of a record's custom values (`custom`); one per
   field would need each key declared as a field of the subject at runtime.
-- Sorting or range filters on a field read `custom->>'key'` per row (the
-  GIN index serves `@>` and `?`, not `<` or ORDER BY). For a large table
-  sorted often by one field, add an expression index in the table file
-  (`index().on(sql\`((custom->>'amount')::numeric)\`)`) and generate the migration.
+- Range filters, text operators, `ne`/`notIn` and sorts on a field read
+  `custom->>'key'` per row (the GIN index serves `@>` and `?`, not `<` or
+  ORDER BY). The platform cannot index them: fields are created at runtime
+  by administrators, while migrations are generated from `*.tables.ts`. A
+  team that ranges or sorts on one field at scale adds an expression index
+  to the table file by hand
+  (`index('notes_custom_amount_idx').on(sql\`((${t.custom}->>'amount')::numeric)\`)`),
+  then `pnpm db:generate`. The expression must match
+  `customFieldExpression()` character for character.
 - `pattern` is a regular expression an administrator writes, run on
   every value written. It runs on RE2 (the `re2` package,
   `custom-field.pattern.ts`), never on V8's `RegExp`: RE2 matches in time

@@ -40,9 +40,11 @@ describe('walkList (exports walk a list by keyset)', () => {
     }
     expect(seen).toEqual([WALK_BATCH, 1]);
     expect(reads.map((read) => read.limit)).toEqual([WALK_BATCH, WALK_BATCH]);
-    // The first batch starts at the top; the second after the last row's sort value and id.
+    // The first batch starts at the top; the second after the last row's
+    // sort value and id: the list's own cursor condition, a row comparison
+    // an index range can serve.
     expect(reads[0]!.after).toBeUndefined();
-    expect(sql(reads[1]!.after).sql).toContain('"audit_log"."id" <');
+    expect(sql(reads[1]!.after).sql).toContain('"audit_log"."id") < (');
     expect(sql(reads[1]!.after).params).toContain(
       row(WALK_BATCH - 1).at.toISOString(),
     );
