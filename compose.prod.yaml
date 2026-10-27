@@ -41,7 +41,6 @@ x-app: &app
     APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
     IMPORT_MAX_BYTES: ${IMPORT_MAX_BYTES:-52428800}
     IMPORT_MAX_ROWS: ${IMPORT_MAX_ROWS:-1000000}
-    IMPORT_TEMP_DIR: /app/.data/import-scratch
     # Forces the mode (normal, read-only, maintenance) over the operators'
     # platform.mode setting (docs/settings.md). This file lists the variables
     # the containers get (no env_file), so a variable missing here never arrives.
@@ -372,6 +371,21 @@ services:
       # and hashes the first administrator's password. One at a time:
       # 768 + 128 + 1 × 128 = 1024, within WORKER_MEMORY (1G).
       PASSWORD_HASH_CONCURRENCY: ${WORKER_PASSWORD_HASH_CONCURRENCY:-1}
+      QUEUE_CONCURRENCY_MAIL: ${QUEUE_CONCURRENCY_MAIL:-5}
+      QUEUE_CONCURRENCY_SSO: ${QUEUE_CONCURRENCY_SSO:-2}
+      QUEUE_CONCURRENCY_MESSAGING: ${QUEUE_CONCURRENCY_MESSAGING:-5}
+      QUEUE_CONCURRENCY_ATTACHMENT_SCAN: ${QUEUE_CONCURRENCY_ATTACHMENT_SCAN:-4}
+      QUEUE_CONCURRENCY_DATA_TRANSFERS: ${QUEUE_CONCURRENCY_DATA_TRANSFERS:-2}
+      QUEUE_CONCURRENCY_BULK: ${QUEUE_CONCURRENCY_BULK:-2}
+      QUEUE_CONCURRENCY_DOCUMENTS: ${QUEUE_CONCURRENCY_DOCUMENTS:-2}
+      QUEUE_CONCURRENCY_AI: ${QUEUE_CONCURRENCY_AI:-2}
+      QUEUE_CONCURRENCY_MAIL_EVENTS: ${QUEUE_CONCURRENCY_MAIL_EVENTS:-2}
+      QUEUE_CONCURRENCY_RETENTION: ${QUEUE_CONCURRENCY_RETENTION:-1}
+      QUEUE_CONCURRENCY_REENCRYPTION: ${QUEUE_CONCURRENCY_REENCRYPTION:-1}
+      QUEUE_CONCURRENCY_ATTACHMENT_IMAGES: ${QUEUE_CONCURRENCY_ATTACHMENT_IMAGES:-1}
+      OUTBOX_RELAY_BATCH_SIZE: ${OUTBOX_RELAY_BATCH_SIZE:-100}
+      OUTBOX_RELAY_CONCURRENCY: ${OUTBOX_RELAY_CONCURRENCY:-10}
+      WORKFLOW_CONCURRENCY: ${WORKFLOW_CONCURRENCY:-10}
     # x-app's, and the maintenance role's URL: the worker's alone.
     secrets:
       - database_url
@@ -413,8 +427,6 @@ services:
       start_interval: 2s
     volumes:
       - app_storage:/app/.data/storage
-      # Per-container disk scratch; /tmp remains a small RAM-backed tmpfs.
-      - /app/.data/import-scratch
     # `documents`: Gotenberg's network, which only the workers join.
     networks:
       - default

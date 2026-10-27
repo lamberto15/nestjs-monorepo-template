@@ -42,6 +42,33 @@ export const platformEnv = z.object({
   WEBHOOKS_WORKER: flag('on'),
 
   /**
+   * Worker concurrency (docs/configuration.md, "Worker concurrency"): what
+   * one process runs at once. Each slot can hold a database connection
+   * (DATABASE_POOL_MAX), so a small worker turns these down.
+   */
+  /** Outbox events the relay claims per poll. */
+  OUTBOX_RELAY_BATCH_SIZE: z.coerce.number().int().min(1).default(100),
+  /** Outbox events the relay dispatches at once. */
+  OUTBOX_RELAY_CONCURRENCY: z.coerce.number().int().min(1).default(10),
+  /** Workflow instances this process executes at once. */
+  WORKFLOW_CONCURRENCY: z.coerce.number().int().min(1).default(10),
+  /** Jobs each queue's worker runs at once (the mail and SSO queues: core and iam). */
+  QUEUE_CONCURRENCY_MESSAGING: z.coerce.number().int().min(1).default(5),
+  QUEUE_CONCURRENCY_ATTACHMENT_SCAN: z.coerce.number().int().min(1).default(4),
+  QUEUE_CONCURRENCY_DATA_TRANSFERS: z.coerce.number().int().min(1).default(2),
+  QUEUE_CONCURRENCY_BULK: z.coerce.number().int().min(1).default(2),
+  QUEUE_CONCURRENCY_DOCUMENTS: z.coerce.number().int().min(1).default(2),
+  QUEUE_CONCURRENCY_AI: z.coerce.number().int().min(1).default(2),
+  QUEUE_CONCURRENCY_MAIL_EVENTS: z.coerce.number().int().min(1).default(2),
+  QUEUE_CONCURRENCY_RETENTION: z.coerce.number().int().min(1).default(1),
+  QUEUE_CONCURRENCY_REENCRYPTION: z.coerce.number().int().min(1).default(1),
+  QUEUE_CONCURRENCY_ATTACHMENT_IMAGES: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .default(1),
+
+  /**
    * Deployment switches (docs/configuration.md): platform modules a project
    * may not need. `off` leaves the module's routes, workers and jobs out.
    */

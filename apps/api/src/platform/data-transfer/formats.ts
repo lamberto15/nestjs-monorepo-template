@@ -3,9 +3,6 @@ import { PassThrough, pipeline, type Readable } from 'node:stream';
 import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify';
 import ExcelJS from 'exceljs';
-import { parser as jsonParser } from 'stream-json';
-import { streamArray } from 'stream-json/streamers/stream-array.js';
-import chain from 'stream-chain';
 import { isTimeZone } from '../../core/config/env.helpers.js';
 import type {
   ImportColumn,
@@ -13,8 +10,6 @@ import type {
   TransferFormat,
 } from './data-transfer.types.js';
 import { exampleOf } from './import-columns.js';
-import { readXlsxRecords } from './xlsx-reader.js';
-import { FormatError } from './format-error.js';
 
 /**
  * The file formats, streamed both ways: a 100 MB export or import never sits
@@ -496,18 +491,10 @@ export async function createTemplate(
 export async function* readRecords(
   format: TransferFormat,
   input: Readable,
-  {
-    dateColumns = new Set(),
-    onHeaders,
-    scratchDirectory,
-  }: {
-    dateColumns?: ReadonlySet<string>;
-    onHeaders?: (headers: string[]) => void;
-    scratchDirectory?: string;
-  } = {},
+  { dateColumns = new Set() }: { dateColumns?: ReadonlySet<string> } = {},
 ): AsyncGenerator<{ row: number; record: Record<string, unknown> }> {
   try {
-    yield* records(format, input, dateColumns, onHeaders, scratchDirectory);
+    yield* records(format, input, dateColumns);
   } finally {
     // Read to the end, failed, or left early (too many errors): the source
     // (a file, an S3 download) is released either way.
@@ -519,23 +506,13 @@ async function* records(
   format: TransferFormat,
   input: Readable,
   dateColumns: ReadonlySet<string>,
-  onHeaders?: (headers: string[]) => void,
-  scratchDirectory?: string,
 ): AsyncGenerator<{ row: number; record: Record<string, unknown> }> {
   let row = 0;
   if (format === 'csv') {
     // pipeline, not pipe: an error of the source reaches the parser (and the loop).
     const parser = pipeline(
       input,
-      parse({
-        columns: (headers: string[]) => {
-          onHeaders?.(headers.map((header) => columnOf(header).key));
-          return headers;
-        },
-        bom: true,
-        skip_empty_lines: true,
-        trim: true,
-      }),
+      parse({ columns: true, bom: true, skip_empty_lines: true, trim: true }),
       () => undefined,
     );
     for await (const record of parser) {
@@ -547,89 +524,73 @@ async function* records(
     return;
   }
   if (format === 'json') {
-    const parser = chain([input, jsonParser(), streamArray()]);
-    try {
-      for await (const item of parser) {
-        const record = (item as { value: unknown }).value;
-        if (!record || typeof record !== 'object' || Array.isArray(record)) {
-          throw new FormatError('A JSON import is an array of objects.');
-        }
-        if (row === 0)
-          onHeaders?.(Object.keys(record as Record<string, unknown>));
-        yield { row: ++row, record: record as Record<string, unknown> };
-      }
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message === 'Top-level object should be an array.'
-      ) {
-        throw new FormatError('A JSON import is an array of objects.');
-      }
-      throw error;
+    const chunks: Buffer[] = [];
+    for await (const chunk of input) {
+      chunks.push(chunk as Buffer);
+    }
+    const data: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    if (!Array.isArray(data)) {
+      throw new FormatError('A JSON import is an array of objects.');
+    }
+    for (const record of data) {
+      yield { row: ++row, record: record as Record<string, unknown> };
     }
     return;
   }
+  // The whole workbook in memory (uploads are capped at 50 MB): exceljs's
+  // streaming reader breaks on files whose zip entries come in another order
+  // (exceljs's own, among them). Exports stream.
+  const chunks: Buffer[] = [];
+  for await (const chunk of input) {
+    chunks.push(chunk as Buffer);
+  }
+  const file = Buffer.concat(chunks);
+  // A 50 MB zip can unpack to gigabytes: check what it claims before opening it.
+  assertSmallZip(file);
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(file as unknown as ArrayBuffer);
+  const sheet = workbook.worksheets[0];
+  if (!sheet) {
+    return;
+  }
   let headers: string[] | undefined;
-  for await (const cells of readXlsxRecords(input, scratchDirectory)) {
+  const lines: unknown[][] = [];
+  sheet.eachRow((line) => {
+    lines.push((line.values as unknown[]).slice(1));
+  });
+  for (const cells of lines) {
     if (!headers) {
-      headers = Array.from(cells, (header) =>
+      headers = cells.map((header) =>
         header === null || header === undefined ? '' : cellText(header).trim(),
       );
-      onHeaders?.(headers.map((header) => columnOf(header).key));
       continue;
     }
     yield {
       row: ++row,
-      record: fromCells(xlsxRecord(headers, cells, dateColumns)),
+      record: fromCells(
+        Object.fromEntries(
+          headers.map((header, i) => {
+            const value = cells[i];
+            if (value === null || value === undefined) return [header, ''];
+            if (value instanceof Date) {
+              // A date cell: the day of a date column; the wall-clock time
+              // (as UTC) of a zoned column; else ISO 8601.
+              if (dateColumns.has(header)) {
+                return [header, value.toISOString().slice(0, 10)];
+              }
+              if (columnOf(header).zone) {
+                return [
+                  header,
+                  value.toISOString().slice(0, 23).replace('T', ' '),
+                ];
+              }
+            }
+            return [header, cellText(value)];
+          }),
+        ),
+      ),
     };
   }
-}
-
-function xlsxRecord(
-  headers: string[],
-  cells: unknown[],
-  dateColumns: ReadonlySet<string>,
-) {
-  return Object.fromEntries(
-    headers.map((header, i) => {
-      const value = cells[i];
-      if (value === null || value === undefined) return [header, ''];
-      if (value instanceof Date) {
-        if (dateColumns.has(header))
-          return [header, value.toISOString().slice(0, 10)];
-        if (columnOf(header).zone)
-          return [header, value.toISOString().slice(0, 23).replace('T', ' ')];
-      }
-      return [header, cellText(value)];
-    }),
-  );
-}
-
-/** Validate an upload before writes. Call with a fresh stream of the staged file. */
-export async function inspectRecords(
-  format: TransferFormat,
-  input: Readable,
-  options: {
-    dateColumns?: ReadonlySet<string>;
-    maxRows?: number;
-    scratchDirectory?: string;
-  } = {},
-): Promise<{ headers: string[]; rowCount: number }> {
-  let headers: string[] = [];
-  let rowCount = 0;
-  for await (const { row, record } of readRecords(format, input, {
-    ...options,
-    onHeaders: (names) => {
-      headers = names;
-    },
-  })) {
-    if (options.maxRows !== undefined && row > options.maxRows) {
-      throw new FormatError('The file has too many rows to import.');
-    }
-    rowCount = row;
-    if (row === 1 && headers.length === 0) headers.push(...Object.keys(record));
-  }
-  return { headers, rowCount };
 }
 
 /**
@@ -671,6 +632,9 @@ function cellText(value: unknown): string {
   return String(value);
 }
 
+/** A file that isn't the format it claims. */
+export class FormatError extends Error {}
+
 /**
  * Recognizes an upload by its first bytes: Excel by the zip signature (an
  * .xlsx is a zip), JSON by its opening bracket, CSV as plain text (no
@@ -700,4 +664,40 @@ export function formatOf(contentType: string): TransferFormat | undefined {
   )
     return 'xlsx';
   return undefined;
+}
+
+/** What a spreadsheet may unpack to, and how many files it may hold. */
+const MAX_UNZIPPED_BYTES = 300 * 1024 * 1024;
+const MAX_ZIP_ENTRIES = 2_000;
+
+/**
+ * Refuses a zip (an .xlsx) whose central directory declares more than
+ * MAX_UNZIPPED_BYTES or MAX_ZIP_ENTRIES: a zip bomb would fill the worker's
+ * memory. Reads only the directory at the end of the file.
+ */
+export function assertSmallZip(file: Buffer) {
+  const end = file.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  if (end < 0 || end + 22 > file.length) {
+    throw new FormatError('The spreadsheet is not a valid .xlsx file.');
+  }
+  const entries = file.readUInt16LE(end + 10);
+  let offset = file.readUInt32LE(end + 16);
+  if (entries > MAX_ZIP_ENTRIES) {
+    throw new FormatError('The spreadsheet is too large to import.');
+  }
+  let total = 0;
+  for (let i = 0; i < entries; i++) {
+    if (offset + 46 > file.length || file.readUInt32LE(offset) !== 0x02014b50) {
+      throw new FormatError('The spreadsheet is not a valid .xlsx file.');
+    }
+    total += file.readUInt32LE(offset + 24);
+    if (total > MAX_UNZIPPED_BYTES) {
+      throw new FormatError('The spreadsheet is too large to import.');
+    }
+    offset +=
+      46 +
+      file.readUInt16LE(offset + 28) +
+      file.readUInt16LE(offset + 30) +
+      file.readUInt16LE(offset + 32);
+  }
 }

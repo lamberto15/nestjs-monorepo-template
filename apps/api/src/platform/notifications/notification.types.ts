@@ -117,7 +117,10 @@ export interface NotificationDelivery {
  * }
  * ```
  *
- * The delivery handler calls `inTransaction` inside the transaction that
+ * The delivery handler calls `beforeTransaction` first, with no transaction
+ * open (a call that waits on something slow, such as a queue add on Redis:
+ * it must not hold a database connection, and must be idempotent, as a
+ * failure later repeats it), then `inTransaction` inside the transaction that
  * records the delivery (effects that must commit with it: a webhook through
  * the outbox, a digest flag), then `afterCommit` (effects that can't roll
  * back: a socket emit). A channel without `settings` is always on and not a
@@ -129,6 +132,11 @@ export interface NotificationChannel<S = unknown> {
   readonly settings?: { schema: z.ZodType<S>; off: S };
   /** Whether this kind of recipient can be reached (email: users; webhook: clients). */
   supports(recipient: Principal): boolean;
+  /** Runs outside any transaction; `signal` aborts when the relay stops waiting. */
+  beforeTransaction?(
+    delivery: NotificationDelivery,
+    signal: AbortSignal,
+  ): Promise<void>;
   inTransaction?(
     delivery: NotificationDelivery,
     tx: Transaction,

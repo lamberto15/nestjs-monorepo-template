@@ -19,8 +19,7 @@
       // depend on it.
       // lefthook is executed by its install lifecycle and git hooks
       // (lefthook.yml / pnpm-workspace.yaml), not imported by application code.
-      // The isolated import benchmark uses the API's ExcelJS installation.
-      "ignoreDependencies": ["k6", "web-push", "lefthook", "exceljs"],
+      "ignoreDependencies": ["k6", "web-push", "lefthook"],
       // ci-validate installs the checksum-pinned Helm binary for release renders.
       "ignoreBinaries": ["helm"],
     },
@@ -45,7 +44,14 @@
       // react-day-picker: the calendar of that same registry code.
       // tailwindcss: imported by the stylesheet (packages/ui), which
       // @tailwindcss/vite compiles; no JavaScript imports it.
-      "ignoreDependencies": ["react-day-picker", "tailwindcss"],
+      // @tanstack/router-generator: tools/feature/remove.mjs loads it from
+      // this workspace (createRequire) to regenerate routeTree.gen.ts with the
+      // same generator the Vite plugin runs.
+      "ignoreDependencies": [
+        "react-day-picker",
+        "tailwindcss",
+        "@tanstack/router-generator",
+      ],
     },
     "apps/web-e2e": {
       "entry": ["test/**/*.ts", "scripts/*.mjs"],
