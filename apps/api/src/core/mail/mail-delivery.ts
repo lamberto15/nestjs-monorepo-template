@@ -35,7 +35,9 @@ const COUNTER_TTL_SECONDS = 2 * 24 * 3600;
  * Decides, before a mail is queued, whether it may go (#618): a mail storm
  * (100k notes published at once) must not fill Redis with mail jobs nor use
  * up the provider's quota, and the mail a person needs to sign in must still
- * leave. Essential mail is the one marked `@EssentialMail()`.
+ * leave. Essential mail is the one marked `@EssentialMail()`, or sent as
+ * essential (`MailQueue.send(…, { essential: true })`: a mandatory
+ * notification, as `notifications.emailPolicy` counts it).
  *
  * - The mode (`mail.delivery`): `all`, `essential` (only essential mail) or
  *   `off`. An operator sets it for every tenant, enforced, in an incident.
@@ -73,8 +75,12 @@ export class MailDeliveryGate {
   }
 
   /** Whether `mail` may be queued now; a withheld one is logged and counted. */
-  async admit(mail: Type<unknown>, now = new Date()): Promise<boolean> {
-    const essential = isEssentialMail(mail);
+  async admit(
+    mail: Type<unknown>,
+    options: { essential?: boolean; now?: Date } = {},
+  ): Promise<boolean> {
+    const { now = new Date() } = options;
+    const essential = isEssentialMail(mail) || options.essential === true;
     const mode = await this.mode();
     if (mode === 'off' || (mode === 'essential' && !essential)) {
       return this.withhold('policy', mail, { mode });

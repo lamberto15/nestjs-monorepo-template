@@ -77,7 +77,7 @@ describe('MailQueue', () => {
     const { queue, add, render, admit } = queueWith();
     admit.mockResolvedValue(false);
     await queue.send(Hello, { to: 'a@example.com' } as never);
-    expect(admit).toHaveBeenCalledWith(Hello);
+    expect(admit).toHaveBeenCalledWith(Hello, { essential: false });
     expect(render).not.toHaveBeenCalled();
     expect(add).not.toHaveBeenCalled();
   });

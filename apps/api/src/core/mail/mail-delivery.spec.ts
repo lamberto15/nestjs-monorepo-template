@@ -82,45 +82,58 @@ describe('MailDeliveryGate', () => {
 
   it('lets every mail through with no mode and no limit', async () => {
     const { gate, store } = gateWith();
-    expect(await gate.admit(NoticeMail, day)).toBe(true);
-    expect(await gate.admit(ResetMail, day)).toBe(true);
+    expect(await gate.admit(NoticeMail, { now: day })).toBe(true);
+    expect(await gate.admit(ResetMail, { now: day })).toBe(true);
     expect(store.size).toBe(0);
   });
 
   it('keeps all but essential mail back in `essential` mode', async () => {
     const { gate, withheld } = gateWith({ mode: 'essential' });
-    expect(await gate.admit(NoticeMail, day)).toBe(false);
-    expect(await gate.admit(ResetMail, day)).toBe(true);
+    expect(await gate.admit(NoticeMail, { now: day })).toBe(false);
+    expect(await gate.admit(ResetMail, { now: day })).toBe(true);
     expect(await withheld('policy')).toBe(1);
+  });
+
+  it('lets a mail sent as essential through in `essential` mode and past the budget', async () => {
+    const policy = gateWith({ mode: 'essential' });
+    expect(
+      await policy.gate.admit(NoticeMail, { essential: true, now: day }),
+    ).toBe(true);
+    const budget = gateWith({ limit: 1, reserve: 0 });
+    expect(await budget.gate.admit(NoticeMail, { now: day })).toBe(true);
+    expect(
+      await budget.gate.admit(NoticeMail, { essential: true, now: day }),
+    ).toBe(true);
+    expect(await budget.gate.admit(NoticeMail, { now: day })).toBe(false);
   });
 
   it('keeps every mail back in `off` mode', async () => {
     const { gate, withheld } = gateWith({ mode: 'off' });
-    expect(await gate.admit(NoticeMail, day)).toBe(false);
-    expect(await gate.admit(ResetMail, day)).toBe(false);
+    expect(await gate.admit(NoticeMail, { now: day })).toBe(false);
+    expect(await gate.admit(ResetMail, { now: day })).toBe(false);
     expect(await withheld('policy')).toBe(2);
   });
 
   it('stops non-essential mail at the limit minus the reserve; essential mail still goes', async () => {
     const { gate, store, withheld } = gateWith({ limit: 3, reserve: 1 });
-    expect(await gate.admit(NoticeMail, day)).toBe(true);
-    expect(await gate.admit(NoticeMail, day)).toBe(true);
-    expect(await gate.admit(NoticeMail, day)).toBe(false);
+    expect(await gate.admit(NoticeMail, { now: day })).toBe(true);
+    expect(await gate.admit(NoticeMail, { now: day })).toBe(true);
+    expect(await gate.admit(NoticeMail, { now: day })).toBe(false);
     // The withheld one used none of the allowance.
     expect(store.get('mail:queued:2026-10-27')).toBe(2);
-    expect(await gate.admit(ResetMail, day)).toBe(true);
-    expect(await gate.admit(ResetMail, day)).toBe(true);
+    expect(await gate.admit(ResetMail, { now: day })).toBe(true);
+    expect(await gate.admit(ResetMail, { now: day })).toBe(true);
     expect(store.get('mail:queued:2026-10-27')).toBe(4);
     expect(await withheld('budget')).toBe(1);
   });
 
   it('counts each UTC day apart', async () => {
     const { gate } = gateWith({ limit: 1, reserve: 0 });
-    expect(await gate.admit(NoticeMail, day)).toBe(true);
-    expect(await gate.admit(NoticeMail, day)).toBe(false);
-    expect(await gate.admit(NoticeMail, new Date('2026-10-28T00:00:01Z'))).toBe(
-      true,
-    );
+    expect(await gate.admit(NoticeMail, { now: day })).toBe(true);
+    expect(await gate.admit(NoticeMail, { now: day })).toBe(false);
+    expect(
+      await gate.admit(NoticeMail, { now: new Date('2026-10-28T00:00:01Z') }),
+    ).toBe(true);
   });
 
   it('lets mail through when the mode can’t be read', async () => {
@@ -129,6 +142,6 @@ describe('MailDeliveryGate', () => {
         throw new Error('settings down');
       },
     });
-    expect(await gate.admit(NoticeMail, day)).toBe(true);
+    expect(await gate.admit(NoticeMail, { now: day })).toBe(true);
   });
 });

@@ -410,10 +410,14 @@ is logged, and counts in `mail_withheld_total{reason}` (`policy` or
 `budget`). The notification itself, in-app and realtime, is unaffected,
 and its delivery completes: the outbox does not retry the mail later.
 
-- **The `mail.delivery` setting**: `all` (default), `essential` (only mail
-  marked `@EssentialMail()`: password reset, email verification, magic
-  links, account deletion; not notifications, digests, reports or
-  invitations) or `off`. In an incident an operator sets it for every
+- **The `mail.delivery` setting**: `all` (default), `essential` (only
+  essential mail: the classes marked `@EssentialMail()`, password reset,
+  email verification, magic links, account deletion, and the mail of a
+  `mandatory` notification type, a security notice; not other
+  notifications, digests, reports or invitations) or `off`. It covers
+  every mail the app queues; `notifications.emailPolicy` (below) is the
+  notification-level policy and stays as it is: with either at
+  `essential`, a non-mandatory notification sends no mail. In an incident an operator sets it for every
   tenant at once, no deploy:
   `PUT /v1/settings/mail.delivery/platform { "value": "essential", "enforced": true }`.
   A tenant administrator may restrict their own tenant's. A settings read
