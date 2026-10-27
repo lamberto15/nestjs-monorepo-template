@@ -425,7 +425,7 @@ jobs:
           runtime: node@24
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
       - name: Lint the workspace and check unused dependencies
         run: pnpm lint
 
@@ -467,7 +467,7 @@ jobs:
           runtime: node@24
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
       # Oxlint in every package, the translation parity check, then knip:
       # unused files, exports and dependencies (knip.jsonc).
       - run: pnpm turbo run lint ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }} && pnpm i18n:check && pnpm knip
@@ -671,7 +671,7 @@ jobs:
           runtime: node@24
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
       - name: Coverage and its thresholds
         run: pnpm turbo run test:cov --filter=@nestjs-monorepo-template/web
 
@@ -716,7 +716,7 @@ jobs:
           runtime: node@24
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
       - run: pnpm test:e2e --shard=${{ matrix.shard }}/2
         env:
           REDIS_URL: redis://localhost:6379
@@ -782,7 +782,7 @@ jobs:
           runtime: node@24
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
       # The runner's own Google Chrome (E2E_BROWSER_CHANNEL, below), not
       # Playwright's Chromium: no download and no apt, whose mirror took 6-8
       # minutes in 3 of 97 runs (docs/ci-runtime.md). Its version is the
@@ -890,7 +890,7 @@ jobs:
           runtime: node@24
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
       # Reuse this already-installed workspace for tooling-only lint, avoiding
       # a second GitHub runner (and do it before generators modify the tree).
       - name: Lint tooling and unused dependencies
@@ -997,7 +997,7 @@ jobs:
           runtime: node@24
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
       - name: Remove the example feature
         run: pnpm feature:remove notes
       - name: 'Its table dropped (a generated migration: drizzle-kit asks nothing)'
