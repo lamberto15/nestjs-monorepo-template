@@ -175,7 +175,10 @@ web app needs the API, so `dev:web` alone suits an API already running.
   session-end redirects. An editor that saves with an ETag reads its record
   once (`refetchOnWindowFocus: false`, `refetchOnReconnect: false`, as
   `routes/_app/notes/$id/edit.tsx`): a background refetch would remount the
-  form under the user's edits, where the save's 412 offers the reload.
+  form under the user's edits, where the save's 412 offers the reload. A
+  page that also shows live state keeps refetching and holds the form back
+  instead (`features/tenants/tenant-detail.tsx`): an untouched form follows
+  the record, a touched one keeps the edits and the ETag it started from.
 - **Cross-tab sessions** (`lib/session-bus.ts`, `lib/session.ts`): the tabs
   share the one `__Host-sid` cookie, so what one tab does to the session the
   others must follow. A tab's session watcher (`lib/errors.ts`) records the

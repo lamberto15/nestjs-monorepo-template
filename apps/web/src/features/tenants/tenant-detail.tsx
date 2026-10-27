@@ -3,11 +3,12 @@ import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
 import { buttonVariants } from '@nestjs-monorepo-template/ui/components/button';
 import { FieldGroup } from '@nestjs-monorepo-template/ui/components/field';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
+import { useStore } from '@tanstack/react-form';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { cn } from 'cn';
 import { ArrowLeftIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Section } from '@/components/account/section';
@@ -40,16 +41,12 @@ import {
  */
 export function TenantDetail(props: { id: string }) {
   const { t } = useTranslation('tenants');
-  // A 404 is this page's to say, not a toast's. The page shows one read and
-  // writes with its ETag (as the note edit page): a refetch in the
-  // background (focus, reconnect) would remount the name form with another
-  // operator's change and drop the user's edits. A write over a change made
-  // since answers 412, and the conflict notice offers the reload.
+  // A 404 is this page's to say, not a toast's. Refetched as usual (focus,
+  // reconnect): the badges and the state, export and deletion sections show
+  // what holds now; the name form keeps the user's edits (NameSection).
   const read = useQuery({
     ...tenantQuery(props.id),
     meta: { errorToast: false },
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
   });
   // Above the sections, which are keyed by what was read: a 412 refetches
   // nothing, and the conflict stays on screen with the user's input.
@@ -95,10 +92,9 @@ export function TenantDetail(props: { id: string }) {
           </div>
           <ConflictNotice conflict={conflict} />
           <NameSection
-            // A fresh form when what it edits changed (a save, the reload of
-            // a conflict). Other changes (a deletion asked or cancelled) move
-            // the ETag only: the typed edits stay, and `etag` is the new one.
-            key={`${loaded.tenant.name}-${loaded.tenant.slug}`}
+            // A fresh form after the reload of a conflict; otherwise the
+            // form follows the tenant itself (NameSection).
+            key={conflict.reloads}
             tenant={loaded.tenant}
             etag={loaded.etag}
             conflict={conflict}
@@ -131,9 +127,12 @@ function useConflict(id: string) {
   const queryClient = useQueryClient();
   const [conflict, setConflict] = useState(false);
   const [reloading, setReloading] = useState(false);
+  const [reloads, setReloads] = useState(0);
   return {
     conflict,
     reloading,
+    /** How many times the user reloaded after a conflict. */
+    reloads,
     clear: () => setConflict(false),
     /** True when the error was a 412, now shown as a conflict. */
     catches: (error: unknown) => {
@@ -147,6 +146,7 @@ function useConflict(id: string) {
         await queryClient.invalidateQueries({
           queryKey: tenantQuery(id).queryKey,
         });
+        setReloads((count) => count + 1);
         setConflict(false);
       } finally {
         setReloading(false);
@@ -168,7 +168,14 @@ function ConflictNotice(props: { conflict: Conflict }) {
   ) : null;
 }
 
-/** The name and the slug, saved together: only what changed is sent. */
+/**
+ * The name and the slug, saved together: only what changed is sent. The
+ * form follows the tenant while the user has typed nothing. Once they have,
+ * it keeps their input, and the ETag of the read it started from: another
+ * operator's rename meanwhile makes the save a 412 (the conflict notice,
+ * then a fresh form) rather than an overwrite. A change of anything else (a
+ * deletion asked or cancelled) is no conflict: the save takes the new ETag.
+ */
 function NameSection(props: {
   tenant: TenantRow;
   etag: string | undefined;
@@ -178,6 +185,11 @@ function NameSection(props: {
   const { tenant, conflict } = props;
   const update = useUpdateTenant(tenant.id);
   const [error, setError] = useState<string>();
+  const started = useRef({
+    name: tenant.name,
+    slug: tenant.slug,
+    etag: props.etag,
+  });
   const form = useAppForm({
     defaultValues: { name: tenant.name, slug: tenant.slug },
     validators: {
@@ -203,13 +215,18 @@ function NameSection(props: {
         ...(name !== tenant.name && { name }),
         ...(value.slug !== tenant.slug && { slug: value.slug }),
       };
-      if (!Object.keys(body).length || !props.etag) {
+      const renamedMeanwhile =
+        tenant.name !== started.current.name ||
+        tenant.slug !== started.current.slug;
+      const etag = renamedMeanwhile ? started.current.etag : props.etag;
+      if (!Object.keys(body).length || !etag) {
         return;
       }
       try {
-        await update.mutateAsync({ body, etag: props.etag });
+        await update.mutateAsync({ body, etag });
         // Saved: nothing left for the unsaved-changes guard.
         form.reset({ name, slug: value.slug });
+        started.current = { name, slug: value.slug, etag: undefined };
         conflict.clear();
         toast.success(t('detail.saved', { name }));
       } catch (caught) {
@@ -223,6 +240,20 @@ function NameSection(props: {
     },
   });
   useUnsavedChangesGuard(form);
+  const touched = useStore(form.store, (state) => !state.isDefaultValue);
+  // The tenant changed (refetched): an untouched form shows it.
+  useEffect(() => {
+    if (!touched) {
+      started.current = {
+        name: tenant.name,
+        slug: tenant.slug,
+        etag: props.etag,
+      };
+      form.reset({ name: tenant.name, slug: tenant.slug });
+    }
+    // Only a change of the tenant, not of `touched`, resets the form.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant.name, tenant.slug, props.etag]);
   return (
     <Section
       title={t('detail.name.title')}

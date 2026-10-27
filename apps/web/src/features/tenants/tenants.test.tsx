@@ -27,6 +27,15 @@ const row = (id: string, slug: string, extra: object = {}) => ({
 const etagOf = (tenant: { id: string; updatedAt: string }) =>
   `"${tenant.id}-${tenant.updatedAt}"`;
 
+/** The user leaves the tab and comes back: TanStack Query refetches. */
+function refocus() {
+  act(() => {
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+  });
+  focusManager.setFocused(undefined);
+}
+
 function api(
   options: {
     tenancy?: 'multi' | 'single';
@@ -424,6 +433,16 @@ describe('tenants page', () => {
 
 const GLOBEX = '0199a3f2-0000-7000-8000-0000000000b1';
 
+/** Another operator renames Globex: its name and its ETag move on. */
+function renameElsewhere(state: ReturnType<typeof api>) {
+  const index = state.tenants.findIndex((tenant) => tenant.id === GLOBEX);
+  state.tenants[index] = {
+    ...state.tenants[index]!,
+    name: 'Renamed elsewhere',
+    updatedAt: '2026-10-11T08:00:00.000Z',
+  };
+}
+
 describe('tenant detail', () => {
   it('opens from the list and shows the tenant', async () => {
     api();
@@ -522,7 +541,7 @@ describe('tenant detail', () => {
     expect(screen.getByLabelText('Name')).toHaveValue('Renamed elsewhere');
   });
 
-  it("keeps the user's edits when the tab is back and another operator renamed it", async () => {
+  it("keeps the user's edits when the tab is back and another operator renamed it, and the save answers 412", async () => {
     const state = api();
     await renderApp(`/tenants/${GLOBEX}`);
     const user = userEvent.setup();
@@ -530,22 +549,59 @@ describe('tenant detail', () => {
     await user.clear(name);
     await user.type(name, 'Mine');
 
-    // Renamed elsewhere (a new ETag); the user comes back to this tab. The
-    // save's 412 says so (above), not a refetch that drops the edits.
+    // Renamed elsewhere (a new ETag); the user comes back to this tab.
+    renameElsewhere(state);
+    refocus();
+    // The page reads it again (the heading), the form keeps what was typed.
+    expect(
+      await screen.findByRole('heading', { name: 'Renamed elsewhere' }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toHaveValue('Mine');
+
+    // Saved over the read it started from: the API says it changed.
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('This tenant changed')).toBeInTheDocument();
+    expect(state.patched).toEqual([
+      expect.objectContaining({
+        body: { name: 'Mine' },
+        ifMatch: etagOf(row(GLOBEX, 'globex')),
+      }),
+    ]);
+    expect(screen.getByLabelText('Name')).toHaveValue('Mine');
+  });
+
+  it('shows a rename made elsewhere in a form the user has not touched', async () => {
+    const state = api();
+    await renderApp(`/tenants/${GLOBEX}`);
+    expect(await screen.findByLabelText('Name')).toHaveValue('Globex');
+
+    renameElsewhere(state);
+    refocus();
+    await waitFor(() =>
+      expect(screen.getByLabelText('Name')).toHaveValue('Renamed elsewhere'),
+    );
+    // Nothing typed: no unsaved changes, and a save sends nothing.
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(state.patched).toEqual([]);
+  });
+
+  it('shows a deactivation made elsewhere when the tab is back', async () => {
+    const state = api();
+    await renderApp(`/tenants/${GLOBEX}`);
+    expect(
+      await screen.findByRole('button', { name: 'Deactivate' }),
+    ).toBeInTheDocument();
+
     const index = state.tenants.findIndex((tenant) => tenant.id === GLOBEX);
     state.tenants[index] = {
       ...state.tenants[index]!,
-      name: 'Renamed elsewhere',
+      active: false,
       updatedAt: '2026-10-11T08:00:00.000Z',
     };
-    act(() => {
-      focusManager.setFocused(false);
-      focusManager.setFocused(true);
-    });
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    focusManager.setFocused(undefined);
-
-    expect(screen.getByLabelText('Name')).toHaveValue('Mine');
+    refocus();
+    expect(
+      await screen.findByRole('button', { name: 'Reactivate' }),
+    ).toBeInTheDocument();
   });
 
   it('tells a tenant changed meanwhile when deactivating', async () => {
