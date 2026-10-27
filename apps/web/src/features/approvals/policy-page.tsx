@@ -19,6 +19,7 @@ import { ConflictAlert } from '@/components/records/conflict-alert';
 import { RecordState } from '@/components/records/record-state';
 import { errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
+import { useUnsavedChangesGuard } from '@/lib/unsaved-changes';
 import { isPreconditionFailed } from '@/lib/records';
 import {
   approvalsKey,
@@ -46,7 +47,15 @@ type FieldIssue = { path: string; message: string };
 /** `/approval-policies/$key`: one action's policy, edited and saved as a new version, or reset to the code's default. */
 export function PolicyPage(props: { policyKey: string }) {
   const { t } = useTranslation('approvals');
-  const query = useQuery(policyQuery(props.policyKey));
+  // The form is made from one read and saved with its ETag (as the note
+  // edit page): a refetch in the background (focus, reconnect) would remount
+  // it with another admin's version and drop the user's edits silently. A
+  // save then answers 412, and the conflict notice offers the reload.
+  const query = useQuery({
+    ...policyQuery(props.policyKey),
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
   return (
     <section className="flex max-w-3xl flex-col gap-4">
       <Link
@@ -136,6 +145,9 @@ function PolicyForm(props: {
           body: toBody(value),
           etag: props.etag,
         });
+        // Saved: nothing left for the unsaved-changes guard (the saved
+        // policy's fresh form replaces this one once it is read).
+        form.reset(value);
         toast.success(t('policies.saved'));
       } catch (caught) {
         if (isPreconditionFailed(caught)) {
@@ -150,6 +162,7 @@ function PolicyForm(props: {
       }
     },
   });
+  useUnsavedChangesGuard(form);
 
   const payloadFields = Object.keys(
     (policy.payloadSchema.properties as Record<string, unknown> | undefined) ??

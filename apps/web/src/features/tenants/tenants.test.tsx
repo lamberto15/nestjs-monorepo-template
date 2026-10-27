@@ -1,4 +1,5 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
+import { focusManager } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
@@ -486,6 +487,32 @@ describe('tenant detail', () => {
       expect(screen.queryByText('This tenant changed')).toBeNull(),
     );
     expect(screen.getByLabelText('Name')).toHaveValue('Renamed elsewhere');
+  });
+
+  it("keeps the user's edits when the tab is back and another operator renamed it", async () => {
+    const state = api();
+    await renderApp(`/tenants/${GLOBEX}`);
+    const user = userEvent.setup();
+    const name = await screen.findByLabelText('Name');
+    await user.clear(name);
+    await user.type(name, 'Mine');
+
+    // Renamed elsewhere (a new ETag); the user comes back to this tab. The
+    // save's 412 says so (above), not a refetch that drops the edits.
+    const index = state.tenants.findIndex((tenant) => tenant.id === GLOBEX);
+    state.tenants[index] = {
+      ...state.tenants[index]!,
+      name: 'Renamed elsewhere',
+      updatedAt: '2026-10-11T08:00:00.000Z',
+    };
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    focusManager.setFocused(undefined);
+
+    expect(screen.getByLabelText('Name')).toHaveValue('Mine');
   });
 
   it('tells a tenant changed meanwhile when deactivating', async () => {

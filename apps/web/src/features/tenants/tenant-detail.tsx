@@ -16,6 +16,7 @@ import { ConflictAlert } from '@/components/records/conflict-alert';
 import { formatDateTime } from '@/lib/date-time';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
+import { useUnsavedChangesGuard } from '@/lib/unsaved-changes';
 import { isNotFound, isPreconditionFailed } from '@/lib/records';
 import { z } from '@/lib/zod';
 import { BreakGlassSection } from './tenant-break-glass-section';
@@ -38,10 +39,16 @@ import {
  */
 export function TenantDetail(props: { id: string }) {
   const { t } = useTranslation('tenants');
-  // A 404 is this page's to say, not a toast's.
+  // A 404 is this page's to say, not a toast's. The page shows one read and
+  // writes with its ETag (as the note edit page): a refetch in the
+  // background (focus, reconnect) would remount the name form with another
+  // operator's change and drop the user's edits. A write over a change made
+  // since answers 412, and the conflict notice offers the reload.
   const read = useQuery({
     ...tenantQuery(props.id),
     meta: { errorToast: false },
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   // Above the sections, which are keyed by what was read: a 412 refetches
   // nothing, and the conflict stays on screen with the user's input.
@@ -193,6 +200,8 @@ function NameSection(props: {
       }
       try {
         await update.mutateAsync({ body, etag: props.etag });
+        // Saved: nothing left for the unsaved-changes guard.
+        form.reset({ name, slug: value.slug });
         conflict.clear();
         toast.success(t('detail.saved', { name }));
       } catch (caught) {
@@ -205,6 +214,7 @@ function NameSection(props: {
       }
     },
   });
+  useUnsavedChangesGuard(form);
   return (
     <Section
       title={t('detail.name.title')}

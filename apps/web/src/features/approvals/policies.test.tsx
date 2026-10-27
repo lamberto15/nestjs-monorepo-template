@@ -1,4 +1,5 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
+import { focusManager } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
@@ -536,6 +537,29 @@ describe('editing a policy', () => {
     expect(await within(stage1).findByText(/Too small/)).toBeVisible();
     expect(within(stage1).getByText('approvers.0.role')).toBeVisible();
     expect(screen.getByText(/a duration/)).toBeVisible();
+  });
+
+  it("keeps the user's edits when the tab is back and another admin saved", async () => {
+    const { api, user } = await open();
+    const name = () =>
+      within(screen.getByRole('region', { name: 'Stage 1' })).getByLabelText(
+        'Name',
+      );
+    await user.clear(name());
+    await user.type(name(), 'Mine');
+
+    // Another admin saved meanwhile (a new version, a new ETag); the user
+    // comes back to this tab. A refetch would remount the form and drop the
+    // edits silently: the save's 412 is how a conflict is said instead.
+    api.policy = view({ version: 1, source: 'override' });
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    focusManager.setFocused(undefined);
+
+    expect(name()).toHaveValue('Mine');
   });
 
   it('says so when the policy changed since it was read (412)', async () => {

@@ -36,6 +36,7 @@ import {
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { useMe } from '@/lib/features';
 import { FormAlert, useAppForm } from '@/lib/form';
+import { useUnsavedChangesGuard } from '@/lib/unsaved-changes';
 import { z } from '@/lib/zod';
 
 /** A new role, or an existing one (read-only when built in). */
@@ -108,7 +109,8 @@ function RoleFormLoaded(props: { catalog: Catalog; role?: Role }) {
           permissions: toPermissions(props.catalog, value.permissions),
         });
         toast.success(t(props.role ? 'roles.saved' : 'roles.created'));
-        await navigate({ to: '/access/roles' });
+        // Saved: the list, past the unsaved-changes guard.
+        await navigate({ to: '/access/roles', ignoreBlocker: true });
       } catch (caught) {
         if (!applyFieldErrors(form, caught)) {
           setError(errorMessage(caught));
@@ -116,6 +118,7 @@ function RoleFormLoaded(props: { catalog: Catalog; role?: Role }) {
       }
     },
   });
+  useUnsavedChangesGuard(form);
 
   return (
     <form

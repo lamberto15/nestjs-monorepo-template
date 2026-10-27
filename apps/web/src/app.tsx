@@ -35,7 +35,9 @@ export type AppRouter = ReturnType<typeof createAppRouter>;
 /**
  * The query client and the router, wired together: the global error handler
  * (lib/errors.ts) sends a user whose session ended to sign-in, back to the
- * page they were on afterwards.
+ * page they were on afterwards. Its redirects pass a form's unsaved-changes
+ * guard (`ignoreBlocker`, lib/unsaved-changes.ts): the page cannot go on
+ * under the session that ended or is restricted.
  */
 export function createApp(history?: RouterHistory) {
   let router: AppRouter | undefined;
@@ -47,15 +49,22 @@ export function createApp(history?: RouterHistory) {
         inApp: () =>
           current.state.matches.some((match) => match.routeId === '/_app'),
         toSignIn: (redirect) =>
-          void current.navigate({ to: '/sign-in', search: { redirect } }),
+          void current.navigate({
+            to: '/sign-in',
+            search: { redirect },
+            ignoreBlocker: true,
+          }),
         toOnboarding: () => {
           if (current.state.location.pathname !== '/onboarding') {
-            void current.navigate({ to: '/onboarding' });
+            void current.navigate({ to: '/onboarding', ignoreBlocker: true });
           }
         },
         toMfaSetup: () => {
           if (current.state.location.pathname !== '/account/security') {
-            void current.navigate({ to: '/account/security' });
+            void current.navigate({
+              to: '/account/security',
+              ignoreBlocker: true,
+            });
           }
         },
       }

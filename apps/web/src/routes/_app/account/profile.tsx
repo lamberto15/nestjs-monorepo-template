@@ -25,6 +25,7 @@ import { api } from '@/lib/api';
 import { AvatarSection } from '@/components/account/avatar-section';
 import { useMe } from '@/lib/features';
 import { FormAlert, useAppForm } from '@/lib/form';
+import { useUnsavedChangesGuard } from '@/lib/unsaved-changes';
 import { browserTimeZone } from '@/lib/link-token';
 import { meQuery, type Me } from '@/lib/session';
 
@@ -89,6 +90,12 @@ function ProfileForm({ me }: { me: Me }) {
           ...value,
           name: value.name.trim(),
         });
+        // Saved: the form's defaults now, so leaving asks nothing.
+        form.reset({
+          name: user.name,
+          locale: user.locale ?? '',
+          timezone: user.timezone ?? '',
+        });
         queryClient.setQueryData(meQuery.queryKey, (old) =>
           old ? { ...old, user } : old,
         );
@@ -104,6 +111,7 @@ function ProfileForm({ me }: { me: Me }) {
       }
     },
   });
+  useUnsavedChangesGuard(form);
   return (
     <Card>
       <CardHeader>
