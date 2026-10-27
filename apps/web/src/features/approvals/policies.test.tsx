@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/render-app';
-import { findToast } from '@/test/toast';
+import { expectNoToast, findToast } from '@/test/toast';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
 
 const KEY = 'TestItem.publish';
@@ -585,5 +585,7 @@ describe('editing a policy', () => {
     );
     await renderApp('/approval-policies/Nope.nothing');
     expect(await screen.findByText('Policy not found')).toBeVisible();
+    // The page says it: not a toast as well.
+    await expectNoToast();
   });
 });

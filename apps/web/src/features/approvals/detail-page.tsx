@@ -25,7 +25,12 @@ import { StatusBadge } from './status';
 /** `/approvals/$id`: the request, its stages and approvers, and its history. */
 export function DetailPage(props: { id: string }) {
   const { t } = useTranslation('approvals');
-  const query = useQuery(approvalQuery(props.id));
+  // RecordState says a 404 or a failure on the page: not a toast as well
+  // (the record banner, with no such state, keeps the toast).
+  const query = useQuery({
+    ...approvalQuery(props.id),
+    meta: { errorToast: false },
+  });
   return (
     <section className="flex max-w-3xl flex-col gap-4">
       <Link

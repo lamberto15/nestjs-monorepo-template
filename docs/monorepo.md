@@ -719,8 +719,9 @@ the server). It is not active under `pnpm dev`.
 hand, after `pnpm client:generate` (the client then types the new routes):
 
 1. `features/<feature>/`: its queries (`api.ts`, as `features/notes/api.ts`:
-   `?include=can`, the keys of `lib/records.ts`), its forms and its
-   `nav.ts`.
+   `?include=can`, the keys of `lib/records.ts`; a detail query that a
+   `RecordState` page renders sets `meta: { errorToast: false }`, as its
+   404 and failures are said on the page), its forms and its `nav.ts`.
 2. `routes/_app/<plural>/`: `index.tsx` (a `ListPage`), `$id/index.tsx`
    (the detail with `RecordPanels`), `new.tsx`, `$id/edit.tsx`. The router's
    plugin rewrites `routeTree.gen.ts` while `pnpm dev:web` or the build runs;
