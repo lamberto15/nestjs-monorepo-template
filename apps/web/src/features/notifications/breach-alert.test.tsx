@@ -1,7 +1,7 @@
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeRealtime, type FakeRealtime } from '@/test/fake-realtime';
 import { renderApp } from '@/test/render-app';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
@@ -258,6 +258,70 @@ describe('the breached-password banner', () => {
     expect(state.listQueries.some((q) => q.includes('passwordBreached'))).toBe(
       false,
     );
+  });
+});
+
+describe('keeping the banner current', () => {
+  afterEach(() => vi.useRealTimers());
+
+  const input = () =>
+    act(async () => {
+      window.dispatchEvent(new Event('pointerdown'));
+    });
+
+  // A timer would keep an idle session alive (docs/auth.md, "Session
+  // lifetime"); the user's input is what the API should count.
+  it('looks for an alert again when the user does something a minute later, without realtime', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const state = api({ items: [], realtime: false });
+    await renderApp('/');
+    await screen.findByText('Dashboard', { selector: 'h1' });
+    await waitFor(() => expect(state.breachQueries).toHaveLength(1));
+
+    state.items = [breached()];
+    await input();
+    expect(state.breachQueries).toHaveLength(1);
+    expect(banner()).toBeNull();
+
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+    await input();
+    expect(await screen.findByText(bannerText)).toBeVisible();
+    expect(state.breachQueries).toHaveLength(2);
+  });
+
+  it('leaves it to the socket with realtime', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const state = api({ items: [] });
+    await renderApp('/');
+    await screen.findByText('Dashboard', { selector: 'h1' });
+    await waitFor(() => expect(state.breachQueries).toHaveLength(1));
+
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+    await input();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(state.breachQueries).toHaveLength(1);
+  });
+
+  it('asks nothing while an administrator acts as the user', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const state = api({ impersonating: true, realtime: false });
+    await renderApp('/');
+    await screen.findByText('Dashboard', { selector: 'h1' });
+
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+    await input();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(state.breachQueries).toHaveLength(0);
   });
 });
 

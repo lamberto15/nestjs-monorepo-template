@@ -7,7 +7,7 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeRealtime, type FakeRealtime } from '@/test/fake-realtime';
 import { renderApp } from '@/test/render-app';
 import { renderComponent } from '@/test/render-component';
@@ -242,6 +242,57 @@ describe('the nav badge', () => {
     await renderApp('/');
     const link = await screen.findByRole('link', { name: /Approvals/ });
     expect(link.parentElement).not.toHaveTextContent(/\d/);
+  });
+
+  describe('without a timer', () => {
+    afterEach(() => vi.useRealTimers());
+
+    // A timer would keep an idle session alive (docs/auth.md, "Session
+    // lifetime"); the user's input is what the API should count.
+    const input = () =>
+      act(async () => {
+        window.dispatchEvent(new Event('pointerdown'));
+      });
+    const counts = (api: ReturnType<typeof useApprovalsApi>) =>
+      api.listQueries.filter((query) => query.get('count') === 'true').length;
+
+    it('is asked again when the user does something a minute later', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      const api = useApprovalsApi({ waiting: [item()] });
+      await renderApp('/');
+      const link = await screen.findByRole('link', { name: /Approvals/ });
+      expect(await within(link.parentElement!).findByText('1')).toBeVisible();
+      const asked = counts(api);
+
+      api.waiting = [item(), item({ id: 'b' })];
+      await input();
+      expect(counts(api)).toBe(asked);
+
+      await act(async () => {
+        vi.advanceTimersByTime(60_000);
+      });
+      await input();
+      expect(await within(link.parentElement!).findByText('2')).toBeVisible();
+      expect(counts(api)).toBe(asked + 1);
+    });
+
+    it('is left to the socket when realtime is on', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      const api = useApprovalsApi({ waiting: [item()], realtime: true });
+      await renderApp('/');
+      const link = await screen.findByRole('link', { name: /Approvals/ });
+      expect(await within(link.parentElement!).findByText('1')).toBeVisible();
+      const asked = counts(api);
+
+      await act(async () => {
+        vi.advanceTimersByTime(60_000);
+      });
+      await input();
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+      expect(counts(api)).toBe(asked);
+    });
   });
 
   it('follows the socket when realtime is on', async () => {

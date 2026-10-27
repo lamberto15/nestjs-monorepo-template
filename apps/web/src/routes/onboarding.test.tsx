@@ -1,10 +1,20 @@
 import { http, HttpResponse } from 'msw/http';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
 import { expectOverLimitRefused, fillOver } from '@/test/limits';
 import { renderApp } from '@/test/render-app';
-import { allFeatures, server, signedInUser } from '@/test/server';
+import { allFeatures, problem, server, signedInUser } from '@/test/server';
+
+/** What the mutations in the cache hold: the typed passwords must not be there. */
+const heldVariables = (queryClient: QueryClient) =>
+  JSON.stringify(
+    queryClient
+      .getMutationCache()
+      .getAll()
+      .map((m) => m.state.variables),
+  );
 
 /** The API for a first administrator mid-onboarding. */
 function useOnboardingApi(
@@ -128,6 +138,101 @@ describe('the administrator onboarding step', () => {
         newPassword: 'a-brand-new-passphrase-2026',
       },
     ]);
+  });
+
+  describe('does not keep the passwords in the mutation cache', () => {
+    const sendAddress = async (queryClient: QueryClient) => {
+      const user = userEvent.setup();
+      await user.type(
+        await screen.findByLabelText('New email address'),
+        'owner@acme-corp.dev',
+      );
+      await user.type(
+        screen.getByLabelText('Current password'),
+        'old-password-1',
+      );
+      await user.click(
+        screen.getByRole('button', { name: 'Send the confirmation link' }),
+      );
+      return queryClient;
+    };
+    const changePassword = async () => {
+      const user = userEvent.setup();
+      await user.type(
+        await screen.findByLabelText('Current password'),
+        'generated-password-1',
+      );
+      await user.type(
+        screen.getByLabelText('New password'),
+        'a-brand-new-passphrase-2026',
+      );
+      await user.type(
+        screen.getByLabelText('Confirm the password'),
+        'a-brand-new-passphrase-2026',
+      );
+      await user.click(
+        screen.getByRole('button', { name: 'Change the password' }),
+      );
+    };
+
+    it('after the address is sent', async () => {
+      const changes = useOnboardingApi({ password: false });
+      const { queryClient } = await renderApp('/onboarding');
+      await sendAddress(queryClient);
+      await waitFor(() => expect(changes).toHaveLength(1));
+      await waitFor(() =>
+        expect(heldVariables(queryClient)).not.toContain('old-password-1'),
+      );
+    });
+
+    it('after the address is refused', async () => {
+      useOnboardingApi({ password: false });
+      server.use(
+        http.post('/v1/auth/email/change', () => problem(409, 'email_taken')),
+      );
+      const { queryClient } = await renderApp('/onboarding');
+      await sendAddress(queryClient);
+      expect(await screen.findByText('email_taken (test)')).toBeVisible();
+      await waitFor(() =>
+        expect(heldVariables(queryClient)).not.toContain('old-password-1'),
+      );
+    });
+
+    it('after the password is changed', async () => {
+      useOnboardingApi({ email: false });
+      const bodies: unknown[] = [];
+      server.use(
+        http.post('/v1/auth/password/change', async ({ request }) => {
+          bodies.push(await request.json());
+          return new HttpResponse(null, { status: 204 });
+        }),
+      );
+      const { queryClient } = await renderApp('/onboarding');
+      await changePassword();
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      await waitFor(() => {
+        const held = heldVariables(queryClient);
+        expect(held).not.toContain('generated-password-1');
+        expect(held).not.toContain('a-brand-new-passphrase-2026');
+      });
+    });
+
+    it('after the password is refused', async () => {
+      useOnboardingApi({ email: false });
+      server.use(
+        http.post('/v1/auth/password/change', () =>
+          problem(409, 'password_reused'),
+        ),
+      );
+      const { queryClient } = await renderApp('/onboarding');
+      await changePassword();
+      expect(await screen.findByText('password_reused (test)')).toBeVisible();
+      await waitFor(() => {
+        const held = heldVariables(queryClient);
+        expect(held).not.toContain('generated-password-1');
+        expect(held).not.toContain('a-brand-new-passphrase-2026');
+      });
+    });
   });
 
   it('stays on the page when two-factor is required too (no redirect loop)', async () => {

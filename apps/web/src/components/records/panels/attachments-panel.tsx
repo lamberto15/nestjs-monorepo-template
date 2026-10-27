@@ -16,7 +16,7 @@ import {
 } from '@nestjs-monorepo-template/ui/components/file-upload';
 import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DownloadIcon, LockIcon, UploadIcon, XIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -225,6 +225,12 @@ function AttachmentRow(props: {
   const { t, i18n } = useTranslation('records');
   const { attachment } = props;
   const scanning = isScanning(attachment);
+  // A mutation, so a refusal reaches the global handler (the toast with the
+  // problem's detail). Settled either way: a 404 or 409 means the list changed.
+  const remove = useMutation({
+    mutationFn: () => removeAttachment(attachment.id),
+    onSettled: props.onRemoved,
+  });
   return (
     <li className="flex items-center justify-between gap-3 rounded-lg border p-3">
       <div className="flex min-w-0 items-center gap-3">
@@ -294,10 +300,7 @@ function AttachmentRow(props: {
               name: attachment.name,
             })}
             confirm={t('attachments.delete')}
-            onConfirm={async () => {
-              await removeAttachment(attachment.id);
-              await props.onRemoved();
-            }}
+            onConfirm={() => remove.mutateAsync()}
           >
             {t('attachments.delete')}
           </ConfirmButton>

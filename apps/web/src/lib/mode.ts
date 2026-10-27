@@ -1,6 +1,6 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { isApiError } from '@nestjs-monorepo-template/api-client';
+import { useRefreshOnInput } from '@/lib/refresh-on-input';
 import { featuresQuery, type Features } from '@/lib/session';
 
 /**
@@ -18,9 +18,6 @@ export type Mode = Features['mode'];
  * {@link useModeWatch}).
  */
 export const MODE_POLL = { normal: 60_000, restricted: 15_000 } as const;
-
-/** What counts as the user being there (as `SessionIdleWarning` counts it). */
-const INPUT_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
 
 /**
  * The mode the page has now: `normal` until `GET /v1/features` answered. It
@@ -62,29 +59,7 @@ export function useWritesPaused(): boolean {
  * would stay signed in for ever. Undefined until known.
  */
 export function useModeWatch(): Mode | undefined {
-  const queryClient = useQueryClient();
-  useEffect(() => {
-    // TanStack Query has no refetch on interaction. `fetchQuery` with a
-    // `staleTime` is the throttle: an answer under a minute old is returned
-    // as it is, without a request.
-    const onInput = () => {
-      void queryClient
-        .fetchQuery({
-          ...featuresQuery,
-          staleTime: MODE_POLL.normal,
-          meta: { errorToast: false },
-        })
-        .catch(() => undefined);
-    };
-    for (const event of INPUT_EVENTS) {
-      window.addEventListener(event, onInput, { passive: true });
-    }
-    return () => {
-      for (const event of INPUT_EVENTS) {
-        window.removeEventListener(event, onInput);
-      }
-    };
-  }, [queryClient]);
+  useRefreshOnInput(featuresQuery, { minAge: MODE_POLL.normal });
   return useQuery({
     ...featuresQuery,
     select: (features) => features.mode,
