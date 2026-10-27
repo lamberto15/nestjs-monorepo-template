@@ -1196,7 +1196,7 @@ describe('custom fields (e2e)', () => {
         },
         { note: 'y', region: 'us', amount: 2.5, done: true, tags: ['c'] },
         {}, // no key at all
-        { region: 'eu', amount: 7 }, // region and amount removed below
+        { region: 'eu', amount: 7 }, // its region is removed below
       ]);
       const removed = (await list('').expect(200)).body.items.find(
         (item: { title: string }) => item.title === 'Item 3',
@@ -1214,7 +1214,7 @@ describe('custom fields (e2e)', () => {
 
       expect(await found('?custom.note=x')).toEqual(['Item 0']);
       expect(await found('?custom.note.in=x,y')).toEqual(['Item 0', 'Item 1']);
-      expect(await found('?custom.region=eu')).toEqual(['Item 0', 'Item 3']);
+      expect(await found('?custom.region=eu')).toEqual(['Item 0']);
       expect(await found('?custom.amount=5')).toEqual(['Item 0']);
       expect(await found('?custom.amount=2.5')).toEqual(['Item 1']);
       expect(await found('?custom.amount.in=2.5,5')).toEqual([
