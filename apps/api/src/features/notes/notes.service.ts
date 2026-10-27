@@ -50,6 +50,7 @@ import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { notes } from './notes.tables.js';
 import { NOTE_LIST } from './note.list.js';
 import type { List, ListQuery } from '../../core/http/list-query.js';
+import type { RecordLookup } from '../../platform/records/record-contract.js';
 import { inTenant } from '../../core/tenancy/tenant-query.js';
 import { NOTE_PUBLICATION_JOB } from './note.policy.js';
 import { publishNow } from './note-events.js';
@@ -303,13 +304,26 @@ export class NotesService {
     return rows;
   }
 
-  /** One note, or a 404 (deleted ones too with `deleted`: the recycle bin). */
+  /**
+   * One note, or a 404 (deleted ones too with `deleted`: the recycle bin).
+   * With `visibleTo`, only one that principal may read (in the recycle bin,
+   * restore): filtered in the query, so a note they may not read is the same
+   * 404, after the same query, as one that doesn't exist (docs/permissions.md).
+   */
   async findOne(
     id: string,
     db: Database | Transaction = this.db,
-    /** Deleted notes too (the recycle bin): only to restore one. */
-    { deleted = false }: { deleted?: boolean } = {},
+    /** `deleted`: deleted notes (the recycle bin), only to restore one. */
+    { deleted = false, visibleTo }: RecordLookup = {},
   ): Promise<Note> {
+    const visible = visibleTo
+      ? await this.access.sqlFilter(
+          visibleTo,
+          'Note',
+          deleted ? 'restore' : 'read',
+          { deleted },
+        )
+      : undefined;
     const [note] = await db
       .select()
       .from(notes)
@@ -317,6 +331,7 @@ export class NotesService {
         and(
           eq(notes.id, id),
           deleted ? isNotNull(notes.deletedAt) : isNull(notes.deletedAt),
+          visible,
         ),
       );
     if (!note) {

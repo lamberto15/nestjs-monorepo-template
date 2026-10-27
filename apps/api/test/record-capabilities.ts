@@ -14,7 +14,7 @@ import {
   approvalFlagKey,
 } from '../src/platform/records/record-approvals.js';
 import { recordSettingKey } from '../src/platform/records/record-settings.js';
-import { type TestApp, webhookReceiver } from './support.js';
+import { problemFor, type TestApp, webhookReceiver } from './support.js';
 
 const lowerFirst = (text: string) =>
   text.charAt(0).toLowerCase() + text.slice(1);
@@ -160,6 +160,83 @@ export function describeCapabilities(
     });
   });
 
+  if (record.grants !== 'none') {
+    // A record the caller may not read is a 404 on every route, exactly the
+    // one an id that doesn't exist gets: no route tells that it exists. One
+    // they read but may not change stays a 403 (docs/permissions.md).
+    it('hides a record the caller may not read: the 404 of a missing one, on every route', async () => {
+      const writer = await node().user(['editor']);
+      const other = await node().user(['editor']);
+      const viewer = await node().user(['viewer']);
+      const id = (
+        await writer.agent
+          .post(path)
+          .set('Idempotency-Key', randomUUID())
+          .send(samples.body())
+          .expect(201)
+      ).body.id as string;
+      const missing = randomUUID();
+      type Route = (id: string) => ReturnType<typeof other.agent.get>;
+      const routes: Route[] = [
+        (at) => other.agent.get(`${path}/${at}`),
+        (at) => other.agent.patch(`${path}/${at}`).send(samples.changed),
+        (at) => other.agent.delete(`${path}/${at}`),
+        ...(has('tags')
+          ? [
+              (at: string) =>
+                other.agent.put(`${path}/${at}/tags`).send({ tagIds: [] }),
+            ]
+          : []),
+        ...(has('comments')
+          ? [(at: string) => other.agent.get(`${path}/${at}/comments`)]
+          : []),
+        ...(has('attachments')
+          ? [(at: string) => other.agent.get(`${path}/${at}/attachments`)]
+          : []),
+        ...(has('revisions')
+          ? [(at: string) => other.agent.get(`${path}/${at}/revisions`)]
+          : []),
+        ...(has('watch')
+          ? [(at: string) => other.agent.post(`${path}/${at}/watch`)]
+          : []),
+      ];
+      for (const route of routes) {
+        const hidden = await route(id).expect(404);
+        const absent = await route(missing).expect(404);
+        expect(problemFor(hidden.body, id)).toEqual(
+          problemFor(absent.body, missing),
+        );
+      }
+      // Read but not theirs to change: a 403, which tells them why.
+      await viewer.agent.get(`${path}/${id}`).expect(200);
+      await viewer.agent
+        .patch(`${path}/${id}`)
+        .send(samples.changed)
+        .expect(403);
+      await viewer.agent.delete(`${path}/${id}`).expect(403);
+      if (has('tags')) {
+        await viewer.agent
+          .put(`${path}/${id}/tags`)
+          .send({ tagIds: [] })
+          .expect(403);
+      }
+      if (record.softDelete) {
+        // In the recycle bin: one they may not restore is a 404 too.
+        await writer.agent.delete(`${path}/${id}`).expect(204);
+        const hidden = await other.agent
+          .post(`${path}/${id}/restore`)
+          .expect(404);
+        const absent = await other.agent
+          .post(`${path}/${missing}/restore`)
+          .expect(404);
+        expect(problemFor(hidden.body, id)).toEqual(
+          problemFor(absent.body, missing),
+        );
+        await writer.agent.post(`${path}/${id}/restore`).expect(200);
+      }
+    });
+  }
+
   if (record.softDelete) {
     it('goes to the recycle bin, and comes back until the purge', async () => {
       const admin = node().admin();
@@ -211,7 +288,7 @@ export function describeCapabilities(
       expect(created.body.teamId).toBe(team);
       const id = created.body.id as string;
       const lead = await node().user(['team-lead']);
-      await lead.agent.get(`${path}/${id}`).expect(403);
+      await lead.agent.get(`${path}/${id}`).expect(404); // not theirs to read: as if missing
       await admin
         .patch(`/v1/access/users/${lead.id}`)
         .send({ teamIds: [team] })
@@ -237,8 +314,9 @@ export function describeCapabilities(
         .set('Idempotency-Key', randomUUID())
         .send(samples.body())
         .expect(403);
-      await editor.agent.get(`${path}/${id}`).expect(403);
-      await viewer.agent.get(`${path}/${id}`).expect(403);
+      // Not theirs to read: as if missing.
+      await editor.agent.get(`${path}/${id}`).expect(404);
+      await viewer.agent.get(`${path}/${id}`).expect(404);
       await node().admin().get(`${path}/${id}`).expect(200);
     });
   }
@@ -264,7 +342,7 @@ export function describeCapabilities(
         .http()
         .get(`${path}/${id}`)
         .set('Authorization', other.auth)
-        .expect(403);
+        .expect(404); // not theirs to read: as if missing
     });
   } else {
     it('is closed to API clients: a role must grant it', async () => {
@@ -281,7 +359,7 @@ export function describeCapabilities(
         .http()
         .get(`${path}/${id}`)
         .set('Authorization', client.auth)
-        .expect(403);
+        .expect(404); // not theirs to read: as if missing
     });
   }
 

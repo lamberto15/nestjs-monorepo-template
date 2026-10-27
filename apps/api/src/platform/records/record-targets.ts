@@ -89,10 +89,13 @@ export const titleOf = (
     : `${declaration.noun} ${row.id as string}`;
 };
 
-/** The record, or null when it doesn't exist (or is in the recycle bin). */
-async function find(c: RecordContract, id: string) {
+/**
+ * The record, or null when it doesn't exist (or is in the recycle bin); with
+ * `visibleTo`, null too when that principal may not read it (in the query).
+ */
+async function find(c: RecordContract, id: string, visibleTo?: Principal) {
   try {
-    return await c.service.findOne(id);
+    return await c.service.findOne(id, undefined, { visibleTo });
   } catch (error) {
     if (error instanceof NotFoundException) return null;
     throw error;
@@ -110,9 +113,15 @@ export class RecordTags {
     this.subject = c.declaration.subject;
     registry.register(this);
   }
-  /** A 404 when it doesn't exist (or is in the recycle bin). */
+  /**
+   * A 404 when it doesn't exist (or is in the recycle bin) or the principal
+   * may not read it (the same 404); false (a 403) when they read but may not change it.
+   */
   async canTag(principal: Principal, id: string) {
-    return this.c.policy.update(principal, await this.c.service.findOne(id));
+    return this.c.policy.update(
+      principal,
+      await this.c.service.findOne(id, undefined, { visibleTo: principal }),
+    );
   }
 }
 
@@ -129,8 +138,10 @@ export class RecordComments {
     this.commentedType = `${recordKey(c.declaration)}.commented`;
     registry.register(this);
   }
+  /** False when it doesn't exist (or is in the recycle bin) too: the comments' routes answer both with one 404. */
   async canRead(principal: Principal, id: string) {
-    return this.c.policy.read(principal, await this.c.service.findOne(id));
+    const row = await find(this.c, id, principal);
+    return row !== null && this.c.policy.read(principal, row);
   }
   async canModerate(principal: Principal, id: string) {
     return this.c.policy.update(principal, await this.c.service.findOne(id));
@@ -156,7 +167,7 @@ export class RecordAttachments {
     registry.register(this);
   }
   async canRead(principal: Principal, id: string) {
-    const row = await find(this.c, id);
+    const row = await find(this.c, id, principal);
     return row !== null && this.c.policy.read(principal, row);
   }
   async canWrite(principal: Principal, id: string) {
@@ -203,8 +214,11 @@ export class RecordSubscriptions {
     this.subject = c.declaration.subject;
     registry.register(this);
   }
+  /** A 404 when it doesn't exist or the principal may not read it: the same one. */
   async assertCanWatch(principal: Principal, recordId: string) {
-    const row = await this.c.service.findOne(recordId);
+    const row = await this.c.service.findOne(recordId, undefined, {
+      visibleTo: principal,
+    });
     if (!(await this.c.policy.read(principal, row))) {
       throw new ForbiddenException();
     }
@@ -428,7 +442,7 @@ export class RecordRevisions {
     return recordView(this.c.declaration, row);
   }
   async canRead(principal: Principal, id: string) {
-    const row = await find(this.c, id);
+    const row = await find(this.c, id, principal);
     return row !== null && this.c.policy.read(principal, row);
   }
   async canRestore(principal: Principal, id: string) {

@@ -413,7 +413,10 @@ the controller (`notes.*`); singular for what describes one record
     `MAX_TEXT_LENGTH` (the body limit); the response never carries
     `tenantId`.
    - `@Can()` on the route, or a check on the loaded record; field-level
-     checks on writes (`field_forbidden`).
+     checks on writes (`field_forbidden`). A route on one record finds it
+     with `findOne(id, undefined, { visibleTo: user })`, so one the caller
+     may not read is the 404 of a missing one; the action's check after it
+     is the 403 ([permissions.md](permissions.md), "A record you may not read is a 404").
    - `@ApiOperation`, `@Api*Response` with the Zod schemas; errors are
      problem details (throw Nest's exceptions with a `code`).
    - **Record-level routes are declared, not written.** The platform builds

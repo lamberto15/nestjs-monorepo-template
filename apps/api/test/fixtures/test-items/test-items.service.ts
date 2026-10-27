@@ -87,11 +87,11 @@ export class TestItemsService {
     });
   }
 
-  /** One, or a 404 (with `deleted`, one in the recycle bin). */
+  /** One, or a 404 (with `deleted`, one in the recycle bin; with `visibleTo`, only one that principal may read: else the same 404). */
   findOne(
     id: string,
     db: Database | Transaction = this.db,
-    options: { deleted?: boolean } = {},
+    options: { deleted?: boolean; visibleTo?: Principal } = {},
   ) {
     return this.records.findOne<TestItem>(id, db, options);
   }
