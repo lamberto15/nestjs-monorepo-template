@@ -72,7 +72,19 @@
   "groups": {
     "auth": "Dasar log masuk",
     "notes": "Nota",
-    "numbering": "Penomboran"
+    "numbering": "Penomboran",
+    "ai": "AI",
+    "approvals": "Kelulusan",
+    "branding": "Penjenamaan",
+    "dashboard": "Papan pemuka",
+    "dataTransfer": "Pemindahan data",
+    "expenses": "Perbelanjaan",
+    "invoiceLines": "Baris invois",
+    "messaging": "Pemesejan",
+    "notifications": "Pemberitahuan",
+    "platform": "Platform",
+    "quotas": "Kuota",
+    "ui": "Penampilan"
   },
   "preferences": {
     "title": "Keutamaan",
@@ -165,5 +177,8 @@
       "locale": "ms, en-GB",
       "tenantSlug": "slug penyewa"
     }
-  }
+  },
+  "noLimit": "Tiada had",
+  "notSet": "Tidak ditetapkan",
+  "layoutSummary": "Susun atur tersuai: {{ordered}} kad disusun, {{hidden}} disembunyikan"
 }

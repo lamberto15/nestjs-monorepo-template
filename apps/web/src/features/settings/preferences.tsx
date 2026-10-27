@@ -27,7 +27,10 @@ export function Preferences() {
   if (isPending) {
     return <Skeleton className="h-40 w-full" />;
   }
-  const mine = (data ?? []).filter((setting) => setting.canSetMine);
+  // The dashboard's own "Customize" control edits its layout, not a JSON box.
+  const mine = (data ?? []).filter(
+    (setting) => setting.canSetMine && setting.key !== 'dashboard.layout',
+  );
   if (mine.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">{t('preferences.empty')}</p>

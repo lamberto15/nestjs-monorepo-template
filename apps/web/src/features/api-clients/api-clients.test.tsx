@@ -511,11 +511,11 @@ describe('usage', () => {
     expect(rows[2]).toHaveTextContent('POST /v1/tags');
     const query = state.usageQueries[0]!;
     expect({ from: query.get('from'), to: query.get('to') }).toEqual(
-      rangeFor('30'),
+      rangeFor(30),
     );
   });
 
-  it.each(['7', '90'] as const)(
+  it.each([7, 90] as const)(
     'reads ?days=%s as typed in the address bar, not as 30 days',
     async (days) => {
       // The router parses `7` into a number (a link of the page's own writes
@@ -538,7 +538,7 @@ describe('usage', () => {
   });
 
   it('counts the period back from today, both ends included', () => {
-    expect(rangeFor('7', new Date('2026-10-17T10:00:00Z'))).toEqual({
+    expect(rangeFor(7, new Date('2026-10-17T10:00:00Z'))).toEqual({
       from: '2026-10-11',
       to: '2026-10-17',
     });

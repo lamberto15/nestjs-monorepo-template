@@ -135,6 +135,26 @@ describe('the audit log page', () => {
     );
   });
 
+  it('names the action for people and keeps its key as the title', async () => {
+    auditApi([
+      entry('1'),
+      entry('2', { action: 'member.signed-in' }),
+      entry('3', { action: 'widget.rotated-keys' }),
+    ]);
+    await renderApp('/audit');
+
+    expect(await screen.findByTitle('note.created')).toHaveTextContent(
+      'Note created',
+    );
+    expect(screen.getByTitle('member.signed-in')).toHaveTextContent(
+      'Member signed in',
+    );
+    // No translation for it: the key spelled out.
+    expect(screen.getByTitle('widget.rotated-keys')).toHaveTextContent(
+      'Widget rotated keys',
+    );
+  });
+
   it('names an actor the entry stored no label for, in one request', async () => {
     signedInWith({ 'Access.readAudit': true });
     const NOOR = '0199a3f2-0000-7000-8000-000000000011';

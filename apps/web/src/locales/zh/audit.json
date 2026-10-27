@@ -27,5 +27,25 @@
   "dashboard": {
     "title": "最近活动",
     "empty": "暂无活动。"
+  },
+  "actions": {
+    "member": {
+      "signed-in": "成员已登录"
+    },
+    "user": {
+      "impersonation-started": "开始模拟身份",
+      "impersonation-stopped": "结束模拟身份"
+    },
+    "note": {
+      "created": "笔记已创建",
+      "updated": "笔记已更新",
+      "deleted": "笔记已删除",
+      "restored": "笔记已恢复"
+    },
+    "auth": {
+      "signed-in": "已登录",
+      "password-changed": "密码已更改",
+      "sign-in-failed": "登录失败"
+    }
   }
 }

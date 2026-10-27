@@ -33,7 +33,7 @@ import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { clientsQuery, usageQuery, type Usage } from './queries';
 
-export const usageRanges = ['7', '30', '90'] as const;
+export const usageRanges = [7, 30, 90] as const;
 export type UsageRange = (typeof usageRanges)[number];
 
 const day = (date: Date) => date.toISOString().slice(0, 10);
@@ -42,7 +42,7 @@ const day = (date: Date) => date.toISOString().slice(0, 10);
 export function rangeFor(days: UsageRange, now = new Date()) {
   const to = day(now);
   const start = new Date(now);
-  start.setUTCDate(start.getUTCDate() - (Number(days) - 1));
+  start.setUTCDate(start.getUTCDate() - (days - 1));
   return { from: day(start), to };
 }
 
@@ -119,7 +119,7 @@ export function UsagePage(props: { client?: string; days: UsageRange }) {
                   void navigate({
                     search: (prev) => ({
                       ...prev,
-                      days: (value ?? '30') as UsageRange,
+                      days: (value ?? 30) as UsageRange,
                     }),
                   })
                 }

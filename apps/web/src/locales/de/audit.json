@@ -27,5 +27,25 @@
   "dashboard": {
     "title": "Letzte Aktivität",
     "empty": "Noch keine Aktivität."
+  },
+  "actions": {
+    "member": {
+      "signed-in": "Mitglied angemeldet"
+    },
+    "user": {
+      "impersonation-started": "Identitätswechsel gestartet",
+      "impersonation-stopped": "Identitätswechsel beendet"
+    },
+    "note": {
+      "created": "Notiz erstellt",
+      "updated": "Notiz aktualisiert",
+      "deleted": "Notiz gelöscht",
+      "restored": "Notiz wiederhergestellt"
+    },
+    "auth": {
+      "signed-in": "Angemeldet",
+      "password-changed": "Passwort geändert",
+      "sign-in-failed": "Anmeldung fehlgeschlagen"
+    }
   }
 }

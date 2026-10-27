@@ -100,7 +100,7 @@ export function ClientDetail(props: { id: string }) {
             {hasUsage && (
               <Link
                 to="/api-clients/usage"
-                search={{ client: client.id, days: '30' }}
+                search={{ client: client.id, days: 30 }}
                 className={cn(
                   buttonVariants({ variant: 'outline', size: 'sm' }),
                   'ms-auto',

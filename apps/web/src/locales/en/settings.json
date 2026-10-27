@@ -72,7 +72,19 @@
   "groups": {
     "auth": "Sign-in policy",
     "notes": "Notes",
-    "numbering": "Numbering"
+    "numbering": "Numbering",
+    "ai": "AI",
+    "approvals": "Approvals",
+    "branding": "Branding",
+    "dashboard": "Dashboard",
+    "dataTransfer": "Data transfer",
+    "expenses": "Expenses",
+    "invoiceLines": "Invoice lines",
+    "messaging": "Messaging",
+    "notifications": "Notifications",
+    "platform": "Platform",
+    "quotas": "Quotas",
+    "ui": "Appearance"
   },
   "preferences": {
     "title": "Preferences",
@@ -165,5 +177,8 @@
       "locale": "en, pt-BR",
       "tenantSlug": "tenant slug"
     }
-  }
+  },
+  "noLimit": "No limit",
+  "notSet": "Not set",
+  "layoutSummary": "Custom layout: {{ordered}} cards ordered, {{hidden}} hidden"
 }

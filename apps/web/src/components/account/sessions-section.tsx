@@ -50,8 +50,11 @@ export function SessionsSection() {
             >
               <MonitorSmartphoneIcon className="size-4 text-muted-foreground" />
               <div className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-sm font-medium">
-                  {session.userAgent ?? t('account.sessions.unknownDevice')}
+                <span
+                  className="truncate text-sm font-medium"
+                  title={session.userAgent ?? undefined}
+                >
+                  {session.device ?? t('account.sessions.unknownDevice')}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {[

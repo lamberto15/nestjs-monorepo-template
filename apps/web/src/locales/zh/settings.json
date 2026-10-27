@@ -72,7 +72,19 @@
   "groups": {
     "auth": "登录策略",
     "notes": "笔记",
-    "numbering": "编号"
+    "numbering": "编号",
+    "ai": "AI",
+    "approvals": "审批",
+    "branding": "品牌",
+    "dashboard": "仪表板",
+    "dataTransfer": "数据传输",
+    "expenses": "费用",
+    "invoiceLines": "发票行",
+    "messaging": "消息",
+    "notifications": "通知",
+    "platform": "平台",
+    "quotas": "配额",
+    "ui": "外观"
   },
   "preferences": {
     "title": "偏好设置",
@@ -165,5 +177,8 @@
       "locale": "zh, en-GB",
       "tenantSlug": "租户标识"
     }
-  }
+  },
+  "noLimit": "无限制",
+  "notSet": "未设置",
+  "layoutSummary": "自定义布局：已排序 {{ordered}} 张卡片，隐藏 {{hidden}} 张"
 }

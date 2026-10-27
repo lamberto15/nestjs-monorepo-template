@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { DashboardListCard, DashboardRow } from '@/features/dashboard/card';
 import { api } from '@/lib/api';
+import { actionLabel } from './action-label';
 
 /** The latest audit entries (`Access.readAudit`). */
 export const recentActivityQuery = queryOptions({
@@ -34,7 +35,9 @@ export function RecentActivityCard() {
       {items.map((item) => (
         <DashboardRow
           key={item.id}
-          primary={item.action}
+          primary={
+            <span title={item.action}>{actionLabel(t, item.action)}</span>
+          }
           secondary={item.actorName ?? item.actorLabel}
           at={item.at}
         />
