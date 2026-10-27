@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { I18nService } from '@nestjs/i18n';
-import { and, desc, eq, lt } from 'drizzle-orm';
+import { and, eq, getTableColumns } from 'drizzle-orm';
+import type { ListQuery } from '../../core/http/list-query.js';
+import { walkList } from '../../core/http/pagination.js';
 import {
   database,
   type DrizzleTransactions,
@@ -59,33 +61,35 @@ export class NotificationTransfer implements DataExporter<
     return true;
   }
 
-  async *batches(principal: Principal, filters: Record<string, unknown>) {
+  /** In the list's order (`query.sort`, else newest first), by keyset. */
+  async *batches(principal: Principal, query: Record<string, unknown>) {
+    const list = query as ListQuery;
     const locale =
       principal.kind === 'user' && principal.locale
         ? principal.locale
         : this.i18n.defaultLocale;
     const where = and(
       eq(notifications.recipient, principalKey(principal)),
-      NOTIFICATION_LIST.where({ limit: 1000, ...filters }),
+      NOTIFICATION_LIST.where(list),
     );
-    let cursor: string | undefined;
-    for (;;) {
-      const rows = await this.db
-        .select()
-        .from(notifications)
-        .where(and(where, cursor ? lt(notifications.id, cursor) : undefined))
-        .orderBy(desc(notifications.id))
-        .limit(1000);
-      if (rows.length === 0) {
-        return;
-      }
+    const extra = NOTIFICATION_LIST.sortSelect(list);
+    for await (const rows of walkList(
+      notifications.id,
+      list,
+      ({ after, orderBy, limit }) =>
+        this.db
+          .select({ ...getTableColumns(notifications), ...extra })
+          .from(notifications)
+          .where(and(where, after))
+          .orderBy(...orderBy)
+          .limit(limit),
+    )) {
       yield rows.map((row) => ({
         ...this.notifications.view(row, locale),
         // Dates, for the date-time columns (the view has ISO strings).
         readAt: row.readAt,
         createdAt: row.createdAt,
       }));
-      cursor = rows[rows.length - 1]!.id;
     }
   }
 }

@@ -9,19 +9,42 @@ import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import de from '@/locales/de/common.json';
 import en from '@/locales/en/common.json';
+import enTransfer from '@/locales/en/transfer.json';
 import { recordKeys } from '@/lib/records';
 import { EmptyState } from './empty-state';
 import { PageHeader } from './page-header';
 import { ListPage, type ListPageProps } from './list-page';
 import type { ListColumn, ListPath } from '@/lib/list-query';
 
-const mocks = vi.hoisted(() => ({ fetch: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  fetch: vi.fn(),
+  /** What GET /v1/data lists as exports (the catalog). */
+  exports: [] as { name: string; subject: string }[],
+}));
 // The real client on a mocked fetch: the URLs it builds are what is checked.
+// The catalog (GET /v1/data) is answered here, so each test's own fetch mock
+// need not know it; the export POST goes to the test's.
 vi.mock('@/lib/api', () => ({
   api: createApiClient({
     baseUrl: 'http://api.test',
     fetch: (input: RequestInfo | URL) =>
-      mocks.fetch(input) as Promise<Response>,
+      (input as Request).method === 'GET' &&
+      new URL((input as Request).url).pathname === '/v1/data'
+        ? Promise.resolve(
+            new Response(
+              JSON.stringify({
+                importLimits: { maxBytes: 1, maxRows: 1 },
+                exports: mocks.exports.map((e) => ({
+                  ...e,
+                  columns: ['id'],
+                  formats: ['csv', 'json', 'xlsx'],
+                })),
+                imports: [],
+              }),
+              { headers: { 'content-type': 'application/json' } },
+            ),
+          )
+        : (mocks.fetch(input) as Promise<Response>),
   }),
 }));
 
@@ -103,7 +126,10 @@ async function renderList(
   const i18n = i18next.createInstance();
   await i18n.use(initReactI18next).init({
     lng,
-    resources: { en: { common: en }, de: { common: de } },
+    resources: {
+      en: { common: en, transfer: enTransfer },
+      de: { common: de },
+    },
     defaultNS: 'common',
   });
   const client = new QueryClient({
@@ -153,7 +179,10 @@ const listed = (name: string) =>
     .map((url) => url.searchParams.get(name));
 
 describe('ListPage', () => {
-  beforeEach(() => mocks.fetch.mockReset());
+  beforeEach(() => {
+    mocks.fetch.mockReset();
+    mocks.exports = [];
+  });
 
   it('shows a skeleton, then the rows of the page', async () => {
     mocks.fetch.mockImplementation(async (request?: Request) =>
@@ -778,5 +807,96 @@ describe('PageHeader and EmptyState', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('No tags yet.');
     expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
+  });
+
+  describe('Export and Schedule report (#819)', () => {
+    const items = () =>
+      mocks.fetch.mockImplementation(async (request?: Request) =>
+        request?.url.includes('/v1/lists/')
+          ? json(description)
+          : request?.url.endsWith('/v1/data/exports')
+            ? // Refused: the page's dialog needs no router for the job it would follow.
+              json({ title: 'Refused', status: 400 }, 400)
+            : json(
+                listPage([{ id: '1', title: 'First item', status: 'draft' }]),
+              ),
+      );
+
+    it('shows both for a subject with an export, and sends the list filter, search, sort and scope', async () => {
+      mocks.exports = [{ name: 'test-items', subject: 'TestItem' }];
+      items();
+      await renderList(
+        '?q=quarterly&title=report&sort=title.desc',
+        'en',
+        // The page's own scope: a flat filter on a list field is sent, `include` (a route option) is not.
+        { query: { 'status.in': 'draft', include: 'can' } },
+      );
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole('button', { name: 'Export' }));
+      await user.click(
+        await screen.findByRole('button', { name: 'Start the export' }),
+      );
+      await waitFor(() =>
+        expect(
+          mocks.fetch.mock.calls.some(
+            ([r]) => (r as Request).method === 'POST',
+          ),
+        ).toBe(true),
+      );
+      const post = mocks.fetch.mock.calls
+        .map(([r]) => r as Request)
+        .find((r) => r.method === 'POST')!;
+      expect(await post.json()).toEqual({
+        name: 'test-items',
+        format: 'csv',
+        // `title=report` is the table's own filter: the list's advanced `filter`.
+        filters: {
+          'status.in': 'draft',
+          filter: expect.stringContaining('"field":"title"'),
+          q: 'quarterly',
+        },
+        sort: '-title',
+      });
+    });
+
+    it('sends the default sort when the list is not sorted', async () => {
+      mocks.exports = [{ name: 'test-items', subject: 'TestItem' }];
+      items();
+      await renderList();
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole('button', { name: 'Export' }));
+      await user.click(
+        await screen.findByRole('button', { name: 'Start the export' }),
+      );
+      await waitFor(() =>
+        expect(
+          mocks.fetch.mock.calls.some(
+            ([r]) => (r as Request).method === 'POST',
+          ),
+        ).toBe(true),
+      );
+      const post = mocks.fetch.mock.calls
+        .map(([r]) => r as Request)
+        .find((r) => r.method === 'POST')!;
+      expect(await post.json()).toMatchObject({ sort: '-createdAt' });
+    });
+
+    it('shows neither without an export for the subject, nor when the page opts out', async () => {
+      items();
+      mocks.exports = [{ name: 'notifications', subject: 'Notification' }];
+      const first = await renderList();
+      await screen.findByText('First item');
+      expect(
+        screen.queryByRole('button', { name: 'Export' }),
+      ).not.toBeInTheDocument();
+      first.unmount();
+
+      mocks.exports = [{ name: 'test-items', subject: 'TestItem' }];
+      await renderList('', 'en', { exportable: false });
+      await screen.findByText('First item');
+      expect(
+        screen.queryByRole('button', { name: 'Export' }),
+      ).not.toBeInTheDocument();
+    });
   });
 });

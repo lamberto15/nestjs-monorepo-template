@@ -7421,6 +7421,11 @@
                             "type": "string",
                             "example": "notes"
                           },
+                          "subject": {
+                            "type": "string",
+                            "example": "Note",
+                            "description": "The permission subject of the data: the one of its list (`GET /v1/lists/{subject}`), so a list page finds its export."
+                          },
                           "columns": {
                             "type": "array",
                             "items": {
@@ -7442,6 +7447,7 @@
                         },
                         "required": [
                           "name",
+                          "subject",
                           "columns",
                           "formats"
                         ],
@@ -7600,11 +7606,16 @@
                     ]
                   },
                   "filters": {
-                    "description": "The list filters of that data, as on its list route: { \"status\": \"draft\" }.",
+                    "description": "The list filters of that data, as on its list route: { \"status\": \"draft\" }, or the list's `filter` (JSON) and `q`.",
                     "type": "object",
                     "additionalProperties": {
                       "type": "string"
                     }
+                  },
+                  "sort": {
+                    "description": "The list's `sort` (`-createdAt,title`), checked by its declaration, so the file is in the order the list shows. Default: newest first.",
+                    "type": "string",
+                    "maxLength": 500
                   },
                   "timezone": {
                     "description": "The time zone of the file's dates (ISO 8601 with its offset). Default: the user's own, else the server's (APP_TIMEZONE).",
@@ -20120,9 +20131,9 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: name,exporter. Fields: id, name, exporter, format, filters, timezone, schedule, recipients, active, lastRunAt, lastStatus, lastTransferId, nextRunAt, createdAt, updatedAt.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: name,exporter. Fields: id, name, exporter, format, filters, sort, timezone, schedule, recipients, active, lastRunAt, lastStatus, lastTransferId, nextRunAt, createdAt, updatedAt.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: name,exporter. Fields: id, name, exporter, format, filters, timezone, schedule, recipients, active, lastRunAt, lastStatus, lastTransferId, nextRunAt, createdAt, updatedAt.",
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: name,exporter. Fields: id, name, exporter, format, filters, sort, timezone, schedule, recipients, active, lastRunAt, lastStatus, lastTransferId, nextRunAt, createdAt, updatedAt.",
               "type": "string"
             }
           }
@@ -20164,6 +20175,11 @@
                             "additionalProperties": {
                               "type": "string"
                             }
+                          },
+                          "sort": {
+                            "nullable": true,
+                            "description": "The list's order each run replays; null: newest first.",
+                            "type": "string"
                           },
                           "timezone": {
                             "type": "string",
@@ -20308,6 +20324,7 @@
                           "exporter",
                           "format",
                           "filters",
+                          "sort",
                           "timezone",
                           "schedule",
                           "recipients",
@@ -20437,6 +20454,11 @@
                     "additionalProperties": {
                       "type": "string"
                     }
+                  },
+                  "sort": {
+                    "description": "The list's `sort` (`-createdAt,title`), checked by the exporter's list and replayed on every run. Default: newest first.",
+                    "type": "string",
+                    "maxLength": 500
                   },
                   "timezone": {
                     "description": "The schedule's hours and the file's dates. Default: your own time zone, else the server's (APP_TIMEZONE).",
@@ -20589,6 +20611,11 @@
                         "type": "string"
                       }
                     },
+                    "sort": {
+                      "nullable": true,
+                      "description": "The list's order each run replays; null: newest first.",
+                      "type": "string"
+                    },
                     "timezone": {
                       "type": "string",
                       "example": "Asia/Manila"
@@ -20732,6 +20759,7 @@
                     "exporter",
                     "format",
                     "filters",
+                    "sort",
                     "timezone",
                     "schedule",
                     "recipients",
@@ -20821,6 +20849,11 @@
                         "type": "string"
                       }
                     },
+                    "sort": {
+                      "nullable": true,
+                      "description": "The list's order each run replays; null: newest first.",
+                      "type": "string"
+                    },
                     "timezone": {
                       "type": "string",
                       "example": "Asia/Manila"
@@ -20964,6 +20997,7 @@
                     "exporter",
                     "format",
                     "filters",
+                    "sort",
                     "timezone",
                     "schedule",
                     "recipients",
@@ -21049,6 +21083,11 @@
                     "additionalProperties": {
                       "type": "string"
                     }
+                  },
+                  "sort": {
+                    "nullable": true,
+                    "type": "string",
+                    "maxLength": 500
                   },
                   "timezone": {
                     "type": "string",
@@ -21194,6 +21233,11 @@
                         "type": "string"
                       }
                     },
+                    "sort": {
+                      "nullable": true,
+                      "description": "The list's order each run replays; null: newest first.",
+                      "type": "string"
+                    },
                     "timezone": {
                       "type": "string",
                       "example": "Asia/Manila"
@@ -21337,6 +21381,7 @@
                     "exporter",
                     "format",
                     "filters",
+                    "sort",
                     "timezone",
                     "schedule",
                     "recipients",

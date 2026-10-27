@@ -25,9 +25,6 @@ import {
   NOTES_LIST_QUERY,
   NOTES_PATH,
 } from '@/features/notes/api';
-import { ScheduleReportButton } from '@/features/reports/schedule-button';
-import { exportFilters } from '@/features/transfer/api';
-import { ExportButton } from '@/features/transfer/export-button';
 import { ImportButton } from '@/features/transfer/import-button';
 import { useNoteDelete } from '@/features/notes/use-note-delete';
 import { TagBadge } from '@/lib/tags';
@@ -85,22 +82,6 @@ function Notes() {
     [t, bin.deleted, canDelete, canRestore],
   );
   const bulk = useBulkActions('/v1/notes/bulk', bulkSpecs);
-
-  // Export and schedule what the list shows (its filter and search); the
-  // recycle bin is not exported.
-  const listActions = useCallback(
-    ({ params }: { params: Record<string, string> }) =>
-      bin.deleted ? null : (
-        <>
-          <ExportButton exporter="notes" filters={exportFilters(params)} />
-          <ScheduleReportButton
-            exporter="notes"
-            filters={exportFilters(params)}
-          />
-        </>
-      ),
-    [bin.deleted],
-  );
 
   // Cells and headers only: whether a column filters or sorts, and how, comes
   // from GET /v1/lists/Note (see withListMeta).
@@ -228,7 +209,8 @@ function Notes() {
         // The bin's notes are gone from the detail route (404).
         rowHref={bin.deleted ? undefined : (note) => `/notes/${note.id}`}
         rowActions={rowActions}
-        listActions={listActions}
+        // The recycle bin is not exported.
+        exportable={!bin.deleted}
         bulkActions={bulkSpecs.length > 0 ? bulk.render : undefined}
         toolbarActions={
           <>

@@ -48,9 +48,11 @@ import { apiClients } from '../../iam/iam.tables.js';
 import { defineResource } from '../../iam/resources/resource.js';
 import { DataTransferRegistry } from '../data-transfer/data-transfer.registry.js';
 import { DataTransferService } from '../data-transfer/data-transfer.service.js';
-import type {
-  TransferFinished,
-  TransferFormat,
+import {
+  exportIssuePath,
+  exportQuery,
+  type TransferFinished,
+  type TransferFormat,
 } from '../data-transfer/data-transfer.types.js';
 import { nextRunTime } from './report-time.js';
 import { ReportFailedMail, ReportReadyMail } from './report.mails.js';
@@ -73,6 +75,7 @@ const view = (row: ReportScheduleRow) => ({
   exporter: row.exporter,
   format: row.format as TransferFormat,
   filters: row.filters,
+  sort: row.sort,
   timezone: row.timezone,
   schedule: row.schedule,
   recipients: row.recipients,
@@ -171,7 +174,7 @@ export class ReportsService implements PersonalDataSource {
   }
 
   async create(principal: RequestPrincipal, dto: CreateReportDto, ip?: string) {
-    await this.check(principal, dto.exporter, dto.filters);
+    await this.check(principal, dto.exporter, dto.filters, dto.sort);
     const recipients =
       dto.recipients ?? (principal.kind === 'user' ? [principal.email] : null);
     if (!recipients) {
@@ -198,6 +201,7 @@ export class ReportsService implements PersonalDataSource {
           exporter: dto.exporter,
           format: dto.format,
           filters: dto.filters,
+          sort: dto.sort,
           timezone,
           schedule: dto.schedule,
           recipients,
@@ -234,11 +238,16 @@ export class ReportsService implements PersonalDataSource {
     if (Object.keys(values).length === 0) {
       return view(report);
     }
-    if (values.exporter !== undefined || values.filters !== undefined) {
+    if (
+      values.exporter !== undefined ||
+      values.filters !== undefined ||
+      values.sort !== undefined
+    ) {
       await this.check(
         principal,
         values.exporter ?? report.exporter,
         values.filters ?? report.filters,
+        values.sort === undefined ? report.sort : values.sort,
       );
     }
     const schedule = values.schedule ?? report.schedule;
@@ -292,7 +301,7 @@ export class ReportsService implements PersonalDataSource {
     const report = await this.findOwn(principal, id);
     // A 400 (not the export's 403/404) when the owner may no longer run it;
     // filters on a field they may no longer read: a 403 field_forbidden.
-    await this.check(principal, report.exporter, report.filters);
+    await this.check(principal, report.exporter, report.filters, report.sort);
     const started = await this.start(principal, report, {
       trigger: 'manual',
       ip,
@@ -364,6 +373,7 @@ export class ReportsService implements PersonalDataSource {
         name: claimed.exporter,
         format: claimed.format as TransferFormat,
         filters: claimed.filters,
+        sort: claimed.sort ?? undefined,
         timezone: claimed.timezone,
         tag: `${TAG}${claimed.id}`,
         id: transferId,
@@ -493,6 +503,7 @@ export class ReportsService implements PersonalDataSource {
     principal: RequestPrincipal,
     exporterName: string,
     filters: Record<string, string>,
+    sort?: string | null,
   ) {
     const exporter = this.registry.exporter(exporterName);
     if (
@@ -508,11 +519,14 @@ export class ReportsService implements PersonalDataSource {
         },
       ]);
     }
-    const parsed = exporter.filters?.safeParse(filters);
+    if (sort && !exporter.filters) {
+      throw invalid([{ path: 'sort', message: 'This export has no sort.' }]);
+    }
+    const parsed = exporter.filters?.safeParse(exportQuery(filters, sort));
     if (parsed && !parsed.success) {
       throw invalid(
         parsed.error.issues.map((issue) => ({
-          path: ['filters', ...issue.path].join('.'),
+          path: exportIssuePath(issue.path),
           message: issue.message,
         })),
       );

@@ -47,6 +47,10 @@ export const reportSchema = z.object({
   exporter: z.string().meta({ example: 'notes' }),
   format: z.enum(TRANSFER_FORMATS),
   filters: z.record(z.string(), z.string()),
+  sort: z
+    .string()
+    .nullable()
+    .describe("The list's order each run replays; null: newest first."),
   timezone: z.string().meta({ example: 'Asia/Manila' }),
   schedule: reportScheduleSchema,
   recipients: z.array(z.string()),
@@ -78,6 +82,13 @@ export const createReportSchema = z.object({
     .describe(
       'The list filters of that data, as on its list route: { "status": "draft" }.',
     ),
+  sort: z
+    .string()
+    .max(500)
+    .optional()
+    .describe(
+      "The list's `sort` (`-createdAt,title`), checked by the exporter's list and replayed on every run. Default: newest first.",
+    ),
   timezone: timezone
     .optional()
     .describe(
@@ -99,6 +110,7 @@ export const updateReportSchema = z.object({
   exporter: createReportSchema.shape.exporter.optional(),
   format: z.enum(TRANSFER_FORMATS).optional(),
   filters: z.record(z.string(), z.string()).optional(),
+  sort: z.string().max(500).nullable().optional(),
   timezone: timezone.optional(),
   schedule: reportScheduleSchema.optional(),
   recipients: recipients.optional(),

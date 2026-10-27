@@ -16,20 +16,40 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
     registry.registerExporter(this);
     registry.registerImporter(this);
   }
-  async *batches(principal, filters) { … yield rows (keyset, 1000 at a time) … }
+  async *batches(principal, query) { … yield rows (keyset on the list's sort, 1000 at a time) … }
   async write(principal, row) { await this.notes.create(principal, row); }  // as POST does
 }
 ```
 
-| Route                                                         | Does                                                                                                                |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `GET /v1/data`                                                | what the caller may export and import; each import's columns and template link                                      |
-| `GET /v1/data/imports/{name}/template?format=&timezone=`      | a file to fill: the columns, an example row                                                                         |
-| `POST /v1/data/exports { name, format, filters, timezone? }`  | 202; the file lands in private storage                                                                              |
-| `POST /v1/data/imports` (multipart: `name`, `file`, `dryRun`) | 202; every row is validated, valid rows written                                                                     |
-| `GET /v1/data/transfers/{id}`                                 | progress, then the result: a signed link (30 min), counts, the error report; `createdAt`, `finishedAt`, `expiresAt` |
-| `GET /v1/data/transfers?kind=&status=&limit=&cursor=`         | the caller's transfers in this tenant, newest first, each as the route above tells it                               |
+| Route                                                               | Does                                                                                                                |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `GET /v1/data`                                                      | what the caller may export and import; each import's columns and template link                                      |
+| `GET /v1/data/imports/{name}/template?format=&timezone=`            | a file to fill: the columns, an example row                                                                         |
+| `POST /v1/data/exports { name, format, filters, sort?, timezone? }` | 202; the file lands in private storage                                                                              |
+| `POST /v1/data/imports` (multipart: `name`, `file`, `dryRun`)       | 202; every row is validated, valid rows written                                                                     |
+| `GET /v1/data/transfers/{id}`                                       | progress, then the result: a signed link (30 min), counts, the error report; `createdAt`, `finishedAt`, `expiresAt` |
+| `GET /v1/data/transfers?kind=&status=&limit=&cursor=`               | the caller's transfers in this tenant, newest first, each as the route above tells it                               |
 
+- **An export is what its list shows** (the owner's rule: filter, search
+  and sort, for every entity). `filters` takes the list route's own filters
+  (`status`, `title.contains`, the advanced `filter` as JSON, `q`) and `sort`
+  its `?sort=` (`-createdAt,title`); the exporter's `filters` schema is the
+  list's, so both are checked when the export starts (a 400 naming `sort` or
+  `filters.<field>`; field-level permissions as for the list). Without `sort`
+  the order is the list's: newest first. `batches(principal, query)` gets the
+  parsed list query and walks it with `walkList()` (`core/http/pagination.ts`):
+  1000 rows a batch by **keyset on the sort values and the id**, the same
+  condition and order the list's cursor uses (`afterCursor`, `pageOrder`),
+  so a file holds the rows of every page of the list, in the same order, and
+  memory stays one batch. An exporter pages with it, passing
+  `list.sortSelect(query)` next to the columns (notes, the generated
+  features' record transfer and notifications do). `GET /v1/data` names each
+  export's `subject`, which is how a list page finds its export: `ListPage`
+  shows **Export** and **Schedule report** by default when the catalog has
+  an exporter for its subject, sending `listExport(params, query, fields)`
+  (the list's `filter` and `q`, the page's own flat filters, the sort);
+  `exportable={false}` opts out (the recycle bin). No per-page wiring, so a
+  generated feature has both on its list from the start.
 - **Per tenant** ([tenancy](tenancy.md)): a transfer job names the tenant
   it was started in (`tenantId`, required by its type); the worker runs it
   there (`TenantWorkerHost`), with its principal checked again as a member
@@ -118,7 +138,7 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
   are refused, never inserted, and a repeated key refuses its later
   occurrence. Matching is tenant-scoped, and only finds records the caller
   may read: an importer's lookup takes `access.sqlFilter(principal, subject,
-  'read')`, so a record they may not read is refused as not found, with the
+'read')`, so a record they may not read is refused as not found, with the
   same message as one that doesn't exist (a file can't probe which ids or
   numbers exist). Notes allow `id` and `number`; matched rows need update
   permission and the same record and field checks as a note update. The API

@@ -25,6 +25,8 @@ export const reportSchedules = pgTable(
       .$type<Record<string, string>>()
       .notNull()
       .default({}),
+    /** The list's order, as its route's `?sort=` spells it (`-createdAt,title`); null: newest first. */
+    sort: text('sort'),
     /** The IANA zone the schedule's hours are in, and the file's dates. */
     timezone: text('timezone').notNull(),
     schedule: jsonb('schedule').$type<ReportSchedule>().notNull(),

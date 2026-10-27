@@ -12,25 +12,31 @@ imports are unaffected; a feature's `transfer` capability keeps working.
 ```http
 POST /v1/reports
 { "name": "Weekly drafts", "exporter": "notes", "format": "xlsx",
-  "filters": { "status": "draft" }, "timezone": "Asia/Manila",
+  "filters": { "status": "draft" }, "sort": "-createdAt,title", "timezone": "Asia/Manila",
   "schedule": { "every": "weekly", "weekday": 1, "hour": 8 },
   "recipients": ["team@example.com"] }
 ```
 
-| Route | Does |
-| --- | --- |
-| `GET /v1/reports` | your reports (cursor pages; `?active=`, `?exporter=`, `?sort=nextRunAt`) |
-| `POST /v1/reports` | schedule one (201, audited `report.created`) |
-| `GET`, `PATCH`, `DELETE /v1/reports/{id}` | one of yours (another's: 404); `report.updated`, `report.deleted` |
-| `POST /v1/reports/{id}/run` | run it now: 202 with the transfer id (`GET /v1/data/transfers/{id}`), `report.ran` |
+| Route                                     | Does                                                                               |
+| ----------------------------------------- | ---------------------------------------------------------------------------------- |
+| `GET /v1/reports`                         | your reports (cursor pages; `?active=`, `?exporter=`, `?sort=nextRunAt`)           |
+| `POST /v1/reports`                        | schedule one (201, audited `report.created`)                                       |
+| `GET`, `PATCH`, `DELETE /v1/reports/{id}` | one of yours (another's: 404); `report.updated`, `report.deleted`                  |
+| `POST /v1/reports/{id}/run`               | run it now: 202 with the transfer id (`GET /v1/data/transfers/{id}`), `report.ran` |
 
 - **Owner-scoped**: a report is its creator's (`user:<id>` or
   `client:<id>`) and runs as them: the export is what `POST /v1/data/exports`
   would give them (their read filter, their field-level permissions),
   checked again when each run starts and on the worker.
+- **A report is a list saved**: its `filters` (the list's flat filters, `filter`
+  JSON, `q`) and its `sort` (the list's `?sort=`, null: newest first; `PATCH`
+  with `null` clears it) are stored and replayed on every run, so each file
+  holds what that list showed, in that order (the exporter pages by keyset on
+  the sort: [data-transfer.md](data-transfer.md)). The web's "Schedule
+  report" on a list page sends all three.
 - **Checked on create and update** as an export is: an exporter the owner
-  may run (`GET /v1/data`), else a 400 on `exporter`; its filters
-  (`filters.<field>`; a filter on a field the owner's permissions hide is
+  may run (`GET /v1/data`), else a 400 on `exporter`; its filters and sort
+  (`filters.<field>`, `sort`; a filter on a field the owner's permissions hide is
   a 403 `field_forbidden`, and a run that meets one is skipped); an IANA `timezone` (default: the user's own, else
   `APP_TIMEZONE`); at most 20 `recipients` (default: the user's own
   address; an API client names them). At most 20 active reports per

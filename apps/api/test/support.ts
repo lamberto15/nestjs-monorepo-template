@@ -656,3 +656,65 @@ export async function webhookReceiver() {
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
 }
+
+/**
+ * Starts an export as `auth` (a bearer token or a user's agent), waits for
+ * the worker, and returns the rows of its JSON file.
+ */
+export async function exportRows(
+  node: TestApp,
+  auth: string | request.Agent,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>[]> {
+  const send = (method: 'get' | 'post', path: string) =>
+    typeof auth === 'string'
+      ? node.http()[method](path).set('Authorization', auth)
+      : auth[method](path);
+  const started = await send('post', '/v1/data/exports')
+    .send({ format: 'json', ...body })
+    .expect(202);
+  for (let tries = 0; tries < 200; tries++) {
+    const status = (
+      await send('get', `/v1/data/transfers/${started.body.id}`).expect(200)
+    ).body;
+    if (status.status === 'failed') {
+      throw new Error(`The export failed: ${status.error}`);
+    }
+    if (status.status === 'completed') {
+      // The app answers on its own port: only the path and query of the signed URL.
+      const { pathname, search } = new URL(status.result.url);
+      return (
+        await node
+          .http()
+          .get(pathname + search)
+          .expect(200)
+      ).body;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error('The export never finished');
+}
+
+/** Every row of a list route, page after page by `nextCursor` (`limit` rows a page). */
+export async function listRows(
+  get: (path: string) => request.Test,
+  path: string,
+  query: Record<string, string>,
+  limit = 2,
+): Promise<{ id: string }[]> {
+  const rows: { id: string }[] = [];
+  let cursor: string | null = null;
+  do {
+    const params: URLSearchParams = new URLSearchParams({
+      ...query,
+      limit: String(limit),
+      ...(cursor && { cursor }),
+    });
+    const page: { items: { id: string }[]; nextCursor: string | null } = (
+      await get(`${path}?${params}`).expect(200)
+    ).body;
+    rows.push(...page.items);
+    cursor = page.nextCursor;
+  } while (cursor);
+  return rows;
+}
