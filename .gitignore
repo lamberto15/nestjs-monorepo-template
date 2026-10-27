@@ -86,3 +86,10 @@ storybook-static
 
 # Agents' git worktrees (docs/development.md, "Git workflow")
 .claude/worktrees/
+
+# Design sync to claude.ai/design: build output and verification state
+/.design-sync/sb-reference/
+/.design-sync/learnings/
+/.design-sync/.cache/
+/.ds-sync/
+/ds-bundle/
