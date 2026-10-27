@@ -236,7 +236,7 @@ function EntryDetails(props: { entry: AuditEntry }) {
         )}
         {entry.ip && (
           <>
-            <dt className="text-muted-foreground">{t('details.ip')}</dt>
+            <dt className="text-muted-foreground">{t('columns.ip')}</dt>
             <dd className="font-mono">{entry.ip}</dd>
           </>
         )}

@@ -60,6 +60,8 @@ import './webhooks/webhooks-error.filter.js';
 import { webhooksOptions } from './webhooks/webhooks.config.js';
 import { HttpClientModule } from '@nestjs/http-client';
 import { MAIL_SUPPRESSION } from '../core/mail/mail-suppression.js';
+import { ClientErrorsController } from './client-errors/client-errors.controller.js';
+import { ClientErrorsService } from './client-errors/client-errors.service.js';
 import { MailEventsController } from './deliverability/mail-events.controller.js';
 import { MailEventsProcessor } from './deliverability/mail-events.processor.js';
 import { MailEventsRetentionJob } from './deliverability/mail-events-retention.job.js';
@@ -82,6 +84,7 @@ import { SuppressionsController } from './deliverability/suppressions.controller
 import { SuppressionsService } from './deliverability/suppressions.service.js';
 import { NoRealtime } from './realtime/no-realtime.js';
 import { Realtime } from './realtime/realtime.service.js';
+import { RealtimeEmitter } from './realtime/realtime-emitter.js';
 import { RecordActivity } from './realtime/record-activity.js';
 import {
   PeopleController,
@@ -96,10 +99,7 @@ import { DataTransferController } from './data-transfer/data-transfer.controller
 import { DataTransferProcessor } from './data-transfer/data-transfer.processor.js';
 import { DataTransferRegistry } from './data-transfer/data-transfer.registry.js';
 import { DataTransferService } from './data-transfer/data-transfer.service.js';
-import {
-  DATA_TRANSFER_SETTINGS,
-  ANALYTICS_SETTINGS,
-} from './data-transfer/data-transfer.settings.js';
+import { DATA_TRANSFER_SETTINGS } from './data-transfer/data-transfer.settings.js';
 import { integrations } from './integrations/integrations.js';
 import { BulkController } from './bulk/bulk.controller.js';
 import { BulkProcessor } from './bulk/bulk.processor.js';
@@ -479,6 +479,8 @@ export class PlatformModule {
         RetentionController,
         ...whenOn('REPORTS', ReportsController),
         ...whenOn('USAGE', UsageController),
+        // The web app's own unexpected errors (apps/web/src/lib/report-error.ts).
+        ClientErrorsController,
         // Email deliverability: the providers' bounces and complaints, the suppression list.
         MailEventsController,
         SuppressionsController,
@@ -514,7 +516,6 @@ export class PlatformModule {
               ...AI_SETTINGS,
               ...NOTIFICATION_SETTINGS,
               ...DATA_TRANSFER_SETTINGS,
-              ...ANALYTICS_SETTINGS,
               ...(options.settings ?? []),
             ],
           },
@@ -572,6 +573,8 @@ export class PlatformModule {
         switchedOn('REALTIME')
           ? Realtime
           : { provide: Realtime, useClass: NoRealtime },
+        // Realtime's way to the API's sockets from a process without a socket server (the operator CLI).
+        RealtimeEmitter,
         // A record's comments and attachments changed: its open pages hear of it.
         RecordActivity,
         // The names behind principal keys, and the directory @mentions search.
@@ -756,6 +759,7 @@ export class PlatformModule {
         ApprovalAccessPolicy,
         // Open and overdue requests on /metrics.
         ApprovalMetrics,
+        ClientErrorsService,
         // Email deliverability (docs/deliverability.md): intakes register
         // themselves (SES through SNS); the queue applies their events to
         // the suppression list, which the core's mail queue asks through

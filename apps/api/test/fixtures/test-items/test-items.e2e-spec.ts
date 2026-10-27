@@ -100,7 +100,8 @@ describe('test items (e2e)', () => {
     const other = await node.user(['editor']);
     const viewer = await node.user(['viewer']);
     const id = (await create(writer.agent).expect(201)).body.id as string;
-    await other.agent.get(`/v1/test-items/${id}`).expect(403);
+    // Not theirs to read: the 404 of a missing one (record-capabilities.ts tests every route).
+    await other.agent.get(`/v1/test-items/${id}`).expect(404);
     expect(
       (await other.agent.get('/v1/test-items').expect(200)).body.items,
     ).toEqual([]);

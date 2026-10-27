@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createSession } from '@/lib/session';
 import { renderApp } from '@/test/render-app';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
 import { findToast } from '@/test/toast';
@@ -184,6 +185,19 @@ beforeEach(() => {
   );
 });
 
+/** The list page, a client "Mail relay" created there, its key's dialog open. */
+async function openNewKey() {
+  api();
+  const user = userEvent.setup();
+  const rendered = await renderApp('/api-clients');
+  await screen.findByText('Billing exporter');
+  await user.click(screen.getByRole('button', { name: 'New client' }));
+  await user.type(screen.getByLabelText('Name'), 'Mail relay');
+  await user.click(screen.getByRole('button', { name: 'Create client' }));
+  await screen.findByRole('dialog', { name: 'Copy the key of Mail relay' });
+  return rendered;
+}
+
 describe('creating a client: the key is shown once', () => {
   it('shows the key in a dialog, and nowhere after it is closed', async () => {
     const state = api();
@@ -214,14 +228,7 @@ describe('creating a client: the key is shown once', () => {
   });
 
   it('does not keep the key in the caches while the dialog is still open', async () => {
-    api();
-    const user = userEvent.setup();
-    const { queryClient } = await renderApp('/api-clients');
-    await screen.findByText('Billing exporter');
-    await user.click(screen.getByRole('button', { name: 'New client' }));
-    await user.type(screen.getByLabelText('Name'), 'Mail relay');
-    await user.click(screen.getByRole('button', { name: 'Create client' }));
-    await screen.findByRole('dialog', { name: 'Copy the key of Mail relay' });
+    const { queryClient } = await openNewKey();
     // Only the observed mutation holds it (gcTime 0): none of the queries.
     const queries = JSON.stringify(
       queryClient
@@ -230,6 +237,18 @@ describe('creating a client: the key is shown once', () => {
         .map((query) => query.state.data),
     );
     expect(queries).not.toContain(SECRET);
+  });
+
+  it('never shows the key to a session that changes under the dialog', async () => {
+    const { queryClient } = await openNewKey();
+
+    // Another tenant or account now (a switch here, or in another tab: the
+    // session watcher runs the same reset): the dialog goes, and its key
+    // is in no observer's result any more.
+    await createSession(queryClient).reset();
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.body).not.toHaveTextContent(SECRET);
   });
 
   it('sends the quota and the roles with the create, in one request', async () => {
@@ -482,6 +501,21 @@ describe('usage', () => {
       rangeFor('30'),
     );
   });
+
+  it.each(['7', '90'] as const)(
+    'reads ?days=%s as typed in the address bar, not as 30 days',
+    async (days) => {
+      // The router parses `7` into a number (a link of the page's own writes
+      // the quoted "7"): both name the same period.
+      const state = api();
+      await renderApp(`/api-clients/usage?days=${days}`);
+      await screen.findByText('60 left today');
+      const query = state.usageQueries.at(-1)!;
+      expect({ from: query.get('from'), to: query.get('to') }).toEqual(
+        rangeFor(days),
+      );
+    },
+  );
 
   it('says so when the quota is used up', async () => {
     const state = api();

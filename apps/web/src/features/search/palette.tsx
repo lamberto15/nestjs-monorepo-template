@@ -21,7 +21,9 @@ import {
   type QuickCommand,
   type QuickCommandKind,
 } from './commands';
+import { useOnSessionChange } from '@/hooks/use-on-session-change';
 import { normalizeRedirect } from '@/lib/safe-redirect';
+import { meQuery, sessionIdentity } from '@/lib/session';
 
 export const DEBOUNCE_MS = 250;
 
@@ -82,7 +84,11 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
   const { t } = useTranslation('search');
   const router = useRouter();
   const [input, setInput] = useState('');
-  const [recent, setRecent] = useState(readRecent);
+  // The searches of this session only (recent.ts): read once on opening.
+  const identity = sessionIdentity(useQuery(meQuery).data);
+  const [recent, setRecent] = useState(() => readRecent(identity));
+  // What was typed and listed belongs to the session that opened it.
+  useOnSessionChange(props.onClose);
   const commandMode = input.startsWith('>');
   const q = useDebounced(input.trim(), props.debounceMs);
   const searching = !commandMode && q.length > 0;
@@ -172,7 +178,7 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
                       value={`${hit.subject}:${hit.id}`}
                       disabled={normalizeRedirect(hit.link) === undefined}
                       onSelect={() => {
-                        setRecent(addRecent(q));
+                        setRecent(addRecent(identity, q));
                         go(hit.link ?? undefined);
                       }}
                       className="flex-col items-start gap-0.5"
@@ -205,7 +211,7 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
                   <CommandItem
                     value="recent-clear"
                     onSelect={() => {
-                      clearRecent();
+                      clearRecent(identity);
                       setRecent([]);
                     }}
                   >

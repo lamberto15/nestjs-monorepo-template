@@ -70,6 +70,16 @@ export function totp(secret: string, at = Date.now()) {
 export const newPassword = () => randomBytes(12).toString('base64url');
 
 /**
+ * An error body with `id` as `:id` and without its `requestId` (each
+ * request's own): a 404 for a record the caller may not read must equal
+ * the one for an id that doesn't exist (docs/permissions.md).
+ */
+export const problemFor = (body: unknown, id: string) => {
+  const { requestId: _requestId, ...rest } = body as Record<string, unknown>;
+  return JSON.parse(JSON.stringify(rest).replaceAll(id, ':id')) as unknown;
+};
+
+/**
  * What the helpers' sign-ins (`bootApp`'s administrator, `signIn`, `user`)
  * send in `X-Captcha-Token`: a file that turns CAPTCHA_MODE on sets it to
  * a function making a fresh accepted token (a token is good once).

@@ -171,6 +171,7 @@
     "deleted": "Team {{name}} gelöscht.",
     "columns": {
       "name": "Team",
+      "member": "Mitglied",
       "members": "Mitglieder"
     },
     "notFound": "Dieses Team gibt es (nicht mehr).",

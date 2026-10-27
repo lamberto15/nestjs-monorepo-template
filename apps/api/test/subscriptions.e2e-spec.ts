@@ -28,13 +28,13 @@ describe('record subscriptions: watching test items (e2e)', () => {
     const comment = (agent: ReturnType<TestApp['admin']>, body: string) =>
       agent.post(`/v1/test-items/${item.id}/comments`).send({ body });
 
-    // The owner watches from the start; someone who can't read it can't watch.
+    // The owner watches from the start; someone who can't read it can't watch (a 404: as if missing).
     const mine = await editor.agent.get('/v1/subscriptions').expect(200);
     expect(mine.body.items).toEqual([
       expect.objectContaining({ subject: 'TestItem', recordId: item.id }),
     ]);
     const refused = await other.agent.post(`/v1/test-items/${item.id}/watch`);
-    expect([403, 404]).toContain(refused.status);
+    expect(refused.status).toBe(404);
 
     // The administrator comments twice: one collapsed notification for the owner, none for themselves.
     await comment(node.admin(), 'First.').expect(201);

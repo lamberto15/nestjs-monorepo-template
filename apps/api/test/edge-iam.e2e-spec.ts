@@ -719,7 +719,7 @@ describe('identity and access, edge cases (e2e)', () => {
         .send({ parentId: null })
         .expect(200);
       expect(await titles()).toEqual([]);
-      await lead.agent.get(`/v1/test-items/${note.id}`).expect(403);
+      await lead.agent.get(`/v1/test-items/${note.id}`).expect(404); // as if missing
     });
 
     it('takes access away when a role is deleted or narrowed, from the next request', async () => {

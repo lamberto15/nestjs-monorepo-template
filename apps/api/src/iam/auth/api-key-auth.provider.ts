@@ -33,7 +33,8 @@ const DENIED_AUDIT_EVERY_SECONDS = 3600;
  * API clients: `Authorization: Bearer <prefix>_<id>_<secret>`. The package
  * compares the key's SHA-256 with the stored one in constant time. A key
  * works while it isn't revoked or expired and its client is active: a
- * revoked key or client stops on its next request.
+ * revoked key or client stops on its next request (a realtime socket opened
+ * with it: Realtime, docs/webhooks-and-realtime.md).
  *
  * A client with `allowedCidrs` is served only from those addresses: the
  * address is Express's `req.ip`, so the app's `trust proxy` setting decides
@@ -97,7 +98,9 @@ export class ApiKeyAuth extends ApiKeyProvider<Principal> {
       tenantId: client.tenantId,
     };
     this.allowlists.set(user, client.allowedCidrs);
-    return { hash: key.key.keyHash, user };
+    // On the session too (ApiKeySession.expiresAt); Realtime asks findKey
+    // again for a key's socket, which ends at it.
+    return { hash: key.key.keyHash, user, expiresAt: key.key.expiresAt };
   }
 
   /** After the package verified the secret: record the use (findKey runs before that). */

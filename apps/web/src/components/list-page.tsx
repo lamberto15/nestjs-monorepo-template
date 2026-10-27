@@ -21,6 +21,7 @@ import { ListBulkBar } from '@/components/list-bulk-bar';
 import { ViewsPicker } from '@/features/views/views-picker';
 import type { BulkContext } from '@/features/bulk/types';
 import { useDataTable } from '@/hooks/use-data-table';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { customFieldColumns, refColumns } from '@/lib/list-columns';
 import { useListRefs } from '@/lib/list-refs';
 import type { DataTableFeatures } from '@/lib/data-table-features';
@@ -169,8 +170,6 @@ function ListTable<P extends ListPath>({
       ),
     };
   }, [columns, description, refs, t, i18n.language, rowActions, checkable]);
-  // Applying a saved view sets the search: its box starts again from `q`.
-  const [searchKey, setSearchKey] = useState(0);
   const [fields, setFields] = useState(() =>
     cols.flatMap((c) => (c.id && !(c.id in hidden) ? [c.id] : [])),
   );
@@ -207,17 +206,15 @@ function ListTable<P extends ListPath>({
       <FieldsSync table={table} onChange={setFields} />
       <DataTableAdvancedToolbar table={table}>
         {description.search && (
-          <SearchBox key={searchKey} value={query.q} onSearch={query.search} />
+          <SearchBox value={query.q} onSearch={query.search} />
         )}
         <ViewsPicker
           subject={subject}
           description={description}
           table={table}
           params={query.params}
-          onSearch={(q) => {
-            query.search(q);
-            setSearchKey((key) => key + 1);
-          }}
+          // Applying a saved view sets the search; the box follows `q`.
+          onSearch={query.search}
         />
         <DataTableFilterMenu table={table} />
         <DataTableSortMenu table={table} />
@@ -303,9 +300,29 @@ function FieldsReport({
   return null;
 }
 
+/** How long the typing pauses before the list is asked (one request, not one a key). */
+const SEARCH_DEBOUNCE_MS = 250;
+
 function SearchBox(props: { value: string; onSearch: (q: string) => void }) {
   const { t } = useTranslation();
   const [value, setValue] = useState(props.value);
+  // The `q` this box last saw, and the one it last asked for. A `q` that
+  // changes to anything else came from outside (the sidebar's link to the
+  // bare list, back and forward): the box shows it. Its own search, which
+  // lags the typing by the debounce, never overwrites what was typed since.
+  const [seen, setSeen] = useState(props.value);
+  const [sent, setSent] = useState(props.value);
+  if (props.value !== seen) {
+    setSeen(props.value);
+    if (props.value !== sent) {
+      setSent(props.value);
+      setValue(props.value);
+    }
+  }
+  const search = useDebouncedCallback((q: string) => {
+    setSent(q);
+    props.onSearch(q);
+  }, SEARCH_DEBOUNCE_MS);
   return (
     <div className="relative">
       <SearchIcon
@@ -320,7 +337,7 @@ function SearchBox(props: { value: string; onSearch: (q: string) => void }) {
         value={value}
         onChange={(event) => {
           setValue(event.target.value);
-          props.onSearch(event.target.value);
+          search(event.target.value);
         }}
       />
     </div>

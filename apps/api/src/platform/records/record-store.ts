@@ -1,14 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import {
-  and,
-  eq,
-  getTableColumns,
-  isNotNull,
-  isNull,
-  SQL,
-  sql,
-} from 'drizzle-orm';
+import { and, eq, getTableColumns, isNotNull, isNull, sql } from 'drizzle-orm';
 import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
 import { TenantQuotas } from '../../core/tenancy/tenant-quotas.js';
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
@@ -22,9 +14,10 @@ import {
   countPage,
   pageOffset,
   pageOrder,
-  type PageQuery,
   toPage,
 } from '../../core/http/pagination.js';
+import { AccessService } from '../../iam/access/access.service.js';
+import type { List, ListQuery } from '../../core/http/list-query.js';
 import { LegalHoldsService } from '../../iam/holds/legal-holds.service.js';
 import { TeamsService } from '../../iam/access/teams.service.js';
 import { type Principal, principalKey } from '../../iam/auth/principal.js';
@@ -33,6 +26,7 @@ import {
   RECORD_DECLARATION,
   RECORD_TABLE,
   RecordLifecycle,
+  type RecordLookup,
   type RecordRow,
 } from './record-contract.js';
 
@@ -57,6 +51,7 @@ export class RecordStore {
     private readonly lifecycle: RecordLifecycle,
     private readonly holds: LegalHoldsService,
     private readonly quotas: TenantQuotas,
+    private readonly access: AccessService,
   ) {
     // The tenant's limit on this feature's records (docs/tenancy.md, "Quotas").
     // The recycle bin is not counted: those are deleted.
@@ -102,15 +97,26 @@ export class RecordStore {
 
   /**
    * One, or a 404. With a recycle bin, deleted ones are found only with
-   * `deleted` (and only they); without one, `deleted` finds nothing.
+   * `deleted` (and only they); without one, `deleted` finds nothing. With
+   * `visibleTo`, only one that principal may read (`deleted`: restore): the
+   * permission filter is in the query, so a record they may not read is the
+   * same 404, after the same query, as one that doesn't exist.
    */
   async findOne<Row extends RecordRow>(
     id: string,
     db: Database | Transaction = this.db,
-    { deleted = false }: { deleted?: boolean } = {},
+    { deleted = false, visibleTo }: RecordLookup = {},
   ): Promise<Row> {
     const table = this.table;
-    const soft = this.declaration.softDelete;
+    const { softDelete: soft, subject } = this.declaration;
+    const visible = visibleTo
+      ? await this.access.sqlFilter(
+          visibleTo,
+          subject,
+          deleted ? 'restore' : 'read',
+          { deleted },
+        )
+      : undefined;
     const [row] =
       deleted && !soft
         ? []
@@ -125,6 +131,7 @@ export class RecordStore {
                     ? isNotNull(table.deletedAt!)
                     : isNull(table.deletedAt!)
                   : undefined,
+                visible,
               ),
             );
     if (!row) {
@@ -159,16 +166,29 @@ export class RecordStore {
   }
 
   /**
-   * A page of those matching `where` (the caller's read filter, from
-   * AccessService: it keeps the recycle bin apart), newest first. `extra`:
-   * sort values that aren't columns (the search rank), for the cursor.
+   * A page of the records `user` may read matching the list's query, newest
+   * first. The read filter (AccessService: the recycle bin, `?deleted=true`,
+   * is for those who may restore) and the query's `where` compose here, so a
+   * controller passes the parsed query and builds no predicate. `list` is the
+   * one the query was parsed with (custom fields included).
    */
   async findPage<Row extends RecordRow>(
-    where: SQL | undefined,
-    query: PageQuery,
-    extra: Record<string, SQL.Aliased> = {},
+    user: Principal,
+    list: List,
+    query: ListQuery,
   ) {
     const table = this.table;
+    const where = and(
+      await this.access.sqlFilter(
+        user,
+        this.declaration.subject,
+        query.deleted ? 'restore' : 'read',
+        { deleted: query.deleted === true },
+      ),
+      list.where(query),
+    );
+    // Sort values that aren't columns (custom fields), for the cursor.
+    const extra = list.sortSelect(query);
     const [rows, total] = await Promise.all([
       this.db
         .select({ ...getTableColumns(table), ...extra })

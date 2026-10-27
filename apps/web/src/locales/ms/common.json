@@ -288,10 +288,16 @@
     "description": "Halaman yang anda cari tidak wujud.",
     "back": "Kembali ke papan pemuka"
   },
+  "errors": {
+    "unexpected": "Ada sesuatu yang tidak kena.",
+    "reportId": "ID laporan: {{id}}",
+    "requestId": "ID permintaan: {{id}}"
+  },
   "routeError": {
     "title": "Sesuatu telah berlaku",
     "description": "Halaman ini gagal dimuatkan. Bahagian lain aplikasi masih berfungsi.",
     "reportId": "ID laporan: {{id}}",
+    "build": "Binaan: {{sha}}",
     "retry": "Cuba lagi"
   },
   "preferences": {
@@ -324,7 +330,9 @@
     "fields": {
       "tag": "Tag",
       "ownerId": "Pemilik",
-      "teamId": "Pasukan"
+      "teamId": "Pasukan",
+      "actor": "Pelaku",
+      "user": "Pengguna"
     },
     "refs": {
       "searching": "Mencari…",

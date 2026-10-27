@@ -359,8 +359,10 @@ the controller (`notes.*`); singular for what describes one record
      sql`lower(${t.name})` `` (an order that ignores case; index that
      expression). The page then selects `list.sortSelect(query)` next to the
      row for the cursor, and `list.pick()` drops it (as `NotesService.findPage`).
-   - The page (as `NotesService.findPage`): `and(access.sqlFilter(…),
-     list.where(query))`, ordered by `pageOrder(table.id, query)`,
+   - The page (as `NotesService.findPage(user, list, query)`: the service
+     composes the filters, the controller passes the parsed query and imports
+     nothing from `drizzle-orm`, which oxlint enforces for `*.controller.ts`):
+     `and(access.sqlFilter(…), list.where(query))`, ordered by `pageOrder(table.id, query)`,
      `.offset(pageOffset(query))`, `countPage()` beside it, `toPage()`.
      Then `access.redactAll()` on the items, and `list.pick(page, query)` last.
    - Described to clients at `GET /v1/lists/<Subject>` (filters, operators,
@@ -413,7 +415,10 @@ the controller (`notes.*`); singular for what describes one record
     `MAX_TEXT_LENGTH` (the body limit); the response never carries
     `tenantId`.
    - `@Can()` on the route, or a check on the loaded record; field-level
-     checks on writes (`field_forbidden`).
+     checks on writes (`field_forbidden`). A route on one record finds it
+     with `findOne(id, undefined, { visibleTo: user })`, so one the caller
+     may not read is the 404 of a missing one; the action's check after it
+     is the 403 ([permissions.md](permissions.md), "A record you may not read is a 404").
    - `@ApiOperation`, `@Api*Response` with the Zod schemas; errors are
      problem details (throw Nest's exceptions with a `code`).
    - **Record-level routes are declared, not written.** The platform builds
