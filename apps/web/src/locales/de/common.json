@@ -6,7 +6,9 @@
   "nav": {
     "platform": "Plattform",
     "dashboard": "Dashboard",
-    "skipToContent": "Zum Inhalt springen"
+    "skipToContent": "Zum Inhalt springen",
+    "sidebar": "Seitenleiste",
+    "menu": "Hauptmenü"
   },
   "auth": {
     "signIn": {

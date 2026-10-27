@@ -11,19 +11,35 @@ import { NavUser } from '@/components/nav-user';
 import { TenantSwitcher } from '@/components/tenant-switcher';
 
 export function AppSidebar() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   return (
     <Sidebar collapsible="icon" side={i18n.dir() === 'rtl' ? 'right' : 'left'}>
-      <SidebarHeader>
-        <TenantSwitcher />
-      </SidebarHeader>
-      <SidebarContent>
-        <NavMain />
-      </SidebarContent>
-      <SidebarFooter>
-        <NavUser />
-      </SidebarFooter>
-      <SidebarRail />
+      {/*
+        Landmarks (axe "region": all content belongs to one): the sidebar is
+        a complementary region, and its menu a navigation inside it. The
+        generated Sidebar has no element prop for either, so both wrap its
+        parts here, as flex columns that keep its layout.
+      */}
+      <aside
+        aria-label={t('nav.sidebar')}
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <SidebarHeader>
+          <TenantSwitcher />
+        </SidebarHeader>
+        <nav
+          aria-label={t('nav.menu')}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <SidebarContent>
+            <NavMain />
+          </SidebarContent>
+        </nav>
+        <SidebarFooter>
+          <NavUser />
+        </SidebarFooter>
+        <SidebarRail />
+      </aside>
     </Sidebar>
   );
 }

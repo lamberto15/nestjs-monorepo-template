@@ -6,7 +6,9 @@
   "nav": {
     "platform": "المنصة",
     "dashboard": "لوحة التحكم",
-    "skipToContent": "الانتقال إلى المحتوى"
+    "skipToContent": "الانتقال إلى المحتوى",
+    "sidebar": "الشريط الجانبي",
+    "menu": "القائمة الرئيسية"
   },
   "auth": {
     "signIn": {

@@ -6,7 +6,9 @@
   "nav": {
     "platform": "平台",
     "dashboard": "仪表盘",
-    "skipToContent": "跳到内容"
+    "skipToContent": "跳到内容",
+    "sidebar": "侧边栏",
+    "menu": "主菜单"
   },
   "auth": {
     "signIn": {
