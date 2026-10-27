@@ -7,7 +7,7 @@ import { z } from 'zod';
 import type { CoreEnv } from '../../../core/config/core.env.js';
 import type { Transaction } from '../../../core/database/drizzle.js';
 import {
-  FOREIGN_KEY_VIOLATION,
+  isStillReferenced,
   pgErrorCode,
   UNIQUE_VIOLATION,
 } from '../../../core/database/errors.js';
@@ -259,7 +259,7 @@ export class ScimGroupsService {
         .where(eq(organizationalUnits.id, id))
         .catch((error: unknown) => {
           // Records or saved views of the unit: no cascade.
-          throw pgErrorCode(error) === FOREIGN_KEY_VIOLATION
+          throw isStillReferenced(error)
             ? new ScimException(
                 409,
                 'Records or saved views belong to this group: an administrator moves them first.',

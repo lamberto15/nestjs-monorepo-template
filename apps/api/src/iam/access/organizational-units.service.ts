@@ -25,7 +25,7 @@ import {
 } from 'drizzle-orm';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import {
-  FOREIGN_KEY_VIOLATION,
+  isStillReferenced,
   pgErrorCode,
   UNIQUE_VIOLATION,
 } from '../../core/database/errors.js';
@@ -267,9 +267,7 @@ export class OrganizationalUnitsService {
         .delete(organizationalUnits)
         .where(eq(organizationalUnits.id, id))
         .catch((error: unknown) => {
-          throw pgErrorCode(error) === FOREIGN_KEY_VIOLATION
-            ? notEmpty()
-            : error;
+          throw isStillReferenced(error) ? notEmpty() : error;
         });
       await this.audit.record(
         actor,
