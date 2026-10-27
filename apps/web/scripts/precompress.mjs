@@ -44,13 +44,18 @@ async function precompress(path) {
   return written.reduce((a, b) => a + b, 0);
 }
 
+// Fixed at build time by the "precompress" script in package.json
+// (`dist/assets`), run only from caddy/Dockerfile; never a user- or
+// LLM-supplied argument.
 const dir = process.argv[2];
-if (!dir || !(await stat(dir).catch(() => undefined))?.isDirectory()) {
+const dirStat = dir && (await stat(dir).catch(() => undefined)); // NOSONAR S8707: dir is the fixed build-time argument above, not external input
+if (!dirStat?.isDirectory()) {
   console.error('usage: node scripts/precompress.mjs <directory>');
   process.exit(1);
 }
 // All at once: zlib compresses on libuv's threads, four at a time.
-const paths = (await readdir(dir, { recursive: true, withFileTypes: true }))
+const entries = await readdir(dir, { recursive: true, withFileTypes: true }); // NOSONAR S8707: dir is the fixed build-time argument above, not external input
+const paths = entries
   .filter((entry) => entry.isFile() && compressible.test(entry.name))
   .map((entry) => join(entry.parentPath, entry.name));
 const counts = await Promise.all(paths.map(precompress));

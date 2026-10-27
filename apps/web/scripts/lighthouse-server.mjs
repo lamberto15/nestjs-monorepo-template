@@ -45,7 +45,7 @@ const api = createServer((request, response) => {
 await new Promise((resolve) => api.listen(API_PORT, '127.0.0.1', resolve));
 
 const preview = spawn(
-  'pnpm',
+  'pnpm', // NOSONAR S4036: the CI runner's pnpm, from PATH (no one fixed path fits every runner)
   ['exec', 'vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'],
   {
     stdio: 'inherit',
