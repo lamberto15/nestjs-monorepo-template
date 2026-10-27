@@ -6,7 +6,7 @@
   "none": "No saved views yet.",
   "groups": {
     "private": "Mine",
-    "team": "My teams",
+    "unit": "My units",
     "tenant": "Everyone"
   },
   "current": "Current view: {{name}}",
@@ -21,7 +21,7 @@
   "gone": "“{{name}}” no longer exists.",
   "visibility": {
     "private": "Private (only me)",
-    "team": "A team",
+    "unit": "A unit",
     "tenant": "Everyone in the organization"
   },
   "form": {
@@ -33,9 +33,9 @@
     "nameTooLong": "A name has at most 200 characters.",
     "nameTaken": "A view called “{{name}}” already exists here.",
     "visibility": "Who sees it",
-    "team": "Team",
-    "teamRequired": "Choose a team.",
-    "teamPlaceholder": "Choose a team",
+    "unit": "Unit",
+    "unitRequired": "Choose a unit.",
+    "unitPlaceholder": "Choose a unit",
     "save": "Save",
     "cancel": "Cancel"
   },

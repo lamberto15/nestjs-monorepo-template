@@ -428,8 +428,8 @@ describe('ListPage', () => {
         const people = extra.people as (url: URL) => unknown;
         return json(people(new URL(url)));
       }
-      if (url.includes('/v1/teams')) {
-        return json(extra.teams ?? { items: [], nextCursor: null });
+      if (url.includes('/v1/organizational-units')) {
+        return json(extra.units ?? { items: [], nextCursor: null });
       }
       // A member's session: none of the administrators' routes.
       if (url.includes('/v1/access/')) {
@@ -558,15 +558,15 @@ describe('ListPage', () => {
         ref: 'principal',
       },
       {
-        name: 'teamId',
+        name: 'unitId',
         type: 'uuid',
         operators: ['eq', 'in', 'isNull'],
         sortable: false,
         custom: false,
-        ref: 'team',
+        ref: 'unit',
       },
     ],
-    select: [...description.select, 'ownerId', 'teamId'],
+    select: [...description.select, 'ownerId', 'unitId'],
   };
 
   it('filters by a user found by name, and names them in the filter', async () => {
@@ -619,42 +619,42 @@ describe('ListPage', () => {
   const NORTH = '0199a3f2-0000-7000-8000-0000000000a1';
   const ADA = '0199a3f2-0000-7000-8000-000000000001';
 
-  it('names the teams of the filter for any member, and takes "is empty"', async () => {
+  it('names the units of the filter for any member, and takes "is empty"', async () => {
     stubLayout();
     respond(withRefs, {
-      teams: {
+      units: {
         items: [{ id: NORTH, name: 'North', parentId: null, depth: 0 }],
         nextCursor: null,
       },
     });
-    const first = await renderList(`?teamId=in.${NORTH}`);
+    const first = await renderList(`?unitId=in.${NORTH}`);
     expect(await screen.findByText('First')).toBeInTheDocument();
     const list = urls().find((url) => url.pathname === PATH);
     expect(JSON.parse(list?.searchParams.get('filter') ?? 'null')).toEqual({
-      and: [{ field: 'teamId', op: 'in', value: [NORTH] }],
+      and: [{ field: 'unitId', op: 'in', value: [NORTH] }],
     });
     // Ref columns the list may select start hidden: `fields=` is unchanged.
     expect(list?.searchParams.get('fields')).toBe('title,status');
     await userEvent.click(screen.getByRole('button', { name: /Filter/ }));
     expect(
-      await screen.findByRole('button', { name: /Team filter value/i }),
+      await screen.findByRole('button', { name: /Unit filter value/i }),
     ).toHaveTextContent('North');
-    // The teams come from the route any member may read.
-    expect(urls().some((url) => url.pathname === '/v1/access/teams')).toBe(
-      false,
-    );
+    // The units come from the route any member may read.
+    expect(
+      urls().some((url) => url.pathname === '/v1/access/organizational-units'),
+    ).toBe(false);
     first.unmount();
 
     mocks.fetch.mockReset();
     respond(withRefs);
-    await renderList('?teamId=is.empty');
+    await renderList('?unitId=is.empty');
     expect(await screen.findByText('First')).toBeInTheDocument();
     await waitFor(() => {
       const last = urls()
         .filter((url) => url.pathname === PATH)
         .at(-1);
       expect(JSON.parse(last?.searchParams.get('filter') ?? 'null')).toEqual({
-        and: [{ field: 'teamId', op: 'isNull', value: true }],
+        and: [{ field: 'unitId', op: 'isNull', value: true }],
       });
     });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -682,7 +682,7 @@ describe('ListPage', () => {
     );
   });
 
-  it('shows the owners and teams of a page by name, in one request each', async () => {
+  it('shows the owners and units of a page by name, in one request each', async () => {
     stubLayout();
     const owners = Array.from(
       { length: 6 },
@@ -694,14 +694,14 @@ describe('ListPage', () => {
         title: `Row ${n}`,
         status: 'draft',
         ownerId: `user:${owner}`,
-        teamId: NORTH,
+        unitId: NORTH,
       })),
       people: (url: URL) => ({
         items: (url.searchParams.get('key') ?? '')
           .split(',')
           .map((key, n) => ({ key, name: `Person ${n}` })),
       }),
-      teams: {
+      units: {
         items: [{ id: NORTH, name: 'North', parentId: null, depth: 0 }],
         nextCursor: null,
       },
@@ -710,7 +710,7 @@ describe('ListPage', () => {
     expect(await screen.findByText('Row 0')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'View columns' }));
     await userEvent.click(await screen.findByText('Owner'));
-    await userEvent.click(await screen.findByText('Team'));
+    await userEvent.click(await screen.findByText('Unit'));
 
     expect(await screen.findByText('Person 5')).toBeInTheDocument();
     expect(screen.getAllByText('North')).toHaveLength(6);
@@ -721,11 +721,13 @@ describe('ListPage', () => {
     expect(lookups[0]?.searchParams.get('key')?.split(',')).toEqual(
       owners.map((owner) => `user:${owner}`),
     );
-    const teams = urls().filter(
-      (url) => url.pathname === '/v1/teams' && url.searchParams.has('id'),
+    const units = urls().filter(
+      (url) =>
+        url.pathname === '/v1/organizational-units' &&
+        url.searchParams.has('id'),
     );
-    // One team on six rows: asked once.
-    expect(teams).toHaveLength(1);
+    // One unit on six rows: asked once.
+    expect(units).toHaveLength(1);
   });
 
   it("translates the table's texts", async () => {

@@ -13,7 +13,10 @@ import { problem, server } from '@/test/server';
  */
 const GATED = [
   { path: '/v1/access/principals', permission: 'Access.manageUsers' },
-  { path: '/v1/access/teams', permission: 'Access.manageTeams' },
+  {
+    path: '/v1/access/organizational-units',
+    permission: 'Access.manageOrganizationalUnits',
+  },
   { path: '/v1/tenants', permission: 'Access.manageTenants' },
 ] as const;
 
@@ -26,7 +29,7 @@ const ref = (name: string, ref: string, type = 'uuid') => ({
   ref,
 });
 
-/** A notes list whose fields point at tags, teams and users. */
+/** A notes list whose fields point at tags, units and users. */
 const description = {
   subject: 'Note',
   fields: [
@@ -38,7 +41,7 @@ const description = {
       custom: false,
     },
     ref('tags', 'tag'),
-    ref('teamId', 'team'),
+    ref('unitId', 'unit'),
     ref('ownerId', 'principal', 'string'),
   ],
   select: ['id', 'number', 'title', 'status', 'tags', 'createdAt'],
@@ -56,7 +59,7 @@ function useGatedApi(can: string[]) {
   server.use(
     http.get('/v1/lists/:subject', () => HttpResponse.json(description)),
     http.get('/v1/people', () => HttpResponse.json({ items: [] })),
-    http.get('/v1/teams', () =>
+    http.get('/v1/organizational-units', () =>
       HttpResponse.json({ items: [], page: 1, pageCount: 1 }),
     ),
     // Whoever asks without the permission is refused, as the API does.
@@ -103,7 +106,7 @@ describe('the notes list requests only what the user may read', () => {
     const asked = useGatedApi([
       'Note.read',
       'Access.manageUsers',
-      'Access.manageTeams',
+      'Access.manageOrganizationalUnits',
       'Access.manageTenants',
     ]);
     await openList();

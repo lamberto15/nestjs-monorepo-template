@@ -22,11 +22,11 @@
   "valueLabel": "Wert",
   "scope": {
     "tenant": "Gesamte Organisation",
-    "team": "Team",
+    "unit": "Einheit",
     "user": "Benutzer"
   },
   "scopeId": {
-    "team": "Team",
+    "unit": "Einheit",
     "user": "Benutzer"
   },
   "mode": {
@@ -50,13 +50,13 @@
     "maxLength": "Geben Sie höchstens {{limit}} Zeichen ein.",
     "enum": "Wählen Sie einen der Werte.",
     "scopeId": {
-      "team": "Wählen Sie ein Team.",
+      "unit": "Wählen Sie eine Einheit.",
       "user": "Wählen Sie einen Benutzer oder einen API-Client."
     }
   },
   "source": {
     "tenant": "Organisation",
-    "team": "Team",
+    "unit": "Einheit",
     "user": "Sie",
     "rollout": "Einführung",
     "default": "Standard",
@@ -92,12 +92,12 @@
   },
   "platform": {
     "title": "Alle Organisationen",
-    "description": "Was die Betreiber der Installation für jede Organisation festlegen. Erzwungen hat es Vorrang vor allen Werten von Organisationen, Teams und Personen (ein Notausschalter); sonst ist es der Standard für Organisationen ohne eigenen Wert.",
+    "description": "Was die Betreiber der Installation für jede Organisation festlegen. Erzwungen hat es Vorrang vor allen Werten von Organisationen, Einheiten und Personen (ein Notausschalter); sonst ist es der Standard für Organisationen ohne eigenen Wert.",
     "none": "Für alle Organisationen ist nichts festgelegt.",
     "enforced": "Erzwungen",
     "notEnforced": "Standard für Organisationen",
     "enforcedLabel": "Erzwungen (Notausschalter)",
-    "enforcedHint": "Überschreibt alle Werte von Organisationen, Teams und Personen.",
+    "enforcedHint": "Überschreibt alle Werte von Organisationen, Einheiten und Personen.",
     "save": "Für alle Organisationen speichern",
     "saved": "Für alle Organisationen gespeichert.",
     "remove": "Entfernen",
@@ -111,7 +111,7 @@
     "label": "Anzeigen",
     "all": "Alle Einstellungen",
     "flags": "Feature-Flags",
-    "flagsHint": "Schalten Sie ein Flag für den ganzen Mandanten, ein Team oder eine Person ein, oder rollen Sie es schrittweise aus: Bearbeiten, dann „Gilt als: schrittweiser Rollout“."
+    "flagsHint": "Schalten Sie ein Flag für den ganzen Mandanten, eine Einheit oder eine Person ein, oder rollen Sie es schrittweise aus: Bearbeiten, dann „Gilt als: schrittweiser Rollout“."
   },
   "rules": {
     "title": "Zielgruppenregeln",

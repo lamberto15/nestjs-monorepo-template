@@ -336,7 +336,7 @@
     "fields": {
       "tag": "Tag",
       "ownerId": "Eigentümer",
-      "teamId": "Team",
+      "unitId": "Einheit",
       "actor": "Akteur",
       "user": "Benutzer"
     },

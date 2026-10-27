@@ -139,7 +139,7 @@ function ListTable<P extends ListPath>({
   const { t, i18n } = useTranslation();
   const router = useRouter({ warn: false });
   const checkable = selectable || bulkActions !== undefined;
-  // What the reference fields point at: tags, teams, users (`ref`).
+  // What the reference fields point at: tags, units, users (`ref`).
   const refs = useListRefs(subject, description.fields);
   // The caller's columns, then what the list's metadata adds to them: the
   // reference fields (by name; a filter-only one like `tag` never shown)

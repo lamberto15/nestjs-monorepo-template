@@ -116,7 +116,7 @@ export function filterSpec(
 
   const source = field.ref ? refs[field.ref] : undefined;
   if (source) {
-    // A picker of what the field points at (tags, teams, users): `in` takes
+    // A picker of what the field points at (tags, units, users): `in` takes
     // several, `eq` one; the id (or key) is the value.
     const multiple = has.has('in');
     if (multiple) {

@@ -207,7 +207,7 @@
     "stagesSummary": "Peringkat: {{names}}",
     "edit": "Edit",
     "editLabel": "Edit {{label}}",
-    "setting": "Dihidupkan bagi setiap pasukan oleh tetapan",
+    "setting": "Dihidupkan bagi setiap unit oleh tetapan",
     "saved": "Dasar disimpan.",
     "notFound": {
       "title": "Dasar tidak ditemui",
@@ -308,7 +308,7 @@
     "types": {
       "rule": {
         "role": "Pengguna yang memegang sesuatu peranan",
-        "teamRole": "Pengguna yang memegang sesuatu peranan dalam pasukan pemohon, atau di atasnya",
+        "unitRole": "Pengguna yang memegang sesuatu peranan dalam unit pemohon, atau di atasnya",
         "permission": "Pengguna yang dibenarkan melakukan sesuatu tindakan pada rekod",
         "users": "Pengguna yang dinamakan"
       },

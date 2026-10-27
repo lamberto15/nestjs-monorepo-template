@@ -2,7 +2,7 @@
   "nav": {
     "users": "Pengguna",
     "roles": "Peranan",
-    "teams": "Pasukan"
+    "units": "Struktur organisasi"
   },
   "actions": "Tindakan",
   "cancel": "Batal",
@@ -27,11 +27,11 @@
     "since": "Ahli sejak {{date}}",
     "roles": "Peranan",
     "selfRoles": "Ini ialah peranan anda sendiri. Anda tidak boleh memberi diri anda lebih daripada yang anda miliki, dan pentadbir terakhir kekal.",
-    "selfTeams": "Tiada sesiapa mengubah pasukannya sendiri: pentadbir lain yang melakukannya.",
+    "selfUnits": "Tiada sesiapa mengubah unitnya sendiri: pentadbir lain yang melakukannya.",
     "saveRoles": "Simpan peranan",
     "rolesSaved": "Peranan disimpan.",
-    "saveTeams": "Simpan pasukan",
-    "teamsSaved": "Pasukan disimpan.",
+    "saveUnits": "Simpan unit",
+    "unitsSaved": "Unit disimpan.",
     "reactivate": "Pulihkan akses",
     "reactivated": "Akses dipulihkan.",
     "remove": {
@@ -47,7 +47,7 @@
       "description": "Sesi anda menjadi sesi mereka untuk tempoh terhad, dan segala yang anda lakukan direkodkan sebagai anda bertindak sebagai mereka. Hentikan daripada sepanduk untuk mendapatkan semula sesi anda sendiri.",
       "confirm": "Bertindak sebagai mereka"
     },
-    "readOnly": "Anda boleh melihat ahli ini. Mengubah peranan, pasukan atau akses mereka memerlukan kebenaran untuk mengurus pengguna.",
+    "readOnly": "Anda boleh melihat ahli ini. Mengubah peranan, unit atau akses mereka memerlukan kebenaran untuk mengurus pengguna.",
     "open": "Buka"
   },
   "grants": {
@@ -62,7 +62,7 @@
   "invitations": {
     "invite": "Jemput",
     "inviteTitle": "Jemput seseorang",
-    "inviteDescription": "Mereka menerima e-mel dengan pautan. Keahlian mereka, dengan peranan dan pasukan ini, bermula apabila mereka menerima.",
+    "inviteDescription": "Mereka menerima e-mel dengan pautan. Keahlian mereka, dengan peranan dan unit ini, bermula apabila mereka menerima.",
     "fields": {
       "email": "E-mel",
       "name": "Nama (pilihan)",
@@ -84,7 +84,7 @@
     "expired": "Tamat tempoh",
     "resend": "Hantar semula",
     "resendTitle": "Hantar pautan baharu kepada {{email}}?",
-    "resendDescription": "Pautan semasa berhenti berfungsi dan pautan baharu dihantar melalui e-mel. Peranan, tarikh tamatnya dan pasukan kekal seperti sedia ada.",
+    "resendDescription": "Pautan semasa berhenti berfungsi dan pautan baharu dihantar melalui e-mel. Peranan, tarikh tamatnya dan unit kekal seperti sedia ada.",
     "resent": "Pautan baharu dihantar kepada {{email}}.",
     "revoke": "Batalkan",
     "revokeTitle": "Batalkan jemputan kepada {{email}}?",
@@ -144,47 +144,64 @@
       "sensitive": "Sensitif"
     }
   },
-  "teams": {
-    "title": "Pasukan",
-    "new": "Pasukan baharu",
-    "none": "Belum ada pasukan.",
-    "newTitle": "Pasukan baharu",
-    "editTitle": "Namakan semula atau alihkan pasukan",
-    "dialogDescription": "Mengalihkan pasukan turut mengalihkan setiap pasukan di bawahnya. Ahli sesebuah pasukan melihat apa yang dimiliki oleh pasukan di bawahnya (\"dalam pasukan saya\").",
+  "units": {
+    "title": "Struktur organisasi",
+    "new": "Unit baharu",
+    "none": "Belum ada unit.",
+    "newTitle": "Unit baharu",
+    "editTitle": "Edit unit",
+    "dialogDescription": "Mengalihkan unit turut mengalihkan setiap unit di bawahnya. Ahli sesebuah unit melihat apa yang dimiliki oleh unit di bawahnya (\"dalam unit saya\").",
     "fields": {
       "name": "Nama",
+      "type": "Jenis",
       "parent": "Di bawah"
+    },
+    "types": {
+      "division": "Bahagian",
+      "department": "Jabatan",
+      "team": "Pasukan"
+    },
+    "roles": {
+      "member": "Ahli",
+      "lead": "Ketua"
     },
     "topLevel": "Peringkat teratas",
     "errors": {
       "nameRequired": "Masukkan nama.",
-      "nameTooLong": "Paling banyak {{max}} aksara."
+      "nameTooLong": "Paling banyak {{max}} aksara.",
+      "nameTaken": "Sudah ada unit dengan nama ini di bawah induk yang sama.",
+      "notEmpty": "Unit ini masih mempunyai unit di bawahnya, ahli, rekod atau paparan tersimpan. Kosongkannya dahulu.",
+      "managedByScim": "Penyedia identiti anda mengurus unit ini melalui SCIM: ubah di sana."
     },
-    "create": "Cipta pasukan",
-    "created": "Pasukan dicipta.",
+    "create": "Cipta unit",
+    "created": "Unit dicipta.",
     "save": "Simpan",
-    "saved": "Pasukan disimpan.",
+    "saved": "Unit disimpan.",
     "edit": "Edit",
     "delete": "Padam",
-    "deleteTitle": "Padam pasukan {{name}}?",
-    "deleteDescription": "Hanya pasukan kosong yang boleh dipadam: tiada ahli dan tiada pasukan di bawahnya.",
-    "deleted": "Pasukan {{name}} dipadam.",
+    "deleteTitle": "Padam unit {{name}}?",
+    "deleteDescription": "Hanya unit kosong yang boleh dipadam: tiada unit di bawahnya, tiada ahli, tiada rekod dan tiada paparan tersimpan.",
+    "deleted": "Unit {{name}} dipadam.",
+    "scim": "Diurus melalui SCIM",
     "columns": {
-      "name": "Pasukan",
+      "name": "Unit",
+      "type": "Jenis",
       "member": "Ahli",
-      "members": "Ahli"
+      "members": "Ahli",
+      "role": "Peranan"
     },
-    "notFound": "Pasukan ini tidak wujud (lagi).",
-    "back": "Kembali ke pasukan",
-    "needsManageUsers": "Menambah dan membuang ahli mengubah keahlian mereka: ia memerlukan kebenaran untuk mengurus pengguna.",
+    "notFound": "Unit ini tidak wujud (lagi).",
+    "back": "Kembali ke struktur organisasi",
+    "needsManageUsers": "Menambah, mengubah dan membuang ahli memerlukan kebenaran untuk mengurus pengguna.",
     "addMember": "Tambah ahli",
     "pickMember": "Pilih ahli",
     "add": "Tambah",
-    "memberAdded": "{{email}} ditambah.",
-    "noMembers": "Tiada sesiapa dalam pasukan ini secara langsung.",
+    "memberAdded": "Ahli ditambah.",
+    "noMembers": "Tiada sesiapa dalam unit ini.",
     "remove": "Buang",
-    "removeTitle": "Buang {{email}} daripada {{team}}?",
-    "removeDescription": "Mereka kehilangan apa yang diberikan oleh pasukan ini.",
-    "memberRemoved": "{{email}} dibuang."
+    "removeTitle": "Buang ahli ini daripada {{unit}}?",
+    "removeDescription": "Mereka kehilangan apa yang diberikan oleh unit ini. Keahlian tamat dan disimpan sebagai sejarah.",
+    "memberRemoved": "Ahli dibuang.",
+    "roleChanged": "Peranan diubah."
   }
 }

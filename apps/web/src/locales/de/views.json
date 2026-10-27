@@ -6,7 +6,7 @@
   "none": "Noch keine gespeicherten Ansichten.",
   "groups": {
     "private": "Meine",
-    "team": "Meine Teams",
+    "unit": "Meine Einheiten",
     "tenant": "Alle"
   },
   "current": "Aktuelle Ansicht: {{name}}",
@@ -21,7 +21,7 @@
   "gone": "„{{name}}“ existiert nicht mehr.",
   "visibility": {
     "private": "Privat (nur ich)",
-    "team": "Ein Team",
+    "unit": "Eine Einheit",
     "tenant": "Alle in der Organisation"
   },
   "form": {
@@ -33,9 +33,9 @@
     "nameTooLong": "Ein Name hat höchstens 200 Zeichen.",
     "nameTaken": "Eine Ansicht namens „{{name}}“ gibt es hier bereits.",
     "visibility": "Wer sie sieht",
-    "team": "Team",
-    "teamRequired": "Wählen Sie ein Team.",
-    "teamPlaceholder": "Team wählen",
+    "unit": "Einheit",
+    "unitRequired": "Wählen Sie eine Einheit.",
+    "unitPlaceholder": "Einheit wählen",
     "save": "Speichern",
     "cancel": "Abbrechen"
   },

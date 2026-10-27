@@ -49,7 +49,7 @@ import {
  * (`PUT`/`DELETE /v1/settings/{key}/platform`, docs/settings.md): shown to
  * whoever manages the setting; editable only where the API says so
  * (`canEditPlatform`, never guessed). `enforced` is a kill switch: it beats
- * every tenant, team and user value.
+ * every tenant, unit and user value.
  */
 export function PlatformEditor({ setting }: { setting: Setting }) {
   const { t } = useTranslation('settings');

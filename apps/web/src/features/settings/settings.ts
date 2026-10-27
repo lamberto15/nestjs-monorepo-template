@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 export type Setting = GetResponse<'/v1/settings'>['items'][number];
 export type Override =
   GetResponse<'/v1/settings/{key}/overrides'>['items'][number];
-export type Scope = 'tenant' | 'team' | 'user';
+export type Scope = 'tenant' | 'unit' | 'user';
 
 export const settingsQuery = queryOptions({
   queryKey: ['settings'],

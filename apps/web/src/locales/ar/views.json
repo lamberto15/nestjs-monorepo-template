@@ -6,7 +6,7 @@
   "none": "لا توجد عروض محفوظة بعد.",
   "groups": {
     "private": "عروضي",
-    "team": "فرقي",
+    "unit": "وحداتي",
     "tenant": "الجميع"
   },
   "current": "العرض الحالي: {{name}}",
@@ -21,7 +21,7 @@
   "gone": "العرض «{{name}}» لم يعد موجودًا.",
   "visibility": {
     "private": "خاص (أنا فقط)",
-    "team": "فريق",
+    "unit": "وحدة",
     "tenant": "كل من في المؤسسة"
   },
   "form": {
@@ -33,9 +33,9 @@
     "nameTooLong": "يبلغ الحد الأقصى للاسم 200 حرف.",
     "nameTaken": "يوجد هنا عرض باسم «{{name}}» بالفعل.",
     "visibility": "من يراه",
-    "team": "الفريق",
-    "teamRequired": "اختر فريقًا.",
-    "teamPlaceholder": "اختر فريقًا",
+    "unit": "الوحدة",
+    "unitRequired": "اختر وحدة.",
+    "unitPlaceholder": "اختر وحدة",
     "save": "حفظ",
     "cancel": "إلغاء"
   },

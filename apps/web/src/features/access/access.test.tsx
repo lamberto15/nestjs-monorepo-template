@@ -10,10 +10,12 @@ import {
   invitation,
   roles,
   signedInWith,
+  units,
 } from '@/features/access/test/fixtures';
-import { teamRefsQuery } from '@/lib/list-refs';
-import { peopleQuery, teamNameQuery } from '@/lib/people';
+import { unitRefsQuery } from '@/lib/list-refs';
+import { peopleQuery, unitNameQuery } from '@/lib/people';
 import { nav, visibleGroups } from '@/nav';
+import { peopleHandler } from '@/test/people';
 import { principalsHandler, userPrincipal } from '@/test/principals';
 import { renderApp } from '@/test/render-app';
 import { renderComponent } from '@/test/render-component';
@@ -204,7 +206,7 @@ describe('users: invitations', () => {
       email: 'new@example.com',
       roleIds: [ids.editor],
       roleExpiresAt: {},
-      teamIds: [ids.north],
+      unitIds: [ids.north],
     });
 
     const revoked = capture('delete', '/v1/access/invitations/:id');
@@ -233,14 +235,14 @@ describe('a name over 120 characters', () => {
       submit: 'Send invitation',
     },
     {
-      form: 'the team form',
-      page: '/access/teams',
-      post: '/v1/access/teams',
+      form: 'the unit form',
+      page: '/access/organization',
+      post: '/v1/access/organizational-units',
       status: 201,
-      open: 'New team',
+      open: 'New unit',
       email: false,
       field: 'Name',
-      submit: 'Create team',
+      submit: 'Create unit',
     },
   ])('is refused by $form before sending', async (form) => {
     signedInWith(everything);
@@ -416,20 +418,20 @@ describe('roles: one role', () => {
 });
 
 describe('users: the members', () => {
-  it('asks the list for the members by the list state: team filter and sort', async () => {
+  it('asks the list for the members by the list state: unit filter and sort', async () => {
     signedInWith(everything);
     const asked: URL[] = [];
     server.events.on('request:start', ({ request }) => {
       const url = new URL(request.url);
       if (url.pathname === '/v1/access/users') asked.push(url);
     });
-    await renderApp(`/access/users?teamId=in.${ids.sales}&sort=email.asc`);
-    // Carol is in no team: only Sales' members are listed.
+    await renderApp(`/access/users?unitId=in.${ids.sales}&sort=email.asc`);
+    // Carol is in no unit: only Sales' members are listed.
     expect(await screen.findByText('Bob Builder')).toBeVisible();
     expect(screen.queryByText('Carol Admin')).toBeNull();
     const last = asked.at(-1)!;
     expect(JSON.parse(last.searchParams.get('filter') ?? 'null')).toEqual({
-      and: [{ field: 'teamId', op: 'in', value: [ids.sales] }],
+      and: [{ field: 'unitId', op: 'in', value: [ids.sales] }],
     });
     expect(last.searchParams.get('sort')).toBe('email');
     // The columns shown are the fields asked for.
@@ -437,7 +439,7 @@ describe('users: the members', () => {
     expect(last.searchParams.get('page')).toBe('1');
   });
 
-  it('filters by a team picked in the filter menu, named by the teams route', async () => {
+  it('filters by a unit picked in the filter menu, named by the units route', async () => {
     signedInWith(everything);
     const asked: URL[] = [];
     server.events.on('request:start', ({ request }) => {
@@ -449,19 +451,19 @@ describe('users: the members', () => {
     expect(await screen.findByText('Carol Admin')).toBeVisible();
     await user.click(screen.getByRole('button', { name: /Filter/ }));
     await user.click(await screen.findByRole('button', { name: 'Add filter' }));
-    // The first filterable column is the name: pick the team instead.
+    // The first filterable column is the name: pick the unit instead.
     const menu = await screen.findByRole('dialog');
     await user.click(within(menu).getByRole('button', { name: 'Name' }));
-    await user.click(await screen.findByRole('option', { name: 'Team' }));
+    await user.click(await screen.findByRole('option', { name: 'Unit' }));
     await user.click(
-      await screen.findByRole('button', { name: /Team filter value/i }),
+      await screen.findByRole('button', { name: /Unit filter value/i }),
     );
     await user.click(await screen.findByRole('option', { name: 'Sales' }));
     await waitFor(() => expect(screen.queryByText('Carol Admin')).toBeNull());
     expect(screen.getByText('Bob Builder')).toBeVisible();
     expect(
       JSON.parse(asked.at(-1)!.searchParams.get('filter') ?? 'null'),
-    ).toEqual({ and: [{ field: 'teamId', op: 'in', value: [ids.sales] }] });
+    ).toEqual({ and: [{ field: 'unitId', op: 'in', value: [ids.sales] }] });
   });
 
   it('opens the member sheet from the row’s menu, where access is removed or restored', async () => {
@@ -497,7 +499,7 @@ describe('users: the members', () => {
         HttpResponse.json({
           ...bob,
           updatedAt: '2026-10-02T10:00:00.000Z',
-          teamIds: [ids.north],
+          unitIds: [ids.north],
         }),
       ),
     );
@@ -518,16 +520,70 @@ describe('users: the members', () => {
   });
 });
 
-describe('teams: a team’s members', () => {
-  it('lists the team’s members with `?teamId=`, and adds someone found by search', async () => {
+describe('units: the organization structure', () => {
+  it('shows each unit with its type, and SCIM-managed ones marked', async () => {
     signedInWith(everything);
-    const teamIds: (string | null)[] = [];
-    server.events.on('request:start', ({ request }) => {
-      const url = new URL(request.url);
-      if (url.pathname === '/v1/access/users') {
-        teamIds.push(url.searchParams.get('teamId'));
-      }
+    server.use(
+      http.get('/v1/access/organizational-units', () =>
+        HttpResponse.json({
+          items: [{ ...units[0]!, managedByScim: true }, units[1]],
+        }),
+      ),
+    );
+    await renderApp('/access/organization');
+    expect(await screen.findByRole('link', { name: 'Sales' })).toBeVisible();
+    expect(screen.getByText('Division')).toBeVisible();
+    expect(screen.getByText('Team')).toBeVisible();
+    expect(screen.getAllByText('Managed by SCIM')).toHaveLength(1);
+  });
+
+  it('says why a unit that is not empty is not deleted', async () => {
+    signedInWith(everything);
+    server.use(
+      http.delete('/v1/access/organizational-units/:id', () =>
+        HttpResponse.json(
+          { status: 409, code: 'unit_not_empty', detail: 'Move it first.' },
+          {
+            status: 409,
+            headers: { 'content-type': 'application/problem+json' },
+          },
+        ),
+      ),
+    );
+    await renderApp('/access/organization');
+    const user = userEvent.setup();
+    await screen.findByRole('link', { name: 'Sales' });
+    await user.click(screen.getAllByRole('button', { name: 'Delete' })[0]!);
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    await findToast(/still has units under it/);
+  });
+
+  it('creates a unit with its type', async () => {
+    signedInWith(everything);
+    const created = capture('post', '/v1/access/organizational-units', 201);
+    await renderApp('/access/organization');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'New unit' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Name'), 'Support');
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Create unit' }),
+    );
+    await waitFor(() => expect(created).toHaveLength(1));
+    expect(created[0]!.body).toEqual({
+      type: 'team',
+      name: 'Support',
+      parentId: null,
     });
+  });
+});
+
+const at = '2026-10-01T10:00:00.000Z';
+
+describe('units: a unit’s members', () => {
+  it('lists the unit’s members with their role, and adds someone found by search', async () => {
+    signedInWith(everything);
     server.use(
       principalsHandler([
         userPrincipal({
@@ -537,30 +593,78 @@ describe('teams: a team’s members', () => {
         }),
       ]),
     );
-    const changed = capture('patch', '/v1/access/users/:id');
-    await renderApp(`/access/teams/${ids.north}`);
+    const added = capture(
+      'post',
+      '/v1/access/organizational-units/:id/members',
+      201,
+    );
+    await renderApp(`/access/organization/${ids.north}`);
     const user = userEvent.setup();
-    expect(
-      await screen.findByText('Nobody is in this team directly.'),
-    ).toBeVisible();
-    expect(teamIds).toEqual([ids.north]);
+    expect(await screen.findByText('Nobody is in this unit.')).toBeVisible();
 
     await user.type(screen.getByLabelText('Add a member'), 'carol');
     await user.click(await screen.findByRole('option', { name: /Carol/ }));
     await user.click(screen.getByRole('button', { name: 'Add' }));
-    await findToast('carol@example.com added.');
-    expect(changed).toHaveLength(1);
-    expect(changed[0]!.url).toMatch(`/v1/access/users/${ids.carol}`);
-    // Her teams as the single read had them, plus this one.
-    expect(changed[0]!.body).toEqual({ teamIds: [ids.north] });
-    expect(
-      await screen.findByRole('columnheader', { name: 'Member' }),
-    ).toBeVisible();
+    await findToast('Member added.');
+    expect(added).toHaveLength(1);
+    expect(added[0]!.url).toMatch(
+      `/v1/access/organizational-units/${ids.north}/members`,
+    );
+    expect(added[0]!.body).toEqual({ userId: ids.carol, role: 'member' });
+  });
+
+  it('changes a member’s role and ends a membership', async () => {
+    signedInWith(everything);
+    server.use(
+      peopleHandler([{ id: ids.carol, name: 'Carol Admin' }]),
+      principalsHandler([]),
+      http.get('/v1/access/organizational-units/:id/members', () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: 'm1',
+              unitId: ids.north,
+              userId: ids.carol,
+              role: 'member',
+              validFrom: at,
+              validTo: null,
+              createdAt: at,
+              updatedAt: at,
+            },
+          ],
+        }),
+      ),
+    );
+    const changed = capture(
+      'patch',
+      '/v1/access/organizational-units/:id/members/:userId',
+      200,
+    );
+    const ended = capture(
+      'delete',
+      '/v1/access/organizational-units/:id/members/:userId',
+    );
+    await renderApp(`/access/organization/${ids.north}`);
+    const user = userEvent.setup();
+    expect(await screen.findByText('Carol Admin')).toBeVisible();
+
+    // The first is the one that picks the role of a new member.
+    await user.click(screen.getAllByRole('combobox', { name: 'Role' })[1]!);
+    await user.click(await screen.findByRole('option', { name: 'Lead' }));
+    await findToast('Role changed.');
+    expect(changed[0]!.body).toEqual({ role: 'lead' });
+    expect(changed[0]!.url).toMatch(`/members/${ids.carol}`);
+
+    await user.click(screen.getByRole('button', { name: 'Remove' }));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Remove' }));
+    await findToast('Member removed.');
+    expect(ended[0]!.url).toMatch(`/members/${ids.carol}`);
   });
 });
 
 describe('after an access change', () => {
-  it('reads again what shows teams and people, and what the user may do', async () => {
+  it('reads again what shows units and people, and what the user may do', async () => {
     signedInWith(everything);
     const reads: string[] = [];
     server.events.on('request:start', ({ request }) => {
@@ -575,15 +679,17 @@ describe('after an access change', () => {
         }),
       ]),
     );
-    capture('patch', '/v1/access/users/:id');
-    const { queryClient } = await renderApp(`/access/teams/${ids.north}`);
+    capture('post', '/v1/access/organizational-units/:id/members', 201);
+    const { queryClient } = await renderApp(
+      `/access/organization/${ids.north}`,
+    );
     const user = userEvent.setup();
-    await screen.findByText('Nobody is in this team directly.');
-    // What other pages cached: a team's name (30 minutes), the filters'
-    // team options, the people a picker found.
+    await screen.findByText('Nobody is in this unit.');
+    // What other pages cached: a unit's name (30 minutes), the filters'
+    // unit options, the people a picker found.
     const cached = [
-      teamNameQuery(ids.north).queryKey,
-      teamRefsQuery.queryKey,
+      unitNameQuery(ids.north).queryKey,
+      unitRefsQuery.queryKey,
       peopleQuery('carol').queryKey,
     ];
     for (const queryKey of cached) queryClient.setQueryData(queryKey, []);
@@ -593,12 +699,12 @@ describe('after an access change', () => {
     await user.type(screen.getByLabelText('Add a member'), 'carol');
     await user.click(await screen.findByRole('option', { name: /Carol/ }));
     await user.click(screen.getByRole('button', { name: 'Add' }));
-    await findToast('carol@example.com added.');
+    await findToast('Member added.');
 
     for (const queryKey of cached) {
       expect(queryClient.getQueryState(queryKey)?.isInvalidated).toBe(true);
     }
-    // A role or a team may have changed what the user is allowed (`can`).
+    // A role or a unit may have changed what the user is allowed (`can`).
     await waitFor(() => expect(meReads()).toBeGreaterThan(before));
   });
 });
@@ -612,18 +718,21 @@ describe('gating', () => {
         .filter((to) => to.startsWith('/access'));
     expect(labels({ 'Access.manageUsers': true })).toEqual([
       '/access/users',
-      '/access/teams',
+      '/access/organization',
     ]);
     expect(
-      labels({ 'Access.manageRoles': true, 'Access.manageTeams': true }),
-    ).toEqual(['/access/users', '/access/roles', '/access/teams']);
+      labels({
+        'Access.manageRoles': true,
+        'Access.manageOrganizationalUnits': true,
+      }),
+    ).toEqual(['/access/users', '/access/roles', '/access/organization']);
     // The API lets whoever impersonates list the users, to find whom.
     expect(labels({ 'Access.impersonate': true })).toEqual(['/access/users']);
     expect(labels({ 'Access.readAudit': true })).toEqual([]);
   });
 
-  it('shows the members read-only to whoever only manages teams', async () => {
-    signedInWith({ 'Access.manageTeams': true });
+  it('shows the members read-only to whoever only manages units', async () => {
+    signedInWith({ 'Access.manageOrganizationalUnits': true });
     await renderApp('/access/users');
     const user = userEvent.setup();
     await user.click(
@@ -649,11 +758,11 @@ describe('gating', () => {
     expect(screen.queryByRole('button', { name: 'Invite' })).toBeNull();
   });
 
-  it('lets whoever manages users read the teams, without changing the tree', async () => {
+  it('lets whoever manages users read the units, without changing the tree', async () => {
     signedInWith({ 'Access.manageUsers': true });
-    await renderApp('/access/teams');
+    await renderApp('/access/organization');
     expect(await screen.findByRole('link', { name: 'Sales' })).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'New team' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'New unit' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
   });
 
@@ -661,8 +770,8 @@ describe('gating', () => {
     ['/access/users', 'Access.manageRoles'],
     ['/access/roles', 'Access.manageUsers'],
     [`/access/roles/${ids.editor}`, 'Access.manageUsers'],
-    ['/access/teams', 'Access.manageRoles'],
-    ['/access/teams', 'Access.impersonate'],
+    ['/access/organization', 'Access.manageRoles'],
+    ['/access/organization', 'Access.impersonate'],
   ])(
     'sends %s to the dashboard without its permission',
     async (path, other) => {

@@ -207,7 +207,7 @@
     "stagesSummary": "Stufen: {{names}}",
     "edit": "Bearbeiten",
     "editLabel": "{{label}} bearbeiten",
-    "setting": "Per Einstellung je Team eingeschaltet",
+    "setting": "Per Einstellung je Einheit eingeschaltet",
     "saved": "Richtlinie gespeichert.",
     "notFound": {
       "title": "Richtlinie nicht gefunden",
@@ -308,7 +308,7 @@
     "types": {
       "rule": {
         "role": "Benutzer mit einer Rolle",
-        "teamRole": "Benutzer mit einer Rolle im Team des Antragstellers oder darüber",
+        "unitRole": "Benutzer mit einer Rolle in der Einheit des Antragstellers oder darüber",
         "permission": "Benutzer, die eine Aktion auf dem Datensatz ausführen dürfen",
         "users": "Benannte Benutzer"
       },

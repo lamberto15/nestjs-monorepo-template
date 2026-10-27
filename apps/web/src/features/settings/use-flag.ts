@@ -3,7 +3,7 @@ import { settingsQuery } from './settings';
 
 /**
  * Whether the flag `key` is on for this user: the value `GET /v1/settings`
- * resolves (enforced platform value, their value, their team's, the tenant's,
+ * resolves (enforced platform value, their value, their unit's, the tenant's,
  * the rollout, the platform value, the default; docs/settings.md). Off while
  * it loads and when it can't be read (no retries, no error toast: a failing
  * settings call leaves the feature off); `pending` says it is still loading.

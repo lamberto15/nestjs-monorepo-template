@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   INVITATION_LIMITS,
   ROLE_LIMITS,
-  TEAM_LIMITS,
+  UNIT_LIMITS,
 } from '@/features/access/api';
 import { API_CLIENT_LIMITS } from '@/features/api-clients/queries';
 import { REPORT_LIMITS } from '@/features/reports/api';
@@ -47,12 +47,12 @@ const forms: {
     },
   },
   {
-    form: 'a team',
+    form: 'a unit',
     requests: [
-      ['/v1/access/teams', 'post'],
-      ['/v1/access/teams/{id}', 'patch'],
+      ['/v1/access/organizational-units', 'post'],
+      ['/v1/access/organizational-units/{id}', 'patch'],
     ],
-    limits: { name: { maxLength: TEAM_LIMITS.name } },
+    limits: { name: { maxLength: UNIT_LIMITS.name } },
   },
   {
     form: 'an invitation',

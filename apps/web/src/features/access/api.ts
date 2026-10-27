@@ -6,7 +6,7 @@ import {
 import { queryOptions, type QueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { refsKey } from '@/lib/list-refs';
-import { peopleKey, teamsKey } from '@/lib/people';
+import { peopleKey, unitsKey } from '@/lib/people';
 import { meQuery } from '@/lib/session';
 
 /**
@@ -14,10 +14,10 @@ import { meQuery } from '@/lib/session';
  * sessions"), typed by the client: the shapes below are its answers.
  *
  * Who may call what (AccessPolicy):
- * - GET catalog, roles, users, teams, principals: `open` (any of
- *   manageRoles, manageUsers, manageClients, manageTeams, impersonate,
+ * - GET catalog, roles, users, units, principals: `open` (any of
+ *   manageRoles, manageUsers, manageClients, manageOrganizationalUnits, impersonate,
  *   readAudit)
- * - roles: manageRoles; users, invitations: manageUsers; teams: manageTeams
+ * - roles: manageRoles; users, invitations: manageUsers; units: manageOrganizationalUnits
  * - impersonate: Access.impersonate (+ IMPERSONATION on)
  * Never while impersonating. Hiding in the UI is a courtesy: the API decides.
  */
@@ -30,7 +30,8 @@ export type Member = MembersPage['items'][number];
 /** A role given to someone, until `expiresAt` (null: for good). */
 export type Grant = Member['roles'][number];
 
-export type Team = GetResponse<'/v1/access/teams'>['items'][number];
+export type Unit =
+  GetResponse<'/v1/access/organizational-units'>['items'][number];
 
 export type Invitation = GetResponse<'/v1/access/invitations'>['items'][number];
 
@@ -46,7 +47,7 @@ export const accessKeys = {
   roles: ['access', 'roles'] as const,
   members: ['access', 'members'] as const,
   invitations: ['access', 'invitations'] as const,
-  teams: ['access', 'teams'] as const,
+  units: ['access', 'units'] as const,
 };
 
 /**
@@ -75,9 +76,10 @@ export function roleQuery(id: string) {
   });
 }
 
-export const teamsQuery = queryOptions({
-  queryKey: accessKeys.teams,
-  queryFn: async () => (await unwrap(api.GET('/v1/access/teams'))).items,
+export const unitsQuery = queryOptions({
+  queryKey: accessKeys.units,
+  queryFn: async () =>
+    (await unwrap(api.GET('/v1/access/organizational-units'))).items,
 });
 
 export const invitationsQuery = queryOptions({
@@ -85,7 +87,7 @@ export const invitationsQuery = queryOptions({
   queryFn: async () => (await unwrap(api.GET('/v1/access/invitations'))).items,
 });
 
-/** One member, with their role grants and teams (404: not in this tenant). */
+/** One member, with their role grants and units (404: not in this tenant). */
 export function memberQuery(id: string) {
   return queryOptions({
     queryKey: [...accessKeys.members, 'one', id],
@@ -94,26 +96,23 @@ export function memberQuery(id: string) {
   });
 }
 
-/**
- * A team's direct members (`?teamId=`), by address: read whole, 100 a page
- * (the list's maximum), since the page lists them all.
- */
-export function teamMembersQuery(teamId: string) {
+/** A unit's current members (`GET .../{id}/members`): who, and member or lead. */
+export type UnitMember =
+  GetResponse<'/v1/access/organizational-units/{id}/members'>['items'][number];
+
+export type UnitType = Unit['type'];
+
+export function unitMembersQuery(unitId: string) {
   return queryOptions({
-    queryKey: [...accessKeys.members, 'team', teamId],
-    queryFn: async () => {
-      const items: Member[] = [];
-      for (let page = 1; page <= 100; page++) {
-        const data = await unwrap(
-          api.GET('/v1/access/users', {
-            params: { query: { teamId, page, limit: 100, sort: 'email' } },
+    queryKey: [...accessKeys.members, 'unit', unitId],
+    queryFn: async () =>
+      (
+        await unwrap(
+          api.GET('/v1/access/organizational-units/{id}/members', {
+            params: { path: { id: unitId } },
           }),
-        );
-        items.push(...data.items);
-        if (!data.nextPage) break;
-      }
-      return items;
-    },
+        )
+      ).items,
   });
 }
 
@@ -161,10 +160,10 @@ export async function updateMember(id: string, body: MemberChanges) {
 export const INVITATION_LIMITS = { name: 120 } as const;
 
 /**
- * A team's name mirrors the API's `maxLength`; lib/limits.test.ts compares
+ * A unit's name mirrors the API's `maxLength`; lib/limits.test.ts compares
  * it with openapi.json.
  */
-export const TEAM_LIMITS = { name: 120 } as const;
+export const UNIT_LIMITS = { name: 120 } as const;
 
 export type InvitationBody = JsonBody<paths['/v1/access/users']['post']>;
 
@@ -175,7 +174,7 @@ export async function invite(body: InvitationBody) {
 
 /**
  * Sends a pending invitation again (expired or not): a new link and expiry,
- * its roles, their ends and its teams unchanged. Asks for a recent sign-in,
+ * its roles, their ends and its units unchanged. Asks for a recent sign-in,
  * which the client's step-up middleware answers (lib/api.ts).
  */
 export async function resendInvitation(id: string) {
@@ -192,35 +191,73 @@ export async function revokeInvitation(id: string) {
   });
 }
 
-export async function createTeam(body: {
+export async function createUnit(body: {
+  type: UnitType;
   name: string;
   parentId?: string | null;
 }) {
-  return unwrap(api.POST('/v1/access/teams', { body }));
+  return unwrap(api.POST('/v1/access/organizational-units', { body }));
 }
 
-export async function updateTeam(
+export async function updateUnit(
   id: string,
-  body: { name?: string; parentId?: string | null },
+  body: { type?: UnitType; name?: string; parentId?: string | null },
 ) {
   return unwrap(
-    api.PATCH('/v1/access/teams/{id}', { params: { path: { id } }, body }),
+    api.PATCH('/v1/access/organizational-units/{id}', {
+      params: { path: { id } },
+      body,
+    }),
   );
 }
 
-export async function deleteTeam(id: string) {
-  await api.DELETE('/v1/access/teams/{id}', { params: { path: { id } } });
+export async function deleteUnit(id: string) {
+  await api.DELETE('/v1/access/organizational-units/{id}', {
+    params: { path: { id } },
+  });
+}
+
+export async function addUnitMember(
+  id: string,
+  body: { userId: string; role: UnitMember['role'] },
+) {
+  return unwrap(
+    api.POST('/v1/access/organizational-units/{id}/members', {
+      params: { path: { id } },
+      body,
+    }),
+  );
+}
+
+export async function changeUnitMember(
+  id: string,
+  userId: string,
+  role: UnitMember['role'],
+) {
+  return unwrap(
+    api.PATCH('/v1/access/organizational-units/{id}/members/{userId}', {
+      params: { path: { id, userId } },
+      body: { role },
+    }),
+  );
+}
+
+/** Ends the membership (the API keeps it as history). */
+export async function removeUnitMember(id: string, userId: string) {
+  await api.DELETE('/v1/access/organizational-units/{id}/members/{userId}', {
+    params: { path: { id, userId } },
+  });
 }
 
 /**
  * Everything the access pages show, after a change, and what other pages
- * took from it: the team names and the filters' team and people options, the
+ * took from it: the unit names and the filters' unit and people options, the
  * people directory (a deactivated member leaves it), and the signed-in user's
  * own `can` (a role's permissions or a grant may be theirs).
  */
 export function invalidateAccess(queryClient: QueryClient) {
   return Promise.all(
-    [accessKeys.all, teamsKey, refsKey, peopleKey, meQuery.queryKey].map(
+    [accessKeys.all, unitsKey, refsKey, peopleKey, meQuery.queryKey].map(
       (queryKey) => queryClient.invalidateQueries({ queryKey }),
     ),
   );

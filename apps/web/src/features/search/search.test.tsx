@@ -36,7 +36,7 @@ const hit = (id: string, extra: { subject?: string; link?: string } = {}) => ({
   title: `Title ${id}`,
   snippet: `about <b>note</b> ${id}`,
   score: 0.5,
-  link: '/access/teams',
+  link: '/access/organization',
   ...extra,
 });
 

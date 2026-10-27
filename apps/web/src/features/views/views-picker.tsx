@@ -27,7 +27,7 @@ import {
   type ViewContext,
 } from './view-state';
 
-const GROUPS = ['private', 'team', 'tenant'] as const;
+const GROUPS = ['private', 'unit', 'tenant'] as const;
 
 /** What the table can filter and sort by, as `viewState` needs it. */
 function contextOf<TData extends RowData>(
@@ -60,7 +60,7 @@ function contextOf<TData extends RowData>(
 /**
  * The saved views of a list (docs/saved-views.md): choose one to apply it to
  * the table (its filter, search, sort and columns), save the table as a new
- * one (private, a team's, or the tenant's), rename or delete the chosen one.
+ * one (private, a unit's, or the tenant's), rename or delete the chosen one.
  * The views are read when the menu opens.
  */
 export function ViewsPicker<TData extends RowData>(props: {

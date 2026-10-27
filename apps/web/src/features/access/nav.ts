@@ -1,9 +1,9 @@
 import { NetworkIcon, ShieldCheckIcon, UsersIcon } from 'lucide-react';
-import { teamsReaders, usersReaders } from '@/features/access/gate';
+import { unitsReaders, usersReaders } from '@/features/access/gate';
 import type { NavContribution } from '@/nav';
 
 // Access administration (docs/permissions.md): each page for whoever may
-// read it (the users and teams for several kinds of administrator, see
+// read it (the users and units for several kinds of administrator, see
 // gate.ts); what each may change is gated on the page. The API decides.
 export default [
   {
@@ -25,9 +25,9 @@ export default [
   {
     group: 'administration',
     order: 30,
-    to: '/access/teams',
-    label: 'access:nav.teams',
+    to: '/access/organization',
+    label: 'access:nav.units',
     icon: NetworkIcon,
-    permission: teamsReaders,
+    permission: unitsReaders,
   },
 ] satisfies NavContribution[];
