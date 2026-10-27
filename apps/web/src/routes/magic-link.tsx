@@ -15,6 +15,7 @@ import { useFinishSignIn, type SignInResult } from '@/lib/sign-in';
 // The sign-in link's page: signing in takes a click, so a mail scanner that
 // opens the link (and even runs its script) doesn't spend it.
 export const Route = createFileRoute('/magic-link')({
+  staticData: { title: 'auth.magicLink.title' },
   validateSearch: tokenSearchSchema,
   component: MagicLinkPage,
 });

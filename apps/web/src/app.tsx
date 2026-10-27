@@ -5,7 +5,9 @@ import {
   type RouterHistory,
 } from '@tanstack/react-router';
 import type { i18n as I18n } from 'i18next';
-import { I18nextProvider } from 'react-i18next';
+import type { ReactNode } from 'react';
+import { I18nextProvider, useTranslation } from 'react-i18next';
+import { DirectionProvider } from '@nestjs-monorepo-template/ui/components/direction';
 import { ThemeProvider } from '@nestjs-monorepo-template/ui/components/theme-provider';
 import { Toaster } from '@nestjs-monorepo-template/ui/components/sonner';
 import { NotFound } from '@/components/not-found';
@@ -38,6 +40,9 @@ export function createAppRouter(
     defaultNotFoundComponent: NotFound,
     defaultErrorComponent: RouteError,
     defaultPreload: 'intent',
+    // Back and forward come back to where the page was scrolled (a new
+    // page starts at the top either way).
+    scrollRestoration: true,
     ...(history && { history }),
   });
 }
@@ -91,6 +96,13 @@ declare module '@tanstack/react-router' {
   interface Register {
     router: AppRouter;
   }
+  interface StaticDataRouteOption {
+    /**
+     * The i18n key of the page's name in the document title (`PageTitle`),
+     * for a page the menu does not list.
+     */
+    title?: string;
+  }
 }
 
 /**
@@ -106,12 +118,29 @@ export function App(props: {
   return (
     <I18nextProvider i18n={props.i18n}>
       <ThemeProvider>
-        <QueryClientProvider client={props.queryClient}>
-          <RouterProvider router={props.router} />
-          <ReauthDialog />
-          <Toaster />
-        </QueryClientProvider>
+        <LanguageDirection>
+          <QueryClientProvider client={props.queryClient}>
+            <RouterProvider router={props.router} />
+            <ReauthDialog />
+            <Toaster />
+          </QueryClientProvider>
+        </LanguageDirection>
       </ThemeProvider>
     </I18nextProvider>
+  );
+}
+
+/**
+ * The language's direction for Base UI's components (menus, popovers,
+ * selects, sliders, and the data tables that copy it into `dir`): they read
+ * its DirectionProvider, never `<html dir>`, and are left to right without
+ * one. Inside the i18n provider, so a change of language re-renders it.
+ */
+export function LanguageDirection(props: { children: ReactNode }) {
+  const { i18n } = useTranslation();
+  return (
+    <DirectionProvider direction={i18n.dir()}>
+      {props.children}
+    </DirectionProvider>
   );
 }

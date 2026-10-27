@@ -24,6 +24,7 @@ import { methodsQuery } from '@/lib/session';
 // Self sign-up (AUTH_SIGN_UP=on): the account is made and a verification
 // link mailed; no session until the address is proved (docs/auth.md).
 export const Route = createFileRoute('/sign-up')({
+  staticData: { title: 'auth.signUp.title' },
   validateSearch: redirectSearchSchema,
   beforeLoad: async ({ context, search }) => {
     if (await context.session.me()) {

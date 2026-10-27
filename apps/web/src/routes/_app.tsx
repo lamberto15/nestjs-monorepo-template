@@ -9,6 +9,10 @@ import { Separator } from '@nestjs-monorepo-template/ui/components/separator';
 import { TooltipProvider } from '@nestjs-monorepo-template/ui/components/tooltip';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  MAIN_CONTENT_ID,
+  SkipToContent,
+} from '@/components/route-accessibility';
 import { AppSidebar } from '@/components/app-sidebar';
 import { BreachedPasswordBanner } from '@/components/breached-password-banner';
 import { OfflineBanner } from '@/components/offline-banner';
@@ -88,6 +92,8 @@ function AppLayout() {
   }
   return (
     <TooltipProvider>
+      {/* Before the menu: the keyboard's way straight to the page. */}
+      <SkipToContent />
       {/* The tenant's colour on the theme; read again after a tenant switch. */}
       <BrandTheme />
       <RealtimeProvider>
@@ -112,9 +118,14 @@ function AppLayout() {
                 <NotificationsBell />
               </div>
             </header>
-            <main className="flex flex-1 flex-col gap-4 p-4">
+            {/* SidebarInset is the page's <main> already: one landmark. */}
+            <div
+              id={MAIN_CONTENT_ID}
+              tabIndex={-1}
+              className="flex flex-1 flex-col gap-4 p-4 outline-none"
+            >
               <Outlet />
-            </main>
+            </div>
           </SidebarInset>
         </SidebarProvider>
       </RealtimeProvider>

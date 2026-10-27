@@ -19,6 +19,7 @@ import {
 } from '@/features/search/recent';
 import { parseSnippet, Snippet } from '@/features/search/snippet';
 import { createSession, sessionIdentity, type Me } from '@/lib/session';
+import { axeViolations } from '@/test/axe';
 import { renderApp } from '@/test/render-app';
 import { server, signedInUser } from '@/test/server';
 
@@ -152,6 +153,34 @@ describe('the palette', () => {
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     await user.keyboard('{Escape}');
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('keeps the listbox valid with nothing to show (axe "aria-required-children", "aria-valid-attr-value"): a disabled option stands in for the hint or a message', async () => {
+    signedInWith({});
+    searchApi([]);
+    await renderApp('/');
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: 'Search (Ctrl+K)' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    const rules = ['aria-required-children', 'aria-valid-attr-value'];
+    // Just opened: no recent searches, so the hint only, as a disabled option.
+    expect(within(dialog).getByRole('listbox')).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('option', { name: /Type to search/ }),
+    ).toHaveAttribute('aria-disabled', 'true');
+    expect(await axeViolations(rules, dialog)).toEqual([]);
+    // No hits: the message is a disabled option too, still no empty list.
+    await user.type(within(dialog).getByRole('combobox'), 'nothing');
+    const message = await within(dialog).findByText(/nothing/, {
+      selector: '[role="status"]',
+    });
+    expect(message.closest('[role="option"]')).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    expect(await axeViolations(rules, dialog)).toEqual([]);
   });
 
   it('opens with the header button', async () => {

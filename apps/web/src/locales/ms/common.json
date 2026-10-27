@@ -6,7 +6,10 @@
   },
   "nav": {
     "platform": "Platform",
-    "dashboard": "Papan pemuka"
+    "dashboard": "Papan pemuka",
+    "skipToContent": "Langkau ke kandungan",
+    "sidebar": "Bar sisi",
+    "menu": "Menu utama"
   },
   "auth": {
     "signIn": {

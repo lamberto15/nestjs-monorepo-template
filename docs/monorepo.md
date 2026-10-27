@@ -448,8 +448,48 @@ feature (`pnpm feature:add`) start as English copies in every language: translat
 them in `locales/<lng>/<feature>.json` with the other new keys, keeping the
 `{{placeholders}}` and plural suffixes (`src/locales.test.ts` checks them; `ar`
 has all six plural forms). A key the code asks for that `en` lacks fails the
-test that renders it (`test/i18n.ts`), rather than showing as the raw key. `<html lang>` and `dir` (`rtl` for `ar`) follow the language; the
+test that renders it (`test/i18n.ts`), rather than showing as the raw key. `<html lang>` and `dir` (`rtl` for `ar`) follow the language, and so does Base
+UI's `DirectionProvider` ([Accessibility](#accessibility)); the
 theme (light, dark, system) is a class on `<html>`.
+
+### Accessibility
+
+What a client-side navigation leaves to the app (TanStack Router renders the
+page and nothing more), in `src/components/route-accessibility.tsx`:
+
+- **Page titles:** `<title>` is the page, then the app (WCAG 2.4.2). A page in
+  the menu takes its entry's title; one the menu does not list names itself
+  in its route's `staticData: { title: '<ns>:<key>' }` (the i18n key). It
+  follows the language.
+- **Focus after a navigation:** to the new page's `h1`, else its content, so a
+  keyboard or screen-reader user starts there and not on the link they left.
+  Not on the first load, not for a filter or a sort (the search changes
+  only), and not when the page has put the focus somewhere itself (its first
+  field, an open dialog). `scrollRestoration` is on.
+- **Skip link:** `SkipToContent` is the first tab stop; it moves the focus to
+  `#main-content` instead of following the fragment, which would end up in
+  the router's location.
+- **Landmarks:** one `<main>` on a signed-in page; `AuthLayout` has its own
+  `<main>` and the level-1 heading for the sign-in pages. Every page has one
+  `h1`.
+- **Direction:** `<html dir>` follows the language, and `LanguageDirection`
+  (`app.tsx`) gives Base UI's `DirectionProvider` the same `i18n.dir()`, so
+  popups, menus and arrow keys follow it ([i18n and time](i18n-and-time.md)).
+- **Lint:** oxlint's `jsx-a11y` plugin runs on `apps/web/src` (`.oxlintrc.json`).
+  Five rules are off, each for a pattern the app uses on purpose:
+  `prefer-tag-over-role` (`role="status"` live regions on a `<p>` or an
+  `Alert`, Base UI parts, roving-focus lists), `no-autofocus` (the first field
+  of a dialog or a sign-in step the user just opened),
+  `control-has-associated-label` (a Base UI `render={<a href />}` link takes
+  its text from the Button's children, which the rule does not see),
+  `no-noninteractive-element-interactions` (the sort and filter menus' rows take
+  the arrow keys) and `no-noninteractive-tabindex` (a named scroll region that
+  must be focusable to scroll by keyboard). The other rules stay on: a few
+  that never fire are errors. A new finding is fixed, not switched off, unless
+  it is one of those patterns.
+- **Tests:** `src/test/navigation-a11y.test.tsx` (titles, focus, skip link,
+  landmarks); the axe scans in the browser tests:
+  [development](development.md), "Browser tests".
 
 ### Components
 

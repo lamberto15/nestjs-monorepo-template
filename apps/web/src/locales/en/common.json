@@ -6,7 +6,10 @@
   },
   "nav": {
     "platform": "Platform",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "skipToContent": "Skip to content",
+    "sidebar": "Sidebar",
+    "menu": "Main menu"
   },
   "auth": {
     "signIn": {

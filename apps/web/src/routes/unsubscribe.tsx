@@ -21,6 +21,7 @@ import { tokenSearchSchema } from '@/lib/link-token';
 // alike, on purpose: the page can say "invalid or expired" and no more, and
 // when the description is not there it keeps to the generic text.
 export const Route = createFileRoute('/unsubscribe')({
+  staticData: { title: 'auth.unsubscribe.title' },
   validateSearch: tokenSearchSchema,
   component: UnsubscribePage,
 });

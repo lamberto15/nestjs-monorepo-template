@@ -6,7 +6,10 @@
   },
   "nav": {
     "platform": "المنصة",
-    "dashboard": "لوحة التحكم"
+    "dashboard": "لوحة التحكم",
+    "skipToContent": "الانتقال إلى المحتوى",
+    "sidebar": "الشريط الجانبي",
+    "menu": "القائمة الرئيسية"
   },
   "auth": {
     "signIn": {

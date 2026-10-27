@@ -6,7 +6,10 @@
   },
   "nav": {
     "platform": "Plattform",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "skipToContent": "Zum Inhalt springen",
+    "sidebar": "Seitenleiste",
+    "menu": "Hauptmenü"
   },
   "auth": {
     "signIn": {
