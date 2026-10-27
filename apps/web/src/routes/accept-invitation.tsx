@@ -24,6 +24,7 @@ import { useSignOut } from '@/lib/sign-out';
 // address chooses its name and password here; an existing account accepts
 // signed in as itself (401 `sign_in_required` otherwise).
 export const Route = createFileRoute('/accept-invitation')({
+  staticData: { title: 'auth.invitation.title' },
   validateSearch: tokenSearchSchema,
   component: AcceptInvitationPage,
 });

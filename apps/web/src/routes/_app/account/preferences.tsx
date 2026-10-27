@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Preferences } from '@/features/settings/preferences';
 
 export const Route = createFileRoute('/_app/account/preferences')({
+  staticData: { title: 'settings:preferences.title' },
   component: PreferencesPage,
 });
 

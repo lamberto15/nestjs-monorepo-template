@@ -13,6 +13,7 @@ import { tokenSearchSchema } from '@/lib/link-token';
 // The reset mail's link (WEB_URL/reset-password?token=…): the page POSTs the
 // token with the new password, never on load (mail scanners follow links).
 export const Route = createFileRoute('/reset-password')({
+  staticData: { title: 'auth.reset.title' },
   validateSearch: tokenSearchSchema,
   component: ResetPasswordPage,
 });

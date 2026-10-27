@@ -13,6 +13,7 @@ import { Feature, useMe } from '@/lib/features';
 // is offered here too: with `auth.requireMfa` it is required, and this page
 // must not send the user away to enrol (the two redirects would loop).
 export const Route = createFileRoute('/_app/onboarding')({
+  staticData: { title: 'onboarding.title' },
   component: OnboardingPage,
 });
 

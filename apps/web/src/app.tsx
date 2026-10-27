@@ -74,6 +74,13 @@ declare module '@tanstack/react-router' {
   interface Register {
     router: AppRouter;
   }
+  interface StaticDataRouteOption {
+    /**
+     * The i18n key of the page's name in the document title (`PageTitle`),
+     * for a page the menu does not list.
+     */
+    title?: string;
+  }
 }
 
 /**

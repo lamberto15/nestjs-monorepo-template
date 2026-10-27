@@ -29,6 +29,7 @@ import { browserTimeZone } from '@/lib/link-token';
 import { meQuery, type Me } from '@/lib/session';
 
 export const Route = createFileRoute('/_app/account/profile')({
+  staticData: { title: 'account.profile.title' },
   component: ProfilePage,
 });
 

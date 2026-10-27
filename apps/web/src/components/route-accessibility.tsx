@@ -12,56 +12,39 @@ import { nav } from '@/nav';
 /** The page's content: the skip link's target and the focus after a navigation. */
 export const MAIN_CONTENT_ID = 'main-content';
 
-// The pages the menu does not list (the user menu's, the signed-out ones).
-const pageTitles: Record<string, string> = {
-  '/sign-in': 'auth.signIn.title',
-  '/sign-up': 'auth.signUp.title',
-  '/forgot-password': 'auth.forgot.title',
-  '/reset-password': 'auth.reset.title',
-  '/magic-link': 'auth.magicLink.title',
-  '/verify-email': 'auth.verify.title',
-  '/accept-invitation': 'auth.invitation.title',
-  '/cancel-deletion': 'auth.cancelDeletion.title',
-  '/unsubscribe': 'auth.unsubscribe.title',
-  '/onboarding': 'onboarding.title',
-  '/account/profile': 'account.profile.title',
-  '/account/preferences': 'settings:preferences.title',
-  '/account/security': 'account.security.title',
-  '/account/notifications': 'notifications:preferences.title',
-  '/account/watching': 'watching:title',
-  '/account/privacy': 'privacy:title',
-};
-
 const menuTitles = Object.fromEntries(
   nav.flatMap((group) => group.items.map((item) => [item.to, item.label])),
 );
 
 /**
- * The title's i18n key for a path: its page's, else the menu entry of the
- * section it is in (a note's page is under "Notes").
+ * The title's i18n key for a path in the menu: the entry of the section it
+ * is in (a note's page is under "Notes").
  */
 export function pageTitleKey(pathname: string): string | undefined {
-  const titles = { ...menuTitles, ...pageTitles };
   if (pathname === '/') {
-    return titles['/'];
+    return menuTitles['/'];
   }
-  const section = Object.keys(titles)
+  const section = Object.keys(menuTitles)
     .filter((to) => to !== '/')
     .filter((to) => pathname === to || pathname.startsWith(`${to}/`))
     .toSorted((a, b) => b.length - a.length)[0];
-  return section && titles[section];
+  return section && menuTitles[section];
 }
 
 /**
- * The document's title (WCAG 2.4.2): the page, then the app. React hoists
- * the `<title>` into the head; it follows the language as the page does.
+ * The document's title (WCAG 2.4.2): the page, then the app. A page the
+ * menu does not list names itself in its route's `staticData.title`
+ * (TanStack Router's route metadata); the others take their menu entry.
+ * React hoists the `<title>` into the head; it follows the language as the
+ * page does.
  */
 export function PageTitle() {
   const { t } = useTranslation();
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
+  const key = useRouterState({
+    select: (state) =>
+      state.matches.findLast((match) => match.staticData.title)?.staticData
+        .title ?? pageTitleKey(state.location.pathname),
   });
-  const key = pageTitleKey(pathname);
   const app = t('app.name');
   return <title>{key ? `${t(key)} · ${app}` : app}</title>;
 }

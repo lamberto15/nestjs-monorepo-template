@@ -6,6 +6,7 @@ import { ExportSection } from '@/components/account/export-section';
 import { useMe } from '@/lib/features';
 
 export const Route = createFileRoute('/_app/account/privacy')({
+  staticData: { title: 'privacy:title' },
   component: PrivacyPage,
 });
 
