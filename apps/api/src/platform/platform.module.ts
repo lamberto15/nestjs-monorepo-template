@@ -383,22 +383,32 @@ export class PlatformModule {
           retry: false,
           redirect: 'error',
         }),
-        WorkflowsModule.forRoot({
-          worker: {
-            // Workflow steps run where the role runs workers.
-            enabled: runsWorkers(),
-            concurrency: 10, // instances this process executes at once
-            leaseDuration: '30s', // how long a crashed process keeps its instances
-            shutdownTimeout: '10s', // how long a deploy waits for running steps
-          },
+        WorkflowsModule.forRootAsync({
+          inject: [ConfigService],
+          useFactory: (config: ConfigService<PlatformEnv, true>) => ({
+            worker: {
+              // Workflow steps run where the role runs workers.
+              enabled: runsWorkers(),
+              // Instances this process executes at once (WORKFLOW_CONCURRENCY).
+              concurrency: config.get('WORKFLOW_CONCURRENCY', { infer: true }),
+              leaseDuration: '30s', // how long a crashed process keeps its instances
+              shutdownTimeout: '10s', // how long a deploy waits for running steps
+            },
+          }),
         }),
         // Outgoing webhooks travel through the outbox: dispatched in the change's
         // transaction, handed to the webhooks worker after the commit.
         OutboxModule.forRootAsync({
-          useFactory: () => ({
+          inject: [ConfigService],
+          useFactory: (config: ConfigService<PlatformEnv, true>) => ({
             relay: {
               enabled: process.env.OUTBOX_RELAY !== 'off' && runsWorkers(),
               pollInterval: '1s',
+              // Events claimed per poll, and dispatched at once.
+              batchSize: config.get('OUTBOX_RELAY_BATCH_SIZE', { infer: true }),
+              concurrency: config.get('OUTBOX_RELAY_CONCURRENCY', {
+                infer: true,
+              }),
             },
           }),
         }),

@@ -57,6 +57,13 @@ api:
     enabled: false
 worker:
   replicas: 1
+  # One small node: fewer slots than the defaults (docs/configuration.md,
+  # "Worker concurrency"), merged with the chart's worker env.
+  extraEnv:
+    QUEUE_CONCURRENCY_DATA_TRANSFERS: "1"
+    QUEUE_CONCURRENCY_DOCUMENTS: "1"
+    OUTBOX_RELAY_CONCURRENCY: "4"
+    WORKFLOW_CONCURRENCY: "4"
 
 ingress:
   className: traefik
