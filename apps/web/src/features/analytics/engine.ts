@@ -1,6 +1,16 @@
 import type { AsyncDuckDB, AsyncDuckDBConnection } from '@duckdb/duckdb-wasm';
 import extensions from './duckdb-extensions.json';
-import { buildDatasetSql, quoteIdentifier, quoteLiteral } from './query';
+import {
+  buildDatasetSql,
+  buildDuplicateKeySql,
+  buildImportReaderSql,
+  buildParseFailureSql,
+  buildRawHeaderSql,
+  importValueSql,
+  quoteIdentifier,
+  quoteLiteral,
+  type ParseTarget,
+} from './query';
 
 export type AnalyticsColumn = {
   name: string;
@@ -11,6 +21,8 @@ export type AnalyticsColumn = {
   distinctCount: number;
   min: unknown;
   max: unknown;
+  /** An import check only: the header as the file spells it, when DuckDB renamed it. */
+  header?: string;
 };
 
 export type AnalyticsDataset = {
@@ -43,6 +55,19 @@ export type DatasetQuery = {
   sort?: { column: string; direction: 'asc' | 'desc' };
   groupBy?: string;
   aggregate?: { column?: string; fn: 'count' | 'sum' | 'avg' | 'min' | 'max' };
+  /** Counts of a numeric column in equal-width bins (`bin` = a bin's start, `value` = its count). */
+  histogram?: { column: string; bins?: number };
+  /** An aggregate per day, week or month of a date or timestamp column (`bucket`, `value`). */
+  timeSeries?: { column: string; unit: 'day' | 'week' | 'month' };
+};
+
+export type QueryOptions = {
+  /**
+   * Aborting skips a query that has not started (the queue runs one statement at a
+   * time, so superseded queries never reach DuckDB). A running statement cannot be
+   * interrupted in the non-pthread build; `terminateAnalyticsEngine()` stops it.
+   */
+  signal?: AbortSignal;
 };
 
 export type QueryResult = {
@@ -214,14 +239,44 @@ function describeFailure(extension: Extension, error: unknown): Error {
   });
 }
 
+/** An import check of a `.json` file that is not an array of objects (see `loadLocalFile`). */
+export class NotJsonArrayError extends Error {
+  constructor() {
+    super('A JSON import is an array of objects.');
+    this.name = 'NotJsonArrayError';
+  }
+}
+
+/** How `loadLocalFile` reads a file for an import check instead of for exploring it. */
+export type LoadOptions = {
+  /**
+   * Read the file as the import server does (docs/analytics.md): CSV values
+   * as text, blank values as empty, JSON only as an array of objects (else
+   * `NotJsonArrayError`), and the header row as the file spells it.
+   */
+  forImport?: boolean;
+};
+
 /** Loads supported files in DuckDB-Wasm's own browser worker, without copying them. */
-export async function loadLocalFile(file: File): Promise<AnalyticsDataset> {
+export async function loadLocalFile(
+  file: File,
+  options: LoadOptions = {},
+): Promise<AnalyticsDataset> {
   const extension = file.name.split('.').pop()?.toLowerCase() as
     Extension | undefined;
   if (!extension || !EXTENSIONS.includes(extension)) {
     throw new Error('Choose a CSV, JSON, JSON Lines, or Parquet file.');
   }
   if (file.size === 0) throw new Error('The selected file is empty.');
+  const forImport =
+    options.forImport === true && (extension === 'csv' || extension === 'json');
+  if (forImport && extension === 'json') {
+    // The server takes JSON by its opening bracket (detectTextFormat, formats.ts).
+    const head = (await file.slice(0, 65_536).text())
+      .replace(/^\uFEFF/, '')
+      .trimStart();
+    if (!head.startsWith('[')) throw new NotJsonArrayError();
+  }
 
   // Each replacement import starts a fresh engine: wasm memory never shrinks, so
   // dropping the table would not give a large file's memory back.
@@ -243,18 +298,31 @@ export async function loadLocalFile(file: File): Promise<AnalyticsDataset> {
       true,
     );
     const source = quoteLiteral(filename);
-    const reader =
-      extension === 'parquet'
+    const reader = forImport
+      ? buildImportReaderSql(extension as 'csv' | 'json', source)
+      : extension === 'parquet'
         ? `read_parquet(${source})`
         : extension === 'csv'
           ? `read_csv(${source}, sample_size = -1)`
           : // Detects a JSON array, newline-delimited JSON and nested values.
             `read_json(${source}, sample_size = -1)`;
+    let rawHeaders: string[] | undefined;
     try {
       // Materialize once: queries are then fast and the file can be released.
       await conn.query(
         `CREATE TEMP TABLE ${quoteIdentifier(tableName)} AS SELECT * FROM ${reader}`,
       );
+      if (forImport && extension === 'csv') {
+        // Informational: without the raw header row, DuckDB's names are used.
+        rawHeaders = await conn
+          .query(buildRawHeaderSql(source))
+          .then((result) =>
+            result.schema.fields.map((_, index) =>
+              String(result.getChildAt(index)?.get(0) ?? '').trim(),
+            ),
+          )
+          .catch(() => undefined);
+      }
     } catch (error) {
       throw describeFailure(extension, error);
     } finally {
@@ -271,9 +339,11 @@ export async function loadLocalFile(file: File): Promise<AnalyticsDataset> {
     // positional: a column may be named like an Arrow row property.
     const nulls = await conn.query(
       `SELECT ${stats
-        .map(
-          (stat, index) =>
-            `count(*) - count(${quoteIdentifier(String(stat.column_name))}) AS n${index}`,
+        .map((stat, index) =>
+          forImport
+            ? // The server trims a value and takes a blank one as no value.
+              `count(*) - count(${importValueSql(quoteIdentifier(String(stat.column_name)), /^JSON$/i.test(String(stat.column_type)))}) AS n${index}`
+            : `count(*) - count(${quoteIdentifier(String(stat.column_name))}) AS n${index}`,
         )
         .join(', ')} FROM ${quoteIdentifier(tableName)}`,
     );
@@ -287,6 +357,11 @@ export async function loadLocalFile(file: File): Promise<AnalyticsDataset> {
         distinctCount: Number(stat.approx_unique),
         min: stat.min ?? null,
         max: stat.max ?? null,
+        ...(rawHeaders?.length === stats.length &&
+        rawHeaders[index] &&
+        rawHeaders[index] !== String(stat.column_name)
+          ? { header: rawHeaders[index] }
+          : {}),
       };
     });
     datasets.set(id, {
@@ -305,23 +380,88 @@ export async function loadLocalFile(file: File): Promise<AnalyticsDataset> {
   });
 }
 
+const abortedError = () =>
+  new DOMException('The query was cancelled.', 'AbortError');
+
 export function queryDataset(
   dataset: AnalyticsDataset,
   query: DatasetQuery = {},
+  options: QueryOptions = {},
 ): Promise<QueryResult> {
   if (!current)
     return Promise.reject(new Error('The dataset has been closed.'));
   return run(current, async ({ conn, datasets }) => {
     const info = datasets.get(dataset.id);
     if (!info) throw new Error('The dataset has been closed.');
+    if (options.signal?.aborted) throw abortedError();
     const { arrowTableRows } = await import('./arrow-rows');
+    if (options.signal?.aborted) throw abortedError();
     const sql = buildDatasetSql(info.table, info.columns, query);
     const total = await conn.query(sql.total);
+    if (options.signal?.aborted) throw abortedError();
     const result = await conn.query(sql.rows);
     return {
       ...arrowTableRows(result),
       totalRows: Number((total.toArray()[0] as Record<string, unknown>).count),
     };
+  });
+}
+
+/** Extra checks of a loaded import file (see `checkDataset`). */
+export type DatasetCheckRequest = {
+  /** A column whose repeated values are counted (an import's match key). */
+  duplicateKey?: string;
+  /** Text columns whose values must read as a type; counts the ones that do not. */
+  parse?: { column: string; as: ParseTarget; json?: boolean }[];
+};
+
+export type DatasetChecks = {
+  duplicates?: {
+    column: string;
+    /** Rows whose key already appeared earlier in the file. */
+    extraRows: number;
+    samples: { value: string; rows: number }[];
+  };
+  /** Per checked column: the non-empty values that do not read as the type. */
+  unparseable: Record<string, number>;
+};
+
+/** Duplicate keys and unparseable values of a loaded dataset: bounded, read only. */
+export function checkDataset(
+  dataset: AnalyticsDataset,
+  request: DatasetCheckRequest,
+): Promise<DatasetChecks> {
+  if (!current)
+    return Promise.reject(new Error('The dataset has been closed.'));
+  return run(current, async ({ conn, datasets }) => {
+    const info = datasets.get(dataset.id);
+    if (!info) throw new Error('The dataset has been closed.');
+    const checks: DatasetChecks = { unparseable: {} };
+    if (request.duplicateKey !== undefined) {
+      const sql = buildDuplicateKeySql(
+        info.table,
+        info.columns,
+        request.duplicateKey,
+      );
+      const count = await conn.query(sql.count);
+      const samples = await conn.query(sql.samples);
+      checks.duplicates = {
+        column: request.duplicateKey,
+        extraRows: Number(count.getChildAt(0)!.get(0)),
+        samples: (samples.toArray() as Array<Record<string, unknown>>).map(
+          (row) => ({ value: String(row.key), rows: Number(row.rows) }),
+        ),
+      };
+    }
+    if (request.parse?.length) {
+      const result = await conn.query(
+        buildParseFailureSql(info.table, info.columns, request.parse),
+      );
+      request.parse.forEach(({ column }, index) => {
+        checks.unparseable[column] = Number(result.getChildAt(index)!.get(0));
+      });
+    }
+    return checks;
   });
 }
 

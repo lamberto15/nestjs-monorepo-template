@@ -56,7 +56,7 @@ const technical = [
     ['Sequences', '/sequences'],
     ['Data transfer', '/data-transfer'],
     ['Import limits', '/import-limits'],
-    ['Analytics', '/analytics'],
+    ['Analytics (Data Explorer)', '/analytics'],
     ['Bulk operations', '/bulk-operations'],
     ['Reports', '/reports'],
     ['Documents', '/documents'],
