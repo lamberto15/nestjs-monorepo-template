@@ -155,3 +155,28 @@ test('client and migration workflows do not run on unrelated pull requests', () 
     }
   }
 });
+
+test('the check job typechecks packages/ui, checks formatting and the committed route tree before notes are removed', () => {
+  const text = readFileSync(WORKFLOW, 'utf8');
+  const index = (needle) => text.indexOf(needle);
+  const removal = index('pnpm feature:remove notes\n');
+  assert.ok(removal > 0, 'the notes-removal step is gone');
+  const typecheck = index('pnpm turbo run typecheck');
+  const format = index('pnpm format:check');
+  const build = index('pnpm turbo run build');
+  const tree = index('git diff --exit-code -- apps/web/src/routeTree.gen.ts');
+  for (const [name, at] of Object.entries({ typecheck, format, tree })) {
+    assert.ok(at > 0, `the ${name} step is missing`);
+    assert.ok(at < removal, `the ${name} step must run before the removal`);
+  }
+  assert.ok(typecheck < build, 'typecheck runs before the build');
+  assert.ok(tree > build, 'the route tree is compared after the web build');
+  assert.ok(
+    index('m.regenerateRouteTree(process.cwd())') < tree,
+    'the route tree is regenerated before the comparison, not read off a cached build',
+  );
+  const treeStep = steps(text).find((s) =>
+    s.some((l) => l.includes('routeTree.gen.ts')),
+  );
+  assert.equal(field(treeStep, 'if'), "needs.changes.outputs.web == 'true'");
+});

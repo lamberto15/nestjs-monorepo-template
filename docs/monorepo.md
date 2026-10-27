@@ -25,7 +25,7 @@ its work to the packages:
 | `pnpm start:dev`, `pnpm start:debug`, `pnpm db:*`, `pnpm migrate`, `pnpm openapi:dump`                                             | `pnpm --filter @nestjs-monorepo-template/api <script>`, in `apps/api`                                                                           |
 | `pnpm client:generate`, `pnpm client:check`                                                                                        | the API's dump, then the client's generator                                                                                                     |
 | `pnpm changeset`, `pnpm client:publish`, `pnpm release:notes`                                                                      | the client's changesets and its publish (CI's), a template release's notes ([releases](releases.md))                                            |
-| `pnpm services:up` / `services:down`, `pnpm format`                                                                                | at the root                                                                                                                                     |
+| `pnpm services:up` / `services:down`, `pnpm format`, `pnpm format:check` | at the root                                                                                                                                     |
 | `pnpm setup`, `pnpm feature:add` / `feature:sync` / `feature:remove`, `pnpm deploy:rolling` / `deploy:blue-green` / `deploy:swarm` | Node scripts in `tools/` (the first-run wizard, the feature generator, the zero-downtime deploys)                                               |
 
 - **One package:** `pnpm --filter <name> <script>`, e.g. `pnpm --filter
@@ -835,7 +835,13 @@ the API's part (docs/adding-a-feature.md).
   Vite first, as TanStack Router's examples do, since its plugin regenerates
   `routeTree.gen.ts` that the type check reads),
   `preview`, `lint` (type-aware oxlint), `test` (`vitest run`). Turborepo
-  builds the client first. `packages/ui` has `lint` and `typecheck`.
+  builds the client first. `packages/ui` has `lint` and `typecheck` (a Turborepo
+  task, `pnpm turbo run typecheck`, that CI runs in `check`). CI also fails when
+  the router's generator rewrites the committed `routeTree.gen.ts` (it runs
+  the generator itself, not off a cached build), so commit it with the route
+  change. A test file must not sit in `src/routes`: the router
+  generator would read it as a route (it ignores files that start with `-`),
+  so page tests live in `src/test/` or beside their feature.
 - **Production:** `caddy/Dockerfile` builds the app into the Caddy image,
   which serves it next to the API ([deployment](deployment.md)). The API's
   image leaves `apps/web` and `packages/ui` out (`.dockerignore`).

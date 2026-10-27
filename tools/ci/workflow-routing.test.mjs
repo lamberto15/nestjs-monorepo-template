@@ -148,10 +148,7 @@ function actual(flags, { event = 'pull_request' } = {}) {
     jobs(text).findIndex((j) => j.id === 'ci-gate'),
   );
   const outputs = Object.fromEntries(
-    Object.entries(flags).map(([k, v]) => [
-      k,
-      String(v),
-    ]),
+    Object.entries(flags).map(([k, v]) => [k, String(v)]),
   );
   const results = {};
   for (const job of all) {

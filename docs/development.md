@@ -242,6 +242,8 @@ and `node tools/ci/pinned-deps.mjs` (part of `pnpm lint`) fails on a range in
 | `pnpm i18n:check` | the translation parity check (also run by `pnpm lint`): every locale's keys, placeholders and plural forms against `en`, web and API ([i18n](i18n-and-time.md)) |
 | `pnpm lint` | oxlint in every package (Turborepo), the translation parity check, then knip: unused files, exports and dependencies across the workspaces ([Dead code](#dead-code-knip)); `pnpm lint:code` is the first two, `pnpm knip` knip alone |
 | `pnpm format` | Prettier on the TypeScript of every package (not on Markdown, nor `packages/ui`: the shadcn CLI writes it) |
+| `pnpm format:check` | the same files, `prettier --check`: what CI runs in `check`; `pnpm format` fixes it |
+| `pnpm turbo run typecheck` | `tsc --noEmit` of `packages/ui` (it has no build); run by CI in `check` |
 | `pnpm db:generate` | a migration from the tables (after any `*.tables.ts` change) |
 | `pnpm db:generate:fixtures` | the test-only record's migrations (`apps/api/test/fixtures/drizzle`), after changing `test/fixtures/test-items` |
 | `pnpm db:check` | the migrations match the schema |

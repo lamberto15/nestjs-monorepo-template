@@ -23,7 +23,10 @@ const DASHBOARD_LAYOUT_KEY = 'dashboard.layout';
 
 type DashboardLayout = { hidden: string[]; order: string[] };
 
-function readLayout(value: unknown, cards: readonly DashboardCard[]): DashboardLayout {
+function readLayout(
+  value: unknown,
+  cards: readonly DashboardCard[],
+): DashboardLayout {
   const ids = new Set(cards.map((card) => card.id));
   const input =
     value && typeof value === 'object'
@@ -31,7 +34,13 @@ function readLayout(value: unknown, cards: readonly DashboardCard[]): DashboardL
       : {};
   const unique = (items: unknown) =>
     Array.isArray(items)
-      ? [...new Set(items.filter((id): id is string => typeof id === 'string' && ids.has(id)))]
+      ? [
+          ...new Set(
+            items.filter(
+              (id): id is string => typeof id === 'string' && ids.has(id),
+            ),
+          ),
+        ]
       : [];
   return { hidden: unique(input.hidden), order: unique(input.order) };
 }
@@ -90,7 +99,9 @@ export function Dashboard() {
   const queryClient = useQueryClient();
   const { data: settings } = useQuery(settingsQuery);
   const available = visible(dashboard.cards, features, me?.can);
-  const stored = settings?.find((setting) => setting.key === DASHBOARD_LAYOUT_KEY)?.value;
+  const stored = settings?.find(
+    (setting) => setting.key === DASHBOARD_LAYOUT_KEY,
+  )?.value;
   const layout = readLayout(stored, available);
   const cards = arranged(available, layout).filter(
     (card) => !layout.hidden.includes(card.id),
@@ -150,7 +161,6 @@ export function Dashboard() {
   );
 }
 
-
 function DashboardCustomizer(props: {
   cards: DashboardCard[];
   layout: DashboardLayout;
@@ -209,7 +219,10 @@ function DashboardCustomizer(props: {
             {props.cards.map((card, index) => {
               const hidden = props.layout.hidden.includes(card.id);
               return (
-                <li key={card.id} className="flex items-center gap-1 rounded border p-1">
+                <li
+                  key={card.id}
+                  className="flex items-center gap-1 rounded border p-1"
+                >
                   <span className="min-w-0 flex-1 truncate px-1 text-sm">
                     {translate(card.label)}
                   </span>
@@ -217,7 +230,9 @@ function DashboardCustomizer(props: {
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={t('customize.up', { name: translate(card.label) })}
+                    aria-label={t('customize.up', {
+                      name: translate(card.label),
+                    })}
                     disabled={props.pending || index === 0}
                     onClick={() => move(card.id, -1)}
                   >
@@ -227,7 +242,9 @@ function DashboardCustomizer(props: {
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={t('customize.down', { name: translate(card.label) })}
+                    aria-label={t('customize.down', {
+                      name: translate(card.label),
+                    })}
                     disabled={props.pending || index === props.cards.length - 1}
                     onClick={() => move(card.id, 1)}
                   >
@@ -237,9 +254,12 @@ function DashboardCustomizer(props: {
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={t(hidden ? 'customize.show' : 'customize.hide', {
-                      name: translate(card.label),
-                    })}
+                    aria-label={t(
+                      hidden ? 'customize.show' : 'customize.hide',
+                      {
+                        name: translate(card.label),
+                      },
+                    )}
                     disabled={props.pending}
                     onClick={() => toggle(card.id)}
                   >

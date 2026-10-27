@@ -126,11 +126,9 @@ describe('the advanced list query on GET /v1/notes (e2e)', () => {
 
   it('answers with the fields asked for, id always, redaction still applied', async () => {
     const res = await list({ fields: 'title,status', limit: '1' }).expect(200);
-    expect(Object.keys(res.body.items[0]).sort((a, b) => a.localeCompare(b))).toEqual([
-      'id',
-      'status',
-      'title',
-    ]);
+    expect(
+      Object.keys(res.body.items[0]).sort((a, b) => a.localeCompare(b)),
+    ).toEqual(['id', 'status', 'title']);
 
     // A reader whose permissions leave out the text: left out of every item,
     // and asking for it is refused (field-level: docs/permissions.md).

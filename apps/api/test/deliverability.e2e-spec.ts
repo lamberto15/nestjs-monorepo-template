@@ -591,10 +591,11 @@ describe('email deliverability (e2e)', () => {
       data: Record<string, unknown>;
     }[];
     const mine = file.filter((row) => row.kind === 'mailSuppression');
-    expect(mine.map((row) => row.data.reason ?? row.data.type).sort((a, b) => String(a).localeCompare(String(b)))).toEqual([
-      'complaint',
-      'complaint',
-    ]);
+    expect(
+      mine
+        .map((row) => row.data.reason ?? row.data.type)
+        .sort((a, b) => String(a).localeCompare(String(b))),
+    ).toEqual(['complaint', 'complaint']);
     expect(mine.every((row) => row.data.address === ada.email)).toBe(true);
 
     await agent

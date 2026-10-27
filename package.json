@@ -8,6 +8,7 @@
   "scripts": {
     "build": "turbo run build",
     "format": "prettier --write \"apps/*/{src,test}/**/*.{ts,tsx}\" \"packages/*/src/**/*.{ts,tsx}\" \"tools/**/*.mjs\"",
+    "format:check": "prettier --check \"apps/*/{src,test}/**/*.{ts,tsx}\" \"packages/*/src/**/*.{ts,tsx}\" \"tools/**/*.mjs\"",
     "lint": "turbo run lint && pnpm i18n:check && node tools/ci/pinned-deps.mjs && knip",
     "lint:code": "turbo run lint && pnpm i18n:check && node tools/ci/pinned-deps.mjs",
     "i18n:check": "node tools/i18n/check.mjs",
