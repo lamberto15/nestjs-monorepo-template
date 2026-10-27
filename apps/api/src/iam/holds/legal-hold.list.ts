@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { isNotNull, isNull } from 'drizzle-orm';
 import { listQuery } from '../../core/http/list-query.js';
 import { legalHoldSchema } from './legal-hold.schemas.js';
 import { legalHolds } from './legal-holds.tables.js';
@@ -19,8 +19,8 @@ export const LEGAL_HOLD_LIST = listQuery(
       conditions: {
         eq: (value) =>
           value
-            ? sql`${legalHolds.releasedAt} is null`
-            : sql`${legalHolds.releasedAt} is not null`,
+            ? isNull(legalHolds.releasedAt)
+            : isNotNull(legalHolds.releasedAt),
       },
     },
     createdAt: {

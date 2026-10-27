@@ -20,12 +20,12 @@
     "why": "keep: the constant text-search configuration inside tsvector expressions"
   },
   "apps/api/src/core/database/stored-renames.ts": {
-    "count": 3,
-    "why": "keep set_config (RLS settings); convert the two UPDATEs to the builder (#779)"
+    "count": 1,
+    "why": "keep: set_config, the tenant settings row-level security reads (no Drizzle API)"
   },
   "apps/api/src/core/database/tree.ts": {
-    "count": 4,
-    "why": "keep the advisory lock; convert the closure INSERT/DELETE to insert().select() and delete().where() (#779)"
+    "count": 1,
+    "why": "keep: advisory lock"
   },
   "apps/api/src/core/tenancy/tenant-pool.ts": {
     "count": 5,
@@ -43,10 +43,6 @@
     "count": 1,
     "why": "keep: advisory lock"
   },
-  "apps/api/src/features/notes/notes.service.ts": {
-    "count": 1,
-    "why": "convert: the batch UPDATE … FROM (VALUES …) with literal names to update().set().from() (#779)"
-  },
   "apps/api/src/iam/access/access-admin.service.ts": {
     "count": 1,
     "why": "keep: advisory lock"
@@ -61,7 +57,7 @@
   },
   "apps/api/src/iam/access/tenants.service.ts": {
     "count": 1,
-    "why": "convert: `select uuidv7()` round-trip; take the id from insert().returning() (#779)"
+    "why": "keep: `select uuidv7()`: the id is needed before the insert (the transaction runs in the new tenant), time-ordered like every row's"
   },
   "apps/api/src/iam/auth/users.repository.ts": {
     "count": 2,
@@ -81,7 +77,7 @@
   },
   "apps/api/src/platform/custom-fields/custom-fields.service.ts": {
     "count": 1,
-    "why": "keep: jsonb_object_keys() in FROM (Drizzle 0.45 has no set-returning FROM item); typed result pending (#779)"
+    "why": "keep: jsonb_object_keys() in FROM (Drizzle 0.45 has no set-returning FROM item)"
   },
   "apps/api/src/platform/notifications/notification-unsubscribe.service.ts": {
     "count": 1,
@@ -93,7 +89,7 @@
   },
   "apps/api/src/platform/ops/outbox-metrics.reader.ts": {
     "count": 2,
-    "why": "keep SET LOCAL; the SELECT on nest_outbox.messages waits for the outbox-table decision (#779)"
+    "why": "keep: SET LOCAL and one bounded aggregate over the package's nest_outbox tables (count, min(CASE) matching the relay's rule)"
   },
   "apps/api/src/platform/records/record.ts": {
     "count": 1,
@@ -115,16 +111,12 @@
     "count": 1,
     "why": "keep: advisory lock"
   },
-  "apps/api/src/platform/tenants/tenant-cleanup.ts": {
-    "count": 1,
-    "why": "the DELETE on nest_outbox.messages waits for the outbox-table decision (#779)"
-  },
   "apps/api/src/platform/views/views.service.ts": {
     "count": 1,
     "why": "keep: advisory lock"
   },
   "apps/api/src/platform/webhooks/webhook-management.service.ts": {
     "count": 1,
-    "why": "convert: `select uuidv7()` round-trip (#779)"
+    "why": "keep: `select uuidv7()`: the package's message and delivery ids are needed before its insert, time-ordered (it exports no generator)"
   }
 }
