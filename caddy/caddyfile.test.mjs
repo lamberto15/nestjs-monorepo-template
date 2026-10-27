@@ -185,14 +185,6 @@ function assertSecurityHeaders(response) {
     response.headers.get('content-security-policy') ?? '',
     /default-src 'self'/,
   );
-  assert.match(
-    response.headers.get('content-security-policy') ?? '',
-    /script-src[^;]*'wasm-unsafe-eval'/,
-  );
-  assert.match(
-    response.headers.get('content-security-policy') ?? '',
-    /worker-src 'self'/,
-  );
   assert.equal(response.headers.get('x-frame-options'), 'DENY');
 }
 

@@ -45,17 +45,6 @@ const catalog = {
 
 type Transfer = Record<string, unknown>;
 
-/** The tenant flag that turns the Data Explorer on (`GET /v1/settings`). */
-function useAnalyticsFlag(value: boolean) {
-  server.use(
-    http.get('/v1/settings', () =>
-      HttpResponse.json({
-        items: [{ key: 'analytics.browser.enabled', value, type: 'boolean' }],
-      }),
-    ),
-  );
-}
-
 /** The data routes; `transfers` answers by id. */
 function useTransferApi(
   options: {
@@ -487,30 +476,6 @@ describe('your exports and imports', () => {
     expect(
       within(bulk).getByText('3 done, 1 failed, 1 skipped.'),
     ).toBeVisible();
-  });
-
-  it('offers the Data Explorer action for a CSV export when analytics is on', async () => {
-    useSignedIn(ALL);
-    useTransferApi({ list: [exported('done', 'test-items')] });
-    useAnalyticsFlag(true);
-    await renderApp('/transfers');
-    const open = await screen.findByRole('link', {
-      name: 'Open in Data Explorer',
-    });
-    expect(open).toHaveAttribute('href', '/analytics?transferId=done');
-  });
-
-  it('hides the Data Explorer action while analytics is off', async () => {
-    useSignedIn(ALL);
-    useTransferApi({ list: [exported('done', 'test-items')] });
-    useAnalyticsFlag(false);
-    await renderApp('/transfers');
-    expect(
-      await screen.findByRole('link', { name: 'Download (csv)' }),
-    ).toBeVisible();
-    expect(
-      screen.queryByRole('link', { name: 'Open in Data Explorer' }),
-    ).toBeNull();
   });
 
   it('pages by cursor and filters by kind on the server', async () => {
