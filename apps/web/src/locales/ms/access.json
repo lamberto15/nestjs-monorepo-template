@@ -157,7 +157,8 @@
     },
     "topLevel": "Peringkat teratas",
     "errors": {
-      "nameRequired": "Masukkan nama."
+      "nameRequired": "Masukkan nama.",
+      "nameTooLong": "Paling banyak {{max}} aksara."
     },
     "create": "Cipta pasukan",
     "created": "Pasukan dicipta.",

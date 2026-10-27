@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { INVITATION_LIMITS, ROLE_LIMITS } from '@/features/access/api';
+import {
+  INVITATION_LIMITS,
+  ROLE_LIMITS,
+  TEAM_LIMITS,
+} from '@/features/access/api';
 import { API_CLIENT_LIMITS } from '@/features/api-clients/queries';
 import { REPORT_LIMITS } from '@/features/reports/api';
 import { TAG_LIMITS } from '@/features/tags/api';
@@ -41,6 +45,14 @@ const forms: {
       name: { maxLength: ROLE_LIMITS.name },
       description: { maxLength: ROLE_LIMITS.description },
     },
+  },
+  {
+    form: 'a team',
+    requests: [
+      ['/v1/access/teams', 'post'],
+      ['/v1/access/teams/{id}', 'patch'],
+    ],
+    limits: { name: { maxLength: TEAM_LIMITS.name } },
   },
   {
     form: 'an invitation',

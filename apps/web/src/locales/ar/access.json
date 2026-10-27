@@ -167,7 +167,8 @@
     },
     "topLevel": "المستوى الأعلى",
     "errors": {
-      "nameRequired": "أدخل اسمًا."
+      "nameRequired": "أدخل اسمًا.",
+      "nameTooLong": "{{max}} حرفًا كحد أقصى."
     },
     "create": "إنشاء الفريق",
     "created": "تم إنشاء الفريق.",

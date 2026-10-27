@@ -157,7 +157,8 @@
     },
     "topLevel": "顶层",
     "errors": {
-      "nameRequired": "请输入名称。"
+      "nameRequired": "请输入名称。",
+      "nameTooLong": "最多 {{max}} 个字符。"
     },
     "create": "创建团队",
     "created": "团队已创建。",

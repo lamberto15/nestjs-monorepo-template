@@ -157,6 +157,12 @@ export async function updateMember(id: string, body: MemberChanges) {
  */
 export const INVITATION_LIMITS = { name: 120 } as const;
 
+/**
+ * A team's name mirrors the API's `maxLength`; lib/limits.test.ts compares
+ * it with openapi.json.
+ */
+export const TEAM_LIMITS = { name: 120 } as const;
+
 export type InvitationBody = JsonBody<paths['/v1/access/users']['post']>;
 
 /** Invites someone; a pending invitation to the same address is replaced. */
