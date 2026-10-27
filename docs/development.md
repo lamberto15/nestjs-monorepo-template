@@ -428,7 +428,10 @@ settings pages. It is not part of `pnpm test:e2e` (the API's).
   needs the browsers (`playwright install firefox webkit`). Unset, a plain run
   needs Chromium only. CI sets it in the `analytics-smoke` job of
   `.github/workflows/web.yml`, one leg per browser, on a change to the engine,
-  its build config or the spec.
+  its build config or the spec. WebKit drops Secure cookies on
+  `http://localhost`, so run its project with `SESSION_COOKIE_SECURE=off` (the
+  test-only plain `sid` cookie, as CI's WebKit leg does); Firefox and Chromium
+  keep the production `__Host-sid` one.
 - **In CI:** the `e2e-web` job of `.github/workflows/ci.yml`, on every pull
   request, beside the API's e2e shards: its own PostgreSQL and Redis service
   containers, the database marked as a development one, Turborepo's cache for

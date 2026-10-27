@@ -99,6 +99,12 @@ jobs:
         run: pnpm test:e2e:web --project=setup --project=analytics-${{ matrix.browser }}
         env:
           CI: 'true'
+          # WebKit drops Secure cookies on http://localhost (Chromium and Firefox
+          # keep them), so the signed-in state never reaches the page there. Its
+          # leg runs the API with the test-only plain `sid` cookie
+          # (SESSION_COOKIE_SECURE, docs/configuration.md); Firefox and e2e-web
+          # keep testing the production `__Host-sid` one.
+          SESSION_COOKIE_SECURE: ${{ matrix.browser == 'webkit' && 'off' || 'on' }}
       - name: The HTML report and traces
         if: ${{ !cancelled() && (failure() || hashFiles('apps/web-e2e/test-results/**/trace.zip') != '') }}
         uses: actions/upload-artifact@v7
