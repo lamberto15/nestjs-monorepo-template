@@ -386,6 +386,13 @@ export const userRoles = pgTable(
     // A role belongs to one tenant, so (user, role) names the grant.
     primaryKey({ columns: [table.userId, table.roleId] }),
     index('user_roles_role_id_idx').on(table.roleId),
+    // The roles list counts each role's live grants (access-admin.service.ts, roleViews): role, the RLS
+    // predicate's tenant and the expiry in one index, so the count is an index-only scan.
+    index('user_roles_role_live_idx').on(
+      table.roleId,
+      table.tenantId,
+      table.expiresAt,
+    ),
     ...tenantTable('user_roles', table),
     foreignKey({
       name: 'user_roles_membership_fk',
@@ -452,7 +459,7 @@ export const auditLog = pgTable(
     index('audit_log_tenant_at_ms_id_idx').on(
       table.tenantId,
       sql`${utcMilliseconds(table.at)} desc nulls first`,
-      table.id.desc(),
+      table.id.desc().nullsFirst(),
     ),
     index('audit_log_tenant_id_id_idx').on(table.tenantId, table.id),
     // One actor's entries of one kind, recent first: a sign-in looks up the account's known devices.
@@ -460,6 +467,18 @@ export const auditLog = pgTable(
       table.actor,
       table.action,
       table.at,
+    ),
+    // One record's history (?targetId=) and the account export's entries about
+    // a person in a tenant they left (target_type 'user'), newest first.
+    index('audit_log_target_id_id_idx').on(table.targetId, table.id),
+    // One actor's entries in id order: ?actor=, the account export's keyset
+    // pages (AccountTransfer.auditEntries), the deletion's relabel.
+    index('audit_log_actor_id_idx').on(table.actor, table.id),
+    // ?action= within the tenant, newest first.
+    index('audit_log_tenant_action_id_idx').on(
+      table.tenantId,
+      table.action,
+      table.id,
     ),
     ...tenantTable('audit_log', table, { nullRows: 'outside' }),
   ],

@@ -15,6 +15,8 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { BadRequestException } from '@nestjs/common';
+import { matches, refuseBroadRank } from '../src/core/database/search.js';
 import { type ListQuery, listQuery } from '../src/core/http/list-query.js';
 import {
   countPage,
@@ -387,6 +389,31 @@ describe('the advanced list query (PostgreSQL)', () => {
     },
   );
 
+  it.each([
+    'size',
+    '-size',
+    'at',
+    '-at',
+    'name',
+    '-name',
+    'size,-at',
+    '-size,at',
+    '-at,-size',
+    'done,-name',
+  ])(
+    'walks every sort, both directions and mixed, with no row twice and none missed: %s',
+    async (sort) => {
+      const fields = sort.split(',').map((part) => {
+        const desc = part.startsWith('-');
+        return [desc ? part.slice(1) : part, desc] as [keyof Thing, boolean];
+      });
+      const seen = await walk({ sort, limit: '3' });
+      expect(seen.map((row) => row.id)).toEqual(
+        sorted(fields).map((row) => row.id),
+      );
+    },
+  );
+
   it('walks a sorted and filtered list, and counts it', async () => {
     const query = {
       sort: '-size',
@@ -406,6 +433,29 @@ describe('the advanced list query (PostgreSQL)', () => {
     expect(
       await countPage(db as never, things, LIST.where(parsed), parsed),
     ).toEqual({ total: rows.filter(match).length, totalCapped: false });
+  });
+
+  it('refuses a rank sort of a q that matches more than the cap, and counts nothing otherwise', async () => {
+    const where = matches(sql`to_tsvector('simple', ${things.name})`, 'alpha');
+    const found = rows.filter((row) => row.name === 'alpha').length;
+    const ranked = { sort: [{ name: 'rank' }], q: 'alpha' } as never;
+    const refused = refuseBroadRank(db, things, where, ranked, found - 1);
+    await expect(refused).rejects.toBeInstanceOf(BadRequestException);
+    await expect(refused).rejects.toMatchObject({
+      response: { code: 'search_too_broad' },
+    });
+    await expect(
+      refuseBroadRank(db, things, where, ranked, found),
+    ).resolves.toBeUndefined();
+    // No rank in the sort, or no q: no count at all (cap 0 would refuse any).
+    const other = { sort: [{ name: 'size' }], q: 'alpha' } as never;
+    await expect(
+      refuseBroadRank(db, things, where, other, 0),
+    ).resolves.toBeUndefined();
+    const noQ = { sort: [{ name: 'rank' }] } as never;
+    await expect(
+      refuseBroadRank(db, things, where, noQ, 0),
+    ).resolves.toBeUndefined();
   });
 
   it('pages by number, sorted or not', async () => {
@@ -505,6 +555,46 @@ describe('the advanced list query (PostgreSQL)', () => {
     expect(
       parse(filter({ field: 'shout', op: 'eq', value: 'BETA' })).success,
     ).toBe(false);
+  });
+
+  // Last in this describe: the extra rows must not change the other tests' expectations.
+  it('bounds a deep sorted page in the index', async () => {
+    await database.asOwner(`create index things_at_ms on things (
+      (date_trunc('milliseconds', at at time zone 'UTC') at time zone 'UTC') desc nulls first,
+      id desc nulls first)`);
+    const deep = Array.from({ length: 2000 }, (_, i) => ({
+      id: randomUUID(),
+      name: `deep ${i}`,
+      kind: 'a',
+      size: i,
+      done: false,
+      at: new Date(Date.UTC(2025, 0, 1) + i * 1000).toISOString(),
+    }));
+    await db.insert(thingsWritten).values(deep);
+    await db.execute(sql`analyze things`);
+    let cursor: string | null = null;
+    for (let i = 0; i < 19; i++) {
+      const result: { nextCursor: string | null } = await page(
+        ok({ sort: '-at', limit: '50', ...(cursor && { cursor }) }),
+      );
+      cursor = result.nextCursor;
+    }
+    const query = ok({ sort: '-at', limit: '50', cursor: cursor! });
+    const statement = db
+      .select()
+      .from(things)
+      .where(LIST.where(query, things.id))
+      .orderBy(...pageOrder(things.id, query))
+      .limit(query.limit + 1)
+      .getSQL();
+    const plan = await db.transaction(async (tx) => {
+      // A tiny table must not flip the plan to a sequential scan.
+      await tx.execute(sql`set local enable_seqscan = off`);
+      const result = await tx.execute(sql`explain (format json) ${statement}`);
+      return JSON.stringify(result.rows[0]);
+    });
+    expect(plan).toMatch(/"Index Cond":"[^"]*ROW\(/);
+    expect(plan).not.toMatch(/"Filter":"[^"]* OR /);
   });
 });
 

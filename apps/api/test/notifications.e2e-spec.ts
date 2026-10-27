@@ -2,7 +2,7 @@ import type { NotificationType } from '../src/platform/notifications/notificatio
 import { randomUUID } from 'node:crypto';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { OutboxRelay } from '@nestjs/outbox';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { Socket } from 'socket.io-client';
 import type request from 'supertest';
 import { inTransaction } from '../src/core/database/transactions.js';
@@ -12,6 +12,8 @@ import { notifications } from '../src/platform/notifications/notifications.table
 import {
   NotificationsService,
   type NotifyInput,
+  READ_ALL_BATCH,
+  UNREAD_COUNT_CAP,
 } from '../src/platform/notifications/notifications.service.js';
 import { bootApp, connect, type TestApp, webhookReceiver } from './support.js';
 
@@ -109,7 +111,7 @@ describe('notifications (e2e)', () => {
     const unread = await editor.agent
       .get('/v1/notifications/unread-count')
       .expect(200);
-    expect(unread.body).toEqual({ unread: 2 });
+    expect(unread.body).toEqual({ unread: 2, unreadCapped: false });
     const page = await editor.agent
       .get('/v1/notifications?count=true')
       .expect(200);
@@ -119,6 +121,64 @@ describe('notifications (e2e)', () => {
         .map((item: { id: string }) => item.id)
         .sort((a: string, b: string) => a.localeCompare(b)),
     ).toEqual(ids.slice(0, 2).sort((a, b) => a.localeCompare(b)));
+  });
+
+  it('marks all read in batches', async () => {
+    const editor = await node.user(['editor']);
+    const recipient = `user:${editor.id}`;
+    const total = READ_ALL_BATCH * 2 + 3;
+    for (let done = 0; done < total; done += 2_000) {
+      await db()
+        .insert(notifications)
+        .values(
+          Array.from({ length: Math.min(2_000, total - done) }, () => ({
+            tenantId: node.tenantId,
+            recipient,
+            type: 'testItem.commented',
+            data: commentData('Batch'),
+          })),
+        );
+    }
+    const res = await editor.agent
+      .post('/v1/notifications/read-all')
+      .send({})
+      .expect(200);
+    expect(res.body).toEqual({ updated: total });
+    const count = await editor.agent
+      .get('/v1/notifications/unread-count')
+      .expect(200);
+    expect(count.body.unread).toBe(0);
+  });
+
+  it('caps the unread count and delivers without an ordering key', async () => {
+    const editor = await node.user(['editor']);
+    const recipient = `user:${editor.id}`;
+    await db()
+      .insert(notifications)
+      .values(
+        Array.from({ length: UNREAD_COUNT_CAP + 1 }, () => ({
+          tenantId: node.tenantId,
+          recipient,
+          type: 'testItem.commented',
+          data: commentData('Backlog'),
+        })),
+      );
+    const capped = await editor.agent
+      .get('/v1/notifications/unread-count')
+      .expect(200);
+    expect(capped.body).toEqual({
+      unread: UNREAD_COUNT_CAP,
+      unreadCapped: true,
+    });
+
+    const id = await notify(recipient);
+    const [message] = await db()
+      .select({ key: sql<string | null>`key` })
+      .from(sql`nest_outbox.messages`)
+      .where(
+        sql`topic = 'notifications.deliver' and payload->>'notificationId' = ${id}`,
+      );
+    expect(message).toEqual({ key: null });
   });
 
   /** The mail a user got but their invitation: what notifications sent them. */
@@ -175,7 +235,7 @@ describe('notifications (e2e)', () => {
     expect(
       (await editor.agent.get('/v1/notifications/unread-count').expect(200))
         .body,
-    ).toEqual({ unread: 1 });
+    ).toEqual({ unread: 1, unreadCapped: false });
 
     // The mail, in German, with the link into the web app.
     const mail = await node.waitForMail({
@@ -200,7 +260,7 @@ describe('notifications (e2e)', () => {
     expect(
       (await editor.agent.get('/v1/notifications/unread-count').expect(200))
         .body,
-    ).toEqual({ unread: 0 });
+    ).toEqual({ unread: 0, unreadCapped: false });
     const other = await node.user(['editor']);
     await other.agent.post(`/v1/notifications/${item.id}/read`).expect(404);
     await other.agent.delete(`/v1/notifications/${item.id}`).expect(404);
@@ -259,8 +319,8 @@ describe('notifications (e2e)', () => {
       const live = new Promise<{ id: string; title: string }>((resolve) =>
         socket.once('notification', resolve),
       );
-      const liveCount = new Promise<{ unread: number }>((resolve) =>
-        socket.once('notifications.unread-count', resolve),
+      const liveCount = new Promise<{ unread: number; unreadCapped: boolean }>(
+        (resolve) => socket.once('notifications.unread-count', resolve),
       );
 
       const item = await commented(client.auth);
@@ -288,10 +348,12 @@ describe('notifications (e2e)', () => {
       // Every connection keeps up: the count after the delivery, each change.
       const next = <T>(event: string) =>
         new Promise<T>((resolve) => socket.once(event, resolve));
-      expect(await liveCount).toEqual({ unread: 1 });
+      expect(await liveCount).toEqual({ unread: 1, unreadCapped: false });
       const [read, afterRead] = await Promise.all([
         next<{ id: string; readAt: string }>('notification.read'),
-        next<{ unread: number }>('notifications.unread-count'),
+        next<{ unread: number; unreadCapped: boolean }>(
+          'notifications.unread-count',
+        ),
         node
           .http()
           .post(`/v1/notifications/${live_.id}/read`)
@@ -300,7 +362,7 @@ describe('notifications (e2e)', () => {
       ]);
       expect(read.id).toBe(live_.id);
       expect(read.readAt).toBeTruthy();
-      expect(afterRead).toEqual({ unread: 0 });
+      expect(afterRead).toEqual({ unread: 0, unreadCapped: false });
       const [removed] = await Promise.all([
         next<{ id: string }>('notification.removed'),
         node
@@ -487,6 +549,17 @@ describe('notifications (e2e)', () => {
       .get('/v1/notifications?read=false')
       .expect(200);
     expect(unread.body.items.map((i: { id: string }) => i.id)).toEqual([c]);
+    const d = await notify(to, { data: commentData('D') });
+    const page1 = await editor.agent
+      .get('/v1/notifications?read=false&limit=1')
+      .expect(200);
+    expect(page1.body.items.map((i: { id: string }) => i.id)).toEqual([d]);
+    const page2 = await editor.agent
+      .get(
+        `/v1/notifications?read=false&limit=1&cursor=${page1.body.nextCursor}`,
+      )
+      .expect(200);
+    expect(page2.body.items.map((i: { id: string }) => i.id)).toEqual([c]);
     expect(
       (
         await editor.agent
@@ -508,7 +581,7 @@ describe('notifications (e2e)', () => {
           .send({})
           .expect(200)
       ).body,
-    ).toEqual({ updated: 1 });
+    ).toEqual({ updated: 2 });
     await editor.agent.get('/v1/notifications?sort=nope').expect(400);
     await editor.agent.get('/v1/notifications?nope=1').expect(400);
   });

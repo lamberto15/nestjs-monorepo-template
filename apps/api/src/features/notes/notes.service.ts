@@ -31,6 +31,7 @@ import {
   pageOrder,
   toPage,
 } from '../../core/http/pagination.js';
+import { refuseBroadRank } from '../../core/database/search.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import { CustomFieldsService } from '../../platform/custom-fields/custom-fields.service.js';
@@ -356,6 +357,12 @@ export class NotesService {
         { deleted: query.deleted === true },
       ),
       list.where(query),
+    );
+    await refuseBroadRank(
+      this.db,
+      notes,
+      inTenant(notes.tenantId, where),
+      query,
     );
     // Sort values that aren't columns (custom fields), for the cursor.
     const extra = list.sortSelect(query);

@@ -189,6 +189,10 @@
       "label": "Penyimpanan penghantaran webhook",
       "description": "Memadam penghantaran webhook keluar yang selesai lebih lama daripada WEBHOOKS_DELIVERY_RETENTION_DAYS, bersama log percubaan dan permintaan yang direkodkan (tidak pernah yang masih dicuba semula), setiap malam."
     },
+    "outbox-retention": {
+      "label": "Penyimpanan outbox",
+      "description": "Memadam surat mati outbox yang lebih lama daripada OUTBOX_DEAD_LETTER_RETENTION_DAYS dan rekod peti masuk pengguna yang lebih lama daripada OUTBOX_INBOX_RETENTION_DAYS, setiap malam."
+    },
     "platform-analytics": {
       "label": "Analitik platform",
       "description": "Mengira penyewa, pengguna, keahlian dan penggunaan API merentasi setiap penyewa, menahan kumpulan kecil, dan menyimpan hanya agregat yang dibaca oleh peranan pelaporan, setiap malam."

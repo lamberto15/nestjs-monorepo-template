@@ -189,6 +189,10 @@
       "label": "Webhook delivery retention",
       "description": "Deletes outgoing webhook deliveries that finished more than WEBHOOKS_DELIVERY_RETENTION_DAYS ago, with their attempt log and recorded requests (never one still being retried), every night."
     },
+    "outbox-retention": {
+      "label": "Outbox retention",
+      "description": "Deletes outbox dead letters older than OUTBOX_DEAD_LETTER_RETENTION_DAYS and consumers' inbox records older than OUTBOX_INBOX_RETENTION_DAYS, every night."
+    },
     "platform-analytics": {
       "label": "Platform analytics",
       "description": "Counts tenants, users, memberships and API use across every tenant, withholds small groups, and stores only the aggregates the reporting role reads, every night."

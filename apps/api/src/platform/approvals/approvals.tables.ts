@@ -98,6 +98,11 @@ export const approvalRequests = pgTable(
     index('approval_requests_record_idx').on(t.subject, t.recordId),
     index('approval_requests_requester_idx').on(t.requester),
     index('approval_requests_status_idx').on(t.status),
+    // The approvals_unapplied_seconds gauge (approval-metrics.ts), every scrape:
+    // approved requests whose outcome isn't applied yet, a handful at most.
+    index('approval_requests_unapplied_idx')
+      .on(t.endedAt)
+      .where(sql`status = 'approved' and outcome_applied_at is null`),
     index('approval_requests_created_at_idx').on(t.createdAt),
     index('approval_requests_updated_at_idx').on(t.updatedAt),
     // One open request per action on a record: a second one is a 409 approval_pending.

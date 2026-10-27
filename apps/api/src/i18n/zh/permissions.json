@@ -189,6 +189,10 @@
       "label": "Webhook 投递保留",
       "description": "每晚删除完成时间早于 WEBHOOKS_DELIVERY_RETENTION_DAYS 的出站 webhook 投递，连同其尝试日志和已记录的请求（仍在重试的投递不会被删除）。"
     },
+    "outbox-retention": {
+      "label": "发件箱保留",
+      "description": "每晚删除早于 OUTBOX_DEAD_LETTER_RETENTION_DAYS 的发件箱死信，以及早于 OUTBOX_INBOX_RETENTION_DAYS 的消费者收件箱记录。"
+    },
     "platform-analytics": {
       "label": "平台分析",
       "description": "每晚统计所有租户的租户、用户、成员资格和 API 使用量，隐去小群体，只存储报表角色可读取的聚合数据。"

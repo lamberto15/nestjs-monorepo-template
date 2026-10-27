@@ -8,7 +8,7 @@ import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { PasswordHasher } from '@nestjs/authentication';
 import { ConfigService } from '@nestjs/config';
 import type { IamEnv } from '../iam.env.js';
-import { and, count, eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { isPlaceholderEmail } from '../auth/onboarding.js';
 import { normalizeEmail } from '../auth/users.repository.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -54,7 +54,7 @@ export class AccessSeeder implements OnModuleInit {
 
   async onModuleInit() {
     // Every start after the first: seeded already, no lock taken.
-    if ((await this.count(tenants)) > 0 && (await this.count(users)) > 0) {
+    if ((await this.any(tenants)) && (await this.any(users))) {
       await this.requirePlaceholderOnboarding();
       return;
     }
@@ -121,13 +121,15 @@ export class AccessSeeder implements OnModuleInit {
               await tx.execute(
                 sql`select pg_advisory_xact_lock(hashtextextended('iam:seed', 0))`,
               );
-              const [{ existing }] = await tx
-                .select({ existing: count() })
-                .from(tenants);
-              const [{ existingUsers }] = await tx
-                .select({ existingUsers: count() })
-                .from(users);
-              if (existing > 0 || existingUsers > 0) {
+              const existing = await tx
+                .select({ id: tenants.id })
+                .from(tenants)
+                .limit(1);
+              const existingUsers = await tx
+                .select({ id: users.id })
+                .from(users)
+                .limit(1);
+              if (existing.length > 0 || existingUsers.length > 0) {
                 throw new SeededAlready();
               }
             },
@@ -221,9 +223,10 @@ export class AccessSeeder implements OnModuleInit {
     }
   }
 
-  private async count(table: typeof tenants | typeof users) {
-    const [{ rows }] = await this.db.select({ rows: count() }).from(table);
-    return rows;
+  /** Whether the table has any row: one row read, not a count of all. */
+  private async any(table: typeof tenants | typeof users) {
+    const rows = await this.db.select({ id: table.id }).from(table).limit(1);
+    return rows.length > 0;
   }
 
   /**

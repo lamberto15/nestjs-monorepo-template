@@ -1,0 +1,1 @@
+CREATE INDEX "user_roles_role_live_idx" ON "user_roles" USING btree ("role_id","tenant_id","expires_at");

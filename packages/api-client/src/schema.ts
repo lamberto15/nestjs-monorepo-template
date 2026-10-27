@@ -5411,7 +5411,9 @@ export interface components {
             id: string;
         };
         RealtimeNotificationsUnreadCountEvent: {
+            /** @description `unread` stops at 1,000; `unreadCapped` is then true (show 1,000+). */
             unread: number;
+            unreadCapped: boolean;
         };
         RealtimeDataExportReadyEvent: {
             id: string;
@@ -9450,7 +9452,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description `unread` stops at 1,000; `unreadCapped` is then true (show 1,000+). */
                         unread: number;
+                        unreadCapped: boolean;
                     };
                 };
             };

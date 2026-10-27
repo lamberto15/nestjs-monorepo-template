@@ -27,6 +27,7 @@ import { OpsPolicy } from './ops/ops.policy.js';
 import { OpsQueues } from './ops/ops-queues.service.js';
 import { OpsMetrics } from './ops/ops-metrics.js';
 import { OutboxMetricsReader } from './ops/outbox-metrics.reader.js';
+import { OutboxRetentionJob } from './ops/outbox-retention.job.js';
 import type { PlatformEnv } from './platform.env.js';
 import { PLATFORM_OPTIONS, type PlatformOptions } from './platform.options.js';
 import { IAM_NOTIFIER } from '../iam/iam-notifications.js';
@@ -747,6 +748,8 @@ export class PlatformModule {
         PlatformAnalyticsJob,
         // Finished outgoing webhook deliveries older than WEBHOOKS_DELIVERY_RETENTION_DAYS, nightly.
         ...whenOn<Provider>('WEBHOOKS', WebhookDeliveryRetentionJob),
+        // Outbox dead letters and consumers' inbox records past their retention, nightly (the outbox is always on).
+        OutboxRetentionJob,
         // Record revisions: features register a RevisionTarget and call RevisionsService.record().
         RevisionsRegistry,
         RevisionsService,

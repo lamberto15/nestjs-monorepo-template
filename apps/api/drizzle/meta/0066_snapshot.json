@@ -1,6 +1,6 @@
 {
-  "id": "4e9a418c-441d-4cea-83da-470a3f951ced",
-  "prevId": "9a13cd2b-cc1b-4e8b-94d4-558aa098650f",
+  "id": "344b8d65-bc27-4970-afc9-01b5b963b852",
+  "prevId": "b0b56c2f-ebc9-41ee-9034-2c69a31acf74",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -875,6 +875,75 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "audit_log_target_id_id_idx": {
+          "name": "audit_log_target_id_id_idx",
+          "columns": [
+            {
+              "expression": "target_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "audit_log_actor_id_idx": {
+          "name": "audit_log_actor_id_idx",
+          "columns": [
+            {
+              "expression": "actor",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "audit_log_tenant_action_id_idx": {
+          "name": "audit_log_tenant_action_id_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "action",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -1247,8 +1316,8 @@
           "notNull": true,
           "default": "'{}'::jsonb"
         },
-        "unit_ids": {
-          "name": "unit_ids",
+        "team_ids": {
+          "name": "team_ids",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true,
@@ -1801,500 +1870,6 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
-    },
-    "public.organizational_unit_closure": {
-      "name": "organizational_unit_closure",
-      "schema": "",
-      "columns": {
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ancestor_id": {
-          "name": "ancestor_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "descendant_id": {
-          "name": "descendant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "depth": {
-          "name": "depth",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "organizational_unit_closure_descendant_idx": {
-          "name": "organizational_unit_closure_descendant_idx",
-          "columns": [
-            {
-              "expression": "descendant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "organizational_unit_closure_tenant_id_tenants_id_fk": {
-          "name": "organizational_unit_closure_tenant_id_tenants_id_fk",
-          "tableFrom": "organizational_unit_closure",
-          "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "organizational_unit_closure_ancestor_id_descendant_id_pk": {
-          "name": "organizational_unit_closure_ancestor_id_descendant_id_pk",
-          "columns": [
-            "ancestor_id",
-            "descendant_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {
-        "organizational_unit_closure_tenant_select": {
-          "name": "organizational_unit_closure_tenant_select",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "public"
-          ],
-          "using": "((\"organizational_unit_closure\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"organizational_unit_closure\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"organizational_unit_closure\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
-        },
-        "organizational_unit_closure_tenant_insert": {
-          "name": "organizational_unit_closure_tenant_insert",
-          "as": "PERMISSIVE",
-          "for": "INSERT",
-          "to": [
-            "public"
-          ],
-          "withCheck": "(\"organizational_unit_closure\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "organizational_unit_closure_tenant_update": {
-          "name": "organizational_unit_closure_tenant_update",
-          "as": "PERMISSIVE",
-          "for": "UPDATE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"organizational_unit_closure\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
-          "withCheck": "(\"organizational_unit_closure\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "organizational_unit_closure_tenant_delete": {
-          "name": "organizational_unit_closure_tenant_delete",
-          "as": "PERMISSIVE",
-          "for": "DELETE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"organizational_unit_closure\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        }
-      },
-      "checkConstraints": {},
-      "isRLSEnabled": true
-    },
-    "public.organizational_unit_memberships": {
-      "name": "organizational_unit_memberships",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuidv7()"
-        },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "unit_id": {
-          "name": "unit_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "role": {
-          "name": "role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'member'"
-        },
-        "valid_from": {
-          "name": "valid_from",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "valid_to": {
-          "name": "valid_to",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "organizational_unit_memberships_open_idx": {
-          "name": "organizational_unit_memberships_open_idx",
-          "columns": [
-            {
-              "expression": "tenant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "unit_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"organizational_unit_memberships\".\"valid_to\" is null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "organizational_unit_memberships_user_idx": {
-          "name": "organizational_unit_memberships_user_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "valid_from",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "organizational_unit_memberships_unit_idx": {
-          "name": "organizational_unit_memberships_unit_idx",
-          "columns": [
-            {
-              "expression": "unit_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "organizational_unit_memberships_tenant_id_tenants_id_fk": {
-          "name": "organizational_unit_memberships_tenant_id_tenants_id_fk",
-          "tableFrom": "organizational_unit_memberships",
-          "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "organizational_unit_memberships_membership_fk": {
-          "name": "organizational_unit_memberships_membership_fk",
-          "tableFrom": "organizational_unit_memberships",
-          "tableTo": "memberships",
-          "columnsFrom": [
-            "tenant_id",
-            "user_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "user_id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {
-        "organizational_unit_memberships_tenant_select": {
-          "name": "organizational_unit_memberships_tenant_select",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "public"
-          ],
-          "using": "((\"organizational_unit_memberships\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"organizational_unit_memberships\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"organizational_unit_memberships\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
-        },
-        "organizational_unit_memberships_tenant_insert": {
-          "name": "organizational_unit_memberships_tenant_insert",
-          "as": "PERMISSIVE",
-          "for": "INSERT",
-          "to": [
-            "public"
-          ],
-          "withCheck": "(\"organizational_unit_memberships\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "organizational_unit_memberships_tenant_update": {
-          "name": "organizational_unit_memberships_tenant_update",
-          "as": "PERMISSIVE",
-          "for": "UPDATE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"organizational_unit_memberships\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
-          "withCheck": "(\"organizational_unit_memberships\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "organizational_unit_memberships_tenant_delete": {
-          "name": "organizational_unit_memberships_tenant_delete",
-          "as": "PERMISSIVE",
-          "for": "DELETE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"organizational_unit_memberships\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        }
-      },
-      "checkConstraints": {
-        "organizational_unit_memberships_role_check": {
-          "name": "organizational_unit_memberships_role_check",
-          "value": "\"organizational_unit_memberships\".\"role\" in ('member', 'lead')"
-        },
-        "organizational_unit_memberships_period_check": {
-          "name": "organizational_unit_memberships_period_check",
-          "value": "\"organizational_unit_memberships\".\"valid_to\" is null or \"organizational_unit_memberships\".\"valid_to\" > \"organizational_unit_memberships\".\"valid_from\""
-        }
-      },
-      "isRLSEnabled": true
-    },
-    "public.organizational_units": {
-      "name": "organizational_units",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuidv7()"
-        },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'team'"
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "parent_id": {
-          "name": "parent_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "organizational_units_parent_id_idx": {
-          "name": "organizational_units_parent_id_idx",
-          "columns": [
-            {
-              "expression": "parent_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "organizational_units_sibling_name_idx": {
-          "name": "organizational_units_sibling_name_idx",
-          "columns": [
-            {
-              "expression": "tenant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "coalesce(\"parent_id\", '00000000-0000-0000-0000-000000000000'::uuid)",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "lower(\"name\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "organizational_units_tenant_id_tenants_id_fk": {
-          "name": "organizational_units_tenant_id_tenants_id_fk",
-          "tableFrom": "organizational_units",
-          "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "organizational_units_tenant_id_id_key": {
-          "name": "organizational_units_tenant_id_id_key",
-          "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "id"
-          ]
-        }
-      },
-      "policies": {
-        "organizational_units_tenant_select": {
-          "name": "organizational_units_tenant_select",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "public"
-          ],
-          "using": "((\"organizational_units\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"organizational_units\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"organizational_units\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
-        },
-        "organizational_units_tenant_insert": {
-          "name": "organizational_units_tenant_insert",
-          "as": "PERMISSIVE",
-          "for": "INSERT",
-          "to": [
-            "public"
-          ],
-          "withCheck": "(\"organizational_units\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "organizational_units_tenant_update": {
-          "name": "organizational_units_tenant_update",
-          "as": "PERMISSIVE",
-          "for": "UPDATE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"organizational_units\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
-          "withCheck": "(\"organizational_units\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "organizational_units_tenant_delete": {
-          "name": "organizational_units_tenant_delete",
-          "as": "PERMISSIVE",
-          "for": "DELETE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"organizational_units\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        }
-      },
-      "checkConstraints": {
-        "organizational_units_type_check": {
-          "name": "organizational_units_type_check",
-          "value": "\"organizational_units\".\"type\" in ('division', 'department', 'team')"
-        }
-      },
-      "isRLSEnabled": true
     },
     "public.passkeys": {
       "name": "passkeys",
@@ -3017,6 +2592,293 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.team_tree": {
+      "name": "team_tree",
+      "schema": "",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ancestor_id": {
+          "name": "ancestor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descendant_id": {
+          "name": "descendant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "depth": {
+          "name": "depth",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "team_tree_descendant_idx": {
+          "name": "team_tree_descendant_idx",
+          "columns": [
+            {
+              "expression": "descendant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "team_tree_tenant_id_tenants_id_fk": {
+          "name": "team_tree_tenant_id_tenants_id_fk",
+          "tableFrom": "team_tree",
+          "tableTo": "tenants",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "team_tree_ancestor_fk": {
+          "name": "team_tree_ancestor_fk",
+          "tableFrom": "team_tree",
+          "tableTo": "teams",
+          "columnsFrom": [
+            "tenant_id",
+            "ancestor_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "team_tree_descendant_fk": {
+          "name": "team_tree_descendant_fk",
+          "tableFrom": "team_tree",
+          "tableTo": "teams",
+          "columnsFrom": [
+            "tenant_id",
+            "descendant_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "team_tree_ancestor_id_descendant_id_pk": {
+          "name": "team_tree_ancestor_id_descendant_id_pk",
+          "columns": [
+            "ancestor_id",
+            "descendant_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "team_tree_tenant_select": {
+          "name": "team_tree_tenant_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "public"
+          ],
+          "using": "((\"team_tree\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"team_tree\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"team_tree\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+        },
+        "team_tree_tenant_insert": {
+          "name": "team_tree_tenant_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "public"
+          ],
+          "withCheck": "(\"team_tree\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        },
+        "team_tree_tenant_update": {
+          "name": "team_tree_tenant_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "public"
+          ],
+          "using": "(\"team_tree\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+          "withCheck": "(\"team_tree\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        },
+        "team_tree_tenant_delete": {
+          "name": "team_tree_tenant_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": [
+            "public"
+          ],
+          "using": "(\"team_tree\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.teams": {
+      "name": "teams",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "teams_parent_id_idx": {
+          "name": "teams_parent_id_idx",
+          "columns": [
+            {
+              "expression": "parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "teams_tenant_id_tenants_id_fk": {
+          "name": "teams_tenant_id_tenants_id_fk",
+          "tableFrom": "teams",
+          "tableTo": "tenants",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "teams_parent_fk": {
+          "name": "teams_parent_fk",
+          "tableFrom": "teams",
+          "tableTo": "teams",
+          "columnsFrom": [
+            "tenant_id",
+            "parent_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "teams_tenant_id_id_key": {
+          "name": "teams_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {
+        "teams_tenant_select": {
+          "name": "teams_tenant_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "public"
+          ],
+          "using": "((\"teams\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"teams\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+        },
+        "teams_tenant_insert": {
+          "name": "teams_tenant_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "public"
+          ],
+          "withCheck": "(\"teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        },
+        "teams_tenant_update": {
+          "name": "teams_tenant_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "public"
+          ],
+          "using": "(\"teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+          "withCheck": "(\"teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        },
+        "teams_tenant_delete": {
+          "name": "teams_tenant_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": [
+            "public"
+          ],
+          "using": "(\"teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
     "public.user_identities": {
       "name": "user_identities",
       "schema": "",
@@ -3143,6 +3005,33 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "user_roles_role_live_idx": {
+          "name": "user_roles_role_live_idx",
+          "columns": [
+            {
+              "expression": "role_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -3237,6 +3126,143 @@
             "public"
           ],
           "using": "(\"user_roles\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.user_teams": {
+      "name": "user_teams",
+      "schema": "",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "team_id": {
+          "name": "team_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "user_teams_team_id_idx": {
+          "name": "user_teams_team_id_idx",
+          "columns": [
+            {
+              "expression": "team_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "user_teams_tenant_id_tenants_id_fk": {
+          "name": "user_teams_tenant_id_tenants_id_fk",
+          "tableFrom": "user_teams",
+          "tableTo": "tenants",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "user_teams_membership_fk": {
+          "name": "user_teams_membership_fk",
+          "tableFrom": "user_teams",
+          "tableTo": "memberships",
+          "columnsFrom": [
+            "tenant_id",
+            "user_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "user_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "user_teams_team_fk": {
+          "name": "user_teams_team_fk",
+          "tableFrom": "user_teams",
+          "tableTo": "teams",
+          "columnsFrom": [
+            "tenant_id",
+            "team_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "user_teams_user_id_team_id_pk": {
+          "name": "user_teams_user_id_team_id_pk",
+          "columns": [
+            "user_id",
+            "team_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "user_teams_tenant_select": {
+          "name": "user_teams_tenant_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "public"
+          ],
+          "using": "((\"user_teams\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"user_teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"user_teams\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+        },
+        "user_teams_tenant_insert": {
+          "name": "user_teams_tenant_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "public"
+          ],
+          "withCheck": "(\"user_teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        },
+        "user_teams_tenant_update": {
+          "name": "user_teams_tenant_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "public"
+          ],
+          "using": "(\"user_teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+          "withCheck": "(\"user_teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        },
+        "user_teams_tenant_delete": {
+          "name": "user_teams_tenant_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": [
+            "public"
+          ],
+          "using": "(\"user_teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         }
       },
       "checkConstraints": {},
@@ -3364,8 +3390,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "unit_id": {
-          "name": "unit_id",
+        "team_id": {
+          "name": "team_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -3427,14 +3453,29 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "scim_groups_team_fk": {
+          "name": "scim_groups_team_fk",
+          "tableFrom": "scim_groups",
+          "tableTo": "teams",
+          "columnsFrom": [
+            "tenant_id",
+            "team_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
-        "scim_groups_tenant_id_unit_id_pk": {
-          "name": "scim_groups_tenant_id_unit_id_pk",
+        "scim_groups_tenant_id_team_id_pk": {
+          "name": "scim_groups_tenant_id_team_id_pk",
           "columns": [
             "tenant_id",
-            "unit_id"
+            "team_id"
           ]
         }
       },
@@ -6779,8 +6820,8 @@
           "method": "btree",
           "with": {}
         },
-        "record_subscriptions_subscriber_idx": {
-          "name": "record_subscriptions_subscriber_idx",
+        "record_subscriptions_subscriber_id_idx": {
+          "name": "record_subscriptions_subscriber_id_idx",
           "columns": [
             {
               "expression": "subscriber",
@@ -6789,7 +6830,7 @@
               "nulls": "last"
             },
             {
-              "expression": "created_at",
+              "expression": "id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -9029,8 +9070,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "unit_id": {
-          "name": "unit_id",
+        "team_id": {
+          "name": "team_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -9124,11 +9165,11 @@
           "method": "btree",
           "with": {}
         },
-        "saved_views_unit_idx": {
-          "name": "saved_views_unit_idx",
+        "saved_views_team_idx": {
+          "name": "saved_views_team_idx",
           "columns": [
             {
-              "expression": "unit_id",
+              "expression": "team_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -9149,6 +9190,21 @@
             "tenant_id"
           ],
           "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "saved_views_team_fk": {
+          "name": "saved_views_team_fk",
+          "tableFrom": "saved_views",
+          "tableTo": "teams",
+          "columnsFrom": [
+            "tenant_id",
+            "team_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
             "id"
           ],
           "onDelete": "cascade",
@@ -9197,13 +9253,13 @@
         }
       },
       "checkConstraints": {
-        "saved_views_unit_check": {
-          "name": "saved_views_unit_check",
-          "value": "(\"saved_views\".\"visibility\" in ('unit', 'team')) = (\"saved_views\".\"unit_id\" is not null)"
+        "saved_views_team_check": {
+          "name": "saved_views_team_check",
+          "value": "(\"saved_views\".\"visibility\" = 'team') = (\"saved_views\".\"team_id\" is not null)"
         },
         "saved_views_visibility_check": {
           "name": "saved_views_visibility_check",
-          "value": "\"saved_views\".\"visibility\" in ('private', 'unit', 'team', 'tenant')"
+          "value": "\"saved_views\".\"visibility\" in ('private', 'team', 'tenant')"
         }
       },
       "isRLSEnabled": true
@@ -11408,8 +11464,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "unit_id": {
-          "name": "unit_id",
+        "team_id": {
+          "name": "team_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -11689,6 +11745,21 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "notes_team_fk": {
+          "name": "notes_team_fk",
+          "tableFrom": "notes",
+          "tableTo": "teams",
+          "columnsFrom": [
+            "tenant_id",
+            "team_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "set null (\"team_id\")",
           "onUpdate": "no action"
         }
       },

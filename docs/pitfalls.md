@@ -438,3 +438,5 @@ Learned renaming org units to teams (#23, 2026-10-17):
   transaction, a WAL burst, every id in Node). Use `deleteInBatches()`
   (`core/database/batched-delete.ts`), and never call it inside
   `inTransaction()`: it throws, as the batches would join it.
+- A sort index must repeat the list's ORDER BY exactly, NULLS order included
+  (`id desc nulls first`), or PostgreSQL adds a sort on top of it.

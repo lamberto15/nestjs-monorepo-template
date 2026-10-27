@@ -459,6 +459,34 @@ describe('the session another tab announced', () => {
     expect(queryClient.getQueryData(['orphan'])).toBeUndefined();
   });
 
+  it('reads an announced change back even while an older me is in flight', async () => {
+    const { queryClient } = await watchedClient(
+      meInTenant(signedInUser.tenant!.id),
+    );
+    // A `me` started under the old cookie and still pending when the
+    // announcement arrives: the read-back must not be absorbed by it.
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    server.use(
+      http.get('/v1/auth/me', async () => {
+        await held;
+        return HttpResponse.json(meInTenant(signedInUser.tenant!.id));
+      }),
+    );
+    const older = fetchMe(queryClient);
+    meAfter(meInTenant(otherTenantId));
+    announceSessionIdentity(sessionIdentity(meInTenant(otherTenantId)));
+    release();
+    await older.catch(() => undefined);
+
+    await waitFor(() => {
+      expect(queryClient.getQueryData(meQuery.queryKey)).toMatchObject({
+        tenant: { id: otherTenantId },
+      });
+      expect(queryClient.getQueryData(recordKey)).toBeUndefined();
+    });
+  });
+
   it('changes nothing for a sign-out announcement another tab undid', async () => {
     const { to, queryClient } = await watchedClient(
       meInTenant(signedInUser.tenant!.id),

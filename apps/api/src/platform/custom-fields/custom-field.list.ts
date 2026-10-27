@@ -1,4 +1,4 @@
-import { sql, type SQL } from 'drizzle-orm';
+import { or, sql, type SQL } from 'drizzle-orm';
 import type { FilterField, FilterOp } from '../../core/http/list-query.js';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { CustomFieldDefinition } from './custom-field.types.js';
@@ -15,6 +15,45 @@ function keyLiteral(key: string): SQL {
     throw new Error(`Invalid custom field key: ${key}`);
   }
   return sql.raw(`'${key}'`);
+}
+
+/**
+ * `column @> {key: value}`: the GIN index (`jsonb_ops`) serves only an
+ * operator with the column itself on the left (`@>`, `?`, `?|`), never
+ * `column->>'key'`, so equality filters are written as containment. Values
+ * are never stored as JSON null (a removed value removes the key), which
+ * makes it equal to `=`. Raw SQL: Drizzle has no JSONB containment operator.
+ */
+function contains(column: AnyPgColumn, key: string, value: SQL): SQL {
+  return sql`${column} @> jsonb_build_object(${keyLiteral(key)}, ${value})`;
+}
+
+/** `eq` and `in` of one field as containment of a value of this SQL type. */
+function equalityConditions(
+  column: AnyPgColumn,
+  key: string,
+  type: 'text' | 'numeric' | 'boolean',
+): Pick<Record<FilterOp, (value: unknown) => SQL>, 'eq' | 'in'> {
+  // The JSON type of the value must match the stored one ('5' never matches 5).
+  const typed = (value: unknown) =>
+    type === 'numeric'
+      ? sql`${value}::numeric`
+      : type === 'boolean'
+        ? sql`${value}::boolean`
+        : sql`${value}::text`;
+  const one = (value: unknown) => contains(column, key, typed(value));
+  return {
+    eq: one,
+    in: (values) => or(...(values as unknown[]).map(one)) as SQL,
+  };
+}
+
+/** Has a value: the key is present (`?`, on the GIN index); none: its negation. */
+function presence(column: AnyPgColumn, key: string) {
+  return (value: unknown): SQL =>
+    value
+      ? sql`not (${column} ? ${keyLiteral(key)})`
+      : sql`${column} ? ${keyLiteral(key)}`;
 }
 
 /** The typed SQL expression of one field's value. */
@@ -66,7 +105,10 @@ const ORDERED_FILTER_OPS: readonly FilterOp[] = [
  * `filter`), sorted and picked with `fields` like any declared field.
  *
  * - Filters only on fields marked filterable, sorting only on sortable ones.
- * - A multiSelect takes `in` (holds any of, on the GIN index) and `isNull`.
+ * - On the GIN index: `eq`, `in` and `isNull=false` (containment `@>` and `?`
+ *   on the column). The rest (`ne`, `notIn`, ranges, text operators, sorts)
+ *   reads the typed expression per row, no index can serve it.
+ * - A multiSelect takes `in` (holds any of) and `isNull`.
  * - Every active field can be picked with `fields=custom.<key>`.
  */
 export function customFilterFields(
@@ -85,6 +127,7 @@ export function customFilterFields(
       continue;
     }
     const expression = customFieldExpression(column, field);
+    const isNull = presence(column, field.key);
     const ops = (all: readonly FilterOp[]) => (field.filterable ? all : []);
     const choices = (field.options ?? []).map((option) => option.value);
     switch (field.type) {
@@ -94,6 +137,10 @@ export function customFilterFields(
           type: 'number',
           ops: ops([...ORDERED_FILTER_OPS, 'in', 'notIn']),
           sortable: field.sortable,
+          conditions: {
+            ...equalityConditions(column, field.key, 'numeric'),
+            isNull,
+          },
           // numeric comes back as text: the cursor needs the number.
           select: expression.mapWith(Number),
         };
@@ -104,6 +151,11 @@ export function customFilterFields(
           type: 'date',
           ops: ops(ORDERED_FILTER_OPS),
           sortable: field.sortable,
+          // Stored as the canonical YYYY-MM-DD string: text equality is date equality.
+          conditions: {
+            eq: equalityConditions(column, field.key, 'text').eq,
+            isNull,
+          },
           // As stored (YYYY-MM-DD): node-postgres would turn a date into a local-midnight Date.
           select: sql`(${column}->>${keyLiteral(field.key)})`,
         };
@@ -114,6 +166,10 @@ export function customFilterFields(
           type: 'boolean',
           ops: ops(['eq', 'ne', 'isNull']),
           sortable: field.sortable,
+          conditions: {
+            eq: equalityConditions(column, field.key, 'boolean').eq,
+            isNull,
+          },
         };
         break;
       case 'select':
@@ -129,10 +185,13 @@ export function customFilterFields(
             values,
             ops: ops(['eq', 'ne', 'in', 'notIn', 'isNull']),
             sortable: field.sortable,
+            conditions: {
+              ...equalityConditions(column, field.key, 'text'),
+              isNull,
+            },
           };
           break;
         }
-        const key = keyLiteral(field.key);
         fields[name] = {
           column: expression,
           type: 'enum',
@@ -140,12 +199,15 @@ export function customFilterFields(
           ops: ops(['in', 'isNull']),
           sortable: false, // an array has no useful order
           conditions: {
-            // Holds any of the values: `?|` on the GIN index.
+            // Holds any of the values: containment of a one-element array, on the GIN index.
             in: (value) =>
-              sql`(${column}->${key}) ?| array[${sql.join(
-                (value as string[]).map((item) => sql`${item}`),
-                sql`, `,
-              )}]::text[]`,
+              or(
+                ...(value as string[]).map(
+                  (item) =>
+                    sql`${column} @> jsonb_build_object(${keyLiteral(field.key)}, jsonb_build_array(${item}::text))`,
+                ),
+              ) as SQL,
+            isNull,
           },
         };
         break;
@@ -156,6 +218,10 @@ export function customFilterFields(
           type: 'string',
           ops: ops(TEXT_FILTER_OPS),
           sortable: field.sortable,
+          conditions: {
+            ...equalityConditions(column, field.key, 'text'),
+            isNull,
+          },
         };
     }
   }
