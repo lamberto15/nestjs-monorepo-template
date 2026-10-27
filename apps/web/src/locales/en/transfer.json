@@ -21,8 +21,7 @@
     "mine": "Your exports and imports",
     "done_one": "{{count}} row exported.",
     "done_other": "{{count}} rows exported.",
-    "download": "Download ({{format}})",
-    "openInAnalytics": "Open in Data Explorer"
+    "download": "Download ({{format}})"
   },
   "mine": {
     "title": "Exports and imports",
@@ -95,41 +94,7 @@
     "downloadErrors": "Download the refused rows (CSV)",
     "rowLimit": "This import can contain up to {{count}} rows.",
     "profile": "File columns match {{matched}} of {{expected}} import columns. Missing: {{missing}}. This preview is informational.",
-    "noneMissing": "none",
-    "profileLocally": "Analyze this file locally",
-    "local": {
-      "title": "Local check (not authoritative)",
-      "description": "Read in this browser only; nothing is uploaded. The server's check (\"Only check the file\") decides what is imported.",
-      "unsupported": "Excel files cannot be checked locally; only CSV and JSON can. The server's check still applies.",
-      "loading": "Checking the file in this browser…",
-      "cancel": "Cancel",
-      "cancelled": "The local check was cancelled. Importing is not affected.",
-      "error": "The file could not be checked locally. You can still import it; the server checks every row.",
-      "notArray": "The server reads a JSON file only as an array of objects ([{…}, {…}]); this file is not one (JSON Lines is refused).",
-      "retry": "Try again",
-      "checksFailed": "The duplicate and value checks could not run.",
-      "summary_one": "Read {{count}} row and {{columns}}.",
-      "summary_other": "Read {{count}} rows and {{columns}}.",
-      "columnCount_one": "{{count}} column",
-      "columnCount_other": "{{count}} columns",
-      "clean": "No problems found. The server may still refuse rows.",
-      "missing": "Required columns missing",
-      "matchKeyMissing": "The match key is not a column of the file",
-      "repeatedHeaders": "Columns named more than once (the import keeps the last)",
-      "unknown": "Columns the import does not take",
-      "types": "Values that may not fit the column type",
-      "expected": "Expected",
-      "found": "Found in the file",
-      "badValues_one": "{{count}} value does not read as {{type}}",
-      "badValues_other": "{{count}} values do not read as {{type}}",
-      "duplicates": "Repeated values of the match key {{key}}",
-      "duplicatesDetail_one": "{{count}} row repeats an earlier key. Most repeated: {{samples}}.",
-      "duplicatesDetail_other": "{{count}} rows repeat an earlier key. Most repeated: {{samples}}.",
-      "nulls": "Required columns with many empty values",
-      "empty": "Empty values",
-      "emptyShare_one": "{{percent}} ({{empty}} of {{count}} row)",
-      "emptyShare_other": "{{percent}} ({{empty}} of {{count}} rows)"
-    }
+    "noneMissing": "none"
   },
   "status": {
     "queued": "Waiting for a worker…",
