@@ -1,5 +1,5 @@
 {
-  "id": "1fce6215-5270-44da-892b-cfb93547aaa4",
+  "id": "344b8d65-bc27-4970-afc9-01b5b963b852",
   "prevId": "b0b56c2f-ebc9-41ee-9034-2c69a31acf74",
   "version": "7",
   "dialect": "postgresql",
@@ -866,6 +866,75 @@
             },
             {
               "expression": "at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "audit_log_target_id_id_idx": {
+          "name": "audit_log_target_id_id_idx",
+          "columns": [
+            {
+              "expression": "target_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "audit_log_actor_id_idx": {
+          "name": "audit_log_actor_id_idx",
+          "columns": [
+            {
+              "expression": "actor",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "audit_log_tenant_action_id_idx": {
+          "name": "audit_log_tenant_action_id_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "action",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -6751,8 +6820,8 @@
           "method": "btree",
           "with": {}
         },
-        "record_subscriptions_subscriber_idx": {
-          "name": "record_subscriptions_subscriber_idx",
+        "record_subscriptions_subscriber_id_idx": {
+          "name": "record_subscriptions_subscriber_id_idx",
           "columns": [
             {
               "expression": "subscriber",
@@ -6761,7 +6830,7 @@
               "nulls": "last"
             },
             {
-              "expression": "created_at",
+              "expression": "id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -11603,128 +11672,17 @@
           "method": "btree",
           "with": {}
         },
-        "notes_owner_id_id_idx": {
-          "name": "notes_owner_id_id_idx",
+        "notes_owner_id_idx": {
+          "name": "notes_owner_id_idx",
           "columns": [
             {
               "expression": "owner_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "notes_tenant_team_id_idx": {
-          "name": "notes_tenant_team_id_idx",
-          "columns": [
-            {
-              "expression": "tenant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "team_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "notes_tenant_status_id_idx": {
-          "name": "notes_tenant_status_id_idx",
-          "columns": [
-            {
-              "expression": "tenant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "deleted_at is null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "notes_tenant_title_id_idx": {
-          "name": "notes_tenant_title_id_idx",
-          "columns": [
-            {
-              "expression": "tenant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "title",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "deleted_at is null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "notes_tenant_published_ms_idx": {
-          "name": "notes_tenant_published_ms_idx",
-          "columns": [
-            {
-              "expression": "tenant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "(date_trunc('milliseconds', \"published_at\" at time zone 'UTC') at time zone 'UTC') desc nulls first",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "deleted_at is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -11740,7 +11698,6 @@
             }
           ],
           "isUnique": false,
-          "where": "deleted_at is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}

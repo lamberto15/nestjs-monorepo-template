@@ -78,7 +78,10 @@ describe('api client: notes (e2e)', () => {
     await node.app.get(OutboxRelay).runOnce();
     await vi.waitFor(() => expect(heard.length).toBeGreaterThan(0));
     expect(heard[0]).toMatchObject({ type: 'note.published', read: false });
-    await vi.waitFor(() => expect(unread.at(-1)).toBeGreaterThan(0));
+    // The count follows a delivery within a second (it is coalesced).
+    await vi.waitFor(() => expect(unread.at(-1)).toBeGreaterThan(0), {
+      timeout: 5000,
+    });
     const { unread: count } = await unwrap(
       api.GET('/v1/notifications/unread-count'),
     );

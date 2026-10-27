@@ -466,6 +466,18 @@ export const auditLog = pgTable(
       table.action,
       table.at,
     ),
+    // One record's history (?targetId=) and the account export's entries about
+    // a person in a tenant they left (target_type 'user'), newest first.
+    index('audit_log_target_id_id_idx').on(table.targetId, table.id),
+    // One actor's entries in id order: ?actor=, the account export's keyset
+    // pages (AccountTransfer.auditEntries), the deletion's relabel.
+    index('audit_log_actor_id_idx').on(table.actor, table.id),
+    // ?action= within the tenant, newest first.
+    index('audit_log_tenant_action_id_idx').on(
+      table.tenantId,
+      table.action,
+      table.id,
+    ),
     ...tenantTable('audit_log', table, { nullRows: 'outside' }),
   ],
 ).enableRLS();

@@ -82,7 +82,7 @@ export const REALTIME_EVENTS = {
   ),
   'notifications.unread-count': event(
     'RealtimeNotificationsUnreadCountEvent',
-    "After each of the above and each delivery: the badge's number.",
+    "After each of the above, and at most once a second after deliveries: the badge's number.",
     unreadCountSchema,
   ),
   'data.export-ready': event(
