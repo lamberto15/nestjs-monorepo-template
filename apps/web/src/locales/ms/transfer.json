@@ -20,8 +20,7 @@
     "start": "Mulakan eksport",
     "mine": "Eksport dan import anda",
     "done_other": "{{count}} baris dieksport.",
-    "download": "Muat turun ({{format}})",
-    "openInAnalytics": "Buka dalam Penjelajah Data"
+    "download": "Muat turun ({{format}})"
   },
   "mine": {
     "title": "Eksport dan import",
@@ -93,36 +92,7 @@
     "downloadErrors": "Muat turun baris yang ditolak (CSV)",
     "rowLimit": "Import ini boleh mengandungi sehingga {{count}} baris.",
     "profile": "Lajur fail sepadan dengan {{matched}} daripada {{expected}} lajur import. Tiada: {{missing}}. Pratonton ini untuk maklumat sahaja.",
-    "noneMissing": "tiada",
-    "profileLocally": "Analisis fail ini secara setempat",
-    "local": {
-      "title": "Semakan setempat (bukan muktamad)",
-      "description": "Dibaca dalam pelayar ini sahaja; tiada apa-apa dimuat naik. Semakan pelayan (\"Semak fail sahaja\") menentukan apa yang diimport.",
-      "unsupported": "Fail Excel tidak boleh disemak secara setempat; hanya CSV dan JSON. Semakan pelayan masih terpakai.",
-      "loading": "Menyemak fail dalam pelayar ini…",
-      "cancel": "Batal",
-      "cancelled": "Semakan setempat dibatalkan. Import tidak terjejas.",
-      "error": "Fail tidak dapat disemak secara setempat. Anda masih boleh mengimportnya; pelayan menyemak setiap baris.",
-      "notArray": "Pelayan hanya membaca fail JSON sebagai tatasusunan objek ([{…}, {…}]); fail ini bukan satu (JSON Lines ditolak).",
-      "retry": "Cuba lagi",
-      "checksFailed": "Semakan pendua dan nilai tidak dapat dijalankan.",
-      "summary_other": "{{count}} baris dan {{columns}} dibaca.",
-      "columnCount_other": "{{count}} lajur",
-      "clean": "Tiada masalah ditemui. Pelayan masih boleh menolak baris.",
-      "missing": "Lajur wajib yang tiada",
-      "matchKeyMissing": "Kunci padanan bukan lajur dalam fail",
-      "repeatedHeaders": "Lajur yang dinamakan lebih daripada sekali (import menyimpan yang terakhir)",
-      "unknown": "Lajur yang tidak diterima oleh import",
-      "types": "Nilai yang mungkin tidak sesuai dengan jenis lajur",
-      "expected": "Dijangka",
-      "found": "Ditemui dalam fail",
-      "badValues_other": "{{count}} nilai tidak boleh dibaca sebagai {{type}}",
-      "duplicates": "Nilai berulang bagi kunci padanan {{key}}",
-      "duplicatesDetail_other": "{{count}} baris mengulang kunci terdahulu. Paling kerap: {{samples}}.",
-      "nulls": "Lajur wajib dengan banyak nilai kosong",
-      "empty": "Nilai kosong",
-      "emptyShare_other": "{{percent}} ({{empty}} daripada {{count}} baris)"
-    }
+    "noneMissing": "tiada"
   },
   "status": {
     "queued": "Menunggu pekerja…",

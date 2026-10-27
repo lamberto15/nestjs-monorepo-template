@@ -2048,10 +2048,8 @@ replace task-input hashing. See [CI measurements](ci-runtime.md) for the
 runner budget, the evidence and the chosen defaults.
 
 The bundle budget and the Storybook build run in `check` for frontend changes,
-and the Chromium analytics smoke in `e2e-web`. The Web workflow holds only the
-analytics smoke in Firefox and WebKit (pull requests touching the analytics
-engine) and report-only Lighthouse, which runs nightly, manually and for
-version tags.
+and the browser tests in `e2e-web`. The Web workflow holds only report-only
+Lighthouse, which runs nightly, manually and for version tags.
 Migration lint retains its separate PR workflow and existing acceptance controls
 ([migrations](development.md#migrations)). Third-party actions remain pinned;
 Dependabot proposes updates. PostgreSQL and Redis are read from `compose.yaml`,

@@ -20,7 +20,7 @@
 //
 // Then: pnpm db:generate (drops the table: on a live project that is an
 // expand/contract change, docs/development.md), pnpm client:generate, and
-// the check before every commit (AGENTS.md). The command itself regenerates
+// a draft PR: CI runs the checks (AGENTS.md). The command itself regenerates
 // the web's route tree (src/routeTree.gen.ts) with TanStack Router's
 // generator, the one the Vite plugin runs, so the tests never import deleted
 // routes: a Turborepo cache hit replays `pnpm build` without running Vite,

@@ -10,6 +10,9 @@ Thanks for helping. This page is the short version; the full workflow is in
 All agents share [AGENTS.md](AGENTS.md). Claude Code loads it through the
 `@AGENTS.md` import in [CLAUDE.md](CLAUDE.md), which also keeps Claude-only model
 settings. Edit shared instructions in `AGENTS.md` to keep every agent in sync.
+Rules for one part of the code live next to it (`apps/api/AGENTS.md`,
+`apps/web/AGENTS.md`); a `CLAUDE.md` beside each imports it, so Claude loads
+them only when it works in that folder.
 For tools that do not discover this filename, configure their project context to
 read `AGENTS.md`; for example, Gemini CLI supports
 `{ "context": { "fileName": "AGENTS.md" } }` in `.gemini/settings.json`.
