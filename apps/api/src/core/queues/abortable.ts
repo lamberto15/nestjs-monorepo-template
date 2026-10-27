@@ -1,8 +1,10 @@
 /**
  * `work`, or the signal's reason as soon as it aborts (at once if it
- * already has). BullMQ's `add` takes no signal and, with
- * `maxRetriesPerRequest: null`, waits as long as Redis is down. The add may
- * still land afterwards: give it a deterministic job id.
+ * already has). BullMQ's `add` takes no signal. The queues' producer
+ * connection fails an add at once while Redis is unreachable (no offline
+ * queue, `producerRedisOptions()`), so an abandoned add is not resent when
+ * Redis returns; one already on the wire when the signal aborts may still
+ * land: give it a deterministic job id.
  */
 export function abortable<T>(
   signal: AbortSignal | undefined,
