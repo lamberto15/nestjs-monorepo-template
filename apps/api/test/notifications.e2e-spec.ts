@@ -218,7 +218,7 @@ describe('notifications (e2e)', () => {
     const email = await emailOf(editor.agent);
     await node
       .admin()
-      .put('/v1/settings/notifications.emailPolicy/platform')
+      .put('/v1/settings/mail.delivery/platform')
       .send({ value: 'essential' })
       .expect(200);
     await editor.agent

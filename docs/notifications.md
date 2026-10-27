@@ -134,13 +134,14 @@ same tenant only (or among the account's own).
   and `daily` bundle them (one mail listing them, times in the user's
   zone), the daily one at `NOTIFICATIONS_DIGEST_HOUR` in the user's time
   zone. After downtime, everything due goes in the next run.
-- **Email policy** (`notifications.emailPolicy`, [settings](settings.md)):
-  `all` (the default) follows each person’s per-type email preference, including
-  disabled and digest choices. `essential` sends notification email only for
-  types declared `mandatory`; in-app, realtime and webhook delivery are
-  unchanged. The operator’s platform value is the default for every tenant,
-  and a tenant setting overrides it. This applies only to notification email,
-  not account or other mail.
+- **Which mail leaves** (`mail.delivery`, [settings](settings.md); below,
+  "Stopping a mail storm"): `all` (the default) follows each person’s
+  per-type email preference, including disabled and digest choices.
+  `essential` sends notification email only for types declared `mandatory`;
+  `off` sends none. In-app, realtime and webhook delivery are unchanged. The
+  operator’s platform value is the default for every tenant, and a tenant
+  setting overrides it (or the operator enforces it). It covers every mail
+  the app sends, not only notifications.
 - **Unsubscribe** (RFC 8058, which Gmail and Yahoo require of bulk senders):
   every notification and digest mail carries `List-Unsubscribe: <https://…/v1/notifications/unsubscribe/{token}>`
   (and a `mailto:` when `MAIL_UNSUBSCRIBE_MAILTO` is set), `List-Unsubscribe-Post: List-Unsubscribe=One-Click`,
@@ -415,9 +416,9 @@ and its delivery completes: the outbox does not retry the mail later.
   email verification, magic links, account deletion, and the mail of a
   `mandatory` notification type, a security notice; not other
   notifications, digests, reports or invitations) or `off`. It covers
-  every mail the app queues; `notifications.emailPolicy` (below) is the
-  notification-level policy and stays as it is: with either at
-  `essential`, a non-mandatory notification sends no mail. In an incident an operator sets it for every
+  every mail the app queues (it replaced `notifications.emailPolicy`); the
+  notification delivery checks it too, so a held-back notification mail is
+  never flagged as sent. In an incident an operator sets it for every
   tenant at once, no deploy:
   `PUT /v1/settings/mail.delivery/platform { "value": "essential", "enforced": true }`.
   A tenant administrator may restrict their own tenant's. A settings read

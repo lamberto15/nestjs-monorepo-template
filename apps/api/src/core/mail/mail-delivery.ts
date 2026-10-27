@@ -37,7 +37,7 @@ const COUNTER_TTL_SECONDS = 2 * 24 * 3600;
  * up the provider's quota, and the mail a person needs to sign in must still
  * leave. Essential mail is the one marked `@EssentialMail()`, or sent as
  * essential (`MailQueue.send(…, { essential: true })`: a mandatory
- * notification, as `notifications.emailPolicy` counts it).
+ * notification type).
  *
  * - The mode (`mail.delivery`): `all`, `essential` (only essential mail) or
  *   `off`. An operator sets it for every tenant, enforced, in an incident.

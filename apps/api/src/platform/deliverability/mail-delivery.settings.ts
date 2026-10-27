@@ -10,7 +10,8 @@ import { SettingsService } from '../settings/settings.service.js';
 /**
  * Which mail leaves (#618): `all`; `essential`, only the mail a person needs
  * to sign in or recover an account (`@EssentialMail()`: no notifications,
- * digests, reports or invitations); `off`, none. The operators set it for
+ * digests, reports or invitations; a `mandatory` notification type's mail
+ * is essential); `off`, none. It replaced `notifications.emailPolicy`. The operators set it for
  * every tenant, enforced (`PUT /settings/mail.delivery/platform`), to stop a
  * mail storm at once without a deploy (docs/notifications.md, "Stopping a
  * mail storm"). A tenant administrator may restrict their own tenant's.
@@ -22,6 +23,7 @@ export const MAIL_DELIVERY_SETTING = setting({
     'Which mail leaves for this tenant: all, only essential (sign-in, password reset, verification), or none.',
   schema: z.enum(MAIL_DELIVERY_MODES),
   scopes: ['tenant'],
+  public: false,
   default: 'all',
 });
 
