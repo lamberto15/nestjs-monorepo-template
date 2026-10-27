@@ -437,6 +437,9 @@ still goes. Failed jobs are kept 7 days and at most 5,000 per queue.
 
 ## Housekeeping
 
+- **Read-all** works in batches of `READ_ALL_BATCH` (5,000) rows, each
+  committing on its own, so a huge backlog never holds one long statement;
+  `{ updated }` is still the true total.
 - `NOTIFICATIONS_RETENTION_DAYS` (90): read notifications older than this
   are deleted nightly; `NOTIFICATIONS_MAX_AGE_DAYS` (365): any. Both jobs
   run on one instance (`@OnOneInstance`); the retention is one sweep by age

@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { isNull, sql } from 'drizzle-orm';
 import {
   index,
   integer,
@@ -59,10 +59,15 @@ export const notifications = pgTable(
       table.recipient,
       table.createdAt,
     ),
-    // The unread count, read-all.
-    index('notifications_recipient_unread_idx')
-      .on(table.recipient)
-      .where(sql`read_at is null`),
+    // The unread list (`?read=false`, newest first, its cursor), the unread
+    // count, read-all.
+    index('notifications_recipient_unread_id_idx')
+      .on(table.recipient, table.id)
+      .where(isNull(table.readAt)),
+    // The ops page's undelivered count: only the rows still to deliver.
+    index('notifications_undelivered_idx')
+      .on(table.createdAt)
+      .where(isNull(table.deliveredAt)),
     // Per tenant, an account's own (no tenant) counting as one more.
     uniqueIndex('notifications_recipient_key_idx')
       .on(
