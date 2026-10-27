@@ -8,6 +8,14 @@
         "other": "{count} of your notes were published; the latest is \"{title}\"."
       }
     },
+    "publishedMany": {
+      "label": "Notes published in bulk",
+      "title": "Notes published",
+      "body": {
+        "one": "{notes} notes were published, \"{title}\" among them.",
+        "other": "{count} batches of notes were published; the latest had {notes}, \"{title}\" among them."
+      }
+    },
     "deleted": {
       "label": "Note deleted by someone else",
       "title": "Note deleted",

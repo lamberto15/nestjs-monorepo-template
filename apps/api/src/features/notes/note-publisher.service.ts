@@ -6,7 +6,10 @@ import {
   inTransaction,
 } from '../../core/database/transactions.js';
 import { Webhooks } from '@nestjs/webhooks';
-import { NotificationsService } from '../../platform/notifications/notifications.service.js';
+import {
+  NotificationsService,
+  type NotifyInput,
+} from '../../platform/notifications/notifications.service.js';
 import { ApprovalsService } from '../../platform/approvals/approvals.service.js';
 import { SubscriptionsService } from '../../platform/subscriptions/subscriptions.service.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
@@ -17,6 +20,50 @@ import { notes } from './notes.tables.js';
 import { NOTE } from './note.resource.js';
 import type { NoteEvent, NoteEventType } from './note-events.js';
 import type { Note } from './note.schemas.js';
+
+/**
+ * Past this many notes published at once (an import group), each person
+ * gets one `note.publishedMany` instead of one `note.published` per note: a
+ * 100,000-note import must not mean 100,000 notifications and mails (#618).
+ */
+export const BULK_PUBLICATION = 20;
+
+/**
+ * The notifications of a publication of `rows`: one `note.published` per
+ * note, to its owner and watchers; past BULK_PUBLICATION, one
+ * `note.publishedMany` per person, with how many of the notes are theirs
+ * (owned or watched) and the first one's title.
+ */
+export function publicationNotices(
+  rows: readonly Pick<Note, 'id' | 'title' | 'ownerId'>[],
+  watchers: ReadonlyMap<string, readonly string[]>,
+): NotifyInput[] {
+  const recipientsOf = (row: (typeof rows)[number]) => [
+    ...new Set([row.ownerId, ...(watchers.get(row.id) ?? [])]),
+  ];
+  if (rows.length <= BULK_PUBLICATION) {
+    return rows.map((row) => ({
+      type: 'note.published',
+      to: recipientsOf(row),
+      data: { noteId: row.id, title: row.title },
+      link: `/notes/${row.id}`,
+    }));
+  }
+  const byRecipient = new Map<string, { notes: number; title: string }>();
+  for (const row of rows) {
+    for (const recipient of recipientsOf(row)) {
+      const seen = byRecipient.get(recipient);
+      if (seen) seen.notes += 1;
+      else byRecipient.set(recipient, { notes: 1, title: row.title });
+    }
+  }
+  return [...byRecipient].map(([to, data]) => ({
+    type: 'note.publishedMany',
+    to,
+    data,
+    link: '/notes',
+  }));
+}
 
 /**
  * What the publication workflow's step does, and how note webhooks are
@@ -148,12 +195,7 @@ export class NotePublisher {
       );
       await this.notifications.notifyMany(
         tx,
-        after.map((row) => ({
-          type: 'note.published',
-          to: [row.ownerId, ...(watchers.get(row.id) ?? [])],
-          data: { noteId: row.id, title: row.title },
-          link: `/notes/${row.id}`,
-        })),
+        publicationNotices(after, watchers),
       );
       return after.length;
     });

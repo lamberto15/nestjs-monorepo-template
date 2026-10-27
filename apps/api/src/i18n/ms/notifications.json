@@ -7,6 +7,13 @@
         "other": "{count} nota anda telah diterbitkan; yang terbaru ialah \"{title}\"."
       }
     },
+    "publishedMany": {
+      "label": "Nota diterbitkan secara pukal",
+      "title": "Nota diterbitkan",
+      "body": {
+        "other": "{count} kelompok nota telah diterbitkan; yang terakhir ada {notes}, termasuk \"{title}\"."
+      }
+    },
     "deleted": {
       "label": "Nota dipadam oleh orang lain",
       "title": "Nota dipadam",
