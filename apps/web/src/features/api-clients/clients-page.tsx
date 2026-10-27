@@ -14,6 +14,8 @@ import { Link } from '@tanstack/react-router';
 import { PlusIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { formatDateTime } from '@/lib/date-time';
 import { CreateClientDialog } from './create-client-dialog';
 import { activeKeys, clientsQuery, lastUsed, useCreateClient } from './queries';
@@ -26,19 +28,17 @@ export function ClientsPage() {
   const [creating, setCreating] = useState(false);
   const create = useCreateClient();
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="flex-1">
-          <h1 className="text-xl font-medium">{t('list.title')}</h1>
-          <p className="text-sm text-muted-foreground">
-            {t('list.description')}
-          </p>
-        </div>
-        <Button onClick={() => setCreating(true)}>
-          <PlusIcon />
-          {t('list.create')}
-        </Button>
-      </div>
+    <Page>
+      <PageHeader
+        title={t('list.title')}
+        description={t('list.description')}
+        actions={
+          <Button onClick={() => setCreating(true)}>
+            <PlusIcon />
+            {t('list.create')}
+          </Button>
+        }
+      />
       {list.isPending ? (
         <Spinner />
       ) : list.data?.items.length ? (
@@ -83,7 +83,7 @@ export function ClientsPage() {
           </Table>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">{t('list.empty')}</p>
+        <EmptyState title={t('list.empty')} />
       )}
       <CreateClientDialog
         open={creating}
@@ -95,6 +95,6 @@ export function ClientsPage() {
         title={t('secret.createdTitle', { name: create.data?.name ?? '' })}
         onClose={() => create.reset()}
       />
-    </div>
+    </Page>
   );
 }

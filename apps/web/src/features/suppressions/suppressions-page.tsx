@@ -33,6 +33,8 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { useDateTimeFormat } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
 import { Can, useCan } from '@/lib/features';
@@ -130,19 +132,19 @@ export function SuppressionsPage() {
   const filter = (change: Partial<Record<keyof typeof urlState, unknown>>) =>
     void setFilters({ ...change, page: null } as never);
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="flex-1">
-          <h1 className="text-xl font-medium">{t('title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('description')}</p>
-        </div>
-        <Can permission="MailSuppression.manage">
-          <Button onClick={() => setAdding(true)}>
-            <PlusIcon />
-            {t('add.open')}
-          </Button>
-        </Can>
-      </div>
+    <Page>
+      <PageHeader
+        title={t('title')}
+        description={t('description')}
+        actions={
+          <Can permission="MailSuppression.manage">
+            <Button onClick={() => setAdding(true)}>
+              <PlusIcon />
+              {t('add.open')}
+            </Button>
+          </Can>
+        }
+      />
       <form
         // Remounted when ?q changes (back, a link), so the box shows it.
         key={q ?? ''}
@@ -354,9 +356,9 @@ export function SuppressionsPage() {
           </div>
         </>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          {q || reason || status ? t('emptyFiltered') : t('empty')}
-        </p>
+        <EmptyState
+          title={q || reason || status ? t('emptyFiltered') : t('empty')}
+        />
       )}
       <AddSuppressionDialog
         open={adding}
@@ -390,6 +392,6 @@ export function SuppressionsPage() {
           toast.success(t('remove.done', { address: removing.address }));
         }}
       />
-    </div>
+    </Page>
   );
 }

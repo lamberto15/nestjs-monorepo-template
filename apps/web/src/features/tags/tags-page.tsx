@@ -26,6 +26,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { formatDateTime } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
 import {
@@ -83,11 +85,8 @@ export function TagsPage() {
     );
 
   return (
-    <div className="flex max-w-5xl flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-medium">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('description')}</p>
-      </div>
+    <Page>
+      <PageHeader title={t('title')} description={t('description')} />
       <div className="flex flex-wrap items-end gap-4">
         <Field className="w-full sm:w-56">
           <FieldLabel htmlFor="tags-subject">{t('subject')}</FieldLabel>
@@ -136,13 +135,9 @@ export function TagsPage() {
       )}
       {tags.isSuccess &&
         (all.length === 0 ? (
-          <p role="status" className="text-sm text-muted-foreground">
-            {t('none')}
-          </p>
+          <EmptyState title={t('none')} />
         ) : shown.length === 0 ? (
-          <p role="status" className="text-sm text-muted-foreground">
-            {t('noMatch')}
-          </p>
+          <EmptyState title={t('noMatch')} />
         ) : (
           <div className="rounded-md border">
             <Table>
@@ -224,6 +219,6 @@ export function TagsPage() {
           toast.success(t('deleted'));
         }}
       />
-    </div>
+    </Page>
   );
 }

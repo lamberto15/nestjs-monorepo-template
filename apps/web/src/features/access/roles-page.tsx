@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
-import { buttonVariants } from '@nestjs-monorepo-template/ui/components/button';
+import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import {
   Table,
@@ -11,10 +11,11 @@ import {
   TableHeader,
   TableRow,
 } from '@nestjs-monorepo-template/ui/components/table';
-import { PlusIcon } from 'lucide-react';
+import { PlusIcon, Trash2Icon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ConfirmButton } from '@/components/confirm-button';
+import { Page, PageHeader } from '@/components/page-header';
 import {
   deleteRole,
   invalidateAccess,
@@ -29,18 +30,17 @@ export function RolesPage() {
   const { t } = useTranslation('access');
   const roles = useQuery(rolesQuery);
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <h1 className="text-xl font-medium">{t('roles.title')}</h1>
-        {/* A link that looks like a button: it goes to a page. */}
-        <Link
-          to="/access/roles/new"
-          className={buttonVariants({ className: 'ms-auto' })}
-        >
-          <PlusIcon />
-          {t('roles.new')}
-        </Link>
-      </div>
+    <Page>
+      <PageHeader
+        title={t('roles.title')}
+        actions={
+          // A link that looks like a button: it goes to a page.
+          <Button nativeButton={false} render={<Link to="/access/roles/new" />}>
+            <PlusIcon />
+            {t('roles.new')}
+          </Button>
+        }
+      />
       {roles.isPending ? (
         <Spinner />
       ) : roles.isError ? (
@@ -64,7 +64,7 @@ export function RolesPage() {
           </TableBody>
         </Table>
       )}
-    </section>
+    </Page>
   );
 }
 
@@ -105,7 +105,8 @@ function RoleRow({ role }: { role: Role }) {
         {!role.system && (
           <ConfirmButton
             size="sm"
-            variant="ghost"
+            variant="outline"
+            className="pointer-coarse:h-10"
             title={t('roles.deleteTitle', { name: role.name })}
             description={t('roles.deleteDescription', {
               count: role.members,
@@ -113,6 +114,7 @@ function RoleRow({ role }: { role: Role }) {
             confirm={t('roles.delete')}
             onConfirm={() => remove.mutateAsync()}
           >
+            <Trash2Icon />
             {t('roles.delete')}
           </ConfirmButton>
         )}

@@ -23,6 +23,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { formatDateTime } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
 import { useDescribedBy, useStaleDraftSession } from '@/lib/form';
@@ -45,11 +47,8 @@ export function RetentionPage() {
   });
 
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-medium">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('description')}</p>
-      </div>
+    <Page width="narrow">
+      <PageHeader title={t('title')} description={t('description')} />
       <Alert>
         <AlertDescription>{t('holds')}</AlertDescription>
       </Alert>
@@ -61,9 +60,7 @@ export function RetentionPage() {
       )}
       {rules.isSuccess &&
         (rules.data.items.length === 0 ? (
-          <p role="status" className="text-sm text-muted-foreground">
-            {t('none')}
-          </p>
+          <EmptyState title={t('none')} />
         ) : (
           rules.data.items.map((rule) => (
             // Fresh state when the saved values change.
@@ -73,7 +70,7 @@ export function RetentionPage() {
             />
           ))
         ))}
-    </div>
+    </Page>
   );
 }
 
