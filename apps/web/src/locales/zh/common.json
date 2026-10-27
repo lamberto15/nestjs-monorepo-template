@@ -324,7 +324,8 @@
     "fields": {
       "tag": "标签",
       "ownerId": "所有者",
-      "teamId": "团队"
+      "teamId": "团队",
+      "actor": "操作者"
     },
     "refs": {
       "searching": "正在搜索…",

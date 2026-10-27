@@ -379,7 +379,8 @@ product terms, codes and brand names stay as in `en`. The texts of a new
 feature (`pnpm feature:add`) start as English copies in every language: translate
 them in `locales/<lng>/<feature>.json` with the other new keys, keeping the
 `{{placeholders}}` and plural suffixes (`src/locales.test.ts` checks them; `ar`
-has all six plural forms). `<html lang>` and `dir` (`rtl` for `ar`) follow the language; the
+has all six plural forms). A key the code asks for that `en` lacks fails the
+test that renders it (`test/i18n.ts`), rather than showing as the raw key. `<html lang>` and `dir` (`rtl` for `ar`) follow the language; the
 theme (light, dark, system) is a class on `<html>`.
 
 ### Components

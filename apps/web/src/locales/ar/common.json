@@ -329,7 +329,8 @@
     "fields": {
       "tag": "وسم",
       "ownerId": "المالك",
-      "teamId": "الفريق"
+      "teamId": "الفريق",
+      "actor": "الفاعل"
     },
     "refs": {
       "searching": "جارٍ البحث…",

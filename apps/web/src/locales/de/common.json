@@ -325,7 +325,8 @@
     "fields": {
       "tag": "Tag",
       "ownerId": "Eigentümer",
-      "teamId": "Team"
+      "teamId": "Team",
+      "actor": "Akteur"
     },
     "refs": {
       "searching": "Wird gesucht…",

@@ -3,6 +3,7 @@ import { cleanup, configure } from '@testing-library/react';
 import { toast } from 'sonner';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 import { teardownApps } from '@/test/app-clients';
+import { takeMissingKeys } from '@/test/i18n';
 import { server } from '@/test/server';
 
 // findBy*/waitFor wait 1 s by default (Testing Library's asyncUtilTimeout).
@@ -22,6 +23,13 @@ afterEach(async () => {
   // Sonner's toasts live in a module-level store: one test's must not show in the next.
   toast.dismiss();
   server.resetHandlers();
+  // A text the page showed as its raw key (test/i18n.ts).
+  const missing = takeMissingKeys();
+  if (missing.length > 0) {
+    throw new Error(
+      `Translation keys in no English catalog: ${missing.join(', ')}`,
+    );
+  }
 });
 afterAll(() => server.close());
 
