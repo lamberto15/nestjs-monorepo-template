@@ -12,7 +12,7 @@ export class NoteComments implements CommentTarget {
   readonly subject = 'Note';
   readonly commentedType = 'note.commented';   // what watchers get (declared in note-notifications.ts)
   constructor(private readonly notes: NotesService, private readonly policy: NotePolicy, registry: CommentsRegistry) { registry.register(this); }
-  async canRead(p, id) { return this.policy.read(p, await this.notes.findOne(id)); }      // 404 when missing
+  async canRead(p, id) { /* findOne(id, undefined, { visibleTo: p }), then policy.read */ } // false when missing or unreadable: one 404
   async canModerate(p, id) { return this.policy.update(p, await this.notes.findOne(id)); }
   link(id) { return `/notes/${id}`; }
   async title(id) { return (await this.notes.findOne(id)).title; }
@@ -29,7 +29,8 @@ this.comments.add(user, { subject: 'Note', recordId: id }, dto.body, ip);
 | `DELETE /v1/notes/{id}/comments/{commentId}` | the author, or a moderator (`canModerate`: for notes, `Note.update`, so with the seeded editor role an owner moderates their drafts, not their published notes); for good |
 
 - **Who**: whoever may read the record reads and writes its comments
-  (403 otherwise, 404 when the record doesn't exist).
+  (404 otherwise, the same as when the record doesn't exist:
+  [permissions](permissions.md), "A record you may not read is a 404").
 - **Mentions**: `@ada@example.com` or `@user:<id>` in the body. Active
   users who may read the record are stored in `mentions` and get
   `comment.mentioned` (email at once by default; not mandatory); anyone

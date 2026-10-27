@@ -26,6 +26,7 @@ import {
   RECORD_DECLARATION,
   RECORD_TABLE,
   RecordLifecycle,
+  type RecordLookup,
   type RecordRow,
 } from './record-contract.js';
 
@@ -96,15 +97,26 @@ export class RecordStore {
 
   /**
    * One, or a 404. With a recycle bin, deleted ones are found only with
-   * `deleted` (and only they); without one, `deleted` finds nothing.
+   * `deleted` (and only they); without one, `deleted` finds nothing. With
+   * `visibleTo`, only one that principal may read (`deleted`: restore): the
+   * permission filter is in the query, so a record they may not read is the
+   * same 404, after the same query, as one that doesn't exist.
    */
   async findOne<Row extends RecordRow>(
     id: string,
     db: Database | Transaction = this.db,
-    { deleted = false }: { deleted?: boolean } = {},
+    { deleted = false, visibleTo }: RecordLookup = {},
   ): Promise<Row> {
     const table = this.table;
-    const soft = this.declaration.softDelete;
+    const { softDelete: soft, subject } = this.declaration;
+    const visible = visibleTo
+      ? await this.access.sqlFilter(
+          visibleTo,
+          subject,
+          deleted ? 'restore' : 'read',
+          { deleted },
+        )
+      : undefined;
     const [row] =
       deleted && !soft
         ? []
@@ -119,6 +131,7 @@ export class RecordStore {
                     ? isNotNull(table.deletedAt!)
                     : isNull(table.deletedAt!)
                   : undefined,
+                visible,
               ),
             );
     if (!row) {

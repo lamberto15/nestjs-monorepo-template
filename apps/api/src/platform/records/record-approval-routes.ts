@@ -189,7 +189,10 @@ export function recordApprovalRoutes(
         @Param('id', ParseUUIDPipe) id: string,
         @Res({ passthrough: true }) res: Response,
       ) {
-        const row = await this.c.service.findOne(id);
+        // Unreadable: the same 404 as a missing one; readable but not theirs to change: a 403.
+        const row = await this.c.service.findOne(id, undefined, {
+          visibleTo: user,
+        });
         await this.authorization.authorize(options.policy, 'update', user, row);
         const result = await this.approvals.request(user, {
           subject: declaration.subject,

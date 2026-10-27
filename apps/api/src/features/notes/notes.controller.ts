@@ -78,7 +78,9 @@ import { NOTE_LIST } from './note.list.js';
 /**
  * The example feature's API, for API clients (a key) and users (a session).
  * It shows the three ways a permission is checked: on the route (create),
- * on the loaded record (read, delete), and in the query (list).
+ * on the loaded record (update, delete), and in the query (list, and the
+ * lookup of one note: a note the caller may not read is a 404 like a
+ * missing one, on every route, so none tells that it exists).
  */
 @ApiTags('notes')
 @ApiBearerAuth('api-key')
@@ -255,7 +257,8 @@ export class NotesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query('include', IncludePipe) include: RecordInclude,
   ) {
-    const note = await this.notes.findOne(id);
+    // A note the caller may not read: the same 404 as a missing one.
+    const note = await this.notes.findOne(id, undefined, { visibleTo: user });
     await this.authorization.authorize(NotePolicy, 'read', user, note);
     const shown = await this.shown(user, note);
     return include.can || include.watching
@@ -284,7 +287,8 @@ export class NotesController {
     @Headers('if-match') ifMatch: string | undefined,
     @Ip() ip: string,
   ) {
-    const note = await this.notes.findOne(id);
+    // Unreadable: a 404; readable but not theirs to change: a 403 (below).
+    const note = await this.notes.findOne(id, undefined, { visibleTo: user });
     const updated = await this.notes.update(user, note, dto, ip, {
       assertCurrent: async (current) => {
         await this.authorization.authorize(NotePolicy, 'update', user, current);
@@ -323,7 +327,11 @@ export class NotesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Ip() ip: string,
   ) {
-    const note = await this.notes.findOne(id, undefined, { deleted: true });
+    // In the recycle bin and theirs to restore (what ?deleted=true lists), else a 404.
+    const note = await this.notes.findOne(id, undefined, {
+      deleted: true,
+      visibleTo: user,
+    });
     await this.authorization.authorize(NotePolicy, 'restore', user, note);
     return this.shown(user, await this.notes.restore(user, note, ip));
   }
@@ -348,7 +356,8 @@ export class NotesController {
     @Headers('if-match') ifMatch: string | undefined,
     @Ip() ip: string,
   ) {
-    const note = await this.notes.findOne(id);
+    // Unreadable: a 404; readable but not theirs to delete: a 403 (below).
+    const note = await this.notes.findOne(id, undefined, { visibleTo: user });
     await this.notes.delete(user, note, ip, async (current) => {
       await this.authorization.authorize(NotePolicy, 'delete', user, current);
       assertUnchanged(ifMatch, await this.shown(user, current));

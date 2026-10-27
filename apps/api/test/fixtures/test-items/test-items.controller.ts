@@ -177,7 +177,10 @@ export class TestItemsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query('include', IncludePipe) include: RecordInclude,
   ) {
-    const row = await this.testItems.findOne(id);
+    // One the caller may not read: the same 404 as a missing one.
+    const row = await this.testItems.findOne(id, undefined, {
+      visibleTo: user,
+    });
     await this.authorization.authorize(TestItemPolicy, 'read', user, row);
     return this.presenter.one(user, row, include);
   }
@@ -203,7 +206,10 @@ export class TestItemsController {
     @Headers('if-match') ifMatch: string | undefined,
     @Ip() ip: string,
   ) {
-    const row = await this.testItems.findOne(id);
+    // Unreadable: a 404; readable but not theirs to change: a 403 (below).
+    const row = await this.testItems.findOne(id, undefined, {
+      visibleTo: user,
+    });
     return this.presenter.one(
       user,
       await this.testItems.update(user, row, dto, ip, {
@@ -237,7 +243,10 @@ export class TestItemsController {
     @CurrentUser() user: RequestPrincipal,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    const row = await this.testItems.findOne(id);
+    // Unreadable: a 404; readable but not theirs to change: a 403.
+    const row = await this.testItems.findOne(id, undefined, {
+      visibleTo: user,
+    });
     await this.authorization.authorize(TestItemPolicy, 'update', user, row);
     return this.testItems.requestPublication(user, row);
   }
@@ -258,7 +267,10 @@ export class TestItemsController {
     @Headers('if-match') ifMatch: string | undefined,
     @Ip() ip: string,
   ) {
-    const row = await this.testItems.findOne(id);
+    // Unreadable: a 404; readable but not theirs to delete: a 403 (below).
+    const row = await this.testItems.findOne(id, undefined, {
+      visibleTo: user,
+    });
     await this.testItems.delete(user, row, ip, async (current) => {
       await this.authorization.authorize(
         TestItemPolicy,
