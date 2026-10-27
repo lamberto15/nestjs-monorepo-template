@@ -177,6 +177,33 @@ describe('database observer', () => {
     await lagged.incidents.close();
   });
 
+  it('re-checks a still-running query when lag explained its first second', async () => {
+    vi.useFakeTimers();
+    const lagged = new DatabaseObserver(stats, undefined, () => 300);
+    const record = vi.spyOn(lagged.incidents, 'record');
+    let finish!: (value: unknown) => void;
+    const client = clientOf(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    lagged.instrument(client);
+    const running = client.query('select pg_advisory_xact_lock(1)');
+    await vi.advanceTimersByTimeAsync(1001);
+    expect(record).not.toHaveBeenCalled();
+    // Still blocked: recorded while running, once the lag is accounted for.
+    await vi.advanceTimersByTimeAsync(300);
+    expect(record).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ trigger: 'slow_query' }),
+    );
+    finish({ rows: [] });
+    await running;
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(record).toHaveBeenCalledOnce();
+    await lagged.incidents.close();
+  });
+
   it('preserves callback-style query and pool APIs, including release', async () => {
     const samples = vi.fn();
     observer.subscribe(samples);
