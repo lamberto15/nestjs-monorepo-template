@@ -60,7 +60,17 @@ describe('the exchange rates page', () => {
   it('explains an empty answer', async () => {
     useMoneyApi({ rates: null });
     await renderApp('/exchange-rates');
-    expect(await screen.findByText(/No exchange rates yet/)).toBeVisible();
+    expect(await screen.findByText('No exchange rates yet.')).toBeVisible();
+  });
+
+  it('with no rates says so once, asks for no conversion and shows no error', async () => {
+    const { calls } = useMoneyApi({ rates: null });
+    await renderApp('/exchange-rates');
+    await screen.findByText('No exchange rates yet.');
+    expect(screen.queryByText(/on or before/)).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText('Currency converter')).toBeNull();
+    expect(calls.convert).toEqual([]);
   });
 });
 

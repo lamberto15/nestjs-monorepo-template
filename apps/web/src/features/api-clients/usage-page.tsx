@@ -161,7 +161,7 @@ function UsageReport(props: {
   const { from, to } = useMemo(() => rangeFor(props.days), [props.days]);
   const usage = useQuery(usageQuery(props.id, from, to));
   const chartConfig = {
-    total: { label: t('usage.chart.series'), color: 'var(--primary)' },
+    total: { label: t('usage.chart.series'), color: 'var(--chart-2)' },
   } satisfies ChartConfig;
   if (usage.isPending) {
     return <Spinner />;
@@ -231,7 +231,12 @@ function UsageReport(props: {
                 allowDecimals={false}
               />
               <ChartTooltip content={<ChartTooltipContent labelKey="day" />} />
-              <Bar dataKey="total" fill="var(--color-total)" radius={3} />
+              <Bar
+                dataKey="total"
+                fill="var(--color-total)"
+                radius={3}
+                maxBarSize={48}
+              />
             </BarChart>
           </ChartContainer>
         )}
