@@ -1159,11 +1159,91 @@ describe('custom fields (e2e)', () => {
           })
           .expect(201);
       }
-      return (query: string) =>
-        node.http().get(`/v1/test-items${query}`).set('Authorization', auth);
+      return Object.assign(
+        (query: string) =>
+          node.http().get(`/v1/test-items${query}`).set('Authorization', auth),
+        { auth },
+      );
     }
     const titles = (body: { items: { title: string }[] }) =>
       body.items.map((item) => item.title);
+
+    it('filters by equality, any-of and presence with the same results as before the GIN rewrite', async () => {
+      await field({ key: 'note', type: 'text', filterable: true });
+      await field({
+        key: 'region',
+        type: 'select',
+        options: ['eu', 'us'].map((value) => ({ value, label: value })),
+        filterable: true,
+      });
+      await field({ key: 'amount', type: 'number', filterable: true });
+      await field({ key: 'done', type: 'boolean', filterable: true });
+      await field({ key: 'due', type: 'date', filterable: true });
+      await field({
+        key: 'tags',
+        type: 'multiSelect',
+        options: ['a', 'b', 'c', 'd'].map((value) => ({ value, label: value })),
+        filterable: true,
+      });
+      const list = await itemsWith([
+        {
+          note: 'x',
+          region: 'eu',
+          amount: 5,
+          done: false,
+          due: '2026-01-05',
+          tags: ['a', 'b'],
+        },
+        { note: 'y', region: 'us', amount: 2.5, done: true, tags: ['c'] },
+        {}, // no key at all
+        { region: 'eu', amount: 7 }, // its region is removed below
+      ]);
+      const removed = (await list('').expect(200)).body.items.find(
+        (item: { title: string }) => item.title === 'Item 3',
+      ) as { id: string };
+      await node
+        .http()
+        .patch(`/v1/test-items/${removed.id}`)
+        .set('Authorization', list.auth)
+        .send({ custom: { region: null } })
+        .expect(200);
+      const found = async (query: string) =>
+        titles((await list(query).expect(200)).body).sort((a, b) =>
+          a.localeCompare(b),
+        );
+
+      expect(await found('?custom.note=x')).toEqual(['Item 0']);
+      expect(await found('?custom.note.in=x,y')).toEqual(['Item 0', 'Item 1']);
+      expect(await found('?custom.region=eu')).toEqual(['Item 0']);
+      expect(await found('?custom.amount=5')).toEqual(['Item 0']);
+      expect(await found('?custom.amount=2.5')).toEqual(['Item 1']);
+      expect(await found('?custom.amount.in=2.5,5')).toEqual([
+        'Item 0',
+        'Item 1',
+      ]);
+      expect(await found('?custom.done=false')).toEqual(['Item 0']);
+      expect(await found('?custom.done=true')).toEqual(['Item 1']);
+      expect(await found('?custom.due=2026-01-05')).toEqual(['Item 0']);
+      expect(await found('?custom.tags.in=b,c')).toEqual(['Item 0', 'Item 1']);
+      expect(await found('?custom.tags.in=d')).toEqual([]);
+      expect(await found('?custom.region.isNull=false')).toEqual([
+        'Item 0',
+        'Item 1',
+      ]);
+      expect(await found('?custom.region.isNull=true')).toEqual([
+        'Item 2',
+        'Item 3',
+      ]);
+      const filter = encodeURIComponent(
+        JSON.stringify({
+          or: [
+            { field: 'custom.tags', op: 'in', value: ['c'] },
+            { field: 'custom.amount', op: 'eq', value: 5 },
+          ],
+        }),
+      );
+      expect(await found(`?filter=${filter}`)).toEqual(['Item 0', 'Item 1']);
+    });
 
     it('filters, sorts and selects custom fields like declared ones', async () => {
       await field({

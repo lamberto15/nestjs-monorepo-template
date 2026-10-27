@@ -79,12 +79,47 @@ describe('customFilterFields', () => {
     expect(fields['custom.tags'].sortable).toBe(false);
   });
 
-  it('gives a multiSelect "holds any of" on the GIN index', () => {
+  it('compiles eq and in to containment on the column, so the GIN index serves them', () => {
+    const eq = render(fields['custom.region'].conditions!.eq!('eu'));
+    expect(eq.sql).toBe(
+      `"invoices"."custom" @> jsonb_build_object('region', $1::text)`,
+    );
+    expect(eq.params).toEqual(['eu']);
+    const any = render(fields['custom.region'].conditions!.in!(['eu', 'us']));
+    expect(any.sql).toBe(
+      `("invoices"."custom" @> jsonb_build_object('region', $1::text) or "invoices"."custom" @> jsonb_build_object('region', $2::text))`,
+    );
+    expect(render(fields['custom.amount'].conditions!.eq!(5)).sql).toContain(
+      `jsonb_build_object('amount', $1::numeric)`,
+    );
+    expect(render(fields['custom.done'].conditions!.eq!(false)).sql).toContain(
+      `jsonb_build_object('done', $1::boolean)`,
+    );
+    expect(
+      render(fields['custom.due'].conditions!.eq!('2026-01-05')).sql,
+    ).toContain(`jsonb_build_object('due', $1::text)`);
+  });
+
+  it('gives a multiSelect "holds any of" as containment of a one-element array', () => {
     const any = render(fields['custom.tags'].conditions!.in!(['a', 'b']));
     expect(any.sql).toBe(
-      `("invoices"."custom"->'tags') ?| array[$1, $2]::text[]`,
+      `("invoices"."custom" @> jsonb_build_object('tags', jsonb_build_array($1::text)) or "invoices"."custom" @> jsonb_build_object('tags', jsonb_build_array($2::text)))`,
     );
+    expect(any.sql).not.toContain('?|');
     expect(any.params).toEqual(['a', 'b']);
+  });
+
+  it('compiles isNull to the key operator, and leaves ne and the ordered operators on the expression', () => {
+    const has = fields['custom.region'].conditions!.isNull!(false);
+    expect(render(has).sql).toBe(`"invoices"."custom" ? 'region'`);
+    const none = fields['custom.region'].conditions!.isNull!(true);
+    expect(render(none).sql).toBe(`not ("invoices"."custom" ? 'region')`);
+    for (const name of ['custom.region', 'custom.amount']) {
+      const { conditions } = fields[name];
+      expect(conditions).not.toHaveProperty('ne');
+      expect(conditions).not.toHaveProperty('gt');
+      expect(conditions).not.toHaveProperty('notIn');
+    }
   });
 
   it('refuses a key that is not a slug (it is inlined in SQL)', () => {
