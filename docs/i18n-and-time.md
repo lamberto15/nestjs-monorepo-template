@@ -33,6 +33,10 @@ native speaker review them.
   placeholders, and for a plural message exactly the forms the language uses
   (`Intl.PluralRules`: `ar` six, `en` and `de` two, `zh` and `ms` only
   `_other`). So a `_one` in `zh` is stale, and `_zero` in `ar` is required.
+  It compares catalogs, not the code: a key the web app's code asks for that
+  `en` lacks fails the test that renders it instead (`saveMissing`,
+  `apps/web/src/test/i18n.ts`; a lookup with a `defaultValue` is a fallback
+  and passes).
 - The web app sends its language as `Accept-Language` with each request and
   switches to the user's saved one; it shows times in their time zone, else
   the browser's (`apps/web/src/lib/date-time.ts`).
