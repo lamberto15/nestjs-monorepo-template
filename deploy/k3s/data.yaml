@@ -108,13 +108,13 @@ spec:
           command: [sh, /etc/redis-scripts/redis.sh, server]
           env:
             - { name: REDIS_PASSWORD_FILE, value: /run/secrets/redis_password }
-            - { name: REDIS_MAXMEMORY, value: 400mb }
+            - { name: REDIS_MAXMEMORY, value: 1gb }
           ports:
             - { name: redis, containerPort: 6379 }
           startupProbe:
             exec: { command: [sh, /etc/redis-scripts/redis.sh, ping] }
             periodSeconds: 5
-            failureThreshold: 30
+            failureThreshold: 120
           readinessProbe:
             exec: { command: [sh, /etc/redis-scripts/redis.sh, ping] }
             periodSeconds: 5
@@ -123,8 +123,8 @@ spec:
             periodSeconds: 15
             failureThreshold: 3
           resources:
-            requests: { cpu: 100m, memory: 512Mi, ephemeral-storage: 64Mi }
-            limits: { cpu: '1', memory: 768Mi, ephemeral-storage: 512Mi }
+            requests: { cpu: 100m, memory: 1Gi, ephemeral-storage: 64Mi }
+            limits: { cpu: '1', memory: 2Gi, ephemeral-storage: 512Mi }
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
