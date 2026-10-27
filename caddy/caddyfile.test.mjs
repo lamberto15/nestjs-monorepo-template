@@ -1,7 +1,9 @@
 // The Caddyfile's behaviour, run by a real Caddy:
 //   CADDY_BIN=/path/to/caddy node --test caddy/caddyfile.test.mjs
 // (CI's caddy-image job takes the binary out of the image it built; without a
-// binary the tests are skipped.) The real Caddyfile is used with four edits
+// binary those tests are skipped. The Helm workflow runs the file too, for the
+// tests that need no Caddy: the chart's copy of the web app's Caddyfile must
+// match this one.) The real Caddyfile is used with four edits
 // that make it runnable without TLS, DNS or Docker: the `tls` block goes, the
 // site address becomes a local http one, the `/srv` directories become temp
 // directories, and `api:3000` becomes a stub server. Every edit must match, or
@@ -14,15 +16,17 @@ import {
   copyFileSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { createServer } from 'node:http';
+import { createServer, request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { brotliDecompressSync, gunzipSync } from 'node:zlib';
 
 const caddyBin = process.env.CADDY_BIN || 'caddy';
 const available =
@@ -39,6 +43,33 @@ const entrypoint = fileURLToPath(new URL('./entrypoint.sh', import.meta.url));
 const maintenancePage = fileURLToPath(
   new URL('./maintenance.html', import.meta.url),
 );
+// What the image's build runs on the built assets (caddy/Dockerfile).
+const precompressScript = fileURLToPath(
+  new URL('../apps/web/scripts/precompress.mjs', import.meta.url),
+);
+
+// The web app's files, over the 512 bytes under which Caddy's encode sends a
+// response as it is (encode docs, minimum_length): the shell names its
+// scripts, as the built one does.
+const SHELL = `<!doctype html><title>app shell</title>\n${'<link rel="modulepreload" crossorigin href="/assets/app.js">\n'.repeat(20)}`;
+const APP_JS = `export const words = [${'"compressible", '.repeat(80)}];\n`;
+// The API's answers the stub gives: a record with its strong ETag (a GET of
+// an @Etag() route), and the ops log's event stream (GET /v1/ops/events,
+// with the headers Nest's @Sse() sends).
+const NOTE = JSON.stringify({
+  id: '0190f7a2-0000-7000-8000-000000000001',
+  title: 'A note',
+  body: 'compressible '.repeat(60),
+});
+const NOTE_ETAG = '"mZ1kQ0bH5d1Yh9xVv2u3q8r7s6t"';
+
+/** Runs apps/web/scripts/precompress.mjs on `dir`, as the image's build does. */
+function precompress(dir) {
+  const run = spawnSync(process.execPath, [precompressScript, dir], {
+    encoding: 'utf8',
+  });
+  assert.equal(run.status, 0, run.stderr);
+}
 
 /** `text` with every `from` replaced; a miss throws. */
 function replace(text, from, to) {
@@ -98,11 +129,9 @@ async function startCaddy(env, { viaEntrypoint = false } = {}) {
     security: join(root, 'security'),
   };
   mkdirSync(join(dirs.web, 'assets'), { recursive: true });
-  writeFileSync(
-    join(dirs.web, 'index.html'),
-    '<!doctype html><title>app shell</title>',
-  );
-  writeFileSync(join(dirs.web, 'assets', 'app.js'), 'export {};');
+  writeFileSync(join(dirs.web, 'index.html'), SHELL);
+  writeFileSync(join(dirs.web, 'assets', 'app.js'), APP_JS);
+  precompress(join(dirs.web, 'assets'));
   mkdirSync(dirs.maintenance);
   copyFileSync(maintenancePage, join(dirs.maintenance, 'index.html'));
   mkdirSync(join(dirs.security, '.well-known'), { recursive: true });
@@ -112,6 +141,25 @@ async function startCaddy(env, { viaEntrypoint = false } = {}) {
   );
 
   const api = createServer((request, response) => {
+    if (request.url === '/v1/ops/events') {
+      // The first event, then nothing until the client goes: a proxy that
+      // held the response back would never pass it on.
+      response.writeHead(200, {
+        'content-type': 'text/event-stream',
+        'cache-control':
+          'private, no-cache, no-store, must-revalidate, max-age=0, no-transform',
+        'x-accel-buffering': 'no',
+      });
+      response.write('data: {"type":"log","message":"first"}\n\n');
+      return;
+    }
+    if (request.url === '/v1/notes/1') {
+      response.setHeader('content-type', 'application/json; charset=utf-8');
+      response.setHeader('etag', NOTE_ETAG);
+      response.setHeader('cache-control', 'private, no-cache');
+      response.end(NOTE);
+      return;
+    }
     response.setHeader('content-type', 'text/plain');
     response.end(`api ${request.method} ${request.url}`);
   });
@@ -179,21 +227,60 @@ async function get(caddy, path, init) {
   };
 }
 
+/**
+ * A response's status, headers (lower-case names, as node:http gives them)
+ * and body as it came, not decoded: what a browser asking with
+ * `accept-encoding` gets (fetch would decode it).
+ */
+function raw(caddy, path, { method = 'GET', headers = {} } = {}) {
+  return new Promise((resolve, reject) => {
+    const sent = request(caddy.base + path, { method, headers }, (response) => {
+      const chunks = [];
+      response.on('data', (chunk) => chunks.push(chunk));
+      response.on('end', () =>
+        resolve({
+          status: response.statusCode,
+          headers: response.headers,
+          body: Buffer.concat(chunks),
+        }),
+      );
+      response.on('error', reject);
+    });
+    sent.on('error', reject);
+    sent.end();
+  });
+}
+
+/** The tokens of a response's Vary. */
+const vary = (headers) =>
+  (headers.vary ?? '').split(',').map((token) => token.trim().toLowerCase());
+
+/** The web app's headers besides the policy, as the `header` block sets them. */
+const WEB_HEADERS = {
+  'x-frame-options': 'DENY',
+  'x-content-type-options': 'nosniff',
+  'referrer-policy': 'strict-origin-when-cross-origin',
+  'permissions-policy':
+    'camera=(), microphone=(), geolocation=(), payment=(), usb=(), publickey-credentials-get=(self), publickey-credentials-create=(self)',
+  'strict-transport-security': 'max-age=63072000',
+  'cross-origin-opener-policy': 'same-origin',
+};
+
 /** What the web app's every response carries (the web app's `header` block). */
 function assertSecurityHeaders(response) {
-  assert.match(
-    response.headers.get('content-security-policy') ?? '',
-    /default-src 'self'/,
-  );
-  assert.match(
-    response.headers.get('content-security-policy') ?? '',
-    /script-src[^;]*'wasm-unsafe-eval'/,
-  );
-  assert.match(
-    response.headers.get('content-security-policy') ?? '',
-    /worker-src 'self'/,
-  );
-  assert.equal(response.headers.get('x-frame-options'), 'DENY');
+  const header = (name) =>
+    typeof response.headers.get === 'function'
+      ? response.headers.get(name)
+      : response.headers[name];
+  const policy = header('content-security-policy') ?? '';
+  assert.match(policy, /default-src 'self'/);
+  assert.match(policy, /script-src[^;]*'wasm-unsafe-eval'/);
+  assert.match(policy, /worker-src 'self'/);
+  assert.match(policy, /frame-ancestors 'none'/);
+  assert.doesNotMatch(policy, /'unsafe-eval'/);
+  for (const [name, value] of Object.entries(WEB_HEADERS)) {
+    assert.equal(header(name), value, name);
+  }
 }
 
 const APP = 'app shell';
@@ -215,7 +302,14 @@ describe('the web app, MAINTENANCE_PAGE unset', { skip }, () => {
     const asset = await get(caddy, '/assets/app.js');
     assert.equal(asset.status, 200);
     assert.match(asset.headers.get('cache-control') ?? '', /immutable/);
-    assert.equal((await get(caddy, '/assets/missing.js')).status, 404);
+    assertSecurityHeaders(asset);
+    const missing = await get(caddy, '/assets/missing.js');
+    assert.equal(missing.status, 404);
+    assert.doesNotMatch(
+      missing.headers.get('cache-control') ?? '',
+      /immutable/,
+    );
+    assertSecurityHeaders(missing);
   });
 
   it("sends the API a stored file's signed link: the local disk signs /files?key=…, whose path is /files itself", async () => {
@@ -236,12 +330,127 @@ describe('the web app, MAINTENANCE_PAGE unset', { skip }, () => {
   });
 
   it('sends the API its paths, and answers /metrics with 404', async () => {
-    assert.match(
-      (await get(caddy, '/v1/auth/me')).body,
-      /^api GET \/v1\/auth\/me$/,
-    );
+    const response = await get(caddy, '/v1/auth/me');
+    assert.match(response.body, /^api GET \/v1\/auth\/me$/);
+    // The API's own headers (helmet) only: none of the web app's.
+    for (const name of [
+      'content-security-policy',
+      ...Object.keys(WEB_HEADERS),
+    ]) {
+      assert.equal(response.headers.get(name), null, name);
+    }
     assert.equal((await get(caddy, '/metrics')).status, 404);
     assert.equal((await get(caddy, '/.well-known/security.txt')).status, 200);
+  });
+});
+
+describe('the web app compressed, the API as it is', { skip }, () => {
+  let caddy;
+  before(async () => (caddy = await startCaddy({})));
+  after(() => caddy.stop());
+
+  it('compresses the shell as it sends it: zstd, else gzip (no brotli encoder), else nothing', async () => {
+    for (const path of ['/', '/sign-in']) {
+      const zstd = await raw(caddy, path, {
+        headers: { 'accept-encoding': 'gzip, deflate, br, zstd' },
+      });
+      assert.equal(zstd.status, 200, path);
+      assert.equal(zstd.headers['content-encoding'], 'zstd', path);
+      // A zstd frame's magic number (RFC 8878).
+      assert.equal(zstd.body.readUInt32LE(0), 0xfd2fb528, path);
+      assert.ok(vary(zstd.headers).includes('accept-encoding'), path);
+      assertSecurityHeaders(zstd);
+
+      const gzip = await raw(caddy, path, {
+        headers: { 'accept-encoding': 'gzip' },
+      });
+      assert.equal(gzip.headers['content-encoding'], 'gzip', path);
+      assert.equal(gunzipSync(gzip.body).toString(), SHELL, path);
+
+      for (const accept of ['br', undefined]) {
+        const plain = await raw(caddy, path, {
+          headers: accept ? { 'accept-encoding': accept } : {},
+        });
+        assert.equal(plain.headers['content-encoding'], undefined, path);
+        assert.equal(plain.body.toString(), SHELL, path);
+      }
+    }
+  });
+
+  it('sends the built assets precompressed: the .br, else the .gz, else the file', async () => {
+    const asset = (accept) =>
+      raw(caddy, '/assets/app.js', {
+        headers: accept ? { 'accept-encoding': accept } : {},
+      });
+    const br = await asset('gzip, deflate, br, zstd');
+    assert.equal(br.status, 200);
+    assert.equal(br.headers['content-encoding'], 'br');
+    assert.equal(brotliDecompressSync(br.body).toString(), APP_JS);
+    assert.match(br.headers['content-type'] ?? '', /javascript/);
+    assert.match(br.headers['cache-control'] ?? '', /immutable/);
+    assert.ok(vary(br.headers).includes('accept-encoding'));
+    assertSecurityHeaders(br);
+
+    const gzip = await asset('gzip');
+    assert.equal(gzip.headers['content-encoding'], 'gzip');
+    assert.equal(gunzipSync(gzip.body).toString(), APP_JS);
+    assert.match(gzip.headers['cache-control'] ?? '', /immutable/);
+
+    const plain = await asset(undefined);
+    assert.equal(plain.headers['content-encoding'], undefined);
+    assert.equal(plain.body.toString(), APP_JS);
+
+    // A missing asset: the 404 as before, nothing compressed.
+    const missing = await raw(caddy, '/assets/missing.js', {
+      headers: { 'accept-encoding': 'gzip, br, zstd' },
+    });
+    assert.equal(missing.status, 404);
+    assert.equal(missing.headers['content-encoding'], undefined);
+  });
+
+  it("passes the API's responses as they are: not compressed, the strong ETag untouched", async () => {
+    // Caddy's encode would send "<tag>-zstd" and take the suffix off an
+    // If-None-Match only: a write's If-Match would carry it to the API.
+    const response = await raw(caddy, '/v1/notes/1', {
+      headers: { 'accept-encoding': 'gzip, deflate, br, zstd' },
+    });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers['content-encoding'], undefined);
+    assert.equal(response.headers.etag, NOTE_ETAG);
+    assert.equal(response.body.toString(), NOTE);
+  });
+
+  it('streams the ops log as it comes (text/event-stream): no buffering, no compression', async () => {
+    // The stub sends one event and keeps the stream open: it must arrive.
+    const { headers, first } = await new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error('the first event never came through')),
+        5_000,
+      );
+      const sent = request(
+        `${caddy.base}/v1/ops/events`,
+        {
+          headers: {
+            accept: 'text/event-stream',
+            'accept-encoding': 'gzip, br, zstd',
+          },
+        },
+        (response) => {
+          response.once('data', (chunk) => {
+            clearTimeout(timer);
+            resolve({ headers: response.headers, first: chunk.toString() });
+            sent.destroy();
+          });
+        },
+      );
+      sent.on('error', (error) => {
+        if (!sent.destroyed) reject(error);
+      });
+      sent.end();
+    });
+    assert.match(headers['content-type'] ?? '', /^text\/event-stream/);
+    assert.equal(headers['content-encoding'], undefined);
+    assert.equal(first, 'data: {"type":"log","message":"first"}\n\n');
   });
 });
 
@@ -659,5 +868,144 @@ describe('the maintenance page', () => {
   it('reloads by itself at the Retry-After the Caddyfile sends', () => {
     assert.match(page, /<meta http-equiv="refresh" content="30" \/>/);
     assert.match(caddyfile, /header Retry-After "30"/);
+  });
+});
+
+describe("the image's precompression (apps/web/scripts/precompress.mjs)", () => {
+  it('writes a .br and a .gz beside each text or WebAssembly file they make smaller, and nothing else', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'precompress-test-'));
+    try {
+      const wasm = Buffer.concat([
+        Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]),
+        Buffer.alloc(4096),
+      ]);
+      const files = {
+        'app.js': Buffer.from(APP_JS),
+        'app.css': Buffer.from('.compressible { color: red; }\n'.repeat(40)),
+        'engine.wasm': wasm,
+        // Under the size where compressing saves anything: left alone.
+        'tiny.js': Buffer.from('export{};'),
+        // Compressed already.
+        'font.woff2': Buffer.from(APP_JS),
+        'icon.png': Buffer.from(APP_JS),
+      };
+      for (const [name, content] of Object.entries(files)) {
+        writeFileSync(join(dir, name), content);
+      }
+      precompress(dir);
+      const written = readdirSync(dir)
+        .filter((name) => !(name in files))
+        .toSorted();
+      assert.deepEqual(written, [
+        'app.css.br',
+        'app.css.gz',
+        'app.js.br',
+        'app.js.gz',
+        'engine.wasm.br',
+        'engine.wasm.gz',
+      ]);
+      for (const name of ['app.js', 'app.css', 'engine.wasm']) {
+        const read = (suffix) => readFileSync(join(dir, name + suffix));
+        assert.deepEqual(brotliDecompressSync(read('.br')), files[name], name);
+        assert.deepEqual(gunzipSync(read('.gz')), files[name], name);
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+/**
+ * A Caddyfile as a tree of its directives: each line (comments, blank lines
+ * and the brace that opens a block left out) with the block it opens. The
+ * placeholders of the origins of files (the Caddyfile's {env.*}, the chart's
+ * template) are left out of a line, and its spaces normalised: what is left
+ * is what both files must say alike.
+ */
+function directives(text) {
+  const root = { line: '', block: [] };
+  const open = [root];
+  for (const raw of text.split('\n')) {
+    const line = raw
+      .trim()
+      .replaceAll('{env.WEB_FILES_ORIGINS}', '')
+      .replaceAll('{{ with $filesOrigins }} {{ . }}{{ end }}', '')
+      .replace(/\s+/g, ' ')
+      .replaceAll(' ;', ';');
+    if (line === '' || line.startsWith('#')) continue;
+    if (line === '}') {
+      open.pop();
+      continue;
+    }
+    const node = { line: line.replace(/\s*\{$/, ''), block: [] };
+    open.at(-1).block.push(node);
+    if (line.endsWith('{')) open.push(node);
+  }
+  assert.equal(open.length, 1, 'every block is closed');
+  return root.block;
+}
+
+/** The directive of `block` whose line is `line`, or that matches it. */
+function directive(block, line) {
+  const found = block.filter((node) =>
+    typeof line === 'string' ? node.line === line : line.test(node.line),
+  );
+  assert.equal(found.length, 1, `one ${line} in the block`);
+  return found[0];
+}
+
+describe("the Helm chart's web Caddy (deploy/helm/app/templates/web-configmap.yaml)", () => {
+  const configMap = readFileSync(
+    new URL('../deploy/helm/app/templates/web-configmap.yaml', import.meta.url),
+    'utf8',
+  );
+  // The ConfigMap's `Caddyfile: |` block, as Caddy reads it.
+  const chartCaddyfile = /^ {2}Caddyfile: \|\n((?: {4}.*\n|\n)+)/m
+    .exec(configMap)?.[1]
+    .replace(/^ {4}/gm, '');
+  // The web app's half of each: the Caddyfile's web `handle` (the one with
+  // the root), the chart's only site.
+  const web = directive(
+    directive(directives(caddyfile), '{$APP_DOMAIN}').block,
+    'handle',
+  ).block;
+  const chart = directive(directives(chartCaddyfile ?? ''), ':8080').block;
+
+  it("is the Caddyfile's web app: the root, the headers, the compression and the handles", () => {
+    assert.ok(chartCaddyfile, 'the ConfigMap has a Caddyfile');
+    for (const line of [
+      'root * /srv/web',
+      'header',
+      'encode zstd gzip',
+      'handle /version.json',
+      'handle /assets/*',
+      'handle',
+    ]) {
+      assert.deepEqual(directive(chart, line), directive(web, line), line);
+    }
+    // And nothing else, but what each has of its own: the maintenance page
+    // (Compose's MAINTENANCE_PAGE), the pod's health check.
+    const lines = (block) => block.map((node) => node.line);
+    assert.deepEqual(
+      lines(web).filter((line) => !lines(chart).includes(line)),
+      [
+        '@maintenance expression {env.MAINTENANCE_PAGE} == "on"',
+        'handle @maintenance',
+      ],
+    );
+    assert.deepEqual(
+      lines(chart).filter((line) => !lines(web).includes(line)),
+      ['handle /healthz'],
+    );
+  });
+
+  it('sends the whole set of security headers', () => {
+    const names = directive(web, 'header').block.map((node) =>
+      /^([\w-]+) /.exec(node.line)?.[1].toLowerCase(),
+    );
+    assert.deepEqual(
+      names.toSorted(),
+      ['content-security-policy', ...Object.keys(WEB_HEADERS)].toSorted(),
+    );
   });
 });

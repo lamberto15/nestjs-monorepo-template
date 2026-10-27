@@ -152,6 +152,14 @@ jobs:
           diff -u monitoring/prometheus/alerts.yml deploy/helm/app/files/alerts.yml ||
             { echo "run deploy/helm/sync-rules.sh"; exit 1; }
 
+      # The web pod's Caddyfile (templates/web-configmap.yaml) is the web app
+      # of caddy/Caddyfile, line for line: headers, compression, handles. Here
+      # for a change to the chart; CI / CD's caddy-image job runs the same
+      # file, its Caddy-run tests too, for a change to caddy/ (here they skip:
+      # no caddy binary).
+      - name: The web Caddy matches caddy/Caddyfile
+        run: node --test caddy/caddyfile.test.mjs
+
       - name: helm lint
         run: helm lint deploy/helm/app --strict -f deploy/helm/ci/values.yaml
 

@@ -8,6 +8,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { devProxy } from './dev-proxy.ts';
+import { productionHeaders } from './production-headers.ts';
 import { apiPathPattern } from './pwa-paths.ts';
 
 // The API is same-origin in development too (a proxy: dev-proxy.ts), as behind
@@ -65,8 +66,7 @@ export default defineConfig({
               .filter((module) => module.renderedBytes > 0)
               .toSorted(
                 (a, b) =>
-                  b.renderedBytes - a.renderedBytes ||
-                  a.id.localeCompare(b.id),
+                  b.renderedBytes - a.renderedBytes || a.id.localeCompare(b.id),
               ),
           }))
           .toSorted(
@@ -79,6 +79,8 @@ export default defineConfig({
         );
       },
     },
+    // `vite preview` only: the web app's headers of caddy/Caddyfile.
+    productionHeaders(),
     // Before react(): it writes src/routeTree.gen.ts and splits routes.
     tanstackRouter({ target: 'react', autoCodeSplitting: true }),
     react(),
@@ -140,6 +142,8 @@ export default defineConfig({
     proxy,
   },
   // `vite preview` (the built app, what the browser tests open) proxies the
-  // same way: one origin, as behind Caddy (docs/development.md, "Browser tests").
+  // same way: one origin, as behind Caddy (docs/development.md, "Browser tests"),
+  // and sends Caddy's headers, its Content-Security-Policy with them
+  // (productionHeaders(), above).
   preview: { proxy },
 });

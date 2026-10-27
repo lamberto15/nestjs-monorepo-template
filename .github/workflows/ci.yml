@@ -1318,6 +1318,15 @@ jobs:
             jq -e --arg sha "$GITHUB_SHA" '.sha == $sha'
       - name: The maintenance page is in the image
         run: docker run --rm --entrypoint test caddy:ci -f /srv/maintenance/index.html
+      # The build compressed the assets once (apps/web/scripts/precompress.mjs),
+      # for the Caddyfile's `precompressed`: the entry script and DuckDB's
+      # WebAssembly, each with its .br and .gz.
+      - name: The assets are precompressed in the image
+        run: |
+          docker run --rm --entrypoint sh caddy:ci -ec '
+            for file in /srv/web/assets/index-*.js /srv/web/assets/*duckdb*.wasm; do
+              test -s "$file.br" && test -s "$file.gz" && echo "$file: .br .gz"
+            done'
       # The Caddyfile parses (its security.txt handle included), and the entrypoint
       # writes the file from SECURITY_CONTACT, and writes none without it (docs/deployment.md).
       # Caddy's Cloudflare module checks the token's format while it provisions the
@@ -1334,10 +1343,12 @@ jobs:
             caddy:ci test -f /tmp/caddy-security/.well-known/security.txt
           docker run --rm -e CLOUDFLARE_API_TOKEN=ci caddy:ci \
             sh -c 'test ! -f /tmp/caddy-security/.well-known/security.txt'
-      # The Caddyfile's behaviour, run by the image's own Caddy: the app, and
-      # with MAINTENANCE_PAGE=on the static page (503) for the web app's paths
-      # and the API's paths untouched (caddy/caddyfile.test.mjs, which edits out
-      # the TLS block and the Docker names, and fails if an edit finds nothing).
+      # The Caddyfile's behaviour, run by the image's own Caddy: the app, its
+      # headers and compression, and with MAINTENANCE_PAGE=on the static page
+      # (503) for the web app's paths and the API's paths untouched, its
+      # responses not compressed and its event stream unbuffered
+      # (caddy/caddyfile.test.mjs, which edits out the TLS block and the
+      # Docker names, and fails if an edit finds nothing).
       - name: The Caddyfile serves the app, and the maintenance page when asked
         run: |
           docker create --name caddy-bin caddy:ci
