@@ -268,18 +268,12 @@ const WEB_HEADERS = {
 
 /** What the web app's every response carries (the web app's `header` block). */
 function assertSecurityHeaders(response) {
-  const header = (name) =>
-    typeof response.headers.get === 'function'
-      ? response.headers.get(name)
-      : response.headers[name];
-  const policy = header('content-security-policy') ?? '';
+  const policy = response.headers.get('content-security-policy') ?? '';
   assert.match(policy, /default-src 'self'/);
-  assert.match(policy, /script-src[^;]*'wasm-unsafe-eval'/);
-  assert.match(policy, /worker-src 'self'/);
   assert.match(policy, /frame-ancestors 'none'/);
   assert.doesNotMatch(policy, /'unsafe-eval'/);
   for (const [name, value] of Object.entries(WEB_HEADERS)) {
-    assert.equal(header(name), value, name);
+    assert.equal(response.headers.get(name), value, name);
   }
 }
 

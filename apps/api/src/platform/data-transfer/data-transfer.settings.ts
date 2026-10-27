@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { defineSettings, flag, setting } from '../settings/setting.types.js';
+import { defineSettings, setting } from '../settings/setting.types.js';
 
 /** Per-tenant runtime ceilings for uploaded data imports. */
 export const DATA_TRANSFER_IMPORT_MAX_MIB = setting({
@@ -26,14 +26,3 @@ export const DATA_TRANSFER_SETTINGS = defineSettings([
   DATA_TRANSFER_IMPORT_MAX_MIB,
   DATA_TRANSFER_IMPORT_MAX_ROWS,
 ]);
-
-/** Optional browser analytics, disabled unless a tenant enables it. */
-export const BROWSER_ANALYTICS = flag({
-  key: 'analytics.browser.enabled',
-  label: 'Browser analytics',
-  description: 'Allow local Data Explorer file analysis.',
-  default: false,
-  scopes: ['tenant'],
-});
-
-export const ANALYTICS_SETTINGS = defineSettings([BROWSER_ANALYTICS]);
