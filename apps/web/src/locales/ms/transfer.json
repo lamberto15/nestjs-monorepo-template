@@ -14,7 +14,7 @@
   "export": {
     "action": "Eksport",
     "title": "Eksport",
-    "filtered": "Rekod yang ditunjukkan oleh senarai sekarang: penapis dan cariannya. Fail dibuat di latar belakang.",
+    "filtered": "Rekod yang ditunjukkan oleh senarai sekarang: penapis, carian dan susunannya. Fail dibuat di latar belakang.",
     "unfiltered": "Setiap rekod yang anda boleh baca. Tapis atau cari senarai dahulu untuk mengeksport lebih sedikit. Fail dibuat di latar belakang.",
     "format": "Format",
     "start": "Mulakan eksport",

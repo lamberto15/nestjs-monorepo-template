@@ -29,13 +29,14 @@ import { catalogQuery, startExport, type TransferFormat } from './api';
 import { TransferStatus } from './transfer-status';
 
 /**
- * Export from a list page: the format, the list's current filter and search
- * (`filters`, from `exportFilters(params)`), then the job's progress and the
- * download. Shown only when the caller may export `exporter` (`GET /v1/data`).
+ * Export from a list page: the format, the list's current filter, search and
+ * sort (`filters` and `sort`, from `listExport()`), then the job's progress and
+ * the download. Shown only when the caller may export `exporter` (`GET /v1/data`).
  */
 export function ExportButton(props: {
   exporter: string;
   filters: Record<string, string>;
+  sort?: string;
 }) {
   const { t } = useTranslation('transfer');
   // An export is a POST that makes a job: refused while the API is read-only.
@@ -50,6 +51,7 @@ export function ExportButton(props: {
         name: props.exporter,
         format,
         filters: props.filters,
+        ...(props.sort && { sort: props.sort }),
       }),
     onSuccess: (started) => {
       setJobId(started.id);

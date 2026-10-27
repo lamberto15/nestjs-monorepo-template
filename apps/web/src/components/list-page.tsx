@@ -20,6 +20,9 @@ import { DataTableSortMenu } from '@/components/data-table/data-table-sort-menu'
 import { EmptyState } from '@/components/empty-state';
 import { Page, PageHeader } from '@/components/page-header';
 import { ListBulkBar } from '@/components/list-bulk-bar';
+import { ScheduleReportButton } from '@/features/reports/schedule-button';
+import { useExporterFor } from '@/features/transfer/api';
+import { ExportButton } from '@/features/transfer/export-button';
 import { ViewsPicker } from '@/features/views/views-picker';
 import type { BulkContext } from '@/features/bulk/types';
 import { useDataTable } from '@/hooks/use-data-table';
@@ -30,6 +33,7 @@ import type { DataTableFeatures } from '@/lib/data-table-features';
 import {
   DEFAULT_PER_PAGE,
   defaultSorting,
+  listExport,
   listFilters,
   useListDescription,
   useListQuery,
@@ -75,10 +79,12 @@ export interface ListPageProps<P extends ListPath> {
    */
   rowActions?: (row: ListRow<P>) => ReactNode;
   /**
-   * Buttons in the table's toolbar that act on the list as it is shown: an
-   * export gets the current `params` (filter, search…). Keep it stable.
+   * Export and Schedule report in the toolbar, for what the list shows (its
+   * filter, search and sort, and this page's own `query` filters). On by
+   * default, whenever `GET /v1/data` lists an export for the `subject`; false
+   * for a list the export would not match (the recycle bin).
    */
-  listActions?: (context: { params: Record<string, string> }) => ReactNode;
+  exportable?: boolean;
   /** A checkbox column: rows can be selected (the pagination counts them). */
   selectable?: boolean;
   /**
@@ -129,7 +135,7 @@ function ListTable<P extends ListPath>({
   refetchInterval,
   rowHref,
   rowActions,
-  listActions,
+  exportable = true,
   selectable,
   bulkActions,
 }: ListPageProps<P> & { description: ListDescription }) {
@@ -197,6 +203,11 @@ function ListTable<P extends ListPath>({
     table.setRowSelection({});
   }, [scope, table]);
 
+  // Export what the list shows: its filter, search and sort, and this page's own scope.
+  const exportName = useExporterFor(subject);
+  const exporter = exportable ? exportName : undefined;
+  const exported = listExport(query.params, extraQuery, description.fields);
+
   const filtered = 'filter' in query.params || 'q' in query.params;
   const empty = query.isSuccess && query.data.items.length === 0 && !filtered;
 
@@ -217,7 +228,12 @@ function ListTable<P extends ListPath>({
         />
         <DataTableFilterMenu table={table} />
         <DataTableSortMenu table={table} />
-        {listActions?.({ params: query.params })}
+        {exporter && (
+          <>
+            <ExportButton exporter={exporter} {...exported} />
+            <ScheduleReportButton exporter={exporter} {...exported} />
+          </>
+        )}
       </DataTableAdvancedToolbar>
       {query.isError ? (
         <ErrorState error={query.error} onRetry={query.refetch} />

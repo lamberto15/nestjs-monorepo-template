@@ -8332,6 +8332,11 @@ export interface operations {
                         exports: {
                             /** @example notes */
                             name: string;
+                            /**
+                             * @description The permission subject of the data: the one of its list (`GET /v1/lists/{subject}`), so a list page finds its export.
+                             * @example Note
+                             */
+                            subject: string;
                             /** @description The file's columns, in order (custom fields included). */
                             columns: string[];
                             formats: ("csv" | "json" | "xlsx")[];
@@ -8386,10 +8391,12 @@ export interface operations {
                      * @enum {string}
                      */
                     format?: "csv" | "json" | "xlsx";
-                    /** @description The list filters of that data, as on its list route: { "status": "draft" }. */
+                    /** @description The list filters of that data, as on its list route: { "status": "draft" }, or the list's `filter` (JSON) and `q`. */
                     filters?: {
                         [key: string]: string;
                     };
+                    /** @description The list's `sort` (`-createdAt,title`), checked by its declaration, so the file is in the order the list shows. Default: newest first. */
+                    sort?: string;
                     /**
                      * @description The time zone of the file's dates (ISO 8601 with its offset). Default: the user's own, else the server's (APP_TIMEZONE).
                      * @example Europe/Berlin
@@ -14485,7 +14492,7 @@ export interface operations {
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, nextRunAt, createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: name,exporter. Fields: id, name, exporter, format, filters, timezone, schedule, recipients, active, lastRunAt, lastStatus, lastTransferId, nextRunAt, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: name,exporter. Fields: id, name, exporter, format, filters, sort, timezone, schedule, recipients, active, lastRunAt, lastStatus, lastTransferId, nextRunAt, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -14511,6 +14518,8 @@ export interface operations {
                             filters: {
                                 [key: string]: string;
                             };
+                            /** @description The list's order each run replays; null: newest first. */
+                            sort: string | null;
                             /** @example Asia/Manila */
                             timezone: string;
                             /**
@@ -14615,6 +14624,8 @@ export interface operations {
                     filters?: {
                         [key: string]: string;
                     };
+                    /** @description The list's `sort` (`-createdAt,title`), checked by the exporter's list and replayed on every run. Default: newest first. */
+                    sort?: string;
                     /**
                      * @description The schedule's hours and the file's dates. Default: your own time zone, else the server's (APP_TIMEZONE).
                      * @example Europe/Berlin
@@ -14671,6 +14682,8 @@ export interface operations {
                         filters: {
                             [key: string]: string;
                         };
+                        /** @description The list's order each run replays; null: newest first. */
+                        sort: string | null;
                         /** @example Asia/Manila */
                         timezone: string;
                         /**
@@ -14767,6 +14780,8 @@ export interface operations {
                         filters: {
                             [key: string]: string;
                         };
+                        /** @description The list's order each run replays; null: newest first. */
+                        sort: string | null;
                         /** @example Asia/Manila */
                         timezone: string;
                         /**
@@ -14884,6 +14899,7 @@ export interface operations {
                     filters?: {
                         [key: string]: string;
                     };
+                    sort?: string | null;
                     /** @example Europe/Berlin */
                     timezone?: string;
                     /**
@@ -14936,6 +14952,8 @@ export interface operations {
                         filters: {
                             [key: string]: string;
                         };
+                        /** @description The list's order each run replays; null: newest first. */
+                        sort: string | null;
                         /** @example Asia/Manila */
                         timezone: string;
                         /**

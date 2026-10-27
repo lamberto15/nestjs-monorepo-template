@@ -25,6 +25,7 @@ const catalog = {
   exports: [
     {
       name: 'test-items',
+      subject: 'TestItem',
       columns: ['id', 'title', 'createdAt'],
       formats: ['csv', 'json', 'xlsx'],
     },
@@ -165,9 +166,13 @@ describe('exporting from a list', () => {
         },
       },
     });
-    // As a list searched for "Q3" renders it (exportFilters(params)).
+    // As a list searched for "Q3" and sorted by title renders it (listExport()).
     await renderComponent(
-      <ExportButton exporter="test-items" filters={{ q: 'Q3' }} />,
+      <ExportButton
+        exporter="test-items"
+        filters={{ q: 'Q3' }}
+        sort="-title"
+      />,
       { can: ALL },
     );
     const user = userEvent.setup();
@@ -193,7 +198,12 @@ describe('exporting from a list', () => {
     );
     expect(within(dialog).getByText('3 rows exported.')).toBeVisible();
     expect(calls.exports).toEqual([
-      { name: 'test-items', format: 'xlsx', filters: { q: 'Q3' } },
+      {
+        name: 'test-items',
+        format: 'xlsx',
+        filters: { q: 'Q3' },
+        sort: '-title',
+      },
     ]);
   });
 

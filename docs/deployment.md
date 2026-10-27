@@ -708,6 +708,12 @@ table's owner, and the postgres image's `POSTGRES_USER` is both.
 | **monitor**     | the postgres-exporter (`compose.monitoring.yaml`)                               | `POSTGRES_MONITOR_USER` (default `app_monitor`) with `POSTGRES_MONITOR_PASSWORD`; managed PostgreSQL: `DATABASE_MONITOR_URL`       | the same flags as the app role (`NOBYPASSRLS`: no tenant's rows, nor any table's); a member of `pg_monitor` and of nothing else (`pg_stat_*`, the settings, sizes); owns nothing; no privilege on any table: statistics, never rows                        |
 | **reporting**   | platform analytics: a BI tool, outside the stack                                | `POSTGRES_REPORTING_USER` (default `app_reporting`) with `POSTGRES_REPORTING_PASSWORD`                                             | the same flags as the app role; a member of nothing; owns nothing; `SELECT` on the `analytics` schema's tables (anonymized, suppressed aggregates) and no privilege on any other table: never a tenant's row ([tenancy](tenancy.md), "Platform analytics") |
 
+- **Extensions:** migrations create `pg_trgm` (trigram indexes for the lists'
+  `ILIKE` filters). It is a trusted extension, so the owner
+  (`DATABASE_OWNER_URL`) needs only `CREATE` on the database, which an owner
+  has. A managed PostgreSQL must offer `pg_trgm`; the common ones do (RDS,
+  Cloud SQL, Azure, Supabase, Neon).
+
 `node dist/migrate` (`apps/api/src/core/database/roles.ts`) makes it so on
 every deploy, after the migrations, as the owner: it creates the app role
 from `DATABASE_URL`'s name and password when it is missing (a SCRAM verifier,

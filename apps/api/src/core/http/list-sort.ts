@@ -158,15 +158,23 @@ export function encodeCursor(
   sort: readonly SortBy[],
   row: Record<string, unknown> & { id: string },
 ) {
-  const data: CursorData = {
-    v: sort.map(({ key }) => {
-      const value = row[key];
-      return value instanceof Date ? value.toISOString() : (value ?? null);
-    }),
-    id: row.id,
-  };
+  const data: CursorData = { v: cursorValues(sort, row), id: row.id };
   return sealCursor(JSON.stringify(data), cursorContext(sort));
 }
+
+/**
+ * A row's sort values as a cursor holds them (datetimes as ISO strings):
+ * what `afterKeyset` compares with. Code that pages in-process (exports)
+ * passes them as `after` without sealing a cursor.
+ */
+export const cursorValues = (
+  sort: readonly SortBy[],
+  row: Record<string, unknown>,
+): unknown[] =>
+  sort.map(({ key }) => {
+    const value = row[key];
+    return value instanceof Date ? value.toISOString() : (value ?? null);
+  });
 
 /** What a cursor is sealed for: its sort, as `?sort=` spells it. */
 const cursorContext = (sort: readonly SortBy[]) => `sort:${sortKey(sort)}`;

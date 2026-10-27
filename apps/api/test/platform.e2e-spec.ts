@@ -17,7 +17,13 @@ import {
 } from '../src/platform/realtime/realtime.service.js';
 import { RealtimeEmitter } from '../src/platform/realtime/realtime-emitter.js';
 import { apiKeyId } from '../src/iam/auth/api-keys.js';
-import { bootApp, connect, type TestApp } from './support.js';
+import {
+  bootApp,
+  connect,
+  exportRows,
+  listRows,
+  type TestApp,
+} from './support.js';
 
 /** The path and query of a signed URL: the tests reach the app on its own port. */
 const local = (url: string) => {
@@ -377,6 +383,58 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       .get(`/v1/data/transfers/${csv.body.id}`)
       .set('Authorization', other.auth)
       .expect(404);
+  });
+
+  it('exports what the list shows: its advanced filter, search and sort, in the same order (#819)', async () => {
+    const owner = await node.client();
+    for (const [title, body] of [
+      ['bravo', 'quarterly report'],
+      ['alpha', 'quarterly report'],
+      ['bravo', 'quarterly report'],
+      ['charlie', 'a memo'],
+      ['alpha', 'quarterly report'],
+      ['delta', 'quarterly report'],
+      ['bravo', 'report draft'],
+    ]) {
+      await node.writeItem(owner.auth, { title, body }).expect(201);
+    }
+    const filter = JSON.stringify({
+      or: ['a', 'b', 'c'].map((value) => ({
+        field: 'title',
+        op: 'startsWith',
+        value,
+      })),
+    });
+    const sort = '-title,createdAt';
+    const get = (path: string) =>
+      node.http().get(path).set('Authorization', owner.auth);
+    const list = await listRows(get, '/v1/test-items', {
+      filter,
+      q: 'report',
+      sort,
+    });
+    expect(list).toHaveLength(5);
+
+    const exported = await exportRows(node, owner.auth, {
+      name: 'test-items',
+      filters: { filter, q: 'report' },
+      sort,
+    });
+    expect(exported.map((row) => row.id)).toEqual(list.map((row) => row.id));
+    expect(exported.map((row) => row.title)).toEqual([
+      'bravo',
+      'bravo',
+      'bravo',
+      'alpha',
+      'alpha',
+    ]);
+    // The catalog names the subject, so a list page finds its export.
+    const catalog = await get('/v1/data').expect(200);
+    expect(
+      catalog.body.exports.find(
+        (e: { name: string }) => e.name === 'test-items',
+      ),
+    ).toMatchObject({ subject: 'TestItem' });
   });
 
   it('tells the starter over realtime when a transfer fails for good, and nobody else', async () => {

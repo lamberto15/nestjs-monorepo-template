@@ -4,8 +4,18 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, desc, eq, inArray, isNull, lt } from 'drizzle-orm';
+import {
+  and,
+  desc,
+  eq,
+  getTableColumns,
+  inArray,
+  isNull,
+  lt,
+} from 'drizzle-orm';
 import { z } from 'zod';
+import type { ListQuery } from '../../core/http/list-query.js';
+import { walkList } from '../../core/http/pagination.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import {
   type Principal,
@@ -46,8 +56,8 @@ type NoteRow = z.infer<typeof noteRow> & {
  * The example of data transfer: notes as CSV, JSON or Excel.
  *
  * - Export: the notes the principal may read (the same SQL filter as the
- *   list, and the list's own filters), in batches of 1000 by id, newest
- *   first; the platform removes the fields they may not read (the text).
+ *   list, and the list's own filters, search and sort), in batches of 1000 in the list's
+ *   order (newest first without a sort); the platform removes the fields they may not read (the text).
  * - Import: one note per row (title, body); each goes through
  *   NotesService.create, so it gets its workflow, webhook and audit entry
  *   like one written through the API.
@@ -149,26 +159,29 @@ export class NoteTransfer
     return this.customFields.unknownColumns('Note', headers);
   }
 
-  async *batches(principal: Principal, filters: Record<string, unknown>) {
+  /** The list's order (`query.sort`), by keyset: what GET /notes shows, page after page. */
+  async *batches(principal: Principal, query: Record<string, unknown>) {
+    const list = query as ListQuery;
     const where = and(
       await this.access.sqlFilter(principal, 'Note', 'read'),
-      NOTE_LIST.where({ limit: 1000, ...filters }),
+      NOTE_LIST.where(list),
     );
-    let cursor: string | undefined;
-    for (;;) {
-      const rows = await this.notes.query((db) =>
-        db
-          .select()
-          .from(notes)
-          .where(and(where, cursor ? lt(notes.id, cursor) : undefined))
-          .orderBy(desc(notes.id))
-          .limit(1000),
-      );
-      if (rows.length === 0) {
-        return;
-      }
+    // Sort values that aren't columns, for the keyset (as the list selects them).
+    const extra = NOTE_LIST.sortSelect(list);
+    for await (const rows of walkList(
+      notes.id,
+      list,
+      ({ after, orderBy, limit }) =>
+        this.notes.query((db) =>
+          db
+            .select({ ...getTableColumns(notes), ...extra })
+            .from(notes)
+            .where(and(where, after))
+            .orderBy(...orderBy)
+            .limit(limit),
+        ),
+    )) {
       yield await this.notes.withTags(rows);
-      cursor = rows[rows.length - 1].id;
     }
   }
 

@@ -411,6 +411,8 @@ the controller (`notes.*`); singular for what describes one record
      with `updatedAt.gte`.
    - Declare only what's indexed on a large table; nothing undeclared can be
      filtered, sorted or selected (400).
+   - A `contains`/`endsWith` text filter on a large table wants a trigram index:
+     ``index('<x>_<col>_trgm_idx').using('gin', t.<col>.op('gin_trgm_ops'))``.
    - A field may sort by another expression than its column, ``sort:
 sql`lower(${t.name})` `` (an order that ignores case; index that
      expression). The page then selects `list.sortSelect(query)` next to the
@@ -543,7 +545,10 @@ sql`lower(${t.name})` `` (an order that ignores case; index that
     in `eventTypes`, a `DataExporter`/`DataImporter` for bulk moves (its
     timestamp columns `type: 'datetime'`: exported in the reader's zone; the
     importer's schema and `write()` reuse the create route's schema and
-    service call, so an imported row is checked as a `POST` is).
+    service call, so an imported row is checked as a `POST` is). The list
+    page's Export and Schedule report buttons need no wiring: `ListPage` shows
+    them when the catalog has an exporter for its subject, and the export
+    follows the list's filter, search and sort ([data-transfer.md](data-transfer.md)).
 13. **Environment** (`<x>.env.ts`): a Zod schema merged in `apps/api/src/features/env.ts`, a
     line in `env.example` and in docs/configuration.md.
 14. **Texts**: messages in `apps/api/src/i18n/<locale>/<x>.json` for every locale,

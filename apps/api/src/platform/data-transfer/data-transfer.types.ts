@@ -74,17 +74,37 @@ export interface DataExporter<
    * read when the export starts, used instead of `columns`.
    */
   columnsFor?(principal: Principal): Promise<readonly TransferColumn[]>;
-  /** The filters the export accepts (a listQuery schema), validated before the job starts. */
+  /**
+   * The list the export follows (a listQuery schema): its filters, `q` and
+   * `sort` (validated by it before the job starts, `exportQuery()`).
+   */
   readonly filters?: z.ZodType<Record<string, unknown>>;
   /**
-   * The records the principal may read, in batches (keyset pagination: never
-   * an offset). Fields the principal may not read are removed afterwards.
+   * The records the principal may read, in batches of 1000, in the order of
+   * `query.sort` when it has one (the list's `?sort=`, parsed; none: newest
+   * first), the way the list shows them. Keyset pagination on the sort
+   * values and the id, never an offset: `walkList()` (core/http/pagination).
+   * `query` is the parsed list query (`exporter.filters`). Fields the
+   * principal may not read are removed afterwards.
    */
   batches(
     principal: Principal,
-    filters: Record<string, unknown>,
+    query: Record<string, unknown>,
   ): AsyncIterable<Row[]>;
 }
+
+/**
+ * What an exporter's list schema validates: the filters, with the list's
+ * `sort` (`-createdAt,title`) among them, as its route's query has it.
+ */
+export const exportQuery = (
+  filters: Record<string, unknown>,
+  sort?: string | null,
+) => (sort ? { ...filters, sort } : filters);
+
+/** Where a refusal of `exportQuery()` is in the request: the `sort`, else a `filters.<field>`. */
+export const exportIssuePath = (path: readonly PropertyKey[]) =>
+  path[0] === 'sort' ? 'sort' : ['filters', ...path].join('.');
 
 /**
  * A column of an import file, as its template and the catalog describe it.
@@ -173,6 +193,8 @@ export type TransferJob = TenantEnvelope &
         format: TransferFormat;
         /** The filters as the caller sent them; the worker parses them with `exporter.filters`. */
         filters: Record<string, unknown>;
+        /** The list's `sort` (`-createdAt,title`), as its route takes it; the worker parses it with `exporter.filters`. Unset: newest first. */
+        sort?: string;
         /** The file's time zone, when the caller chose one; else theirs, else APP_TIMEZONE. */
         timezone?: string;
         /** Who asked for it in code (`report:<id>`): handed back to `onFinished` listeners. */

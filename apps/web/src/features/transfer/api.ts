@@ -3,9 +3,12 @@ import {
   type GetResponse,
   type paths,
 } from '@nestjs-monorepo-template/api-client';
-import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
+import {
+  infiniteQueryOptions,
+  queryOptions,
+  useQuery,
+} from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { listFilters } from '@/lib/list-query';
 import { postMultipart } from '@/lib/upload';
 
 /** An export or import job: progress, then the result (docs/data-transfer.md). */
@@ -45,16 +48,21 @@ export const transferQuery = (id: string, poll: JobPoll = () => POLL) =>
   });
 
 /**
- * What an export takes of a list's state: the list's own filters (`filter`,
- * the advanced filter as JSON, and `q`, the search). The export has no sort
- * and no field choice (its columns are the exporter's), so those are not sent.
+ * The export of a subject's list, if the caller may run one (`GET /v1/data`
+ * names each export's `subject`): what a list page offers by default.
  */
-export const exportFilters = listFilters;
+export function useExporterFor(subject: string) {
+  const catalog = useQuery({ ...catalogQuery, meta: { errorToast: false } });
+  return catalog.data?.exports.find((e) => e.subject === subject)?.name;
+}
 
 export const startExport = (body: {
   name: string;
   format: TransferFormat;
+  /** The list's filter, search and scope (`listExport()`). */
   filters: Record<string, string>;
+  /** The list's sort, so the file is in the order shown. */
+  sort?: string;
 }) => unwrap(api.POST('/v1/data/exports', { body }));
 
 /** The template link of an import: a file to fill (an attachment). */

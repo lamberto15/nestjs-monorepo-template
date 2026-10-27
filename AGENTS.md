@@ -76,7 +76,8 @@ migrations): [apps/api/AGENTS.md](apps/api/AGENTS.md); `apps/web` and
   only for an expression it lacks. The owner's rule, enforced by
   `tools/ci/raw-sql.mjs` ([apps/api/AGENTS.md](apps/api/AGENTS.md),
   "Features and the database").
-- **Generate, never hand-write what a command produces.** Use the official
+- **Generate, never hand-write what a command produces** (extensions:
+  docs/development.md, "Database"). Use the official
   CLI or generator, then edit only what the task needs: `pnpm add`,
   `pnpm feature:add`/`feature:sync`, `pnpm db:generate`,
   `pnpm client:generate`, and the folders' own generators (their AGENTS.md).

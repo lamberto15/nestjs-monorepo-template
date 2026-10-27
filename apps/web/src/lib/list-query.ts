@@ -629,7 +629,8 @@ export function useListQuery<P extends ListPath>(
  * The part of a list's query that says WHICH records: the advanced `filter`
  * and the search `q`, as the list route and the export, bulk and report
  * routes (which take the list's own filters) read them. Page, sort and
- * fields say how to show them and are left out.
+ * fields say how to show them and are left out (a bulk run takes no order;
+ * an export takes the sort apart: `listExport`).
  */
 export function listFilters(
   params: Record<string, string>,
@@ -640,4 +641,26 @@ export function listFilters(
     if (value) filters[key] = value;
   }
   return filters;
+}
+
+/**
+ * What an export (or a scheduled report) takes of a list so that its file
+ * holds exactly what the list shows, in the order shown: the list's
+ * `filter` and `q`, the page's own fixed scope (`extra`: flat filters on the
+ * list's fields; route options such as `include` are no filters and are
+ * left out), and the `sort`. The columns are the exporter's, so `fields`
+ * and the page are not sent.
+ */
+export function listExport(
+  params: Record<string, string>,
+  extra: Record<string, string> | undefined,
+  fields: readonly ListField[],
+): { filters: Record<string, string>; sort?: string } {
+  const scope = Object.entries(extra ?? {}).filter(([key]) =>
+    fields.some((f) => key === f.name || key.startsWith(`${f.name}.`)),
+  );
+  return {
+    filters: { ...Object.fromEntries(scope), ...listFilters(params) },
+    ...(params.sort && { sort: params.sort }),
+  };
 }
