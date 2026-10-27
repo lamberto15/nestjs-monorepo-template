@@ -74,13 +74,12 @@ Filling `.env` (each step is commented in `env.example`):
   and `Cross-Origin-Opener-Policy: same-origin`. **A new third-party script, frame, API or
   font host** needs its origin in the matching directive of that one line (`script-src`,
   `frame-src`, `connect-src`, `font-src`, `img-src`), taken from the provider's CSP page; no
-  inline `<script>`, no `eval`. The e2e suite (`apps/web-e2e`) already checks a change: it
-  runs the built app under this exact header set (`vite preview`,
-  `apps/web/preview-headers.ts`) and fails on any `securitypolicyviolation`
-  ([browser tests](development.md#browser-tests)); `caddy/caddyfile.test.mjs` pins the
-  full header set against a real Caddy binary, on the app shell, an asset and the
-  maintenance page, and that the Helm chart's web ConfigMap matches the Caddyfile line
-  for line.
+  inline `<script>`, no `eval`. `caddy/caddyfile.test.mjs` pins the full header set
+  against a real Caddy binary, on the app shell, an asset and the maintenance page, and
+  that the Helm chart's web ConfigMap matches the Caddyfile line for line; that is the
+  one place a change to this line is checked (the e2e suite stopped sending it under
+  `vite preview` when `apps/web/preview-headers.ts` was removed with the browser
+  analytics feature it also served).
 - **Compression.** Caddy's image build writes a `.br` and a `.gz` beside each built
   asset (`apps/web/scripts/precompress.mjs`, Node's `zlib`), served with
   `file_server { precompressed br gzip }`; the app shell and the rest of the response

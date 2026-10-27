@@ -381,11 +381,14 @@ settings pages. It is not part of `pnpm test:e2e` (the API's).
   The Caddy image would add a build of Caddy with its plugin for nothing else
   the tests check (it serves the same `dist`); its own image is built and
   scanned in CI (`caddy-image`).
-- **Enforced, not just sent:** every test's context listens for a
-  `securitypolicyviolation` and fails the test with what was refused
-  (`test/fixtures.ts`); a worker's own violations don't reach it. A script,
-  frame or request the policy forbids fails here, under the exact headers
-  Caddy sends, rather than only showing up in production.
+- **The production CSP isn't sent here.** `test/fixtures.ts`'s context still
+  listens for a `securitypolicyviolation` on every page (a worker's own don't
+  reach it) and fails the test with what was refused, but `vite preview` stopped
+  sending Caddy's headers when `apps/web/preview-headers.ts` was removed with
+  the browser analytics feature it also served (#776): the listener is dead
+  code until it either gets a header source again or is removed.
+  `caddy/caddyfile.test.mjs` (deployment.md, "The web app's security headers")
+  is the one place this policy is checked.
 - **Ports:** the API on **3300** and the web app on **4173**, never 3000 and
   5173, so the suite runs beside `pnpm dev`. Nothing it uses is the default
   stack's but PostgreSQL and Redis (see below).
