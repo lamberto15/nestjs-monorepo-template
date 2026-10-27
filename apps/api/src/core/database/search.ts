@@ -1,6 +1,14 @@
+import { BadRequestException } from '@nestjs/common';
 import { type AnyColumn, type SQL, sql } from 'drizzle-orm';
-import { type AnyPgColumn, customType } from 'drizzle-orm/pg-core';
-import type { FilterField } from '../http/list-query.js';
+import {
+  type AnyPgColumn,
+  type PgTable,
+  customType,
+} from 'drizzle-orm/pg-core';
+import type { FilterField, ListQuery } from '../http/list-query.js';
+import { countPage } from '../http/pagination.js';
+import type { SortBy } from '../http/list-sort.js';
+import type { Database, Transaction } from './drizzle.js';
 
 /**
  * Full-text search with PostgreSQL's own: a `tsvector` column generated
@@ -82,10 +90,57 @@ export const searchFields = (
     reads: fields,
   },
   rank: {
-    column: (query) => rank(vector, typeof query.q === 'string' ? query.q : ''),
+    // Without a `q` every rank is 0: no `ts_rank` per row, the id orders.
+    column: (query) =>
+      typeof query.q === 'string'
+        ? rank(vector, query.q)
+        : sql<number>`0::real`,
     type: 'number',
     ops: [],
     sortable: true,
     reads: fields,
   },
 });
+
+/**
+ * The most matches a rank sort or the global search ranks. Ranking reads
+ * every row it ranks (a GIN index holds no rank), so its cost grows with
+ * the matches, not with `limit`; past this the caller narrows `q`.
+ */
+export const RANK_CAP = 1_000;
+
+/**
+ * A 400 `search_too_broad` when `?sort=` ranks (`rank`) a `q` that matches
+ * more than `cap` records. `where` is the page's own filter without the
+ * cursor, so the decision is the same on every page. No query unless the
+ * sort has `rank` and there is a `q`.
+ */
+export async function refuseBroadRank(
+  db: Database | Transaction,
+  table: PgTable,
+  where: SQL | undefined,
+  query: ListQuery,
+  cap = RANK_CAP,
+): Promise<void> {
+  const sort = query.sort as SortBy[] | undefined;
+  if (
+    !sort?.some((item) => item.name === 'rank') ||
+    typeof query.q !== 'string' ||
+    query.q === ''
+  ) {
+    return;
+  }
+  const total = await countPage(
+    db,
+    table,
+    where,
+    { ...query, count: true },
+    cap,
+  );
+  if (total?.totalCapped) {
+    throw new BadRequestException({
+      code: 'search_too_broad',
+      message: `More than ${cap} records match: narrow q to sort by rank.`,
+    });
+  }
+}
