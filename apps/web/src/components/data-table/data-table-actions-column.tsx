@@ -48,7 +48,7 @@ export function getDataTableActionsColumn<TData extends RowData>({
               aria-label={getAriaLabel(context.row)}
               variant="ghost"
               size="icon-sm"
-              className="text-muted-foreground data-popup-open:bg-accent"
+              className="text-muted-foreground data-popup-open:bg-accent max-sm:size-10 pointer-coarse:size-10"
             />
           }
         >
