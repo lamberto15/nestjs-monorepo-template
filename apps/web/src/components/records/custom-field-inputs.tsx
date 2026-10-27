@@ -20,6 +20,7 @@ import { Textarea } from '@nestjs-monorepo-template/ui/components/textarea';
 import { useTranslation } from 'react-i18next';
 import type { CustomField } from '@/lib/custom-fields';
 import type { CustomDraft, CustomDrafts } from '@/lib/custom-values';
+import { useDescribedBy } from '@/lib/form';
 
 /**
  * The inputs of a subject's active custom fields (docs/custom-fields.md),
@@ -57,21 +58,29 @@ function CustomFieldInput(props: {
   error?: string;
 }) {
   const { field, draft, error } = props;
-  const id = `custom-${field.key}`;
   const invalid = !!error;
   const label = field.label;
   const description = field.description ?? undefined;
   const messages = error ? [{ message: error }] : undefined;
+  // The hint and the error describe the control, as lib/form.tsx's fields.
+  const {
+    controlId: id,
+    descriptionId,
+    errorId,
+    describedBy,
+  } = useDescribedBy(Boolean(description), invalid);
 
   if (field.type === 'multiSelect') {
     const chosen = Array.isArray(draft) ? draft : [];
     return (
-      <FieldSet data-invalid={invalid}>
+      <FieldSet data-invalid={invalid} aria-describedby={describedBy}>
         <FieldLegend variant="label">
           {label}
           {field.required ? ' *' : ''}
         </FieldLegend>
-        {description && <FieldDescription>{description}</FieldDescription>}
+        {description && (
+          <FieldDescription id={descriptionId}>{description}</FieldDescription>
+        )}
         <div className="flex flex-col gap-2">
           {(field.options ?? []).map((option) => (
             <Field key={option.value} orientation="horizontal">
@@ -93,7 +102,7 @@ function CustomFieldInput(props: {
             </Field>
           ))}
         </div>
-        {invalid && <FieldError errors={messages} />}
+        {invalid && <FieldError id={errorId} errors={messages} />}
       </FieldSet>
     );
   }
@@ -105,14 +114,17 @@ function CustomFieldInput(props: {
           id={id}
           checked={draft === true}
           aria-invalid={invalid}
+          aria-describedby={describedBy}
           onCheckedChange={(checked) => props.onChange(checked)}
         />
         <FieldLabel htmlFor={id}>
           {label}
           {field.required ? ' *' : ''}
         </FieldLabel>
-        {description && <FieldDescription>{description}</FieldDescription>}
-        {invalid && <FieldError errors={messages} />}
+        {description && (
+          <FieldDescription id={descriptionId}>{description}</FieldDescription>
+        )}
+        {invalid && <FieldError id={errorId} errors={messages} />}
       </Field>
     );
   }
@@ -129,6 +141,7 @@ function CustomFieldInput(props: {
           field={field}
           value={typeof draft === 'string' ? draft : ''}
           invalid={invalid}
+          describedBy={describedBy}
           onChange={props.onChange}
         />
       ) : field.type === 'longText' ? (
@@ -137,6 +150,7 @@ function CustomFieldInput(props: {
           rows={4}
           value={typeof draft === 'string' ? draft : ''}
           aria-invalid={invalid}
+          aria-describedby={describedBy}
           onChange={(event) => props.onChange(event.target.value)}
         />
       ) : (
@@ -146,11 +160,14 @@ function CustomFieldInput(props: {
           step={field.type === 'number' ? 'any' : undefined}
           value={typeof draft === 'string' ? draft : ''}
           aria-invalid={invalid}
+          aria-describedby={describedBy}
           onChange={(event) => props.onChange(event.target.value)}
         />
       )}
-      {description && <FieldDescription>{description}</FieldDescription>}
-      {invalid && <FieldError errors={messages} />}
+      {description && (
+        <FieldDescription id={descriptionId}>{description}</FieldDescription>
+      )}
+      {invalid && <FieldError id={errorId} errors={messages} />}
     </Field>
   );
 }
@@ -169,6 +186,7 @@ function SelectInput(props: {
   field: CustomField;
   value: string;
   invalid: boolean;
+  describedBy: string | undefined;
   onChange: (draft: CustomDraft) => void;
 }) {
   const { t } = useTranslation('records');
@@ -190,6 +208,7 @@ function SelectInput(props: {
         id={props.id}
         className="w-full"
         aria-invalid={props.invalid}
+        aria-describedby={props.describedBy}
       >
         <SelectValue placeholder={t('customFields.choose')} />
       </SelectTrigger>

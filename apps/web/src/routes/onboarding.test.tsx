@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw/http';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { expectOverLimitRefused, fillOver } from '@/test/limits';
 import { renderApp } from '@/test/render-app';
 import { allFeatures, server, signedInUser } from '@/test/server';
 
@@ -143,5 +144,78 @@ describe('the administrator onboarding step', () => {
     useOnboardingApi({ email: false, password: false });
     await renderApp('/onboarding');
     expect(await screen.findByText('Continue to the app')).toBeVisible();
+  });
+});
+
+describe('the onboarding forms check their input', () => {
+  it('says what the email step needs, and sends nothing', async () => {
+    const changes = useOnboardingApi({ password: false });
+    await renderApp('/onboarding');
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: 'Send the confirmation link' }),
+    );
+    expect(
+      await screen.findByText('Enter a valid email address.'),
+    ).toBeVisible();
+    expect(screen.getByText('Enter your password.')).toBeVisible();
+    expect(changes).toEqual([]);
+  });
+
+  it('refuses a new password over 128 characters, as the API does', async () => {
+    useOnboardingApi({ email: false });
+    const bodies: unknown[] = [];
+    server.use(
+      http.post('/v1/auth/password/change', async ({ request }) => {
+        bodies.push(await request.json());
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    await renderApp('/onboarding');
+    const user = userEvent.setup();
+    await fillOver(user, await screen.findByLabelText('New password'), 128);
+    await expectOverLimitRefused(user, {
+      label: 'Confirm the password',
+      max: 128,
+      submit: 'Change the password',
+    });
+    expect(bodies).toEqual([]);
+  });
+
+  it('refuses a passkey name over 64 characters, as the API does', async () => {
+    useOnboardingApi();
+    const renamed: unknown[] = [];
+    server.use(
+      http.get('/v1/auth/passkeys', () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: 'passkey-1',
+              name: 'Laptop',
+              deviceType: 'multiDevice',
+              backedUp: true,
+              transports: [],
+              lastUsedAt: null,
+              createdAt: '2026-10-10T08:00:00.000Z',
+            },
+          ],
+        }),
+      ),
+      http.patch('/v1/auth/passkeys/:id', async ({ request }) => {
+        renamed.push(await request.json());
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    await renderApp('/onboarding');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Rename' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Rename' });
+    await expectOverLimitRefused(user, {
+      scope: dialog,
+      label: 'Name',
+      max: 64,
+      submit: 'Save',
+    });
+    expect(renamed).toEqual([]);
   });
 });

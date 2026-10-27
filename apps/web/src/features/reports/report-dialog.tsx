@@ -31,6 +31,7 @@ import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { z } from '@/lib/zod';
 import {
+  REPORT_LIMITS,
   useCreateReport,
   useUpdateReport,
   type Report,
@@ -112,7 +113,14 @@ export function ReportDialog(props: {
     },
     validators: {
       onSubmit: z.object({
-        name: z.string().trim().min(1, t('form.nameRequired')).max(200),
+        name: z
+          .string()
+          .trim()
+          .min(1, t('form.nameRequired'))
+          .max(
+            REPORT_LIMITS.name,
+            t('form.nameTooLong', { max: REPORT_LIMITS.name }),
+          ),
         exporter: z.string().min(1, t('form.exporterRequired')),
         format: z.string(),
         every: z.string(),

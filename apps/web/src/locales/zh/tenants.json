@@ -29,6 +29,7 @@
     "name": "名称",
     "namePlaceholder": "Acme 有限公司",
     "nameRequired": "请输入名称。",
+    "nameTooLong": "最多 {{max}} 个字符。",
     "slug": "标识",
     "slugHint": "简短标识：小写字母、数字和单个连字符。",
     "slugInvalid": "请使用小写字母和数字，中间可用单个连字符（最多 48 个字符）。",

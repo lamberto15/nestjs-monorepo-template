@@ -69,7 +69,8 @@
       "nameHint": "Hanya untuk akaun baharu; pemiliknya boleh mengubahnya."
     },
     "errors": {
-      "email": "Masukkan alamat e-mel yang sah."
+      "email": "Masukkan alamat e-mel yang sah.",
+      "nameTooLong": "Paling banyak {{max}} aksara."
     },
     "send": "Hantar jemputan",
     "sent": "Jemputan dihantar kepada {{email}}.",
@@ -156,7 +157,8 @@
     },
     "topLevel": "Peringkat teratas",
     "errors": {
-      "nameRequired": "Masukkan nama."
+      "nameRequired": "Masukkan nama.",
+      "nameTooLong": "Paling banyak {{max}} aksara."
     },
     "create": "Cipta pasukan",
     "created": "Pasukan dicipta.",

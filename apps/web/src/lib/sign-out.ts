@@ -15,7 +15,8 @@ export function useSignOut(everywhere = false) {
   const queryClient = useQueryClient();
   const signedOut = async () => {
     createSession(queryClient).clear();
-    await router.navigate({ to: '/sign-in' });
+    // Signed out already: a form's unsaved-changes guard has nothing to keep.
+    await router.navigate({ to: '/sign-in', ignoreBlocker: true });
   };
   return useMutation({
     mutationFn: async () => {

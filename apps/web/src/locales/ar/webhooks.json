@@ -52,6 +52,7 @@
     "urlInvalid": "أدخل عنوان ويب كاملًا، مثل https://example.com/hooks.",
     "descriptionLabel": "الوصف (اختياري)",
     "descriptionPlaceholder": "الطلبات إلى نظام المستودع",
+    "descriptionTooLong": "{{max}} حرفًا كحد أقصى.",
     "events": "الأحداث",
     "allEvents": "كل الأحداث",
     "eventsHint": "كل ما يرسله الـ API، أو الأنواع التي تحددها فقط.",
@@ -197,6 +198,7 @@
       "nameInvalid": "استخدم أحرفًا صغيرة وأرقامًا وشرطات، بحد أقصى 63 حرفًا.",
       "descriptionLabel": "الوصف (اختياري)",
       "descriptionPlaceholder": "نظام الفوترة",
+      "descriptionTooLong": "{{max}} حرفًا كحد أقصى.",
       "create": "إنشاء مرسل"
     }
   }

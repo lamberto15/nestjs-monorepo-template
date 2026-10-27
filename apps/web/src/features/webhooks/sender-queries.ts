@@ -24,6 +24,12 @@ type JsonBody<T> = T extends {
 export type CreateSenderBody = JsonBody<paths[typeof senders]['post']>;
 export type SenderChanges = JsonBody<paths[typeof sender]['patch']>;
 
+/**
+ * A sender's description mirrors the API's `maxLength`; lib/limits.test.ts
+ * compares it with openapi.json.
+ */
+export const SENDER_LIMITS = { description: 500 } as const;
+
 export const sendersKey = ['webhook-senders'] as const;
 
 export const sendersQuery = queryOptions({

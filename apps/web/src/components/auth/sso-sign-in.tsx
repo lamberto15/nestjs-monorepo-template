@@ -11,6 +11,7 @@ import { LandmarkIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
+import { useDescribedBy } from '@/lib/form';
 import { safeRedirect } from '@/lib/safe-redirect';
 
 const LOGIN_PATH = '/v1/auth/sso/';
@@ -53,6 +54,11 @@ export function SsoSignIn(props: { redirect?: string }) {
   const [error, setError] = useState<string>();
   const [none, setNone] = useState(false);
   const [busy, setBusy] = useState(false);
+  // The error describes the address (as lib/form.tsx's fields).
+  const { controlId, errorId, describedBy } = useDescribedBy(
+    false,
+    Boolean(error),
+  );
 
   if (!open) {
     return (
@@ -101,17 +107,22 @@ export function SsoSignIn(props: { redirect?: string }) {
           {t('auth.sso.description')}
         </p>
         <Field data-invalid={Boolean(error)}>
-          <FieldLabel htmlFor="sso-email">{t('auth.fields.email')}</FieldLabel>
+          <FieldLabel htmlFor={controlId}>{t('auth.fields.email')}</FieldLabel>
           <Input
-            id="sso-email"
+            id={controlId}
             type="email"
             autoComplete="email"
             value={email}
             aria-invalid={Boolean(error)}
+            aria-describedby={describedBy}
             onChange={(event) => setEmail(event.target.value)}
           />
           {error && (
-            <FieldDescription role="alert" className="text-destructive">
+            <FieldDescription
+              id={errorId}
+              role="alert"
+              className="text-destructive"
+            >
               {error}
             </FieldDescription>
           )}

@@ -82,6 +82,26 @@ describe('the rules', () => {
     expect(calls.put).toEqual([]);
   });
 
+  it('describes the days by their hint, then by why they are refused', async () => {
+    useRetentionApi({ can: ADMIN });
+    const user = userEvent.setup();
+    await renderApp('/retention');
+    const days = await screen.findByLabelText('Days to keep Notes');
+    const hint =
+      'At least 30; the default is 730. Applied at the next nightly run.';
+    expect(days).toHaveAccessibleDescription(hint);
+    await user.clear(days);
+    await user.type(days, '5');
+    await user.click(
+      within(days.closest('form')!).getByRole('button', { name: 'Save' }),
+    );
+    await screen.findByText('Keep records for at least 30 days.');
+    expect(days).toBeInvalid();
+    expect(days).toHaveAccessibleDescription(
+      `${hint} Keep records for at least 30 days.`,
+    );
+  });
+
   it('keeps Save off until something changed', async () => {
     useRetentionApi({ can: ADMIN });
     await renderApp('/retention');

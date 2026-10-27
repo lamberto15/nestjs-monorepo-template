@@ -48,6 +48,7 @@
     "urlInvalid": "Geben Sie eine vollständige Webadresse ein, etwa https://example.com/hooks.",
     "descriptionLabel": "Beschreibung (optional)",
     "descriptionPlaceholder": "Bestellungen an das Lagersystem",
+    "descriptionTooLong": "Höchstens {{max}} Zeichen.",
     "events": "Ereignisse",
     "allEvents": "Alle Ereignisse",
     "eventsHint": "Alles, was die API sendet, oder nur die angekreuzten Typen.",
@@ -189,6 +190,7 @@
       "nameInvalid": "Kleinbuchstaben, Ziffern und Bindestriche, höchstens 63 Zeichen.",
       "descriptionLabel": "Beschreibung (optional)",
       "descriptionPlaceholder": "Das Abrechnungssystem",
+      "descriptionTooLong": "Höchstens {{max}} Zeichen.",
       "create": "Absender erstellen"
     }
   }

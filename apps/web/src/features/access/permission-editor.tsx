@@ -19,10 +19,12 @@ import {
   paramProblem,
   type Catalog,
   type CatalogAction,
+  type CatalogCondition,
   type CatalogSubject,
   type EditorState,
   type Rule,
 } from '@/features/access/permissions';
+import { useDescribedBy } from '@/lib/form';
 
 /**
  * The permissions of a role, generated from `GET /v1/access/catalog`: one
@@ -235,35 +237,22 @@ function RuleEditor(props: {
                   </FieldContent>
                 </Field>
                 {on && condition.input && (
-                  <Field data-invalid={problem !== undefined} className="ms-6">
-                    <FieldLabel htmlFor={`${id}-param`}>
-                      {condition.input.label}
-                    </FieldLabel>
-                    <Input
-                      id={`${id}-param`}
-                      inputMode={
-                        condition.input.type === 'cents' ? 'numeric' : 'text'
-                      }
-                      value={text ?? ''}
-                      disabled={props.disabled}
-                      aria-invalid={problem !== undefined}
-                      onChange={(event) =>
-                        props.onChange({
-                          ...rule,
-                          conditions: {
-                            ...rule.conditions,
-                            [condition.key]: event.target.value,
-                          },
-                        })
-                      }
-                    />
-                    {condition.input.type === 'cents' && (
-                      <FieldDescription>
-                        {t('roles.editor.cents')}
-                      </FieldDescription>
-                    )}
-                    {problem && <FieldError>{t(problem)}</FieldError>}
-                  </Field>
+                  <ConditionParam
+                    id={`${id}-param`}
+                    input={condition.input}
+                    value={text ?? ''}
+                    problem={problem}
+                    disabled={props.disabled}
+                    onChange={(next) =>
+                      props.onChange({
+                        ...rule,
+                        conditions: {
+                          ...rule.conditions,
+                          [condition.key]: next,
+                        },
+                      })
+                    }
+                  />
                 )}
               </div>
             );
@@ -280,6 +269,43 @@ function RuleEditor(props: {
         />
       )}
     </div>
+  );
+}
+
+/** A condition's parameter; the amount's hint and what is wrong with it describe the input. */
+function ConditionParam(props: {
+  id: string;
+  input: NonNullable<CatalogCondition['input']>;
+  value: string;
+  problem: ReturnType<typeof paramProblem>;
+  disabled?: boolean;
+  onChange: (value: string) => void;
+}) {
+  const { t } = useTranslation('access');
+  const { input, problem } = props;
+  const { descriptionId, errorId, describedBy } = useDescribedBy(
+    input.type === 'cents',
+    problem !== undefined,
+  );
+  return (
+    <Field data-invalid={problem !== undefined} className="ms-6">
+      <FieldLabel htmlFor={props.id}>{input.label}</FieldLabel>
+      <Input
+        id={props.id}
+        inputMode={input.type === 'cents' ? 'numeric' : 'text'}
+        value={props.value}
+        disabled={props.disabled}
+        aria-invalid={problem !== undefined}
+        aria-describedby={describedBy}
+        onChange={(event) => props.onChange(event.target.value)}
+      />
+      {input.type === 'cents' && (
+        <FieldDescription id={descriptionId}>
+          {t('roles.editor.cents')}
+        </FieldDescription>
+      )}
+      {problem && <FieldError id={errorId}>{t(problem)}</FieldError>}
+    </Field>
   );
 }
 

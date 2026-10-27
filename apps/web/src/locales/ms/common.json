@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "App",
-    "staleDraft": "Sesi berubah semasa anda menulis (dalam tab atau tetingkap lain). Tiada apa-apa dihantar — semak apa yang anda tulis dan hantar semula di bawah sesi baharu."
+    "staleDraft": "Sesi berubah semasa anda menulis (dalam tab atau tetingkap lain). Tiada apa-apa dihantar — semak apa yang anda tulis dan hantar semula di bawah sesi baharu.",
+    "unsavedChanges": "Anda mempunyai perubahan yang belum disimpan. Tinggalkan halaman ini dan hilangkan perubahan tersebut?"
   },
   "nav": {
     "platform": "Platform",
@@ -46,6 +47,7 @@
       "passwordRequired": "Masukkan kata laluan anda.",
       "passwordHint": "Sekurang-kurangnya 12 aksara. Kata laluan yang ditemui dalam kebocoran data ditolak.",
       "passwordTooShort": "Sekurang-kurangnya {{min}} aksara.",
+      "tooLong": "Paling banyak {{max}} aksara.",
       "passwordMismatch": "Kata laluan tidak sepadan.",
       "newPassword": "Kata laluan baharu",
       "confirmPassword": "Sahkan kata laluan",

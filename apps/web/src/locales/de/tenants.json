@@ -29,6 +29,7 @@
     "name": "Name",
     "namePlaceholder": "Acme GmbH",
     "nameRequired": "Bitte einen Namen eingeben.",
+    "nameTooLong": "Höchstens {{max}} Zeichen.",
     "slug": "Kürzel",
     "slugHint": "Ein kurzer Name: Kleinbuchstaben, Ziffern und einzelne Bindestriche.",
     "slugInvalid": "Nur Kleinbuchstaben und Ziffern, mit einzelnen Bindestrichen dazwischen (höchstens 48 Zeichen).",

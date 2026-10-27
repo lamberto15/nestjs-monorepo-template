@@ -17,6 +17,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
+  ROLE_LIMITS,
   catalogQuery,
   createRole,
   invalidateAccess,
@@ -36,6 +37,7 @@ import {
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { useMe } from '@/lib/features';
 import { FormAlert, useAppForm } from '@/lib/form';
+import { useUnsavedChangesGuard } from '@/lib/unsaved-changes';
 import { z } from '@/lib/zod';
 
 /** A new role, or an existing one (read-only when built in). */
@@ -89,8 +91,10 @@ function RoleFormLoaded(props: { catalog: Catalog; role?: Role }) {
           .string()
           .trim()
           .min(1, t('roles.errors.nameRequired'))
-          .max(80, t('roles.errors.nameTooLong')),
-        description: z.string().max(500, t('roles.errors.descriptionTooLong')),
+          .max(ROLE_LIMITS.name, t('roles.errors.nameTooLong')),
+        description: z
+          .string()
+          .max(ROLE_LIMITS.description, t('roles.errors.descriptionTooLong')),
         permissions: z
           .custom<EditorState>()
           .refine(
@@ -108,7 +112,8 @@ function RoleFormLoaded(props: { catalog: Catalog; role?: Role }) {
           permissions: toPermissions(props.catalog, value.permissions),
         });
         toast.success(t(props.role ? 'roles.saved' : 'roles.created'));
-        await navigate({ to: '/access/roles' });
+        // Saved: the list, past the unsaved-changes guard.
+        await navigate({ to: '/access/roles', ignoreBlocker: true });
       } catch (caught) {
         if (!applyFieldErrors(form, caught)) {
           setError(errorMessage(caught));
@@ -116,6 +121,7 @@ function RoleFormLoaded(props: { catalog: Catalog; role?: Role }) {
       }
     },
   });
+  useUnsavedChangesGuard(form);
 
   return (
     <form

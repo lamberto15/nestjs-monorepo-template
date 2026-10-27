@@ -22,9 +22,11 @@ import { z } from '@/lib/zod';
 import { languages } from '@/i18n';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { api } from '@/lib/api';
+import { AUTH_LIMITS } from '@/lib/auth-limits';
 import { AvatarSection } from '@/components/account/avatar-section';
 import { useMe } from '@/lib/features';
 import { FormAlert, useAppForm } from '@/lib/form';
+import { useUnsavedChangesGuard } from '@/lib/unsaved-changes';
 import { browserTimeZone } from '@/lib/link-token';
 import { meQuery, type Me } from '@/lib/session';
 
@@ -77,7 +79,14 @@ function ProfileForm({ me }: { me: Me }) {
     },
     validators: {
       onSubmit: z.object({
-        name: z.string().trim().min(1, t('auth.fields.nameRequired')).max(120),
+        name: z
+          .string()
+          .trim()
+          .min(1, t('auth.fields.nameRequired'))
+          .max(
+            AUTH_LIMITS.name,
+            t('auth.fields.tooLong', { max: AUTH_LIMITS.name }),
+          ),
         locale: z.string(),
         timezone: z.string(),
       }),
@@ -88,6 +97,12 @@ function ProfileForm({ me }: { me: Me }) {
         const user = await save.mutateAsync({
           ...value,
           name: value.name.trim(),
+        });
+        // Saved: the form's defaults now, so leaving asks nothing.
+        form.reset({
+          name: user.name,
+          locale: user.locale ?? '',
+          timezone: user.timezone ?? '',
         });
         queryClient.setQueryData(meQuery.queryKey, (old) =>
           old ? { ...old, user } : old,
@@ -104,6 +119,7 @@ function ProfileForm({ me }: { me: Me }) {
       }
     },
   });
+  useUnsavedChangesGuard(form);
   return (
     <Card>
       <CardHeader>

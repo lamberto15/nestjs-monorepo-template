@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it, vi } from 'vitest';
+import { expectOverLimitRefused } from '@/test/limits';
 import { renderApp } from '@/test/render-app';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
 
@@ -406,6 +407,26 @@ describe('clients and endpoints', () => {
     expect(
       await within(form).findByText(/Enter a full web address/),
     ).toBeVisible();
+    expect(state.created).toBeUndefined();
+  });
+
+  it('refuses a description over 500 characters before asking the API', async () => {
+    const state = api();
+    const user = userEvent.setup();
+    await renderApp(endpointsPath);
+    await screen.findByText('https://hooks.example.com/in');
+    await user.click(screen.getByRole('button', { name: 'New endpoint' }));
+    const form = await screen.findByRole('dialog', { name: 'New endpoint' });
+    await user.type(
+      within(form).getByLabelText('URL'),
+      'https://other.example.com/hook',
+    );
+    await expectOverLimitRefused(user, {
+      scope: form,
+      label: 'Description (optional)',
+      max: 500,
+      submit: 'Create endpoint',
+    });
     expect(state.created).toBeUndefined();
   });
 

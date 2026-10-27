@@ -22,6 +22,9 @@ export type EndpointValues = {
   eventTypes: string[];
 };
 
+// The API states no limit for an endpoint's description: this is the web's.
+const DESCRIPTION_MAX = 500;
+
 const isHttpUrl = (value: string) => {
   try {
     return ['https:', 'http:'].includes(new URL(value).protocol);
@@ -57,7 +60,13 @@ export function EndpointFormDialog(props: {
           .trim()
           .min(1, t('form.urlRequired'))
           .refine(isHttpUrl, { message: t('form.urlInvalid') }),
-        description: z.string().trim().max(500),
+        description: z
+          .string()
+          .trim()
+          .max(
+            DESCRIPTION_MAX,
+            t('form.descriptionTooLong', { max: DESCRIPTION_MAX }),
+          ),
         eventTypes: z.array(z.string()).min(1, t('form.eventsRequired')),
       }),
     },
