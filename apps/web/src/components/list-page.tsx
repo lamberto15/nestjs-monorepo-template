@@ -8,7 +8,7 @@ import {
 } from '@tanstack/react-table';
 import { useRouter } from '@tanstack/react-router';
 import { SearchIcon } from 'lucide-react';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTable } from '@/components/data-table/data-table';
 import { getDataTableActionsColumn } from '@/components/data-table/data-table-actions-column';
@@ -193,8 +193,13 @@ function ListTable<P extends ListPath>({
   });
 
   // A selection is of the rows of THIS filter: another one starts again.
+  // `table` changes identity on every parent render, so compare the scope
+  // itself, or opening a bulk dialog would clear the selection (#763).
   const scope = JSON.stringify([listFilters(query.params), extraQuery]);
+  const selectedScope = useRef(scope);
   useEffect(() => {
+    if (selectedScope.current === scope) return;
+    selectedScope.current = scope;
     table.setRowSelection({});
   }, [scope, table]);
 
