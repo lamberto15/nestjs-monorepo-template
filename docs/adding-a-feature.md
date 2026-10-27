@@ -502,7 +502,6 @@ scope of the packages, `API_TITLE` in `apps/api/src/openapi.ts`,
 pnpm feature:remove notes   # --dry-run shows what goes
 pnpm db:generate
 pnpm client:generate
-pnpm build                  # first: the web's build regenerates its route tree
 ```
 
 `pnpm feature:remove <name>` removes any feature the same way: its folder,
@@ -516,9 +515,9 @@ for a feature"): `apps/web/src/features/<name>/` (its queries, forms, nav
 entry and tests), `routes/_app/<name>/`, `locales/<lng>/<name>.json`, and its
 names in the shared texts (`search.json`'s `subjects.<Subject>`,
 `settings.json`'s `groups.<name>`, `approvals.json`'s `actions.<Subject>`).
-The router's plugin then rewrites `routeTree.gen.ts` on the next build or
-`pnpm dev:web`. It refuses while another feature refers to it, or another web
-file imports from its folder. On a live database, dropping a table is a
+The command regenerates `routeTree.gen.ts` itself (TanStack Router's
+generator, the Vite plugin's), so no build is needed first. It refuses while
+another feature refers to it, or another web file imports from its folder. On a live database, dropping a table is a
 contract step: release the code that no longer uses it first
 (docs/development.md, migrations).
 

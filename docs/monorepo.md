@@ -43,7 +43,7 @@ features/x`. `nest g library` writes `apps/api/libs/` and its alias into
 
 | Task       | Before it                                          | Cached                                          |
 | ---------- | -------------------------------------------------- | ----------------------------------------------- |
-| `build`    | the dependencies' `build` (`^build`)               | `dist/**`, `*.tsbuildinfo`; tests and docs don't change its hash |
+| `build`    | the dependencies' `build` (`^build`)               | `dist/**`, `*.tsbuildinfo` (the web app's `apps/web/turbo.json` adds the committed `src/routeTree.gen.ts`); tests and docs don't change its hash |
 | `lint`     | `^build` (the API's tests read the client's types) | yes                                             |
 | `test`     | `^build`                                           | yes                                             |
 | `test:e2e` | `^build` (the API's e2e imports the built client)  | no: it needs Docker or the services             |
