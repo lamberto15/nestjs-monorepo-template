@@ -11,7 +11,7 @@ import { FieldGroup } from '@nestjs-monorepo-template/ui/components/field';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
-import { FormAlert, useAppForm } from '@/lib/form';
+import { FormAlert, resetOnClose, useAppForm } from '@/lib/form';
 import { z } from '@/lib/zod';
 import { EventPicker } from './event-picker';
 import type { Endpoint } from './queries';
@@ -87,15 +87,11 @@ export function EndpointFormDialog(props: {
       }
     },
   });
-  // Closing drops a new endpoint's draft: the dialog stays mounted, so it
-  // would return. An edit's defaults are the saved endpoint.
-  const onOpenChange = (open: boolean) => {
-    if (!open) {
-      if (!editing) form.reset();
-      setError(undefined);
-    }
-    props.onOpenChange(open);
-  };
+  // An edit's defaults are the saved endpoint: only a new one's draft goes.
+  const onOpenChange = resetOnClose(props.onOpenChange, () => {
+    if (!editing) form.reset();
+    setError(undefined);
+  });
   return (
     <Dialog open={props.open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">

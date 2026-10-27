@@ -11,7 +11,7 @@ import { FieldGroup } from '@nestjs-monorepo-template/ui/components/field';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
-import { FormAlert, useAppForm } from '@/lib/form';
+import { FormAlert, resetOnClose, useAppForm } from '@/lib/form';
 import { z } from '@/lib/zod';
 import { SENDER_LIMITS, type Sender } from './sender-queries';
 
@@ -71,15 +71,11 @@ export function SenderFormDialog(props: {
       }
     },
   });
-  // Closing drops a new sender's draft: the dialog stays mounted, so it
-  // would return. An edit's defaults are the saved sender.
-  const onOpenChange = (open: boolean) => {
-    if (!open) {
-      if (!editing) form.reset();
-      setError(undefined);
-    }
-    props.onOpenChange(open);
-  };
+  // An edit's defaults are the saved sender: only a new one's draft goes.
+  const onOpenChange = resetOnClose(props.onOpenChange, () => {
+    if (!editing) form.reset();
+    setError(undefined);
+  });
   return (
     <Dialog open={props.open} onOpenChange={onOpenChange}>
       <DialogContent>

@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
-import { FormAlert, useAppForm } from '@/lib/form';
+import { FormAlert, resetOnClose, useAppForm } from '@/lib/form';
 import { z } from '@/lib/zod';
 import { SUBJECT_PATTERN, usePlaceHold } from './api';
 
@@ -63,14 +63,10 @@ export function PlaceHoldDialog(props: {
       }
     },
   });
-  // Closing drops the draft: the dialog stays mounted, so it would return.
-  const onOpenChange = (open: boolean) => {
-    if (!open) {
-      form.reset();
-      setError(undefined);
-    }
-    props.onOpenChange(open);
-  };
+  const onOpenChange = resetOnClose(props.onOpenChange, () => {
+    form.reset();
+    setError(undefined);
+  });
   return (
     <Dialog open={props.open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
