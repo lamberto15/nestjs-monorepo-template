@@ -14,7 +14,7 @@ import {
   type DrizzleTransactions,
   inTransaction,
 } from '../../core/database/transactions.js';
-import { REDIS } from '../../core/redis/redis.js';
+import { REDIS, redisWithin } from '../../core/redis/redis.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { AccessPolicy } from '../../iam/access/policies.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
@@ -148,6 +148,10 @@ export class SettingsService {
   /** Told when the platform values change on this instance (`onPlatformChange()`). */
   private readonly platformListeners: (() => void)[] = [];
   private static readonly FALLBACK_TTL_MS = 5_000;
+  /** How long a settings read waits for the version in Redis. */
+  static readonly REDIS_READ_TIMEOUT_MS = 500;
+  /** Whether the last version read failed (one warning per outage). */
+  private redisDown = false;
   private static readonly MAX_AGE_MS = 5 * 60_000;
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
@@ -970,28 +974,32 @@ export class SettingsService {
   private async bump() {
     const tenantId = requireTenantId('A setting');
     this.caches.delete(tenantId);
-    await this.redis
-      .incr(tenantKey(SettingsService.VERSION_KEY, tenantId))
-      .catch((error: unknown) =>
-        this.logger.warn(
-          `Could not publish a settings change; other instances see it within ${SettingsService.FALLBACK_TTL_MS} ms.`,
-          { error: String(error) },
-        ),
-      );
+    await redisWithin(
+      this.redis,
+      () => this.redis.incr(tenantKey(SettingsService.VERSION_KEY, tenantId)),
+      SettingsService.REDIS_READ_TIMEOUT_MS,
+    ).catch((error: unknown) =>
+      this.logger.warn(
+        `Could not publish a settings change; other instances see it within ${SettingsService.FALLBACK_TTL_MS} ms.`,
+        { error: String(error) },
+      ),
+    );
   }
 
   /** After a commit: this instance forgets the platform values, the others see a new version. */
   private async bumpPlatform() {
     this.platformCache = undefined;
     for (const listener of this.platformListeners) listener();
-    await this.redis
-      .incr(SettingsService.PLATFORM_VERSION_KEY)
-      .catch((error: unknown) =>
-        this.logger.warn(
-          `Could not publish a platform settings change; other instances see it within ${SettingsService.FALLBACK_TTL_MS} ms.`,
-          { error: String(error) },
-        ),
-      );
+    await redisWithin(
+      this.redis,
+      () => this.redis.incr(SettingsService.PLATFORM_VERSION_KEY),
+      SettingsService.REDIS_READ_TIMEOUT_MS,
+    ).catch((error: unknown) =>
+      this.logger.warn(
+        `Could not publish a platform settings change; other instances see it within ${SettingsService.FALLBACK_TTL_MS} ms.`,
+        { error: String(error) },
+      ),
+    );
   }
 
   /**
@@ -1049,11 +1057,31 @@ export class SettingsService {
     );
   }
 
+  /**
+   * The version key, or undefined when Redis can't answer within
+   * REDIS_READ_TIMEOUT_MS (down, reconnecting, silent): the caller then
+   * serves its cache while it is younger than FALLBACK_TTL_MS and reloads
+   * from the database otherwise, never waiting for Redis (the shared client
+   * queues commands until it returns). Logged once per outage.
+   */
   private async redisGet(key: string): Promise<string | undefined> {
     try {
-      return (await this.redis.get(key)) ?? '0';
-    } catch {
-      return undefined; // Redis away: fall back to a short TTL
+      const value =
+        (await redisWithin(
+          this.redis,
+          () => this.redis.get(key),
+          SettingsService.REDIS_READ_TIMEOUT_MS,
+        )) ?? '0';
+      this.redisDown = false;
+      return value;
+    } catch (error) {
+      if (!this.redisDown) {
+        this.redisDown = true;
+        this.logger.warn(
+          `Settings read without Redis (${(error as Error).message}): cached values for up to ${SettingsService.FALLBACK_TTL_MS} ms, then the database.`,
+        );
+      }
+      return undefined;
     }
   }
 

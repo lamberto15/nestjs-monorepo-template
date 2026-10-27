@@ -38,7 +38,16 @@ a user must still be an active member of the job's tenant, an API client's
 tenant must still be active ([tenancy](tenancy.md), "Async carries the tenant by type").
 
 Producers work in every process; processors only run on workers (BullMQ's
-manual registration). Defaults: 3 attempts with exponential backoff; finished
+manual registration). **Queues fail fast, workers wait** (BullMQ's
+[production guide](https://docs.bullmq.io/guide/going-to-production)):
+the queues' connection has no offline queue and `maxRetriesPerRequest: 1`
+(`producerRedisOptions()`), so `queue.add()` with Redis unreachable rejects
+at once instead of being buffered and sent when Redis returns (an abandoned
+request leaves no job behind); a worker's connections keep
+`maxRetriesPerRequest: null` and wait out an outage (`QueueWorker`). The
+callers' own retry (the outbox relay, a job's attempts, the user's retry)
+absorbs the rejection. An add already on the wire when a caller gives up
+(`abortable()`) may still land: give it a deterministic `jobId`. Defaults: 3 attempts with exponential backoff; finished
 jobs kept a day, failed ones a week. Each queue's concurrency (jobs at once per worker) is
 `QUEUE_CONCURRENCY_<QUEUE>`, set on the running worker by `QueueWorkers`
 (BullMQ's settable `worker.concurrency`; the `@Processor` value is the
@@ -67,6 +76,17 @@ The worker asks the **suppression list** before sending
 complained are left out (`@EssentialMail()` on a class the person asked
 for, such as the password reset, still reaches one that complained), and
 the job's result says who was skipped and why.
+
+The job id is the mail's idempotency key: adding a job whose id already
+exists is a no-op, but only while that job is still in Redis. Mail therefore
+keeps its finished jobs **7 days (at most 50,000)**, not the default day /
+1,000 (`MAIL_JOB_OPTIONS`), so a dead letter replayed within a week doesn't
+send twice. The price is Redis memory: a job holds the rendered mail (a few
+KB), tens of MB at the cap. A replay later than that, or after more than
+50,000 newer mails, can send again; a durable idempotency record per mail
+would close that at a database write per mail, which a replay that comes
+within days doesn't justify. Raise the age or count in `MAIL_JOB_OPTIONS`
+(`core/queues/queues.ts`) if your replays come later.
 
 ## Cron jobs and locks
 

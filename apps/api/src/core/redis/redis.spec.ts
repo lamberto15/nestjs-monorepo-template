@@ -10,10 +10,15 @@ import {
   assertRedisVersion,
   closeRedis,
   MIN_REDIS_VERSION,
+  producerRedisOptions,
+  redisOptions,
+  RedisUnavailableError,
   redisResponds,
   redisVersionOf,
   redisVersionSupported,
+  redisWithin,
 } from './redis.js';
+import type { Config, CoreEnv } from '../config/core.env.js';
 
 /**
  * Shutdown with Redis gone must not hang: closeRedis() and redisResponds()
@@ -154,5 +159,90 @@ describe('the Redis version check at start', () => {
       'Redis version not checked: INFO server names none',
       'Redis version not checked: NOAUTH Authentication required',
     ]);
+  });
+});
+
+const config = (values: Record<string, unknown> = {}) =>
+  ({
+    get: (key: string) =>
+      ({
+        REDIS_URL: 'redis://localhost:6379/2',
+        REDIS_SENTINELS: [],
+        ...values,
+      })[key],
+  }) as unknown as Config<CoreEnv>;
+
+describe('connection options', () => {
+  it('keeps the shared and worker connections waiting for Redis', () => {
+    const options = redisOptions(config());
+    expect(options.maxRetriesPerRequest).toBeNull();
+    expect(options.enableOfflineQueue).toBeUndefined();
+  });
+
+  it('gives the queues (producers) a fail-fast connection to the same Redis', () => {
+    const options = producerRedisOptions(config());
+    expect(options.enableOfflineQueue).toBe(false);
+    expect(options.maxRetriesPerRequest).toBe(1);
+    expect(options).toMatchObject({ host: 'localhost', port: 6379, db: 2 });
+  });
+});
+
+describe('a producer connection with Redis unreachable', () => {
+  it('rejects at once and sends nothing when Redis returns', async () => {
+    const server = createServer();
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const { port } = server.address() as AddressInfo;
+    server.close();
+    await once(server, 'close');
+
+    const client = new Redis({
+      ...producerRedisOptions(config()),
+      host: '127.0.0.1',
+      port,
+      retryStrategy: () => 50,
+      lazyConnect: false,
+    });
+    client.on('error', () => undefined);
+    const started = Date.now();
+    // The add of an abandoned request: not buffered offline.
+    await expect(client.set('job', '1')).rejects.toThrow();
+    expect(Date.now() - started).toBeLessThan(500);
+
+    // Redis comes back: the rejected command must not arrive.
+    const received: string[] = [];
+    const returned = createServer((socket) => {
+      socket.on('data', (chunk) => received.push(chunk.toString()));
+    });
+    returned.listen(port, '127.0.0.1');
+    await once(returned, 'listening');
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    client.disconnect();
+    returned.close();
+    expect(received.join('')).not.toContain('job');
+  });
+});
+
+describe('redisWithin', () => {
+  it('returns the answer of a ready client', async () => {
+    await expect(
+      redisWithin({ status: 'ready' }, () => Promise.resolve('1')),
+    ).resolves.toBe('1');
+  });
+
+  it('fails at once, without calling Redis, when the client is not connected', async () => {
+    const read = vi.fn();
+    await expect(
+      redisWithin({ status: 'reconnecting' }, read),
+    ).rejects.toBeInstanceOf(RedisUnavailableError);
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it('fails after the timeout when Redis stays silent', async () => {
+    const started = Date.now();
+    await expect(
+      redisWithin({ status: 'ready' }, () => new Promise(() => {}), 100),
+    ).rejects.toThrow('took over 100 ms');
+    expect(Date.now() - started).toBeLessThan(1000);
   });
 });
