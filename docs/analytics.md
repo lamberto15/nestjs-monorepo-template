@@ -147,7 +147,7 @@ what is tested.
   server's import limits (`dataTransfer.importMaxMiB`, default 50 MiB, and
   `importMaxRows`; [import-limits.md](import-limits.md)). A file that explores
   fine may still be refused by the importer.
-- **Browser support.** CI runs the same smoke test in Chromium, Firefox and WebKit,
+- **Browser support.** CI runs the same browser spec in Chromium, Firefox and WebKit,
   but only against small fixtures; large-file behavior was measured on headless
   Chromium alone and varies by device.
 
@@ -196,18 +196,42 @@ package's Node build for its version) and the engine's start-up check. Then:
 2. Change `duckdbVersion` in `duckdb-extensions.json`.
 3. Run the script with `--record`, review the diff, commit the new files and
    remove the old `v<version>` folder.
-4. Check the size budgets, and run the unit tests and the browser smoke test.
+4. Check the size budgets, and run the unit tests and the browser spec (`apps/web-e2e/test/analytics.spec.ts`).
 
 ### Tests
 
 - Unit tests in `apps/web/src/features/analytics/*.test.ts(x)`: SQL generation,
   Arrow conversion, the engine's lockdown and lifecycle, the handoff, the page.
-- The browser smoke `apps/web-e2e/scripts/analytics-smoke.mjs` loads CSV, JSON and
-  Parquet in a real browser, checks filters, sorting, JSON nulls and mixed values,
-  cancellation, and **asserts that no request leaves the page's origin**. Chromium
-  runs in the `e2e-web` job; Firefox and WebKit in the `analytics-smoke` job of
-  `.github/workflows/web.yml`. Locally: `CHROMIUM_PATH=/usr/bin/chromium node apps/web-e2e/scripts/analytics-smoke.mjs`
-  against the web development server on port 5178 (`ANALYTICS_BROWSER=chromium|firefox|webkit`).
+- The browser spec `apps/web-e2e/test/analytics.spec.ts` (Playwright) opens the
+  real Data Explorer page, on the **built app under the production
+  Content-Security-Policy**, signed in as the administrator with the
+  `analytics.browser.enabled` flag switched on for the run (and off after). It
+  hands a CSV, a JSON and a Parquet file to the page's file upload and checks the
+  profile (rows, columns, ranges, exact null counts, mixed JSON values), the
+  grouped aggregate and the histogram (their charts), Cancel (the engine stops, a
+  file can be chosen again), and **that no request leaves the page's origin**
+  (every request of the context is compared by origin; a same-origin `blob:` URL,
+  which WebKit reports, is the page's own). The Parquet file is written by
+  DuckDB-Wasm's Node build on each run (`test/analytics-files.ts`), never kept as
+  a binary. Filters and sorting are covered by the unit tests (`query.test.ts`,
+  `query.duckdb.test.ts`); the page does not show the engine's version, which the
+  engine's own start-up check pins.
+- **The policy comes from the Caddyfile.** `vite preview` sends the headers of the
+  web app's block in `caddy/Caddyfile` (`apps/web/preview-headers.ts`, wired in
+  `preview.headers` of `vite.config.ts`), so a script, worker or request the
+  policy forbids fails in this spec, not only in production; the spec also
+  checks that the header is there. The real Caddy image would add a build for
+  nothing else (docs/development.md, "Browser tests").
+- **Browsers.** Chromium runs the spec with the other browser tests in the
+  `e2e-web` job of `.github/workflows/ci.yml`. Firefox and WebKit run it in the
+  `analytics-smoke` job of `.github/workflows/web.yml` (a matrix leg each; pull
+  requests that touch the engine, the build config, the Caddyfile or the spec,
+  `main` and the nightly run), on PostgreSQL and Redis from `compose.yaml`: a
+  project per browser (`analytics-firefox`, `analytics-webkit`) that
+  `playwright.config.ts` adds when `E2E_EXTRA_BROWSERS=firefox,webkit` is set,
+  restricted to this spec. Locally, after `pnpm services:up` and
+  `playwright install firefox webkit` (once):
+  `E2E_EXTRA_BROWSERS=firefox,webkit pnpm test:e2e:web test/analytics.spec.ts`.
 
 ### Measurements
 

@@ -730,8 +730,9 @@ jobs:
   # to install, and a different failure to read (the HTML report and traces
   # are uploaded when it fails). Accessibility findings (axe) go to the job
   # summary; serious and critical ones fail the tests. Then, on the same
-  # build and services: the analytics engine in Chrome (Firefox and WebKit
-  # in web.yml), and the instrumentation (below).
+  # build and services: the instrumentation (below). The Data Explorer's spec
+  # (test/analytics.spec.ts) is one of the browser tests, in Chrome, under the
+  # production Content-Security-Policy; Firefox and WebKit run it in web.yml.
   #
   # The instrumentation: a sixth of the e2e suite with OpenTelemetry
   # (OTEL_EXPORTER_OTLP_ENDPOINT) and Sentry (SENTRY_DSN) pointing at a stub
@@ -772,7 +773,7 @@ jobs:
       DATABASE_OWNER_URL: postgres://app:app@localhost:5432/app
       DATABASE_MAINTENANCE_URL: postgres://app_maintenance:app_maintenance@localhost:5432/app
       REDIS_URL: redis://localhost:6379
-      # The browser tests and the analytics smoke run in the runner's Chrome.
+      # The browser tests run in the runner's Chrome.
       E2E_BROWSER_CHANNEL: chrome
     steps:
       - uses: actions/checkout@v7
@@ -801,20 +802,6 @@ jobs:
         run: pnpm test:e2e:web
         env:
           CI: 'true'
-      # The local-file analytics (DuckDB-WASM in a worker) with no external
-      # request, on Vite's dev server: apps/web-e2e/scripts/analytics-smoke.mjs.
-      - name: Local file analytics without external requests (Chrome)
-        if: needs.changes.outputs.web == 'true'
-        env:
-          ANALYTICS_BROWSER: chromium
-        run: |
-          pnpm --filter @nestjs-monorepo-template/web exec vite --host 127.0.0.1 --port 5178 > "$RUNNER_TEMP/analytics-vite.log" 2>&1 &
-          server_pid=$!
-          trap 'kill "$server_pid" || true' EXIT
-          pnpm --filter @nestjs-monorepo-template/web-e2e exec node scripts/analytics-smoke.mjs
-      - name: Vite diagnostics
-        if: failure()
-        run: cat "$RUNNER_TEMP/analytics-vite.log" || true
       - name: The stub collector (OTLP/HTTP and Sentry's envelope endpoint)
         if: needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'
         run: |

@@ -377,10 +377,14 @@ settings pages. It is not part of `pnpm test:e2e` (the API's).
 - **What it runs against:** the *built* API (`node dist/main`) and the *built*
   web app, served by `vite preview`, which proxies `/v1` to the API as Caddy
   does in production (`preview.proxy` in `apps/web/vite.config.ts`). One
-  origin, so the `__Host-sid` cookie works; no CORS, no Vite dev server. The
-  Caddy image would add a build of Caddy with its plugin for nothing the tests
-  check (it serves the same `dist`); its own image is built and scanned in CI
-  (`caddy-image`).
+  origin, so the `__Host-sid` cookie works; no CORS, no Vite dev server. It
+  also sends the headers Caddy adds to the app's files, the
+  Content-Security-Policy included, read from `caddy/Caddyfile`
+  (`preview.headers`, `apps/web/preview-headers.ts`): the tests run under the
+  production policy, which the Data Explorer's WebAssembly worker depends on.
+  The Caddy image would add a build of Caddy with its plugin for nothing else
+  the tests check (it serves the same `dist`); its own image is built and
+  scanned in CI (`caddy-image`).
 - **Ports:** the API on **3300** and the web app on **4173**, never 3000 and
   5173, so the suite runs beside `pnpm dev`. Nothing it uses is the default
   stack's but PostgreSQL and Redis (see below).
@@ -417,6 +421,14 @@ settings pages. It is not part of `pnpm test:e2e` (the API's).
   summary (`node apps/web-e2e/scripts/axe-summary.mjs` prints the same after a
   run). A real finding is fixed in the web app; one that can't be yet gets
   an issue, and only then a `disableRules()` in `test/fixtures.ts` naming it.
+- **Other browsers:** every spec runs in Chromium. The Data Explorer's spec
+  (`test/analytics.spec.ts`, [analytics.md](analytics.md), "Tests") also runs in
+  Firefox and WebKit: `E2E_EXTRA_BROWSERS=firefox,webkit` adds a project for
+  each (`analytics-firefox`, `analytics-webkit`), limited to that spec, and
+  needs the browsers (`playwright install firefox webkit`). Unset, a plain run
+  needs Chromium only. CI sets it in the `analytics-smoke` job of
+  `.github/workflows/web.yml`, one leg per browser, on a change to the engine,
+  its build config or the spec.
 - **In CI:** the `e2e-web` job of `.github/workflows/ci.yml`, on every pull
   request, beside the API's e2e shards: its own PostgreSQL and Redis service
   containers, the database marked as a development one, Turborepo's cache for
