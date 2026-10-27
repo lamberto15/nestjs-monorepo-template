@@ -5,6 +5,7 @@ import {
   type GetResponse,
 } from '@nestjs-monorepo-template/api-client';
 import { api } from '@/lib/api';
+import { cancelReauthentication } from '@/lib/reauth';
 import { announceSessionIdentity } from '@/lib/session-bus';
 
 export type Me = GetResponse<'/v1/auth/me'>;
@@ -104,6 +105,44 @@ export const tenantsQuery = queryOptions({
 
 const methodsHash = JSON.stringify(methodsQuery.queryKey);
 
+/** What the session became: another context's (`reset`), or nobody's (`clear`). */
+export type SessionChange = 'reset' | 'clear';
+
+const resets = new Set<(change: SessionChange) => void>();
+
+/**
+ * Client state the query cache does not hold but the session owns (a step-up
+ * dialog's waiting request, the recent searches, a secret shown once) forgets
+ * itself here: `fn` runs inside `reset()` and `clear()` below, so in the tab
+ * that switched or signed out and, through the session watcher
+ * (lib/errors.ts), in the browser's other tabs too. A component registers
+ * with `useOnSessionChange` (hooks/use-on-session-change.ts). Returns the
+ * registration's end.
+ */
+export function registerSessionReset(
+  fn: (change: SessionChange) => void,
+): () => void {
+  resets.add(fn);
+  return () => {
+    resets.delete(fn);
+  };
+}
+
+function runSessionResets(change: SessionChange) {
+  for (const fn of resets) {
+    try {
+      fn(change);
+    } catch (error) {
+      // One failing registration must not keep the others' state alive.
+      console.warn('a session reset failed', error);
+    }
+  }
+}
+
+// A request waiting for the user to confirm it's them was built for the
+// session that asked: it is refused, never sent again under the new cookie.
+registerSessionReset(cancelReauthentication);
+
 /** The router context's `session`: the session, through the query cache. */
 export type Session = ReturnType<typeof createSession>;
 
@@ -121,11 +160,15 @@ export function createSession(queryClient: QueryClient) {
      * it before navigating, so no old data is rendered after the switch.
      */
     reset: async () => {
-      // Mutations too: their variables and results (a password change,
-      // recovery codes, a TOTP secret) must not outlive the session.
       const watch = sessionWatch(queryClient);
       watch.applying = true;
       try {
+        runSessionResets('reset');
+        // Mutations too: the cache's copies of their variables and results
+        // go. A mounted component's observer keeps its own copy of the last
+        // result (TanStack Query's MutationObserver is not told), so one that
+        // shows a secret (recovery codes, a TOTP secret, a new key) resets it
+        // with `useOnSessionChange`, which `runSessionResets` reaches.
         queryClient.getMutationCache().clear();
         await queryClient.resetQueries();
         // Not mounted anywhere (a sign-in page): fetch it, so the route
@@ -145,6 +188,7 @@ export function createSession(queryClient: QueryClient) {
       const watch = sessionWatch(queryClient);
       watch.applying = true;
       try {
+        runSessionResets('clear');
         queryClient.getMutationCache().clear();
         queryClient.removeQueries({
           predicate: (query) => query.queryHash !== methodsHash,

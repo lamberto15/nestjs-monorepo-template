@@ -1,9 +1,11 @@
 import { http, HttpResponse } from 'msw/http';
 import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { unwrap } from '@nestjs-monorepo-template/api-client';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { initI18n } from '@/i18n';
 import { api } from '@/lib/api';
+import { createSession } from '@/lib/session';
 import { renderApp } from '@/test/render-app';
 import { findToast } from '@/test/toast';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
@@ -116,5 +118,52 @@ describe('a 403 mfa_enrollment_required from a query', () => {
         'You need to set up two-factor authentication before you can continue.',
       ),
     ).toBeVisible();
+  });
+});
+
+describe('what is shown once, when the session changes under the page', () => {
+  // `reset()` is what a tenant switch, another account or an impersonation
+  // runs, here or (through the session watcher) in another tab: the page
+  // stays mounted, and nothing of the previous session may stay on it.
+  it('drops the authenticator secret of an enrolment the previous session began', async () => {
+    useMfaApi();
+    const user = userEvent.setup();
+    const { queryClient } = await renderApp('/account/security');
+    await user.click(
+      await screen.findByRole('button', { name: 'Set up two-factor' }),
+    );
+    expect(await screen.findByText('JBSWY3DPEHPK3PXP')).toBeVisible();
+
+    await createSession(queryClient).reset();
+
+    await waitFor(() =>
+      expect(screen.queryByText('JBSWY3DPEHPK3PXP')).toBeNull(),
+    );
+    expect(
+      screen.queryByLabelText('QR code for your authenticator app'),
+    ).toBeNull();
+  });
+
+  it('drops the recovery codes shown to the previous session', async () => {
+    useMfaApi();
+    server.use(
+      http.get('/v1/auth/mfa', () =>
+        HttpResponse.json({ enabled: true, remainingRecoveryCodes: 10 }),
+      ),
+      http.post('/v1/auth/mfa/recovery-codes', () =>
+        HttpResponse.json({ recoveryCodes: ['aaaa-bbbb', 'cccc-dddd'] }),
+      ),
+    );
+    const user = userEvent.setup();
+    const { queryClient } = await renderApp('/account/security');
+    await user.click(
+      await screen.findByRole('button', { name: 'New recovery codes' }),
+    );
+    expect(await screen.findByText('aaaa-bbbb')).toBeVisible();
+
+    await createSession(queryClient).reset();
+
+    await waitFor(() => expect(screen.queryByText('aaaa-bbbb')).toBeNull());
+    expect(screen.queryByText('cccc-dddd')).toBeNull();
   });
 });

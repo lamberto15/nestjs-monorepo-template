@@ -15,6 +15,7 @@ import { CheckIcon, CopyIcon, TriangleAlertIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { useOnSessionChange } from '@/hooks/use-on-session-change';
 
 /**
  * A signing secret, shown once. Open while `secret` is set; `onClose` must `reset()` the
@@ -34,6 +35,9 @@ export function SecretDialog(props: {
     setCopied(false);
     props.onClose();
   };
+  // Shown to the session that made it: one that changes under the dialog
+  // (signed out, another tenant, in this tab or another) never sees the secret.
+  useOnSessionChange(close);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(props.secret ?? '');

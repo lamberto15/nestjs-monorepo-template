@@ -170,7 +170,23 @@ web app needs the API, so `dev:web` alone suits an API already running.
   (an old browser, or tests without the fake) still discovers every change
   on its own refetches — correct, just slower. A client thrown away ends its
   bus listener with it (`sessionWatch().offBus()`; the tests' teardown does
-  it), so the registry holds nothing of it. A form's unsaved draft, though,
+  it), so the registry holds nothing of it. After that reset the page's
+  route guards run again (`router.invalidate()`, the error handler's
+  `invalidate`): a page the new identity may not open is left. What the
+  query cache does not hold but the session owns forgets itself through
+  `registerSessionReset(fn)` (`lib/session.ts`): `fn` runs inside `reset()`
+  (`'reset'`) and `clear()` (`'clear'`), so in the tab that switched and in
+  the others. It settles a step-up dialog still open (`cancelReauthentication`,
+  `lib/reauth.ts`: the request it holds was built for the previous session and
+  is refused, never sent again under the new cookie) and, on `clear`, removes
+  the recent searches (kept per `sessionIdentity` in localStorage,
+  `features/search/recent.ts`; registered in `app.tsx`, as the palette's
+  chunk loads lazily). A component registers with `useOnSessionChange(fn)`
+  (`hooks/use-on-session-change.ts`) for what it shows of the session: a
+  mounted `useMutation` keeps its last result after the mutation cache is
+  cleared (TanStack Query's observer is not told), so a secret shown once
+  (the key and signing-secret dialogs, recovery codes, a TOTP secret) is
+  reset there. A form's unsaved draft, though,
   is component state the reset cannot touch: a draft begun under another
   session is not sent until the user says so — `useStaleDraftSession()`
   (`lib/form.tsx`) at the top of a form's `onSubmit` (the note form has it;
