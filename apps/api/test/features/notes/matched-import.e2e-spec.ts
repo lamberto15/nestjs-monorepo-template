@@ -134,4 +134,74 @@ describe('notes matched imports (e2e)', () => {
       .expect(200);
     expect(unchanged.body.title).toBe('Foreign');
   });
+
+  it("refuses a note the importer may update but not read as it refuses one that doesn't exist", async () => {
+    // Read only their own notes, change any draft: someone else's draft is
+    // one they may update and may not see.
+    const role = await node
+      .admin()
+      .post('/v1/access/roles')
+      .send({
+        name: `Draft fixer ${Date.now()}`,
+        permissions: [
+          { subject: 'Note', action: 'read', conditions: [{ key: 'mine' }] },
+          { subject: 'Note', action: 'create', conditions: [] },
+          { subject: 'Note', action: 'update', conditions: [{ key: 'draft' }] },
+        ],
+      })
+      .expect(201);
+    const importer = await node.user([role.body.id]);
+    const owner = await node.client();
+    const hidden = (
+      await writeNote(node, owner.auth, {
+        title: 'Not theirs',
+        body: 'private',
+      }).expect(201)
+    ).body;
+    await importer.agent.get(`/v1/notes/${hidden.id}`).expect(403);
+
+    const started = await importer.agent
+      .post('/v1/data/imports')
+      .field('name', 'notes')
+      .field('matchOn', 'id')
+      .attach(
+        'file',
+        Buffer.from(
+          `id,title\n${hidden.id},Changed\n${randomUUID()},Nowhere\n`,
+        ),
+        { filename: 'notes.csv', contentType: 'text/csv' },
+      )
+      .expect(202);
+    let done: { status: string; result: { errorsUrl: string } } | undefined;
+    for (let attempt = 0; attempt < 100 && !done; attempt++) {
+      const status = (
+        await importer.agent
+          .get(`/v1/data/transfers/${started.body.id}`)
+          .expect(200)
+      ).body;
+      if (status.status === 'completed' || status.status === 'failed') {
+        done = status;
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    }
+    expect(done).toMatchObject({
+      status: 'completed',
+      result: { rows: 2, imported: 0, failed: 2 },
+    });
+    const report = await node
+      .http()
+      .get(local(done!.result.errorsUrl))
+      .expect(200);
+    // The same refusal for both rows: nothing tells the hidden note apart.
+    expect(report.text).toContain('1,,No note with this id.');
+    expect(report.text).toContain('2,,No note with this id.');
+    expect(report.text).not.toContain('Forbidden');
+    const unchanged = await node
+      .http()
+      .get(`/v1/notes/${hidden.id}`)
+      .set('Authorization', owner.auth)
+      .expect(200);
+    expect(unchanged.body.title).toBe('Not theirs');
+  });
 });
