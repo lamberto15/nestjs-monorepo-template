@@ -95,6 +95,25 @@ try {
   page.on('request', (request) => {
     if (!request.url().startsWith(baseUrl)) outsideRequests.push(request.url());
   });
+  // A browser reports a failed module import without naming the module: print
+  // what the page saw, so a failure in CI says which file and why.
+  const diagnostics = [];
+  page.on('pageerror', (error) =>
+    diagnostics.push(`pageerror: ${error.message}`),
+  );
+  page.on('console', (message) => {
+    if (message.type() === 'error')
+      diagnostics.push(`console: ${message.text()}`);
+  });
+  page.on('requestfailed', (request) =>
+    diagnostics.push(
+      `requestfailed: ${request.url()} ${request.failure()?.errorText ?? ''}`,
+    ),
+  );
+  page.on('response', (response) => {
+    if (response.status() >= 400)
+      diagnostics.push(`response ${response.status()}: ${response.url()}`);
+  });
   await page.goto(new URL('/analytics-smoke.html', baseUrl).href);
   let result;
   let developmentReloads = 0;
@@ -108,6 +127,10 @@ try {
       // when it first optimizes the lazy engine in a clean checkout). The reload
       // can land mid-import, which each browser reports in its own words. Wait for the
       // reloaded harness and run the whole test there; a real error fails 3 times.
+      if (diagnostics.length > 0)
+        console.error(
+          `Attempt ${attempt + 1}:\n${diagnostics.splice(0).join('\n')}`,
+        );
       if (
         attempt === 2 ||
         !/Execution context was destroyed|because of a navigation|Importing a module script failed|error loading dynamically imported module|Failed to fetch dynamically imported module/.test(
