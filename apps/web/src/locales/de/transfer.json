@@ -21,8 +21,7 @@
     "mine": "Ihre Exporte und Importe",
     "done_one": "{{count}} Zeile exportiert.",
     "done_other": "{{count}} Zeilen exportiert.",
-    "download": "Herunterladen ({{format}})",
-    "openInAnalytics": "Im Daten-Explorer öffnen"
+    "download": "Herunterladen ({{format}})"
   },
   "mine": {
     "title": "Exporte und Importe",
@@ -95,41 +94,7 @@
     "downloadErrors": "Abgelehnte Zeilen herunterladen (CSV)",
     "rowLimit": "Dieser Import kann bis zu {{count}} Zeilen enthalten.",
     "profile": "Dateispalten stimmen mit {{matched}} von {{expected}} Importspalten überein. Fehlend: {{missing}}. Diese Vorschau dient nur zur Information.",
-    "noneMissing": "keine",
-    "profileLocally": "Diese Datei lokal analysieren",
-    "local": {
-      "title": "Lokale Prüfung (nicht maßgeblich)",
-      "description": "Wird nur in diesem Browser gelesen; nichts wird hochgeladen. Die Prüfung des Servers („Datei nur prüfen“) entscheidet, was importiert wird.",
-      "unsupported": "Excel-Dateien können nicht lokal geprüft werden, nur CSV und JSON. Die Prüfung des Servers gilt weiterhin.",
-      "loading": "Die Datei wird in diesem Browser geprüft…",
-      "cancel": "Abbrechen",
-      "cancelled": "Die lokale Prüfung wurde abgebrochen. Der Import ist nicht betroffen.",
-      "error": "Die Datei konnte nicht lokal geprüft werden. Sie können sie trotzdem importieren; der Server prüft jede Zeile.",
-      "notArray": "Der Server liest eine JSON-Datei nur als Array von Objekten ([{…}, {…}]); diese Datei ist keines (JSON Lines wird abgelehnt).",
-      "retry": "Erneut versuchen",
-      "checksFailed": "Die Prüfungen auf Duplikate und Werte konnten nicht ausgeführt werden.",
-      "summary_one": "{{count}} Zeile und {{columns}} gelesen.",
-      "summary_other": "{{count}} Zeilen und {{columns}} gelesen.",
-      "columnCount_one": "{{count}} Spalte",
-      "columnCount_other": "{{count}} Spalten",
-      "clean": "Keine Probleme gefunden. Der Server kann dennoch Zeilen ablehnen.",
-      "missing": "Fehlende Pflichtspalten",
-      "matchKeyMissing": "Der Abgleichsschlüssel ist keine Spalte der Datei",
-      "repeatedHeaders": "Mehrfach benannte Spalten (der Import behält die letzte)",
-      "unknown": "Spalten, die der Import nicht übernimmt",
-      "types": "Werte, die möglicherweise nicht zum Spaltentyp passen",
-      "expected": "Erwartet",
-      "found": "In der Datei gefunden",
-      "badValues_one": "{{count}} Wert lässt sich nicht als {{type}} lesen",
-      "badValues_other": "{{count}} Werte lassen sich nicht als {{type}} lesen",
-      "duplicates": "Mehrfach vorkommende Werte des Abgleichsschlüssels {{key}}",
-      "duplicatesDetail_one": "{{count}} Zeile wiederholt einen früheren Schlüssel. Am häufigsten: {{samples}}.",
-      "duplicatesDetail_other": "{{count}} Zeilen wiederholen einen früheren Schlüssel. Am häufigsten: {{samples}}.",
-      "nulls": "Pflichtspalten mit vielen leeren Werten",
-      "empty": "Leere Werte",
-      "emptyShare_one": "{{percent}} ({{empty}} von {{count}} Zeile)",
-      "emptyShare_other": "{{percent}} ({{empty}} von {{count}} Zeilen)"
-    }
+    "noneMissing": "keine"
   },
   "status": {
     "queued": "Wartet auf einen Worker…",

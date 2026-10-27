@@ -11,13 +11,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "size": "size-limit && node scripts/check-lazy-locales.mjs",
-    "duckdb:extensions": "node scripts/duckdb-extensions.mjs",
-    "duckdb:extensions:check": "node scripts/duckdb-extensions.mjs --check",
     "lighthouse": "lhci autorun",
     "test:cov": "vitest run --coverage"
   },
   "dependencies": {
-    "@duckdb/duckdb-wasm": "1.32.0",
     "@marsidev/react-turnstile": "1.6.2",
     "@nestjs-monorepo-template/api-client": "workspace:*",
     "@nestjs-monorepo-template/ui": "workspace:*",
@@ -30,7 +27,6 @@
     "@tiptap/pm": "3.32.0",
     "@tiptap/react": "3.32.0",
     "@tiptap/starter-kit": "3.32.0",
-    "apache-arrow": "17.0.0",
     "cn": "0.5.0",
     "i18next": "26.5.2",
     "i18next-resources-to-backend": "1.2.3",

@@ -10,34 +10,13 @@
     "limit": "22 kB"
   },
   {
-    "name": "Application scripts (brotli; without the languages and the optional analytics engine)",
-    "path": [
-      "dist/assets/*.js",
-      "!dist/assets/*duckdb*.js",
-      "!dist/assets/locale-*.js"
-    ],
+    "name": "Application scripts (brotli; without the languages)",
+    "path": ["dist/assets/*.js", "!dist/assets/locale-*.js"],
     "limit": "1.07 MB"
   },
   {
     "name": "Language scripts, all four besides en (brotli; a visitor loads one)",
     "path": ["dist/assets/locale-*.js"],
     "limit": "162 kB"
-  },
-  {
-    "name": "Optional analytics engine scripts (brotli)",
-    "path": ["dist/assets/*duckdb*.js"],
-    "limit": "360 kB"
-  },
-  {
-    "name": "Optional analytics WebAssembly (uncompressed)",
-    "path": ["dist/assets/*duckdb*.wasm"],
-    "brotli": false,
-    "limit": "80 MB"
-  },
-  {
-    "name": "Optional analytics extensions, json and parquet (uncompressed; a browser fetches one platform's two)",
-    "path": ["dist/duckdb-extensions/**/*.wasm"],
-    "brotli": false,
-    "limit": "8 MB"
   }
 ]
