@@ -390,8 +390,11 @@ export class ChatChannel implements NotificationChannel<boolean> {
 }
 ```
 
-`inTransaction(delivery, tx)` for effects that must commit with the
-delivery (a queue add with a deterministic job id, an outbox message);
+`beforeTransaction(delivery, signal)` for a call that waits on something
+slow, such as a queue add (Redis down: it waits, so it must not hold a
+database connection; give it a deterministic job id, as a failure later
+repeats it, and pass it the `signal`); `inTransaction(delivery, tx)` for
+effects that must commit with the delivery (an outbox message, a flag);
 `afterCommit(delivery)` for what can't roll back. The recipient's
 preferences and `GET /notifications/types` take the new channel up by
 themselves; declarations set its default under `channels.chat`.
