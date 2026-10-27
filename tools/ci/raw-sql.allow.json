@@ -1,0 +1,130 @@
+{
+  "apps/api/src/core/database/database-health.ts": {
+    "count": 1,
+    "why": "keep: `select 1` liveness probe"
+  },
+  "apps/api/src/core/database/database-incidents.ts": {
+    "count": 2,
+    "why": "keep: pg_stat_activity (a system catalog, not in the schema)"
+  },
+  "apps/api/src/core/database/migrate-all.ts": {
+    "count": 2,
+    "why": "keep: SET LOCAL statement_timeout and an advisory lock (no Drizzle API)"
+  },
+  "apps/api/src/core/database/roles.ts": {
+    "count": 55,
+    "why": "keep: runtime roles, grants, FORCE ROW LEVEL SECURITY and the tenant-wall probe (drizzle-kit can't emit them)"
+  },
+  "apps/api/src/core/database/search.ts": {
+    "count": 4,
+    "why": "keep: the constant text-search configuration inside tsvector expressions"
+  },
+  "apps/api/src/core/database/stored-renames.ts": {
+    "count": 3,
+    "why": "keep set_config (RLS settings); convert the two UPDATEs to the builder (#779)"
+  },
+  "apps/api/src/core/database/tree.ts": {
+    "count": 4,
+    "why": "keep the advisory lock; convert the closure INSERT/DELETE to insert().select() and delete().where() (#779)"
+  },
+  "apps/api/src/core/tenancy/tenant-pool.ts": {
+    "count": 5,
+    "why": "keep: the pool wrapper that sends the tenant settings"
+  },
+  "apps/api/src/core/tenancy/tenant-quotas.ts": {
+    "count": 1,
+    "why": "keep: advisory lock"
+  },
+  "apps/api/src/demo/demo-guard.ts": {
+    "count": 1,
+    "why": "keep: pg_db_role_setting (a system catalog)"
+  },
+  "apps/api/src/demo/demo-seeder.ts": {
+    "count": 1,
+    "why": "keep: advisory lock"
+  },
+  "apps/api/src/features/notes/notes.service.ts": {
+    "count": 1,
+    "why": "convert: the batch UPDATE … FROM (VALUES …) with literal names to update().set().from() (#779)"
+  },
+  "apps/api/src/iam/access/access-admin.service.ts": {
+    "count": 1,
+    "why": "keep: advisory lock"
+  },
+  "apps/api/src/iam/access/access.seeder.ts": {
+    "count": 1,
+    "why": "keep: advisory lock"
+  },
+  "apps/api/src/iam/access/tenant-tree.ts": {
+    "count": 3,
+    "why": "removed by #601 (sub-organizations); until then: keep the advisory lock, the closure SQL goes with the file"
+  },
+  "apps/api/src/iam/access/tenants.service.ts": {
+    "count": 1,
+    "why": "convert: `select uuidv7()` round-trip; take the id from insert().returning() (#779)"
+  },
+  "apps/api/src/iam/auth/users.repository.ts": {
+    "count": 2,
+    "why": "keep: advisory locks"
+  },
+  "apps/api/src/platform/approvals/approval-policies.service.ts": {
+    "count": 1,
+    "why": "keep: advisory lock"
+  },
+  "apps/api/src/platform/approvals/approvals.service.ts": {
+    "count": 2,
+    "why": "keep: advisory locks"
+  },
+  "apps/api/src/platform/custom-fields/custom-field.list.ts": {
+    "count": 1,
+    "why": "keep: sql.raw of a key checked against CUSTOM_KEY_PATTERN (a literal an expression index can match)"
+  },
+  "apps/api/src/platform/custom-fields/custom-fields.service.ts": {
+    "count": 1,
+    "why": "keep: jsonb_object_keys() in FROM (Drizzle 0.45 has no set-returning FROM item); typed result pending (#779)"
+  },
+  "apps/api/src/platform/notifications/notification-unsubscribe.service.ts": {
+    "count": 1,
+    "why": "keep: advisory lock"
+  },
+  "apps/api/src/platform/notifications/notifications.service.ts": {
+    "count": 2,
+    "why": "keep: advisory locks"
+  },
+  "apps/api/src/platform/ops/outbox-metrics.reader.ts": {
+    "count": 2,
+    "why": "keep SET LOCAL; the SELECT on nest_outbox.messages waits for the outbox-table decision (#779)"
+  },
+  "apps/api/src/platform/records/record.ts": {
+    "count": 1,
+    "why": "keep: sql.raw of declared column names in the generated search column"
+  },
+  "apps/api/src/platform/reports/reports.service.ts": {
+    "count": 1,
+    "why": "keep: advisory lock"
+  },
+  "apps/api/src/platform/revisions/revisions.service.ts": {
+    "count": 2,
+    "why": "keep: advisory locks"
+  },
+  "apps/api/src/platform/sequences/naming-series.service.ts": {
+    "count": 1,
+    "why": "keep: advisory lock"
+  },
+  "apps/api/src/platform/tags/tags.service.ts": {
+    "count": 1,
+    "why": "keep: advisory lock"
+  },
+  "apps/api/src/platform/tenants/tenant-cleanup.ts": {
+    "count": 1,
+    "why": "the DELETE on nest_outbox.messages waits for the outbox-table decision (#779)"
+  },
+  "apps/api/src/platform/views/views.service.ts": {
+    "count": 1,
+    "why": "keep: advisory lock"
+  },
+  "apps/api/src/platform/webhooks/webhook-management.service.ts": {
+    "count": 1,
+    "why": "convert: `select uuidv7()` round-trip (#779)"
+  }
+}
