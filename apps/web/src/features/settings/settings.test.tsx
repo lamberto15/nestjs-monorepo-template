@@ -684,17 +684,33 @@ describe('platform values', () => {
       }),
     );
     const { user, dialog } = await open('Deployment mode');
-    const platform = within(dialog).getByRole('region', { name: 'All tenants' });
+    const platform = within(dialog).getByRole('region', {
+      name: 'All tenants',
+    });
     await user.click(within(platform).getByRole('combobox', { name: /Value/ }));
-    await user.click(await screen.findByRole('option', { name: 'maintenance' }));
-    await user.click(within(platform).getByRole('button', { name: 'Save for all tenants' }));
+    await user.click(
+      await screen.findByRole('option', { name: 'maintenance' }),
+    );
+    await user.click(
+      within(platform).getByRole('button', { name: 'Save for all tenants' }),
+    );
     const confirmation = await screen.findByRole('alertdialog');
-    expect(within(confirmation).getByText(/every tenant, including your session/)).toBeVisible();
+    expect(
+      within(confirmation).getByText(/every tenant, including your session/),
+    ).toBeVisible();
     expect(saves).toBe(0);
-    await user.click(within(confirmation).getByRole('button', { name: 'Cancel' }));
+    await user.click(
+      within(confirmation).getByRole('button', { name: 'Cancel' }),
+    );
     expect(saves).toBe(0);
-    await user.click(within(platform).getByRole('button', { name: 'Save for all tenants' }));
-    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Apply to all tenants' }));
+    await user.click(
+      within(platform).getByRole('button', { name: 'Save for all tenants' }),
+    );
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Apply to all tenants',
+      }),
+    );
     await waitFor(() => expect(saves).toBe(1));
   });
 
@@ -718,15 +734,27 @@ describe('platform values', () => {
       }),
     );
     const { user, dialog } = await open('Deployment mode');
-    const platform = within(dialog).getByRole('region', { name: 'All tenants' });
+    const platform = within(dialog).getByRole('region', {
+      name: 'All tenants',
+    });
     await user.click(within(platform).getByRole('combobox', { name: /Value/ }));
     await user.click(await screen.findByRole('option', { name: 'read-only' }));
-    await user.click(within(platform).getByRole('button', { name: 'Save for all tenants' }));
+    await user.click(
+      within(platform).getByRole('button', { name: 'Save for all tenants' }),
+    );
     expect(writes).toHaveLength(0);
     const confirmation = await screen.findByRole('alertdialog');
-    expect(within(confirmation).getByText(/blocks writes in every tenant/)).toBeVisible();
-    await user.click(within(confirmation).getByRole('button', { name: 'Apply to all tenants' }));
-    await waitFor(() => expect(writes).toEqual([{ value: 'read-only', enforced: false }]));
+    expect(
+      within(confirmation).getByText(/blocks writes in every tenant/),
+    ).toBeVisible();
+    await user.click(
+      within(confirmation).getByRole('button', {
+        name: 'Apply to all tenants',
+      }),
+    );
+    await waitFor(() =>
+      expect(writes).toEqual([{ value: 'read-only', enforced: false }]),
+    );
   });
 
   it('lets an operator roll a flag out to a share of principals', async () => {

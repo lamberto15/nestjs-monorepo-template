@@ -110,12 +110,9 @@ describe('bot protection, always (e2e)', () => {
       secret: siteverify.secretKey,
       remoteip: address,
     });
-    expect(Object.keys(siteverify.requests[0]).sort((a, b) => a.localeCompare(b))).toEqual([
-      'remoteip',
-      'response',
-      'secret',
-      'url',
-    ]);
+    expect(
+      Object.keys(siteverify.requests[0]).sort((a, b) => a.localeCompare(b)),
+    ).toEqual(['remoteip', 'response', 'secret', 'url']);
     // A valid token doesn't make a wrong password right: still a 401.
     await signIn(
       ip(),

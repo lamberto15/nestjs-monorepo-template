@@ -4,13 +4,21 @@ const sha = 'a'.repeat(40);
 afterEach(() => vi.unstubAllGlobals());
 describe('build identity', () => {
   it('bypasses HTTP cache when comparing with deployed content', async () => {
-    const mockFetch = vi.fn(async () => ({ ok: true, json: async () => ({ sha }) }));
+    const mockFetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ sha }),
+    }));
     vi.stubGlobal('fetch', mockFetch);
     await expect(fetchVersion('/version.json')).resolves.toBe(sha);
-    expect(mockFetch).toHaveBeenCalledWith('/version.json', { cache: 'no-store' });
+    expect(mockFetch).toHaveBeenCalledWith('/version.json', {
+      cache: 'no-store',
+    });
   });
   it('treats missing metadata as unknown, not current', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false })),
+    );
     await expect(fetchVersion('/health/version')).resolves.toBeUndefined();
   });
   it('validates commit identities', () => {

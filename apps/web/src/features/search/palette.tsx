@@ -225,7 +225,6 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
   );
 }
 
-
 function QuickCommandGroup(props: {
   heading: string;
   kind: QuickCommandKind;

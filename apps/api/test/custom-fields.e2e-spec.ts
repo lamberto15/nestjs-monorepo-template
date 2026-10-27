@@ -1203,17 +1203,23 @@ describe('custom fields (e2e)', () => {
       ]);
 
       expect(
-        titles((await list('?custom.region=eu').expect(200)).body).sort((a, b) => a.localeCompare(b)),
+        titles((await list('?custom.region=eu').expect(200)).body).sort(
+          (a, b) => a.localeCompare(b),
+        ),
       ).toEqual(['Item 0', 'Item 2']);
       expect(
-        titles((await list('?custom.amount.gte=10').expect(200)).body).sort((a, b) => a.localeCompare(b)),
+        titles((await list('?custom.amount.gte=10').expect(200)).body).sort(
+          (a, b) => a.localeCompare(b),
+        ),
       ).toEqual(['Item 1', 'Item 2']);
       expect(
         titles((await list('?custom.due.lt=2026-02-01').expect(200)).body),
       ).toEqual(['Item 1']);
       // multiSelect: holds any of.
       expect(
-        titles((await list('?custom.tags.in=a,b').expect(200)).body).sort((a, b) => a.localeCompare(b)),
+        titles((await list('?custom.tags.in=a,b').expect(200)).body).sort(
+          (a, b) => a.localeCompare(b),
+        ),
       ).toEqual(['Item 0', 'Item 1']);
       const filter = encodeURIComponent(
         JSON.stringify({
@@ -1224,7 +1230,9 @@ describe('custom fields (e2e)', () => {
         }),
       );
       expect(
-        titles((await list(`?filter=${filter}`).expect(200)).body).sort((a, b) => a.localeCompare(b)),
+        titles((await list(`?filter=${filter}`).expect(200)).body).sort(
+          (a, b) => a.localeCompare(b),
+        ),
       ).toEqual(['Item 1', 'Item 3']);
 
       // Sorted by a number, paged two at a time: every item once, in order (no value last).

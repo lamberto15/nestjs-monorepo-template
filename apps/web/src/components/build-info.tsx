@@ -42,11 +42,20 @@ export function BuildInfo() {
   };
 
   return (
-    <div className="space-y-1 px-2 py-2 text-xs text-muted-foreground" aria-label={t('build.title')}>
+    <div
+      className="space-y-1 px-2 py-2 text-xs text-muted-foreground"
+      aria-label={t('build.title')}
+    >
       <div className="font-medium text-foreground">{t('build.title')}</div>
-      <div title={loadedSha || unknown}>{t('build.tab')}: {short(loadedSha, unknown)}</div>
-      <div title={versions.web || unknown}>{t('build.web')}: {short(versions.web, unknown)}</div>
-      <div title={versions.api || unknown}>{t('build.api')}: {short(versions.api, unknown)}</div>
+      <div title={loadedSha || unknown}>
+        {t('build.tab')}: {short(loadedSha, unknown)}
+      </div>
+      <div title={versions.web || unknown}>
+        {t('build.web')}: {short(versions.web, unknown)}
+      </div>
+      <div title={versions.api || unknown}>
+        {t('build.api')}: {short(versions.api, unknown)}
+      </div>
       <div role="status">
         {!versions.checked
           ? t('build.notChecked')
@@ -57,7 +66,13 @@ export function BuildInfo() {
               : t('build.unknownStatus')}
       </div>
       <div className="flex flex-wrap gap-2 pt-1">
-        <Button type="button" size="xs" variant="outline" disabled={busy} onClick={() => void refresh()}>
+        <Button
+          type="button"
+          size="xs"
+          variant="outline"
+          disabled={busy}
+          onClick={() => void refresh()}
+        >
           {busy ? t('build.checking') : t('build.check')}
         </Button>
         {status === 'stale' && (
@@ -65,7 +80,13 @@ export function BuildInfo() {
             {t('build.reload')}
           </Button>
         )}
-        <Button type="button" size="xs" variant="ghost" onClick={copyDetails} disabled={!globalThis.navigator.clipboard}>
+        <Button
+          type="button"
+          size="xs"
+          variant="ghost"
+          onClick={copyDetails}
+          disabled={!globalThis.navigator.clipboard}
+        >
           {t('build.copy')}
         </Button>
       </div>
