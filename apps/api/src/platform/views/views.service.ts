@@ -559,10 +559,8 @@ export class ViewsService implements PersonalDataSource {
     const unitIds =
       principal.kind === 'user' ? await this.units.unitsOf(principal.id) : [];
     return or(
-      and(
-        eq(savedViews.visibility, 'private'),
-        eq(savedViews.owner, principalKey(principal)),
-      ),
+      // Theirs whatever it is shared with: an administrator shares with a unit they aren't in.
+      eq(savedViews.owner, principalKey(principal)),
       eq(savedViews.visibility, 'tenant'),
       unitIds.length
         ? and(
