@@ -29,6 +29,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { allCustomFieldsQuery, type CustomField } from '@/lib/custom-fields';
 import { errorMessage } from '@/lib/errors';
 import {
@@ -68,11 +70,7 @@ export function CustomFieldsPage() {
   }
   // No feature takes custom fields: nothing to administer.
   if (subjects.data.length === 0) {
-    return (
-      <p role="status" className="text-sm text-muted-foreground">
-        {t('noSubjects')}
-      </p>
-    );
+    return <EmptyState title={t('noSubjects')} />;
   }
   return <SubjectFields subjects={subjects.data} />;
 }
@@ -107,17 +105,17 @@ function SubjectFields(props: { subjects: CustomFieldSubject[] }) {
   };
 
   return (
-    <div className="flex max-w-4xl flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-xl font-medium">{t('title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('description')}</p>
-        </div>
-        <Button onClick={() => setEditing('new')}>
-          <PlusIcon />
-          {t('add')}
-        </Button>
-      </div>
+    <Page>
+      <PageHeader
+        title={t('title')}
+        description={t('description')}
+        actions={
+          <Button onClick={() => setEditing('new')}>
+            <PlusIcon />
+            {t('add')}
+          </Button>
+        }
+      />
       <Field className="max-w-xs">
         <FieldLabel htmlFor="custom-fields-subject">{t('subject')}</FieldLabel>
         <Select
@@ -150,9 +148,7 @@ function SubjectFields(props: { subjects: CustomFieldSubject[] }) {
       {fields.isSuccess && (
         <>
           {active.length === 0 ? (
-            <p role="status" className="text-sm text-muted-foreground">
-              {t('none')}
-            </p>
+            <EmptyState title={t('none')} />
           ) : (
             <section
               aria-labelledby="cf-active"
@@ -310,7 +306,7 @@ function SubjectFields(props: { subjects: CustomFieldSubject[] }) {
           toast.success(t('deactivated'));
         }}
       />
-    </div>
+    </Page>
   );
 }
 

@@ -6,6 +6,7 @@ import {
 } from '@nestjs-monorepo-template/ui/components/tabs';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Page, PageHeader } from '@/components/page-header';
 import { EventsPanel } from './events-panel';
 import { OutboxPanel } from './outbox-panel';
 import { QueuesPanel } from './queues-panel';
@@ -23,11 +24,8 @@ export function OpsPage() {
   const { t } = useTranslation('ops');
   const [tab, setTab] = useState<Tab>('queues');
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-medium">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('description')}</p>
-      </div>
+    <Page>
+      <PageHeader title={t('title')} description={t('description')} />
       <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
         <TabsList>
           {tabs.map((name) => (
@@ -48,6 +46,6 @@ export function OpsPage() {
           <EventsPanel />
         </TabsContent>
       </Tabs>
-    </div>
+    </Page>
   );
 }

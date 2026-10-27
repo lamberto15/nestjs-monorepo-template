@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import { useTranslation } from 'react-i18next';
+import { Page, PageHeader } from '@/components/page-header';
 import { roleQuery } from '@/features/access/api';
 import { requirePermission } from '@/features/access/gate';
 import { RoleForm } from '@/features/access/role-form';
@@ -22,10 +23,8 @@ function EditRole() {
   const role = useQuery({ ...roleQuery(roleId), meta: { errorToast: false } });
   const missing = isApiError(role.error) && role.error.status === 404;
   return (
-    <section className="flex max-w-3xl flex-col gap-4">
-      <h1 className="text-xl font-medium">
-        {role.data ? role.data.name : t('roles.editTitle')}
-      </h1>
+    <Page width="narrow">
+      <PageHeader title={role.data ? role.data.name : t('roles.editTitle')} />
       {role.isPending ? (
         <Spinner />
       ) : missing ? (
@@ -36,6 +35,6 @@ function EditRole() {
         // A role changed elsewhere and refetched: a fresh form.
         <RoleForm key={role.data.updatedAt} role={role.data} />
       )}
-    </section>
+    </Page>
   );
 }

@@ -21,6 +21,8 @@ import {
   ACCOUNT_EXPORTS_KEY,
   accountExportsQuery,
 } from '@/components/account/privacy-api';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { useDateTimeFormat } from '@/lib/date-time';
 import { useLivePoll, useRealtimeEvent, withProgress } from '@/lib/realtime';
 import {
@@ -152,18 +154,20 @@ export function TransfersPage() {
   ];
 
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-medium">{t('mine.title')}</h1>
-        <Button
-          variant="outline"
-          nativeButton={false}
-          render={<Link to="/transfers/import" />}
-        >
-          {t('mine.import')}
-        </Button>
-      </div>
-      <p className="text-sm text-muted-foreground">{t('mine.description')}</p>
+    <Page>
+      <PageHeader
+        title={t('mine.title')}
+        description={t('mine.description')}
+        actions={
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link to="/transfers/import" />}
+          >
+            {t('mine.import')}
+          </Button>
+        }
+      />
       <div className="flex flex-wrap gap-2">
         <Select
           items={filters}
@@ -212,12 +216,9 @@ export function TransfersPage() {
         !(showTransfers && transfers.hasNextPage) &&
         !(showBulk && bulk.hasNextPage) &&
         !(showAccount && account.hasNextPage) ? (
-        <p
-          role="status"
-          className="rounded-md border p-8 text-center text-sm text-muted-foreground"
-        >
-          {status ? t('mine.emptyFiltered') : t('mine.empty')}
-        </p>
+        <EmptyState
+          title={status ? t('mine.emptyFiltered') : t('mine.empty')}
+        />
       ) : (
         <>
           {items.length > 0 && <TransferRows items={items} />}
@@ -249,7 +250,7 @@ export function TransfersPage() {
           )}
         </>
       )}
-    </section>
+    </Page>
   );
 }
 

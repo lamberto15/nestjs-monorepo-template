@@ -20,6 +20,7 @@ import { LockIcon, Trash2Icon, UploadIcon, XIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { Page, PageHeader } from '@/components/page-header';
 import { RecordState } from '@/components/records/record-state';
 import { HexPicker } from '@/features/tags/tag-dialog';
 import { api } from '@/lib/api';
@@ -45,11 +46,8 @@ export function BrandingPage() {
     meta: { errorToast: false },
   });
   return (
-    <div className="flex max-w-2xl flex-col gap-6 p-4">
-      <div>
-        <h1 className="text-xl font-medium">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('description')}</p>
-      </div>
+    <Page width="narrow">
+      <PageHeader title={t('title')} description={t('description')} />
       <RecordState
         query={query}
         notFound={{ title: t('error.title'), description: t('error.generic') }}
@@ -76,7 +74,7 @@ export function BrandingPage() {
           </>
         )}
       </RecordState>
-    </div>
+    </Page>
   );
 }
 

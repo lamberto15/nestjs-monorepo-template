@@ -10,6 +10,8 @@ import {
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { NotificationRow } from './notification-item';
 import {
   inboxQuery,
@@ -53,25 +55,23 @@ export function Inbox() {
   ];
 
   return (
-    <div className="flex max-w-3xl flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-medium">{t('inbox.title')}</h1>
-          <p className="text-sm text-muted-foreground">
-            {t('inbox.unread', { count: unread })}
-          </p>
-        </div>
-        {canChange && (
-          <Button
-            variant="outline"
-            disabled={unread === 0 || markAll.isPending}
-            onClick={() => markAll.mutate()}
-          >
-            {markAll.isPending && <Spinner />}
-            {t('markAllRead')}
-          </Button>
-        )}
-      </div>
+    <Page>
+      <PageHeader
+        title={t('inbox.title')}
+        description={t('inbox.unread', { count: unread })}
+        actions={
+          canChange && (
+            <Button
+              variant="outline"
+              disabled={unread === 0 || markAll.isPending}
+              onClick={() => markAll.mutate()}
+            >
+              {markAll.isPending && <Spinner />}
+              {t('markAllRead')}
+            </Button>
+          )
+        }
+      />
       <div className="flex flex-wrap gap-2">
         <Select
           items={readItems}
@@ -109,9 +109,7 @@ export function Inbox() {
       {list.isPending ? (
         <Spinner />
       ) : items.length === 0 ? (
-        <p className="py-12 text-center text-sm text-muted-foreground">
-          {t('inbox.empty')}
-        </p>
+        <EmptyState title={t('inbox.empty')} />
       ) : (
         <ul className="rounded-lg border">
           {items.map((item) => (
@@ -135,6 +133,6 @@ export function Inbox() {
           {t('inbox.loadMore')}
         </Button>
       )}
-    </div>
+    </Page>
   );
 }

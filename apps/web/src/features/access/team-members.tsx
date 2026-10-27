@@ -22,6 +22,7 @@ import {
   TableRow,
 } from '@nestjs-monorepo-template/ui/components/table';
 import { ArrowLeftIcon } from 'lucide-react';
+import { Page, PageHeader } from '@/components/page-header';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -119,8 +120,8 @@ export function TeamMembers(props: { teamId: string }) {
   ];
 
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
+    <Page>
+      <div>
         <Link
           to="/access/teams"
           aria-label={t('teams.back')}
@@ -128,8 +129,8 @@ export function TeamMembers(props: { teamId: string }) {
         >
           <ArrowLeftIcon className="rtl:rotate-180" />
         </Link>
-        <h1 className="text-xl font-medium">{team.name}</h1>
       </div>
+      <PageHeader title={team.name} />
       <FormAlert message={error} />
       {!mayChange && (
         <Alert>
@@ -218,6 +219,6 @@ export function TeamMembers(props: { teamId: string }) {
           ))}
         </TableBody>
       </Table>
-    </section>
+    </Page>
   );
 }

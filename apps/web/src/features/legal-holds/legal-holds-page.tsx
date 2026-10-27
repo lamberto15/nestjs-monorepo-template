@@ -26,6 +26,8 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { EyeIcon, PlusIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { useDateTimeFormat } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
 import { holdsQuery, SUBJECT_PATTERN, type HoldFilters } from './api';
@@ -69,17 +71,17 @@ export function LegalHoldsPage() {
   ];
 
   return (
-    <div className="flex max-w-5xl flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-xl font-medium">{t('title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('description')}</p>
-        </div>
-        <Button onClick={() => setPlacing(true)}>
-          <PlusIcon />
-          {t('place.button')}
-        </Button>
-      </div>
+    <Page>
+      <PageHeader
+        title={t('title')}
+        description={t('description')}
+        actions={
+          <Button onClick={() => setPlacing(true)}>
+            <PlusIcon />
+            {t('place.button')}
+          </Button>
+        }
+      />
       <div className="flex flex-wrap items-end gap-4">
         <Field className="w-full sm:w-56">
           <FieldLabel htmlFor="holds-status">{t('filters.status')}</FieldLabel>
@@ -122,9 +124,11 @@ export function LegalHoldsPage() {
       )}
       {list.isSuccess &&
         (holds.length === 0 ? (
-          <p role="status" className="text-sm text-muted-foreground">
-            {status === 'any' && !filters.subject ? t('none') : t('noMatch')}
-          </p>
+          <EmptyState
+            title={
+              status === 'any' && !filters.subject ? t('none') : t('noMatch')
+            }
+          />
         ) : (
           <div className="rounded-md border">
             <Table>
@@ -201,6 +205,6 @@ export function LegalHoldsPage() {
           onOpenChange={(open) => !open && setShown(undefined)}
         />
       )}
-    </div>
+    </Page>
   );
 }

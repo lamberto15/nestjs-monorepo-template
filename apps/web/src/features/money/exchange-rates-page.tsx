@@ -16,6 +16,8 @@ import { useQuery } from '@tanstack/react-query';
 import { parseAsIsoDate, parseAsString, useQueryStates } from 'nuqs';
 import { useTranslation } from 'react-i18next';
 import { errorMessage } from '@/lib/errors';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { isNotFound } from '@/lib/records';
 import { ratesQuery } from './api';
 import { CurrencyConverter } from './currency-converter';
@@ -55,11 +57,8 @@ export function ExchangeRatesPage() {
     )
     .toSorted((a, b) => a.code.localeCompare(b.code));
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-medium">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('description')}</p>
-      </div>
+    <Page width="narrow">
+      <PageHeader title={t('title')} description={t('description')} />
       <div className="flex flex-wrap items-end gap-3">
         <Field className="w-44">
           <FieldLabel htmlFor="rates-date">{t('date')}</FieldLabel>
@@ -91,9 +90,7 @@ export function ExchangeRatesPage() {
       {rates.isPending && <Skeleton className="h-40 w-full" aria-busy />}
       {rates.isError &&
         (none ? (
-          <p role="status" className="text-sm text-muted-foreground">
-            {t('empty')}
-          </p>
+          <EmptyState title={t('empty')} />
         ) : (
           <p role="alert" className="text-sm text-destructive">
             {errorMessage(rates.error)}
@@ -142,6 +139,6 @@ export function ExchangeRatesPage() {
           <CurrencyConverter />
         </section>
       )}
-    </div>
+    </Page>
   );
 }
