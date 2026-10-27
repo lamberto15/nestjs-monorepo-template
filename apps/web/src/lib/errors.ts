@@ -252,8 +252,11 @@ function watchSession(
     }
     // A forced refetch (`me` would answer the cache while fresh): a network
     // failure ends nothing — the next refetch, or a 401, says.
+    // An older `me` still in flight (started under the old cookie) would be
+    // returned by fetchQuery as it is: cancel it so the read starts anew.
     void queryClient
-      .fetchQuery({ ...meQuery, staleTime: 0 })
+      .cancelQueries({ queryKey: meQuery.queryKey, exact: true })
+      .then(() => queryClient.fetchQuery({ ...meQuery, staleTime: 0 }))
       .catch((error) =>
         console.warn('an announced session change could not be re-read', error),
       );

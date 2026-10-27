@@ -17,14 +17,36 @@ const CHANNEL = 'app-session-identity';
 let channel: BroadcastChannel | undefined;
 const listeners = new Set<(identity: string | null) => void>();
 
+/**
+ * The one channel, opened with its `onmessage` attached whichever of
+ * announcing or listening comes first (an announce that opened it bare left
+ * the later listener deaf to every other tab).
+ */
+function ensureChannel(): BroadcastChannel | undefined {
+  if (channel || typeof BroadcastChannel === 'undefined') {
+    return channel;
+  }
+  try {
+    channel = new BroadcastChannel(CHANNEL);
+    channel.onmessage = (event: MessageEvent<string | null>) => {
+      const identity = event.data ?? null;
+      for (const listener of listeners) {
+        listener(identity);
+      }
+    };
+  } catch (error) {
+    console.warn('the session identity channel could not be opened', error);
+  }
+  return channel;
+}
+
 /** The session's identity, to every other tab of this origin. */
 export function announceSessionIdentity(identity: string | null) {
   if (typeof BroadcastChannel === 'undefined') {
     return;
   }
   try {
-    channel ??= new BroadcastChannel(CHANNEL);
-    channel.postMessage(identity);
+    ensureChannel()?.postMessage(identity);
   } catch (error) {
     // A closed or unavailable channel is no news: every tab re-reads `me`
     // under the shared cookie anyway.
@@ -44,19 +66,7 @@ export function onSessionIdentity(
   handler: (identity: string | null) => void,
 ): () => void {
   listeners.add(handler);
-  if (typeof BroadcastChannel !== 'undefined' && !channel) {
-    try {
-      channel = new BroadcastChannel(CHANNEL);
-      channel.onmessage = (event: MessageEvent<string | null>) => {
-        const identity = event.data ?? null;
-        for (const listener of listeners) {
-          listener(identity);
-        }
-      };
-    } catch (error) {
-      console.warn('the session identity channel could not be opened', error);
-    }
-  }
+  ensureChannel();
   return () => {
     listeners.delete(handler);
   };
