@@ -1,1 +1,0 @@
-CREATE INDEX "approval_requests_unapplied_idx" ON "approval_requests" USING btree ("ended_at") WHERE status = 'approved' and outcome_applied_at is null;
