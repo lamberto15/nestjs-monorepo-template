@@ -354,7 +354,7 @@ services:
   # read back (syslog, gelf, awslogs, none). Mounting the socket, even read
   # only, gives Alloy the Docker API: it runs as root for that. Not published.
   alloy:
-    image: grafana/alloy:v1.21.0
+    image: grafana/alloy:v1.21.2
     restart: unless-stopped
     profiles: [logs]
     depends_on:
