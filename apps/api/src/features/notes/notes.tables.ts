@@ -82,9 +82,33 @@ export const notes = pgTable(
         table.id.desc(),
       )
       .where(sql`deleted_at is null`),
-    index('notes_owner_id_idx').on(table.ownerId),
-    // The purge job finds old deleted rows by it.
-    index('notes_deleted_at_idx').on(table.deletedAt),
+    // The `mine` read condition and ?ownerId= (one BitmapOr arm), and the
+    // account export's owner pages in id order (NoteTransfer.rows).
+    index('notes_owner_id_id_idx').on(table.ownerId, table.id.desc()),
+    // The `inMyTeams` read condition and ?teamId= (the other BitmapOr arm),
+    // and notes_team_fk's ON DELETE SET NULL lookup: not partial, the key
+    // also reaches deleted notes.
+    index('notes_tenant_team_id_idx').on(table.tenantId, table.teamId),
+    // ?status= with the default order, and ?sort=status.
+    index('notes_tenant_status_id_idx')
+      .on(table.tenantId, table.status, table.id.desc())
+      .where(sql`deleted_at is null`),
+    // ?sort=title (asc nulls last, then id desc, as sortOrder() spells it).
+    index('notes_tenant_title_id_idx')
+      .on(table.tenantId, table.title.asc().nullsLast(), table.id.desc())
+      .where(sql`deleted_at is null`),
+    // ?sort=-publishedAt: the list sorts by the UTC millisecond expression.
+    index('notes_tenant_published_ms_idx')
+      .on(
+        table.tenantId,
+        sql`${utcMilliseconds(table.publishedAt)} desc nulls first`,
+        table.id.desc(),
+      )
+      .where(sql`deleted_at is null`),
+    // The purge job finds old deleted rows by it: live rows (NULL) left out.
+    index('notes_deleted_at_idx')
+      .on(table.deletedAt)
+      .where(sql`deleted_at is not null`),
     index('notes_custom_idx').using('gin', table.custom),
     index('notes_search_idx').using('gin', table.search),
     // The policies and the unique (tenant_id, id) other tables' keys point at.

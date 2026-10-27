@@ -288,6 +288,11 @@ the controller (`notes.*`); singular for what describes one record
    - Snake_case column names, camelCase properties; moments are `at()`
      (timestamptz, UTC), never `timestamp()` without a zone.
    - An index for every foreign key and for what lists filter or sort by.
+     Indexes lead with `tenant_id` (the service adds `inTenant`). A datetime
+     sort index is on `utcMilliseconds(column)` with `id desc` (as
+     `notes_tenant_created_ms_idx`). List indexes are partial on
+     `deleted_at is null`; an index backing a foreign key is not, and
+     `deleted_at`'s own index is partial on `deleted_at is not null`.
    - Export it from `apps/api/src/features/tables.ts`, run `pnpm db:generate`, commit
      `apps/api/drizzle/`. Never write a migration by hand.
 2. **Schemas** (`<item>.schemas.ts`): Zod for bodies and responses, which
