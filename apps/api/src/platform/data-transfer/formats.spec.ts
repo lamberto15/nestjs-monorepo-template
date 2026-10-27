@@ -217,3 +217,44 @@ describe('date columns', () => {
     ]);
   });
 });
+
+describe('JSON imports', () => {
+  /** The file as the upload delivers it: in `size`-byte chunks. */
+  async function read(text: string, size = 3) {
+    const bytes = Buffer.from(text);
+    const chunks: Buffer[] = [];
+    for (let at = 0; at < bytes.length; at += size) {
+      chunks.push(bytes.subarray(at, at + size));
+    }
+    const rows: { row: number; record: Record<string, unknown> }[] = [];
+    for await (const item of readRecords('json', Readable.from(chunks))) {
+      rows.push(item);
+    }
+    return rows;
+  }
+
+  it('reads one element at a time, whatever the chunks cut (a character included)', async () => {
+    expect(
+      await read('[{"title":"héllo ✓","n":1},{"title":null,"tags":["a"]}]', 1),
+    ).toEqual([
+      { row: 1, record: { title: 'héllo ✓', n: 1 } },
+      { row: 2, record: { title: null, tags: ['a'] } },
+    ]);
+    expect(await read('[]')).toEqual([]);
+  });
+
+  it('refuses a file that is not an array, as before', async () => {
+    await expect(read('{"title":"x"}')).rejects.toThrow(
+      /^A JSON import is an array of objects\.$/,
+    );
+  });
+
+  it('says where a malformed file stops being JSON', async () => {
+    await expect(read('[{"title":"x"},{"title":}]')).rejects.toThrow(
+      /^The file is not valid JSON: expected a value$/,
+    );
+    await expect(read('[{"title":"x"}] junk')).rejects.toThrow(
+      /^The file is not valid JSON/,
+    );
+  });
+});
