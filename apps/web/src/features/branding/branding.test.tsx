@@ -98,6 +98,26 @@ describe('the theme', () => {
 });
 
 describe('the page', () => {
+  it('says a failed read, with a retry that loads the page', async () => {
+    useBrandingApi(branding());
+    let fail = true;
+    server.use(
+      http.get('/v1/branding', () =>
+        fail ? problem(500, 'internal') : HttpResponse.json(branding()),
+      ),
+    );
+    const user = userEvent.setup();
+    await renderApp('/branding');
+    expect(
+      await screen.findByText('The branding could not be loaded'),
+    ).toBeVisible();
+    fail = false;
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(
+      await screen.findByRole('button', { name: 'Choose a colour' }),
+    ).toBeVisible();
+  });
+
   it('saves the colour and the sender name', async () => {
     const calls = useBrandingApi(branding());
     const user = userEvent.setup();
