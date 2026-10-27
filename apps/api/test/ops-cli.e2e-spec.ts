@@ -10,7 +10,7 @@ import {
   settingOverrides,
 } from '../src/platform/settings/settings.tables.js';
 import { TestAppModule } from './fixtures/test-app.module.js';
-import { bootApp, totp, type TestApp } from './support.js';
+import { bootApp, connect, totp, type TestApp } from './support.js';
 
 /** The app with the operator CLI's logic (the commands add only the prompt and the printing: ops.commands.spec.ts). */
 @Module({ imports: [TestAppModule], providers: [OpsService] })
@@ -193,6 +193,27 @@ describe('operator CLI (e2e)', () => {
       expect(JSON.stringify(await node.auditEntries({}))).not.toContain(
         result.password,
       );
+    });
+
+    it("ends the account's token clients' live connections too", async () => {
+      const user = await node.user(['editor']);
+      const { accessToken } = (
+        await node
+          .http()
+          .post('/v1/auth/token')
+          .send({ email: user.email, password: user.password })
+          .expect(200)
+      ).body as { accessToken: string };
+      const socket = await connect(node, accessToken);
+      try {
+        const ended = new Promise<string>((resolve) =>
+          socket.once('disconnect', resolve),
+        );
+        await run(ops.resetPassword(user.email));
+        expect(await ended).toBe('io server disconnect');
+      } finally {
+        socket.disconnect();
+      }
     });
 
     it('refuses an address with no account', async () => {

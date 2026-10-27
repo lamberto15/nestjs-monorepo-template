@@ -178,7 +178,23 @@ web app needs the API, so `dev:web` alone suits an API already running.
   (an old browser, or tests without the fake) still discovers every change
   on its own refetches — correct, just slower. A client thrown away ends its
   bus listener with it (`sessionWatch().offBus()`; the tests' teardown does
-  it), so the registry holds nothing of it. A form's unsaved draft, though,
+  it), so the registry holds nothing of it. After that reset the page's
+  route guards run again (`router.invalidate()`, the error handler's
+  `invalidate`): a page the new identity may not open is left. What the
+  query cache does not hold but the session owns forgets itself through
+  `registerSessionReset(fn)` (`lib/session.ts`): `fn` runs inside `reset()`
+  (`'reset'`) and `clear()` (`'clear'`), so in the tab that switched and in
+  the others. It settles a step-up dialog still open (`cancelReauthentication`,
+  `lib/reauth.ts`: the request it holds was built for the previous session and
+  is refused, never sent again under the new cookie) and, on `clear`, removes
+  the recent searches (kept per `sessionIdentity` in localStorage,
+  `features/search/recent.ts`; registered in `app.tsx`, as the palette's
+  chunk loads lazily). A component registers with `useOnSessionChange(fn)`
+  (`hooks/use-on-session-change.ts`) for what it shows of the session: a
+  mounted `useMutation` keeps its last result after the mutation cache is
+  cleared (TanStack Query's observer is not told), so a secret shown once
+  (the key and signing-secret dialogs, recovery codes, a TOTP secret) is
+  reset there. A form's unsaved draft, though,
   is component state the reset cannot touch: a draft begun under another
   session is not sent until the user says so — `useStaleDraftSession()`
   (`lib/form.tsx`) at the top of a form's `onSubmit` (the note form has it;
@@ -189,8 +205,10 @@ web app needs the API, so `dev:web` alone suits an API already running.
   impersonation).
 - **Routes:** `__root.tsx` (router context `{ queryClient, session }`),
   `_app.tsx` (the signed-in layout and its guard, shadcn's `sidebar-07`
-  block), `_app/index.tsx` (dashboard), the signed-out pages beside them. A
-  new page is a file there.
+  block; the sidebar starts as the user left it, from its `sidebar_state`
+  cookie, and on a phone a tap on a menu entry closes its sheet),
+  `_app/index.tsx` (dashboard), the signed-out pages beside them. A new page
+  is a file there.
 - **Menu:** a feature's entries are `features/<feature>/nav.ts` (default
   export: one entry or an array; `group`, `order`, `to`, an i18n `label`,
   `icon`, optional `feature`, `permission` (one, or a list: any of them),
@@ -401,7 +419,8 @@ product terms, codes and brand names stay as in `en`. The texts of a new
 feature (`pnpm feature:add`) start as English copies in every language: translate
 them in `locales/<lng>/<feature>.json` with the other new keys, keeping the
 `{{placeholders}}` and plural suffixes (`src/locales.test.ts` checks them; `ar`
-has all six plural forms). `<html lang>` and `dir` (`rtl` for `ar`) follow the language; the
+has all six plural forms). A key the code asks for that `en` lacks fails the
+test that renders it (`test/i18n.ts`), rather than showing as the raw key. `<html lang>` and `dir` (`rtl` for `ar`) follow the language; the
 theme (light, dark, system) is a class on `<html>`.
 
 ### Components
@@ -418,7 +437,10 @@ pnpm dlx shadcn@4.22.0 add @diceui/<name>  # Dice UI (https://diceui.com): look 
 
 Both packages have a `components.json` with the same style, icon library
 and base colour. Prettier skips `packages/ui` and the lint rules are
-relaxed there, so a CLI update stays a clean diff.
+relaxed there, so a CLI update stays a clean diff. A change made by hand to
+a generated file carries a `Local change to the generated file` comment that
+says why, so an update shows what to keep
+(`grep -rn "Local change to the generated file" packages/ui/src`).
 
 **Rich text** (`components/markdown/`): neither Dice UI nor shadcn's registry
 has a Markdown editor, so the web app uses [Tiptap](https://tiptap.dev) (with
@@ -711,8 +733,9 @@ the server). It is not active under `pnpm dev`.
 hand, after `pnpm client:generate` (the client then types the new routes):
 
 1. `features/<feature>/`: its queries (`api.ts`, as `features/notes/api.ts`:
-   `?include=can`, the keys of `lib/records.ts`), its forms and its
-   `nav.ts`.
+   `?include=can`, the keys of `lib/records.ts`; a detail query that a
+   `RecordState` page renders sets `meta: { errorToast: false }`, as its
+   404 and failures are said on the page), its forms and its `nav.ts`.
 2. `routes/_app/<plural>/`: `index.tsx` (a `ListPage`), `$id/index.tsx`
    (the detail with `RecordPanels`), `new.tsx`, `$id/edit.tsx`. The router's
    plugin rewrites `routeTree.gen.ts` while `pnpm dev:web` or the build runs;

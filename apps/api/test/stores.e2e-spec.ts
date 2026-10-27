@@ -14,6 +14,8 @@ import type { Database } from '../src/core/database/drizzle.js';
 import type { DrizzleTransactions } from '../src/core/database/transactions.js';
 import { DrizzleLockStore } from '../src/core/locks/drizzle-lock.store.js';
 import { DrizzleAuthenticationStore } from '../src/iam/auth/drizzle-authentication.store.js';
+import { SessionLifecycleRegistry } from '../src/iam/auth/session-lifecycle.registry.js';
+import { randomUUID } from 'node:crypto';
 
 describe('DrizzleLockStore and DrizzleAuthenticationStore, their contracts (PostgreSQL)', () => {
   let database: Awaited<ReturnType<typeof testDatabase>>;
@@ -59,4 +61,56 @@ describe('DrizzleLockStore and DrizzleAuthenticationStore, their contracts (Post
   )) {
     it(contractCase.name, () => contractCase.run());
   }
+
+  it("names a revoked family's sid to the listeners, once, and knows it revoked", async () => {
+    const host = { tx: db } as unknown as TransactionHost<DrizzleTransactions>;
+    const lifecycle = new SessionLifecycleRegistry();
+    const ended: string[] = [];
+    lifecycle.register({
+      name: 'test',
+      afterRevocation: () => undefined,
+      afterTokenRevocation: (sid) => {
+        ended.push(sid);
+      },
+    });
+    const store = new DrizzleAuthenticationStore(
+      host,
+      new UsersRepository(host, {
+        count: () => undefined,
+      } as unknown as TenantQuotas),
+      new AuthenticationStorage(),
+      lifecycle,
+    );
+    const userId = randomUUID();
+    const now = Date.now();
+    const token = (familyId: string, claims?: Record<string, unknown>) =>
+      store.saveRefreshToken({
+        id: randomUUID(),
+        familyId,
+        userId,
+        createdAt: new Date(now),
+        expiresAt: new Date(now + 60_000),
+        familyExpiresAt: new Date(now + 60_000),
+        ...(claims && { claims }),
+      });
+    // Family A rotated once (two tokens, one sid), B, and one from before `sid`.
+    await token('family-a', { sid: 'sid-a' });
+    await token('family-a', { sid: 'sid-a' });
+    await token('family-b', { sid: 'sid-b' });
+    await token('family-old');
+
+    await store.revokeRefreshTokenFamily('family-a');
+    expect(ended).toEqual(['sid-a']);
+    expect(await store.isTokenSessionRevoked(userId, 'sid-a')).toBe(true);
+    expect(await store.isTokenSessionRevoked(userId, 'sid-b')).toBe(false);
+    // Another user's sid is never theirs.
+    expect(await store.isTokenSessionRevoked(randomUUID(), 'sid-a')).toBe(
+      false,
+    );
+
+    // Everywhere: the families still live, A not again.
+    await store.revokeUserRefreshTokens(userId);
+    expect(ended).toEqual(['sid-a', 'sid-b']);
+    expect(await store.isTokenSessionRevoked(userId, 'sid-b')).toBe(true);
+  });
 });

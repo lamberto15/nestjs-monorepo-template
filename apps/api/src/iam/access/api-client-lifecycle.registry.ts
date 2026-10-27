@@ -17,6 +17,13 @@ export interface ApiClientLifecycleListener {
    * client's tenant: what lives outside the transaction.
    */
   afterDeletion(clientId: string, tenantId: string): void | Promise<void>;
+  /**
+   * After keys were revoked (DELETE /v1/access/clients/{id}/keys/{keyId}, a
+   * rotation without a grace period) and the change committed: their public
+   * ids (`sk_<id>_…`), in the client's tenant. Realtime ends the sockets
+   * they opened.
+   */
+  afterKeyRevocation?(keyIds: string[], tenantId: string): void | Promise<void>;
 }
 
 @Injectable()

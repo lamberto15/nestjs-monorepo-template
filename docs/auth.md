@@ -372,8 +372,31 @@ credential's `authentication` (`via`: `session` or `token`) and
 Token clients (`POST /v1/auth/token`) carry it in the access token: `amr`
 (RFC 8176: `pwd`, `pop` for a passkey, and `mfa` from the package) and `auth_time` (OpenID
 Connect, epoch seconds), fixed for the refresh family's life
-(`RefreshTokenRecord.claims`). The package has no listing of refresh
+(`RefreshTokenRecord.claims`), with `sid`, the family's own id (random, per
+sign-in): revoking the family disconnects the realtime sockets its access
+tokens opened, and they open no new one; a socket also ends at its access
+token's `exp` ([realtime](webhooks-and-realtime.md#realtime)). The package has no listing of refresh
 families, so they aren't in the sessions list.
+
+**Families from before `sid`.** A refresh copies the family's stored
+claims, so a family signed in before the release that added `sid` never
+gets one, for its whole life (a family lasts up to 90 days): revoking
+it still refuses its refreshes, but its realtime sockets are not
+disconnected at once and a reconnect with its unexpired access token is not
+refused. Nothing revokes those families on upgrade (that would sign every
+app out). Each is covered from its next sign-in. To end them sooner: the
+person signs out everywhere (`POST /v1/auth/sign-out-everywhere`, every
+browser and app), an operator resets one account (`user:reset-password`,
+[deployment](deployment.md#operator-cli)), or, for the whole deployment,
+revoking the families without one signs those apps out (their users sign in
+again):
+
+```sql
+update refresh_tokens set revoked = true where not revoked and claims ->> 'sid' is null;
+```
+
+Their live sockets end at the next restart of the API (a deploy restarts
+it), and a reconnect then finds the family revoked.
 
 ### Requiring it on a route
 
@@ -1498,7 +1521,10 @@ stored). `POST /v1/access/clients` (the key is shown once),
 `POST /v1/access/clients/{id}/rotate { graceSeconds }` (the old key keeps
 working for the grace period; both want a recent sign-in), `DELETE /v1/access/clients/{id}/keys/{keyId}`,
 `PATCH /v1/access/clients/{id} { active, roleIds }`. Keys may expire and
-record their last use. A client may do what every client may
+record their last use. A revoked key's realtime sockets are disconnected at
+once, an expired key's at its expiry, and a socket of a key that stopped
+otherwise (a rotation's grace period, a revoked client) within 10 minutes
+([realtime](webhooks-and-realtime.md#realtime)). A client may do what every client may
 (`clientPermissions`) and what its roles grant. `POST` takes its
 `roleIds` (with `roleExpiresAt`) and `dailyQuota` too, all in the client's
 transaction; `GET /v1/access/clients/{id}` reads one (never a key).

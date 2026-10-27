@@ -26,8 +26,8 @@ on:
     paths-ignore:
       - 'docs/**'
       - 'README.md'
-      - 'AGENTS.md'
-      - 'CLAUDE.md'
+      - '**/AGENTS.md'
+      - '**/CLAUDE.md'
       - '.claude/**'
   pull_request:
   workflow_dispatch:

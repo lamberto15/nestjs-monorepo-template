@@ -106,10 +106,10 @@ async function renderList(
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
+  const tree = (search: string) => (
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={client}>
-        <NuqsTestingAdapter searchParams={searchParams} hasMemory>
+        <NuqsTestingAdapter searchParams={search} hasMemory>
           <TestListPage
             subject="TestItem"
             path={PATH}
@@ -119,12 +119,34 @@ async function renderList(
           />
         </NuqsTestingAdapter>
       </QueryClientProvider>
-    </I18nextProvider>,
+    </I18nextProvider>
   );
+  const rendered = render(tree(searchParams));
+  return {
+    ...rendered,
+    /** The URL changed from outside the page (a link, back and forward). */
+    navigate: (search: string) => rendered.rerender(tree(search)),
+  };
 }
+
+/** A list page of these rows (`count=true`'s page numbers). */
+const listPage = (items: Row[], page = 1, pageCount = 1) => ({
+  items,
+  nextCursor: null,
+  page,
+  nextPage: page < pageCount ? page + 1 : null,
+  pageCount,
+  total: items.length,
+});
 
 const urls = () =>
   mocks.fetch.mock.calls.map(([request]) => new URL((request as Request).url));
+
+/** The list requests' value of `name`, in order. */
+const listed = (name: string) =>
+  urls()
+    .filter((url) => url.pathname === PATH)
+    .map((url) => url.searchParams.get(name));
 
 describe('ListPage', () => {
   beforeEach(() => mocks.fetch.mockReset());
@@ -151,6 +173,95 @@ describe('ListPage', () => {
     expect(list?.searchParams.get('count')).toBe('true');
     expect(list?.searchParams.get('sort')).toBe('-createdAt');
     expect(list?.searchParams.get('fields')).toBe('title,status');
+  });
+
+  it('searches once the typing pauses, not once a keystroke', async () => {
+    mocks.fetch.mockImplementation(async (request?: Request) =>
+      request?.url.includes('/v1/lists/')
+        ? json(description)
+        : json(listPage([{ id: '1', title: 'First item', status: 'draft' }])),
+    );
+    await renderList();
+    const user = userEvent.setup();
+    await user.type(
+      await screen.findByRole('searchbox', { name: 'Search' }),
+      'invoice',
+    );
+
+    await waitFor(() => expect(listed('q')).toContain('invoice'));
+    // Still one, once the pause is well over.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(listed('q').filter(Boolean)).toEqual(['invoice']);
+  });
+
+  it('shows the search the URL has when it changes from outside', async () => {
+    mocks.fetch.mockImplementation(async (request?: Request) =>
+      request?.url.includes('/v1/lists/')
+        ? json(description)
+        : json(listPage([{ id: '1', title: 'First item', status: 'draft' }])),
+    );
+    const { navigate } = await renderList('?q=foo');
+    const box = await screen.findByRole('searchbox', { name: 'Search' });
+    expect(box).toHaveValue('foo');
+
+    // The sidebar's link to the bare list (or back and forward).
+    navigate('');
+    await waitFor(() => expect(box).toHaveValue(''));
+    navigate('?q=bar');
+    await waitFor(() => expect(box).toHaveValue('bar'));
+  });
+
+  it('asks only for pages the API serves: page and perPage within its limits', async () => {
+    mocks.fetch.mockImplementation(async (request?: Request) =>
+      request?.url.includes('/v1/lists/')
+        ? json({
+            ...description,
+            limits: { defaultLimit: 50, maxLimit: 100, maxOffset: 10_000 },
+          })
+        : json(listPage([{ id: '1', title: 'First item', status: 'draft' }])),
+    );
+    const first = await renderList('?page=0&perPage=500');
+    await screen.findByText('First item');
+    // ?page=0 and a limit past 100 are a 400: the first page, 100 rows.
+    expect(listed('page')).not.toContain('0');
+    expect(listed('limit')).not.toContain('500');
+    expect(listed('page').at(-1)).toBe('1');
+    expect(listed('limit').at(-1)).toBe('100');
+    first.unmount();
+
+    // No page starts past row 10,000 (a 400): the last one that does.
+    mocks.fetch.mockClear();
+    await renderList('?page=999&perPage=50');
+    await screen.findByText('First item');
+    expect(listed('page')).not.toContain('999');
+    expect(listed('page').at(-1)).toBe('200');
+  });
+
+  it('moves a page past the end back to the last one, not to "nothing here"', async () => {
+    mocks.fetch.mockImplementation(async (request?: Request) => {
+      if (request?.url.includes('/v1/lists/')) {
+        return json(description);
+      }
+      const page = Number(
+        new URL(request?.url ?? PATH, 'http://api.test').searchParams.get(
+          'page',
+        ) ?? 1,
+      );
+      return json(
+        page <= 2
+          ? listPage(
+              [{ id: '1', title: 'Second page', status: 'draft' }],
+              page,
+              2,
+            )
+          : listPage([], page, 2),
+      );
+    });
+    await renderList('?page=9');
+
+    expect(await screen.findByText('Second page')).toBeInTheDocument();
+    expect(listed('page').at(-1)).toBe('2');
+    expect(screen.queryByText('Nothing here yet')).toBeNull();
   });
 
   it("fills the route's placeholders, and heads and describes the list as asked", async () => {

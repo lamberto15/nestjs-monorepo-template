@@ -11,9 +11,21 @@ import { Toaster } from '@nestjs-monorepo-template/ui/components/sonner';
 import { NotFound } from '@/components/not-found';
 import { ReauthDialog } from '@/components/reauth-dialog';
 import { RouteError } from '@/components/route-error';
+import { clearAllRecent } from '@/features/search/recent';
 import { createQueryClient } from '@/lib/errors';
-import { createSession } from '@/lib/session';
+import { createSession, registerSessionReset } from '@/lib/session';
 import { routeTree } from '@/routeTree.gen';
+
+// Signed out (here, in another tab, an idle or absolute limit): no search of
+// the session stays in this browser. Registered here, not by the palette:
+// its route chunk loads lazily and may not be loaded when the session ends.
+// A switch to another tenant or account keeps each list under its own
+// identity (features/search/recent.ts), unseen by the other.
+registerSessionReset((change) => {
+  if (change === 'clear') {
+    clearAllRecent();
+  }
+});
 
 /** The router; a test passes a memory history. */
 export function createAppRouter(
@@ -58,6 +70,7 @@ export function createApp(history?: RouterHistory) {
             void current.navigate({ to: '/account/security' });
           }
         },
+        invalidate: () => void current.invalidate(),
       }
     );
   });

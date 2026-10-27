@@ -12,7 +12,7 @@ import {
   useNotesApi,
 } from '@/features/notes/test/notes-api';
 import { server, signedInUser } from '@/test/server';
-import { findToast } from '@/test/toast';
+import { expectNoToast, findToast } from '@/test/toast';
 
 /** The request schemas of the API's routes, as the typed client's document has them. */
 const schemaPaths = (
@@ -69,6 +69,8 @@ describe('the note detail page', () => {
     useNotesApi({ can: ALL, notes: [] });
     await renderApp(`/notes/${NOTE_ID}`);
     expect(await screen.findByText('Note not found')).toBeVisible();
+    // The page says it: not a toast as well.
+    await expectNoToast();
   });
 
   it('offers edit and delete only with the permissions', async () => {

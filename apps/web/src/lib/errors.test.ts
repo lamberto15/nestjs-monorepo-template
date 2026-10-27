@@ -20,6 +20,7 @@ const target = (inApp = true) => ({
   toSignIn: vi.fn(),
   toMfaSetup: vi.fn(),
   toOnboarding: vi.fn(),
+  invalidate: vi.fn(),
 });
 
 describe('the global error handler', () => {
@@ -277,7 +278,9 @@ describe('the global error handler', () => {
     expect(to.toSignIn).not.toHaveBeenCalled();
   });
 
-  it('forgets mutations (their variables and results) with the session', async () => {
+  // The cache's entries only: a mounted useMutation keeps its last result,
+  // which useOnSessionChange resets (lib/session-identity.test.tsx).
+  it("forgets the mutation cache's entries with the session", async () => {
     const queryClient = createQueryClient(() => target());
     await queryClient
       .getMutationCache()

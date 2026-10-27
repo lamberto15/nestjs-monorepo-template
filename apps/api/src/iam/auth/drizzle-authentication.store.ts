@@ -33,6 +33,7 @@ import {
 } from '../iam.tables.js';
 import { UsersRepository } from './users.repository.js';
 import { SessionLifecycleRegistry } from './session-lifecycle.registry.js';
+import { distinctTokenSessionIds, tokenSessionId } from './token-session.js';
 
 /**
  * Keeps sessions, refresh tokens, authenticators and pending links in
@@ -207,10 +208,12 @@ export class DrizzleAuthenticationStore
   }
 
   async revokeRefreshTokenFamily(familyId: string): Promise<void> {
-    await this.db
+    const revoked = await this.db
       .update(refreshTokens)
       .set({ revoked: true })
-      .where(eq(refreshTokens.familyId, familyId));
+      .where(eq(refreshTokens.familyId, familyId))
+      .returning({ sid: tokenSessionId });
+    await this.afterTokenRevocation(revoked);
   }
 
   async isRefreshTokenFamilyRevoked(familyId: string): Promise<boolean> {
@@ -228,10 +231,49 @@ export class DrizzleAuthenticationStore
   }
 
   async revokeUserRefreshTokens(userId: string): Promise<void> {
-    await this.db
+    // The families still live: those revoked before have nothing left to end.
+    const revoked = await this.db
       .update(refreshTokens)
       .set({ revoked: true })
-      .where(eq(refreshTokens.userId, userId));
+      .where(
+        and(eq(refreshTokens.userId, userId), eq(refreshTokens.revoked, false)),
+      )
+      .returning({ sid: tokenSessionId });
+    await this.afterTokenRevocation(revoked);
+  }
+
+  /**
+   * Whether the family whose access tokens carry this `sid` (tokenClaims())
+   * was revoked. Not the package's: its access tokens live until they
+   * expire, and requests don't ask. A realtime handshake does (Realtime),
+   * since a socket outlives the access token that opened it.
+   */
+  async isTokenSessionRevoked(userId: string, sid: string): Promise<boolean> {
+    const revoked = await this.db
+      .select({ id: refreshTokens.id })
+      .from(refreshTokens)
+      .where(
+        and(
+          eq(refreshTokens.userId, userId),
+          eq(refreshTokens.revoked, true),
+          eq(tokenSessionId, sid),
+        ),
+      )
+      .limit(1);
+    return revoked.length > 0;
+  }
+
+  /** Tells the listeners (Realtime) which families' `sid`s just ended, once each. */
+  private async afterTokenRevocation(rows: { sid: string | null }[]) {
+    const lifecycle = this.sessionLifecycle;
+    if (!lifecycle) {
+      return;
+    }
+    await Promise.all(
+      distinctTokenSessionIds(rows).map((sid) =>
+        lifecycle.afterTokenRevocation(sid),
+      ),
+    );
   }
 
   // Authenticators, recovery codes and failed attempts
