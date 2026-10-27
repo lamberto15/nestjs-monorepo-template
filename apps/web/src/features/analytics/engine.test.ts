@@ -440,6 +440,61 @@ describe('querying', () => {
     ).toHaveLength(2);
   });
 
+  it('skips a queued query whose signal was aborted, without sending SQL', async () => {
+    const dataset = await load();
+    const hold = gate();
+    latest().connection.gates.set('count(*)', hold);
+    const stale = new AbortController();
+
+    const first = queryDataset(dataset);
+    const superseded = queryDataset(
+      dataset,
+      { limit: 1 },
+      { signal: stale.signal },
+    );
+    const superseding = queryDataset(dataset, { limit: 2 });
+    await settle();
+    stale.abort();
+    latest().connection.gates.delete('count(*)');
+    hold.open();
+
+    await expect(superseded).rejects.toMatchObject({ name: 'AbortError' });
+    await Promise.all([first, superseding]);
+    const sent = latest().connection.queries;
+    expect(sent.some((sql) => sql.includes('LIMIT 1 '))).toBe(false);
+    expect(sent.some((sql) => sql.includes('LIMIT 2 '))).toBe(true);
+  });
+
+  it('sends no SQL when the signal aborts while the Arrow helper is loading', async () => {
+    const dataset = await load();
+    const before = latest().connection.queries.length;
+    // Not aborted at the first check (before the dynamic import), aborted at the next.
+    let reads = 0;
+    const signal = {
+      get aborted() {
+        reads += 1;
+        return reads > 1;
+      },
+    } as AbortSignal;
+
+    await expect(queryDataset(dataset, {}, { signal })).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+    expect(latest().connection.queries).toHaveLength(before);
+  });
+
+  it('rejects an already aborted query before it starts', async () => {
+    const dataset = await load();
+    const before = latest().connection.queries.length;
+    const stale = new AbortController();
+    stale.abort();
+
+    await expect(
+      queryDataset(dataset, {}, { signal: stale.signal }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(latest().connection.queries).toHaveLength(before);
+  });
+
   it('keeps working after one query fails', async () => {
     const dataset = await load();
     latest().connection.failures.set('LIMIT 1 ', new Error('Out of memory'));
