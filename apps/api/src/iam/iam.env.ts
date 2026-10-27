@@ -129,8 +129,6 @@ export const iamEnv = z.object({
   PASSWORD_HASH_CONCURRENCY: z.coerce.number().int().min(1).max(16).default(2),
   /** Hashes waiting for a slot; beyond that, 503 `server_busy` at once. */
   PASSWORD_HASH_MAX_QUEUE: z.coerce.number().int().min(0).default(20),
-  /** Jobs the SSO queue's worker runs at once in this process. */
-  QUEUE_CONCURRENCY_SSO: z.coerce.number().int().min(1).default(2),
   /** How long a hash waits for a slot, then 503 `server_busy` (Retry-After). */
   PASSWORD_HASH_QUEUE_TIMEOUT_MS: z.coerce
     .number()
@@ -138,6 +136,8 @@ export const iamEnv = z.object({
     .min(100)
     .max(60_000)
     .default(5000),
+  /** Jobs the SSO queue's worker runs at once in this process. */
+  QUEUE_CONCURRENCY_SSO: z.coerce.number().int().min(1).default(2),
   /** Passwordless sign-in by email link (POST /auth/magic-link). */
   AUTH_MAGIC_LINK: flag('on'),
 
