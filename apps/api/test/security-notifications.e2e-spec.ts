@@ -234,6 +234,7 @@ describe('security notifications (e2e)', () => {
       title: 'Your password was changed',
       data: { via: 'change', ip: '127.0.0.1' },
     });
+    expect(item!.body).toContain('was changed (from 127.0.0.1).');
     await node.waitForMail({ to: user.email, subject: /password was changed/ });
 
     await node

@@ -148,3 +148,28 @@ export function formatValue(value: unknown, on: string, off: string): string {
   }
   return typeof value === 'string' ? value : JSON.stringify(value);
 }
+
+/**
+ * A setting's value for a table cell: `null` is "No limit" for a quota and
+ * "Not set" elsewhere; the dashboard layout is a summary, not its JSON.
+ */
+export function displayValue(
+  key: string,
+  value: unknown,
+  t: TFunction<'settings'>,
+): string {
+  if (value === null || value === undefined) {
+    return key.startsWith('quotas.') ? t('noLimit') : t('notSet');
+  }
+  if (key === 'dashboard.layout' && typeof value === 'object') {
+    const { order, hidden } = value as { order?: unknown; hidden?: unknown };
+    const counts = {
+      ordered: Array.isArray(order) ? order.length : 0,
+      hidden: Array.isArray(hidden) ? hidden.length : 0,
+    };
+    return counts.ordered + counts.hidden === 0
+      ? t('layoutDefault')
+      : t('layoutSummary', counts);
+  }
+  return formatValue(value, t('on'), t('off'));
+}

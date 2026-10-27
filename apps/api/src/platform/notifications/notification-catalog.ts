@@ -124,7 +124,15 @@ export class NotificationCatalog implements OnApplicationBootstrap {
     if (!this.byType.has(type)) {
       return { title: type, body: '' };
     }
-    const args = { ...data, count };
+    // "(from 1.2.3.4)", or nothing when the change had no address (an operator's CLI).
+    const from =
+      typeof data.ip === 'string' && data.ip
+        ? this.i18n.translate('notifications.from', {
+            locale,
+            args: { ip: data.ip },
+          })
+        : '';
+    const args = { ...data, count, from };
     return {
       title: this.i18n.translate(`notifications.${type}.title`, {
         locale,

@@ -72,7 +72,19 @@
   "groups": {
     "auth": "سياسة تسجيل الدخول",
     "notes": "الملاحظات",
-    "numbering": "الترقيم"
+    "numbering": "الترقيم",
+    "ai": "الذكاء الاصطناعي",
+    "approvals": "الموافقات",
+    "branding": "العلامة التجارية",
+    "dashboard": "لوحة المعلومات",
+    "dataTransfer": "نقل البيانات",
+    "expenses": "المصروفات",
+    "invoiceLines": "بنود الفاتورة",
+    "messaging": "المراسلة",
+    "notifications": "الإشعارات",
+    "platform": "المنصة",
+    "quotas": "الحصص",
+    "ui": "المظهر"
   },
   "preferences": {
     "title": "التفضيلات",
@@ -165,5 +177,9 @@
       "locale": "ar, en-GB",
       "tenantSlug": "معرّف المستأجر"
     }
-  }
+  },
+  "noLimit": "بلا حد",
+  "notSet": "غير محدد",
+  "layoutSummary": "تخطيط مخصص: {{ordered}} بطاقات مرتبة، {{hidden}} مخفية",
+  "layoutDefault": "التخطيط القياسي"
 }

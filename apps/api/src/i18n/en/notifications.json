@@ -40,6 +40,7 @@
       "body": "{by} mentioned you on \"{title}\": {excerpt}"
     }
   },
+  "from": " (from {ip})",
   "security": {
     "newSignIn": {
       "label": "New sign-in",
@@ -49,27 +50,27 @@
     "passwordChanged": {
       "label": "Password changed",
       "title": "Your password was changed",
-      "body": "The password of your account was changed (from {ip}). If this wasn't you, reset it right away."
+      "body": "The password of your account was changed{from}. If this wasn't you, reset it right away."
     },
     "passwordBreached": {
       "label": "Password found in a data breach",
       "title": "Your password appeared in a data breach",
-      "body": "The password you signed in with (from {ip}) appears in a known data breach, so others may try it. Change it now, to one you use nowhere else."
+      "body": "The password you signed in with{from} appears in a known data breach, so others may try it. Change it now, to one you use nowhere else."
     },
     "mfaChanged": {
       "label": "Two-factor sign-in changed",
       "title": "Two-factor sign-in changed",
-      "body": "Two-factor sign-in for your account was turned on or off (from {ip}). If this wasn't you, change your password right away."
+      "body": "Two-factor sign-in for your account was turned on or off{from}. If this wasn't you, change your password right away."
     },
     "passkeyAdded": {
       "label": "Passkey added",
       "title": "A passkey was added to your account",
-      "body": "A passkey named “{name}” was added to your account (from {ip}). If this wasn't you, remove it and change your password right away."
+      "body": "A passkey named “{name}” was added to your account{from}. If this wasn't you, remove it and change your password right away."
     },
     "passkeyRemoved": {
       "label": "Passkey removed",
       "title": "A passkey was removed from your account",
-      "body": "The passkey “{name}” was removed from your account (from {ip}). If this wasn't you, change your password right away."
+      "body": "The passkey “{name}” was removed from your account{from}. If this wasn't you, change your password right away."
     },
     "apiKeyRotated": {
       "label": "API key rotated",
@@ -79,7 +80,7 @@
     "breakGlassStarted": {
       "label": "Break-glass access to your tenant",
       "title": "An operator opened your tenant (break-glass)",
-      "body": "{operator} opened this tenant without an invitation, read only, until {expiresAt} (from {ip}). Their reason: “{reason}”. It is in the audit log and the sign-in log; an administrator can opt out (setting auth.allowBreakGlass)."
+      "body": "{operator} opened this tenant without an invitation, read only, until {expiresAt}{from}. Their reason: “{reason}”. It is in the audit log and the sign-in log; an administrator can opt out (setting auth.allowBreakGlass)."
     }
   },
   "approval": {
