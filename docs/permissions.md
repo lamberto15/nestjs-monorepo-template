@@ -62,16 +62,16 @@ before.
 
 ## Checking
 
-| Where | How |
-| --- | --- |
-| The route | `@Can(NotePolicy, 'create')` |
-| Finding one record | `notes.findOne(id, undefined, { visibleTo: user })`: the read filter (`sqlFilter`; in the recycle bin, `restore`) in the lookup's query, so one the caller may not read is a 404 (below) |
-| One record | `authorization.authorize(NotePolicy, 'update', user, note)` |
+| Where                                              | How                                                                                                                                                                                                                                |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The route                                          | `@Can(NotePolicy, 'create')`                                                                                                                                                                                                       |
+| Finding one record                                 | `notes.findOne(id, undefined, { visibleTo: user })`: the read filter (`sqlFilter`; in the recycle bin, `restore`) in the lookup's query, so one the caller may not read is a 404 (below)                                           |
+| One record                                         | `authorization.authorize(NotePolicy, 'update', user, note)`                                                                                                                                                                        |
 | What a reader may do with records (`?include=can`) | `recordCan(authorization, NotePolicy, user, rows, actions, flags)` (`platform/records/record-can.ts`): the same policy check per record and action, `authorization.can()`, in memory; `flags` for what is not one action (`issue`) |
-| A list | `access.sqlFilter(user, 'Note', 'read')`: a SQL condition, so lists never load what they'd hide |
-| Fields read | `access.redact(user, 'read', 'Note', note)` / `redactAll()` |
-| Fields written | `access.forbiddenFields(user, 'update', 'Note', changes, note)` → 403 `field_forbidden` |
-| Fields a list query uses | `access.assertQueryFields(user, 'Note', query)` after `list.parse()` → 403 `field_forbidden` (hidden, or shown on some records only and filtered, sorted or searched by) |
+| A list                                             | `access.sqlFilter(user, 'Note', 'read')`: a SQL condition, so lists never load what they'd hide                                                                                                                                    |
+| Fields read                                        | `access.redact(user, 'read', 'Note', note)` / `redactAll()`                                                                                                                                                                        |
+| Fields written                                     | `access.forbiddenFields(user, 'update', 'Note', changes, note)` → 403 `field_forbidden`                                                                                                                                            |
+| Fields a list query uses                           | `access.assertQueryFields(user, 'Note', query)` after `list.parse()` → 403 `field_forbidden` (hidden, or shown on some records only and filtered, sorted or searched by)                                                           |
 
 `GET /v1/auth/me`'s `can` says what the user may do on some records at
 least (`Note.update`: a note of theirs, say); a record's own `can`
@@ -218,16 +218,16 @@ tree, read-only (consolidated reports of a holding: [tenancy](tenancy.md),
 The built-in `Access` permissions (`ACCESS_PERMISSIONS`,
 `iam/access/permission-catalog.ts`; none takes conditions) and the one `Platform` permission:
 
-| Permission | What it opens |
-| --- | --- |
-| `Access.manageRoles`, `manageUsers`, `manageClients`, `manageTeams` | roles; invitations, memberships, roles and teams of users; API clients and their keys; the team tree |
-| `Access.readAudit` | the audit log and the sign-in log |
-| `Access.impersonate` | acting as another user (support), never as an administrator |
+| Permission                                                                                       | What it opens                                                                                                                    |
+| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `Access.manageRoles`, `manageUsers`, `manageClients`, `manageTeams`                              | roles; invitations, memberships, roles and teams of users; API clients and their keys; the team tree                             |
+| `Access.readAudit`                                                                               | the audit log and the sign-in log                                                                                                |
+| `Access.impersonate`                                                                             | acting as another user (support), never as an administrator                                                                      |
 | `Access.manageCustomFields`, `manageSettings`, `manageTags`, `manageNamingSeries`, `manageViews` | custom field definitions; settings and feature flags; tags; naming series and their counters; saved views shared with the tenant |
-| `Access.manageRetention`, `manageLegalHolds` | retention rules; legal holds ([retention](retention.md)) |
-| `Access.manageSso` | the tenant's SAML and OpenID Connect connections and verified domains ([auth](auth.md), "Enterprise SSO") |
-| `Access.provisionScim` | SCIM 2.0 provisioning: API clients only, the identity provider's token ([auth](auth.md), "Enterprise SSO") |
-| `Access.manageTenants`, `readConsolidated`; `Platform.breakGlass` | as above |
+| `Access.manageRetention`, `manageLegalHolds`                                                     | retention rules; legal holds ([retention](retention.md))                                                                         |
+| `Access.manageSso`                                                                               | the tenant's SAML and OpenID Connect connections and verified domains ([auth](auth.md), "Enterprise SSO")                        |
+| `Access.provisionScim`                                                                           | SCIM 2.0 provisioning: API clients only, the identity provider's token ([auth](auth.md), "Enterprise SSO")                       |
+| `Access.manageTenants`, `readConsolidated`; `Platform.breakGlass`                                | as above                                                                                                                         |
 
 - **Reading** the access API (`GET` of the catalog, roles, users, teams,
   API clients, principals; one role, user or client by id) takes any
@@ -332,6 +332,7 @@ GET /v1/people?q=may&limit=10
   `user:<uuid>` or `client:<uuid>` (else 400, `validation_failed`); `q`
   and `key` together are a 400 (one searches, the other names); `limit`
   doesn't apply.
+
 - **Names on records:** comments carry `authorName` and `mentionNames`,
   revisions `changedByName` (`PeopleService.names()`, one query a page): the name of
   a user who is or was a member of the tenant, or of the tenant's API
@@ -385,12 +386,12 @@ outbox relay's notification delivery, workflow steps (approvals, the
 notes' publication) and the demo seed. SCIM is an API client's
 work (`Access.provisionScim`) and an AI run acts as the principal who asked. It is a third principal kind next to `user` and `client`:
 
-| | user | client | system |
-| --- | --- | --- | --- |
-| `principalKey()` | `user:<id>` | `client:<id>` | `system:<job>` (`system:account-deletion`) |
-| Permissions | its roles | `clientPermissions` + its roles | what its job declares, nothing more |
-| Audit label | the email | the client's name | `System: <job's label>` |
-| Authenticates over HTTP or a socket | yes | yes | **never** |
+|                                     | user        | client                          | system                                     |
+| ----------------------------------- | ----------- | ------------------------------- | ------------------------------------------ |
+| `principalKey()`                    | `user:<id>` | `client:<id>`                   | `system:<job>` (`system:account-deletion`) |
+| Permissions                         | its roles   | `clientPermissions` + its roles | what its job declares, nothing more        |
+| Audit label                         | the email   | the client's name               | `System: <job's label>`                    |
+| Authenticates over HTTP or a socket | yes         | yes                             | **never**                                  |
 
 **Declare the job** in its group's or feature's `definePermissions()`,
 with what it may do, as for an API client (conditions read with the job
@@ -401,7 +402,9 @@ export const NOTE_PUBLICATION_JOB = defineSystemJob({
   key: 'note-publication',
   label: 'Note publication',
   description: 'Publishes draft notes when their delay passes.',
-  permissions: [{ subject: 'Note', action: 'update', conditions: [{ key: 'draft' }] }],
+  permissions: [
+    { subject: 'Note', action: 'update', conditions: [{ key: 'draft' }] },
+  ],
 });
 // definePermissions({ subjects, …, systemJobs: [NOTE_PUBLICATION_JOB] })
 ```
@@ -445,23 +448,23 @@ transaction of the job carries `app.tenant_id` ([tenancy](tenancy.md)).
 
 **Where it acts** (the audit's actor, and the tenant it works in):
 
-| Work | Actor | Tenant | Audit entries |
-| --- | --- | --- | --- |
-| First start (AccessSeeder) | `system:seed` | the operator tenant it creates | `user.seeded` |
-| Audit retention | `system:audit-retention` | each tenant in turn, then none (account-level entries) | `audit.pruned` (count, cut-off) in the log it pruned, when it deleted any |
-| Recycle bin purge | `system:soft-delete-purge` | each tenant in turn | `records.purged` per batch (the ids), with the purge |
-| Account deletion | `system:account-deletion` | each tenant the person belonged to (their data there), then none (the account) | `account.deleted` (no tenant), with the anonymization |
-| Attachment sweep | `system:attachment-sweep` | each tenant in turn | `attachments.swept` per round (the ids), with the rows; `attachments.uploads-swept` per round (the upload ids) for direct uploads nobody completed, with their objects |
-| Attachment malware scan (and its retry job, every five minutes) | `system:attachment-scan` | the upload's (the job's tenant); the retry job: each tenant in turn | `attachment.rejected` (signature) when the file is infected, with the deletion; `attachments.released` (the ids) when scanning is switched off and pending files are released |
-| Attachment image processing (and its retry job, every five minutes) | `system:attachment-images` | the upload's (the job's tenant); the retry job: each tenant in turn | `attachment.processed` (renditions, metadata removed, size before and after) with the new rows |
-| Scheduled reports | `system:report-runner` | each tenant in turn | `report.skipped`, `report.deactivated`, `report.finished`; the export itself runs, and is audited, as the report's owner |
-| Approvals workflow | `system:approvals` | the request's (the workflow's input) | the workflow's own (`approval.escalated`, `.expired`, `.failed`…); its outcome handlers get it as `outcome.actor` |
-| Note publication workflow | `system:note-publication` | the note's (the workflow's input) | `note.updated` (draft → published); an approval it asks for is on the owner's behalf |
-| Demo seed (`pnpm db:seed:demo`, development databases only) | `system:demo-seed` | the demo tenant it creates | everything it writes (`team.created`, `user.seeded`, `tag.created`, `note.created` on its users' behalf, `tags.changed`, `comment.added`, `attachment.added`), then `demo.seeded` |
-| Tenant deletion, unverified sign-ups' sweep | `system:tenant-deletion`, `system:sign-up-tenant-sweep` | each due tenant | `tenant.purged` outside any tenant (`details.reason`) |
-| Retention rules | `system:retention` | each tenant in turn | `retention.purged` or `retention.anonymised` per batch (the ids) |
-| Mail intake, mail events retention, exchange rates | `system:<job>` | none (global tables) | the intake's suppressions (`mailSuppression.*`, no tenant) |
-| Notification delivery (outbox), usage roll-up, revision and notification retention, digests | `system:<job>` | the event's, or each tenant | none (no change a person would audit) |
+| Work                                                                                        | Actor                                                   | Tenant                                                                         | Audit entries                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| First start (AccessSeeder)                                                                  | `system:seed`                                           | the operator tenant it creates                                                 | `user.seeded`                                                                                                                                                                     |
+| Audit retention                                                                             | `system:audit-retention`                                | each tenant in turn, then none (account-level entries)                         | `audit.pruned` (count, cut-off) in the log it pruned, per batch of up to 5,000 deleted                                                                                            |
+| Recycle bin purge                                                                           | `system:soft-delete-purge`                              | each tenant in turn                                                            | `records.purged` per batch (the ids), with the purge                                                                                                                              |
+| Account deletion                                                                            | `system:account-deletion`                               | each tenant the person belonged to (their data there), then none (the account) | `account.deleted` (no tenant), with the anonymization                                                                                                                             |
+| Attachment sweep                                                                            | `system:attachment-sweep`                               | each tenant in turn                                                            | `attachments.swept` per round (the ids), with the rows; `attachments.uploads-swept` per round (the upload ids) for direct uploads nobody completed, with their objects            |
+| Attachment malware scan (and its retry job, every five minutes)                             | `system:attachment-scan`                                | the upload's (the job's tenant); the retry job: each tenant in turn            | `attachment.rejected` (signature) when the file is infected, with the deletion; `attachments.released` (the ids) when scanning is switched off and pending files are released     |
+| Attachment image processing (and its retry job, every five minutes)                         | `system:attachment-images`                              | the upload's (the job's tenant); the retry job: each tenant in turn            | `attachment.processed` (renditions, metadata removed, size before and after) with the new rows                                                                                    |
+| Scheduled reports                                                                           | `system:report-runner`                                  | each tenant in turn                                                            | `report.skipped`, `report.deactivated`, `report.finished`; the export itself runs, and is audited, as the report's owner                                                          |
+| Approvals workflow                                                                          | `system:approvals`                                      | the request's (the workflow's input)                                           | the workflow's own (`approval.escalated`, `.expired`, `.failed`…); its outcome handlers get it as `outcome.actor`                                                                 |
+| Note publication workflow                                                                   | `system:note-publication`                               | the note's (the workflow's input)                                              | `note.updated` (draft → published); an approval it asks for is on the owner's behalf                                                                                              |
+| Demo seed (`pnpm db:seed:demo`, development databases only)                                 | `system:demo-seed`                                      | the demo tenant it creates                                                     | everything it writes (`team.created`, `user.seeded`, `tag.created`, `note.created` on its users' behalf, `tags.changed`, `comment.added`, `attachment.added`), then `demo.seeded` |
+| Tenant deletion, unverified sign-ups' sweep                                                 | `system:tenant-deletion`, `system:sign-up-tenant-sweep` | each due tenant                                                                | `tenant.purged` outside any tenant (`details.reason`)                                                                                                                             |
+| Retention rules                                                                             | `system:retention`                                      | each tenant in turn                                                            | `retention.purged` or `retention.anonymised` per batch (the ids)                                                                                                                  |
+| Mail intake, mail events retention, exchange rates                                          | `system:<job>`                                          | none (global tables)                                                           | the intake's suppressions (`mailSuppression.*`, no tenant)                                                                                                                        |
+| Notification delivery (outbox), usage roll-up, revision and notification retention, digests | `system:<job>`                                          | the event's, or each tenant                                                    | none (no change a person would audit)                                                                                                                                             |
 
 The system principal never acts within a request: a request that ends
 approvals for someone (an administrator deactivating an approver, a
