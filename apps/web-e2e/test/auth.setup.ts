@@ -1,5 +1,5 @@
-import { expect, test as setup } from '@playwright/test';
 import { account, stateFile, type Role } from './accounts';
+import { expect, test as setup } from './fixtures';
 
 // Each role signs in once through the form; every test file then starts from
 // its saved state (docs: playwright.dev/docs/auth). The API limits sign-ins to

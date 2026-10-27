@@ -37,6 +37,9 @@
       "ignoreBinaries": ["redis-server"],
     },
     "apps/web": {
+      // lighthouserc.json's `startServerCommand` runs it directly (not a
+      // package.json script, which knip already reads as an entry).
+      "entry": ["scripts/lighthouse-server.mjs"],
       // Dice UI's data table: registry output the shadcn CLI writes, kept
       // whole so `shadcn add` updates apply (AGENTS.md: generate, never
       // hand-write). Parts of it are unused until a list page needs them.

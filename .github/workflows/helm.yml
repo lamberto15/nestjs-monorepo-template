@@ -152,6 +152,14 @@ jobs:
           diff -u monitoring/prometheus/alerts.yml deploy/helm/app/files/alerts.yml ||
             { echo "run deploy/helm/sync-rules.sh"; exit 1; }
 
+      # The web pod's Caddyfile (templates/web-configmap.yaml) is the web app
+      # of caddy/Caddyfile, line for line: headers, compression, handles. Here
+      # for a change to the chart; CI / CD's caddy-image job runs the same
+      # file, its Caddy-run tests too, for a change to caddy/ (here they skip:
+      # no caddy binary).
+      - name: The web Caddy matches caddy/Caddyfile
+        run: node --test caddy/caddyfile.test.mjs
+
       - name: helm lint
         run: helm lint deploy/helm/app --strict -f deploy/helm/ci/values.yaml
 
@@ -195,20 +203,20 @@ jobs:
       - name: The web app's policy names the origins of files
         run: |
           helm template ci deploy/helm/app -f deploy/helm/ci/values.yaml > "$RUNNER_TEMP/no-bucket.yaml"
-          grep -q "connect-src 'self'; img-src 'self' data:;" "$RUNNER_TEMP/no-bucket.yaml"
+          grep -q "connect-src 'self'; img-src 'self' data: blob:;" "$RUNNER_TEMP/no-bucket.yaml"
           helm template ci deploy/helm/app -f deploy/helm/ci/values.yaml \
             --set env.S3_BUCKET=files --set env.S3_REGION=eu-west-1 > "$RUNNER_TEMP/bucket.yaml"
-          grep -q "connect-src 'self' https://files.s3.eu-west-1.amazonaws.com; img-src 'self' data: https://files.s3.eu-west-1.amazonaws.com;" "$RUNNER_TEMP/bucket.yaml"
+          grep -q "connect-src 'self' https://files.s3.eu-west-1.amazonaws.com; img-src 'self' data: blob: https://files.s3.eu-west-1.amazonaws.com;" "$RUNNER_TEMP/bucket.yaml"
           helm template ci deploy/helm/app -f deploy/helm/ci/values.yaml \
             --set env.S3_BUCKET=files --set env.S3_ENDPOINT=https://minio.internal:9000 --set-string env.S3_FORCE_PATH_STYLE=on > "$RUNNER_TEMP/minio.yaml"
-          grep -qF "connect-src 'self' https://minio.internal:9000/files/; img-src 'self' data: https://minio.internal:9000/files/;" "$RUNNER_TEMP/minio.yaml"
+          grep -qF "connect-src 'self' https://minio.internal:9000/files/; img-src 'self' data: blob: https://minio.internal:9000/files/;" "$RUNNER_TEMP/minio.yaml"
           helm template ci deploy/helm/app -f deploy/helm/ci/values.yaml \
             --set-string env.S3_BUCKET=assets.example.com --set env.S3_REGION=eu-west-1 > "$RUNNER_TEMP/path-style.yaml"
-          grep -qF "connect-src 'self' https://s3.eu-west-1.amazonaws.com/assets.example.com/; img-src 'self' data: https://s3.eu-west-1.amazonaws.com/assets.example.com/;" "$RUNNER_TEMP/path-style.yaml"
+          grep -qF "connect-src 'self' https://s3.eu-west-1.amazonaws.com/assets.example.com/; img-src 'self' data: blob: https://s3.eu-west-1.amazonaws.com/assets.example.com/;" "$RUNNER_TEMP/path-style.yaml"
           helm template ci deploy/helm/app -f deploy/helm/ci/values.yaml \
             --set env.S3_BUCKET=files --set env.S3_REGION=eu-west-1 \
             --set-string 'web.filesOrigin=https://cdn.example.com https://files.s3.eu-west-1.amazonaws.com' > "$RUNNER_TEMP/cdn.yaml"
-          grep -q "connect-src 'self' https://files.s3.eu-west-1.amazonaws.com https://cdn.example.com; img-src 'self' data: https://files.s3.eu-west-1.amazonaws.com https://cdn.example.com;" "$RUNNER_TEMP/cdn.yaml"
+          grep -q "connect-src 'self' https://files.s3.eu-west-1.amazonaws.com https://cdn.example.com; img-src 'self' data: blob: https://files.s3.eu-west-1.amazonaws.com https://cdn.example.com;" "$RUNNER_TEMP/cdn.yaml"
           # web.filesOrigin goes into the policy as written: anything but https origins fails.
           if helm template ci deploy/helm/app -f deploy/helm/ci/values.yaml \
             --set-string web.filesOrigin=https://files.example.com/bucket 2>err.txt; then

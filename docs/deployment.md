@@ -61,16 +61,37 @@ Filling `.env` (each step is commented in `env.example`):
   (the API's responses keep helmet's own): `Content-Security-Policy`
   (`default-src 'self'`; scripts and frames also from `https://challenges.cloudflare.com`,
   Turnstile's only needs; `connect-src 'self'` covers the API and socket.io;
-  `img-src 'self' data:`; both also name the origins of files, below; `style-src` keeps `'unsafe-inline'` because sonner and the theme
+  `img-src 'self' data: blob:` (`blob:` is the queued-upload preview, `packages/ui`'s
+  `FileUpload`: the browser's own object URL for a file not yet sent, never a network
+  request); both also name the origins of files, below; `style-src` keeps `'unsafe-inline'` because sonner and the theme
   provider inject `<style>` elements; no `'unsafe-eval'`, so `apps/web` imports `z` from `@/lib/zod`, which sets zod to
   `jitless`; `frame-ancestors 'none'`), `X-Frame-Options: DENY`, `X-Content-Type-Options`,
   `Referrer-Policy: strict-origin-when-cross-origin` and a `Permissions-Policy` that turns
-  off everything but WebAuthn. **A new third-party script, frame, API or font host** needs
-  its origin in the matching directive of that one line (`script-src`, `frame-src`,
-  `connect-src`, `font-src`, `img-src`), taken from the provider's CSP page; no inline
-  `<script>`, no `eval`. Check a change by loading the built app through Caddy (`docker
-build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviolation`
-  events: there must be none.
+  off everything but WebAuthn, `Strict-Transport-Security` (`max-age=63072000;
+  includeSubDomains`, matching the API's own: this deployment serves every subdomain
+  under `APP_DOMAIN` over HTTPS only; no `preload`, which submits the domain to browsers'
+  built-in list, a step this template doesn't take for the owner)
+  and `Cross-Origin-Opener-Policy: same-origin`. **A new third-party script, frame, API or
+  font host** needs its origin in the matching directive of that one line (`script-src`,
+  `frame-src`, `connect-src`, `font-src`, `img-src`), taken from the provider's CSP page; no
+  inline `<script>`, no `eval`. `caddy/caddyfile.test.mjs` pins the full header set
+  against a real Caddy binary, on the app shell, an asset and the maintenance page, and
+  that the Helm chart's web ConfigMap matches the Caddyfile line for line; that is the
+  one place a change to this line is checked (the e2e suite stopped sending it under
+  `vite preview` when `apps/web/preview-headers.ts` was removed with the browser
+  analytics feature it also served).
+- **Compression.** Caddy's image build writes a `.br` and a `.gz` beside each built
+  asset (`apps/web/scripts/precompress.mjs`, Node's `zlib`), served with
+  `file_server { precompressed br gzip }`; the app shell and the rest of the response
+  (`index.html`, `version.json`, the service worker, the manifest, the maintenance page)
+  are encoded per request (`encode zstd gzip`). The `/v1/*` proxy stays unencoded: Caddy's
+  `encode` would suffix the API's strong ETags (`"<hash>-gzip"`) and strip that suffix
+  only from a read's `If-None-Match`, not from a write's `If-Match`, which would then
+  succeed only because `etag.ts` happens to trim long tags to their hash. Compressing the
+  API, if wanted, is a separate decision (in Nest, or at the edge) for each deployment.
+  The ops event stream (`GET /v1/ops/events`) is never buffered or encoded, so it still
+  flushes each event as it is written. A single-node K3s deployment behind a Cloudflare
+  Tunnel also gets compression at the edge, on top of this.
 - **The origins of files** (`STORAGE_DRIVER=s3`). The browser reaches the bucket itself
   twice: it PUTs a direct upload straight to it
   ([attachments](attachments.md#direct-uploads-s3)), and the attachments panel's `<img>`

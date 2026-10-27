@@ -34,6 +34,15 @@
 	# /files and /files/*: the local disk's signed links are /files?key=…&signature=…,
 	# whose path is /files itself, which /files/* does not match. Left out, a download
 	# (an issued PDF, an export, an attachment) is the web app's index.html, 200.
+	# No `encode` here: the API's responses pass as the API sends them. Caddy's
+	# encode turns a strong ETag into "<tag>-gzip" and takes the suffix off the
+	# If-None-Match a read sends back, but not off the If-Match of a write
+	# (docs/api-conventions.md, "Concurrency and caching"); and in the Helm
+	# chart the Ingress sends these paths past Caddy. Compressing the API is
+	# the API's own decision, for every deployment at once. The ops log's
+	# text/event-stream (GET /v1/ops/events) is flushed as it comes: Caddy does
+	# that for the type by itself (reverse_proxy docs, flush_interval), so no
+	# flush_interval is set (caddy/caddyfile.test.mjs checks both).
 	@api path /v1/* /socket.io/* /health /health/* /api /api/* /api-json /api-yaml /files /files/* /.well-known/*
 	handle @api {
 		# Every api replica (API_REPLICAS): Docker's DNS lists them under "api".
@@ -73,11 +82,14 @@
 			# script, and its iframe. Everything else is this origin: socket.io's
 			# ws/wss included ('self' covers it in current browsers; Safari
 			# before 15.4 didn't, and no template target is that old).
-			# connect-src and img-src also take WEB_FILES_ORIGINS, the origins the
-			# browser reaches for files: with STORAGE_DRIVER=s3 it PUTs a direct
-			# upload to the bucket, and an <img> follows an attachment's thumbnail
-			# to the bucket's signed link (docs/attachments.md, "Direct uploads",
-			# "Image renditions"). caddy/entrypoint.sh makes that list at each start
+			# img-src's blob: is the queued-upload preview (packages/ui's
+			# FileUpload): the browser's own object URL for a file not yet sent,
+			# never fetched over the network. connect-src and img-src also take
+			# WEB_FILES_ORIGINS, the origins the browser reaches for files: with
+			# STORAGE_DRIVER=s3 it PUTs a direct upload to the bucket, and an
+			# <img> follows an attachment's thumbnail to the bucket's signed link
+			# (docs/attachments.md, "Direct uploads", "Image renditions").
+			# caddy/entrypoint.sh makes that list at each start
 			# (the bucket's origin from the S3 settings, then FILES_ORIGIN's) and
 			# exports it to this process. {env.*} is read by the running Caddy, so
 			# a `caddy reload` from a shell that lacks it keeps the list; empty or
@@ -85,14 +97,34 @@
 			# style-src keeps 'unsafe-inline': sonner and the theme provider inject
 			# <style> elements at runtime (checked in the browser; without it the
 			# page logs violations). No 'unsafe-eval': apps/web/src/lib/zod.ts sets zod to jitless.
-			Content-Security-Policy "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src 'self' {env.WEB_FILES_ORIGINS}; img-src 'self' data: {env.WEB_FILES_ORIGINS}; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+			Content-Security-Policy "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src 'self' {env.WEB_FILES_ORIGINS}; img-src 'self' data: blob: {env.WEB_FILES_ORIGINS}; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 			# frame-ancestors' older twin, for browsers that predate CSP level 2.
 			X-Frame-Options "DENY"
 			X-Content-Type-Options "nosniff"
 			Referrer-Policy "strict-origin-when-cross-origin"
 			# WebAuthn (publickey-credentials-*) stays on for this origin; the rest is off.
 			Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), publickey-credentials-get=(self), publickey-credentials-create=(self)"
+			# HTTPS only, for two years, every subdomain included: matches the
+			# API's own (helmet, core/http/http-setup.ts) — this deployment
+			# serves every subdomain under APP_DOMAIN over HTTPS only. No
+			# preload: that submits the domain to browsers' built-in list, a
+			# step this app doesn't take for the owner.
+			Strict-Transport-Security "max-age=63072000; includeSubDomains"
+			# A page of another origin that opens this one, or that this one
+			# opens, gets no handle on its window (window.opener): the app needs
+			# none (sign-in providers are full-page redirects, Turnstile is an
+			# iframe, its links out are noopener, the tabs talk over
+			# BroadcastChannel).
+			Cross-Origin-Opener-Policy "same-origin"
 		}
+		# Compressed for the browser: the files under /assets/* when the image
+		# is built (a .br and a .gz beside each, apps/web/scripts/precompress.mjs,
+		# which `precompressed` below sends: browsers take one, so nothing is
+		# compressed per request), the rest (index.html, version.json, the
+		# service worker, the manifest, the maintenance page) as it is sent,
+		# zstd or gzip (Caddy has no brotli encoder). Under 512 bytes, a
+		# response is sent as it is.
+		encode zstd gzip
 		# Maintenance (MAINTENANCE_PAGE=on, docs/deployment.md, "Maintenance
 		# page"): every path of the web app answers the static page, 503 with
 		# Retry-After, so neither the shell nor its files are served. The API's
@@ -121,7 +153,11 @@
 			# Only a file that exists: a 404 must not be cached for a year.
 			@asset file
 			header @asset Cache-Control "public, max-age=31536000, immutable"
-			file_server
+			# The .br, else the .gz, beside the file when the browser takes it
+			# (Content-Encoding and Vary set by file_server); without one, the file.
+			file_server {
+				precompressed br gzip
+			}
 		}
 		# index.html names the current assets: always fetched again.
 		handle {

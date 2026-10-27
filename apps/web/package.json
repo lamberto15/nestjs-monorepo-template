@@ -9,6 +9,7 @@
     "lint": "oxlint --type-aware src/",
     "pwa:icons": "pwa-assets-generator",
     "preview": "vite preview",
+    "precompress": "node scripts/precompress.mjs dist/assets",
     "test": "vitest run",
     "size": "size-limit && node scripts/check-lazy-locales.mjs",
     "lighthouse": "lhci autorun",

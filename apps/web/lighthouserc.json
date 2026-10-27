@@ -1,9 +1,11 @@
 {
   "ci": {
     "collect": {
-      "staticDistDir": "./dist",
-      "numberOfRuns": 1,
-      "url": ["http://localhost/index.html"]
+      "startServerCommand": "node scripts/lighthouse-server.mjs",
+      "startServerReadyPattern": "Local:",
+      "startServerReadyTimeout": 30000,
+      "numberOfRuns": 3,
+      "url": ["http://localhost:4173/sign-in"]
     },
     "assert": {
       "assertions": {

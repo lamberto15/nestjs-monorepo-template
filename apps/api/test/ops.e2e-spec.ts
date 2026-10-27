@@ -188,6 +188,9 @@ describe('operations API (e2e)', () => {
     });
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toContain('text/event-stream');
+    // http-setup.ts's compression() never buffers this stream: each event
+    // still flushes as it is written.
+    expect(response.headers.get('content-encoding')).toBeNull();
 
     const emit = () => {
       node.app.get(OutboxEvents).emit({

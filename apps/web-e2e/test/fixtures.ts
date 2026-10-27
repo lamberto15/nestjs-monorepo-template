@@ -57,6 +57,37 @@ export const test = base.extend<{
     options?: ScanOptions,
   ) => Promise<void>;
 }>({
+  // Every page of the test's context runs under production's policy (`vite
+  // preview` sends caddy/Caddyfile's headers, apps/web/preview-headers.ts):
+  // a `securitypolicyviolation` in any of them fails the test, with what was
+  // refused. A document's only: a worker's own violations don't reach it.
+  context: async ({ context }, use) => {
+    const violations: string[] = [];
+    await context.exposeBinding(
+      'reportPolicyViolation',
+      ({ page }, violation: string) => {
+        violations.push(`${page.url()}: ${violation}`);
+      },
+    );
+    await context.addInitScript(() => {
+      document.addEventListener(
+        'securitypolicyviolation',
+        (event) => {
+          const report = (
+            window as unknown as {
+              reportPolicyViolation: (violation: string) => Promise<void>;
+            }
+          ).reportPolicyViolation;
+          void report(
+            `${event.effectiveDirective} refused ${event.blockedURI || 'inline'} (${event.sourceFile}:${event.lineNumber})`,
+          );
+        },
+        true,
+      );
+    });
+    await use(context);
+    expect(violations, 'Content-Security-Policy violations').toEqual([]);
+  },
   // Playwright reads the fixtures a function uses from its first parameter's
   // destructuring: it must be a pattern, here an empty one.
   // oxlint-disable-next-line no-empty-pattern
