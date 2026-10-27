@@ -1,5 +1,3 @@
-ALTER TABLE "tenant_closure" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
-DROP TABLE "tenant_closure" CASCADE;--> statement-breakpoint
 ALTER TABLE "team_tree" RENAME TO "organizational_unit_closure";--> statement-breakpoint
 ALTER TABLE "user_teams" RENAME TO "organizational_unit_memberships";--> statement-breakpoint
 ALTER TABLE "teams" RENAME TO "organizational_units";--> statement-breakpoint
@@ -139,4 +137,6 @@ ALTER POLICY "approval_events_tenant_select" ON "approval_events" TO public USIN
 ALTER POLICY "approval_policies_tenant_select" ON "approval_policies" TO public USING (("approval_policies"."tenant_id" = (select nullif(current_setting('app.tenant_id', true), '')::uuid)));--> statement-breakpoint
 ALTER POLICY "approval_requests_tenant_select" ON "approval_requests" TO public USING (("approval_requests"."tenant_id" = (select nullif(current_setting('app.tenant_id', true), '')::uuid)));--> statement-breakpoint
 ALTER POLICY "incoming_webhook_senders_tenant_select" ON "incoming_webhook_senders" TO public USING (("incoming_webhook_senders"."tenant_id" = (select nullif(current_setting('app.tenant_id', true), '')::uuid)));--> statement-breakpoint
-ALTER POLICY "notes_tenant_select" ON "notes" TO public USING (("notes"."tenant_id" = (select nullif(current_setting('app.tenant_id', true), '')::uuid)));
+ALTER POLICY "notes_tenant_select" ON "notes" TO public USING (("notes"."tenant_id" = (select nullif(current_setting('app.tenant_id', true), '')::uuid)));--> statement-breakpoint
+ALTER TABLE "tenant_closure" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
+DROP TABLE "tenant_closure" CASCADE;
