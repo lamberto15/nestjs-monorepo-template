@@ -373,9 +373,6 @@ importers:
       rxjs:
         specifier: ^7.8.1
         version: 7.8.2
-      saxes:
-        specifier: 6.0.0
-        version: 6.0.0
       scim-patch:
         specifier: 0.9.3
         version: 0.9.3
@@ -391,21 +388,12 @@ importers:
       socket.io:
         specifier: ^4.8.4
         version: 4.8.4(supports-color@10.2.2)
-      stream-chain:
-        specifier: 4.2.6
-        version: 4.2.6
-      stream-json:
-        specifier: 3.7.0
-        version: 3.7.0
       undici:
         specifier: 8.12.2
         version: 8.12.2
       web-push:
         specifier: 3.6.7
         version: 3.6.7(supports-color@10.2.2)
-      yauzl:
-        specifier: 3.4.0
-        version: 3.4.0
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -446,9 +434,6 @@ importers:
       '@types/xml-encryption':
         specifier: 1.2.4
         version: 1.2.4
-      '@types/yauzl':
-        specifier: 3.4.0
-        version: 3.4.0
       '@vitest/coverage-v8':
         specifier: ^5.0.5
         version: 5.0.5(vitest@5.0.5)
@@ -5998,9 +5983,6 @@ packages:
   '@types/yauzl@2.10.3':
     resolution: {integrity: sha512-oJoftv0LSuaDZE3Le4DbKX+KS9G36NzOeSap90UIK0yMA/NhKJhqlSGtNDORNRaIbQfzjXDrQa0ytJ6mNRGz/Q==}
 
-  '@types/yauzl@3.4.0':
-    resolution: {integrity: sha512-NRPn5w6h8dhcnmx3YIRQcqMywY/+nND/uOkJessedcrowO3C0AssHp3tMJpxKAwOhFOo0OV1y9VtsC5hbKKBAw==}
-
   '@ucast/core@2.0.0':
     resolution: {integrity: sha512-4XVx6LzPXZGvnZO5jp39cm/G4UvuwvEdtmg+9+4+zl6uFkCcB7UJacvtMYeBE56GJVT99Zqy6Pii7dGJq3Kz9Q==}
 
@@ -10422,12 +10404,6 @@ packages:
       vite-plus:
         optional: true
 
-  stream-chain@4.2.6:
-    resolution: {integrity: sha512-1zeJ8CrtJfmiba26ui8jXkq/xLRFvhzkdH02D5QLO9Cnovgeb28IJxg88DdraWnjnkbOol/++uIAybJbJhk7ig==}
-
-  stream-json@3.7.0:
-    resolution: {integrity: sha512-rCSBdcBP/bPk6T8QFcxAj1MSzAuc5i49cYW6IE7sYObNEPccBJIUiL6fU9c9BWt40aJK0siVynLX7lWaW8alXw==}
-
   streamsearch@1.1.0:
     resolution: {integrity: sha512-Mcc5wHehp9aXz1ax6bZUyY5afg9u2rv5cqQI3mRrYkGC8rW2hM02jWuwjtL++LS5qinSyhj2QfLyNsuc+VsExg==}
     engines: {node: '>=10.0.0'}
@@ -11451,10 +11427,6 @@ packages:
 
   yauzl@2.10.0:
     resolution: {integrity: sha512-p4a9I6X6nu6IhoGmBqAcbJy1mlC4j27vEPZX9F4L4/vZT3Lyq1VkFHw/V/PUcB9Buo+DG3iHkT0x3Qya58zc3g==}
-
-  yauzl@3.4.0:
-    resolution: {integrity: sha512-jIH9yLR9wqr0wOS0TpBvo/g/2UgZH5qePVbjgRliiF0BYvOZyaBknKsF+x9Iht0O6sqgnB93rCICdOZFecJuDw==}
-    engines: {node: '>=12'}
 
   yocto-spinner@1.2.2:
     resolution: {integrity: sha512-DODGl1wJjA/s5pnJFKau9lIYHT81lnhob1i3e1TjxZRxEhWRKl74nTbWE6H5KlkViQQTo/Z29YFdxzTZAMY3ng==}
@@ -16568,10 +16540,6 @@ snapshots:
       '@types/node': 24.19.2
     optional: true
 
-  '@types/yauzl@3.4.0':
-    dependencies:
-      '@types/node': 24.19.2
-
   '@ucast/core@2.0.0': {}
 
   '@ucast/js@4.0.1':
@@ -21469,12 +21437,6 @@ snapshots:
       - react
       - utf-8-validate
 
-  stream-chain@4.2.6: {}
-
-  stream-json@3.7.0:
-    dependencies:
-      stream-chain: 4.2.6
-
   streamsearch@1.1.0: {}
 
   streamx@2.28.1:
@@ -22620,10 +22582,6 @@ snapshots:
     dependencies:
       buffer-crc32: 0.2.13
       fd-slicer: 1.1.0
-
-  yauzl@3.4.0:
-    dependencies:
-      pend: 1.2.0
 
   yocto-spinner@1.2.2:
     dependencies:

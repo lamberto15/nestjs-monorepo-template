@@ -99,7 +99,7 @@ CLI commands.
 | Roles, conditions, field-level, grants, teams, audit | [docs/permissions.md](docs/permissions.md) |
 | Queues, mail, outbox, workflows, cron, realtime | [docs/background-work.md](docs/background-work.md) |
 | Exports and imports | [docs/data-transfer.md](docs/data-transfer.md) |
-| Import size and row limits (`dataTransfer.importMaxMiB`/`importMaxRows` settings, `IMPORT_MAX_*`, `IMPORT_TEMP_DIR`) | [docs/import-limits.md](docs/import-limits.md) |
+| Import size and row limits (`dataTransfer.importMaxMiB`/`importMaxRows` settings, `IMPORT_MAX_*`) | [docs/import-limits.md](docs/import-limits.md) |
 | Analytics: the backend DuckDB go/no-go, the probe; the web app's local data explorer | [docs/analytics.md](docs/analytics.md) |
 | Bulk operations (delete, restore, change many records; 202 jobs) | [docs/bulk-operations.md](docs/bulk-operations.md) |
 | Custom fields (runtime fields, JSONB values) | [docs/custom-fields.md](docs/custom-fields.md) |
