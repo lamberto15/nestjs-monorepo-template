@@ -11,6 +11,8 @@ import { publicationId } from '../../../src/features/notes/note-publication.work
 import { noteSchema } from '../../../src/features/notes/note.schemas.js';
 import {
   bootApp,
+  exportRows,
+  listRows,
   problemFor,
   webhookReceiver,
   type TestApp,
@@ -208,6 +210,55 @@ describe('the example feature: notes (e2e)', () => {
     expect(
       numbers.slice(1).map((number, index) => number - numbers[index]!),
     ).toEqual(Array(7).fill(1));
+  });
+
+  it('exports what the list shows: its advanced filter, search and sort, in the same order (#819)', async () => {
+    const client = await node.client();
+    for (const [title, body] of [
+      ['bravo', 'quarterly report'],
+      ['alpha', 'quarterly report'],
+      ['bravo', 'quarterly report'],
+      ['charlie', 'a memo'],
+      ['alpha', 'quarterly report'],
+      ['delta', 'quarterly report'],
+      ['bravo', 'report draft'],
+    ]) {
+      await writeNote(node, client.auth, { title, body }).expect(201);
+    }
+    const filter = JSON.stringify({
+      or: ['a', 'b', 'c'].map((value) => ({
+        field: 'title',
+        op: 'startsWith',
+        value,
+      })),
+    });
+    const shown = { filter, q: 'report', sort: 'title,-createdAt' };
+    const get = (path: string) =>
+      node.http().get(path).set('Authorization', client.auth);
+    // Every page of the list, two rows a page (a sorted keyset cursor).
+    const list = await listRows(get, '/v1/notes', shown);
+    expect(list).toHaveLength(5);
+
+    const exported = await exportRows(node, client.auth, {
+      name: 'notes',
+      filters: { filter, q: 'report' },
+      sort: shown.sort,
+    });
+    expect(exported.map((row) => row.id)).toEqual(list.map((row) => row.id));
+    expect(exported.map((row) => row.title)).toEqual([
+      'alpha',
+      'alpha',
+      'bravo',
+      'bravo',
+      'bravo',
+    ]);
+    // A sort the list does not declare is refused when the export starts.
+    await node
+      .http()
+      .post('/v1/data/exports')
+      .set('Authorization', client.auth)
+      .send({ name: 'notes', sort: 'body' })
+      .expect(400);
   });
 
   describe('idempotency', () => {

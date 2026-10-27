@@ -477,6 +477,13 @@
       "when": 1793122579546,
       "tag": "0067_bent_jack_flag",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1793124197577,
+      "tag": "0068_oval_black_tom",
+      "breakpoints": true
     }
   ]
 }

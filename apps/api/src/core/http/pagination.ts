@@ -12,6 +12,7 @@ import { z } from 'zod';
 import type { Database, Transaction } from '../database/drizzle.js';
 import {
   afterKeyset,
+  cursorValues,
   encodeCursor,
   type SortBy,
   sortOrder,
@@ -171,6 +172,58 @@ export function toPage<T extends { id: string }>(
         : last.id,
     ...total,
   };
+}
+
+/** Rows an in-process walk of a list (an export) reads at a time. */
+export const WALK_BATCH = 1000;
+
+/**
+ * Walks a list in `WALK_BATCH` rows, in the order the list shows for
+ * `query.sort` (then id, newest first), by the same keyset the list's cursor
+ * uses (`afterCursor`, `pageOrder`): never an offset, and memory stays one
+ * batch. `read` runs the SELECT with the condition and order it is given
+ * (and `list.sortSelect(query)` next to the columns, for sort values that
+ * aren't columns); the rows must hold the sort values (`SortBy.key`).
+ * `query`'s own cursor, page and limit are ignored.
+ */
+export async function* walkList<T extends { id: string }>(
+  id: AnyColumn,
+  query: PageQuery & Record<string, unknown>,
+  read: (page: {
+    after: SQL | undefined;
+    orderBy: SQL[];
+    limit: number;
+  }) => Promise<T[]>,
+): AsyncGenerator<T[]> {
+  let current: PageQuery & Record<string, unknown> = {
+    ...query,
+    limit: WALK_BATCH,
+    page: undefined,
+    cursor: undefined,
+    after: undefined,
+  };
+  for (;;) {
+    const rows = await read({
+      after: afterCursor(id, current),
+      orderBy: pageOrder(id, current),
+      limit: WALK_BATCH,
+    });
+    if (rows.length === 0) {
+      return;
+    }
+    yield rows;
+    if (rows.length < WALK_BATCH) {
+      return;
+    }
+    const last = rows[rows.length - 1]!;
+    current = {
+      ...current,
+      cursor: last.id,
+      after: query.sort?.length
+        ? cursorValues(query.sort, last as Record<string, unknown>)
+        : undefined,
+    };
+  }
 }
 
 /** How far a list counts by default: past it, "10,000+" (counting stays fast on any table). */

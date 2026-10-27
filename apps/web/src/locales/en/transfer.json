@@ -14,7 +14,7 @@
   "export": {
     "action": "Export",
     "title": "Export",
-    "filtered": "The records the list shows now: its filter and search. The file is made in the background.",
+    "filtered": "The records the list shows now: its filter, search and sort. The file is made in the background.",
     "unfiltered": "Every record you may read. Filter or search the list first to export fewer. The file is made in the background.",
     "format": "Format",
     "start": "Start the export",

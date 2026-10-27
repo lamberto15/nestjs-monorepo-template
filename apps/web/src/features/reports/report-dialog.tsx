@@ -51,10 +51,11 @@ export const MAX_RECIPIENTS = 20;
 
 const FORMATS: TransferFormat[] = ['csv', 'xlsx', 'json'];
 
-/** What a new report starts from: an export's name and the list's filters. */
+/** What a new report starts from: an export's name and the list's filters and sort. */
 export interface ReportDraft {
   exporter?: string;
   filters?: Record<string, string>;
+  sort?: string;
 }
 
 const email = z.email();
@@ -79,6 +80,7 @@ export function ReportDialog(props: {
   const [error, setError] = useState<string>();
   const { report } = props;
   const filters = report?.filters ?? props.draft?.filters ?? {};
+  const sort = report ? report.sort : props.draft?.sort;
 
   const exporters = useMemo(
     () =>
@@ -157,6 +159,7 @@ export function ReportDialog(props: {
         exporter: value.exporter,
         format: value.format as TransferFormat,
         filters,
+        ...(sort && { sort }),
         schedule: when,
         active: value.active,
         // Empty: a user's own address (the API's default on create).
@@ -182,7 +185,8 @@ export function ReportDialog(props: {
     },
   });
 
-  const filterEntries = Object.entries(filters);
+  // The list's order is part of what the report replays: shown beside its filters.
+  const filterEntries = Object.entries({ ...filters, ...(sort && { sort }) });
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>

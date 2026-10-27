@@ -53,7 +53,12 @@ function useReportsApi(
     http.get('/v1/data', () =>
       HttpResponse.json({
         exports: [
-          { name: 'test-items', columns: ['title'], formats: ['csv', 'xlsx'] },
+          {
+            name: 'test-items',
+            subject: 'TestItem',
+            columns: ['title'],
+            formats: ['csv', 'xlsx'],
+          },
         ],
         imports: [],
       }),
@@ -241,9 +246,13 @@ describe('scheduling a report', () => {
 
   it("schedules a list's export with the list's search", async () => {
     const calls = useReportsApi({ reports: [] });
-    // As a list searched for "Q3" renders it (exportFilters(params)).
+    // As a list searched for "Q3" and sorted by title renders it (listExport()).
     await renderComponent(
-      <ScheduleReportButton exporter="test-items" filters={{ q: 'Q3' }} />,
+      <ScheduleReportButton
+        exporter="test-items"
+        filters={{ q: 'Q3' }}
+        sort="-title"
+      />,
     );
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Schedule' }));
@@ -259,6 +268,7 @@ describe('scheduling a report', () => {
       name: 'Q3 items',
       exporter: 'test-items',
       filters: { q: 'Q3' },
+      sort: '-title',
       schedule: { every: 'weekly', weekday: 1, hour: 8 },
     });
   });

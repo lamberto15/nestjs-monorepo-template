@@ -283,6 +283,51 @@ describe('scheduled reports (e2e)', () => {
     expect(node.mailbox.filter({ subject: /Daily items/ })).toHaveLength(1);
   });
 
+  it('replays the sort it was saved with, and checks it with the exporter list (#819)', async () => {
+    const ada = await editor();
+    for (const title of ['b item', 'c item', 'a item']) {
+      await node.writeItem(ada.agent, { title, body: 'x' }).expect(201);
+    }
+    const bad = await ada.agent
+      .post('/v1/reports')
+      .send({ ...daily, sort: 'body' })
+      .expect(400);
+    expect(paths(bad.body)).toEqual(['sort']);
+
+    const created = await ada.agent
+      .post('/v1/reports')
+      .send({
+        ...daily,
+        format: 'json',
+        filters: { q: 'item' },
+        sort: 'title',
+        recipients: [ada.email],
+      })
+      .expect(201);
+    expect(created.body.sort).toBe('title');
+    const id = created.body.id as string;
+    const ran = await ada.agent.post(`/v1/reports/${id}/run`).expect(202);
+    expect(
+      await finished((path) => ada.agent.get(path).expect(200), ran.body.id),
+    ).toBe('completed');
+    const mail = await mailTo(ada.email, /Daily items/);
+    const file = await node
+      .http()
+      .get(local(linkOf(mail.html!)))
+      .expect(200);
+    expect(file.body.map((row: { title: string }) => row.title)).toEqual([
+      'a item',
+      'b item',
+      'c item',
+    ]);
+    // PATCH changes it, null returns to newest first.
+    const patched = await ada.agent
+      .patch(`/v1/reports/${id}`)
+      .send({ sort: null })
+      .expect(200);
+    expect(patched.body.sort).toBeNull();
+  });
+
   it('mails the failure when the export fails, and keeps the status', async () => {
     // An export that fails on the worker, every time.
     node.app.get(DataTransferRegistry).registerExporter({

@@ -15,6 +15,7 @@ import {
   vectorOf,
 } from '../../core/database/search.js';
 import type { ListQuery } from '../../core/http/list-query.js';
+import { walkList } from '../../core/http/pagination.js';
 import { validationException } from '../../core/http/problem-details.filter.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import {
@@ -825,13 +826,30 @@ export class RecordTransfer {
       >[];
     }
   }
-  async *batches(principal: Principal, filters: Record<string, unknown>) {
+  /** The list's order (`query.sort`, else newest first), by keyset: what the list shows, page after page. */
+  async *batches(principal: Principal, query: Record<string, unknown>) {
     const withTags = takes(this.c.declaration, 'tags');
-    for await (const rows of this.pages(
-      and(
-        await this.access.sqlFilter(principal, this.subject, 'read'),
-        this.c.list.where({ limit: 1000, ...filters } as ListQuery),
-      ),
+    const list = query as ListQuery;
+    const table = this.c.table;
+    const pgTable = table as unknown as PgTable;
+    const where = and(
+      await this.access.sqlFilter(principal, this.subject, 'read'),
+      this.c.list.where(list),
+    );
+    // Sort values that aren't columns, for the keyset (as the list selects them).
+    const extra = this.c.list.sortSelect(list);
+    for await (const rows of walkList(
+      table.id!,
+      list,
+      async ({ after, orderBy, limit }) =>
+        (await this.c.service.query((db) =>
+          db
+            .select({ ...getTableColumns(pgTable), ...extra })
+            .from(pgTable)
+            .where(and(where, after))
+            .orderBy(...orderBy)
+            .limit(limit),
+        )) as RecordRow[],
     )) {
       if (!withTags) {
         yield rows;

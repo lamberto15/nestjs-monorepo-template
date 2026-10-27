@@ -9,12 +9,13 @@ import { ReportDialog } from './report-dialog';
 
 /**
  * "Schedule a report" from a list page: the export `exporter` with the list's
- * current filter and search, run on a schedule and mailed. Shown when
+ * current filter, search and sort, run on a schedule and mailed. Shown when
  * reports are on (`REPORTS`) and the user may run that export.
  */
 export function ScheduleReportButton(props: {
   exporter: string;
   filters: Record<string, string>;
+  sort?: string;
 }) {
   const { t } = useTranslation('reports');
   const on = useFeature('reports');
@@ -36,7 +37,11 @@ export function ScheduleReportButton(props: {
         <ReportDialog
           open
           onOpenChange={setOpen}
-          draft={{ exporter: props.exporter, filters: props.filters }}
+          draft={{
+            exporter: props.exporter,
+            filters: props.filters,
+            sort: props.sort,
+          }}
         />
       )}
     </>

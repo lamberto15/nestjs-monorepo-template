@@ -668,10 +668,11 @@ fields value onChange errors />` is a typed input per field (the drafts and
   (`test/subscriptions.ts`), and `panelsDescription({ watch: true })` for a
   subject that takes it. Texts are in the `watching` namespace.
 - **Data transfer and bulk work on a list page** (`routes/_app/notes/index.tsx`
-  is the example): `ListPage`'s `listActions` gets the list's `params`, for
-  `<ExportButton exporter="notes" filters={exportFilters(params)} />` and
-  `<ScheduleReportButton …/>` (each shown only when `GET /v1/data` lists the
-  export); `<ImportButton importer="notes" />` links to `/transfers/import`.
+  is the example): `ListPage` shows `ExportButton` and `ScheduleReportButton`
+  by itself, for what the list shows (its filter, search, sort and the page's
+  own `query` filters: `listExport()`), whenever `GET /v1/data` lists an
+  export for its `subject`; `exportable={false}` opts out (the recycle bin).
+  `<ImportButton importer="notes" />` links to `/transfers/import`.
   `bulkActions` turns on row selection and Dice UI's action bar:
   `useBulkActions('/v1/notes/bulk', specs)` gives its `render` and the
   `dialogs` to mount next to the list (confirmation, then the run: 200 at

@@ -29,12 +29,13 @@ import {
   TRANSFER_LINK_TTL,
   jobFileKey,
 } from './data-transfer.service.js';
-import type {
-  ImportRowError,
-  TransferColumn,
-  TransferFormat,
-  TransferJob,
-  TransferResult,
+import {
+  exportQuery,
+  type ImportRowError,
+  type TransferColumn,
+  type TransferFormat,
+  type TransferJob,
+  type TransferResult,
 } from './data-transfer.types.js';
 import { CONTENT_TYPES, createWriter, readRecords } from './formats.js';
 import { columnsOf } from './import-columns.js';
@@ -262,7 +263,9 @@ export class DataTransferProcessor extends TenantWorkerHost<
     // Parsed here, not at enqueue: the job is JSON, so parsed values (dates)
     // would arrive as strings. The request already checked them.
     const filters = exporter.filters
-      ? exporter.filters.parse(job.data.filters ?? {})
+      ? exporter.filters.parse(
+          exportQuery(job.data.filters ?? {}, job.data.sort),
+        )
       : {};
     if (exporter.filters) {
       // Field-level, again: the principal's permissions may have changed since.

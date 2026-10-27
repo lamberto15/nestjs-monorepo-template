@@ -487,7 +487,10 @@ the controller (`notes.*`); singular for what describes one record
    in `eventTypes`, a `DataExporter`/`DataImporter` for bulk moves (its
    timestamp columns `type: 'datetime'`: exported in the reader's zone; the
    importer's schema and `write()` reuse the create route's schema and
-   service call, so an imported row is checked as a `POST` is).
+   service call, so an imported row is checked as a `POST` is). The list
+   page's Export and Schedule report buttons need no wiring: `ListPage` shows
+   them when the catalog has an exporter for its subject, and the export
+   follows the list's filter, search and sort ([data-transfer.md](data-transfer.md)).
 13. **Environment** (`<x>.env.ts`): a Zod schema merged in `apps/api/src/features/env.ts`, a
     line in `env.example` and in docs/configuration.md.
 14. **Texts**: messages in `apps/api/src/i18n/<locale>/<x>.json` for every locale,

@@ -31,6 +31,8 @@ import { JobIndex, type JobPage } from '../queues/job-index.js';
 import { accountFileKey, tenantFileKey } from '../storage/storage.config.js';
 import { DataTransferRegistry } from './data-transfer.registry.js';
 import {
+  exportIssuePath,
+  exportQuery,
   TRANSFER_FORMATS,
   type DataExporter,
   type DataImporter,
@@ -184,6 +186,7 @@ export class DataTransferService implements OnModuleInit {
       if (!exporter.internal && (await this.mayExport(principal, exporter))) {
         exports.push({
           name: exporter.name,
+          subject: exporter.subject,
           columns: (exporter.columnsFor
             ? await exporter.columnsFor(principal)
             : exporter.columns
@@ -225,6 +228,8 @@ export class DataTransferService implements OnModuleInit {
       name: string;
       format: TransferFormat;
       filters?: Record<string, unknown>;
+      /** The list's `sort`, validated by the exporter's list; default: newest first. */
+      sort?: string;
       timezone?: string;
       /** Handed back to `registry.onFinished` listeners: who asked for it in code (`report:<id>`). */
       tag?: string;
@@ -244,13 +249,22 @@ export class DataTransferService implements OnModuleInit {
       throw new ForbiddenException();
     }
     // The export's filters are checked now: a typo is a 400, not a failed job.
-    const parsed = exporter.filters?.safeParse(input.filters ?? {});
+    if (input.sort && !exporter.filters) {
+      throw new BadRequestException({
+        code: 'validation_failed',
+        message: 'The sort is invalid.',
+        errors: [{ path: 'sort', message: 'This export has no sort.' }],
+      });
+    }
+    const parsed = exporter.filters?.safeParse(
+      exportQuery(input.filters ?? {}, input.sort),
+    );
     if (parsed && !parsed.success) {
       throw new BadRequestException({
         code: 'validation_failed',
         message: 'The filters are invalid.',
         errors: parsed.error.issues.map((issue) => ({
-          path: ['filters', ...issue.path].join('.'),
+          path: exportIssuePath(issue.path),
           message: issue.message,
         })),
       });
@@ -278,6 +292,7 @@ export class DataTransferService implements OnModuleInit {
         name: exporter.name,
         format: input.format,
         filters: input.filters ?? {},
+        ...(input.sort && { sort: input.sort }),
         timezone: input.timezone,
         ...(input.tag && { tag: input.tag }),
         principal,

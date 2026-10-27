@@ -52,7 +52,14 @@ const exportSchema = z.object({
     .record(z.string(), z.string())
     .optional()
     .describe(
-      'The list filters of that data, as on its list route: { "status": "draft" }.',
+      'The list filters of that data, as on its list route: { "status": "draft" }, or the list\'s `filter` (JSON) and `q`.',
+    ),
+  sort: z
+    .string()
+    .max(500)
+    .optional()
+    .describe(
+      "The list's `sort` (`-createdAt,title`), checked by its declaration, so the file is in the order the list shows. Default: newest first.",
     ),
   timezone: timezone
     .optional()
@@ -97,6 +104,12 @@ const catalogSchema = z.object({
     .array(
       z.object({
         name: z.string().meta({ example: 'notes' }),
+        subject: z
+          .string()
+          .meta({ example: 'Note' })
+          .describe(
+            'The permission subject of the data: the one of its list (`GET /v1/lists/{subject}`), so a list page finds its export.',
+          ),
         columns: z
           .array(z.string())
           .describe("The file's columns, in order (custom fields included)."),
@@ -210,6 +223,7 @@ export class DataTransferController {
       name: body.name,
       format: body.format,
       filters: body.filters,
+      sort: body.sort,
       timezone: body.timezone,
     });
   }

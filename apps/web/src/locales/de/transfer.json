@@ -14,7 +14,7 @@
   "export": {
     "action": "Exportieren",
     "title": "Exportieren",
-    "filtered": "Die Datensätze, die die Liste gerade zeigt: ihr Filter und ihre Suche. Die Datei wird im Hintergrund erstellt.",
+    "filtered": "Die Datensätze, die die Liste gerade zeigt: ihr Filter, ihre Suche und ihre Sortierung. Die Datei wird im Hintergrund erstellt.",
     "unfiltered": "Alle Datensätze, die Sie lesen dürfen. Filtern oder durchsuchen Sie die Liste zuerst, um weniger zu exportieren. Die Datei wird im Hintergrund erstellt.",
     "format": "Format",
     "start": "Export starten",

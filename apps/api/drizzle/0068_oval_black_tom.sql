@@ -1,0 +1,1 @@
+ALTER TABLE "report_schedules" ADD COLUMN "sort" text;
