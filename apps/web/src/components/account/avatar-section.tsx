@@ -64,7 +64,7 @@ export function AvatarSection({ me }: { me: Me }) {
           */}
           <FileUpload
             // oxlint-disable-next-line jsx-a11y/label-has-associated-control -- FileUpload fills it with the input and the trigger's text
-            render={<label />}
+            render={<label />} // NOSONAR S6853: FileUpload fills it with the input and the trigger's text
             label={t('account.avatar.title')}
             accept={TYPES.join(',')}
             maxFiles={1}
