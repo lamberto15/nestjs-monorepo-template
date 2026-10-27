@@ -330,7 +330,7 @@ Every session's metadata (the package's `SessionRecord.metadata`, the
 | --- | --- |
 | `method` | `password`, `magic-link`, `oidc`, `passkey`, `sso` (a tenant's connection, [Enterprise SSO](#enterprise-sso)); `impersonation` for an administrator's session as the user |
 | `provider` | the OIDC provider (`google`), or the SSO connection's id |
-| `authenticatedAt` | the sign-in, then each re-authentication (ISO 8601) |
+| `authenticatedAt` | the sign-in, then each re-authentication (ISO 8601); dropped by a tenant switch (`POST /v1/auth/tenant`), so a step-up proven in one tenant never authorizes a sensitive action in another: the new tenant asks again (#738) |
 
 The second factor is the session's own `mfa` (`verified`). Both keys are
 written by `session.metadata` (IamModule), the package's hook that every
