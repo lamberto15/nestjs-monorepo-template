@@ -410,6 +410,8 @@ the controller (`notes.*`); singular for what describes one record
      with `updatedAt.gte`.
    - Declare only what's indexed on a large table; nothing undeclared can be
      filtered, sorted or selected (400).
+   - A `contains`/`endsWith` text filter on a large table wants a trigram index:
+     ``index('<x>_<col>_trgm_idx').using('gin', t.<col>.op('gin_trgm_ops'))``.
    - A field may sort by another expression than its column, ``sort:
 sql`lower(${t.name})` `` (an order that ignores case; index that
      expression). The page then selects `list.sortSelect(query)` next to the

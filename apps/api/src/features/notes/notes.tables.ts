@@ -101,6 +101,8 @@ export const notes = pgTable(
     index('notes_tenant_status_id_idx')
       .on(table.tenantId, table.status, table.id.desc())
       .where(sql`deleted_at is null`),
+    // ?title.contains= / startsWith / endsWith (ILIKE): trigrams (pg_trgm).
+    index('notes_title_trgm_idx').using('gin', table.title.op('gin_trgm_ops')),
     // ?sort=title (asc nulls last, then id desc, as sortOrder() spells it).
     index('notes_tenant_title_id_idx')
       .on(table.tenantId, table.title.asc().nullsLast(), table.id.desc())

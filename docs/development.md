@@ -712,7 +712,10 @@ pages, ETags. Usage, the bell-icon recipe included:
 ## Database
 
 - Change a `*.tables.ts`, run `pnpm db:generate`, review and commit `apps/api/drizzle/`.
-  **Never write migrations or DDL by hand.**
+  **Never write migrations or DDL by hand.** The one exception: what
+  drizzle-kit can't emit (`CREATE EXTENSION`) goes in an empty migration from
+  `drizzle-kit generate --custom --name=<what>`, a statement or two with a
+  comment saying why (as `00NN_pg_trgm.sql`).
 - **Expand/contract:** a migration must leave the previous release working
   (that release runs on the new schema during a deploy, and again after a
   rollback): drop, rename or retype a column or table only a release after
