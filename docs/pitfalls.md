@@ -358,9 +358,8 @@ matters.)
   `DELETE` and `UPDATE` without `WHERE`, `MERGE`'s `THEN DELETE` and `THEN
 UPDATE` (not those kept for later: a rule's action, a `BEGIN ATOMIC`
   function's body). A contract step trips it by design: say in the pull
-  request which release expanded it. Report-only while the template has no
-  adopters; `MIGRATION_LINT_FAIL: on` in the workflow makes it blocking, and
-  a reviewed contract step then takes the `destructive-migration` label.
+  request which release expanded it. Blocking (`MIGRATION_LINT_FAIL: on` in the
+  workflow): a reviewed contract step takes the `destructive-migration` label.
 - **The label counts only when it was added after the latest push** (the
   first workflow run GitHub made for the head commit; a commit's own dates
   are the author's to set), and is read when the job runs, so a re-run sees

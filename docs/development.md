@@ -721,9 +721,9 @@ pages, ETags. Usage, the bell-icon recipe included:
   rollback): drop, rename or retype a column or table only a release after
   the code stopped using it ([pitfalls](pitfalls.md), "Migrations:
   expand/contract"). On a pull request, CI's `migration-lint` lists the
-  destructive statements of the new migrations in its summary (report-only
-  for now) and fails when a merged migration or journal entry is edited or
-  deleted. Locally, with Docker: `node tools/migration-lint/lint.mjs --base
+  destructive statements of the new migrations in its summary and fails on
+  them (a reviewed contract step takes the `destructive-migration` label),
+  as when a merged migration or journal entry is edited or deleted. Locally, with Docker: `node tools/migration-lint/lint.mjs --base
   origin/main` (after `git fetch`; a branch behind `main` is compared with
   their merge base, and its new journal entries must still come after
   `main`'s), or `node tools/migration-lint/lint.mjs apps/api/drizzle/*.sql` for
