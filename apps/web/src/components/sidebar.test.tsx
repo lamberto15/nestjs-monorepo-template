@@ -133,6 +133,16 @@ describe('the sidebar on a phone', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
+  it('closes the sheet when the user menu opens an account page', async () => {
+    const { router, user, sheet } = await openOnPhone();
+    await user.click(sheet.getByRole('button', { name: /Ada Lovelace/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Profile' }));
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/account/profile'),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
   it('closes the sheet for the page the user is already on, too', async () => {
     const { router, user, sheet } = await openOnPhone();
     await user.click(sheet.getByRole('link', { name: 'Dashboard' }));
