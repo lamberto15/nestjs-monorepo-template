@@ -244,6 +244,7 @@ switches it per requester.
 Every decision route takes `If-Match` (412 `precondition_failed` when the
 request changed since read) and answers the request as `GET` does.
 
+- **The inbox** reads the user's candidate requests first (assignments, decisions, current delegations) and then checks the exact rule, so it costs the same however many requests the tenant has.
 - **The inbox's rows** carry what `GET /v1/approvals/{id}` would give you:
   `can` (`decide`, `cancel`, `resubmit`, `abandon`: what the routes would allow you
   now; `abandon` is `Approval.manage` on an approved, unapplied request, and
