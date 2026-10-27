@@ -397,8 +397,9 @@ describe('attachments (e2e)', () => {
       .where(
         inArray(attachments.id, [kept.row.id, binned.row.id, gone.row.id]),
       );
-    expect(left.map((row) => row.id).sort()).toEqual(
-      [kept.row.id, binned.row.id].sort(),
+    expect(left).toHaveLength(2);
+    expect(left.map((row) => row.id)).toEqual(
+      expect.arrayContaining([kept.row.id, binned.row.id]),
     );
     const swept = (
       await db
