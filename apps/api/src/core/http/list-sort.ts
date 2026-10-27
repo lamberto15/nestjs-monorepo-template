@@ -1,11 +1,15 @@
 import {
   type AnyColumn,
   and,
+  Column,
   eq,
   gt,
+  gte,
+  is,
   isNotNull,
   isNull,
   lt,
+  lte,
   or,
   sql,
   type SQL,
@@ -45,6 +49,8 @@ export interface SortBy {
   /** The values in the cursor: datetimes as ISO strings, the rest as JSON. */
   type: FilterField['type'];
   desc: boolean;
+  /** The sort source is a Drizzle column declared NOT NULL (never an SQL expression): an ascending keyset may then bound the index range. */
+  notNull: boolean;
 }
 
 /**
@@ -71,6 +77,9 @@ const sortExpression = (field: FilterField): ListColumn => {
  */
 export const sortValueKey = (name: string, field: FilterField) =>
   field.sort ? `_sort_${name}` : name;
+
+const isNotNullColumn = (source: ListColumn) =>
+  is(source, Column) && source.notNull;
 
 /** `-createdAt,title`: comma-separated, `-` for descending. */
 export function sortSchema(fields: Record<string, FilterField>) {
@@ -108,6 +117,7 @@ export function sortSchema(fields: Record<string, FilterField>) {
             expression: sortExpression(field),
             type: field.type,
             desc,
+            notNull: isNotNullColumn(field.sort ?? field.column),
           });
         }
       }
@@ -218,7 +228,17 @@ export function decodeCursor(
 /**
  * The rows after the cursor's row, in sortOrder then id descending:
  * (a > x) or (a = x and b > y) or … or (a = x and b = y and id < lastId),
- * with "after" turned by each direction and NULL the largest value.
+ * with "after" turned by each direction and NULL the largest value. That
+ * OR is the exact set but not an index bound, so it comes in three shapes:
+ * - all fields descending and no NULL value: one row comparison
+ *   `(a, b, id) < (x, y, lastId)`, an index range (a NULL element excludes
+ *   the row, and NULLs sort first descending, so it is exact);
+ * - otherwise the OR behind a bound on the first field (`a <= x`, `a >= x`
+ *   when ascending and NOT NULL, `a is null` when ascending past NULL);
+ * - no bound where the rows after span two ranges: the first field
+ *   ascending, nullable, past a value (`a > x` or NULL), or descending
+ *   past NULL (the rest of the NULLs and every value). Those pages read
+ *   the rows already passed.
  */
 export function afterKeyset(
   sort: readonly SortBy[],
@@ -227,11 +247,23 @@ export function afterKeyset(
   lastId: string,
   query: Record<string, unknown> = {},
 ): SQL | undefined {
+  const columns = sort.map(
+    (item) => columnOf(item.expression, query) as AnyColumn, // a column or SQL: both work
+  );
+  if (sort.every((item, index) => item.desc && after[index] !== null)) {
+    // KEEP: Drizzle has no row-comparison helper.
+    const values = sort.map((item, index) =>
+      item.type === 'datetime'
+        ? sql`${after[index]}::timestamptz`
+        : sql`${after[index]}`,
+    );
+    return sql`(${sql.join([...columns, id], sql`, `)}) < (${sql.join([...values, sql`${lastId}`], sql`, `)})`;
+  }
   const terms: (SQL | undefined)[] = [];
   const equal: (SQL | undefined)[] = [];
   sort.forEach((item, index) => {
     const value = after[index];
-    const column = columnOf(item.expression, query) as AnyColumn; // a column or SQL: both work
+    const column = columns[index];
     const past =
       value === null
         ? item.desc
@@ -246,5 +278,18 @@ export function afterKeyset(
     equal.push(value === null ? isNull(column) : eq(column, value));
   });
   terms.push(and(...equal, lt(id, lastId)));
-  return or(...terms);
+  const exact = or(...terms);
+  const [first] = sort;
+  const value = after[0];
+  let bound: SQL | undefined;
+  if (first && value !== null) {
+    if (first.desc) {
+      bound = lte(columns[0], value);
+    } else if (first.notNull) {
+      bound = gte(columns[0], value);
+    }
+  } else if (first && !first.desc) {
+    bound = isNull(columns[0]);
+  }
+  return bound ? and(bound, exact) : exact;
 }

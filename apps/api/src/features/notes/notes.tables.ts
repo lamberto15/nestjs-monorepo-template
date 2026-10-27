@@ -62,24 +62,32 @@ export const notes = pgTable(
     uniqueIndex('notes_number_idx').on(table.tenantId, table.number),
     // The dashboard's week range and the notes list's default ordering.
     index('notes_tenant_created_at_idx')
-      .on(table.tenantId, table.createdAt.desc(), table.id.desc())
+      .on(
+        table.tenantId,
+        table.createdAt.desc().nullsFirst(),
+        table.id.desc().nullsFirst(),
+      )
       .where(sql`deleted_at is null`),
     index('notes_tenant_updated_at_idx')
-      .on(table.tenantId, table.updatedAt.desc(), table.id.desc())
+      .on(
+        table.tenantId,
+        table.updatedAt.desc().nullsFirst(),
+        table.id.desc().nullsFirst(),
+      )
       .where(sql`deleted_at is null`),
     // The API's list sort truncates timestamps to JavaScript's millisecond precision.
     index('notes_tenant_created_ms_idx')
       .on(
         table.tenantId,
         sql`${utcMilliseconds(table.createdAt)} desc nulls first`,
-        table.id.desc(),
+        table.id.desc().nullsFirst(),
       )
       .where(sql`deleted_at is null`),
     index('notes_tenant_updated_ms_idx')
       .on(
         table.tenantId,
         sql`${utcMilliseconds(table.updatedAt)} desc nulls first`,
-        table.id.desc(),
+        table.id.desc().nullsFirst(),
       )
       .where(sql`deleted_at is null`),
     // The `mine` read condition and ?ownerId= (one BitmapOr arm), and the
