@@ -62,3 +62,49 @@ export function boundedPage(query: DatasetQuery) {
     ),
   };
 }
+
+/**
+ * SQL for one page of a dataset query. Column names must be in `allowed`; the page
+ * never submits SQL, so every identifier and literal here is generated or escaped.
+ */
+export function buildDatasetSql(
+  tableName: string,
+  allowed: Set<string>,
+  query: DatasetQuery,
+): { rows: string; total: string } {
+  const { limit, offset } = boundedPage(query);
+  const where = buildWhereClause(query.filters, allowed);
+  const table = quoteIdentifier(tableName);
+  let select = '*';
+  let group = '';
+  if (query.groupBy || query.aggregate) {
+    if (!query.groupBy || !allowed.has(query.groupBy))
+      throw new Error('Choose a valid grouping column.');
+    const aggregation = query.aggregate;
+    if (!aggregation) throw new Error('Choose an aggregate operation.');
+    if (!['count', 'sum', 'avg', 'min', 'max'].includes(aggregation.fn))
+      throw new Error('Unsupported aggregate operation.');
+    const column =
+      aggregation.fn === 'count' && !aggregation.column
+        ? '*'
+        : aggregation.column;
+    if (column !== '*' && (!column || !allowed.has(column)))
+      throw new Error('Choose a valid aggregate column.');
+    select = `${quoteIdentifier(query.groupBy)}, ${aggregation.fn.toUpperCase()}(${column === '*' ? '*' : quoteIdentifier(column)}) AS value`;
+    group = ` GROUP BY ${quoteIdentifier(query.groupBy)}`;
+  }
+  const sortColumn = query.sort?.column;
+  const sortable = query.groupBy ? new Set([query.groupBy, 'value']) : allowed;
+  if (sortColumn && !sortable.has(sortColumn))
+    throw new Error('A sort refers to an unknown column.');
+  const order =
+    sortColumn && sortable.has(sortColumn)
+      ? ` ORDER BY ${quoteIdentifier(sortColumn)} ${query.sort?.direction === 'desc' ? 'DESC' : 'ASC'} NULLS LAST`
+      : '';
+  return {
+    total: query.groupBy
+      ? `SELECT count(*) AS count FROM (SELECT ${quoteIdentifier(query.groupBy)} FROM ${table}${where}${group}) grouped`
+      : `SELECT count(*) AS count FROM ${table}${where}`,
+    rows: `SELECT ${select} FROM ${table}${where}${group}${order} LIMIT ${limit} OFFSET ${offset}`,
+  };
+}

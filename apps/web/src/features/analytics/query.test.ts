@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { DatasetFilter } from './engine';
-import { boundedPage, buildWhereClause, quoteIdentifier } from './query';
+import type { DatasetFilter, DatasetQuery } from './engine';
+import {
+  boundedPage,
+  buildDatasetSql,
+  buildWhereClause,
+  quoteIdentifier,
+} from './query';
 
 describe('local analytics query helpers', () => {
   it('quotes hostile identifiers and string values', () => {
@@ -54,6 +59,70 @@ describe('local analytics query helpers', () => {
     expect(boundedPage({ limit: -2, offset: -4 })).toEqual({
       limit: 1,
       offset: 0,
+    });
+  });
+
+  describe('buildDatasetSql', () => {
+    const columns = new Set(['region', 'amount']);
+
+    it('selects a bounded, filtered and sorted page with a matching total', () => {
+      expect(
+        buildDatasetSql('t', columns, {
+          limit: 9_000,
+          offset: 20,
+          filters: [{ column: 'amount', operator: 'gte', value: 3 }],
+          sort: { column: 'amount', direction: 'desc' },
+        }),
+      ).toEqual({
+        total: 'SELECT count(*) AS count FROM "t" WHERE "amount" >= 3',
+        rows: 'SELECT * FROM "t" WHERE "amount" >= 3 ORDER BY "amount" DESC NULLS LAST LIMIT 500 OFFSET 20',
+      });
+    });
+
+    it('groups and aggregates, counting groups for the total', () => {
+      expect(
+        buildDatasetSql('t', columns, {
+          groupBy: 'region',
+          aggregate: { column: 'amount', fn: 'sum' },
+          sort: { column: 'value', direction: 'asc' },
+        }),
+      ).toEqual({
+        total:
+          'SELECT count(*) AS count FROM (SELECT "region" FROM "t" GROUP BY "region") grouped',
+        rows: 'SELECT "region", SUM("amount") AS value FROM "t" GROUP BY "region" ORDER BY "value" ASC NULLS LAST LIMIT 100 OFFSET 0',
+      });
+      expect(
+        buildDatasetSql('t', columns, {
+          groupBy: 'region',
+          aggregate: { fn: 'count' },
+        }).rows,
+      ).toContain('COUNT(*) AS value');
+    });
+
+    it.each([
+      [{ groupBy: 'secret', aggregate: { fn: 'count' } }, 'grouping column'],
+      [{ groupBy: 'region' }, 'aggregate operation'],
+      [
+        { groupBy: 'region', aggregate: { column: 'secret', fn: 'sum' } },
+        'aggregate column',
+      ],
+      [
+        { groupBy: 'region', aggregate: { column: 'amount', fn: 'drop' } },
+        'Unsupported aggregate',
+      ],
+      [{ sort: { column: 'secret', direction: 'asc' } }, 'unknown column'],
+      [
+        {
+          groupBy: 'region',
+          aggregate: { fn: 'count' },
+          sort: { column: 'amount', direction: 'asc' },
+        },
+        'unknown column',
+      ],
+    ])('rejects %j', (query, message) => {
+      expect(() =>
+        buildDatasetSql('t', columns, query as DatasetQuery),
+      ).toThrow(message);
     });
   });
 });

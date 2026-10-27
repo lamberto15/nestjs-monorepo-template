@@ -1,29 +1,43 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium, firefox, webkit } from '@playwright/test';
 
 const repoRoot = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 const webRequire = createRequire(resolve(repoRoot, 'apps/web/package.json'));
-const parquetWasm = await import(
-  pathToFileURL(webRequire.resolve('parquet-wasm/node'))
+// DuckDB-Wasm's own Node build writes the Parquet fixture (nothing else decodes it).
+// The package's main entry sits in its dist folder, next to the wasm files.
+const duckdbDist = dirname(webRequire.resolve('@duckdb/duckdb-wasm'));
+const duckdbNode = webRequire(`${duckdbDist}/duckdb-node-blocking.cjs`);
+const fixtureDb = await duckdbNode.createDuckDB(
+  {
+    mvp: { mainModule: `${duckdbDist}/duckdb-mvp.wasm`, mainWorker: '' },
+    eh: { mainModule: `${duckdbDist}/duckdb-eh.wasm`, mainWorker: '' },
+  },
+  new duckdbNode.VoidLogger(),
+  duckdbNode.NODE_RUNTIME,
 );
-const arrow = await import(
-  pathToFileURL(webRequire.resolve('apache-arrow'))
+await fixtureDb.instantiate(() => undefined);
+fixtureDb.open({});
+const fixtureConn = fixtureDb.connect();
+const parquetDir = mkdtempSync(join(tmpdir(), 'analytics-smoke-'));
+const parquetPath = join(parquetDir, 'smoke.parquet');
+fixtureConn.query(
+  `COPY (SELECT * FROM (VALUES ('epsilon', 3::INTEGER, {'count': 9007199254740993::BIGINT}), ('zeta', 11::INTEGER, {'count': 9007199254740994::BIGINT})) t(name, amount, details)) TO '${parquetPath}' (FORMAT parquet)`,
 );
-const parquetSource = arrow.tableFromArrays({
-  name: ['epsilon', 'zeta'],
-  amount: new Int32Array([3, 11]),
-  details: arrow.vectorFromArray(
-    [{ count: 9007199254740993n }, { count: 9007199254740994n }],
-    new arrow.Struct([new arrow.Field('count', new arrow.Int64(), true)]),
-  ),
-});
-const parquetBytes = parquetWasm.writeParquet(
-  parquetWasm.Table.fromIPCStream(arrow.tableToIPC(parquetSource, 'stream')),
-);
+const parquetBytes = readFileSync(parquetPath);
+rmSync(parquetDir, { recursive: true });
+fixtureConn.close();
 const harnessPath = resolve(repoRoot, 'apps/web/analytics-smoke.html');
 const baseUrl = process.env.ANALYTICS_SMOKE_URL ?? 'http://127.0.0.1:5178';
 const browserName = process.env.ANALYTICS_BROWSER ?? 'chromium';
@@ -89,7 +103,7 @@ try {
       result = await page.evaluate(() => window.runAnalyticsSmoke());
       break;
     } catch (error) {
-      // Vite can reload once when the lazy Parquet decoder is first optimized
+      // Vite can reload once when the lazy DuckDB-Wasm chunk is first optimized
       // in a clean checkout. Run the entire test in the replacement context.
       if (
         attempt === 2 ||
@@ -124,7 +138,7 @@ try {
   assert.equal(String(result.jsonRows.rows[1].nil), '4');
   assert.equal(result.jsonRows.rows[0].mix, '1');
   assert.equal(result.jsonRows.rows[1].mix, '"word"');
-  assert.equal(result.jsonRows.rows[1].nested, '{"y":2}');
+  assert.deepEqual(result.jsonRows.rows[1].nested, { x: null, y: 2n });
   assert.equal(result.parquet.engineVersion, 'v1.4.3');
   assert.equal(result.parquet.rowCount, 2);
   assert.equal(

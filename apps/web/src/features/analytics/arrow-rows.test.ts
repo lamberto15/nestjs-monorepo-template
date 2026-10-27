@@ -15,7 +15,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import { arrowTableRows } from './arrow-rows';
 
-describe('Arrow worker result materialization', () => {
+describe('Arrow result materialization', () => {
   it('preserves primitive values, nulls, and row and column order', () => {
     const table = new Table({
       name: vectorFromArray(['first', null, 'last'], new Utf8()),

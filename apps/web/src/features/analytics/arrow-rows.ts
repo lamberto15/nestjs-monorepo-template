@@ -1,7 +1,7 @@
 import { MapRow, StructRow, Vector, type Table } from 'apache-arrow';
 
 function cloneableValue(value: unknown): unknown {
-  // Arrow rows are proxies, so structuredClone cannot cross the worker boundary.
+  // Arrow rows are proxies, so React state and structuredClone cannot hold them.
   // Their public iterators also preserve fields such as __proto__ that Arrow
   // 17's property lookup and toJSON implementation resolve incorrectly.
   if (value instanceof StructRow) {
@@ -21,7 +21,7 @@ function cloneableValue(value: unknown): unknown {
   return value;
 }
 
-/** Materialize Arrow query results as values the browser worker can send. */
+/** Materialize Arrow query results as plain values for the page. */
 export function arrowTableRows(table: Table) {
   const columns = table.schema.fields.map((field) => field.name);
   const vectors = columns.map((_, index) => table.getChildAt(index)!);
