@@ -374,8 +374,16 @@ adapter. A token client's socket joins one for its refresh family
 the family (`POST /v1/auth/token/revoke`, a reused refresh token, a
 re-authentication, a password change or any other sign-out everywhere)
 disconnects it the same way, and the handshake refuses an access token of a
-revoked family, which would otherwise pass until it expires. Revoked API keys
-stop working on their next message.
+revoked family, which would otherwise pass until it expires (asked again
+once the socket is in its room, so a revocation in between is not missed;
+families from before `sid`: [auth.md](auth.md)). A deactivated account,
+membership or tenant, a SCIM deprovisioning and an account's deletion end
+their sockets the same way, after the change commits. A process without a
+socket server (the operator CLI, `pnpm ops`) ends them through
+`@socket.io/redis-emitter` (`RealtimeEmitter`), on the channels the API
+replicas' Redis adapter listens to. A failure of the server's own during
+the handshake is `connect_error` `unavailable` (logged; the client never
+sees its text). Revoked API keys stop working on their next message.
 
 ### The event manifest
 

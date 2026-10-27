@@ -33,12 +33,7 @@ import {
 } from '../iam.tables.js';
 import { UsersRepository } from './users.repository.js';
 import { SessionLifecycleRegistry } from './session-lifecycle.registry.js';
-
-/**
- * The `sid` claim a refresh family's tokens carry (tokenClaims()), from the
- * claims the family keeps; null for a family signed in before it existed.
- */
-const tokenSessionId = sql<string | null>`${refreshTokens.claims} ->> 'sid'`;
+import { distinctTokenSessionIds, tokenSessionId } from './token-session.js';
 
 /**
  * Keeps sessions, refresh tokens, authenticators and pending links in
@@ -274,11 +269,10 @@ export class DrizzleAuthenticationStore
     if (!lifecycle) {
       return;
     }
-    const ids = new Set(
-      rows.flatMap(({ sid }) => (typeof sid === 'string' && sid ? [sid] : [])),
-    );
     await Promise.all(
-      [...ids].map((sid) => lifecycle.afterTokenRevocation(sid)),
+      distinctTokenSessionIds(rows).map((sid) =>
+        lifecycle.afterTokenRevocation(sid),
+      ),
     );
   }
 

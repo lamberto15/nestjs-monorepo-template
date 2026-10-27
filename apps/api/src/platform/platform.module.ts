@@ -82,6 +82,7 @@ import { SuppressionsController } from './deliverability/suppressions.controller
 import { SuppressionsService } from './deliverability/suppressions.service.js';
 import { NoRealtime } from './realtime/no-realtime.js';
 import { Realtime } from './realtime/realtime.service.js';
+import { RealtimeEmitter } from './realtime/realtime-emitter.js';
 import { RecordActivity } from './realtime/record-activity.js';
 import {
   PeopleController,
@@ -572,6 +573,8 @@ export class PlatformModule {
         switchedOn('REALTIME')
           ? Realtime
           : { provide: Realtime, useClass: NoRealtime },
+        // Realtime's way to the API's sockets from a process without a socket server (the operator CLI).
+        RealtimeEmitter,
         // A record's comments and attachments changed: its open pages hear of it.
         RecordActivity,
         // The names behind principal keys, and the directory @mentions search.

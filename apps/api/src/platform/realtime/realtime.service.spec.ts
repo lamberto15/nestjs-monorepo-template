@@ -18,7 +18,8 @@ import type { SubscriptionsService } from '../subscriptions/subscriptions.servic
 import { z } from 'zod';
 import { defineRealtimeEvent } from './realtime-events.js';
 import { RecordActivity } from './record-activity.js';
-import { Realtime, tokenRoom } from './realtime.service.js';
+import { Realtime, sessionRoom, tokenRoom } from './realtime.service.js';
+import type { RealtimeEmitter } from './realtime-emitter.js';
 
 /**
  * The gateway as a standalone application context has it (the demo seed):
@@ -163,6 +164,7 @@ describe('Realtime and revoked token families', () => {
   ) {
     const sessions = new SessionLifecycleRegistry();
     const familyRevoked = vi.fn().mockResolvedValue(revoked);
+    const authenticateConnection = vi.fn().mockResolvedValue(result);
     const disconnectSockets = vi.fn();
     const inRoom = vi.fn(() => ({ disconnectSockets }));
     let middleware:
@@ -172,9 +174,7 @@ describe('Realtime and revoked token families', () => {
       in: inRoom,
     } as unknown as Namespace;
     const realtime = new Realtime(
-      {
-        authenticateConnection: vi.fn().mockResolvedValue(result),
-      } as unknown as WsAuthenticator,
+      { authenticateConnection } as unknown as WsAuthenticator,
       { familyRevoked } as unknown as JwtAuth,
       { register: vi.fn() } as unknown as UserLifecycleRegistry,
       sessions,
@@ -186,10 +186,12 @@ describe('Realtime and revoked token families', () => {
     /** Runs the handshake, then the connection: the error, or the rooms joined. */
     const connect = async () => {
       const join = vi.fn();
+      const disconnect = vi.fn();
       const socket = {
         handshake: { auth: { token: 'a.b.c' }, headers: {} },
         data: {},
         join,
+        disconnect,
       } as unknown as Socket;
       const error = await new Promise<Error | undefined>((resolve) =>
         middleware!(socket, resolve),
@@ -198,12 +200,15 @@ describe('Realtime and revoked token families', () => {
         return { error };
       }
       realtime.handleConnection(socket);
-      return { rooms: join.mock.calls[0]?.[0] as string[] };
+      // The check after the join settles.
+      await new Promise((resolve) => setImmediate(resolve));
+      return { rooms: join.mock.calls[0]?.[0] as string[], disconnect };
     };
     return {
       realtime,
       sessions,
       familyRevoked,
+      authenticateConnection,
       inRoom,
       disconnectSockets,
       connect,
@@ -247,7 +252,7 @@ describe('Realtime and revoked token families', () => {
 
     await sessions.afterTokenRevocation('family-1');
 
-    expect(inRoom).toHaveBeenCalledWith(tokenRoom('family-1'));
+    expect(inRoom).toHaveBeenCalledWith([tokenRoom('family-1')]);
     expect(disconnectSockets).toHaveBeenCalledWith(true);
   });
 
@@ -264,5 +269,101 @@ describe('Realtime and revoked token families', () => {
       undefined,
     );
     expect(afterRevocation).not.toHaveBeenCalled();
+  });
+
+  it('disconnects a socket whose family was revoked between the check and the join', async () => {
+    const { connect, familyRevoked } = gateway({
+      user: principal,
+      session: { sub: 'u1', sid: 'family-1' },
+    });
+    // The handshake's check: live. The one after the join: revoked meanwhile.
+    familyRevoked.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+    const { rooms, disconnect } = await connect();
+
+    expect(rooms).toContain(tokenRoom('family-1'));
+    expect(familyRevoked).toHaveBeenCalledTimes(2);
+    expect(disconnect).toHaveBeenCalledWith(true);
+  });
+
+  it('keeps a socket whose family is still live after the join', async () => {
+    const { connect, familyRevoked } = gateway({
+      user: principal,
+      session: { sub: 'u1', sid: 'family-1' },
+    });
+
+    const { disconnect } = await connect();
+
+    expect(familyRevoked).toHaveBeenCalledTimes(2);
+    expect(disconnect).not.toHaveBeenCalled();
+  });
+
+  it('answers a failure of its own with a word, never the error, and logs it', async () => {
+    const logged = vi
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+    const { connect, authenticateConnection } = gateway(null);
+    authenticateConnection.mockRejectedValue(
+      new Error('select "id" from "refresh_tokens" where … (db.internal:5432)'),
+    );
+
+    const { error } = await connect();
+
+    expect(error?.message).toBe('unavailable');
+    expect((error as Error & { data?: unknown }).data).toEqual({
+      code: 'unavailable',
+    });
+    expect(JSON.stringify(error)).not.toContain('refresh_tokens');
+    expect(logged).toHaveBeenCalledWith(
+      'Authenticating a realtime connection failed',
+      expect.stringContaining('refresh_tokens'),
+    );
+    logged.mockRestore();
+  });
+});
+
+describe('Realtime without a socket server (the operator CLI)', () => {
+  it("ends sessions' and token families' sockets through the Redis emitter", async () => {
+    const sessions = new SessionLifecycleRegistry();
+    const users = { register: vi.fn() };
+    const disconnect = vi.fn();
+    new Realtime(
+      {} as WsAuthenticator,
+      {} as JwtAuth,
+      users as unknown as UserLifecycleRegistry,
+      sessions,
+      { register: vi.fn() } as unknown as ApiClientLifecycleRegistry,
+      { register: vi.fn() } as unknown as TenantLifecycleRegistry,
+      undefined,
+      { disconnect } as unknown as RealtimeEmitter,
+    );
+
+    await sessions.afterTokenRevocation('family-1');
+    await sessions.afterRevocation('session-1');
+    const [{ afterDeactivation }] = users.register.mock.calls[0] as [
+      { afterDeactivation: (userId: string, tenantId: string) => void },
+    ];
+    afterDeactivation('u1', 't1');
+
+    expect(disconnect.mock.calls).toEqual([
+      [[tokenRoom('family-1')]],
+      [[sessionRoom('session-1')]],
+      [['tenant:t1:principal:user:u1']],
+    ]);
+  });
+
+  it('does nothing without an emitter either (the demo seed with REALTIME on)', async () => {
+    const sessions = new SessionLifecycleRegistry();
+    new Realtime(
+      {} as WsAuthenticator,
+      {} as JwtAuth,
+      { register: vi.fn() } as unknown as UserLifecycleRegistry,
+      sessions,
+      { register: vi.fn() } as unknown as ApiClientLifecycleRegistry,
+      { register: vi.fn() } as unknown as TenantLifecycleRegistry,
+    );
+    await expect(sessions.afterTokenRevocation('family-1')).resolves.toBe(
+      undefined,
+    );
   });
 });

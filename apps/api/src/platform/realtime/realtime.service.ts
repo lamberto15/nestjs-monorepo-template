@@ -23,6 +23,8 @@ import type { Namespace, Socket } from 'socket.io';
 import { currentTenantId } from '../../core/tenancy/tenant-scope.js';
 import { type Principal, principalKey } from '../../iam/auth/principal.js';
 import { PLATFORM_OPTIONS, type PlatformOptions } from '../platform.options.js';
+import { REALTIME_NAMESPACE } from './realtime-adapter.js';
+import { RealtimeEmitter } from './realtime-emitter.js';
 import {
   allRealtimeEvents,
   checkRealtimePayload,
@@ -94,7 +96,7 @@ export const tokenRoom = (tokenSessionId: string) => `token:${tokenSessionId}`;
  * (stored, read later, by mail too), send a notification instead:
  * docs/notifications.md.
  */
-@WebSocketGateway({ namespace: 'realtime' })
+@WebSocketGateway({ namespace: REALTIME_NAMESPACE })
 @UseInterceptors(ClsInterceptor)
 export class Realtime implements OnGatewayInit, OnGatewayConnection {
   private readonly logger = new Logger('Realtime');
@@ -114,25 +116,20 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
     @Optional()
     @Inject(PLATFORM_OPTIONS)
     options?: Pick<PlatformOptions, 'realtimeEvents'>,
+    // Without a socket server (the operator CLI): the API's sockets through Redis.
+    @Optional() private readonly emitter?: RealtimeEmitter,
   ) {
     this.events = allRealtimeEvents(options?.realtimeEvents);
     // Revoke sockets for this credential only, across API replicas via Redis.
     sessionLifecycle.register({
       name: 'realtime',
-      afterRevocation: (sessionId) => {
-        if (this.server) {
-          this.server.in(sessionRoom(sessionId)).disconnectSockets(true);
-        }
-      },
+      afterRevocation: (sessionId) => this.disconnect([sessionRoom(sessionId)]),
       // A token client's family: sign-out, a reused refresh token, a
       // re-authentication, signing out everywhere. Its access token would
       // still pass each message's check until it expires, so the socket
       // ends here rather than there.
-      afterTokenRevocation: (tokenSessionId) => {
-        if (this.server) {
-          this.server.in(tokenRoom(tokenSessionId)).disconnectSockets(true);
-        }
-      },
+      afterTokenRevocation: (tokenSessionId) =>
+        this.disconnect([tokenRoom(tokenSessionId)]),
     });
     // A membership deactivated: that user's connections in that tenant end
     // (a socket is authenticated at its handshake; its tenant room would
@@ -141,39 +138,44 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
     // through the Redis adapter.
     lifecycle.register({
       name: 'realtime',
-      afterDeactivation: (userId, tenantId) => {
-        if (this.server) {
-          this.server
-            .in(principalRoom({ kind: 'user', id: userId }, tenantId))
-            .disconnectSockets(true);
-        }
-      },
+      afterDeactivation: (userId, tenantId) =>
+        this.disconnect([
+          principalRoom({ kind: 'user', id: userId }, tenantId),
+        ]),
     });
     // A deactivated tenant: every connection in it ends (its members' and
     // API clients' rooms of that tenant; their other tenants' stay).
     tenantLifecycle.register({
       name: 'realtime',
-      afterDeactivation: (tenantId, principals) => {
-        if (this.server && principals.length > 0) {
-          this.server
-            .in(
-              principals.map((principal) => principalRoom(principal, tenantId)),
-            )
-            .disconnectSockets(true);
-        }
-      },
+      afterDeactivation: (tenantId, principals) =>
+        this.disconnect(
+          principals.map((principal) => principalRoom(principal, tenantId)),
+        ),
     });
     // A deleted API client: its connections end the same way.
     clientLifecycle.register({
       name: 'realtime',
-      afterDeletion: (clientId, tenantId) => {
-        if (this.server) {
-          this.server
-            .in(principalRoom({ kind: 'client', id: clientId }, tenantId))
-            .disconnectSockets(true);
-        }
-      },
+      afterDeletion: (clientId, tenantId) =>
+        this.disconnect([
+          principalRoom({ kind: 'client', id: clientId }, tenantId),
+        ]),
     });
+  }
+
+  /**
+   * Ends the sockets in these rooms on every API replica: through this
+   * process's socket server (its Redis adapter tells the others), or, in a
+   * process without one (the operator CLI), through the Redis emitter.
+   */
+  private disconnect(rooms: string[]) {
+    if (rooms.length === 0) {
+      return;
+    }
+    if (this.server) {
+      this.server.in(rooms).disconnectSockets(true);
+    } else {
+      this.emitter?.disconnect(rooms);
+    }
   }
 
   /**
@@ -252,7 +254,19 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
                   data: { code: 'unauthorized' },
                 }),
               ),
-        (error: unknown) => next(error as Error),
+        // A failure of ours (a query, the database away): logged here, and
+        // the client hears a word only, never the error's text (SQL, hosts).
+        (error: unknown) => {
+          this.logger.error(
+            'Authenticating a realtime connection failed',
+            error instanceof Error ? error.stack : String(error),
+          );
+          next(
+            Object.assign(new Error('unavailable'), {
+              data: { code: 'unavailable' },
+            }),
+          );
+        },
       );
     });
   }
@@ -320,7 +334,33 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
       }
       void client.join(rooms);
       this.logger.debug(`Connected: ${principalKey(user)}`);
+      if (typeof client.data.tokenSessionId === 'string') {
+        this.recheckFamily(client, user.id, client.data.tokenSessionId);
+      }
     }
+  }
+
+  /**
+   * The handshake asked whether the family was revoked before the socket
+   * was in its room: a revocation in between disconnected nobody. Asked
+   * again now that it is in the room, so one of the two always sees it.
+   */
+  private recheckFamily(client: Socket, userId: string, sid: string) {
+    void this.jwtAuth.familyRevoked({ sub: userId, sid }).then(
+      (revoked) => {
+        if (revoked) {
+          client.disconnect(true);
+        }
+      },
+      (error: unknown) => {
+        // Unsure: the socket ends rather than outlive a revocation.
+        this.logger.error(
+          'Checking a realtime connection again failed',
+          error instanceof Error ? error.stack : String(error),
+        );
+        client.disconnect(true);
+      },
+    );
   }
 
   /** `socket.emitWithAck('whoami')`: who this connection acts as. */
