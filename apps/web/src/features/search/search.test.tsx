@@ -149,7 +149,7 @@ describe('the palette', () => {
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
-  it('never has an empty listbox (axe "aria-required-children"): the list is there only with items', async () => {
+  it('keeps the listbox valid with nothing to show (axe "aria-required-children", "aria-valid-attr-value"): a disabled option stands in for the hint or a message', async () => {
     signedInWith({});
     searchApi([]);
     await renderApp('/');
@@ -158,14 +158,23 @@ describe('the palette', () => {
       await screen.findByRole('button', { name: 'Search (Ctrl+K)' }),
     );
     const dialog = await screen.findByRole('dialog');
-    // Just opened: no recent searches, so the hint only.
-    expect(within(dialog).queryByRole('listbox')).toBeNull();
-    expect(await axeViolations(['aria-required-children'], dialog)).toEqual([]);
-    // No hits: the message, still no empty list.
+    const rules = ['aria-required-children', 'aria-valid-attr-value'];
+    // Just opened: no recent searches, so the hint only, as a disabled option.
+    expect(within(dialog).getByRole('listbox')).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('option', { name: /Type to search/ }),
+    ).toHaveAttribute('aria-disabled', 'true');
+    expect(await axeViolations(rules, dialog)).toEqual([]);
+    // No hits: the message is a disabled option too, still no empty list.
     await user.type(within(dialog).getByRole('combobox'), 'nothing');
-    await within(dialog).findByText(/nothing/, { selector: '[role="status"]' });
-    expect(within(dialog).queryByRole('listbox')).toBeNull();
-    expect(await axeViolations(['aria-required-children'], dialog)).toEqual([]);
+    const message = await within(dialog).findByText(/nothing/, {
+      selector: '[role="status"]',
+    });
+    expect(message.closest('[role="option"]')).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    expect(await axeViolations(rules, dialog)).toEqual([]);
   });
 
   it('opens with the header button', async () => {

@@ -105,42 +105,6 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
     commands: shownCommands.filter((command) => command.kind === kind),
   }));
 
-  const hasItems = commandMode
-    ? shownCommands.length > 0
-    : searching
-      ? groups.length > 0
-      : recent.length > 0;
-  const message = commandMode ? (
-    shownCommands.length === 0 && (
-      <div role="status" className="py-6 text-center text-sm">
-        {t('noCommands')}
-      </div>
-    )
-  ) : searching ? (
-    <>
-      {results.isPending && (
-        <div role="status" className="py-6 text-center text-sm">
-          {t('searching')}
-        </div>
-      )}
-      {results.isError && (
-        <div role="alert" className="py-6 text-center text-sm">
-          {t('error')}
-        </div>
-      )}
-      {results.isSuccess && groups.length === 0 && (
-        <div role="status" className="py-6 text-center text-sm">
-          {t('empty', { q })}
-        </div>
-      )}
-    </>
-  ) : (
-    <div className="flex items-center gap-1 px-3 py-4 text-xs text-muted-foreground">
-      <CornerDownLeftIcon className="size-3" />
-      {t('hint')}
-    </div>
-  );
-
   const go = (href: string | undefined) => {
     // A link comes from the API: only a path of this app is followed.
     const safe = normalizeRedirect(href);
@@ -167,13 +131,24 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
           placeholder={t('placeholder')}
         />
         {/*
-          Messages (hint, searching, no hits) sit beside the list, never in
-          it, and the list is in the DOM only with items: an empty listbox
-          fails axe's "aria-required-children".
+          Always mounted: cmdk's combobox input names this list in
+          `aria-controls` whether or not it has real options, and a missing
+          target fails axe's "aria-valid-attr-value". A message (hint,
+          searching, no hits) is a disabled option of its own, which also
+          keeps the listbox's "aria-required-children" (an option or a
+          group) satisfied when there is nothing else to show.
         */}
-        {hasItems && (
-          <CommandList>
-            {commandMode ? (
+        <CommandList>
+          {commandMode ? (
+            shownCommands.length === 0 ? (
+              <CommandItem
+                disabled
+                value="no-commands"
+                className="py-6 text-center text-sm"
+              >
+                {t('noCommands')}
+              </CommandItem>
+            ) : (
               commandGroups.map((group) => (
                 <QuickCommandGroup
                   key={group.kind}
@@ -183,8 +158,37 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
                   onSelect={go}
                 />
               ))
-            ) : searching ? (
-              groups.map((group) => (
+            )
+          ) : searching ? (
+            <>
+              {results.isPending && (
+                <CommandItem
+                  disabled
+                  value="searching"
+                  className="py-6 text-center text-sm"
+                >
+                  <span role="status">{t('searching')}</span>
+                </CommandItem>
+              )}
+              {results.isError && (
+                <CommandItem
+                  disabled
+                  value="error"
+                  className="py-6 text-center text-sm"
+                >
+                  <span role="alert">{t('error')}</span>
+                </CommandItem>
+              )}
+              {results.isSuccess && groups.length === 0 && (
+                <CommandItem
+                  disabled
+                  value="empty"
+                  className="py-6 text-center text-sm"
+                >
+                  <span role="status">{t('empty', { q })}</span>
+                </CommandItem>
+              )}
+              {groups.map((group) => (
                 <CommandGroup key={group.subject} heading={group.label}>
                   {group.items.map((hit) => (
                     <CommandItem
@@ -206,33 +210,46 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
                     </CommandItem>
                   ))}
                 </CommandGroup>
-              ))
-            ) : (
-              <CommandGroup heading={t('recent')}>
-                {recent.map((value) => (
+              ))}
+            </>
+          ) : (
+            <>
+              {recent.length > 0 && (
+                <CommandGroup heading={t('recent')}>
+                  {recent.map((value) => (
+                    <CommandItem
+                      key={value}
+                      value={`recent:${value}`}
+                      onSelect={() => setInput(value)}
+                    >
+                      <HistoryIcon />
+                      {value}
+                    </CommandItem>
+                  ))}
                   <CommandItem
-                    key={value}
-                    value={`recent:${value}`}
-                    onSelect={() => setInput(value)}
+                    value="recent-clear"
+                    onSelect={() => {
+                      clearRecent();
+                      setRecent([]);
+                    }}
                   >
-                    <HistoryIcon />
-                    {value}
+                    {t('clearRecent')}
                   </CommandItem>
-                ))}
-                <CommandItem
-                  value="recent-clear"
-                  onSelect={() => {
-                    clearRecent();
-                    setRecent([]);
-                  }}
-                >
-                  {t('clearRecent')}
-                </CommandItem>
-              </CommandGroup>
-            )}
-          </CommandList>
-        )}
-        {message}
+                </CommandGroup>
+              )}
+              {/* Below the recent searches, or alone: cmdk's Enter runs the
+                  selected (non-disabled) option, so this never intercepts it. */}
+              <CommandItem
+                disabled
+                value="hint"
+                className="flex items-center gap-1 px-3 py-4 text-xs text-muted-foreground"
+              >
+                <CornerDownLeftIcon className="size-3" />
+                {t('hint')}
+              </CommandItem>
+            </>
+          )}
+        </CommandList>
       </CommandRoot>
     </CommandDialog>
   );
