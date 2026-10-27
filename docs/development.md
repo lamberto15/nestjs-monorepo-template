@@ -219,6 +219,15 @@ workspace with Node.js 24 and pnpm 12.15.0 (the versions of `package.json`'s
 - Dependabot raises the base image; pnpm's version is raised with
   `devEngines` by hand (`PNPM_VERSION`).
 
+## Dependencies are pinned
+
+Every dependency in every `package.json` is an exact version, no `^` or `~`.
+`saveExact: true` in `pnpm-workspace.yaml` makes `pnpm add` save it that way,
+Dependabot (`versioning-strategy: increase`) raises the pinned version itself,
+and `node tools/ci/pinned-deps.mjs` (part of `pnpm lint`) fails on a range in
+`dependencies`, `devDependencies` or `optionalDependencies`. `engines`,
+`devEngines` and `peerDependencies` stay ranges.
+
 ## Commands
 
 | Command | Does |
