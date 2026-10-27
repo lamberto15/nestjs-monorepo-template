@@ -43,6 +43,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useFlag } from '@/features/settings/use-flag';
 import { stageAnalyticsFile } from '@/features/analytics/handoff';
+import { useMe } from '@/lib/features';
 import { formatSize } from '@/components/records/panels/attachments-panel';
 import {
   catalogQuery,
@@ -50,6 +51,7 @@ import {
   templateUrl,
   type TransferFormat,
 } from './api';
+import { LocalCheck } from './local-check';
 import { TransferStatus } from './transfer-status';
 
 /**
@@ -62,6 +64,8 @@ export function ImportPage(props: { name?: string }) {
   const { t, i18n } = useTranslation('transfer');
   const navigate = useNavigate();
   const analytics = useFlag('analytics.browser.enabled');
+  const me = useMe();
+  const identity = `${me?.user.id ?? ''}:${me?.tenant?.id ?? ''}`;
   const catalog = useQuery({ ...catalogQuery, meta: { errorToast: false } });
   const [chosen, setChosen] = useState(props.name);
   const [files, setFiles] = useState<File[]>([]);
@@ -304,6 +308,17 @@ export function ImportPage(props: { name?: string }) {
                     .join(', ') || t('import.noneMissing'),
               })}
             </p>
+          )}
+          {analytics.enabled && file && (
+            // Remounted per signed-in user and tenant: the engine is ended and
+            // the file read again, so nothing outlives an identity change.
+            <LocalCheck
+              key={identity}
+              file={file}
+              columns={importer.columns}
+              matchOn={matchOn}
+              matchKeys={matchKeys}
+            />
           )}
           {maxRows !== undefined && (
             <p className="-mt-3 text-xs text-muted-foreground">

@@ -374,8 +374,22 @@ title …>` is a server-paginated, filterable, sortable list of any subject;
 ### Languages
 
 `src/locales/<lng>/<ns>.json` for the API's five locales (`en`, `de`, `ar`,
-`zh`, `ms`); every file is the namespace `<ns>` (loaded eagerly,
-`import.meta.glob` in `i18n.ts`). A feature's texts:
+`zh`, `ms`); every file is the namespace `<ns>`. `en`, the fallback, is
+bundled in the entry (an eager `import.meta.glob` in `i18n.ts`); each other
+language is loaded on demand through `i18next-resources-to-backend` (i18next's
+way to lazy-load translations; a non-eager glob supplies the files): `initI18n`
+loads every namespace of the saved or browser language before the first paint
+(no keys flash), and `i18n.changeLanguage()` (the menu, the profile, the saved
+language) loads the new language before it switches. `vite.config.ts` bundles
+each language into one chunk, `assets/locale-<lng>-*.js` (about 35 kB brotli),
+so a visitor downloads `en` plus one language, not five. The service worker
+does **not** precache `locale-*` files (the other languages would be downloaded
+by every install for nothing); it caches each the first time it is loaded
+(`runtimeCaching`, CacheFirst, the build's own hashed files, no user data), so
+offline works for a language already used and shows English for one never
+loaded. Precache them instead (remove the `globIgnores` entry) if your
+deployment must switch to any language offline. Tests render with `en` in
+memory (`renderApp`, `renderComponent`). A feature's texts:
 `locales/<lng>/<feature>.json`, used with `useTranslation('<feature>')`;
 `common` is the default; `nav` holds the group titles. A key missing in a
 language falls back to `en`. `en` is complete; `de` (formal "Sie"), `ar`
@@ -645,9 +659,12 @@ CI runs the bundle budget and the Storybook build in `check`
   set is representative, add one when you add or change a component.
 - **Bundle budget** (`apps/web/.size-limit.json`, [size-limit](https://github.com/ai/size-limit)
   with `@size-limit/file`): `pnpm --filter @nestjs-monorepo-template/web size`
-  builds the app and measures, in brotli, the entry script, the entry styles
-  and all scripts. The limits sit about 10% above the measured sizes
-  (entry 64.6 kB, styles 19.6 kB, all 1.01 MB at the time); over a limit, the
+  builds the app and measures, in brotli, the entry script, the entry styles,
+  all scripts except the languages, and the language chunks; then
+  `scripts/check-lazy-locales.mjs` fails if any `locale-*` file is among the
+  scripts of the first page load (`dist/index.html`), which the budgets alone
+  cannot see. The limits sit about 10% above the measured sizes
+  (entry 64.6 kB, styles 19.6 kB, all scripts but the languages 0.97 MB, the four language chunks 147 kB at the time); over a limit, the
   `check` job fails the pull request, and its summary lists every size
   against its limit (the bundle analysis is the `web-bundle-analysis`
   artifact). Raise a limit in the same pull request that justifies it, never to
@@ -666,8 +683,9 @@ CI runs the bundle budget and the Storybook build in `check`
 setup) writes the web manifest and a Workbox service worker at build time;
 `src/main.tsx` registers it (`registerType: 'prompt'`: a new version waits
 until the user taps "Reload" in the toast, so no page is swapped under them).
-The worker **precaches the built shell only** (scripts, styles, icons) and has
-no runtime caching, so no API response (user data) is ever stored by it;
+The worker **precaches the built shell only** (scripts, styles, icons; not the
+non-`en` language chunks, see "Languages") and caches at runtime only those
+language files, so no API response (user data) is ever stored by it;
 navigations fall back to the shell except for the paths Caddy sends to the API
 (`apps/web/pwa-paths.ts`: `/v1`, `/health`, `/metrics`, `/api`, `/api-json`,
 `/api-yaml`, `/files`, `/socket.io`, `/.well-known`; a test keeps it in step

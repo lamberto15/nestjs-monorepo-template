@@ -1,0 +1,11 @@
+{
+  "duckdbVersion": "1.4.3",
+  "platforms": ["wasm_eh", "wasm_mvp"],
+  "extensions": ["json", "parquet"],
+  "sha256": {
+    "wasm_eh/json": "b997276c8e15cc3ebdeda340d73d15dc1c4f4755ad281280451cb0a2f79302e9",
+    "wasm_eh/parquet": "22765c8f7dc741cda2b571a66ac7bb355295d7d69a6c37e5315b265672984f55",
+    "wasm_mvp/json": "5771b6d57335eca8e2ba4fdaacb491a53b49577bd7f1b0c39e2cd7a39b4e9313",
+    "wasm_mvp/parquet": "0785c6c95d003eff4faa7b3b4b660f02c9c92f6d68d135ddf330d42e3a650600"
+  }
+}

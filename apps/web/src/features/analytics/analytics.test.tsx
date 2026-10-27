@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderApp } from '@/test/render-app';
 import { server, signedInUser } from '@/test/server';
 import { useSignedIn } from '@/test/signed-in';
+import { findToast } from '@/test/toast';
 
 const engine = vi.hoisted(() => ({
   loadLocalFile: vi.fn(),
@@ -38,6 +39,15 @@ const dataset = {
     },
   ],
 };
+
+/** A request that settles only when the engine is terminated, rejecting like the real one. */
+function pendingUntilTerminated() {
+  return new Promise<never>((_, reject) => {
+    engine.terminateAnalyticsEngine.mockImplementationOnce(() =>
+      reject(new Error('The analytics session was closed.')),
+    );
+  });
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -95,15 +105,16 @@ describe('browser analytics', () => {
       target: { files: [file] },
     });
 
-    expect(await screen.findByText('records.csv')).toBeVisible();
     expect(
       await screen.findByRole('table', { name: 'Column profile' }),
     ).toBeVisible();
+    expect(screen.getByText('Rows: 2')).toBeVisible();
     expect(await screen.findByRole('table', { name: 'Results' })).toBeVisible();
     expect(engine.loadLocalFile).toHaveBeenCalledWith(file);
     expect(engine.queryDataset).toHaveBeenCalledWith(
       dataset,
       expect.objectContaining({ limit: 100 }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Close file' }));
@@ -188,11 +199,10 @@ describe('browser analytics', () => {
         files: [new File(['city,amount,tax\nRiga,2,1.25'], 'records.csv')],
       },
     });
-    await screen.findByText('records.csv');
+    await screen.findByRole('table', { name: 'Column profile' });
 
     const user = userEvent.setup();
-    await user.click(screen.getAllByRole('combobox')[3]!);
-    await user.click(await screen.findByRole('option', { name: 'city' }));
+    await user.click(screen.getByRole('tab', { name: 'Group by' }));
 
     await waitFor(() =>
       expect(engine.queryDataset).toHaveBeenLastCalledWith(
@@ -202,20 +212,21 @@ describe('browser analytics', () => {
           groupBy: 'city',
           aggregate: { column: 'tax', fn: 'sum' },
         }),
+        expect.anything(),
       ),
     );
   });
 
-  it('clears a sort that no longer applies when grouping, and resets the query', async () => {
+  it('drops the row sort when grouping, and groups by the chosen column and aggregate', async () => {
     useSignedIn([]);
     await renderApp('/analytics');
     fireEvent.change(screen.getByLabelText('File'), {
       target: { files: [new File(['city,amount\nRiga,2'], 'records.csv')] },
     });
-    await screen.findByText('records.csv');
+    await screen.findByRole('table', { name: 'Column profile' });
 
     const user = userEvent.setup();
-    await user.click(screen.getAllByRole('combobox')[2]!);
+    await user.click(screen.getByRole('combobox', { name: 'Sort by' }));
     await user.click(await screen.findByRole('option', { name: 'amount' }));
     await waitFor(() =>
       expect(engine.queryDataset).toHaveBeenLastCalledWith(
@@ -223,11 +234,11 @@ describe('browser analytics', () => {
         expect.objectContaining({
           sort: { column: 'amount', direction: 'asc' },
         }),
+        expect.anything(),
       ),
     );
 
-    await user.click(screen.getAllByRole('combobox')[3]!);
-    await user.click(await screen.findByRole('option', { name: 'city' }));
+    await user.click(screen.getByRole('tab', { name: 'Group by' }));
     await waitFor(() =>
       expect(engine.queryDataset).toHaveBeenLastCalledWith(
         dataset,
@@ -235,11 +246,28 @@ describe('browser analytics', () => {
           limit: 100,
           groupBy: 'city',
           aggregate: { column: 'amount', fn: 'sum' },
+          sort: { column: 'value', direction: 'desc' },
         }),
+        expect.anything(),
       ),
     );
-    expect(engine.queryDataset.mock.calls.at(-1)?.[1]).not.toHaveProperty(
-      'sort',
+
+    await user.click(screen.getByRole('combobox', { name: 'Calculate' }));
+    await user.click(await screen.findByRole('option', { name: 'Average' }));
+    await waitFor(() =>
+      expect(engine.queryDataset.mock.calls.at(-1)?.[1]).toMatchObject({
+        groupBy: 'city',
+        aggregate: { column: 'amount', fn: 'avg' },
+      }),
+    );
+
+    await user.click(screen.getByRole('combobox', { name: 'Calculate' }));
+    await user.click(await screen.findByRole('option', { name: 'Count' }));
+    await waitFor(() =>
+      expect(engine.queryDataset.mock.calls.at(-1)?.[1]).toMatchObject({
+        groupBy: 'city',
+        aggregate: { fn: 'count' },
+      }),
     );
   });
 
@@ -254,7 +282,7 @@ describe('browser analytics', () => {
     fireEvent.change(screen.getByLabelText('File'), {
       target: { files: [new File(['city,amount\nRiga,2'], 'records.csv')] },
     });
-    await screen.findByText('records.csv');
+    await screen.findByRole('table', { name: 'Column profile' });
     const user = userEvent.setup();
 
     await user.click(screen.getByRole('button', { name: 'Next' }));
@@ -275,9 +303,10 @@ describe('browser analytics', () => {
         offset: 100,
       }),
     );
-    await user.click(screen.getAllByRole('combobox')[0]!);
+    await user.click(screen.getByRole('combobox', { name: 'Filter column' }));
     await user.click(await screen.findByRole('option', { name: 'city' }));
-    await user.selectOptions(screen.getByLabelText('Operator'), 'eq');
+    await user.click(screen.getByRole('combobox', { name: 'Operator' }));
+    await user.click(await screen.findByRole('option', { name: 'Equals' }));
     await user.type(screen.getByLabelText('Value'), 'Riga');
 
     await waitFor(() =>
@@ -311,7 +340,7 @@ describe('browser analytics', () => {
     fireEvent.change(screen.getByLabelText('File'), {
       target: { files: [new File(['city,amount\nRiga,2'], 'records.csv')] },
     });
-    await screen.findByText('records.csv');
+    await screen.findByRole('table', { name: 'Column profile' });
 
     enabled = false;
     await queryClient.invalidateQueries({ queryKey: ['settings'] });
@@ -342,7 +371,7 @@ describe('browser analytics', () => {
     fireEvent.change(screen.getByLabelText('File'), {
       target: { files: [new File(['city,amount\nRiga,2'], 'records.csv')] },
     });
-    await screen.findByText('records.csv');
+    await screen.findByRole('table', { name: 'Column profile' });
 
     changed = true;
     await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
@@ -485,5 +514,339 @@ describe('browser analytics', () => {
     expect(
       screen.queryByRole('table', { name: 'Results' }),
     ).not.toBeInTheDocument();
+  });
+
+  const chooseFile = (name = 'records.csv') =>
+    fireEvent.change(screen.getByLabelText('File'), {
+      target: { files: [new File(['city,amount\nRiga,2'], name)] },
+    });
+  const profile = () => screen.findByRole('table', { name: 'Column profile' });
+
+  it('takes the file from the upload control and removes it with its Close file button', async () => {
+    useSignedIn([]);
+    await renderApp('/analytics');
+    const file = new File(['city,amount\nRiga,2'], 'records.csv', {
+      type: 'text/csv',
+    });
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    const user = userEvent.setup();
+    await user.upload(input, file);
+
+    await profile();
+    expect(engine.loadLocalFile).toHaveBeenCalledTimes(1);
+    expect(engine.loadLocalFile).toHaveBeenCalledWith(file);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Close file' }));
+    await waitFor(() =>
+      expect(engine.disposeDataset).toHaveBeenCalledWith(dataset),
+    );
+    expect(
+      screen.queryByRole('table', { name: 'Column profile' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('replaces a loaded file with the next pick, loading each pick once', async () => {
+    useSignedIn([]);
+    await renderApp('/analytics');
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    const first = new File(['city,amount\nRiga,2'], 'first.csv');
+    const second = new File(['city,amount\nOslo,3'], 'second.csv');
+    const user = userEvent.setup();
+    await user.upload(input, first);
+    await profile();
+    expect(engine.loadLocalFile).toHaveBeenCalledTimes(1);
+
+    await user.upload(input, second);
+    await waitFor(() => expect(engine.loadLocalFile).toHaveBeenCalledTimes(2));
+    expect(engine.loadLocalFile).toHaveBeenLastCalledWith(second);
+    await profile();
+    await waitFor(() =>
+      expect(engine.disposeDataset).toHaveBeenCalledWith(dataset),
+    );
+    expect(screen.queryByText('first.csv')).not.toBeInTheDocument();
+    expect(screen.getAllByText('second.csv')[0]).toBeVisible();
+    expect(engine.loadLocalFile).toHaveBeenCalledTimes(2);
+  });
+
+  it('accepts upper-case extensions and explains a rejected type in the page language', async () => {
+    useSignedIn([]);
+    await renderApp('/analytics');
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    const user = userEvent.setup({ applyAccept: false });
+    const upper = new File(['city,amount\nRiga,2'], 'REPORT.CSV');
+    await user.upload(input, upper);
+    await profile();
+    expect(engine.loadLocalFile).toHaveBeenCalledTimes(1);
+    expect(engine.loadLocalFile).toHaveBeenCalledWith(upper);
+
+    await user.upload(input, new File(['x'], 'notes.txt'));
+    expect(
+      await findToast(
+        'notes.txt was not accepted: use a CSV, JSON, JSON Lines or Parquet file',
+      ),
+    ).toBeVisible();
+    expect(engine.loadLocalFile).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText('REPORT.CSV')[0]).toBeVisible();
+  });
+
+  it('waits for the typing to pause before it filters, then queries once', async () => {
+    useSignedIn([]);
+    await renderApp('/analytics');
+    chooseFile();
+    await profile();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('combobox', { name: 'Filter column' }));
+    await user.click(await screen.findByRole('option', { name: 'city' }));
+    await waitFor(() => expect(screen.getByLabelText('Value')).toBeVisible());
+    engine.queryDataset.mockClear();
+
+    await user.type(screen.getByLabelText('Value'), 'Riga');
+    expect(screen.getByLabelText('Value')).toHaveValue('Riga');
+    expect(engine.queryDataset).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(engine.queryDataset).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(engine.queryDataset).toHaveBeenCalledTimes(1);
+    expect(engine.queryDataset.mock.calls[0]?.[1]).toMatchObject({
+      filters: [{ column: 'city', operator: 'contains', value: 'Riga' }],
+    });
+  });
+
+  it('aborts a superseded query and never lets its late answer replace the newer one', async () => {
+    let answerFirst!: (value: unknown) => void;
+    engine.queryDataset.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          answerFirst = resolve;
+        }),
+    );
+    useSignedIn([]);
+    await renderApp('/analytics');
+    chooseFile();
+    await profile();
+    await waitFor(() => expect(engine.queryDataset).toHaveBeenCalledTimes(1));
+    const first = engine.queryDataset.mock.calls[0]![2] as {
+      signal: AbortSignal;
+    };
+    expect(first.signal.aborted).toBe(false);
+
+    engine.queryDataset.mockResolvedValue({
+      columns: ['city', 'value'],
+      rows: [{ city: 'Newer', value: 3 }],
+      totalRows: 1,
+    });
+    await userEvent
+      .setup()
+      .click(screen.getByRole('tab', { name: 'Group by' }));
+    expect(await screen.findByText('Newer')).toBeVisible();
+    expect(first.signal.aborted).toBe(true);
+
+    answerFirst({
+      columns: ['city', 'amount'],
+      rows: [{ city: 'Stale', amount: 1 }],
+      totalRows: 1,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(screen.queryByText('Stale')).not.toBeInTheDocument();
+    expect(screen.getByText('Newer')).toBeVisible();
+  });
+
+  it('shows an indeterminate state with a Cancel button while a file loads, and Cancel ends the session', async () => {
+    // The real engine rejects what is pending when its session is terminated.
+    engine.loadLocalFile.mockReturnValue(pendingUntilTerminated());
+    useSignedIn([]);
+    await renderApp('/analytics');
+    chooseFile();
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Reading the file',
+    );
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(engine.terminateAnalyticsEngine).toHaveBeenCalled();
+    expect(await screen.findByText(/^Cancelled\./)).toBeVisible();
+    expect(
+      screen.queryByRole('button', { name: 'Cancel' }),
+    ).not.toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('cancels a running query by ending the session, and offers the file again', async () => {
+    engine.queryDataset.mockReturnValue(pendingUntilTerminated());
+    useSignedIn([]);
+    await renderApp('/analytics');
+    chooseFile();
+    await profile();
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Running the query',
+    );
+    engine.terminateAnalyticsEngine.mockClear();
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(engine.terminateAnalyticsEngine).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('table', { name: 'Column profile' }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(await screen.findByText(/^Cancelled\./)).toBeVisible();
+    expect(screen.getByLabelText('File')).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    expect(
+      screen.queryByRole('button', { name: 'Cancel' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('charts a group-by in a ChartContainer', async () => {
+    engine.queryDataset.mockResolvedValue({
+      columns: ['city', 'value'],
+      rows: [
+        { city: 'Riga', value: 3 },
+        { city: 'Oslo', value: 1 },
+      ],
+      totalRows: 2,
+    });
+    useSignedIn([]);
+    await renderApp('/analytics');
+    chooseFile();
+    await profile();
+    expect(
+      screen.queryByRole('figure', { name: 'Chart of the groups' }),
+    ).not.toBeInTheDocument();
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole('tab', { name: 'Group by' }));
+
+    const chart = await screen.findByRole('figure', {
+      name: 'Chart of the groups',
+    });
+    expect(chart.querySelector('[data-slot="chart"]')).not.toBeNull();
+  });
+
+  it('charts a histogram of a number column', async () => {
+    engine.queryDataset.mockImplementation(async (_data, query) =>
+      query.histogram
+        ? {
+            columns: ['bin', 'value'],
+            rows: [
+              { bin: 2, value: 4 },
+              { bin: 5, value: 1 },
+            ],
+            totalRows: 2,
+          }
+        : { columns: ['city'], rows: [], totalRows: 0 },
+    );
+    useSignedIn([]);
+    await renderApp('/analytics');
+    chooseFile();
+    await profile();
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole('tab', { name: 'Histogram' }));
+
+    await waitFor(() =>
+      expect(engine.queryDataset).toHaveBeenLastCalledWith(
+        dataset,
+        expect.objectContaining({
+          limit: 100,
+          histogram: { column: 'amount', bins: 20 },
+        }),
+        expect.anything(),
+      ),
+    );
+    expect(
+      await screen.findByRole('figure', { name: 'Histogram' }),
+    ).toBeVisible();
+  });
+
+  it('charts a time series by day, week or month of a date column', async () => {
+    engine.loadLocalFile.mockResolvedValue({
+      ...dataset,
+      columns: [
+        ...dataset.columns,
+        {
+          name: 'created',
+          type: 'TIMESTAMP',
+          nullCount: 0,
+          distinctCount: 2,
+          min: null,
+          max: null,
+        },
+      ],
+    });
+    engine.queryDataset.mockImplementation(async (_data, query) =>
+      query.timeSeries
+        ? {
+            columns: ['bucket', 'value'],
+            rows: [
+              { bucket: '2026-01-05', value: 2 },
+              { bucket: '2026-01-12', value: 5 },
+            ],
+            totalRows: 2,
+          }
+        : { columns: ['city'], rows: [], totalRows: 0 },
+    );
+    useSignedIn([]);
+    await renderApp('/analytics');
+    chooseFile();
+    await profile();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('tab', { name: 'Time series' }));
+    await waitFor(() =>
+      expect(engine.queryDataset.mock.calls.at(-1)?.[1]).toMatchObject({
+        timeSeries: { column: 'created', unit: 'day' },
+      }),
+    );
+    expect(
+      await screen.findByRole('figure', { name: 'Time series chart' }),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole('combobox', { name: 'Bucket by' }));
+    await user.click(await screen.findByRole('option', { name: 'Week' }));
+    await waitFor(() =>
+      expect(engine.queryDataset.mock.calls.at(-1)?.[1]).toMatchObject({
+        timeSeries: { column: 'created', unit: 'week' },
+      }),
+    );
+  });
+
+  it('disables the histogram and time series tabs when the file has no number or date column', async () => {
+    engine.loadLocalFile.mockResolvedValue({
+      ...dataset,
+      columns: [dataset.columns[0]!],
+    });
+    useSignedIn([]);
+    await renderApp('/analytics');
+    chooseFile();
+    await profile();
+
+    expect(screen.getByRole('tab', { name: 'Histogram' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    expect(screen.getByRole('tab', { name: 'Time series' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
   });
 });

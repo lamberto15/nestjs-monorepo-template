@@ -44,7 +44,7 @@ export class NoteRevisions implements RevisionTarget {
   }
 
   async canRead(principal: Principal, id: string) {
-    const note = await this.find(id);
+    const note = await this.find(id, principal);
     return note !== null && this.policy.read(principal, note);
   }
 
@@ -209,9 +209,10 @@ export class NoteRevisions implements RevisionTarget {
     return this.access.redact(principal, 'read', 'Note', shown!);
   }
 
-  private async find(id: string): Promise<Note | null> {
+  /** The note, or null when it doesn't exist (with `visibleTo`: or that principal may not read it). */
+  private async find(id: string, visibleTo?: Principal): Promise<Note | null> {
     try {
-      return await this.notes.findOne(id);
+      return await this.notes.findOne(id, undefined, { visibleTo });
     } catch (error) {
       if (error instanceof NotFoundException) return null;
       throw error;
