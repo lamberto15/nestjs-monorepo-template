@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Principal } from '../../iam/auth/principal.js';
 import {
   type CommentTarget,
@@ -25,9 +25,17 @@ export class NoteComments implements CommentTarget {
     registry.register(this);
   }
 
-  /** A 404 when the note doesn't exist (or is in the recycle bin). */
+  /** False when the note doesn't exist (or is in the recycle bin) too: the comments' routes answer both with one 404. */
   async canRead(principal: Principal, id: string) {
-    return this.policy.read(principal, await this.notes.findOne(id));
+    try {
+      const note = await this.notes.findOne(id, undefined, {
+        visibleTo: principal,
+      });
+      return await this.policy.read(principal, note);
+    } catch (error) {
+      if (error instanceof NotFoundException) return false;
+      throw error;
+    }
   }
 
   async canModerate(principal: Principal, id: string) {
