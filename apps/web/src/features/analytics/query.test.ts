@@ -3,6 +3,8 @@ import type { DatasetFilter, DatasetQuery } from './engine';
 import {
   boundedPage,
   buildDatasetSql,
+  buildDuplicateKeySql,
+  buildParseFailureSql,
   buildWhereClause,
   quoteIdentifier,
 } from './query';
@@ -89,7 +91,7 @@ describe('local analytics query helpers', () => {
       ).toEqual({
         total:
           'SELECT count(*) AS count FROM (SELECT "region" FROM "t" GROUP BY "region") grouped',
-        rows: 'SELECT "region", CAST(SUM("amount") AS DOUBLE) AS value FROM "t" GROUP BY "region" ORDER BY "value" ASC NULLS LAST LIMIT 100 OFFSET 0',
+        rows: 'SELECT "region", CAST(SUM("amount") AS DOUBLE) AS value FROM "t" GROUP BY "region" ORDER BY 2 ASC NULLS LAST LIMIT 100 OFFSET 0',
       });
       expect(
         buildDatasetSql('t', columns, {
@@ -99,18 +101,115 @@ describe('local analytics query helpers', () => {
       ).toContain('COUNT(*) AS value');
     });
 
-    it('casts SUM and AVG to DOUBLE so grouped integer columns stay chartable', () => {
-      const sql = (fn: 'sum' | 'avg' | 'min') =>
+    it('casts every aggregate but COUNT to DOUBLE so integers and decimals stay chartable', () => {
+      const sql = (fn: 'sum' | 'avg' | 'min' | 'max') =>
         buildDatasetSql('t', columns, {
           groupBy: 'amount',
           aggregate: { column: 'amount', fn },
         }).rows;
       expect(sql('sum')).toContain('CAST(SUM("amount") AS DOUBLE) AS value');
       expect(sql('avg')).toContain('CAST(AVG("amount") AS DOUBLE) AS value');
-      expect(sql('min')).toContain('MIN("amount") AS value');
+      expect(sql('min')).toContain('CAST(MIN("amount") AS DOUBLE) AS value');
+      expect(sql('max')).toContain('CAST(MAX("amount") AS DOUBLE) AS value');
+    });
+
+    it.each(['count', 'sum', 'avg', 'min', 'max'] as const)(
+      'builds a %s aggregate for a grouped column',
+      (fn) => {
+        const sql = buildDatasetSql('t', columns, {
+          groupBy: 'region',
+          aggregate: fn === 'count' ? { fn } : { column: 'amount', fn },
+        }).rows;
+        expect(sql).toContain(
+          fn === 'count'
+            ? 'COUNT(*) AS value'
+            : `CAST(${fn.toUpperCase()}("amount") AS DOUBLE)`,
+        );
+      },
+    );
+
+    it('bins a numeric column into at most 100 equal-width bins, filtered and without nulls', () => {
+      const sql = buildDatasetSql('t', columns, {
+        histogram: { column: 'amount', bins: 5_000 },
+        filters: [{ column: 'region', operator: 'eq', value: "O'Hare" }],
+      });
+      expect(sql.rows).toContain(
+        `FROM "t" WHERE "region" = 'O''Hare' AND isfinite(CAST("amount" AS DOUBLE)))`,
+      );
+      expect(sql.rows).toContain('* 100) AS INTEGER)');
+      expect(sql.rows).toContain('ORDER BY bucket LIMIT 100 OFFSET 0');
+      expect(sql.total).toMatch(/^SELECT count\(\*\) AS count FROM \(WITH r/);
+      expect(
+        buildDatasetSql('t', columns, { histogram: { column: 'amount' } }).rows,
+      ).toContain('* 20) AS INTEGER)');
+      expect(
+        buildDatasetSql('t', columns, {
+          histogram: { column: 'amount', bins: Number.NaN },
+        }).rows,
+      ).toContain('* 20) AS INTEGER)');
+      expect(
+        buildDatasetSql('t', columns, {
+          histogram: { column: 'amount', bins: 0 },
+        }).rows,
+      ).toContain('* 1) AS INTEGER)');
+    });
+
+    it('buckets a date column by day, week or month, with a count by default', () => {
+      const sql = buildDatasetSql('t', new Set(['when', 'amount']), {
+        timeSeries: { column: 'when', unit: 'week' },
+        filters: [{ column: 'amount', operator: 'gt', value: 1 }],
+        limit: 9_000,
+      });
+      expect(sql.rows).toBe(
+        `SELECT CAST(CAST(date_trunc('week', CAST("when" AS TIMESTAMP)) AS DATE) AS VARCHAR) AS bucket, COUNT(*) AS value FROM "t" WHERE "amount" > 1 AND "when" IS NOT NULL GROUP BY 1 ORDER BY 1 LIMIT 500 OFFSET 0`,
+      );
+      expect(sql.total).toContain('FROM (SELECT CAST(CAST(date_trunc');
+      expect(
+        buildDatasetSql('t', new Set(['when', 'amount']), {
+          timeSeries: { column: 'when', unit: 'month' },
+          aggregate: { column: 'amount', fn: 'sum' },
+        }).rows,
+      ).toContain(`date_trunc('month'`);
+    });
+
+    it('quotes the identifiers of a histogram and a time series', () => {
+      const odd = new Set(['a"b']);
+      expect(
+        buildDatasetSql('t', odd, { histogram: { column: 'a"b' } }).rows,
+      ).toContain('CAST("a""b" AS DOUBLE)');
+      expect(
+        buildDatasetSql('t', odd, {
+          timeSeries: { column: 'a"b', unit: 'day' },
+        }).rows,
+      ).toContain('CAST("a""b" AS TIMESTAMP)');
     });
 
     it.each([
+      [{ histogram: { column: 'secret' } }, 'histogram column'],
+      [{ timeSeries: { column: 'secret', unit: 'day' } }, 'time series column'],
+      [{ timeSeries: { column: 'region', unit: "day'); --" } }, 'time unit'],
+      [
+        {
+          timeSeries: { column: 'region', unit: 'day' },
+          aggregate: { column: 'secret', fn: 'sum' },
+        },
+        'aggregate column',
+      ],
+      [
+        {
+          histogram: { column: 'amount' },
+          groupBy: 'region',
+          aggregate: { fn: 'count' },
+        },
+        'one of grouping',
+      ],
+      [
+        {
+          histogram: { column: 'amount' },
+          timeSeries: { column: 'region', unit: 'day' },
+        },
+        'one of grouping',
+      ],
       [{ groupBy: 'secret', aggregate: { fn: 'count' } }, 'grouping column'],
       [{ groupBy: 'region' }, 'aggregate operation'],
       [
@@ -135,5 +234,58 @@ describe('local analytics query helpers', () => {
         buildDatasetSql('t', columns, query as DatasetQuery),
       ).toThrow(message);
     });
+  });
+});
+
+describe('import profiling SQL', () => {
+  it('counts duplicates of a quoted key column with a bounded sample', () => {
+    const sql = buildDuplicateKeySql('t', new Set(['sku"1']), 'sku"1');
+    const key = `nullif(trim(CAST("sku""1" AS VARCHAR)), '')`;
+    expect(sql.count).toBe(
+      `SELECT count(${key}) - count(DISTINCT ${key}) AS extra FROM "t"`,
+    );
+    expect(sql.samples).toContain('HAVING count(*) > 1');
+    expect(sql.samples).toMatch(/LIMIT 5$/);
+  });
+
+  it('refuses a key that is not a column of the dataset', () => {
+    expect(() => buildDuplicateKeySql('t', new Set(['a']), 'b')).toThrow(
+      'Choose a valid match key column.',
+    );
+  });
+
+  it('builds one positional count per parse check', () => {
+    const sql = buildParseFailureSql('t', new Set(['a', 'b']), [
+      { column: 'a', as: 'number' },
+      { column: 'b', as: 'datetime' },
+    ]);
+    expect(sql).toContain('AS n0');
+    expect(sql).toContain('AS n1');
+    expect(sql).toContain('AS DOUBLE)');
+    expect(sql).toContain('AS TIMESTAMPTZ)');
+  });
+
+  it('reads a JSON-typed column as its string, not its quoted JSON form', () => {
+    const sql = buildParseFailureSql('t', new Set(['n']), [
+      { column: 'n', as: 'number', json: true },
+    ]);
+    expect(sql).toContain(`"n"->>'$'`);
+    expect(sql).not.toContain('CAST("n"');
+  });
+
+  it('refuses unknown columns, no checks and too many checks', () => {
+    expect(() =>
+      buildParseFailureSql('t', new Set(['a']), [{ column: 'z', as: 'date' }]),
+    ).toThrow('A check refers to an unknown column.');
+    expect(() => buildParseFailureSql('t', new Set(['a']), [])).toThrow(
+      'Check between 1 and 100 columns.',
+    );
+    const many = Array.from({ length: 101 }, () => ({
+      column: 'a',
+      as: 'date' as const,
+    }));
+    expect(() => buildParseFailureSql('t', new Set(['a']), many)).toThrow(
+      'Check between 1 and 100 columns.',
+    );
   });
 });

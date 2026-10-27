@@ -1,6 +1,7 @@
 import { Table, tableFromJSON } from 'apache-arrow';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  checkDataset,
   disposeDataset,
   loadLocalFile,
   queryDataset,
@@ -28,6 +29,7 @@ const fakes = vi.hoisted(() => ({
   failInstantiate: undefined as Error | undefined,
   failures: new Map<string, Error>(),
   version: 'v1.4.3',
+  headerRow: undefined as Row | undefined,
 }));
 
 type Row = Record<string, unknown>;
@@ -67,11 +69,18 @@ class FakeConnection {
     if (sql.includes('SUMMARIZE')) return tableFromJSON(this.summary);
     if (sql.startsWith('SELECT version()'))
       return tableFromJSON([{ version: fakes.version }]);
+    // The import checks: duplicate keys, then unparseable values.
+    if (sql.includes('AS extra')) return tableFromJSON([{ extra: 3 }]);
+    if (sql.includes('HAVING count(*) > 1'))
+      return tableFromJSON([{ key: 'a', rows: 4n }]);
+    if (sql.includes('try_cast')) return tableFromJSON([{ n0: 2 }]);
     // The exact null counts, one positional column per profiled column.
     if (sql.startsWith('SELECT count(*) - count('))
       return tableFromJSON([{ n0: 1, n1: 0 }]);
     if (sql.startsWith('SELECT count(*) AS count'))
       return tableFromJSON([{ count: 7 }]);
+    if (sql.includes('header = false'))
+      return tableFromJSON([fakes.headerRow ?? { column0: 'amount' }]);
     if (sql.startsWith('SELECT *'))
       return tableFromJSON([{ amount: 12 }, { amount: 24 }]);
     return new Table();
@@ -138,6 +147,7 @@ beforeEach(() => {
   fakes.failInstantiate = undefined;
   fakes.failures.clear();
   fakes.version = 'v1.4.3';
+  fakes.headerRow = undefined;
   vi.stubGlobal(
     'Worker',
     class {
@@ -440,6 +450,61 @@ describe('querying', () => {
     ).toHaveLength(2);
   });
 
+  it('skips a queued query whose signal was aborted, without sending SQL', async () => {
+    const dataset = await load();
+    const hold = gate();
+    latest().connection.gates.set('count(*)', hold);
+    const stale = new AbortController();
+
+    const first = queryDataset(dataset);
+    const superseded = queryDataset(
+      dataset,
+      { limit: 1 },
+      { signal: stale.signal },
+    );
+    const superseding = queryDataset(dataset, { limit: 2 });
+    await settle();
+    stale.abort();
+    latest().connection.gates.delete('count(*)');
+    hold.open();
+
+    await expect(superseded).rejects.toMatchObject({ name: 'AbortError' });
+    await Promise.all([first, superseding]);
+    const sent = latest().connection.queries;
+    expect(sent.some((sql) => sql.includes('LIMIT 1 '))).toBe(false);
+    expect(sent.some((sql) => sql.includes('LIMIT 2 '))).toBe(true);
+  });
+
+  it('sends no SQL when the signal aborts while the Arrow helper is loading', async () => {
+    const dataset = await load();
+    const before = latest().connection.queries.length;
+    // Not aborted at the first check (before the dynamic import), aborted at the next.
+    let reads = 0;
+    const signal = {
+      get aborted() {
+        reads += 1;
+        return reads > 1;
+      },
+    } as AbortSignal;
+
+    await expect(queryDataset(dataset, {}, { signal })).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+    expect(latest().connection.queries).toHaveLength(before);
+  });
+
+  it('rejects an already aborted query before it starts', async () => {
+    const dataset = await load();
+    const before = latest().connection.queries.length;
+    const stale = new AbortController();
+    stale.abort();
+
+    await expect(
+      queryDataset(dataset, {}, { signal: stale.signal }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(latest().connection.queries).toHaveLength(before);
+  });
+
   it('keeps working after one query fails', async () => {
     const dataset = await load();
     latest().connection.failures.set('LIMIT 1 ', new Error('Out of memory'));
@@ -451,6 +516,110 @@ describe('querying', () => {
     await expect(queryDataset(dataset)).resolves.toMatchObject({
       totalRows: 7,
     });
+  });
+});
+
+describe('loading an import file', () => {
+  it('reads a CSV as text, with the header row as the file spells it', async () => {
+    fakes.headerRow = { column0: ' amount ', column1: 'Details' };
+    const dataset = await loadLocalFile(localFile('sales.csv').file, {
+      forImport: true,
+    });
+
+    const sent = latest().connection.queries;
+    expect(sent.find((sql) => sql.startsWith('CREATE TEMP TABLE'))).toContain(
+      "read_csv('analytics-input.csv', sample_size = -1, all_varchar = true)",
+    );
+    expect(
+      sent.find((sql) => sql.startsWith('SELECT count(*) - count(')),
+    ).toContain(`nullif(trim(CAST("amount" AS VARCHAR)), '')`);
+    // Only a header that differs from DuckDB's name is carried.
+    expect(dataset.columns.map((column) => column.header)).toEqual([
+      undefined,
+      'Details',
+    ]);
+  });
+
+  it('ignores a header row of another width', async () => {
+    fakes.headerRow = { column0: 'a,b' };
+    const dataset = await loadLocalFile(localFile('sales.csv').file, {
+      forImport: true,
+    });
+    expect(dataset.columns.map((column) => column.header)).toEqual([
+      undefined,
+      undefined,
+    ]);
+  });
+
+  it('reads JSON only as an array, and refuses JSON Lines the way the server does', async () => {
+    await expect(
+      loadLocalFile(localFile('rows.json', '{"a":1}\n{"a":2}\n').file, {
+        forImport: true,
+      }),
+    ).rejects.toMatchObject({ name: 'NotJsonArrayError' });
+
+    await loadLocalFile(localFile('rows.json', '\uFEFF \n[{"a":1}]').file, {
+      forImport: true,
+    });
+    expect(
+      latest().connection.queries.find((sql) =>
+        sql.startsWith('CREATE TEMP TABLE'),
+      ),
+    ).toContain("read_json('analytics-input.json', format = 'array'");
+  });
+
+  it('keeps reading JSON Lines for the explorer', async () => {
+    await loadLocalFile(localFile('rows.json', '{"a":1}\n{"a":2}\n').file);
+    expect(
+      latest().connection.queries.find((sql) =>
+        sql.startsWith('CREATE TEMP TABLE'),
+      ),
+    ).toContain("read_json('analytics-input.json', sample_size = -1)");
+  });
+});
+
+describe('checking an import file', () => {
+  it('counts duplicate keys and unparseable values with the generated SQL', async () => {
+    const dataset = await loadLocalFile(localFile('sales.csv').file);
+
+    const checks = await checkDataset(dataset, {
+      duplicateKey: 'amount',
+      parse: [{ column: 'amount', as: 'number' }],
+    });
+
+    expect(checks).toEqual({
+      duplicates: {
+        column: 'amount',
+        extraRows: 3,
+        samples: [{ value: 'a', rows: 4 }],
+      },
+      unparseable: { amount: 2 },
+    });
+    const sent = latest().connection.queries.slice(-3);
+    expect(sent[0]).toMatch(
+      /^SELECT count\(nullif\(trim\(CAST\("amount" AS VARCHAR\)\), ''\)\) - count\(DISTINCT nullif\(trim\(CAST\("amount" AS VARCHAR\)\), ''\)\) AS extra FROM "dataset_[0-9a-f]+"$/,
+    );
+    expect(sent[2]).toContain(
+      `try_cast(nullif(trim(CAST("amount" AS VARCHAR)), '') AS DOUBLE)`,
+    );
+  });
+
+  it('rejects a column the file does not have without sending SQL', async () => {
+    const dataset = await loadLocalFile(localFile('sales.csv').file);
+    const before = latest().connection.queries.length;
+
+    await expect(
+      checkDataset(dataset, { duplicateKey: 'nope' }),
+    ).rejects.toThrow('Choose a valid match key column.');
+    expect(latest().connection.queries).toHaveLength(before);
+  });
+
+  it('rejects a dataset that has been closed', async () => {
+    const dataset = await loadLocalFile(localFile('sales.csv').file);
+    await disposeDataset(dataset);
+    await expect(checkDataset(dataset, {})).rejects.toThrow(
+      'The dataset has been closed.',
+    );
   });
 });
 
