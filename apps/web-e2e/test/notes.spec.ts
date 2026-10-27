@@ -102,3 +102,32 @@ test('creates, views, edits, deletes and restores a note', async ({ page }) => {
   await expect(page.getByText('Note restored')).toBeVisible();
   await expect(row).toBeVisible();
 });
+
+test('recovers and discards a note editor draft after a browser reload', async ({
+  page,
+}) => {
+  const title = `E2E recovery ${Date.now()}`;
+
+  await page.goto('/notes/new');
+  await page.getByLabel('Title').fill(title);
+  await page.getByLabel('Text').fill('Saved server text.');
+  await page.getByRole('button', { name: 'Create note' }).click();
+  await expect(page.getByRole('heading', { name: title })).toBeVisible();
+  await page.getByRole('button', { name: 'Actions for this note' }).click();
+  await page.getByRole('menuitem', { name: 'Edit note' }).click();
+  await page.getByLabel('Text').fill('Unsaved text after a reload.');
+
+  await page.reload();
+  await expect(
+    page.getByRole('button', { name: 'Recover draft' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Recover draft' }).click();
+  await expect(page.getByLabel('Text')).toHaveValue(
+    'Unsaved text after a reload.',
+  );
+
+  await page.getByLabel('Text').fill('Discard me.');
+  await page.reload();
+  await page.getByRole('button', { name: 'Discard draft' }).click();
+  await expect(page.getByLabel('Text')).toHaveValue('Saved server text.');
+});

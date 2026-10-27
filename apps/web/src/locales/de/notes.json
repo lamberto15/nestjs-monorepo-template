@@ -47,6 +47,13 @@
     "numbering": "Nummerierung",
     "numberingHint": "Welche Serie der Notiz ihre Nummer gibt."
   },
+  "draft": {
+    "recoveryTitle": "Entwurf gefunden",
+    "recoveryDescription": "Ein in diesem Browser gespeicherter Entwurf für diese Notiz ist verfügbar.",
+    "unavailable": "Diese Notiz kann in dieser Sitzung nicht mehr bearbeitet werden. Der gespeicherte Entwurf bleibt erhalten.",
+    "recover": "Entwurf wiederherstellen",
+    "discard": "Entwurf verwerfen"
+  },
   "detail": {
     "back": "Zurück zu den Notizen"
   },
@@ -73,8 +80,17 @@
   },
   "conflict": {
     "title": "Jemand anderes hat diese Notiz geändert",
-    "description": "Laden Sie neu, um die aktuelle Version zu sehen. Ihre ungespeicherten Änderungen gehen verloren.",
-    "reload": "Notiz neu laden"
+    "etagUnavailable": "Die Version der Notiz konnte nicht geprüft werden. Laden Sie die Notiz vor dem Speichern neu; Ihr Entwurf bleibt erhalten.",
+    "loading": "Aktuelle Version wird geladen…",
+    "unavailable": "Die aktuelle Notiz kann derzeit nicht gelesen oder bearbeitet werden. Ihr Entwurf bleibt erhalten; es wurde nichts gesendet.",
+    "reconcileHint": "Wählen Sie für jedes geänderte Feld den gewünschten Wert. Beim Speichern wird die aktuelle Versionsprüfung verwendet.",
+    "serverValue": "Aktueller Wert",
+    "yourValue": "Ihr Entwurf",
+    "empty": "(leer)",
+    "keepDraft": "Meinen Wert behalten",
+    "useServer": "Aktuellen Wert übernehmen",
+    "saveReconciled": "Abgeglichene Änderungen speichern",
+    "retry": "Aktuelle Version erneut laden"
   },
   "notFound": {
     "title": "Notiz nicht gefunden",

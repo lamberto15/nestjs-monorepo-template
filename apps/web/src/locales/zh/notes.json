@@ -47,6 +47,13 @@
     "numbering": "编号",
     "numberingHint": "由哪个系列为笔记分配编号。"
   },
+  "draft": {
+    "recoveryTitle": "发现已保存的草稿",
+    "recoveryDescription": "此浏览器中保存了这条笔记的草稿。",
+    "unavailable": "此会话中已无法编辑这条笔记。已保留保存的草稿。",
+    "recover": "恢复草稿",
+    "discard": "丢弃草稿"
+  },
   "detail": {
     "back": "返回笔记"
   },
@@ -73,8 +80,17 @@
   },
   "conflict": {
     "title": "其他人修改了这条笔记",
-    "description": "重新加载以查看最新版本。你在此处未保存的更改将被丢弃。",
-    "reload": "重新加载笔记"
+    "etagUnavailable": "无法检查笔记版本。请重新加载笔记后再保存；草稿已保留。",
+    "loading": "正在加载最新版本…",
+    "unavailable": "现在无法读取或编辑这条笔记。草稿已保留；没有发送任何更改。",
+    "reconcileHint": "为每个已更改的字段选择要保留的值。保存时会使用最新版本检查。",
+    "serverValue": "当前值",
+    "yourValue": "你的草稿",
+    "empty": "（空）",
+    "keepDraft": "保留我的值",
+    "useServer": "使用当前值",
+    "saveReconciled": "保存协调后的更改",
+    "retry": "重新尝试加载最新版本"
   },
   "notFound": {
     "title": "未找到笔记",

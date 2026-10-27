@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it, vi } from 'vitest';
 import { NOTE_LIMITS } from '@/features/notes/api';
-import { meQuery } from '@/lib/session';
+import { meQuery, sessionIdentity } from '@/lib/session';
+import { readEditorDraft } from '@/lib/editor-drafts';
 import { renderApp } from '@/test/render-app';
 import { hasRoute, requestProperties } from '@/test/request-schemas';
 import {
@@ -11,7 +12,7 @@ import {
   sampleNote,
   useNotesApi,
 } from '@/features/notes/test/notes-api';
-import { server, signedInUser } from '@/test/server';
+import { problem, server, signedInUser } from '@/test/server';
 import { expectNoToast, findToast } from '@/test/toast';
 
 const ALL = [
@@ -296,32 +297,138 @@ describe('editing a note', () => {
     ).toBeVisible();
   });
 
-  it('says it was changed by someone else on a 412, and reloads on request', async () => {
+  it('preserves a saved draft across navigation and requires explicit recovery or discard', async () => {
+    localStorage.clear();
+    useNotesApi({ can: ALL, notes: [sampleNote()] });
+    // Navigating away from the dirty form asks first (lib/unsaved-changes.ts);
+    // this test is about the draft, not that guard, so it always says yes.
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const { router } = await renderApp(`/notes/${NOTE_ID}/edit`);
+    const user = userEvent.setup();
+    await user.clear(await screen.findByLabelText('Title'));
+    await user.type(screen.getByLabelText('Title'), 'Recovered title');
+    await user.clear(screen.getByLabelText('Text'));
+    await user.type(screen.getByLabelText('Text'), 'Recovered text');
+    const identity = sessionIdentity(signedInUser)!;
+    await waitFor(() =>
+      expect(
+        readEditorDraft(identity, signedInUser.tenant!.id, NOTE_ID),
+      ).toMatchObject({
+        value: { title: 'Recovered title', body: 'Recovered text' },
+      }),
+    );
+
+    await router.navigate({ to: '/notes/$id', params: { id: NOTE_ID } });
+    await router.navigate({ to: '/notes/$id/edit', params: { id: NOTE_ID } });
+    await user.click(
+      await screen.findByRole('button', { name: 'Recover draft' }),
+    );
+    await waitFor(() =>
+      expect(screen.getByLabelText('Title')).toHaveValue('Recovered title'),
+    );
+    expect(screen.getByLabelText('Text')).toHaveValue('Recovered text');
+
+    await router.navigate({ to: '/notes/$id', params: { id: NOTE_ID } });
+    await router.navigate({ to: '/notes/$id/edit', params: { id: NOTE_ID } });
+    await user.click(
+      await screen.findByRole('button', { name: 'Discard draft' }),
+    );
+    await waitFor(() =>
+      expect(
+        readEditorDraft(identity, signedInUser.tenant!.id, NOTE_ID),
+      ).toBeUndefined(),
+    );
+    confirmSpy.mockRestore();
+  });
+
+  it('compares server and draft values, then reconciles with the latest ETag without losing concurrent edits', async () => {
     const api = useNotesApi({ can: ALL, notes: [sampleNote()] });
     await renderApp(`/notes/${NOTE_ID}/edit`);
     const user = userEvent.setup();
-    const title = await screen.findByLabelText('Title');
+    await screen.findByLabelText('Title');
     api.changeElsewhere(NOTE_ID, { title: 'Edited elsewhere' });
-    await user.clear(title);
-    await user.type(title, 'Mine');
+    // The body control waits on notes.richText (use-rich-text.ts) before it
+    // renders: findBy, not getBy, the first time this test reaches it.
+    await user.clear(await screen.findByLabelText('Text'));
+    await user.type(screen.getByLabelText('Text'), 'My text');
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
     expect(
       await screen.findByText('Someone else changed this note'),
     ).toBeVisible();
-
-    await user.click(screen.getByRole('button', { name: 'Reload note' }));
-    await waitFor(() =>
-      expect(screen.getByLabelText('Title')).toHaveValue('Edited elsewhere'),
+    expect(await screen.findByText('Edited elsewhere')).toBeVisible();
+    expect(screen.getByText('Q3 targets')).toBeVisible();
+    expect(screen.getByLabelText('Title')).toHaveValue('Q3 targets');
+    expect(screen.getByLabelText('Text')).toHaveValue('My text');
+    await user.click(
+      screen.getByRole('button', { name: 'Save reconciled changes' }),
     );
-    expect(
-      screen.queryByText('Someone else changed this note'),
-    ).not.toBeInTheDocument();
-
-    // The new version's ETag goes with the next save.
-    await user.type(screen.getByLabelText('Title'), '!');
-    await user.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(api.calls.patched).toHaveLength(2));
-    expect(api.calls.patched[1]?.body).toEqual({ title: 'Edited elsewhere!' });
+    expect(api.calls.patched[1]?.body).toEqual({ body: 'My text' });
+    expect(api.calls.patched[1]?.ifMatch).not.toBe(
+      api.calls.patched[0]?.ifMatch,
+    );
+    expect(api.notes.get(NOTE_ID)?.title).toBe('Edited elsewhere');
+  });
+
+  it('refreshes the comparison after a second 412 and again uses a fresh ETag', async () => {
+    const api = useNotesApi({ can: ALL, notes: [sampleNote()] });
+    await renderApp(`/notes/${NOTE_ID}/edit`);
+    const user = userEvent.setup();
+    await user.clear(await screen.findByLabelText('Title'));
+    await user.type(screen.getByLabelText('Title'), 'Mine');
+    api.changeElsewhere(NOTE_ID, { title: 'First concurrent value' });
+    const tags: (string | null)[] = [];
+    let attempts = 0;
+    server.use(
+      http.patch('/v1/notes/:id', async ({ request }) => {
+        tags.push(request.headers.get('if-match'));
+        attempts += 1;
+        if (attempts === 1) return problem(412, 'precondition_failed');
+        if (attempts === 2) {
+          api.changeElsewhere(NOTE_ID, { body: 'Second concurrent value' });
+          return problem(412, 'precondition_failed');
+        }
+        const body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...api.notes.get(NOTE_ID)!, ...body });
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await screen.findByText('First concurrent value');
+    await user.click(
+      screen.getByRole('button', { name: 'Save reconciled changes' }),
+    );
+    await screen.findByText('Second concurrent value');
+    await user.click(
+      screen.getByRole('button', { name: 'Save reconciled changes' }),
+    );
+    await waitFor(() => expect(tags).toHaveLength(3));
+    expect(tags[0]).not.toBeNull();
+    expect(tags[1]).not.toBe(tags[0]);
+    expect(tags[2]).not.toBe(tags[1]);
+  });
+
+  it('does not restore a saved draft after the server revokes edit access', async () => {
+    const api = useNotesApi({ can: ALL, notes: [sampleNote()] });
+    await renderApp(`/notes/${NOTE_ID}/edit`);
+    const user = userEvent.setup();
+    await user.clear(await screen.findByLabelText('Title'));
+    await user.type(screen.getByLabelText('Title'), 'Mine');
+    api.changeElsewhere(NOTE_ID, { title: 'Changed by another editor' });
+    server.use(http.get('/v1/notes/:id', () => problem(403, 'forbidden')));
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(
+      await screen.findByText(
+        'The latest note cannot be read or edited now. Your draft is kept; no changes were sent.',
+      ),
+    ).toBeVisible();
+    expect(api.calls.patched).toHaveLength(1);
+    expect(
+      readEditorDraft(
+        sessionIdentity(signedInUser)!,
+        signedInUser.tenant!.id,
+        NOTE_ID,
+      ),
+    ).toBeDefined();
   });
 });
 

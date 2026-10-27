@@ -47,6 +47,13 @@
     "numbering": "Numbering",
     "numberingHint": "Which series gives the note its number."
   },
+  "draft": {
+    "recoveryTitle": "Saved draft found",
+    "recoveryDescription": "A draft saved in this browser is available for this note.",
+    "unavailable": "This note is no longer available for editing in this session. The saved draft was kept.",
+    "recover": "Recover draft",
+    "discard": "Discard draft"
+  },
   "detail": {
     "back": "Back to notes"
   },
@@ -73,8 +80,17 @@
   },
   "conflict": {
     "title": "Someone else changed this note",
-    "description": "Reload to see the latest version. Your unsaved changes here will be discarded.",
-    "reload": "Reload note"
+    "etagUnavailable": "The note's version could not be checked. Reload the note before saving; your draft is kept.",
+    "loading": "Loading the latest version…",
+    "unavailable": "The latest note cannot be read or edited now. Your draft is kept; no changes were sent.",
+    "reconcileHint": "Choose which value to keep for each changed field. The save uses the latest version check.",
+    "serverValue": "Current value",
+    "yourValue": "Your draft",
+    "empty": "(empty)",
+    "keepDraft": "Keep my value",
+    "useServer": "Use current value",
+    "saveReconciled": "Save reconciled changes",
+    "retry": "Try loading the latest version again"
   },
   "notFound": {
     "title": "Note not found",
