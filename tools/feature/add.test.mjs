@@ -390,12 +390,12 @@ describe('addFeature', () => {
     assert.match(service, /records\.delete\(tx/);
   });
 
-  it('writes the same code whatever softDelete and team say: only the declaration holds them', async () => {
+  it('writes the same code whatever softDelete and unit say: only the declaration holds them', async () => {
     await addFeature(root, {
       name: 'estimates',
       fields: 'title:string,total:money,status:enum(draft|paid)',
       softDelete: false,
-      team: true,
+      unit: true,
     });
     const as = (text) =>
       text
@@ -440,14 +440,14 @@ describe('addFeature', () => {
       'utf8',
     );
     assert.match(record, /softDelete: false,/);
-    assert.match(record, /team: true,/);
-    // The platform's: no recycle bin or team coded in the feature.
+    assert.match(record, /unit: true,/);
+    // The platform's: no recycle bin or unit coded in the feature.
     const service = readFileSync(
       api('src/features/estimates/estimates.service.ts'),
       'utf8',
     );
     assert.match(service, /this\.records\.owner\(owner, tx\)/);
-    assert.doesNotMatch(service, /deletedAt|teamsOf/);
+    assert.doesNotMatch(service, /deletedAt|unitsOf/);
     assert.match(
       readFileSync(api('src/features/estimates/estimate.policy.ts'), 'utf8'),
       /recordPermissions\(ESTIMATE, estimates\)[\s\S]*extends RecordPolicy \{\}/,
@@ -667,14 +667,14 @@ describe('feature:sync', () => {
     edit('  fields: {\n', '  fields: {\n    title: field.string(),\n');
   });
 
-  it("turns team on: its column is a migration (with a warning), its code the platform's", async () => {
-    edit('  team: false,', '  team: true,');
+  it("turns unit on: its column is a migration (with a warning), its code the platform's", async () => {
+    edit('  unit: false,', '  unit: true,');
     const result = await syncFeature(api(), 'orders');
     assert.deepEqual(result.errors, []);
     assert.equal(result.generate, true);
     assert.match(
       result.warnings.join('\n'),
-      /team turned on: existing records get no team/,
+      /unit turned on: existing records get no unit/,
     );
     assert.equal(
       (await syncFeature(api(), 'orders', { check: true })).changes.length,
@@ -682,17 +682,17 @@ describe('feature:sync', () => {
     );
   });
 
-  it('refuses team turned off once migrated: dropping team_id loses data', async () => {
+  it('refuses unit turned off once migrated: dropping unit_id loses data', async () => {
     const snapshot = api('drizzle/meta/0000_snapshot.json');
     const before = readFileSync(snapshot, 'utf8');
     const migrated = JSON.parse(before);
-    migrated.tables['public.orders'].columns.team_id = { notNull: false };
+    migrated.tables['public.orders'].columns.unit_id = { notNull: false };
     writeFileSync(snapshot, JSON.stringify(migrated));
     assert.deepEqual((await syncFeature(api(), 'orders')).errors, []);
-    edit('  team: true,', '  team: false,');
+    edit('  unit: true,', '  unit: false,');
     assert.match(
       (await syncFeature(api(), 'orders')).errors.join('\n'),
-      /team turned off drops team_id; which team each record belongs to is lost/,
+      /unit turned off drops unit_id; which organizational unit each record belongs to is lost/,
     );
     writeFileSync(snapshot, before);
     assert.deepEqual((await syncFeature(api(), 'orders')).errors, []);
@@ -728,7 +728,7 @@ describe('feature:sync', () => {
     );
     writeFileSync(
       policy,
-      `${generated[1]}\n// inMyTeams('teamId', orders.teamId)\n`,
+      `${generated[1]}\n// inMyUnits('unitId', orders.unitId)\n`,
     );
     const errors = (
       await syncFeature(api(), 'orders', { check: true })
@@ -737,7 +737,7 @@ describe('feature:sync', () => {
       errors,
       /orders\.service\.ts codes the recycle bin's columns \(RecordStore\) by hand[^\n]*softDelete: true/,
     );
-    assert.match(errors, /order\.policy\.ts codes the inMyTeams condition/);
+    assert.match(errors, /order\.policy\.ts codes the inMyUnits condition/);
     writeFileSync(service, generated[0]);
     writeFileSync(policy, generated[1]);
     assert.deepEqual((await syncFeature(api(), 'orders')).errors, []);
@@ -786,7 +786,7 @@ describe('feature:sync', () => {
 
   it('accepts idempotency, clientAccess and grants, and rejects values it does not know', async () => {
     edit("  capabilities: ['watch'],", "  capabilities: ['watch', 'custom'],");
-    edit('  team: false,\n', "  team: false,\n  idempotency: 'required',\n");
+    edit('  unit: false,\n', "  unit: false,\n  idempotency: 'required',\n");
     edit('  clientAccess: false,', "  clientAccess: 'own',");
     edit("  grants: 'standard',", "  grants: 'none',");
     const read = readRecord(record());

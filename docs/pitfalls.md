@@ -10,7 +10,7 @@
   (locks, sessions, idempotency) inject it with `@InjectDrizzle()`.
 - **Raw SQL crept in** (#779): whole statements through
   `db.execute(sql`…`)` with literal table and column names (`update notes
-  set …`, `team_tree`, `deleted_at is null`), which no type check sees and
+  set …`, `organizational_unit_closure`, `deleted_at is null`), which no type check sees and
   a column rename breaks only at runtime. Use the query builder
   (apps/api/AGENTS.md, "No raw SQL"); `tools/ci/raw-sql.mjs` counts what
   is left against `tools/ci/raw-sql.allow.json`.
@@ -72,7 +72,7 @@
 - **Webhook delivery to `http://127.0.0.1`** (or `localhost`) needs `WEBHOOKS_ALLOW_LOOPBACK=on`
   (development only; [webhooks-and-realtime.md](webhooks-and-realtime.md), "A receiver on your machine").
 - **The access cache** is per process; `access.invalidate()` publishes to
-  every instance. Call it after any change to roles, grants or teams.
+  every instance. Call it after any change to roles, grants or organizational units.
 - **Express 5 leaves `req.body` undefined** without a body: a schema whose
   fields are all optional goes through `z.preprocess((b) => b ?? {}, …)`.
 - **Local hooks:** `.env*` files can't be written by Claude; `secrets/`
@@ -424,6 +424,9 @@ Learned renaming org units to teams (#23, 2026-10-17):
   approval rule's type) are data, not schema: list them in
   `apps/api/src/stored-renames.ts`, which every migrate rewrites
   (`core/database/stored-renames.ts`), tenant by tenant.
+- The 2026-10-28 teams → organizational units rename (#595) used the same
+  three steps (0065 the rename, 0066 the key, 0067 the foreign keys), and
+  its drizzle-kit prompts were answered through a pseudo-terminal script.
 - That rename skipped expand/contract (above): the owner accepts breaking
   changes until the template has adopters, and the release is a major one.
   With adopters, a rename takes the three releases above.

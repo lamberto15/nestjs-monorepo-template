@@ -57,7 +57,7 @@ describe('the record declaration', () => {
       t: names('charges'),
       fields: parseFields('title:string'),
       softDelete: false,
-      team: false,
+      unit: false,
       capabilities: new Set(),
       ...extra,
     });

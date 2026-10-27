@@ -1,12 +1,12 @@
 // The files `pnpm feature:add` writes (tools/feature/add.mjs). The feature's
 // records are declared once (`<item>.record.ts`: fields, capabilities, the
-// recycle bin, teams); the table, schemas, list, permissions, capability
-// targets and routes, and what the recycle bin and teams change in the
+// recycle bin, organizational units); the table, schemas, list, permissions, capability
+// targets and routes, and what the recycle bin and units change in the
 // service and the routes, are derived from that declaration by the platform
 // (platform/fields, platform/records), so these files are short and stay the
-// same when a field or a capability is added, or `softDelete` or `team`
+// same when a field or a capability is added, or `softDelete` or `unit`
 // flips: only record() reads those. Each function takes the context (`t` the
-// names, `fields`, `softDelete`, `team`, `capabilities`, `description`) and
+// names, `fields`, `softDelete`, `unit`, `capabilities`, `description`) and
 // returns a file's text; Prettier formats it after.
 import { approvalLabel, lowerFirst, numberPrefix } from './capabilities.mjs';
 import { builderOf, camelOf, pascalOf } from './fields.mjs';
@@ -18,7 +18,7 @@ export function record({
   t,
   fields,
   softDelete,
-  team,
+  unit,
   clientAccess = /** @type {'own' | false} */ (false),
   grants = 'standard',
   idempotency,
@@ -44,7 +44,7 @@ export function record({
     ` * ${pascalOf(t.nouns)}: their fields and capabilities, declared once. The table,`,
     ` * schemas, list, permissions, capability routes and targets are derived from it`,
     ` * (platform/records). Add a field, a capability, an approval or a setting, or flip softDelete,`,
-    ` * team, clientAccess, grants or idempotency,`,
+    ` * unit, clientAccess, grants or idempotency,`,
     ` * here, then \`pnpm feature:sync\` and \`pnpm db:generate\` (docs/adding-a-feature.md).`,
     ` */`,
     `export const ${t.SINGULAR} = defineRecord({`,
@@ -55,7 +55,7 @@ export function record({
     `  noun: '${t.noun}',`,
     `  table: '${t.table}',`,
     `  softDelete: ${softDelete},`,
-    `  team: ${team},`,
+    `  unit: ${unit},`,
     // One key per line, as sync reads them. idempotency only when chosen: unset follows IDEMPOTENCY.
     ...(idempotency ? [`  idempotency: '${idempotency}',`] : []),
     `  clientAccess: ${clientAccess === 'own' ? "'own'" : 'false'},`,
@@ -159,7 +159,7 @@ export function policy({ t }) {
     `/**`,
     ` * What can be done with ${t.nouns}, and the conditions an administrator may attach`,
     ` * (GET /v1/access/catalog): the standard actions, conditions and seed roles' grants,`,
-    ` * from ${t.singular}.record.ts (recordPermissions: the recycle bin and teams as it says).`,
+    ` * from ${t.singular}.record.ts (recordPermissions: the recycle bin and units as it says).`,
     ` * ${GENERATED('field-level permissions, conditions and actions of its own go in a third argument.')}`,
     ` */`,
     `export const ${t.SINGULAR}_PERMISSIONS = recordPermissions(${t.SINGULAR}, ${t.pluralCamel});`,
@@ -202,7 +202,7 @@ export function service({ t, fields }) {
     `/**`,
     ` * ${pascalOf(t.nouns)}: the writes and the reads. Each write, its audit entry and what its`,
     ` * capabilities do (RecordLifecycle: number, watchers, revisions, webhooks) commit in one transaction;`,
-    ` * what ${t.singular}.record.ts decides (the recycle bin, teams) RecordStore does.`,
+    ` * what ${t.singular}.record.ts decides (the recycle bin, organizational units) RecordStore does.`,
     ` * ${GENERATED('the business logic goes where the comments say "Business logic".')}`,
     ` */`,
     `@Injectable()`,
@@ -228,7 +228,7 @@ export function service({ t, fields }) {
     `      const [row] = await tx`,
     `        .insert(${table})`,
     `        .values({`,
-    `          // Its owner, and with teams the owner's team.`,
+    `          // Its owner, and with units the owner's unit.`,
     `          ...(await this.records.owner(owner, tx)),`,
     `          // Its number (numbered), when the record takes one: in the body's naming series, else the default.`,
     `          ...(await this.lifecycle.creating(tx, dto)),`,
@@ -614,7 +614,7 @@ export function e2e({ t, idempotency, grants = 'standard' }) {
     `    expect(page.body.items).toHaveLength(2);`,
     `  });`,
     '',
-    `  // Each capability ${t.singular}.record.ts declares, its recycle bin and teams (record-capabilities.ts).`,
+    `  // Each capability ${t.singular}.record.ts declares, its recycle bin and units (record-capabilities.ts).`,
     `  describeCapabilities(() => node, ${t.SINGULAR});`,
     `});`,
   ].join('\n');

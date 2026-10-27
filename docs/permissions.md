@@ -15,11 +15,11 @@ export const NOTE_PERMISSIONS = definePermissions({
       fields: { body: { label: 'The text' } },            // restrictable one by one
       conditions: {
         mine: createdBy('ownerId', notes.ownerId),       // "Created by me"
-        inMyTeams: inMyTeams('teamId', notes.teamId),
+        inMyUnits: inMyUnits('unitId', notes.unitId),
         draft: { label, description, casl: () => ({ status: 'draft' }), sql: () => eq(notes.status, 'draft') },
       },
       actions: {
-        read: { label: 'See notes', conditions: ['mine', 'inMyTeams'] },
+        read: { label: 'See notes', conditions: ['mine', 'inMyUnits'] },
         update: { label: 'Change notes', conditions: ['mine', 'draft'] },
       },
     },
@@ -37,7 +37,7 @@ by subject, under its name in kebab case, a feature's item key
 `.conditions.<key>.label|description|input`, a feature's own jobs in
 `.systemJobs.<key>`), so `pnpm feature:remove` takes them with the
 feature's other texts; the shared conditions once (`conditions.mine`,
-`conditions.inMyTeams`: a template's `translation`), and the groups'
+`conditions.inMyUnits`: a template's `translation`), and the groups'
 system jobs (`systemJobs.<key>.label|description`). A text no catalog has
 shows as declared (English): a generated feature's, until it adds its keys.
 `names` (one record, several) is how other responses name the subject's
@@ -51,9 +51,9 @@ choice of the feature's `<item>.record.ts`, not code. `clientAccess: 'own'`
 gives every API client its own records (create, read, change, delete);
 the default, `clientAccess: false`, **denies clients by default**: they reach
 the feature only through a role an administrator grants them. `grants:
-'none'` leaves the seed roles (editor, team lead, viewer) without the
+'none'` leaves the seed roles (editor, unit lead, viewer) without the
 feature, so only administrators have it until someone grants it; the default
-`'standard'` is editors their own, team leads their teams' (with `team`),
+`'standard'` is editors their own, unit leads those of the units they lead and below (with `unit`),
 viewers read all. A client's permissions are code (a change reaches every
 tenant on deploy); the seed roles are written when a tenant is made, so a
 changed `grants` reaches only new tenants (docs/adding-a-feature.md,
@@ -134,7 +134,7 @@ field's currency filter the money field; `custom.<key>` also counts as
 
 A field the caller may read on **some** of the records they may read only
 (`conditionalFields()`: a rule reaches records without granting the field
-on them, as `read` own notes with every field beside `read` the team's
+on them, as `read` own notes with every field beside `read` the unit's
 with `fields: []`; or a rule with conditions forbids it) is refused the
 same way in filters, `filter`, `sort` and `q` (`queryMatches()`): which
 rows match, or their order, would tell its value on the records that hide
@@ -159,7 +159,7 @@ bulk runs their action, exports and reports `exporter.action ?? 'read'`):
 a field is matchable only when every rule of the reaching action has a
 `read` grant of the field with the same conditions, or `read` grants it
 without conditions. `read` own items with every field beside `restore`
-the team's refuses `deleted=true&q=…`. `GET /v1/lists/{subject}`
+the unit's refuses `deleted=true&q=…`. `GET /v1/lists/{subject}`
 describes the live list (`read`'s reach), not the recycle bin's.
 
 A generated record's list route gets its query only through
@@ -204,7 +204,7 @@ deleted rows the principal may restore, under that action's conditions
 
 ## Roles and grants
 
-Roles, grants, teams and the audit log are per tenant ([tenancy](tenancy.md)):
+Roles, grants, organizational units and the audit log are per tenant ([tenancy](tenancy.md)):
 every tenant gets the built-in Administrator and the declared `seedRoles`
 when it is made; a user's roles are their membership's in the tenant the
 session acts in. `Access.manageTenants` (the tenants: list, create, read,
@@ -220,7 +220,7 @@ The built-in `Access` permissions (`ACCESS_PERMISSIONS`,
 
 | Permission | What it opens |
 | --- | --- |
-| `Access.manageRoles`, `manageUsers`, `manageClients`, `manageTeams` | roles; invitations, memberships, roles and teams of users; API clients and their keys; the team tree |
+| `Access.manageRoles`, `manageUsers`, `manageClients`, `manageOrganizationalUnits` | roles; invitations, memberships, roles and units of users; API clients and their keys; the organizational units and their members ("Organization structure") |
 | `Access.readAudit` | the audit log and the sign-in log |
 | `Access.impersonate` | acting as another user (support), never as an administrator |
 | `Access.manageCustomFields`, `manageSettings`, `manageTags`, `manageNamingSeries`, `manageViews` | custom field definitions; settings and feature flags; tags; naming series and their counters; saved views shared with the tenant |
@@ -229,17 +229,17 @@ The built-in `Access` permissions (`ACCESS_PERMISSIONS`,
 | `Access.provisionScim` | SCIM 2.0 provisioning: API clients only, the identity provider's token ([auth](auth.md), "Enterprise SSO") |
 | `Access.manageTenants`, `readConsolidated`; `Platform.breakGlass` | as above |
 
-- **Reading** the access API (`GET` of the catalog, roles, users, teams,
+- **Reading** the access API (`GET` of the catalog, roles, users, organizational units,
   API clients, principals; one role, user or client by id) takes any
   permission of access administration (`AccessPolicy.open`: `Access.manageRoles`,
-  `manageUsers`, `manageClients`, `manageTeams`, `impersonate` or
-  `readAudit`): whoever manages teams lists them and their members, whoever
+  `manageUsers`, `manageClients`, `manageOrganizationalUnits`, `impersonate` or
+  `readAudit`): whoever manages units lists them and their members, whoever
   impersonates finds whom. Changing takes the matching permission.
   The two lists the SSO page's pickers need, `GET` roles and users (not one
   by id), also admit `Access.manageSso` (`AccessPolicy.openForSso`), so an
   administrator holding only that reads them and still changes nothing.
-  `GET /v1/access/users?teamId=<id>` (or `teamId.in=`) lists a team's own
-  members (not those of the teams below); `GET /v1/lists/User` describes
+  `GET /v1/access/users?unitId=<id>` (or `unitId.in=`) lists a unit's current
+  members (not those of the units below); `GET /v1/lists/User` describes
   that list ([api-conventions](api-conventions.md), "List metadata").
 - `/v1/access/roles`: roles of permissions. A permission may carry
   conditions and `fields` (absent: all; `[]`: none of the restrictable ones).
@@ -270,7 +270,7 @@ GET /v1/access/principals?q=ada&kind=user&limit=20
 
 - **Who:** the callers who may already list users and clients
   (`AccessPolicy.open`: any of `Access.manageRoles`, `manageUsers`,
-  `manageClients`, `manageTeams`, `impersonate`, `readAudit`), as users (an API key is no credential on
+  `manageClients`, `manageOrganizationalUnits`, `impersonate`, `readAudit`), as users (an API key is no credential on
   the access API, 401). Anyone else: 403. It shows nothing those two lists
   don't: the same people and clients, their name and address, which the
   access lists show to the same callers whole (no field-level rules apply
@@ -334,26 +334,26 @@ GET /v1/people?q=may&limit=10
   client; null for `anonymous`, `anonymized`, `unknown`, or anyone the
   tenant never had.
 
-## The teams lookup
+## The units lookup
 
-`GET /v1/teams` is the teams' counterpart (`platform/people`): **any
-member** may read the tenant's teams, for the pickers and names of a list's
-`ref: team` fields (`teamId`), where `GET /v1/access/teams` takes
-`AccessPolicy.open`:
+`GET /v1/organizational-units` is the units' counterpart (`platform/people`):
+**any member** may read the tenant's organizational units, for the pickers
+and names of a list's `ref: unit` fields (`unitId`), where
+`GET /v1/access/organizational-units` takes `AccessPolicy.open`:
 
 ```
-GET /v1/teams?q=north&limit=50
+GET /v1/organizational-units?q=north&limit=50
 { "items": [{ "id": "…", "name": "North", "parentId": "…", "depth": 1 }], "nextCursor": null }
 ```
 
-- **What:** a team's id, name, parent and depth (0 at the top), nothing
-  else: no members, no counts, no dates. Managing teams stays on
-  `/v1/access/teams` (`Access.manageTeams`).
-- **Whose:** the current tenant's teams alone (row-level security, and the
+- **What:** a unit's id, name, parent and depth (0 at the top), nothing
+  else: no members, no counts, no dates. Managing units stays on
+  `/v1/access/organizational-units` (`Access.manageOrganizationalUnits`).
+- **Whose:** the current tenant's units alone (row-level security, and the
   query names the tenant too); never another tenant's.
 - **Query:** `q`, a part of the name, whatever the case (1 to 100
   characters; `%` and `_` are the characters); `id=<id>,<id>` (1 to 100)
-  the teams to name, an id the tenant has no team of left out; cursor
+  the units to name, an id the tenant has no unit of left out; cursor
   pages, newest first (`limit` 1 to 100, default 50, the same with `id`:
   send at least as many as the ids; over 100 is a 400; `cursor` the
   previous page's `nextCursor`): read every page to build the tree from
@@ -362,13 +362,36 @@ GET /v1/teams?q=north&limit=50
   401).
 - Rate-limited as every route.
 
-## Organization hierarchy
+## Organization structure
 
-Teams form a tree (`/v1/access/teams`; a closure table, so "under X"
-is one lookup at any depth). Users belong to units (`teamIds`). The
-`inMyTeams(field, column)` condition grants what is in a user's units and
-every unit below: a lead of "Sales" sees "Sales / North / East". Moving a
-unit moves everything under it.
+The tenant's organizational units form **one typed tree**
+(`/v1/access/organizational-units`; a closure table, so "under X" is one
+lookup at any depth; the web app's "Organization structure" at
+`/access/organization`). A unit has a **type** (`division`, `department` or
+`team`), a label that grants nothing by itself, and a name unique among its
+siblings whatever the case (409 `unit_name_taken`). Moving a unit moves
+everything under it. A unit with members or units below it is not deleted
+(409 `unit_not_empty`).
+
+Users belong to units through **memberships** with a role (`member` or
+`lead`) and dates (`validFrom`, `validTo`: a re-org can be dated ahead; the
+history is kept). `/v1/access/organizational-units/{id}/members` manages
+them, and `unitIds` on `/v1/access/users` and invitations joins a user as a
+member. A lead's role grants nothing by itself either: only the conditions
+and the roles an administrator gives do. A child's membership never implies
+the parent's.
+
+Three conditions read the current memberships (`iam/access/permissions.ts`):
+
+| Condition | Grants what is in |
+| --- | --- |
+| `inMyUnits(field, column)` | the units the user is a current member of, directly |
+| `inMyUnitsAndBelow(field, column)` | those units and every unit below them: a member of "Sales" sees "Sales / North / East" |
+| `inUnitsILeadAndBelow(field, column)` | the units the user currently leads, and every unit below them (the seed role `unit-lead` uses it) |
+
+Parent and sub-organizations and cross-functional project groups are
+deferred: units are one tree of one tenant (tenants have their own tree:
+[tenancy](tenancy.md)).
 
 Other trees (categories, folders): `closureTable()` and `Tree` in
 `core/database/tree.ts`.
@@ -453,7 +476,7 @@ transaction of the job carries `app.tenant_id` ([tenancy](tenancy.md)).
 | Scheduled reports | `system:report-runner` | each tenant in turn | `report.skipped`, `report.deactivated`, `report.finished`; the export itself runs, and is audited, as the report's owner |
 | Approvals workflow | `system:approvals` | the request's (the workflow's input) | the workflow's own (`approval.escalated`, `.expired`, `.failed`…); its outcome handlers get it as `outcome.actor` |
 | Note publication workflow | `system:note-publication` | the note's (the workflow's input) | `note.updated` (draft → published); an approval it asks for is on the owner's behalf |
-| Demo seed (`pnpm db:seed:demo`, development databases only) | `system:demo-seed` | the demo tenant it creates | everything it writes (`team.created`, `user.seeded`, `tag.created`, `note.created` on its users' behalf, `tags.changed`, `comment.added`, `attachment.added`), then `demo.seeded` |
+| Demo seed (`pnpm db:seed:demo`, development databases only) | `system:demo-seed` | the demo tenant it creates | everything it writes (`organizational-unit.created`, `user.seeded`, `tag.created`, `note.created` on its users' behalf, `tags.changed`, `comment.added`, `attachment.added`), then `demo.seeded` |
 | Tenant deletion, unverified sign-ups' sweep | `system:tenant-deletion`, `system:sign-up-tenant-sweep` | each due tenant | `tenant.purged` outside any tenant (`details.reason`) |
 | Retention rules | `system:retention` | each tenant in turn | `retention.purged` or `retention.anonymised` per batch (the ids) |
 | Mail intake, mail events retention, exchange rates | `system:<job>` | none (global tables) | the intake's suppressions (`mailSuppression.*`, no tenant) |

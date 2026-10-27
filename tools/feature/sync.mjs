@@ -20,7 +20,7 @@
 // The guard compares the declaration with the table in the latest drizzle
 // snapshot (apps/api/drizzle/meta): a new required field without a
 // default, an optional field made required, a field removed, or
-// `softDelete` or `team` turned off (their columns dropped), would fail or
+// `softDelete` or `unit` turned off (their columns dropped), would fail or
 // lose data on a table with rows (docs/pitfalls.md, expand/contract).
 // Turning them on adds nullable columns: a migration, nothing to fix. What
 // the flags change in the code the platform derives (platform/records): a
@@ -61,7 +61,7 @@ const BASE_COLUMNS = new Set([
 
 /**
  * The columns a declaration's flag adds (record.ts: softDelete's recycle
- * bin, team's team), and what dropping them loses.
+ * bin, unit's organizational unit), and what dropping them loses.
  */
 const FLAG_COLUMNS = {
   softDelete: {
@@ -69,10 +69,10 @@ const FLAG_COLUMNS = {
     off: 'records in the recycle bin would come back as live ones, and who deleted them is lost: restore or purge them first, and drop the columns a release after the code stops reading them',
     on: null,
   },
-  team: {
-    columns: ['team_id'],
-    off: 'which team each record belongs to is lost (with what team leads see): stop using it first, drop it a release later',
-    on: 'existing records get no team (team_id empty): team leads see only those created from now on',
+  unit: {
+    columns: ['unit_id'],
+    off: 'which organizational unit each record belongs to is lost (with what unit leads see): stop using it first, drop it a release later',
+    on: 'existing records get no unit (unit_id empty): unit leads see only those created from now on',
   },
 };
 
@@ -92,9 +92,9 @@ const HAND_WRITTEN = [
   },
   {
     file: (t) => `src/features/${t.plural}/${t.plural}.service.ts`,
-    flag: 'team',
-    pattern: /\bteamsOf\(|\bteamId\b/,
-    what: "the owner's team (RecordStore.owner())",
+    flag: 'unit',
+    pattern: /\bunitsOf\(|\bunitId\b/,
+    what: "the owner's organizational unit (RecordStore.owner())",
   },
   {
     file: (t) => `src/features/${t.plural}/${t.plural}.controller.ts`,
@@ -104,9 +104,9 @@ const HAND_WRITTEN = [
   },
   {
     file: (t) => `src/features/${t.plural}/${t.singular}.policy.ts`,
-    flag: 'team',
-    pattern: /\binMyTeams\(|'team-lead'/,
-    what: 'the inMyTeams condition or the team lead grant (recordPermissions)',
+    flag: 'unit',
+    pattern: /\binMyUnits(AndBelow)?\(|\binUnitsILeadAndBelow\(|'unit-lead'/,
+    what: 'the inMyUnits conditions or the unit lead grant (recordPermissions)',
   },
   {
     file: (t) => `src/features/${t.plural}/${t.singular}.policy.ts`,
@@ -266,7 +266,7 @@ function readRecordText(text, file) {
     clientAccess: clientAccess === 'own' ? 'own' : false,
     grants: choice('grants', ['standard', 'none']) ?? 'standard',
     softDelete: flag('softDelete'),
-    team: flag('team'),
+    unit: flag('unit'),
     fields,
     capabilities: new Set([...caps.matchAll(/'([^']+)'/g)].map((m) => m[1])),
     t: names(plural, kebab(subject)),

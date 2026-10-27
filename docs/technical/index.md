@@ -22,7 +22,7 @@ This index organizes the **existing deep technical references** by task. The lin
 | Topic | Guide |
 | --- | --- |
 | Users, sessions, OAuth, passkeys, SSO, SCIM, MFA | [Authentication](../auth.md) |
-| Roles, grants, CASL, field access, teams and audit | [Permissions](../permissions.md) |
+| Roles, grants, CASL, field access, organizational units and audit | [Permissions](../permissions.md) |
 | Tenant context and PostgreSQL row-level security | [Tenancy](../tenancy.md) |
 | Encryption, blind indexes and key rotation | [Encryption](../encryption.md) |
 | Retention rules and legal holds | [Retention](../retention.md) |

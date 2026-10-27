@@ -10,7 +10,7 @@ Instead of starting with a blank NestJS application, a development team can begi
 
 The repository provides a **developer template**, with source code and guides for:
 
-- Identity and access: accounts, authentication options, roles, teams and API clients.
+- Identity and access: accounts, authentication options, roles, organizational units and API clients.
 - Application foundations: records, audit logs, files, notifications, imports/exports and workflow-like jobs.
 - Tenant-aware design: single-organization or multi-organization configuration with database-backed separation.
 - Developer tooling: guided setup, feature generation, tests and client generation.

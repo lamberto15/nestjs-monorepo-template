@@ -2,7 +2,7 @@
 
 A **tenant** is a customer: a contract, a billing and legal boundary, and a hard
 wall that PostgreSQL's row-level security (RLS) enforces. One customer is one
-tenant, with all its teams and departments inside it (groups, roadmap item 25).
+tenant, with all its organizational units (divisions, departments, teams) inside it (roadmap item 25).
 A holding whose subsidiaries must stay apart gets a tenant per subsidiary, and
 reads them together through the tenant tree ("The tenant tree", below).
 
@@ -31,7 +31,7 @@ administrator reads another person's sign-ins; a tenant's own `member.signed-in`
 scope, the code filtering by recipient as it always did.
 
 What a membership may do lives in tenant tables: its roles (`user_roles`) and
-teams (`user_teams`), whose keys reference the membership. API clients
+organizational-unit memberships (`organizational_unit_memberships`), whose keys reference the membership. API clients
 belong to one tenant; their roles, keys and usage too.
 
 ## The wall
@@ -274,7 +274,7 @@ Built in the platform code, never at call sites (`tenantKey()`):
   for a tenant when they sign in (`POST /v1/auth/token { tenantId }`); the
   tenant is the token family's `tid` claim.
 - **Invitations: adding people is invite-only.** `POST /v1/access/users
-  { email, name?, roleIds, roleExpiresAt?, teamIds? }` (202) stores an
+  { email, name?, roleIds, roleExpiresAt?, unitIds? }` (202) stores an
   invitation (a tenant table; the link's token, `inv_<tenant id>_<secret>`,
   only as its SHA-256) and mails a link (`WEB_URL/accept-invitation?token=…`,
   `INVITATION_TTL_HOURS`). Nothing about an account is read, changed or
@@ -287,7 +287,7 @@ Built in the platform code, never at call sites (`tenantKey()`):
   then, in one transaction under the account's and the membership's locks (an
   acceptance never interleaves with the account's deletion or the membership's
   deactivation). `GET /v1/access/invitations` (with each one's `roleIds`,
-  `roleExpiresAt` and `teamIds`), `DELETE /v1/access/invitations/{id}`,
+  `roleExpiresAt` and `unitIds`), `DELETE /v1/access/invitations/{id}`,
   `POST /v1/access/invitations/{id}/resend` (202, expired or not: a new link
   and expiry, the old link stops; the roles, their ends and the units stay;
   the resender must be able to grant its roles, and signed in recently;

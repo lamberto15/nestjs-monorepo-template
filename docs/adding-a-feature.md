@@ -14,11 +14,11 @@ pnpm client:generate    # the typed client
 
 It writes the feature's **record declaration**, `<item>.record.ts`: its
 fields (platform/fields), its capabilities, its recycle bin (`softDelete`)
-and teams (`team`), in one place. Everything else is derived from it by the
+and organizational units (`unit`), in one place. Everything else is derived from it by the
 platform, so only the business logic is left to write (`<x>.service.ts`,
 where it says "Business logic"):
 
-- the table (`recordTable`: tenant, owner, team, the fields' columns, timestamps,
+- the table (`recordTable`: tenant, owner, unit, the fields' columns, timestamps,
   recycle bin, search vector, indexes and keys), the schemas
   (`recordSchemas`), the list's filters and sorts (`recordList`);
 - the capabilities' routes and targets (`recordParts` in the module: the
@@ -27,11 +27,12 @@ where it says "Business logic"):
   `POST /<x>/{id}/restore` (with `softDelete`), what the service does for
   them (`RecordLifecycle`: watchers, revisions) and how records are shown
   (`RecordPresenter`: money as objects, tags, field-level redaction);
-- what the recycle bin and teams change: the service's reads, deletes,
-  restores and a new record's team (`RecordStore`), the permissions
-  (`recordPermissions`: `mine`, with `team` `inMyTeams` and the `team-lead`
-  grant, with `softDelete` the `restore` action; added to the `editor`,
-  `team-lead` and `viewer` seed roles, which merge across features), the
+- what the recycle bin and units change: the service's reads, deletes,
+  restores and a new record's unit (`RecordStore`: set on create only when the
+  owner has exactly one current unit), the permissions
+  (`recordPermissions`: `mine`, with `unit` `inMyUnits`, `inMyUnitsAndBelow` and
+  `inUnitsILeadAndBelow` and the `unit-lead` grant, with `softDelete` the `restore` action; added to the `editor`,
+  `unit-lead` and `viewer` seed roles, which merge across features), the
   policy (`RecordPolicy`), the resource (`recordResource`), the delete
   route's text and the e2e tests of both (test/record-capabilities.ts);
 - the files it writes around that, the same whatever the flags say: the
@@ -47,7 +48,7 @@ OpenAPI test's path list.
 // features/invoices/invoice.record.ts
 export const INVOICE = defineRecord({
   subject: 'Invoice', path: 'invoices', apiTag: 'invoices', className: 'Invoice',
-  noun: 'invoice', table: 'invoices', softDelete: true, team: false,
+  noun: 'invoice', table: 'invoices', softDelete: true, unit: false,
   clientAccess: false, grants: 'standard',   // idempotency: unset, the deployment's
   fields: {
     title: field.string().searchable(),
@@ -65,7 +66,7 @@ export const INVOICE = defineRecord({
   within the tenant; its list filter is `ref: '<Subject>'` in the list metadata). `?` makes a field optional, `!unique` (string, int)
   unique per tenant (a duplicate is a 409 `<x>_taken`). In the declaration:
   `.optional()`, `.unique()`, `.default(v)`, `.searchable()`.
-- **Options:** `--team` (records carry their creator's team: `team: true`),
+- **Options:** `--unit` (records carry their creator's organizational unit: `unit: true`),
   `--no-soft-delete` (deleted for good, no recycle bin: `softDelete: false`),
   both changeable later in the declaration, `--singular <name>`
   (when it can't be derived: `people` → `--singular person`),
@@ -77,7 +78,7 @@ export const INVOICE = defineRecord({
   | Flag | Declaration | Default |
   | --- | --- | --- |
   | `--client-access own` | `clientAccess: 'own'`: every API client creates, reads, changes and deletes the records it created | `clientAccess: false`: **denied**; a client reaches the feature only through a role an administrator grants it |
-  | `--grants none` | `grants: 'none'`: the seed roles (editor, team lead, viewer) get nothing; only administrators until someone grants it | `grants: 'standard'`: editors their own, team leads their teams' (with `team`), viewers read all |
+  | `--grants none` | `grants: 'none'`: the seed roles (editor, unit lead, viewer) get nothing; only administrators until someone grants it | `grants: 'standard'`: editors their own, unit leads the units they lead and below (with `unit`), viewers read all |
   | `--idempotency required\|optional\|off` | `idempotency: '…'`: the create route and the record's platform write routes (bulk, PDF) | unset (no line): follow the deployment's `IDEMPOTENCY` |
 
   `clientAccess` and `grants` are always written (`false`, `'standard'`);
@@ -142,7 +143,7 @@ export const INVOICE = defineRecord({
 
   | Declared | The platform derives | The feature writes |
   | --- | --- | --- |
-  | `approvals.<action>` | the approvable action `Invoice.publish` (default policy: one stage, decided by any user who may update the record, never the requester; an option `policy` replaces it, administrators store their own at runtime), its handler, the flag `invoices.publishApproval` (off by default, tenant and team scopes; `flag: false` makes approval always required), `POST /v1/invoices/{id}/publish` (200 `applied` at once, 202 `pending` with the approval's id; whoever may update the record asks), and the wait: while a request is open the record can't be changed or deleted (409 `approval_pending`; a delete withdraws a request sent back for changes) | what happens once approved (and at once when no approval is needed): an entry in `<item>.approvals.ts`, `apply({ id, actor, service })`, idempotent, as a workflow step |
+  | `approvals.<action>` | the approvable action `Invoice.publish` (default policy: one stage, decided by any user who may update the record, never the requester; an option `policy` replaces it, administrators store their own at runtime), its handler, the flag `invoices.publishApproval` (off by default, tenant and unit scopes; `flag: false` makes approval always required), `POST /v1/invoices/{id}/publish` (200 `applied` at once, 202 `pending` with the approval's id; whoever may update the record asks), and the wait: while a request is open the record can't be changed or deleted (409 `approval_pending`; a delete withdraws a request sent back for changes) | what happens once approved (and at once when no approval is needed): an entry in `<item>.approvals.ts`, `apply({ id, actor, service })`, idempotent, as a workflow step |
   | `settings.<name>` | the setting or flag `invoices.paymentDays` (kinds `flag`, `int`, `string`, `enum`; `.min() .max() .label() .describe() .scopes([…]) .hidden()`), registered with the platform | reading it: `settings.get(recordSettings(INVOICE).paymentDays)` |
 
   `pnpm feature:add` writes the effects file and passes it to `recordParts()`
@@ -184,14 +185,14 @@ pnpm client:generate   # when it says the routes change
   decided or applied (let them end first), and values administrators stored
   for a removed setting stay unread in the database.
 
-- **The recycle bin or teams:** flip `softDelete` or `team`. Their code is
+- **The recycle bin or units:** flip `softDelete` or `unit`. Their code is
   the platform's (`RecordStore`, `recordPermissions`, `RecordPolicy`,
   `recordResource`, the restore route, the e2e tests), so nothing else
   changes by hand; sync moves the restore path in or out of the OpenAPI
   test. Turning one on adds nullable columns (`deleted_at`, `deleted_by`;
-  `team_id` and its key: existing records get no team). Turning one off
+  `unit_id` and its key: existing records get no unit). Turning one off
   drops them, and the guard refuses it like a removed field: records in the
-  recycle bin would come back as live ones, records lose their team; restore
+  recycle bin would come back as live ones, records lose their unit; restore
   or purge them first, then expand/contract. The guard also fails on a
   generated file that still codes either by hand (one generated before they
   moved to the platform): bring it to the shape `pnpm feature:add` writes.
@@ -540,8 +541,8 @@ and the tests of a feature's pages sit in its folder. A feature's own tests live
 
 ### A feature's demo data
 
-`pnpm db:seed:demo` makes the demo tenant, its teams and users in the seed
-roles (`editor`, `team-lead`, `viewer`: `iam/access/seed-roles.ts`; features
+`pnpm db:seed:demo` makes the demo tenant, its organizational units and users in the seed
+roles (`editor`, `unit-lead`, `viewer`: `iam/access/seed-roles.ts`; features
 add their grants to them by key). A feature adds its own data with `demo` in
 its `defineFeature()`: a provider of its module implementing
 `FeatureDemoSeeder` (`seed(context)`: the transaction, the tenant, the demo

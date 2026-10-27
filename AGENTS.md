@@ -105,7 +105,7 @@ Everything is in `docs/`; a name below is its file (`tags` is
   (versions, errors, pagination, filters, credentials).
 - **Access:** `auth` (sign-in, tokens, passkeys, SSO, SCIM, API clients,
   impersonation, Turnstile, data export, account deletion, "Locked out"),
-  `permissions` (roles, grants, teams, audit), `tenancy` (RLS, operators,
+  `permissions` (roles, grants, organizational units, audit), `tenancy` (RLS, operators,
   break-glass, `TENANCY=single`), `encryption`, `retention` (and legal holds).
 - **Background and integrations:** `background-work` (queues, mail, outbox,
   workflows, cron), `webhooks-and-realtime`, `notifications`,

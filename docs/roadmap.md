@@ -43,7 +43,7 @@ first project is built on the template; until then they report only.
 | 17-lite. Load-test baseline | **Done** (#43): k6 (sign-in, a filtered list, create) on the production stack (`compose.loadtest.yaml`, `loadtest/run.sh`), on a GitHub runner, manual only for now (`workflow_dispatch`, to save Actions minutes; a schedule is one line under `on:`), the `load-test-baseline` artifact, fails at 2× the previous run or the anchor (median, p95, errors, dropped iterations); `RATE_LIMIT_MULTIPLIER` and the `load-test` API client (high quota) instead of disabled limits. docs/development.md, "Load tests". Follow-up: concurrent sign-ins OOM-kill an api replica (four scrypt hashes of 128 MiB pass `API_MEMORY` 512M), so the baseline signs in at 2/s; bound the hashes in flight (done in #4 here). |
 | 17-full. Full load tests | **Done** (#255): the export scenario in k6 (queue, worker, storage: the request's latency and the time to a ready file), realtime through Artillery's socket.io engine (`loadtest/realtime.yml`, pinned image), `LOADTEST_REPLICAS` (1 to 6 api replicas), and the bot check's cost (`LOADTEST_CAPTCHA=always`: the stub verifier, which `captcha.providers.ts` allows under `NODE_ENV=production` only with `APP_ENV=loadtest`, unit-tested). Manual only, not in CI. Not measured yet: the delivery latency of a pushed realtime event. docs/development.md, "Load tests". |
 | 22. Email deliverability | **Done** (#3 here): `POST /v1/webhooks/mail/ses` verifies SNS notifications (signature versions 1 and 2, certificate URL and `SubscribeURL` restricted to SNS hosts, `SES_SNS_TOPIC_ARNS` allow-list, replay-safe), a queue job as `system:mail-intake` keeps the suppression list (hard/soft bounces with a threshold, complaints, manual entries; `GET/POST/DELETE /v1/mail/suppressions`, audited); the mail worker skips listed recipients (`@EssentialMail()` still reaches an address that complained); entries in the data export and erased with the account; SPF/DKIM/DMARC and the SNS setup in docs/deliverability.md; `MailBounceRateHigh`, `MailComplaints` alerts. Pluggable: Postmark and SendGrid intakes (#240); Resend, Mailgun… as adapters later. |
-| 12. Saved views | **Done** (#231): `platform/views`; `saved_views` (a list's `query` and `columns` under a name, private, team or tenant-wide), `GET/POST /v1/views`, `GET/PATCH/DELETE /v1/views/{id}`, `GET /v1/views/{id}/apply`; validated against the list with its custom fields on save and again on apply (stale: 400; a filter, sort or search on a field the viewer may not read: 403 `field_forbidden`; columns they may not see are hidden, not an error); `Access.manageViews` shares with the tenant and changes shared views, team members share with their team; a `PersonalDataSource` (private views go with the account, shared ones become ownerless); audited. Follow-ups: the view picker in the web list pages (`frontend` issue), views as exports' and reports' filters. docs/saved-views.md. |
+| 12. Saved views | **Done** (#231): `platform/views`; `saved_views` (a list's `query` and `columns` under a name, private, unit or tenant-wide), `GET/POST /v1/views`, `GET/PATCH/DELETE /v1/views/{id}`, `GET /v1/views/{id}/apply`; validated against the list with its custom fields on save and again on apply (stale: 400; a filter, sort or search on a field the viewer may not read: 403 `field_forbidden`; columns they may not see are hidden, not an error); `Access.manageViews` shares with the tenant and changes shared views, unit members share with their unit; a `PersonalDataSource` (private views go with the account, shared ones become ownerless); audited. Follow-ups: the view picker in the web list pages (`frontend` issue), views as exports' and reports' filters. docs/saved-views.md. |
 | 13. PDF generation | **Done** (#5 here): `platform/documents`; features register a `DocumentSource`, `POST /v1/notes/{id}/pdf` answers 202 and `GET /v1/documents/{id}` follows it; the worker renders a template with @nestjs/mail's escaping `FileTemplateEngine` (RTL, Noto fonts for Arabic and CJK, CSP `default-src 'none'`) through a pinned Gotenberg on an `internal: true` network (no JavaScript, private and public IPs denied, read-only, `cap_drop: ALL`), and one transaction adds the `locked` attachment and completes the document; per-run claims make duplicate runs safe; the attachment records the fields it shows, and a reader must see all of them; realtime `document.ready` and `document.failed`; off (503 `documents_unavailable`) without `GOTENBERG_URL`; the scanned image is published to GHCR. docs/documents.md. |
 | 15. AI helper | **Done** (#237): `platform/ai`; features register an `AiSource` (`NoteAi`), `POST /v1/ai/runs` answers 202 and `GET /v1/ai/runs/{id}` follows it; an `ai` queue worker (`lockDuration` above the call's timeout) asks an `AiProvider` (Anthropic adapter, forced tool call with a Zod-validated schema; off without `ANTHROPIC_API_KEY`, per tenant until `ai.enabled`); the record's fields are those the requester may read; `ai_runs` stores model id, prompt version and tokens (no prompt, no output); cache keyed by tenant, model, prompt version; daily tenant token cap (429 `ai_quota_exceeded`); realtime `ai.ready`/`ai.failed`. Not done: streaming over realtime, redaction through item 5's column registry (the registry merged in #337; the module doesn't consult it yet). docs/ai.md. |
 | Password-hash OOM fix | **Done** (#4 here): `PasswordHashLimiter` (a `BulkheadPolicy` of @nestjs/resilience) caps the scrypt hashes in flight (`PASSWORD_HASH_CONCURRENCY`, default 2; then a queue bounded by `PASSWORD_HASH_MAX_QUEUE` and `PASSWORD_HASH_QUEUE_TIMEOUT_MS`, then 503 `server_busy` with `Retry-After`); re-entrant, so a busy password reset leaves its link working; `API_MEMORY` 768M; `password_hashes_*` metrics and the `PasswordHashingSaturated` alert. Hash parameters unchanged. docs/deployment.md, "Resource limits". |
@@ -54,7 +54,7 @@ first project is built on the template; until then they report only.
 | 23. Log redaction | **Done** (#9 here): one registry (`core/logging/redaction.ts`) of secret headers, fields and text patterns, fed to Nest's logger `redact`, NestJS Observe and a pass over every line; `secret()` variables and the API key shape declared into it; item 5's column registry extends it. docs/deployment.md, "Log redaction". |
 | CodeQL findings | **Done** (#10 here): custom-field patterns run on RE2 (linear time; lookaround and backreferences refused at save), string-only OIDC query parameters, a linear trailing-slash trim in the client. The SHA-1 (Pwned Passwords) and SHA-256 (API keys) alerts are dismissed as false positives, the demo seed's password print as intended. |
 | Auth follow-ups | **Done** (#13 here): wrong MFA codes count as sign-in failures for bot protection; Redis 7.0 or newer checked at start; a no-sign-in cancel link in the deletion mail (its own JWT key and type, single use, the nightly job claims a deletion under the account lock); OIDC step-up with `prompt=login`, `max_age=0` and `auth_time`; the exporter connects as a `pg_monitor`-only role. |
-| Teams (25) | **Done** (#23 here): org units became teams, a rename only (see item 25). |
+| Organizational units (25) | **Done** on branch `feat/org-units` (#595): one typed tree (division, department, team), memberships with roles and dates; replaced the 2026-10-17 rename-only decision (see item 25). |
 | 6. Feature generator | **Done** (#24 to #30 here, then #38, #40, #41, #48, #230): `pnpm feature:add`, `feature:sync`, the `<item>.record.ts` declaration, the `/add-feature` skill; see item 6 + 8 for the plan. docs/adding-a-feature.md. |
 | Core without notes | **Done** (#31, #33 here): `pnpm feature:remove notes`; a test-only record (`apps/api/test/fixtures/test-items`) carries the platform's tests; CI's `template-without-notes` job (e2e in six shards, #51, #387). |
 | `pnpm setup` and deployment switches | **Done** (#36, #43 here): the first-run wizard (`tools/setup`); `IDEMPOTENCY` (#35), `WEBHOOKS`, `REPORTS`, `USAGE`, `REALTIME` (#37), `AUTH_MFA`, `API_CLIENTS`, `IMPERSONATION` (default off, #39); runtime auth policies `auth.requireMfa` and `auth.passwordMinLength` under the env's ceiling (#44). docs/configuration.md. |
@@ -64,7 +64,7 @@ first project is built on the template; until then they report only.
 | 7. Frontend starter | **Mostly built** (#64 to #143 here): `apps/web` and `packages/ui`: sign-in, the account pages, notifications, approvals, the list and record pages, access, API clients, settings (with feature flags), search, the audit log, data transfer, bulk work, saved views, naming series and SSO; what's open is listed in item 7. docs/monorepo.md, "The web app". |
 | 5. Personal-data protection, part 1 | **Done** (#337, #345; AAD = table + column + tenant, as decided): `EncryptionService` (AES-256-GCM, `v1.<key id>.<iv>.<ct>.<tag>`, the format version naming the AAD: table + column + tenant), the column registry (`encrypted()`, log redaction by name), blind indexes (HMAC-SHA-256, normalizers, every key's index while rotating), `DATA_ENCRYPTION_KEYS` and `BLIND_INDEX_KEYS` (env or files only, boot refused without them), the hourly re-encryption queue job (batches, compare-and-set writes, `encrypted_rows_on_old_key`). Since #345: encrypted properties are redacted in audit changes, left out of revisions and record webhooks, and exporters must decrypt them explicitly; in production the MFA key comes from `MFA_ENCRYPTION_KEYS`, never `app_secrets`. A custom field's JSONB is not encrypted (a declared column is). Open: the MFA, webhook and idempotency ciphers live inside their `@nestjs/*` packages and stay outside the registry (retention and legal holds: part 2, below). docs/encryption.md. |
 | 5. Personal-data protection, part 2 | **Done** (#347, closing #223): retention rules and legal holds. `platform/retention`: features declare a rule (`RetentionRegistry`: subject, table, age column, `purge` or `anonymise`, default and minimum days), a tenant turns it on and sets its days (`GET/PUT /v1/retention/rules`, `Access.manageRetention`, audited); a nightly scheduler queues one job per tenant and rule on the `retention` queue, batches of 500 as `system:retention`, resumable, each batch audited. `iam/holds`: `legal_holds` (a subject and a record, or the whole subject), `GET/POST /v1/legal-holds`, release, `Access.manageLegalHolds`, audited; a held record can't be deleted (409 `legal_hold`, `RecordStore.delete`), is skipped by the recycle bin purge and the retention job, and a `User` hold stops the account deletion. docs/retention.md. |
-| 2. Enterprise SSO and SCIM | **Done**, parts 1 and 2 (#343, on #337's encryption; #349); the web app has the admin pages, the policy tab and sign-in by email (#344, #350): per-tenant SAML (@node-saml/node-saml: signed assertions, one or two certificates, audience, clock skew, `InResponseTo` bound to the browser, assertion replay store, IdP-initiated opt-in) and OpenID Connect (openid-client: PKCE, state, nonce, `email_verified`) connections, off by default; DNS TXT domain verification on the queue; JIT memberships for verified domains only, identities under `sso:<connection>`; discovery through an SSRF-guarded fetch on the queue; the client secret in an encrypted column; session `method: sso`. SCIM 2.0 Users and Groups (teams) behind an API client key with `Access.provisionScim`; deprovisioning deactivates the membership and ends that tenant's sessions. Part 2 (#349, API): group-to-role mapping and default roles for JIT members (only grants a mapping made are taken back), "SSO required" per tenant (sign-in and every request, `sso_required`) with break-glass exemptions that need two-factor and are audited per use, signed SAML responses **and** assertions with an algorithm allowlist (no SHA-1, no RSA v1.5), a key pair per connection that signs AuthnRequests and decrypts encrypted assertions, `POST /v1/auth/sso/discover` (an address's login URL, no account enumeration), SCIM-managed teams read-only, SCIM's rate raised. SAML metadata import by URL (`POST /v1/sso/saml/metadata`, an SSRF-guarded fetch, nothing stored). Plain OAuth 2.0 connections (#381: providers without OpenID Connect such as Lark/Feishu; endpoints and a declarative user-info mapping on the connection, a `lark` preset; the admin form is #382). Deprovisioning the last membership deactivates the account (never deletes it; a membership active again reactivates it). docs/auth.md, "Enterprise SSO". |
+| 2. Enterprise SSO and SCIM | **Done**, parts 1 and 2 (#343, on #337's encryption; #349); the web app has the admin pages, the policy tab and sign-in by email (#344, #350): per-tenant SAML (@node-saml/node-saml: signed assertions, one or two certificates, audience, clock skew, `InResponseTo` bound to the browser, assertion replay store, IdP-initiated opt-in) and OpenID Connect (openid-client: PKCE, state, nonce, `email_verified`) connections, off by default; DNS TXT domain verification on the queue; JIT memberships for verified domains only, identities under `sso:<connection>`; discovery through an SSRF-guarded fetch on the queue; the client secret in an encrypted column; session `method: sso`. SCIM 2.0 Users and Groups (organizational units of type team) behind an API client key with `Access.provisionScim`; deprovisioning deactivates the membership and ends that tenant's sessions. Part 2 (#349, API): group-to-role mapping and default roles for JIT members (only grants a mapping made are taken back), "SSO required" per tenant (sign-in and every request, `sso_required`) with break-glass exemptions that need two-factor and are audited per use, signed SAML responses **and** assertions with an algorithm allowlist (no SHA-1, no RSA v1.5), a key pair per connection that signs AuthnRequests and decrypts encrypted assertions, `POST /v1/auth/sso/discover` (an address's login URL, no account enumeration), SCIM-managed units read-only, SCIM's rate raised. SAML metadata import by URL (`POST /v1/sso/saml/metadata`, an SSRF-guarded fetch, nothing stored). Plain OAuth 2.0 connections (#381: providers without OpenID Connect such as Lark/Feishu; endpoints and a declarative user-info mapping on the connection, a `lark` preset; the admin form is #382). Deprovisioning the last membership deactivates the account (never deletes it; a membership active again reactivates it). docs/auth.md, "Enterprise SSO". |
 | Everything else | Not started. |
 
 ### Open follow-ups
@@ -114,7 +114,7 @@ first project is built on the template; until then they report only.
 - 4: Docker secrets.
 - 5: healthchecks.io. The owner creates the check; until its ping URL is in `.env`, 16a
   ships with the receiver configurable and off.
-- 6: tenant + groups.
+- 6: tenant + organizational units.
 
 Also answered: **demo data is reset** when tenancy lands, rather than
 carried over.
@@ -135,14 +135,14 @@ carried over.
 5. **External dead-man receiver (16a):** needs an account, e.g. healthchecks.io
    (free tier). The owner creates it and gives the ping URL.
 
-6. **Tenants and groups.** The owner wants companies to group their people (teams,
-   departments, divisions, sub-organizations), scope work per group, and still report
-   across all their own groups.
+6. **Tenants and organizational units.** The owner wants companies to group their people (divisions,
+   departments, teams), scope work per unit, and still report
+   across all their own units.
    *Recommended:* two layers, never one.
    - The **tenant** is the customer: the contract, billing and legal boundary. It is a
-     hard wall, enforced by RLS. A company is one tenant, and all its groups live
+     hard wall, enforced by RLS. A company is one tenant, and all its units live
      inside it, so company-wide reports never cross a wall.
-   - **Groups** (item 25) organize people and data inside a tenant. They are flexible
+   - **Organizational units** (item 25) organize people and data inside a tenant. They are flexible
      and enforced by permissions (CASL), not RLS, so overlapping memberships and
      roll-up reports stay possible.
    - A **holding group** whose subsidiaries must be separate tenants but want
@@ -150,7 +150,7 @@ carried over.
      subtree for users granted that, while writes always target one tenant.
 
    The test: a separate customer, whose data must never leak even through a bug, is a
-   tenant. A way one customer organizes itself is a group. Never make each team a
+   tenant. A way one customer organizes itself is a unit. Never make each team a
    tenant.
 
 Settled: deployments without public DNS cannot be reached by an outside probe;
@@ -163,7 +163,7 @@ Settled: deployments without public DNS cannot be reached by an outside probe;
 | A | **16a** dead-man's switch + certificate probe; **21** oasdiff in CI | An afternoon each; protects the running instance and every later API change |
 | B | **17-lite** (sign-in, list, create; nightly, JSON baseline) | The only way to measure what RLS and per-request transactions cost |
 | C | **18** system principal; **20** expand/contract policy + destructive-DDL lint | 1a's cron jobs need an actor; 1a's migration is the first big expand/contract |
-| D | **1a** tenancy core, then **25** groups | Hardest to add later; sweeps every module once. Groups define what every record is owned by |
+| D | **1a** tenancy core, then **25** organizational units | Hardest to add later; sweeps every module once. Units define what every record is owned by |
 | E | **6 + 8** generator and unified event declaration | Tenancy now defines what a feature includes; `notes` becomes the golden output |
 | F | **5** encryption service + column registry; **19** secrets; **23** log redaction | 2, 11, 15 all store secrets or PII |
 | G | **24** session method + step-up; **3** passkeys; **4** bot protection; then **2** SSO/SCIM | 2 needs 1a, 5, 24 and domain verification |
@@ -403,7 +403,7 @@ generated tests, instead of regenerating notes and diffing it (notes keeps
 business logic the generator must not emit); generated texts are English in
 every locale, listed to translate. Since then (2026-10-17): custom fields (#38),
 events (webhooks for a record's changes) and numbered records (#41), `softDelete` and
-`team` declared once and changeable later (#40), `clientAccess`, `grants` and
+`unit` declared once and changeable later (#40), `clientAccess`, `grants` and
 per-feature `idempotency` (#48), and approvals and settings (#230): `--approvals`
 and `--settings`, or `approvals` and `settings` in the declaration, with the
 effects file `feature:sync` keeps. 8 (one event declaration) is done too (#320, below).
@@ -653,59 +653,40 @@ After 1a and 5.
   creating API keys, SSO settings.
 - Needed by 2 (refusing non-SSO sessions) and 3.
 
-### 25. Groups: teams, departments, organizations inside a tenant
+### 25. Organizational units inside a tenant
 
-**Decided (owner, 2026-10-17): teams, a rename only.** Org units became
-**teams** (the Better Auth word): tables `teams`, `team_tree`, `user_teams`,
-`/v1/access/teams`, `teamIds`/`teamId`, `manageTeams`, `inMyTeams`, the
-`team` settings scope, the `teamRole` approval rule; nesting stays (an
-optional parent). Names stored in rows are rewritten at migrate
-(`stored-renames.ts`). The group redesign below is **not planned for the
-template**: a project that needs group types, membership roles or an owner
-group per record builds it on teams. Kept for reference:
+**Done** on branch `feat/org-units` (#595); it replaced the 2026-10-17
+rename-only decision (org units → teams, #23).
 
-Decision 6. This **replaces** today's org units outright (breaking changes are
-accepted, see the top).
+One **typed tree** of organizational units per tenant: a unit has a type
+(`division`, `department` or `team`; a label that grants nothing by itself)
+and a name unique among its siblings (ignoring case). **Memberships** carry a
+role (`member` or `lead`) and dates (`valid_from`, `valid_to`; history kept).
+Tables `organizational_units`, `organizational_unit_closure`,
+`organizational_unit_memberships`; routes `/v1/access/organizational-units`
+(and `/:id/members`) with `Access.manageOrganizationalUnits`, and the
+directory `GET /v1/organizational-units` for every member.
 
-What exists today:
-- one tree;
-- users in several units;
-- records with an `orgUnitId`;
-- `inMyUnits`, which grants a unit and everything below.
-
-What changes:
-- the tables, the `/v1/access/org-units` routes, `inMyUnits` and the approvals rules
-  that use units are renamed and reshaped to groups;
-- `notes` and the generator move to `owner_group_id`;
-- the client is regenerated.
-
-- **Group types per tenant.** Each tenant declares its own types (division,
-  department, team, project, region…) and which may nest under which. There is no
-  fixed list in code.
-- **Several structures.** The hierarchy (company → division → department) plus
-  cross-cutting groups (project teams, committees, regions) a user can join alongside.
-  - A group belongs to one tree; there are several trees per tenant.
-  - Each tree has its own closure table rows.
-- **A role per membership.** Member, lead or manager in *this* group. "Lead of Sales"
-  then sees Sales and everything below, and a member sees only their own group.
-  Today's membership carries no role.
-- **Records are owned by a group** (`owner_group_id`), with optional extra groups they
-  are shared with. The generator (6) emits the column.
-- **Conditions:**
-  - `inMyGroups` (exact);
-  - `inMyGroupsAndBelow`;
-  - `inGroupsILead`;
-  - `inGroupsOfType('department')`.
-
-  They are evaluated through the closure table, so they work at any depth.
-- **Reports, exports, scheduled reports and saved views (12) run as the viewer.** The
-  same query gives the CEO, at the root, the whole company and a team lead their team.
-  Group subtotals come from a `group by` over the closure table.
-- **Moving and merging.** Moving a group moves its records' visibility, as today.
-  Merging two groups re-owns their records in a background job.
-- **SCIM groups (2)** map to groups and membership roles.
-- **Kept in permissions, not RLS.** Memberships overlap and change often. RLS stays the
-  tenant wall, and CASL handles groups.
+- **Conditions** (through the closure table, at any depth): `inMyUnits`
+  (direct), `inMyUnitsAndBelow`, `inUnitsILeadAndBelow`. A child's membership
+  never implies the parent's; a unit's type and a lead's role grant nothing
+  by themselves.
+- **Records** declare `unit: true` (column `unit_id`); a record's `unitId`
+  is set on create only when its owner has exactly one current unit. The
+  generator emits `--unit`.
+- **Everywhere else:** the settings scope `unit`, saved-view visibility
+  `unit`, the list ref kind `unit`, the approval rule `unitRole`, the seed
+  role `unit-lead`, SCIM groups as units of type `team` (409
+  `unit_managed_by_scim` here). The web app's "Organization structure" is
+  `/access/organization`.
+- **Existing data is kept:** migrations 0065 to 0067 rename the tables and
+  columns; `stored-renames.ts` rewrites the team-era names in rows at
+  migrate. The saved-views visibility check accepts `team` and `unit` for
+  this release; `team` goes in a later one (#602).
+- **Deferred:** parent and sub-organizations, and cross-functional project
+  groups (several trees per tenant, extra groups a record is shared with).
+- **Kept in permissions, not RLS:** memberships overlap and change often.
+  RLS stays the tenant wall, and CASL handles units.
 
 ---
 
@@ -730,6 +711,6 @@ What changes:
   - moving the existing MFA key out of `app_secrets`;
   - a sensitive flag for custom-field JSONB.
 - **Gaps** got item numbers (18–24) and places in the order.
-- **Groups (25) and the tenant tree (1b)** come from the owner's requirement that
-  companies organize and report across their own teams. The review assumed a flat
+- **Organizational units (25) and the tenant tree (1b)** come from the owner's requirement that
+  companies organize and report across their own units. The review assumed a flat
   tenant.
