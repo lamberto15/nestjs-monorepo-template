@@ -63,6 +63,9 @@ import { ResultChart } from './result-chart';
 
 const MAX_ROWS = 100;
 const HISTOGRAM_BINS = 20;
+/** File types the explorer opens (the engine decides by the lower-cased extension). */
+const ACCEPTED_EXTENSIONS = /\.(csv|json|jsonl|ndjson|parquet)$/i;
+
 /** How long the value filter waits for the next keystroke before it queries. */
 const FILTER_DEBOUNCE_MS = 300;
 const FLAG = 'analytics.browser.enabled';
@@ -393,9 +396,19 @@ export function AnalyticsPage(props: {
       </div>
       <FileUpload
         value={file ? [file] : []}
-        onValueChange={(next) => void start(next.at(-1))}
-        maxFiles={1}
-        accept=".csv,.json,.jsonl,.ndjson,.parquet"
+        // Dice UI calls onValueChange twice for each file it adds, so loading
+        // happens in onAccept (once per pick) and onValueChange only handles
+        // the item's delete button, which leaves the list empty. No maxFiles: it
+        // would reject a replacement file; the new pick replaces the loaded one.
+        onAccept={(files) => void start(files.at(-1))}
+        onValueChange={(next) => {
+          if (next.length === 0) void start(undefined);
+        }}
+        // Dice UI's own `accept` is case-sensitive ("REPORT.CSV" would fail); the
+        // engine lower-cases the extension too.
+        onFileValidate={(picked) =>
+          ACCEPTED_EXTENSIONS.test(picked.name) ? null : t('unsupportedType')
+        }
         label={t('file')}
         onFileReject={(rejected, message) =>
           toast.error(t('rejected', { name: rejected.name, reason: message }))

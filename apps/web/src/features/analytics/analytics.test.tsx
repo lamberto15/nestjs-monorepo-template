@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderApp } from '@/test/render-app';
 import { server, signedInUser } from '@/test/server';
 import { useSignedIn } from '@/test/signed-in';
+import { findToast } from '@/test/toast';
 
 const engine = vi.hoisted(() => ({
   loadLocalFile: vi.fn(),
@@ -38,6 +39,15 @@ const dataset = {
     },
   ],
 };
+
+/** A request that settles only when the engine is terminated, rejecting like the real one. */
+function pendingUntilTerminated() {
+  return new Promise<never>((_, reject) => {
+    engine.terminateAnalyticsEngine.mockImplementationOnce(() =>
+      reject(new Error('The analytics session was closed.')),
+    );
+  });
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -525,6 +535,7 @@ describe('browser analytics', () => {
     await user.upload(input, file);
 
     await profile();
+    expect(engine.loadLocalFile).toHaveBeenCalledTimes(1);
     expect(engine.loadLocalFile).toHaveBeenCalledWith(file);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
 
@@ -535,6 +546,54 @@ describe('browser analytics', () => {
     expect(
       screen.queryByRole('table', { name: 'Column profile' }),
     ).not.toBeInTheDocument();
+  });
+
+  it('replaces a loaded file with the next pick, loading each pick once', async () => {
+    useSignedIn([]);
+    await renderApp('/analytics');
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    const first = new File(['city,amount\nRiga,2'], 'first.csv');
+    const second = new File(['city,amount\nOslo,3'], 'second.csv');
+    const user = userEvent.setup();
+    await user.upload(input, first);
+    await profile();
+    expect(engine.loadLocalFile).toHaveBeenCalledTimes(1);
+
+    await user.upload(input, second);
+    await waitFor(() => expect(engine.loadLocalFile).toHaveBeenCalledTimes(2));
+    expect(engine.loadLocalFile).toHaveBeenLastCalledWith(second);
+    await profile();
+    await waitFor(() =>
+      expect(engine.disposeDataset).toHaveBeenCalledWith(dataset),
+    );
+    expect(screen.queryByText('first.csv')).not.toBeInTheDocument();
+    expect(screen.getAllByText('second.csv')[0]).toBeVisible();
+    expect(engine.loadLocalFile).toHaveBeenCalledTimes(2);
+  });
+
+  it('accepts upper-case extensions and explains a rejected type in the page language', async () => {
+    useSignedIn([]);
+    await renderApp('/analytics');
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    const user = userEvent.setup({ applyAccept: false });
+    const upper = new File(['city,amount\nRiga,2'], 'REPORT.CSV');
+    await user.upload(input, upper);
+    await profile();
+    expect(engine.loadLocalFile).toHaveBeenCalledTimes(1);
+    expect(engine.loadLocalFile).toHaveBeenCalledWith(upper);
+
+    await user.upload(input, new File(['x'], 'notes.txt'));
+    expect(
+      await findToast(
+        'notes.txt was not accepted: use a CSV, JSON, JSON Lines or Parquet file',
+      ),
+    ).toBeVisible();
+    expect(engine.loadLocalFile).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText('REPORT.CSV')[0]).toBeVisible();
   });
 
   it('waits for the typing to pause before it filters, then queries once', async () => {
@@ -600,7 +659,8 @@ describe('browser analytics', () => {
   });
 
   it('shows an indeterminate state with a Cancel button while a file loads, and Cancel ends the session', async () => {
-    engine.loadLocalFile.mockReturnValue(new Promise(() => undefined));
+    // The real engine rejects what is pending when its session is terminated.
+    engine.loadLocalFile.mockReturnValue(pendingUntilTerminated());
     useSignedIn([]);
     await renderApp('/analytics');
     chooseFile();
@@ -619,11 +679,12 @@ describe('browser analytics', () => {
     expect(
       screen.queryByRole('button', { name: 'Cancel' }),
     ).not.toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 20));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('cancels a running query by ending the session, and offers the file again', async () => {
-    engine.queryDataset.mockReturnValue(new Promise(() => undefined));
+    engine.queryDataset.mockReturnValue(pendingUntilTerminated());
     useSignedIn([]);
     await renderApp('/analytics');
     chooseFile();
@@ -645,6 +706,12 @@ describe('browser analytics', () => {
     );
     expect(await screen.findByText(/^Cancelled\./)).toBeVisible();
     expect(screen.getByLabelText('File')).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    expect(
+      screen.queryByRole('button', { name: 'Cancel' }),
+    ).not.toBeInTheDocument();
   });
 
   it('charts a group-by in a ChartContainer', async () => {

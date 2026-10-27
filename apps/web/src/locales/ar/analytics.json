@@ -42,6 +42,7 @@
   "openingExport": "جارٍ فتح التصدير…",
   "catalogMatch": "أعمدة الاستيراد: عُثر على {{matched}} من {{expected}}. المفقود: {{missing}}.",
   "noneMissing": "لا شيء",
+  "unsupportedType": "استخدم ملف CSV أو JSON أو JSON Lines أو Parquet",
   "rejected": "لم يتم قبول {{name}}: {{reason}}",
   "drop": "أفلت ملف البيانات هنا",
   "formats": "CSV أو JSON أو JSON Lines أو Parquet",

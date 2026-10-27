@@ -42,6 +42,7 @@
   "openingExport": "Opening the export…",
   "catalogMatch": "Import columns: {{matched}} of {{expected}} found. Missing: {{missing}}.",
   "noneMissing": "none",
+  "unsupportedType": "use a CSV, JSON, JSON Lines or Parquet file",
   "rejected": "{{name}} was not accepted: {{reason}}",
   "drop": "Drop a data file here",
   "formats": "CSV, JSON, JSON Lines or Parquet",

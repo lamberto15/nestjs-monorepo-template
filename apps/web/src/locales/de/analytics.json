@@ -42,6 +42,7 @@
   "openingExport": "Export wird geöffnet…",
   "catalogMatch": "Importspalten: {{matched}} von {{expected}} gefunden. Fehlend: {{missing}}.",
   "noneMissing": "keine",
+  "unsupportedType": "nur CSV-, JSON-, JSON-Lines- oder Parquet-Dateien sind möglich",
   "rejected": "{{name}} wurde nicht akzeptiert: {{reason}}",
   "drop": "Datendatei hierher ziehen",
   "formats": "CSV, JSON, JSON Lines oder Parquet",

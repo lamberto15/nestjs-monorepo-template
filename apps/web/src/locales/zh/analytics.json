@@ -42,6 +42,7 @@
   "openingExport": "正在打开导出…",
   "catalogMatch": "导入列：已找到 {{expected}} 列中的 {{matched}} 列。缺少：{{missing}}。",
   "noneMissing": "无",
+  "unsupportedType": "请使用 CSV、JSON、JSON Lines 或 Parquet 文件",
   "rejected": "未接受 {{name}}：{{reason}}",
   "drop": "将数据文件拖放到此处",
   "formats": "CSV、JSON、JSON Lines 或 Parquet",

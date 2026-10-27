@@ -42,6 +42,7 @@
   "openingExport": "Membuka eksport…",
   "catalogMatch": "Lajur import: {{matched}} daripada {{expected}} ditemui. Tiada: {{missing}}.",
   "noneMissing": "tiada",
+  "unsupportedType": "gunakan fail CSV, JSON, JSON Lines atau Parquet",
   "rejected": "{{name}} tidak diterima: {{reason}}",
   "drop": "Letakkan fail data di sini",
   "formats": "CSV, JSON, JSON Lines atau Parquet",
