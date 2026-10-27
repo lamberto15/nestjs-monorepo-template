@@ -1,9 +1,10 @@
 # The web app's checks that need more than CI / CD gives a pull request
-# (docs/monorepo.md, "The web app"): the local-file analytics in Firefox and
-# WebKit, and Lighthouse CI (a report, never a failure). The bundle budget,
-# Storybook and the analytics in Chromium run in ci.yml (check, e2e-web) on
-# every web change. Here: pull requests that touch the analytics engine or
-# its libraries, main, the nightly run and a manual one.
+# (docs/monorepo.md, "The web app"): the Data Explorer's browser spec in
+# Firefox and WebKit, and Lighthouse CI (a report, never a failure). The
+# bundle budget, Storybook and the same spec in Chromium run in ci.yml (check,
+# e2e-web) on every web change. Here: pull requests that touch the analytics
+# engine, its libraries, the build config, the production Content-Security-
+# Policy it runs under or the spec, main, the nightly run and a manual one.
 #
 # Third-party actions are pinned by commit SHA (the comment names the
 # release); Dependabot proposes newer ones.
@@ -15,16 +16,26 @@ on:
     tags: ['v*']
     paths:
       - 'apps/web/src/features/analytics/**'
-      - 'apps/web-e2e/scripts/analytics-smoke.mjs'
       - 'apps/web/package.json'
+      - 'apps/web/vite.config.ts'
+      - 'apps/web/preview-headers.ts'
       - 'apps/web/public/duckdb-extensions/**'
+      - 'apps/web-e2e/test/analytics*'
+      - 'apps/web-e2e/playwright.config.ts'
+      - 'caddy/Caddyfile'
+      - 'pnpm-lock.yaml'
       - '.github/workflows/web.yml'
   pull_request:
     paths:
       - 'apps/web/src/features/analytics/**'
-      - 'apps/web-e2e/scripts/analytics-smoke.mjs'
       - 'apps/web/package.json'
+      - 'apps/web/vite.config.ts'
+      - 'apps/web/preview-headers.ts'
       - 'apps/web/public/duckdb-extensions/**'
+      - 'apps/web-e2e/test/analytics*'
+      - 'apps/web-e2e/playwright.config.ts'
+      - 'caddy/Caddyfile'
+      - 'pnpm-lock.yaml'
       - '.github/workflows/web.yml'
   workflow_dispatch:
   schedule:
@@ -38,16 +49,23 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # The local-file analytics (DuckDB-WASM in a worker, no external request)
-  # in the engines besides Chromium, which CI's e2e-web job runs on every
-  # web change.
+  # The Data Explorer's browser spec (apps/web-e2e/test/analytics.spec.ts) in
+  # the engines besides Chromium, which CI's e2e-web job runs with the other
+  # browser tests. The same stack as e2e-web (docs/development.md, "Browser
+  # tests"): the built web app, served by `vite preview` under Caddy's
+  # production Content-Security-Policy, and the built API on PostgreSQL and
+  # Redis. Only the setup project (the sign-in, in the runner's Chrome) and the
+  # one analytics project run (playwright.config.ts, E2E_EXTRA_BROWSERS).
   analytics-smoke:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         browser: [firefox, webkit]
+    env:
+      E2E_BROWSER_CHANNEL: chrome
+      E2E_EXTRA_BROWSERS: ${{ matrix.browser }}
     steps:
       - uses: actions/checkout@v7
       - name: Install pnpm, Node.js and the dependencies
@@ -55,8 +73,12 @@ jobs:
         with:
           runtime: node@24
           cache: true
-      - name: Build the shared API client
-        run: pnpm --filter @nestjs-monorepo-template/api-client build
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
+      # compose.yaml's pinned images, started as `pnpm services:up` starts them
+      # (the development database is marked as such: the demo seed needs it).
+      - name: PostgreSQL and Redis
+        run: docker compose -p web-e2e --env-file dev/compose.env -f compose.yaml -f compose.dev.yaml up -d --wait postgres redis
       - name: Playwright version
         id: playwright
         run: echo "version=$(pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
@@ -74,16 +96,24 @@ jobs:
             pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright install --with-deps ${{ matrix.browser }}
           fi
       - name: Local file analytics without external requests
+        run: pnpm test:e2e:web --project=setup --project=analytics-${{ matrix.browser }}
         env:
-          ANALYTICS_BROWSER: ${{ matrix.browser }}
-        run: |
-          pnpm --filter @nestjs-monorepo-template/web exec vite --host 127.0.0.1 --port 5178 > "$RUNNER_TEMP/analytics-vite.log" 2>&1 &
-          server_pid=$!
-          trap 'kill "$server_pid" || true' EXIT
-          pnpm --filter @nestjs-monorepo-template/web-e2e exec node scripts/analytics-smoke.mjs
-      - name: Vite diagnostics
-        if: failure()
-        run: cat "$RUNNER_TEMP/analytics-vite.log"
+          CI: 'true'
+          # WebKit drops Secure cookies on http://localhost (Chromium and Firefox
+          # keep them), so the signed-in state never reaches the page there. Its
+          # leg runs the API with the test-only plain `sid` cookie
+          # (SESSION_COOKIE_SECURE, docs/configuration.md); Firefox and e2e-web
+          # keep testing the production `__Host-sid` one.
+          SESSION_COOKIE_SECURE: ${{ matrix.browser == 'webkit' && 'off' || 'on' }}
+      - name: The HTML report and traces
+        if: ${{ !cancelled() && (failure() || hashFiles('apps/web-e2e/test-results/**/trace.zip') != '') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: |
+            apps/web-e2e/playwright-report/
+            apps/web-e2e/test-results/
+          retention-days: 14
 
   # A report first (assertions are warnings): the scores are in the summary and
   # the reports in the artifact; nothing fails.
