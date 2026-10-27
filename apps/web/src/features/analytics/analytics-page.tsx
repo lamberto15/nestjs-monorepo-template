@@ -1,16 +1,28 @@
 import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@nestjs-monorepo-template/ui/components/card';
+import {
   Field,
   FieldLabel,
 } from '@nestjs-monorepo-template/ui/components/field';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@nestjs-monorepo-template/ui/components/select';
+  FileUpload,
+  FileUploadDropzone,
+  FileUploadItem,
+  FileUploadItemDelete,
+  FileUploadItemMetadata,
+  FileUploadItemPreview,
+  FileUploadList,
+  FileUploadTrigger,
+} from '@nestjs-monorepo-template/ui/components/file-upload';
+import { Input } from '@nestjs-monorepo-template/ui/components/input';
 import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
+import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import {
   Table,
   TableBody,
@@ -19,20 +31,21 @@ import {
   TableHeader,
   TableRow,
 } from '@nestjs-monorepo-template/ui/components/table';
-import { useEffect, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@nestjs-monorepo-template/ui/components/tabs';
+import { UploadIcon, XIcon } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { useFlag } from '@/features/settings/use-flag';
 import { useMe } from '@/lib/features';
 import { freshExportFile } from '@/features/transfer/api';
+import { isNumericColumn, isTemporalColumn } from './column-types';
 import {
   disposeDataset,
   loadLocalFile,
@@ -44,9 +57,40 @@ import {
   type QueryResult,
 } from './engine';
 import { takeAnalyticsFile } from './handoff';
+import { OptionSelect } from './option-select';
+import { display } from './display';
+import { ResultChart } from './result-chart';
 
 const MAX_ROWS = 100;
+const HISTOGRAM_BINS = 20;
+/** File types the explorer opens (the engine decides by the lower-cased extension). */
+const ACCEPTED_EXTENSIONS = /\.(csv|json|jsonl|ndjson|parquet)$/i;
+
+/** How long the value filter waits for the next keystroke before it queries. */
+const FILTER_DEBOUNCE_MS = 300;
 const FLAG = 'analytics.browser.enabled';
+
+type Mode = 'rows' | 'group' | 'histogram' | 'series';
+type Aggregate = NonNullable<DatasetQuery['aggregate']>['fn'];
+type Operator = DatasetFilter['operator'];
+type Unit = 'day' | 'week' | 'month';
+
+const OPERATORS: Operator[] = [
+  'contains',
+  'eq',
+  'neq',
+  'gt',
+  'gte',
+  'lt',
+  'lte',
+  'isNull',
+  'isNotNull',
+];
+const AGGREGATES: Aggregate[] = ['count', 'sum', 'avg', 'min', 'max'];
+const UNITS: Unit[] = ['day', 'week', 'month'];
+
+const isAbort = (error: unknown) =>
+  error instanceof DOMException && error.name === 'AbortError';
 
 export function AnalyticsPage(props: {
   transferId?: string;
@@ -59,21 +103,61 @@ export function AnalyticsPage(props: {
   const activeIdentity = useRef(identity);
   const [file, setFile] = useState<File>();
   const [dataset, setDataset] = useState<AnalyticsDataset>();
-  const [progress, setProgress] = useState<number>();
+  const [loading, setLoading] = useState(false);
+  // The last query that finished (or failed): a request that differs is running.
+  const [settled, setSettled] = useState('');
+  const [cancelled, setCancelled] = useState(false);
   const [error, setError] = useState(false);
+  const [mode, setMode] = useState<Mode>('rows');
   const [column, setColumn] = useState('');
-  const [operator, setOperator] =
-    useState<DatasetFilter['operator']>('contains');
+  const [operator, setOperator] = useState<Operator>('contains');
+  // The input shows what is typed; the query waits for the typing to pause.
   const [value, setValue] = useState('');
+  const [appliedValue, setAppliedValue] = useState('');
+  const applyValue = useDebouncedCallback(setAppliedValue, FILTER_DEBOUNCE_MS);
   const [sort, setSort] = useState('');
   const [groupBy, setGroupBy] = useState('');
-  const [offset, setOffset] = useState(0);
-  const [result, setResult] = useState<QueryResult>();
+  const [fn, setFn] = useState<Aggregate>('count');
+  const [measure, setMeasure] = useState('');
+  const [histogramColumn, setHistogramColumn] = useState('');
+  const [seriesColumn, setSeriesColumn] = useState('');
+  const [unit, setUnit] = useState<Unit>('day');
+  const [page, setPage] = useState({ key: '', offset: 0 });
+  const [result, setResult] = useState<{ mode: Mode } & QueryResult>();
   const [expectedColumns, setExpectedColumns] = useState<string[]>();
   const [openingExport, setOpeningExport] = useState(false);
   const current = useRef<AnalyticsDataset | undefined>(undefined);
   const loadGeneration = useRef(0);
   const staged = useRef(takeAnalyticsFile());
+
+  const numericColumns = useMemo(
+    () => dataset?.columns.filter((c) => isNumericColumn(c.type)) ?? [],
+    [dataset],
+  );
+  const temporalColumns = useMemo(
+    () => dataset?.columns.filter((c) => isTemporalColumn(c.type)) ?? [],
+    [dataset],
+  );
+
+  /** Forgets the dataset and everything chosen for it. */
+  const resetView = useCallback(() => {
+    setDataset(undefined);
+    setResult(undefined);
+    setMode('rows');
+    setColumn('');
+    setSort('');
+    setValue('');
+    setAppliedValue('');
+    // A keystroke still waiting would bring the old text back.
+    applyValue('');
+    setGroupBy('');
+    setMeasure('');
+    setFn('count');
+    setHistogramColumn('');
+    setSeriesColumn('');
+    setLoading(false);
+    setSettled('');
+  }, [applyValue]);
 
   const start = async (
     next?: File,
@@ -96,16 +180,13 @@ export function AnalyticsPage(props: {
       expectedIdentity !== activeIdentity.current
     )
       return;
-    setDataset(undefined);
-    setResult(undefined);
+    resetView();
     setError(false);
+    setCancelled(false);
     setFile(next);
-    setColumn('');
-    setSort('');
-    setGroupBy('');
-    setOffset(0);
-    setProgress(next ? 0 : undefined);
     if (!next) return;
+    // DuckDB reports no progress while it reads a file, so this is indeterminate.
+    setLoading(true);
     try {
       const loaded = await loadLocalFile(next);
       if (generation !== loadGeneration.current) {
@@ -113,12 +194,39 @@ export function AnalyticsPage(props: {
         return;
       }
       current.current = loaded;
+      // Useful starting choices: group by the first text column and sum the
+      // first number; chart the first number and the first date.
+      const numbers = loaded.columns.filter((c) => isNumericColumn(c.type));
+      const group = loaded.columns.find((c) => !isNumericColumn(c.type));
+      setGroupBy((group ?? loaded.columns[0])?.name ?? '');
+      const measured = numbers.find((c) => c.name !== group?.name);
+      setMeasure(measured?.name ?? '');
+      setFn(measured ? 'sum' : 'count');
+      setHistogramColumn(numbers[0]?.name ?? '');
+      setSeriesColumn(
+        loaded.columns.find((c) => isTemporalColumn(c.type))?.name ?? '',
+      );
       setDataset(loaded);
     } catch {
       if (generation === loadGeneration.current) setError(true);
     } finally {
-      if (generation === loadGeneration.current) setProgress(undefined);
+      if (generation === loadGeneration.current) setLoading(false);
     }
+  };
+
+  /**
+   * Stops a running load or query. DuckDB cannot interrupt a running statement in
+   * this build, so the session is closed, which ends its worker: the file has to
+   * be chosen again.
+   */
+  const cancel = () => {
+    loadGeneration.current += 1;
+    terminateAnalyticsEngine();
+    current.current = undefined;
+    resetView();
+    setFile(undefined);
+    setOpeningExport(false);
+    setCancelled(true);
   };
 
   const loadExport = async () => {
@@ -166,12 +274,10 @@ export function AnalyticsPage(props: {
       loadGeneration.current += 1;
       terminateAnalyticsEngine();
       current.current = undefined;
-      setDataset(undefined);
-      setResult(undefined);
+      resetView();
       setFile(undefined);
-      setProgress(undefined);
     }
-  }, [enabled]);
+  }, [enabled, resetView]);
 
   useEffect(() => {
     if (activeIdentity.current === identity) return;
@@ -179,11 +285,9 @@ export function AnalyticsPage(props: {
     loadGeneration.current += 1;
     terminateAnalyticsEngine();
     current.current = undefined;
-    setDataset(undefined);
-    setResult(undefined);
+    resetView();
     setFile(undefined);
-    setProgress(undefined);
-  }, [identity]);
+  }, [identity, resetView]);
 
   const stagedStarted = useRef(false);
   useEffect(() => {
@@ -201,58 +305,88 @@ export function AnalyticsPage(props: {
     void start(staged.current.file);
   }, [identity, pending, enabled, me?.user.id, me?.tenant?.id]);
 
-  useEffect(() => {
-    if (!dataset) return;
-    let alive = true;
-    const request: DatasetQuery = {
-      offset,
-      limit: MAX_ROWS,
-      ...(column && (value || operator === 'isNull' || operator === 'isNotNull')
-        ? { filters: [{ column, operator, value }] }
-        : {}),
-      ...(sort && (!groupBy || sort === groupBy)
-        ? { sort: { column: sort, direction: 'asc' as const } }
-        : {}),
-      ...(groupBy
-        ? {
-            groupBy,
-            aggregate: (() => {
-              const numericColumn = dataset.columns.find(
-                (item) => item.name !== groupBy && isNumericColumn(item.type),
-              )?.name;
-              return numericColumn
-                ? { column: numericColumn, fn: 'sum' as const }
-                : { fn: 'count' as const };
-            })(),
-          }
-        : {}),
-    };
-    void queryDataset(dataset, request)
-      .then((rows) => {
-        if (alive) setResult(rows);
-      })
-      .catch(() => {
-        if (alive) setError(true);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [dataset, column, operator, value, sort, groupBy, offset]);
+  const filters: DatasetFilter[] | undefined =
+    column &&
+    (appliedValue || operator === 'isNull' || operator === 'isNotNull')
+      ? [{ column, operator, value: appliedValue }]
+      : undefined;
+  const aggregate: DatasetQuery['aggregate'] =
+    fn === 'count' || !measure ? { fn: 'count' } : { column: measure, fn };
+  // The query for the current choices, or nothing while a mode lacks its column.
+  const shape: DatasetQuery | undefined =
+    mode === 'rows'
+      ? sort
+        ? { sort: { column: sort, direction: 'asc' } }
+        : {}
+      : mode === 'group'
+        ? groupBy
+          ? {
+              groupBy,
+              aggregate,
+              sort: { column: 'value', direction: 'desc' },
+            }
+          : undefined
+        : mode === 'histogram'
+          ? histogramColumn
+            ? { histogram: { column: histogramColumn, bins: HISTOGRAM_BINS } }
+            : undefined
+          : seriesColumn
+            ? {
+                timeSeries: { column: seriesColumn, unit },
+                ...(aggregate.fn === 'count' ? {} : { aggregate }),
+              }
+            : undefined;
+  // Everything but the page: another value here returns to the first page.
+  const queryKey = JSON.stringify({ mode, shape, filters });
+  const offset = page.key === queryKey ? page.offset : 0;
+  const request: DatasetQuery | undefined = shape && {
+    offset,
+    limit: MAX_ROWS,
+    ...(filters ? { filters } : {}),
+    ...shape,
+  };
+  const requestJson = JSON.stringify(request);
+  const requestId =
+    dataset && requestJson ? `${dataset.id}:${requestJson}` : '';
+  const running = requestId !== '' && settled !== requestId;
 
   useEffect(() => {
-    setOffset(0);
-  }, [column, operator, value, sort, groupBy]);
+    if (!dataset || !requestJson) return;
+    // A newer request aborts this one: the engine skips it if it has not
+    // started, and its answer is ignored if it has.
+    const controller = new AbortController();
+    queryDataset(dataset, JSON.parse(requestJson) as DatasetQuery, {
+      signal: controller.signal,
+    })
+      .then((rows) => {
+        if (controller.signal.aborted) return;
+        setResult({ mode, ...rows });
+        setError(false);
+        setSettled(`${dataset.id}:${requestJson}`);
+      })
+      .catch((reason: unknown) => {
+        if (controller.signal.aborted || isAbort(reason)) return;
+        setError(true);
+        setSettled(`${dataset.id}:${requestJson}`);
+      });
+    return () => controller.abort();
+  }, [dataset, requestJson, mode]);
 
   if (pending) return <Skeleton className="h-40 w-full" aria-busy />;
   if (!enabled) return null;
 
   const columns = dataset?.columns ?? [];
-  const chartData =
-    result?.rows.filter(
-      (row) =>
-        typeof row[groupBy] === 'string' || typeof row[groupBy] === 'number',
-    ) ?? [];
-  const valueColumn = result?.columns.find((name) => name !== groupBy);
+  const names = columns.map((c) => ({ value: c.name, label: c.name }));
+  const numberNames = numericColumns.map((c) => ({
+    value: c.name,
+    label: c.name,
+  }));
+  const busy = loading || running || openingExport;
+  const shown = result?.mode === mode ? result : undefined;
+  const valueLabel =
+    fn === 'count' || !measure
+      ? t('aggregates.count')
+      : `${t(`aggregates.${fn}`)} ${measure}`;
 
   return (
     <section className="flex max-w-5xl flex-col gap-5">
@@ -260,16 +394,59 @@ export function AnalyticsPage(props: {
         <h1 className="text-xl font-medium">{t('title')}</h1>
         <p className="text-sm text-muted-foreground">{t('description')}</p>
       </div>
-      <Field>
-        <FieldLabel htmlFor="analytics-file">{t('file')}</FieldLabel>
-        <input
-          id="analytics-file"
-          type="file"
-          accept=".csv,.json,.jsonl,.parquet"
-          onChange={(event) => void start(event.target.files?.[0])}
-          className="text-sm"
-        />
-      </Field>
+      <FileUpload
+        value={file ? [file] : []}
+        // Dice UI calls onValueChange twice for each file it adds, so loading
+        // happens in onAccept (once per pick) and onValueChange only handles
+        // the item's delete button, which leaves the list empty. No maxFiles: it
+        // would reject a replacement file; the new pick replaces the loaded one.
+        onAccept={(files) => void start(files.at(-1))}
+        onValueChange={(next) => {
+          if (next.length === 0) void start(undefined);
+        }}
+        // Dice UI's own `accept` is case-sensitive ("REPORT.CSV" would fail); the
+        // engine lower-cases the extension too.
+        onFileValidate={(picked) =>
+          ACCEPTED_EXTENSIONS.test(picked.name) ? null : t('unsupportedType')
+        }
+        label={t('file')}
+        onFileReject={(rejected, message) =>
+          toast.error(t('rejected', { name: rejected.name, reason: message }))
+        }
+      >
+        <FileUploadDropzone>
+          <div className="flex flex-col items-center gap-1 text-center">
+            <UploadIcon className="size-6 text-muted-foreground" />
+            <p className="text-sm font-medium">{t('drop')}</p>
+            <p className="text-xs text-muted-foreground">{t('formats')}</p>
+          </div>
+          <FileUploadTrigger
+            render={<Button variant="outline" size="sm" type="button" />}
+          >
+            {t('choose')}
+          </FileUploadTrigger>
+        </FileUploadDropzone>
+        <FileUploadList>
+          {file && (
+            <FileUploadItem value={file}>
+              <FileUploadItemPreview />
+              <FileUploadItemMetadata />
+              <FileUploadItemDelete
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    type="button"
+                    aria-label={t('closeFile')}
+                  />
+                }
+              >
+                <XIcon />
+              </FileUploadItemDelete>
+            </FileUploadItem>
+          )}
+        </FileUploadList>
+      </FileUpload>
       {props.transferId && !file && (
         <Button
           variant="outline"
@@ -280,9 +457,24 @@ export function AnalyticsPage(props: {
         </Button>
       )}
       <p className="text-xs text-muted-foreground">{t('privacy')}</p>
-      {progress !== undefined && (
+      {busy && (
+        <div className="flex items-center gap-3">
+          <Spinner aria-hidden role="presentation" />
+          <p role="status" className="text-sm text-muted-foreground">
+            {loading
+              ? t('loading')
+              : openingExport
+                ? t('openingExport')
+                : t('running')}
+          </p>
+          <Button variant="outline" size="sm" onClick={cancel}>
+            {t('cancel')}
+          </Button>
+        </div>
+      )}
+      {cancelled && (
         <p role="status" className="text-sm text-muted-foreground">
-          {t('loading', { percent: Math.round(progress) })}
+          {t('cancelled')}
         </p>
       )}
       {error && (
@@ -317,64 +509,6 @@ export function AnalyticsPage(props: {
               })}
             </p>
           )}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <FilterSelect
-              label={t('filterColumn')}
-              value={column}
-              onValueChange={setColumn}
-              options={columns.map((item) => item.name)}
-              empty={t('allColumns')}
-            />
-            <Field>
-              <FieldLabel htmlFor="analytics-operator">
-                {t('operator')}
-              </FieldLabel>
-              <select
-                id="analytics-operator"
-                value={operator}
-                onChange={(event) =>
-                  setOperator(event.target.value as typeof operator)
-                }
-                className="h-9 rounded-md border bg-background px-2 text-sm"
-              >
-                <option value="contains">{t('operators.contains')}</option>
-                <option value="eq">{t('operators.eq')}</option>
-                <option value="neq">{t('operators.neq')}</option>
-                <option value="gt">{t('operators.gt')}</option>
-                <option value="gte">{t('operators.gte')}</option>
-                <option value="lt">{t('operators.lt')}</option>
-                <option value="lte">{t('operators.lte')}</option>
-                <option value="isNull">{t('operators.isNull')}</option>
-                <option value="isNotNull">{t('operators.isNotNull')}</option>
-              </select>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="analytics-value">{t('value')}</FieldLabel>
-              <input
-                id="analytics-value"
-                value={value}
-                onChange={(event) => setValue(event.target.value)}
-                className="h-9 rounded-md border bg-background px-2 text-sm"
-              />
-            </Field>
-            <FilterSelect
-              label={t('sort')}
-              value={sort}
-              onValueChange={setSort}
-              options={groupBy ? [groupBy] : columns.map((item) => item.name)}
-              empty={t('noSort')}
-            />
-            <FilterSelect
-              label={t('groupBy')}
-              value={groupBy}
-              onValueChange={(next) => {
-                setGroupBy(next);
-                if (next && sort && sort !== next) setSort('');
-              }}
-              options={columns.map((item) => item.name)}
-              empty={t('noGroup')}
-            />
-          </div>
           <div className="overflow-hidden rounded-md border">
             <Table aria-label={t('profile')}>
               <TableHeader>
@@ -403,35 +537,156 @@ export function AnalyticsPage(props: {
               </TableBody>
             </Table>
           </div>
-          {groupBy && valueColumn && chartData.length > 0 && (
-            <div
-              className="h-64 w-full rounded-md border p-3"
-              aria-label={t('chart')}
-            >
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey={groupBy} />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey={valueColumn} fill="var(--chart-1)" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('explore')}</CardTitle>
+              <CardDescription>{t('filterHint')}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <OptionSelect
+                  id="analytics-filter-column"
+                  label={t('filterColumn')}
+                  value={column}
+                  onValueChange={setColumn}
+                  options={names}
+                  empty={t('allColumns')}
+                />
+                <OptionSelect
+                  id="analytics-operator"
+                  label={t('operator')}
+                  value={operator}
+                  onValueChange={(next) => setOperator(next as Operator)}
+                  options={OPERATORS.map((item) => ({
+                    value: item,
+                    label: t(`operators.${item}`),
+                  }))}
+                />
+                <Field>
+                  <FieldLabel htmlFor="analytics-value">
+                    {t('value')}
+                  </FieldLabel>
+                  <Input
+                    id="analytics-value"
+                    value={value}
+                    onChange={(event) => {
+                      setValue(event.target.value);
+                      applyValue(event.target.value);
+                    }}
+                  />
+                </Field>
+              </div>
+              <Tabs
+                value={mode}
+                onValueChange={(next) => setMode(next as Mode)}
+              >
+                <TabsList>
+                  <TabsTrigger value="rows">{t('modes.rows')}</TabsTrigger>
+                  <TabsTrigger value="group">{t('modes.group')}</TabsTrigger>
+                  <TabsTrigger
+                    value="histogram"
+                    disabled={numericColumns.length === 0}
+                  >
+                    {t('modes.histogram')}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="series"
+                    disabled={temporalColumns.length === 0}
+                  >
+                    {t('modes.series')}
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="rows" className="pt-3">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <OptionSelect
+                      id="analytics-sort"
+                      label={t('sort')}
+                      value={sort}
+                      onValueChange={setSort}
+                      options={names}
+                      empty={t('noSort')}
+                    />
+                  </div>
+                </TabsContent>
+                <TabsContent value="group" className="pt-3">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <OptionSelect
+                      id="analytics-group-by"
+                      label={t('groupBy')}
+                      value={groupBy}
+                      onValueChange={setGroupBy}
+                      options={names}
+                    />
+                    <AggregateControls
+                      fn={fn}
+                      measure={measure}
+                      onFn={setFn}
+                      onMeasure={setMeasure}
+                      numbers={numberNames}
+                    />
+                  </div>
+                </TabsContent>
+                <TabsContent value="histogram" className="pt-3">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <OptionSelect
+                      id="analytics-histogram-column"
+                      label={t('histogramColumn')}
+                      value={histogramColumn}
+                      onValueChange={setHistogramColumn}
+                      options={numberNames}
+                    />
+                  </div>
+                </TabsContent>
+                <TabsContent value="series" className="pt-3">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <OptionSelect
+                      id="analytics-series-column"
+                      label={t('seriesColumn')}
+                      value={seriesColumn}
+                      onValueChange={setSeriesColumn}
+                      options={temporalColumns.map((c) => ({
+                        value: c.name,
+                        label: c.name,
+                      }))}
+                    />
+                    <OptionSelect
+                      id="analytics-unit"
+                      label={t('unit')}
+                      value={unit}
+                      onValueChange={(next) => setUnit(next as Unit)}
+                      options={UNITS.map((item) => ({
+                        value: item,
+                        label: t(`units.${item}`),
+                      }))}
+                    />
+                    <AggregateControls
+                      fn={fn}
+                      measure={measure}
+                      onFn={setFn}
+                      onMeasure={setMeasure}
+                      numbers={numberNames}
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+          {shown && mode !== 'rows' && (
+            <ResultChart kind={mode} result={shown} valueLabel={valueLabel} />
           )}
-          <div className="overflow-auto rounded-md border">
+          <div className="overflow-auto rounded-md border" aria-busy={running}>
             <Table aria-label={t('results')}>
               <TableHeader>
                 <TableRow>
-                  {(result?.columns ?? []).map((name) => (
+                  {(shown?.columns ?? []).map((name) => (
                     <TableHead key={name}>{name}</TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(result?.rows ?? []).map((row, index) => (
+                {(shown?.rows ?? []).map((row, index) => (
                   <TableRow key={index}>
-                    {(result?.columns ?? []).map((name) => (
+                    {(shown?.columns ?? []).map((name) => (
                       <TableCell key={name}>{display(row[name])}</TableCell>
                     ))}
                   </TableRow>
@@ -441,8 +696,8 @@ export function AnalyticsPage(props: {
           </div>
           <p className="text-xs text-muted-foreground">
             {t('shown', {
-              shown: result?.rows.length ?? 0,
-              total: result?.totalRows ?? 0,
+              shown: shown?.rows.length ?? 0,
+              total: shown?.totalRows ?? 0,
               max: MAX_ROWS,
             })}
           </p>
@@ -450,72 +705,60 @@ export function AnalyticsPage(props: {
             <Button
               variant="outline"
               disabled={offset === 0}
-              onClick={() => setOffset(Math.max(0, offset - MAX_ROWS))}
+              onClick={() =>
+                setPage({
+                  key: queryKey,
+                  offset: Math.max(0, offset - MAX_ROWS),
+                })
+              }
             >
               {t('previous')}
             </Button>
             <Button
               variant="outline"
-              disabled={offset + MAX_ROWS >= (result?.totalRows ?? 0)}
-              onClick={() => setOffset(offset + MAX_ROWS)}
+              disabled={offset + MAX_ROWS >= (shown?.totalRows ?? 0)}
+              onClick={() =>
+                setPage({ key: queryKey, offset: offset + MAX_ROWS })
+              }
             >
               {t('next')}
             </Button>
           </div>
-          <Button variant="outline" onClick={() => void start()}>
-            {t('closeFile')}
-          </Button>
         </>
       )}
     </section>
   );
 }
 
-function FilterSelect(props: {
-  label: string;
-  value: string;
-  onValueChange: (value: string) => void;
-  options: string[];
-  empty: string;
+/** The aggregate function and the number it measures (count needs none). */
+function AggregateControls(props: {
+  fn: Aggregate;
+  measure: string;
+  onFn: (fn: Aggregate) => void;
+  onMeasure: (column: string) => void;
+  numbers: { value: string; label: string }[];
 }) {
+  const { t } = useTranslation('analytics');
+  const noNumbers = props.numbers.length === 0;
   return (
-    <Field>
-      <FieldLabel>{props.label}</FieldLabel>
-      <Select
-        value={props.value || '__none'}
-        onValueChange={(value) =>
-          props.onValueChange(value === '__none' ? '' : (value ?? ''))
-        }
-      >
-        <SelectTrigger className="w-full">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__none">{props.empty}</SelectItem>
-          {props.options.map((value) => (
-            <SelectItem key={value} value={value}>
-              {value}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </Field>
-  );
-}
-
-function display(value: unknown) {
-  if (value === null || value === undefined) return '—';
-  return typeof value === 'object'
-    ? JSON.stringify(value, (_, child: unknown) => {
-        if (typeof child === 'bigint') return child.toString();
-        if (child instanceof Map) return Array.from(child);
-        return child;
-      })
-    : String(value);
-}
-
-function isNumericColumn(type: string) {
-  return /^(?:U?TINYINT|U?SMALLINT|U?INTEGER|U?BIGINT|HUGEINT|FLOAT|DOUBLE|DECIMAL)(?:\b|\()/i.test(
-    type.trim(),
+    <>
+      <OptionSelect
+        id="analytics-aggregate"
+        label={t('aggregate')}
+        value={props.fn}
+        onValueChange={(next) => props.onFn(next as Aggregate)}
+        options={AGGREGATES.filter(
+          (item) => item === 'count' || !noNumbers,
+        ).map((item) => ({ value: item, label: t(`aggregates.${item}`) }))}
+      />
+      <OptionSelect
+        id="analytics-measure"
+        label={t('measure')}
+        value={props.measure}
+        onValueChange={props.onMeasure}
+        options={props.numbers}
+        disabled={props.fn === 'count' || noNumbers}
+      />
+    </>
   );
 }

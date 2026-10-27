@@ -15,8 +15,8 @@ guesses, decide the layout. The audit behind it: issue
   checks run as steps of a job that has already installed the workspace:
   `check` runs the API's and the packages' unit tests, the OpenAPI diff, the
   bundle budget, Storybook and the notes-removal guard. `e2e-web` runs the
-  Chromium analytics smoke and the instrumented e2e sixth. `image` runs the
-  hardened stack. `stack-config` runs the Compose and Swarm renders.
+  Chromium browser tests (the Data Explorer's spec among them) and the
+  instrumented e2e sixth. `image` runs the hardened stack. `stack-config` runs the Compose and Swarm renders.
 - **No artifact between jobs that could share a runner:** `image` used to
   hand its tarball to `hardened-stack`, and the download alone took up to
   110 s. An image is exported only when the run publishes it.
@@ -35,8 +35,10 @@ guesses, decide the layout. The audit behind it: issue
 - **Comprehensive where it costs no pull request:** the nightly run (and
   tags, manual runs and changes that classify as `full`) adds
   `template-without-notes` (six shards) and the images. `web.yml` adds the
-  analytics smoke in Firefox and WebKit (nightly, `main`, and pull requests
-  that touch the analytics engine) and Lighthouse.
+  Data Explorer's browser spec in Firefox and WebKit (nightly, `main`, and
+  pull requests that touch the analytics engine, its build config, the
+  Caddyfile or the spec; PostgreSQL and Redis from `compose.yaml`, the API and
+  web builds from Turborepo's cache) and Lighthouse.
 - **Flaky is a bug, not a retry:** Playwright's one CI retry stays, but a
   retried attempt's trace is uploaded (`playwright-report`), so a flake
   leaves evidence (one such trace explained a flake of

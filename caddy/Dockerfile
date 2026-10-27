@@ -6,7 +6,7 @@
 # The web app, built as apps/api/Dockerfile builds the API: the official pnpm
 # image, the store in an image layer (#480), the workspace's packages the
 # app needs (the typed client, the shared UI).
-FROM ghcr.io/pnpm/pnpm:12.15.0 AS web
+FROM ghcr.io/pnpm/pnpm:12.16.0 AS web
 WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN CI=true pnpm fetch --store-dir /pnpm-store

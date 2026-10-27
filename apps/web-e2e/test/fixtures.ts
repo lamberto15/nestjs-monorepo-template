@@ -14,7 +14,7 @@ export const test = base.extend<{
   expectAccessible: (page: Page, name: string) => Promise<void>;
 }>({
   // Every page of the test's context runs under production's policy (`vite
-  // preview` sends caddy/Caddyfile's headers, apps/web/production-headers.ts):
+  // preview` sends caddy/Caddyfile's headers, apps/web/preview-headers.ts):
   // a `securitypolicyviolation` in any of them fails the test, with what was
   // refused. A document's only: a worker's own violations don't reach it.
   context: async ({ context }, use) => {

@@ -72,7 +72,7 @@ Filling `.env` (each step is commented in `env.example`):
   `frame-src`, `connect-src`, `font-src`, `img-src`), taken from the provider's CSP page; no
   inline `<script>`, no `eval`. The e2e suite (`apps/web-e2e`) already checks a change: it
   runs the built app under this exact header set (`vite preview`,
-  `apps/web/production-headers.ts`) and fails on any `securitypolicyviolation`
+  `apps/web/preview-headers.ts`) and fails on any `securitypolicyviolation`
   ([browser tests](development.md#browser-tests)); `caddy/caddyfile.test.mjs` pins the
   full header set against a real Caddy binary, on the app shell, an asset and the
   maintenance page, and that the Helm chart's web ConfigMap matches the Caddyfile line

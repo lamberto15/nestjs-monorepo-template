@@ -24,9 +24,9 @@
     "vitest.config.ts",
     "pwa-assets.config.ts",
     "dev-proxy.ts",
+    "preview-headers.ts",
+    "preview-headers.test.ts",
     "pwa-paths.ts",
-    "pwa-paths.test.ts",
-    "production-headers.ts",
-    "production-headers.test.ts"
+    "pwa-paths.test.ts"
   ]
 }
