@@ -523,22 +523,29 @@
     {
       "idx": 74,
       "version": "7",
-      "when": 1793140730550,
+      "when": 1793141465680,
       "tag": "0074_org_units_rename",
       "breakpoints": true
     },
     {
       "idx": 75,
       "version": "7",
-      "when": 1793140749177,
+      "when": 1793141480039,
       "tag": "0075_org_units_key",
       "breakpoints": true
     },
     {
       "idx": 76,
       "version": "7",
-      "when": 1793140750154,
+      "when": 1793141482059,
       "tag": "0076_org_units_foreign_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1793141484188,
+      "tag": "0077_remove_tenant_tree",
       "breakpoints": true
     }
   ]

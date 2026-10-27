@@ -6,11 +6,8 @@ ALTER TABLE "organizational_unit_memberships" RENAME COLUMN "team_id" TO "unit_i
 ALTER TABLE "scim_groups" RENAME COLUMN "team_id" TO "unit_id";--> statement-breakpoint
 ALTER TABLE "saved_views" RENAME COLUMN "team_id" TO "unit_id";--> statement-breakpoint
 ALTER TABLE "notes" RENAME COLUMN "team_id" TO "unit_id";--> statement-breakpoint
-ALTER TABLE "tenants" DROP CONSTRAINT "tenants_parent_not_self";--> statement-breakpoint
 ALTER TABLE "saved_views" DROP CONSTRAINT "saved_views_team_check";--> statement-breakpoint
 ALTER TABLE "saved_views" DROP CONSTRAINT "saved_views_visibility_check";--> statement-breakpoint
-ALTER TABLE "tenants" DROP CONSTRAINT "tenants_parent_id_tenants_id_fk";
---> statement-breakpoint
 ALTER TABLE "organizational_unit_closure" DROP CONSTRAINT "team_tree_tenant_id_tenants_id_fk";
 --> statement-breakpoint
 ALTER TABLE "organizational_unit_closure" DROP CONSTRAINT "team_tree_ancestor_fk";
@@ -33,7 +30,6 @@ ALTER TABLE "saved_views" DROP CONSTRAINT "saved_views_team_fk";
 --> statement-breakpoint
 ALTER TABLE "notes" DROP CONSTRAINT "notes_team_fk";
 --> statement-breakpoint
-DROP INDEX "tenants_parent_id_idx";--> statement-breakpoint
 DROP INDEX "team_tree_descendant_idx";--> statement-breakpoint
 DROP INDEX "teams_parent_id_idx";--> statement-breakpoint
 DROP INDEX "user_teams_team_id_idx";--> statement-breakpoint
@@ -63,7 +59,6 @@ CREATE INDEX "organizational_unit_memberships_user_idx" ON "organizational_unit_
 CREATE INDEX "organizational_unit_memberships_unit_idx" ON "organizational_unit_memberships" USING btree ("unit_id");--> statement-breakpoint
 CREATE INDEX "saved_views_unit_idx" ON "saved_views" USING btree ("unit_id");--> statement-breakpoint
 CREATE INDEX "notes_tenant_unit_id_idx" ON "notes" USING btree ("tenant_id","unit_id");--> statement-breakpoint
-ALTER TABLE "tenants" DROP COLUMN "parent_id";--> statement-breakpoint
 ALTER TABLE "organizational_units" ADD CONSTRAINT "organizational_units_type_check" CHECK ("organizational_units"."type" in ('division', 'department', 'team'));--> statement-breakpoint
 ALTER TABLE "organizational_unit_memberships" ADD CONSTRAINT "organizational_unit_memberships_role_check" CHECK ("organizational_unit_memberships"."role" in ('member', 'lead'));--> statement-breakpoint
 ALTER TABLE "organizational_unit_memberships" ADD CONSTRAINT "organizational_unit_memberships_period_check" CHECK ("organizational_unit_memberships"."valid_to" is null or "organizational_unit_memberships"."valid_to" > "organizational_unit_memberships"."valid_from");--> statement-breakpoint
@@ -137,6 +132,4 @@ ALTER POLICY "approval_events_tenant_select" ON "approval_events" TO public USIN
 ALTER POLICY "approval_policies_tenant_select" ON "approval_policies" TO public USING (("approval_policies"."tenant_id" = (select nullif(current_setting('app.tenant_id', true), '')::uuid)));--> statement-breakpoint
 ALTER POLICY "approval_requests_tenant_select" ON "approval_requests" TO public USING (("approval_requests"."tenant_id" = (select nullif(current_setting('app.tenant_id', true), '')::uuid)));--> statement-breakpoint
 ALTER POLICY "incoming_webhook_senders_tenant_select" ON "incoming_webhook_senders" TO public USING (("incoming_webhook_senders"."tenant_id" = (select nullif(current_setting('app.tenant_id', true), '')::uuid)));--> statement-breakpoint
-ALTER POLICY "notes_tenant_select" ON "notes" TO public USING (("notes"."tenant_id" = (select nullif(current_setting('app.tenant_id', true), '')::uuid)));--> statement-breakpoint
-ALTER TABLE "tenant_closure" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
-DROP TABLE "tenant_closure" CASCADE;
+ALTER POLICY "notes_tenant_select" ON "notes" TO public USING (("notes"."tenant_id" = (select nullif(current_setting('app.tenant_id', true), '')::uuid)));

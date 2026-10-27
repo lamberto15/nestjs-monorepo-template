@@ -1,6 +1,6 @@
 {
-  "id": "fb1aae15-3ead-4eaf-a99c-26a4f4f6765f",
-  "prevId": "ac890395-9c1e-4e03-a0aa-be88b014e075",
+  "id": "0bc979ff-116a-4acf-b09d-23e017f6bc08",
+  "prevId": "5604b3da-8f4e-4e32-b07d-904fd6a69002",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -64,6 +64,97 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.tenant_closure": {
+      "name": "tenant_closure",
+      "schema": "",
+      "columns": {
+        "ancestor_id": {
+          "name": "ancestor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descendant_id": {
+          "name": "descendant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "depth": {
+          "name": "depth",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "tenant_closure_descendant_idx": {
+          "name": "tenant_closure_descendant_idx",
+          "columns": [
+            {
+              "expression": "descendant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "tenant_closure_ancestor_id_tenants_id_fk": {
+          "name": "tenant_closure_ancestor_id_tenants_id_fk",
+          "tableFrom": "tenant_closure",
+          "tableTo": "tenants",
+          "columnsFrom": [
+            "ancestor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "tenant_closure_descendant_id_tenants_id_fk": {
+          "name": "tenant_closure_descendant_id_tenants_id_fk",
+          "tableFrom": "tenant_closure",
+          "tableTo": "tenants",
+          "columnsFrom": [
+            "descendant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "tenant_closure_ancestor_id_descendant_id_pk": {
+          "name": "tenant_closure_ancestor_id_descendant_id_pk",
+          "columns": [
+            "ancestor_id",
+            "descendant_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "tenant_closure_depth": {
+          "name": "tenant_closure_depth",
+          "value": "\"tenant_closure\".\"depth\" >= 1"
+        },
+        "tenant_closure_not_self": {
+          "name": "tenant_closure_not_self",
+          "value": "\"tenant_closure\".\"ancestor_id\" <> \"tenant_closure\".\"descendant_id\""
+        }
+      },
       "isRLSEnabled": false
     },
     "public.tenants": {
@@ -134,6 +225,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "quotas": {
           "name": "quotas",
           "type": "jsonb",
@@ -156,8 +253,38 @@
           "default": "now()"
         }
       },
-      "indexes": {},
-      "foreignKeys": {},
+      "indexes": {
+        "tenants_parent_id_idx": {
+          "name": "tenants_parent_id_idx",
+          "columns": [
+            {
+              "expression": "parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "tenants_parent_id_tenants_id_fk": {
+          "name": "tenants_parent_id_tenants_id_fk",
+          "tableFrom": "tenants",
+          "tableTo": "tenants",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "tenants_slug_unique": {
@@ -169,7 +296,12 @@
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "tenants_parent_not_self": {
+          "name": "tenants_parent_not_self",
+          "value": "\"tenants\".\"parent_id\" <> \"tenants\".\"id\""
+        }
+      },
       "isRLSEnabled": false
     },
     "public.api_client_roles": {
