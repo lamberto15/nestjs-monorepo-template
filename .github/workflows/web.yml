@@ -110,7 +110,8 @@ jobs:
             # A capped attempt can leave its apt-get (run under sudo) behind.
             sudo pkill -x apt-get || true
             sudo dpkg --configure -a || true
-            sudo sed -i 's#http://azure.archive.ubuntu.com/#http://archive.ubuntu.com/#g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>&1 || true
+            # Only the host changes; apt verifies the archive's signatures either way.
+            sudo sed -i 's#azure\.archive\.ubuntu\.com#archive.ubuntu.com#g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>&1 || true
           done
           if [ "${{ steps.browsers.outputs.cache-hit }}" != true ]; then
             pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright install ${{ matrix.browser }}
