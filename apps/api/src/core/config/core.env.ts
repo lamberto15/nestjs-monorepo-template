@@ -235,8 +235,6 @@ export const coreEnv = z.object({
     .default(50 * 1024 * 1024),
   /** Data import row ceiling; settings may only lower it. */
   IMPORT_MAX_ROWS: z.coerce.number().int().positive().default(1_000_000),
-  /** Disk-backed scratch directory for staged and expanded data imports. */
-  IMPORT_TEMP_DIR: pathWithDefault('.data/import-scratch'),
   /**
    * Seal sorted lists' cursors (`nextCursor`, core/http/cursor-seal.ts): keys
    * newest first, comma-separated. Unset: created once, kept in the database.

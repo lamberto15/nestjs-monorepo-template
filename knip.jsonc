@@ -19,8 +19,7 @@
       // depend on it.
       // lefthook is executed by its install lifecycle and git hooks
       // (lefthook.yml / pnpm-workspace.yaml), not imported by application code.
-      // The isolated import benchmark uses the API's ExcelJS installation.
-      "ignoreDependencies": ["k6", "web-push", "lefthook", "exceljs"],
+      "ignoreDependencies": ["k6", "web-push", "lefthook"],
       // ci-validate installs the checksum-pinned Helm binary for release renders.
       "ignoreBinaries": ["helm"],
     },
