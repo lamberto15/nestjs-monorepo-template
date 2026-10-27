@@ -78,8 +78,14 @@ export function ImportPage(props: { name?: string }) {
     }) => startImport(input, setPercent),
     onMutate: () => setPercent(0),
     onSettled: () => setPercent(undefined),
-    onSuccess: (started) => {
+    onSuccess: (started, input) => {
       setJobId(started.id);
+      // A dry run keeps the file: the real import of it usually follows.
+      if (!input.dryRun) {
+        setFiles([]);
+        setFileHeaders([]);
+        setMatchOn('');
+      }
     },
   });
 

@@ -356,6 +356,78 @@ describe('attachments (e2e)', () => {
     expect(await disk.exists(row!.key)).toBe(false);
   });
 
+  it('the sweep leaves attachments of existing records, binned ones included, and removes those of a record deleted outright', async () => {
+    const editor = await node.user(['editor']);
+    const disk = node.app.get(StorageDisk);
+    const attach = async () => {
+      const item = (
+        await node
+          .writeItem(editor.agent, { title: 'With files', body: 'x' })
+          .expect(201)
+      ).body as { id: string };
+      const added = (
+        await editor.agent
+          .post(`/v1/test-items/${item.id}/attachments`)
+          .attach('file', PNG, {
+            filename: 'dot.png',
+            contentType: 'image/png',
+          })
+          .expect(201)
+      ).body as { id: string };
+      const [row] = await db
+        .select()
+        .from(attachments)
+        .where(eq(attachments.id, added.id));
+      return { item, row: row! };
+    };
+    const kept = await attach();
+    const binned = await attach();
+    const gone = await attach();
+    await editor.agent.delete(`/v1/test-items/${binned.item.id}`).expect(204);
+    await db.delete(testItems).where(eq(testItems.id, gone.item.id));
+
+    expect(await node.app.get(AttachmentSweepJob).run()).toBe(1);
+
+    expect(await disk.exists(kept.row.key)).toBe(true);
+    expect(await disk.exists(binned.row.key)).toBe(true);
+    expect(await disk.exists(gone.row.key)).toBe(false);
+    const left = await db
+      .select({ id: attachments.id })
+      .from(attachments)
+      .where(
+        inArray(attachments.id, [kept.row.id, binned.row.id, gone.row.id]),
+      );
+    expect(left).toHaveLength(2);
+    expect(left.map((row) => row.id)).toEqual(
+      expect.arrayContaining([kept.row.id, binned.row.id]),
+    );
+    const swept = (
+      await db
+        .select()
+        .from(auditLog)
+        .where(eq(auditLog.action, 'attachments.swept'))
+    ).filter((entry) => JSON.stringify(entry.details).includes(gone.row.id));
+    expect(swept).toHaveLength(1);
+  });
+
+  it('the sweep returns 0 and writes no audit entry when nothing is orphaned', async () => {
+    const { editor, note } = await noteOfEditor();
+    await editor.agent
+      .post(`/v1/test-items/${note.id}/attachments`)
+      .attach('file', PNG, { filename: 'dot.png', contentType: 'image/png' })
+      .expect(201);
+    const before = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.action, 'attachments.swept'));
+    expect(await node.app.get(AttachmentSweepJob).run()).toBe(0);
+    const after = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.action, 'attachments.swept'));
+    expect(after).toHaveLength(before.length);
+  });
+
   it('answers 503 documents_unavailable for a PDF while GOTENBERG_URL is unset', async () => {
     const { editor, note } = await noteOfEditor();
     const refused = await editor.agent
