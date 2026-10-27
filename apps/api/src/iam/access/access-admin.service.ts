@@ -45,19 +45,24 @@ import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import {
   apiClientRoles,
   memberships,
+  organizationalUnitMemberships,
   rolePermissions,
   roles,
-  userTeams,
+  type UnitRole,
   userRoles,
   users,
 } from '../iam.tables.js';
 import { ApiClientLifecycleRegistry } from './api-client-lifecycle.registry.js';
 import { ApiClientsService } from './api-clients.service.js';
 import { InvitationsService } from './invitations.service.js';
-import { TeamsService } from './teams.service.js';
+import { OrganizationalUnitsService } from './organizational-units.service.js';
 import { AccessService } from './access.service.js';
 import { PermissionCatalog } from './permission-catalog.js';
-import { isAll, type PermissionInput } from './permissions.js';
+import {
+  currentMembership,
+  isAll,
+  type PermissionInput,
+} from './permissions.js';
 
 export interface RoleInput {
   name: string;
@@ -72,8 +77,8 @@ export interface UserInput {
   roleIds: string[];
   /** When grants end, by role id (temporary access); the others never do. */
   roleExpiresAt?: Record<string, string>;
-  /** The teams the user belongs to. */
-  teamIds?: string[];
+  /** The organizational units the user belongs to (as a member). */
+  unitIds?: string[];
 }
 
 /** What an administrator changes of a membership: never the account (its name, its password). */
@@ -81,7 +86,7 @@ export interface UserChanges {
   active?: boolean;
   roleIds?: string[];
   roleExpiresAt?: Record<string, string>;
-  teamIds?: string[];
+  unitIds?: string[];
 }
 
 export interface ClientInput {
@@ -141,7 +146,7 @@ export class AccessAdminService {
     private readonly signInService: SignInService,
     private readonly passwordReset: PasswordResetService,
     private readonly clients: ApiClientsService,
-    private readonly teams: TeamsService,
+    private readonly units: OrganizationalUnitsService,
     private readonly breachedPasswords: BreachedPasswordsService,
     private readonly lifecycle: UserLifecycleRegistry,
     private readonly tenancy: Tenancy,
@@ -346,12 +351,12 @@ export class AccessAdminService {
     return (await this.withGrants([member]))[0]!;
   }
 
-  /** Members with their role grants still running and their teams. */
+  /** Members with their role grants still running and their current units. */
   private async withGrants<T extends { id: string; tenantId?: unknown }>(
     items: T[],
   ) {
     const ids = items.map((user) => user.id);
-    const [assignments, memberships] = ids.length
+    const [assignments, unitMemberships] = ids.length
       ? await Promise.all([
           // An ended grant is gone: never reported, so never echoed back (#114).
           this.db
@@ -359,9 +364,17 @@ export class AccessAdminService {
             .from(userRoles)
             .where(and(inArray(userRoles.userId, ids), liveGrant(userRoles))),
           this.db
-            .select()
-            .from(userTeams)
-            .where(inArray(userTeams.userId, ids)),
+            .selectDistinct({
+              userId: organizationalUnitMemberships.userId,
+              unitId: organizationalUnitMemberships.unitId,
+            })
+            .from(organizationalUnitMemberships)
+            .where(
+              and(
+                inArray(organizationalUnitMemberships.userId, ids),
+                currentMembership(),
+              ),
+            ),
         ])
       : [[], []];
     // A view's `tenantId` (the principal's, always null here) says nothing in a tenant's list.
@@ -373,22 +386,22 @@ export class AccessAdminService {
       roles: assignments
         .filter((assignment) => assignment.userId === user.id)
         .map(({ roleId, expiresAt }) => ({ roleId, expiresAt })),
-      teamIds: memberships
+      unitIds: unitMemberships
         .filter((membership) => membership.userId === user.id)
-        .map((membership) => membership.teamId),
+        .map((membership) => membership.unitId),
     }));
   }
 
   /**
    * Invites someone to the tenant (docs/tenancy.md, "Invitations"): the
-   * address gets a link; the membership, with these roles and teams, comes
+   * address gets a link; the membership, with these roles and units, comes
    * when its owner accepts. Nothing about an account is read, changed or
    * returned here, so the answer is the same whether or not the address
    * has one, and no administrator sets anyone's password.
    */
   async createUser(actor: UserPrincipal, input: UserInput, ip?: string) {
     await this.checkRoleGrant(actor, input.roleIds);
-    await this.teams.assertExist(input.teamIds ?? []);
+    await this.units.assertExist(input.unitIds ?? []);
     this.checkExpiries(input.roleIds, input.roleExpiresAt);
     const { invitation, token } = await inTransaction(
       this.txHost,
@@ -425,7 +438,7 @@ export class AccessAdminService {
   /**
    * Sends a pending invitation again (expired or not): a new link (the old
    * one stops working: only its hash was kept), a new expiry, the same
-   * roles, their ends and teams. Resending hands out the roles again, so
+   * roles, their ends and units. Resending hands out the roles again, so
    * the grant rule holds as when inviting: the resender must be able to
    * grant every role it carries (one deleted since is left out, as the
    * acceptance does).
@@ -483,7 +496,7 @@ export class AccessAdminService {
    * by a request: the demo seed's users (src/demo). The same way as the
    * first start's administrator (AccessSeeder): a verified account (the
    * job made the address up, nobody has to prove it), its membership in
-   * the current tenant, its roles and teams, and `user.seeded` with the
+   * the current tenant, its roles and units, and `user.seeded` with the
    * job as the actor, in the caller's transaction. The grant rule holds
    * (the job must hold what the roles give; it never holds `all.manage`),
    * and the password passes the breach check. Refused for anything but a
@@ -497,16 +510,18 @@ export class AccessAdminService {
       name: string;
       password: string;
       roleIds: string[];
-      teamIds?: string[];
+      unitIds?: string[];
+      /** Those of `unitIds` they lead. */
+      ledUnitIds?: string[];
     },
   ) {
     if (!isSystemPrincipal(actor)) {
       throw new Error('seedUser() is for system jobs only.');
     }
     await this.checkRoleGrant(actor, input.roleIds);
-    const teams = input.teamIds ?? [];
-    if ((await this.teams.existing(tx, teams)).length !== teams.length) {
-      throw new BadRequestException('Unknown team.');
+    const units = input.unitIds ?? [];
+    if ((await this.units.existing(tx, units)).length !== units.length) {
+      throw new BadRequestException('Unknown organizational unit.');
     }
     await this.breachedPasswords.assertNotBreached(input.password, 'password');
     const created = await this.accounts.create(tx, {
@@ -517,7 +532,7 @@ export class AccessAdminService {
     });
     await this.accounts.addMembership(tx, this.tenancy.tenantId(), created.id);
     await this.writeRoles(tx, userRoles, created.id, input.roleIds);
-    await this.teams.setUserTeams(tx, created.id, teams);
+    await this.units.setUserUnits(tx, created.id, units, input.ledUnitIds);
     await this.audit.record(
       actor,
       {
@@ -554,8 +569,8 @@ export class AccessAdminService {
         await this.permissionsOfHolder('user', id),
         before.email,
       );
-    } else if (changes.teamIds) {
-      throw new ForbiddenException('You can’t change your own teams.');
+    } else if (changes.unitIds) {
+      throw new ForbiddenException('You can’t change your own units.');
     }
     // On oneself too: every role given (an ended one sent back included),
     // taken away or with a moved end goes through the grant rule.
@@ -607,8 +622,8 @@ export class AccessAdminService {
           grants.expiries,
         );
       }
-      if (changes.teamIds) {
-        await this.teams.setUserTeams(tx, id, changes.teamIds);
+      if (changes.unitIds) {
+        await this.units.setUserUnits(tx, id, changes.unitIds);
       }
       await this.assertAnAdministratorRemains(tx);
       if (changes.active === false && before.active) {
@@ -632,7 +647,7 @@ export class AccessAdminService {
                 roleExpiresAt: changes.roleExpiresAt,
               }),
             }),
-            ...(changes.teamIds && { teamIds: changes.teamIds }),
+            ...(changes.unitIds && { unitIds: changes.unitIds }),
           },
           ip,
         },
@@ -653,10 +668,61 @@ export class AccessAdminService {
     this.access.invalidate();
   }
 
+  // Organizational unit memberships (OrganizationalUnitsController)
+
+  /** Adds a user to a unit: by someone with authority over them, as for their roles. */
+  async addUnitMember(
+    actor: UserPrincipal,
+    unitId: string,
+    input: Parameters<OrganizationalUnitsService['addMember']>[2],
+    ip?: string,
+  ) {
+    await this.assertAuthorityOverMember(actor, input.userId);
+    return this.units.addMember(actor, unitId, input, ip);
+  }
+
+  /** Changes a member's role in a unit (lead or member), with authority over them. */
+  async changeUnitMemberRole(
+    actor: UserPrincipal,
+    unitId: string,
+    userId: string,
+    role: UnitRole,
+    ip?: string,
+  ) {
+    await this.assertAuthorityOverMember(actor, userId);
+    return this.units.changeMemberRole(actor, unitId, userId, role, ip);
+  }
+
+  /** Ends a user's membership of a unit, with authority over them. */
+  async removeUnitMember(
+    actor: UserPrincipal,
+    unitId: string,
+    userId: string,
+    ip?: string,
+  ) {
+    await this.assertAuthorityOverMember(actor, userId);
+    await this.units.removeMember(actor, unitId, userId, ip);
+  }
+
+  /** A member of the tenant the actor has authority over (anyone else: 404). */
+  private async assertAuthorityOverMember(actor: UserPrincipal, id: string) {
+    const member = await this.accounts.findMember(this.tenancy.tenantId(), id);
+    if (!member) {
+      throw new NotFoundException(`User ${id} not found.`);
+    }
+    if (id !== actor.id) {
+      await this.assertAuthorityOver(
+        actor,
+        await this.permissionsOfHolder('user', id),
+        member.email,
+      );
+    }
+  }
+
   // Rules
 
   /**
-   * You may act on someone (their password, activation, roles, teams, keys;
+   * You may act on someone (their password, activation, roles, units, keys;
    * or act as them) only if you hold, without conditions, every permission
    * they hold: nobody gains rights through another account.
    */

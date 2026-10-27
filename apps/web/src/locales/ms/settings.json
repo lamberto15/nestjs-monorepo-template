@@ -22,11 +22,11 @@
   "valueLabel": "Nilai",
   "scope": {
     "tenant": "Seluruh organisasi",
-    "team": "Pasukan",
+    "unit": "Unit",
     "user": "Pengguna"
   },
   "scopeId": {
-    "team": "Pasukan",
+    "unit": "Unit",
     "user": "Pengguna"
   },
   "mode": {
@@ -50,13 +50,13 @@
     "maxLength": "Masukkan paling banyak {{limit}} aksara.",
     "enum": "Pilih salah satu nilai.",
     "scopeId": {
-      "team": "Pilih pasukan.",
+      "unit": "Pilih unit.",
       "user": "Pilih pengguna atau klien API."
     }
   },
   "source": {
     "tenant": "Organisasi",
-    "team": "Pasukan",
+    "unit": "Unit",
     "user": "Anda",
     "rollout": "Pelancaran",
     "default": "Lalai",
@@ -104,12 +104,12 @@
   },
   "platform": {
     "title": "Semua organisasi",
-    "description": "Apa yang ditetapkan pengendali pemasangan untuk setiap organisasi. Jika dikuatkuasakan, ia mengatasi setiap nilai organisasi, pasukan dan pengguna (suis kecemasan); jika tidak, ia ialah nilai lalai bagi organisasi yang tidak menetapkan apa-apa.",
+    "description": "Apa yang ditetapkan pengendali pemasangan untuk setiap organisasi. Jika dikuatkuasakan, ia mengatasi setiap nilai organisasi, unit dan pengguna (suis kecemasan); jika tidak, ia ialah nilai lalai bagi organisasi yang tidak menetapkan apa-apa.",
     "none": "Tiada apa-apa ditetapkan untuk semua organisasi.",
     "enforced": "Dikuatkuasakan",
     "notEnforced": "Lalai untuk organisasi",
     "enforcedLabel": "Dikuatkuasakan (suis kecemasan)",
-    "enforcedHint": "Mengatasi setiap nilai organisasi, pasukan dan pengguna.",
+    "enforcedHint": "Mengatasi setiap nilai organisasi, unit dan pengguna.",
     "save": "Simpan untuk semua organisasi",
     "saved": "Disimpan untuk semua organisasi.",
     "remove": "Alih keluar",
@@ -123,7 +123,7 @@
     "label": "Tunjuk",
     "all": "Semua tetapan",
     "flags": "Bendera ciri",
-    "flagsHint": "Hidupkan bendera untuk seluruh penyewa, satu pasukan atau seorang, atau lancarkan secara beransur-ansur: Sunting, kemudian “Digunakan sebagai: pelancaran beransur-ansur”."
+    "flagsHint": "Hidupkan bendera untuk seluruh penyewa, satu unit atau seorang, atau lancarkan secara beransur-ansur: Sunting, kemudian “Digunakan sebagai: pelancaran beransur-ansur”."
   },
   "rules": {
     "title": "Peraturan sasaran",

@@ -6,10 +6,14 @@ import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { getDrizzleToken } from '@nestjs/drizzle';
 import { eq, inArray } from 'drizzle-orm';
-import { Client } from 'pg';
+import { Client, type PoolClient } from 'pg';
 import { io, type Socket } from 'socket.io-client';
 import type { Database } from '../src/core/database/drizzle.js';
-import { TenantScopeMissingError } from '../src/core/tenancy/tenant-scope.js';
+import { TenantPool } from '../src/core/tenancy/tenant-pool.js';
+import {
+  readOnlyTenantScope,
+  TenantScopeMissingError,
+} from '../src/core/tenancy/tenant-scope.js';
 import { testItems } from './fixtures/test-items/test-items.tables.js';
 import { SoftDeletePurgeJob } from '../src/iam/resources/soft-delete-purge.job.js';
 import { Realtime } from '../src/platform/realtime/realtime.service.js';
@@ -77,10 +81,9 @@ describe('tenancy (e2e)', () => {
         expect(none.rows).toEqual([]);
 
         await app.query('begin');
-        await app.query(
-          `select set_config('app.tenant_id', $1, true), set_config('app.read_tenants', $1, true)`,
-          [node.tenantId],
-        );
+        await app.query(`select set_config('app.tenant_id', $1, true)`, [
+          node.tenantId,
+        ]);
         const read = await app.query<{ id: string }>(
           'select id from test_items',
         );
@@ -127,6 +130,84 @@ describe('tenancy (e2e)', () => {
         other.id,
       );
       expect(still[0]?.title).toBe('B');
+    });
+
+    it('ignores a forged app.read_tenants: only app.tenant_id opens rows, its own', async () => {
+      const { a } = await itemInEach();
+      const app = new Client({ connectionString: node.database.url });
+      await app.connect();
+      try {
+        await app.query('begin');
+        // The setting the removed sub-organization reads used: naming the
+        // other tenant opens none of its rows.
+        await app.query(
+          `select set_config('app.tenant_id', $1, true), set_config('app.read_tenants', $2, true)`,
+          [node.tenantId, `${node.tenantId},${other.id}`],
+        );
+        const read = await app.query<{ id: string }>(
+          'select id from test_items',
+        );
+        expect(read.rows.map((row) => row.id)).toEqual([a]);
+        await app.query('rollback');
+
+        // Alone, it opens nothing at all.
+        await app.query('begin');
+        await app.query(`select set_config('app.read_tenants', $1, true)`, [
+          other.id,
+        ]);
+        const forged = await app.query('select id from test_items');
+        expect(forged.rows).toEqual([]);
+        await app.query('rollback');
+      } finally {
+        await app.end();
+      }
+    });
+
+    it('leaves no tenant on a pooled connection: after break-glass or a switch, the next use sees its own tenant alone', async () => {
+      const { a, b } = await itemInEach();
+      const tenancy = node.app.get(Tenancy);
+      // One connection, so every use below is the same one, reused.
+      const pool = new TenantPool({
+        connectionString: node.database.url,
+        max: 1,
+      });
+      const ask = <R>(text: string) =>
+        pool.query(text) as unknown as Promise<{ rows: R[] }>;
+      const use = async () => ({
+        pid: (await ask<{ pid: number }>('select pg_backend_pid() as pid'))
+          .rows[0]!.pid,
+        ids: (
+          await ask<{ id: string }>('select "id" from "test_items"')
+        ).rows.map((row) => row.id),
+      });
+      try {
+        const breakGlass = await tenancy.run(
+          readOnlyTenantScope(other.id),
+          use,
+        );
+        expect(breakGlass.ids).toEqual([b]);
+        const after = await tenancy.run(node.tenantId, use);
+        expect(after.pid).toBe(breakGlass.pid);
+        expect(after.ids).toEqual([a]);
+        // A switch back and forth: each use sees its tenant alone.
+        expect((await tenancy.run(other.id, use)).ids).toEqual([b]);
+        const back = await tenancy.run(node.tenantId, use);
+        expect(back).toEqual({ pid: breakGlass.pid, ids: [a] });
+        // Outside any scope the connection carries no tenant at all.
+        const client = await (pool.connect() as unknown as Promise<PoolClient>);
+        try {
+          const { rows } = await client.query<{ tenant: string }>(
+            `select coalesce(current_setting('app.tenant_id', true), '') as tenant`,
+          );
+          expect(rows[0]!.tenant).toBe('');
+          const reads = await client.query('select id from test_items');
+          expect(reads.rows).toEqual([]);
+        } finally {
+          client.release();
+        }
+      } finally {
+        await pool.end();
+      }
     });
 
     it('binds the owner too (FORCE): without a tenant it reads nothing', async () => {

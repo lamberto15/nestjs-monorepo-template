@@ -43,7 +43,7 @@ import { IncomingEventHandlers } from '../../platform/webhooks/incoming-event-ha
 import { RevisionsService } from '../../platform/revisions/revisions.service.js';
 import { ApprovalsService } from '../../platform/approvals/approvals.service.js';
 import { AccessService } from '../../iam/access/access.service.js';
-import { TeamsService } from '../../iam/access/teams.service.js';
+import { OrganizationalUnitsService } from '../../iam/access/organizational-units.service.js';
 import { SystemContext } from '../../iam/access/system-context.js';
 import { LegalHoldsService } from '../../iam/holds/legal-holds.service.js';
 import { RetentionRegistry } from '../../platform/retention/retention.registry.js';
@@ -80,7 +80,7 @@ export class NotesService {
     private readonly customFields: CustomFieldsService,
     private readonly access: AccessService,
     private readonly audit: AuditService,
-    private readonly teams: TeamsService,
+    private readonly units: OrganizationalUnitsService,
     private readonly notifications: NotificationsService,
     private readonly subscriptions: SubscriptionsService,
     private readonly namingSeries: NamingSeriesService,
@@ -183,10 +183,10 @@ export class NotesService {
         .values({
           number,
           ownerId: principalKey(owner),
-          // A user's note belongs to their (first) team.
-          teamId:
+          // A user's note belongs to their unit, when they are in exactly one.
+          unitId:
             owner.kind === 'user'
-              ? ((await this.teams.teamsOf(owner.id, tx))[0] ?? null)
+              ? await this.units.onlyUnitOf(owner.id, tx)
               : null,
           title: dto.title,
           body: dto.body,
@@ -251,9 +251,9 @@ export class NotesService {
           values: { title: dto.title },
         })),
       );
-      const teamId =
+      const unitId =
         owner.kind === 'user'
-          ? ((await this.teams.teamsOf(owner.id, tx))[0] ?? null)
+          ? await this.units.onlyUnitOf(owner.id, tx)
           : null;
       const created = await tx
         .insert(notes)
@@ -261,7 +261,7 @@ export class NotesService {
           dtos.map((dto, index) => ({
             number: numbers[index]!.formatted,
             ownerId: principalKey(owner),
-            teamId,
+            unitId,
             title: dto.title,
             body: dto.body,
             custom: customs[index]!,

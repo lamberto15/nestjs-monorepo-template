@@ -18,7 +18,7 @@ mail budget next to it.
 
 What administrators change at runtime without a deploy, and what users
 set for themselves: typed values declared by the features, with defaults
-in code and overrides in the database, for everyone, for a team, or
+in code and overrides in the database, for everyone, for an organizational unit, or
 per principal. Feature flags are boolean settings that can also roll out
 to a share of principals or, by rule, to the people with an attribute. The deployment's operators may also set a value
 for every tenant at once, as a runtime default or as a kill switch. The code is in `apps/api/src/platform/settings/`; notes
@@ -36,7 +36,7 @@ read. The hand-written way follows.
 // features/notes/note-settings.ts
 export const NOTE_PUBLISH_DELAY = setting({ key: 'notes.publishDelay', label: 'Publication delay', schema: duration, default: '10s' });
 export const NOTE_RICH_TEXT = flag({ key: 'notes.richText', label: 'Rich text editor', default: false });
-// notes.publishApproval (a flag too, scopes tenant and team: never per user) switches the approval of publications on: docs/approvals.md
+// notes.publishApproval (a flag too, scopes tenant and unit: never per user) switches the approval of publications on: docs/approvals.md
 export const NOTE_SETTINGS = defineSettings([NOTE_PUBLISH_DELAY, NOTE_RICH_TEXT]);
 // app.module.ts
 PlatformModule.forRoot({ …, settings: [...NOTE_SETTINGS] })
@@ -47,12 +47,12 @@ const rich = await this.settings.enabled(NOTE_RICH_TEXT, user);     // for this 
 
 - `key`: dotted, the feature first. `schema`: a Zod type the value must
   pass (the default is checked at start). `scopes`: where it may be set,
-  `['tenant']` by default; add `team` and/or `user` (a `user` scope
+  `['tenant']` by default; add `unit` and/or `user` (a `user` scope
   makes it a preference users set for themselves). `public: false` hides
   it from callers who don't manage settings. A `flag()` is a boolean
   setting with every scope and a rollout.
 - Precedence for a principal: the operators' **enforced** platform value →
-  their own value → one of their teams' (in the order of their teams) → the
+  their own value → one of their units' (in the order of their units) → the
   tenant's targeting rules → the tenant's value → a flag's rollout → the
   operators' platform rules → their platform value (or rollout) → the
   default. `settings.resolve()` also says which (`source`).
@@ -109,7 +109,7 @@ Operators only (`Access.manageSettings` in the operator tenant,
 - **`enforced: false`** (the default): the runtime default of every tenant,
   below each tenant's own values and rollouts, above the code's default.
   Turning a feature on for everyone without a deploy.
-- **`enforced: true`**: above every tenant's, team's and principal's value,
+- **`enforced: true`**: above every tenant's, unit's and principal's value,
   a kill switch. Their stored values stay and hold again once it is removed.
 - **`rollout: 20`** (flags, no value, never enforced): on for a stable 20 %
   of the principals of every tenant that set nothing itself (no value, no
@@ -215,7 +215,7 @@ A flag may be switched by attribute: an ordered list of rules at the tenant
 scope and at the platform scope, each rule conditions that must **all** hold
 and an outcome. The first rule that matches decides (`source: rule`), before
 that scope's plain value and rollout; a principal's own value and their
-team's still come first (they are the more specific choice), and an
+unit's still come first (they are the more specific choice), and an
 enforced platform value beats everything. Code: `setting-rules.ts`.
 
 ```
@@ -270,7 +270,7 @@ PUT /v1/settings/{key}/platform    { rules: [...], value?, enforced?, rollout? }
 - **Checked at write** (400 `validation_failed`, `errors[].path` under
   `rules.<i>.conditions.<j>`): known keys, params that parse, a `role` that is
   one of the tenant's roles, at most 20 rules of 10 conditions of 50 values;
-  only flags take rules, at the tenant scope (not a team or a user) and the
+  only flags take rules, at the tenant scope (not a unit or a user) and the
   platform scope. `PUT` replaces the scope's value and rollout; **left out,
   `rules` stay**, `rules: []` clears them. A rules-only override (no value, no
   rollout) is valid.
@@ -294,7 +294,7 @@ through its `AUTH_POLICY` port under the environment's ceiling
 
 | Key                      | Value             | Scopes                                                     | Default                                                                                                                   |
 | ------------------------ | ----------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `auth.requireMfa`        | boolean           | `tenant`, `team` (never `user`: nobody exempts themselves) | `false`                                                                                                                   |
+| `auth.requireMfa`        | boolean           | `tenant`, `unit` (never `user`: nobody exempts themselves) | `false`                                                                                                                   |
 | `auth.passwordMinLength` | integer, 12 to 64 | `tenant`                                                   | `12`                                                                                                                      |
 | `auth.passwordHistory`   | integer, 0 to 24  | `tenant`                                                   | `0` (off; N: the account's last N passwords, the current one included, can't be reused: [auth.md](auth.md#passwords))   |
 | `auth.sessionIdleMinutes` | integer, 5 to 10080 | `tenant` | `10080` (no limit of its own: the deployment's `SESSION_IDLE_MINUTES` applies; a longer value is refused) |
@@ -302,8 +302,8 @@ through its `AUTH_POLICY` port under the environment's ceiling
 | `auth.allowBreakGlass`   | boolean           | `tenant`                                                   | `true` (`false`: the operators' break-glass grants are refused, and running ones stop: [tenancy](tenancy.md#break-glass)) |
 
 - **`true` wins for `auth.requireMfa`**: it applies to a user when the
-  tenant's value or one of their teams' is `true` (`SettingsService.anyOn()`),
-  so a team's `false` exempts nobody from the tenant's `true`, unlike the
+  tenant's value or one of their units' is `true` (`SettingsService.anyOn()`),
+  so a unit's `false` exempts nobody from the tenant's `true`, unlike the
   usual precedence.
 - **The ceiling at set**: a value the deployment doesn't allow is refused
   with 400 `setting_not_allowed` (`detail` says why; `errors[0].path:
@@ -317,12 +317,12 @@ value`): `auth.requireMfa: true` with `AUTH_MFA=off`, a session limit over
 ```
 GET    /v1/settings                     every setting, with your value and its source (also for anyone, public ones)
 GET    /v1/settings/{key}/overrides     the stored values, every scope
-PUT    /v1/settings/{key}               { scope?: tenant|team|user, scopeId?, value?, rollout? }
+PUT    /v1/settings/{key}               { scope?: tenant|unit|user, scopeId?, value?, rollout? }
 DELETE /v1/settings/{key}?scope=&scopeId=          204, no body
 ```
 
 - `scope` defaults to `tenant` (before tenancy it was `global`, which is
-  gone: a breaking change). `scopeId`: one of the tenant's teams, or a
+  gone: a breaking change). `scopeId`: one of the tenant's organizational units, or a
   principal's key (`user:<id>` of a member of the tenant, `client:<id>` of
   its clients; anyone else is a 404); none for the tenant. The scope must be one the setting
   takes; the value must pass its schema (400 `validation_failed`, the
@@ -382,7 +382,7 @@ each user's and API client's `key`, the `scopeId` to send.
 ## For users and clients
 
 ```
-GET    /v1/settings                 your value of each (and `source`: user, team, tenant, rule, rollout, platform, default)
+GET    /v1/settings                 your value of each (and `source`: user, unit, tenant, rule, rollout, platform, default)
 GET    /v1/settings/{key}
 PUT    /v1/settings/{key}/mine      { value }   settings whose scopes include user
 DELETE /v1/settings/{key}/mine

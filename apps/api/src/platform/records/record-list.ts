@@ -9,7 +9,7 @@ import type { RecordSchemas } from './record.schemas.js';
 
 /**
  * What GET /<x> can be filtered, sorted and narrowed (`fields`) by, from
- * the declaration: the fields as their types allow, the owner, the team,
+ * the declaration: the fields as their types allow, the owner, the unit,
  * the dates, `?q=` with search, `?tag=` with tags, `?deleted=true` with a
  * recycle bin.
  */
@@ -40,12 +40,12 @@ export function recordList(
         ops: ['eq'],
         ref: 'principal',
       },
-      ...(declaration.team && {
-        teamId: {
-          column: table.teamId!,
+      ...(declaration.unit && {
+        unitId: {
+          column: table.unitId!,
           type: 'uuid',
           ops: ['eq', 'in', 'isNull'],
-          ref: 'team',
+          ref: 'unit',
         },
       }),
       createdAt: {

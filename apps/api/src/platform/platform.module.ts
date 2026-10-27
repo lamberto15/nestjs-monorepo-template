@@ -90,7 +90,7 @@ import { RealtimeEmitter } from './realtime/realtime-emitter.js';
 import { RecordActivity } from './realtime/record-activity.js';
 import {
   PeopleController,
-  TeamDirectoryController,
+  UnitDirectoryController,
 } from './people/people.controller.js';
 import { PeopleService } from './people/people.service.js';
 import { switchedOn, whenOn } from './switches.js';
@@ -472,9 +472,9 @@ export class PlatformModule {
         SubscriptionsController,
         SearchController,
         ListsController,
-        // The tenant's people and teams, for @mentions and pickers (GET /v1/people, GET /v1/teams).
+        // The tenant's people and units, for @mentions and pickers (GET /v1/people, GET /v1/organizational-units).
         PeopleController,
-        TeamDirectoryController,
+        UnitDirectoryController,
         AttachmentsController,
         DocumentsController,
         AiController,
@@ -728,7 +728,7 @@ export class PlatformModule {
         // Tags: features register a TagTarget and call TagsService.
         TagsRegistry,
         TagsService,
-        // Saved views: a list's filters, sort and columns under a name (private, team, tenant).
+        // Saved views: a list's filters, sort and columns under a name (private, unit, tenant).
         ViewsService,
         // Scheduled reports: exports run on a schedule, mailed to their recipients.
         ...whenOn<Provider>(

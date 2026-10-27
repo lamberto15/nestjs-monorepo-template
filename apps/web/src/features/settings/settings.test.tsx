@@ -8,7 +8,7 @@ import {
   principalsHandler,
   userPrincipal,
 } from '@/test/principals';
-import { peopleHandler, teamsHandler } from '@/test/people';
+import { peopleHandler, unitsHandler } from '@/test/people';
 import { renderComponent } from '@/test/render-component';
 import { renderApp } from '@/test/render-app';
 import { allFeatures, server, signedInUser } from '@/test/server';
@@ -69,7 +69,7 @@ const items = [
     label: 'Rich text editor',
     flag: true,
     type: 'boolean',
-    scopes: ['tenant', 'team', 'user'],
+    scopes: ['tenant', 'unit', 'user'],
     value: false,
     default: false,
     canSetMine: true,
@@ -126,7 +126,7 @@ function api(me: object, list: object[] = items) {
     http.get('/v1/settings/:key/overrides', () =>
       HttpResponse.json({ items: [] }),
     ),
-    teamsHandler([{ id: 'team-1', name: 'Editors' }]),
+    unitsHandler([{ id: 'unit-1', name: 'Editors' }]),
     principalsHandler([GRACE, BILLING]),
   );
 }
@@ -191,8 +191,8 @@ describe('value types', () => {
       scope: 'tenant',
       value: 1,
     });
-    expect(overrideBody({ scope: 'team', scopeId: 't', value: true })).toEqual({
-      scope: 'team',
+    expect(overrideBody({ scope: 'unit', scopeId: 't', value: true })).toEqual({
+      scope: 'unit',
       scopeId: 't',
       value: true,
     });
@@ -477,8 +477,8 @@ describe('admin settings', () => {
           { status: 403 },
         );
       }),
-      http.get('/v1/access/teams', () => {
-        refused.push('/v1/access/teams');
+      http.get('/v1/access/organizational-units', () => {
+        refused.push('/v1/access/organizational-units');
         return HttpResponse.json(
           { status: 403, code: 'forbidden' },
           { status: 403 },
@@ -500,7 +500,7 @@ describe('admin settings', () => {
     expect(refused).toEqual([]);
   });
 
-  it('saves a flag for a team', async () => {
+  it('saves a flag for a unit', async () => {
     api(admin);
     let body: unknown;
     server.use(
@@ -511,15 +511,15 @@ describe('admin settings', () => {
     );
     const { user, dialog } = await open('Rich text editor');
     await user.click(within(dialog).getByRole('combobox', { name: 'Scope' }));
-    await user.click(await screen.findByRole('option', { name: 'Team' }));
+    await user.click(await screen.findByRole('option', { name: 'Unit' }));
     await user.click(
-      await within(dialog).findByRole('combobox', { name: 'Team' }),
+      await within(dialog).findByRole('combobox', { name: 'Unit' }),
     );
     await user.click(await screen.findByRole('option', { name: 'Editors' }));
     await user.click(within(dialog).getByRole('switch'));
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
     await waitFor(() =>
-      expect(body).toEqual({ scope: 'team', scopeId: 'team-1', value: true }),
+      expect(body).toEqual({ scope: 'unit', scopeId: 'unit-1', value: true }),
     );
   });
 
@@ -557,8 +557,8 @@ describe('admin settings', () => {
           items: [
             {
               key: 'notes.richText',
-              scope: 'team',
-              scopeId: 'team-1',
+              scope: 'unit',
+              scopeId: 'unit-1',
               value: true,
               rollout: null,
               rules: [],
@@ -582,7 +582,7 @@ describe('admin settings', () => {
         name: 'Clear',
       }),
     );
-    await waitFor(() => expect(url).toBe('?scope=team&scopeId=team-1'));
+    await waitFor(() => expect(url).toBe('?scope=unit&scopeId=unit-1'));
   });
 
   it('saves a flag for an API client found by searching the principals', async () => {
@@ -632,12 +632,12 @@ describe('admin settings', () => {
     );
   });
 
-  it("names a stored value's user and team from the lookups", async () => {
+  it("names a stored value's user and unit from the lookups", async () => {
     api(admin);
-    const TEAM = '0199a3f2-0000-7000-8000-0000000000b1';
+    const UNIT = '0199a3f2-0000-7000-8000-0000000000b1';
     server.use(
       peopleHandler([{ id: GRACE.id, name: 'Grace Hopper' }]),
-      teamsHandler([{ id: TEAM, name: 'Night shift' }]),
+      unitsHandler([{ id: UNIT, name: 'Night shift' }]),
       http.get('/v1/settings/:key/overrides', () =>
         HttpResponse.json({
           items: [
@@ -653,8 +653,8 @@ describe('admin settings', () => {
             },
             {
               key: 'notes.richText',
-              scope: 'team',
-              scopeId: TEAM,
+              scope: 'unit',
+              scopeId: UNIT,
               value: false,
               rollout: null,
               rules: [],
@@ -667,7 +667,7 @@ describe('admin settings', () => {
     );
     const { dialog } = await open('Rich text editor');
     expect(await within(dialog).findByText(/User: Grace Hopper/)).toBeVisible();
-    expect(await within(dialog).findByText(/Team: Night shift/)).toBeVisible();
+    expect(await within(dialog).findByText(/Unit: Night shift/)).toBeVisible();
   });
 });
 
@@ -1104,7 +1104,7 @@ describe('targeting rules', () => {
     label: 'Beta flag',
     flag: true,
     type: 'boolean',
-    scopes: ['tenant', 'team', 'user'],
+    scopes: ['tenant', 'unit', 'user'],
     value: false,
     default: false,
     canEditPlatform: true,

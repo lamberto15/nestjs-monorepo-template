@@ -113,7 +113,7 @@ describe('list metadata (e2e)', () => {
         'number',
         'tag',
         'ownerId',
-        'teamId',
+        'unitId',
         'updatedAt',
       ]),
     );
@@ -123,7 +123,7 @@ describe('list metadata (e2e)', () => {
         .filter((field) => field.ref)
         .map((field) => [field.name, field.ref]),
     );
-    expect(refs).toEqual({ tag: 'tag', ownerId: 'principal', teamId: 'team' });
+    expect(refs).toEqual({ tag: 'tag', ownerId: 'principal', unitId: 'unit' });
     // `q` and `rank` are `search`, not fields.
     expect(names(fields)).not.toContain('q');
     expect(names(fields)).not.toContain('rank');

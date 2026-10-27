@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
  * The demo seed's accounts (scripts/api.mjs keeps what it printed): one per
  * role the tests need, by the seed role that makes it unique.
  */
-export type Role = 'administrator' | 'editor' | 'viewer' | 'team-lead';
+export type Role = 'administrator' | 'editor' | 'viewer' | 'unit-lead';
 
 const file = resolve(
   import.meta.dirname,
@@ -23,7 +23,7 @@ interface Account {
 export function account(role: Role): Account {
   const accounts = JSON.parse(readFileSync(file, 'utf8')) as Account[];
   const name = role[0].toUpperCase() + role.slice(1).replace('-', ' ');
-  // The administrator and the team leads are editors too.
+  // The administrator and the unit leads are editors too.
   const found = accounts.find((candidate) =>
     role === 'editor' || role === 'viewer'
       ? candidate.roles.length === 1 && candidate.roles[0] === name

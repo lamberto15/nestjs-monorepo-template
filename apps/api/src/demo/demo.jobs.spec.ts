@@ -70,16 +70,20 @@ const catalogOf = (features: Parameters<typeof demoPermissions>[0]) =>
   });
 
 describe('the demo seed job', () => {
-  it('stands without features: the core seed roles, users and teams only', () => {
+  it('stands without features: the core seed roles, users and units only', () => {
     const catalog = catalogOf([]);
     expect(catalog.seedRoles.map((role) => role.key)).toEqual([
       'editor',
-      'team-lead',
+      'unit-lead',
       'viewer',
     ]);
     expect(
       demoSeedJob([]).permissions.map((p) => `${p.subject}.${p.action}`),
-    ).toEqual(['Access.manageUsers', 'Access.manageTeams', 'Ops.view']);
+    ).toEqual([
+      'Access.manageUsers',
+      'Access.manageOrganizationalUnits',
+      'Ops.view',
+    ]);
   });
 
   it("holds every grant of the roles it gives, unconditionally, and a feature's demo permissions", () => {

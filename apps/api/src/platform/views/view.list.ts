@@ -13,11 +13,11 @@ export const VIEW_LIST = listQuery(
       values: VIEW_VISIBILITIES,
       ops: ['eq', 'in'],
     },
-    teamId: {
-      column: savedViews.teamId,
+    unitId: {
+      column: savedViews.unitId,
       type: 'uuid',
       ops: ['eq'],
-      ref: 'team',
+      ref: 'unit',
     },
     name: {
       column: savedViews.name,

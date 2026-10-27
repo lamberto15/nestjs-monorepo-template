@@ -9,11 +9,11 @@ import {
  * Test items' settings and flags, declared as a real feature does (notes'
  * note-settings.ts), so the platform's tests have every kind of key to work
  * on, whatever features a project keeps: a flag with all scopes (rollouts),
- * a value with team and user scopes (a preference), a tenant-only value
+ * a value with unit and user scopes (a preference), a tenant-only value
  * for managers, and the flag that switches the publication's approval on.
  */
 
-/** Whether the web app offers the rich preview: on for the tenant, a team, one principal, or a rollout. */
+/** Whether the web app offers the rich preview: on for the tenant, a unit, one principal, or a rollout. */
 export const TEST_ITEM_RICH_PREVIEW = flag({
   key: 'testItems.richPreview',
   label: 'Rich preview',
@@ -21,14 +21,14 @@ export const TEST_ITEM_RICH_PREVIEW = flag({
   default: false,
 });
 
-/** How the web app lists test items: a preference a user may set for themselves, or a team for its users. */
+/** How the web app lists test items: a preference a user may set for themselves, or a unit for its users. */
 export const TEST_ITEM_VIEW = setting({
   key: 'testItems.view',
   label: 'List view',
   description: 'How test items are listed: a table or cards.',
   schema: z.enum(['table', 'cards']),
   default: 'table',
-  scopes: ['tenant', 'team', 'user'],
+  scopes: ['tenant', 'unit', 'user'],
 });
 
 /** A tenant-wide value shown to managers only. */
@@ -45,7 +45,7 @@ export const TEST_ITEM_PAGE_LIMIT = setting({
 export const TEST_ITEM_PUBLISH_APPROVAL_FLAG = flag({
   // Never per user: a requester could switch their own approval off
   // (ApprovalsRegistry refuses such a setting at startup).
-  scopes: ['tenant', 'team'],
+  scopes: ['tenant', 'unit'],
   key: 'testItems.publishApproval',
   label: 'Publishing needs approval',
   description:

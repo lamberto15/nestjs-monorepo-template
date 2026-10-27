@@ -1163,14 +1163,14 @@ details.
   administrator deactivating a membership leaves the account as it is.
   The account's lock and its memberships read `for update` keep two
   tenants' changes from both missing the other.
-- **Groups** are teams: a group the IdP creates is a top-level team, its
-  members those of the team. Only the teams it created and the users it
-  provisioned are the SCIM client's: it never reaches the teams and members
-  administrators manage. No roles are granted over SCIM (map groups to
-  roles on the SSO connection instead). The teams it manages are
-  read-only in the app (`managedByScim` on `GET /v1/access/teams`):
+- **Groups** are organizational units: a group the IdP creates is a
+  top-level unit of type `team`, its members those of the unit. Only the
+  units it created and the users it provisioned are the SCIM client's: it
+  never reaches the units and members administrators manage. No roles are granted over SCIM (map groups to
+  roles on the SSO connection instead). The units it manages are
+  read-only in the app (`managedByScim` on `GET /v1/access/organizational-units`):
   renaming, moving, deleting one or changing its members there is a 409
-  `team_managed_by_scim`.
+  `unit_managed_by_scim`.
 - **Rate.** `/v1/scim` allows 6000 requests a minute per IP address, ten
   times the default: an IdP's full sync comes from a handful of addresses.
   The client's daily quota still meters it; an unknown token is throttled
@@ -1398,7 +1398,7 @@ never loosen it. Unset, every policy is today's behaviour.
 
 | Setting | Scopes | Does | Ceiling |
 | --- | --- | --- | --- |
-| `auth.requireMfa` | tenant, team | users it applies to who have no authenticator must set one up before anything else (below) | `AUTH_MFA=off`: refused when set (400 `setting_not_allowed`); a stored `true` has no effect |
+| `auth.requireMfa` | tenant, unit | users it applies to who have no authenticator must set one up before anything else (below) | `AUTH_MFA=off`: refused when set (400 `setting_not_allowed`); a stored `true` has no effect |
 | `auth.allowBreakGlass` | tenant | whether the deployment's operators may open the tenant with break-glass (default `true`; `false`: new grants are refused, running ones stop: [tenancy](tenancy.md#break-glass)) | none |
 | `auth.passwordHistory` | tenant | the last N passwords of the account (0 to 24, `0` off) can't be used again on a change or a reset link: 422 `password_reused`; hashes only ([Passwords](#passwords)) | the upper limit of 24; none else |
 | `auth.passwordMinLength` | tenant | a new password (change, reset link, an invitation's acceptance, a sign-up with `TENANCY=single`) is at least this long: 400 `password_too_short` (`minLength`, the field in `errors`), checked before the breach check | never under 12 (the floor) nor over 64; 128 stays the maximum |
@@ -1426,10 +1426,10 @@ never loosen it. Unset, every policy is today's behaviour.
   and has no hook to make a user enroll, hence the guard.
 - **No locking yourself out.** Requiring it of a scope that covers the
   caller while they have no authenticator (`PUT /v1/settings/auth.requireMfa`
-  at the tenant scope or a team they belong to, or `…/platform`) is
+  at the tenant scope or a unit they belong to, or `…/platform`) is
   refused with 409 `mfa_enroll_first`: set up two-factor first
   (`SettingsAuthPolicy`, through `SettingsService.guardWrite()`). Turning it
-  off, or requiring it of other teams, is never refused.
+  off, or requiring it of other units, is never refused.
 - **Session lifetime.** <a id="session-lifetime"></a>The deployment sets
   the ceiling (`SESSION_IDLE_MINUTES`, default 120, at least 5;
   `SESSION_MAX_HOURS`, default 12), which the package enforces itself
@@ -1491,8 +1491,8 @@ never loosen it. Unset, every policy is today's behaviour.
   answers with the environment alone. Not a default provider under the
   same token: Nest resolves a module's own provider before a global
   one's, so IAM's would always win over the platform's.
-- **Proof:** `test/auth-policies.e2e-spec.ts` (a team's requirement until
-  enrolled, off again, a tenant's requirement with a team's `false`, API
+- **Proof:** `test/auth-policies.e2e-spec.ts` (a unit's requirement until
+  enrolled, off again, a tenant's requirement with a unit's `false`, API
   clients, the `AUTH_MFA=off` ceiling, minimum lengths on change, reset and
   invitation, per tenant), `iam/auth/auth-policy.spec.ts` (the ceiling),
   `test/session-lifetime.e2e-spec.ts` (idle and maximum, per tenant, the
@@ -1539,7 +1539,7 @@ once, its role grants and usage go with its row (foreign keys), its webhook
 endpoints and live connections after the commit
 (`ApiClientLifecycleRegistry`: the platform's webhooks and realtime listen);
 `client.deleted` is audited in the deletion's transaction, with its name.
-A hard delete, as for roles, teams and invitations, rather than the
+A hard delete, as for roles, organizational units and invitations, rather than the
 recycle bin: the bin is for records people delete by mistake, and a
 client already has its reversible state (revoked); the audit log keeps
 what it did (`client:<id>`). Both want authority over the client (you hold

@@ -20,7 +20,7 @@ import {
   tenantReference,
   tenantTable,
 } from '../../core/tenancy/tenant-scope.js';
-import { teams } from '../../iam/iam.tables.js';
+import { organizationalUnits } from '../../iam/iam.tables.js';
 import { defineCustomFields } from '../custom-fields/custom-field.types.js';
 import { columnName, type Fields, tableHolds } from '../fields/field.js';
 import type { NumberingFieldKind } from '../sequences/naming-series.registry.js';
@@ -87,8 +87,12 @@ export interface RecordDeclaration<
   table: string;
   /** Deleted records go to a recycle bin (`deletedAt`), restorable until purged. */
   softDelete: boolean;
-  /** Records carry their creator's team (`teamId`, the `inMyTeams` condition). */
-  team: boolean;
+  /**
+   * Records carry their creator's organizational unit (`unitId`, read by
+   * the unit conditions): set when the creator is a current member of
+   * exactly one unit.
+   */
+  unit: boolean;
   /**
    * May API clients (keys) use it? `'own'`: every client creates, reads,
    * changes and deletes the records it created (`mine`). Unset or `false`:
@@ -97,7 +101,7 @@ export interface RecordDeclaration<
   clientAccess?: false | 'own';
   /**
    * The seed roles' grants (a tenant's starting roles): `standard`, the
-   * default, is editors their own, team leads their teams' (with `team`),
+   * default, is editors their own, unit leads their units' (with `unit`),
    * viewers every record; `none` grants none: only administrators until
    * someone creates a role.
    */
@@ -245,7 +249,7 @@ const base = () => ({
   /** Who created it: `user:<id>` or `client:<id>`. */
   ownerId: text('owner_id').notNull(),
 });
-const teamColumns = () => ({ teamId: uuid('team_id') });
+const unitColumns = () => ({ unitId: uuid('unit_id') });
 const numberColumns = () => ({ number: text('number') });
 const searchColumns = () => ({ search: searchVector('search', () => sql``) });
 const customColumns = () => ({
@@ -261,7 +265,7 @@ type Empty = Record<never, never>;
 export type RecordColumns<D extends RecordDeclaration> = ReturnType<
   typeof base
 > &
-  (D['team'] extends true ? ReturnType<typeof teamColumns> : Empty) &
+  (D['unit'] extends true ? ReturnType<typeof unitColumns> : Empty) &
   FieldColumns<D['fields']> &
   ReturnType<typeof timestamps> &
   ('numbered' extends D['capabilities'][number]
@@ -277,7 +281,7 @@ export type RecordColumns<D extends RecordDeclaration> = ReturnType<
 
 /**
  * The record's table, behind row-level security like every feature table:
- * id, tenant, owner, (team,) the fields, timestamps, (the recycle bin,) (the
+ * id, tenant, owner, (unit,) the fields, timestamps, (the recycle bin,) (the
  * search vector over its `.searchable()` fields), with the owner's index,
  * the fields' unique indexes and reference keys, and the unique
  * (tenant_id, id) other features' keys point at.
@@ -286,7 +290,7 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
   const searched = searchableFields(declaration.fields);
   const columns = {
     ...base(),
-    ...(declaration.team && teamColumns()),
+    ...(declaration.unit && unitColumns()),
     ...fieldColumns(declaration.fields),
     ...(takes(declaration, 'numbered') && numberColumns()),
     ...(takes(declaration, 'custom') && customColumns()),
@@ -320,13 +324,14 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
         ? [uniqueIndex(`${name}_number_idx`).on(t.tenantId, t.number)]
         : []),
       ...tenantTable(name, t, { referenced: true }),
-      ...(declaration.team
+      ...(declaration.unit
         ? [
+            // A unit with records can't be deleted (409 `unit_not_empty`).
             tenantReference(
-              `${name}_team_fk`,
-              [t.tenantId, t.teamId],
-              [teams.tenantId, teams.id],
-              'set null',
+              `${name}_unit_fk`,
+              [t.tenantId, t.unitId],
+              [organizationalUnits.tenantId, organizationalUnits.id],
+              'restrict',
             ),
           ]
         : []),

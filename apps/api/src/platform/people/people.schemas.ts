@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DEFAULT_LIMIT, MAX_LIMIT } from '../../core/http/pagination.js';
+import { UNIT_TYPES } from '../../iam/iam.tables.js';
 
 /** Rows GET /v1/people answers at most, and the keys `key=` resolves at most. */
 export const MAX_PEOPLE = 20;
@@ -93,8 +94,8 @@ export const avatarQuerySchema = z
   .strict();
 export type AvatarQuery = z.infer<typeof avatarQuerySchema>;
 
-/** The query of GET /v1/teams. */
-export const teamsQuerySchema = z
+/** The query of GET /v1/organizational-units. */
+export const unitsQuerySchema = z
   .object({
     q: z
       .string()
@@ -102,13 +103,13 @@ export const teamsQuerySchema = z
       .min(1)
       .max(100)
       .optional()
-      .describe('Part of the team name, any case (`%` and `_` are themselves).')
+      .describe('Part of the unit name, any case (`%` and `_` are themselves).')
       .meta({ example: 'sales' }),
     id: commaList
       .pipe(z.array(z.uuid()).min(1).max(MAX_LIMIT))
       .optional()
       .describe(
-        `Team ids to name, comma-separated, ${MAX_LIMIT} at most: an id your tenant has no team of is left out of the answer.`,
+        `Unit ids to name, comma-separated, ${MAX_LIMIT} at most: an id your tenant has no unit of is left out of the answer.`,
       ),
     limit: z.coerce
       .number()
@@ -117,7 +118,7 @@ export const teamsQuerySchema = z
       .max(MAX_LIMIT)
       .default(DEFAULT_LIMIT)
       .describe(
-        `Teams a page holds: ${DEFAULT_LIMIT} without it, ${MAX_LIMIT} at most (more is a 400). It applies with \`id\` too: send at least as many as the ids.`,
+        `Units a page holds: ${DEFAULT_LIMIT} without it, ${MAX_LIMIT} at most (more is a 400). It applies with \`id\` too: send at least as many as the ids.`,
       ),
     cursor: z
       .uuid()
@@ -126,15 +127,16 @@ export const teamsQuerySchema = z
     lang: z.string().max(35).optional(),
   })
   .strict();
-export type TeamsQuery = z.infer<typeof teamsQuerySchema>;
+export type UnitsQuery = z.infer<typeof unitsQuerySchema>;
 
-/** A team of the tenant, as every member sees it: its name and its place in the tree. */
-export const teamRefSchema = z.object({
-  id: z.uuid().describe("What a record's `teamId` holds."),
+/** A unit of the tenant, as every member sees it: its name and its place in the tree. */
+export const unitRefSchema = z.object({
+  id: z.uuid().describe("What a record's `unitId` holds."),
+  type: z.enum(UNIT_TYPES),
   name: z.string().meta({ example: 'North' }),
   parentId: z
     .uuid()
     .nullable()
-    .describe('The team it is under; null for a top-level team.'),
-  depth: z.number().int().describe('0 for a top-level team.'),
+    .describe('The unit it is under; null for a top-level unit.'),
+  depth: z.number().int().describe('0 for a top-level unit.'),
 });

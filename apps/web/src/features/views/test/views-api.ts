@@ -12,7 +12,7 @@ export const view = (over: Partial<SavedView> = {}): SavedView => ({
   subject: 'TestItem',
   name: 'Drafts',
   visibility: 'private',
-  teamId: null,
+  unitId: null,
   owner: 'user:1',
   mine: true,
   editable: true,
@@ -86,9 +86,9 @@ export function useViewsApi(options: {
       });
     }),
     http.get('/v1/lists/:subject', () => HttpResponse.json(description)),
-    http.get('/v1/teams', () =>
+    http.get('/v1/organizational-units', () =>
       HttpResponse.json({
-        items: [{ id: 'team-1', name: 'Sales', parentId: null, depth: 0 }],
+        items: [{ id: 'unit-1', name: 'Sales', parentId: null, depth: 0 }],
         nextCursor: null,
       }),
     ),

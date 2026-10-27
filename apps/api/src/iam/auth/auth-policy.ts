@@ -21,7 +21,7 @@ export interface AuthPolicySource {
   /**
    * Whether the user's current tenant (`user.tenantId`) requires them to
    * have two-factor sign-in: the tenant's own choice, or one of the user's
-   * teams'. Never per user: nobody exempts themselves.
+   * units'. Never per user: nobody exempts themselves.
    */
   requireMfa(user: UserPrincipal): Promise<boolean>;
   /** The tenant's minimum password length, if it chose one. */

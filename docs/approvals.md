@@ -55,7 +55,7 @@ export const NOTE_PUBLISH_APPROVAL = defineApproval({
   action: 'publish',
   label: 'Publish a note',
   payload: z.object({ title: z.string().max(200) }),
-  setting: NOTE_PUBLISH_APPROVAL_FLAG, // notes.publishApproval: off by default, scopes ['tenant', 'team']
+  setting: NOTE_PUBLISH_APPROVAL_FLAG, // notes.publishApproval: off by default, scopes ['tenant', 'unit']
   policy: {
     stages: [{ name: 'Editor review', approvers: [{ type: 'role', role: 'editor' }], mode: { type: 'any' } }],
   },
@@ -86,7 +86,7 @@ PlatformModule.forRoot({ …, approvals: [NOTE_PUBLISH_APPROVAL] })
   the registered types accept, or the app refuses to start. So does an
   action whose `setting` takes the `user` scope (`flag()`'s default): a
   requester could switch their own approval off. Declare it with
-  `scopes: ['tenant', 'team']`.
+  `scopes: ['tenant', 'unit']`.
 - **What is approved is what is applied**: `payload()` reads the proposed
   change from the record, so callers can't send one (400); `fingerprint()`
   is taken with the request and compared before `onApproved`; a record
@@ -137,13 +137,13 @@ feature's normal, guarded write path.
 | Rule | Who | Example |
 | --- | --- | --- |
 | `role` | users holding a role (by key or id) | `{ "type": "role", "role": "editor" }` |
-| `teamRole` | users holding a role in the requester's team; with `nearest` (default) the nearest team above that has someone other than the requester, so a lead's own request goes to the lead above; `levelsUp: 1` starts at the parent team ("the next level") | `{ "type": "teamRole", "role": "team-lead" }` |
+| `unitRole` | users holding a role among the current members of the requester's organizational units; with `nearest` (default) the nearest unit above that has someone other than the requester, so a lead's own request goes to the lead above; `levelsUp: 1` starts at the parent unit ("the next level") | `{ "type": "unitRole", "role": "unit-lead" }` |
 | `permission` | users who may do an action on the record (CASL, conditions included), from the feature's `record()` | `{ "type": "permission", "action": "update" }` |
 | `users` | named users | `{ "type": "users", "userIds": ["…"] }` |
 
 A stage's approvers are everyone any of its rules names, active, minus the
-requester. There is no "manager" field: "the lead of my team" is
-`teamRole` with the lead's role.
+requester. There is no "manager" field: "the lead of my unit" is
+`unitRole` with the lead's role.
 
 ## Stages, modes, time
 
@@ -151,9 +151,9 @@ requester. There is no "manager" field: "the lead of my team" is
 {
   "when": { "type": "payload", "path": "amount", "op": "gt", "value": 1000 },
   "stages": [
-    { "name": "Lead", "approvers": [{ "type": "teamRole", "role": "team-lead" }], "mode": { "type": "any" },
+    { "name": "Lead", "approvers": [{ "type": "unitRole", "role": "unit-lead" }], "mode": { "type": "any" },
       "remindAfter": "1d", "dueAfter": "3d", "onOverdue": "escalate",
-      "escalateTo": [{ "type": "teamRole", "role": "team-lead", "levelsUp": 1 }], "escalationDueAfter": "2d" },
+      "escalateTo": [{ "type": "unitRole", "role": "unit-lead", "levelsUp": 1 }], "escalationDueAfter": "2d" },
     { "name": "Finance", "approvers": [{ "type": "role", "role": "finance" }], "mode": { "type": "quorum", "n": 2 } }
   ],
   "resubmitWithin": "30d"
@@ -224,7 +224,7 @@ change to the page.
 New requests run under the newest version; a running request keeps the
 copy it started with (`policyVersion`), resubmissions included.
 `enabled: false` switches an action off for everyone; the feature's
-setting (a flag: per tenant, per team, rollouts; never per user)
+setting (a flag: per tenant, per unit, rollouts; never per user)
 switches it per requester.
 
 ## The API
@@ -465,7 +465,7 @@ export class ErpSync implements ApprovalListener {
 
 1. Declare the action: `defineApproval({ subject, action, label, payload,
    policy, setting? })` in `<item>-approvals.ts`; a flag in
-   `<x>-settings.ts` (scopes `tenant`, `team`: never `user`) if it
+   `<x>-settings.ts` (scopes `tenant`, `unit`: never `user`) if it
    should be switchable.
 2. Write its handler (`ApprovalHandler`: `describe`, `record`,
    `onApproved`, the others as needed; `payload` and `fingerprint` when the

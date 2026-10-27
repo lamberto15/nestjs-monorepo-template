@@ -22,7 +22,7 @@ export type ViewChanges = paths['/v1/views/{id}']['patch'] extends {
 const PICKER_LIMIT = 100;
 
 /**
- * The views of a list the caller sees: theirs, their teams' and the
+ * The views of a list the caller sees: theirs, their units' and the
  * tenant's. Read when the picker opens (`enabled`), by name; the picker
  * shows a failure itself.
  */

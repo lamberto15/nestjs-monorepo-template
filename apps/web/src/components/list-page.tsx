@@ -93,8 +93,6 @@ export interface ListPageProps<P extends ListPath> {
    * The selection is cleared when the list's filter or search changes.
    */
   bulkActions?: (context: BulkContext) => ReactNode;
-  /** Ask for every field of the route, not only the visible columns. */
-  allFields?: boolean;
 }
 
 /**
@@ -140,12 +138,11 @@ function ListTable<P extends ListPath>({
   exportable = true,
   selectable,
   bulkActions,
-  allFields,
 }: ListPageProps<P> & { description: ListDescription }) {
   const { t, i18n } = useTranslation();
   const router = useRouter({ warn: false });
   const checkable = selectable || bulkActions !== undefined;
-  // What the reference fields point at: tags, teams, users (`ref`).
+  // What the reference fields point at: tags, units, users (`ref`).
   const refs = useListRefs(subject, description.fields);
   // The caller's columns, then what the list's metadata adds to them: the
   // reference fields (by name; a filter-only one like `tag` never shown)
@@ -181,7 +178,6 @@ function ListTable<P extends ListPath>({
     extra: extraQuery,
     pathParams,
     refetchInterval,
-    allFields,
   });
 
   const { table } = useDataTable({

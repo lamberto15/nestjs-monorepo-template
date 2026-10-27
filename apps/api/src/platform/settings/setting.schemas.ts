@@ -64,7 +64,7 @@ export const settingViewSchema = z.object({
   canEdit: z
     .boolean()
     .describe(
-      'You may set and remove its value for the tenant, a team or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating.',
+      'You may set and remove its value for the tenant, a unit or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating.',
     ),
   canSetMine: z
     .boolean()
@@ -77,7 +77,7 @@ export const settingViewSchema = z.object({
       enforced: z
         .boolean()
         .describe(
-          "Beats every tenant's, team's and principal's value (a kill switch).",
+          "Beats every tenant's, unit's and principal's value (a kill switch).",
         ),
       rollout: z
         .int()
@@ -107,7 +107,7 @@ export const settingOverrideSchema = z.object({
   scopeId: z
     .string()
     .describe(
-      "The team's id, the principal's key (`user:<id>`), or '' for the tenant.",
+      "The unit's id, the principal's key (`user:<id>`), or '' for the tenant.",
     ),
   value: z.unknown(),
   rollout: z.int().min(0).max(100).nullable(),
@@ -124,7 +124,7 @@ export const setSettingSchema = z
       .max(100)
       .optional()
       .describe(
-        "For team: the team's id; for user: the principal's key (`user:<id>`, `client:<id>`).",
+        "For unit: the organizational unit's id; for user: the principal's key (`user:<id>`, `client:<id>`).",
       ),
     value: z
       .unknown()
@@ -172,7 +172,7 @@ export const setPlatformSettingSchema = z
       .boolean()
       .default(false)
       .describe(
-        "true: beats every tenant's, team's and principal's value (a kill switch; needs a value); false: the default for every tenant that set nothing.",
+        "true: beats every tenant's, unit's and principal's value (a kill switch; needs a value); false: the default for every tenant that set nothing.",
       ),
     rollout: z
       .int()

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { refsKey } from '@/lib/list-refs';
-import { peopleKey, teamsKey } from '@/lib/people';
+import { peopleKey, unitsKey } from '@/lib/people';
 import { recordKeys } from '@/lib/records';
 
 // The keys are shared by features that do not import each other, and some
@@ -40,9 +40,9 @@ describe('recordKeys', () => {
 
 describe('the other shared roots', () => {
   it('are the prefixes the caches use', () => {
-    expect([peopleKey, teamsKey, refsKey]).toEqual([
+    expect([peopleKey, unitsKey, refsKey]).toEqual([
       ['people'],
-      ['teams'],
+      ['units'],
       ['refs'],
     ]);
   });

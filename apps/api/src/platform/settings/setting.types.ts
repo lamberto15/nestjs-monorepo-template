@@ -2,19 +2,20 @@ import { z } from 'zod';
 import type { FlagRule } from './setting-rules.js';
 
 /**
- * Where a setting's value may be set: for the whole tenant, for an org
- * team's users, or per principal. Every value is a tenant's (rows under
+ * Where a setting's value may be set: for the whole tenant, for an
+ * organizational unit's current members (not those of units below it), or
+ * per principal. Every value is a tenant's (rows under
  * row-level security, docs/tenancy.md); what holds for every tenant is the
  * declaration's default, in code.
  */
-export const SETTING_SCOPES = ['tenant', 'team', 'user'] as const;
+export const SETTING_SCOPES = ['tenant', 'unit', 'user'] as const;
 export type SettingScope = (typeof SETTING_SCOPES)[number];
 
 /**
  * A setting a feature declares (`defineSettings()`), handed to the
  * platform in `app.module.ts`: a typed value with a default, that
  * administrators change at runtime (`PUT /settings/{key}`), for their
- * tenant or for a team, and that users may set for themselves when `user`
+ * tenant or for a unit, and that users may set for themselves when `user`
  * is among its scopes (a preference).
  *
  * ```ts
@@ -45,7 +46,7 @@ export const setting = <const T>(declaration: SettingDeclaration<T>) =>
 
 /**
  * A feature flag: on or off, with a default, that administrators switch
- * at runtime, for their tenant, a team or one principal, or roll out
+ * at runtime, for their tenant, a unit or one principal, or roll out
  * to a stable percentage of the tenant's principals (`PUT /settings/{key}
  * { rollout: 20 }`), drawn apart in each tenant.
  * Read it with `settings.enabled(FLAG, principal)`.
@@ -53,7 +54,7 @@ export const setting = <const T>(declaration: SettingDeclaration<T>) =>
 export const flag = (
   declaration: Omit<SettingDeclaration<boolean>, 'schema' | 'flag'>,
 ): SettingDeclaration<boolean> => ({
-  scopes: ['tenant', 'team', 'user'],
+  scopes: ['tenant', 'unit', 'user'],
   ...declaration,
   schema: z.boolean(),
   flag: true,
@@ -84,7 +85,7 @@ export interface PlatformSettingValue {
 export interface SettingOverride {
   key: string;
   scope: SettingScope;
-  /** The team's id, the principal's key (`user:<id>`), or `''` for the tenant. */
+  /** The unit's id, the principal's key (`user:<id>`), or `''` for the tenant. */
   scopeId: string;
   value: unknown;
   /** Flags, tenant scope: the percentage of the tenant's principals it is on for, when no value is set. */

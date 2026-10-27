@@ -45,21 +45,21 @@ export function peopleHandler(
 }
 
 /**
- * `GET /v1/teams` over these teams, as the API answers it: `q` a part of the
- * name, `id=` these teams (one nobody has is left out); one page. `asked`
+ * `GET /v1/organizational-units` over these units, as the API answers it: `q` a part of the
+ * name, `id=` these units (one nobody has is left out); one page. `asked`
  * gets every call's query string.
  */
-export function teamsHandler(
-  teams: readonly { id: string; name: string }[],
+export function unitsHandler(
+  units: readonly { id: string; name: string }[],
   asked?: URLSearchParams[],
 ) {
-  return http.get('/v1/teams', ({ request }) => {
+  return http.get('/v1/organizational-units', ({ request }) => {
     const query = new URL(request.url).searchParams;
     asked?.push(query);
     const ids = query.get('id')?.split(',');
     const q = (query.get('q') ?? '').toLowerCase();
     return HttpResponse.json({
-      items: teams
+      items: units
         .filter(
           (t) =>
             (!ids || ids.includes(t.id)) && t.name.toLowerCase().includes(q),

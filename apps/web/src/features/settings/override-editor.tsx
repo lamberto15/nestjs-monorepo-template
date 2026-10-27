@@ -19,9 +19,9 @@ import { api } from '@/lib/api';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { holds, useMe, type Permission } from '@/lib/features';
 import { FormAlert, useAppForm, useDescribedBy } from '@/lib/form';
-import { teamRefsQuery } from '@/lib/list-refs';
+import { unitRefsQuery } from '@/lib/list-refs';
 import { catalogQuery } from '@/features/transfer/api';
-import { usePeopleNames, useTeamNames } from '@/lib/people';
+import { usePeopleNames, useUnitNames } from '@/lib/people';
 import { PlatformEditor } from './platform-editor';
 import { RulesEditor } from './rules-editor';
 import {
@@ -56,7 +56,7 @@ const principalReaders: Permission[] = [
   'Access.manageRoles',
   'Access.manageUsers',
   'Access.manageClients',
-  'Access.manageTeams',
+  'Access.manageOrganizationalUnits',
   'Access.impersonate',
   'Access.readAudit',
 ];
@@ -67,16 +67,16 @@ const principalReaders: Permission[] = [
  * stored overrides, each of which can be edited or cleared. A user scope's
  * value is for a user or an API client, found by searching the principals
  * (`GET /v1/access/principals`): its `key` is the `scopeId`; stored ones
- * are named by the people and teams lookups.
+ * are named by the people and units lookups.
  */
 export function OverrideEditor({ setting }: { setting: Setting }) {
   const { t } = useTranslation('settings');
   const queryClient = useQueryClient();
   const [error, setError] = useState<string>();
   const overrides = useQuery(overridesQuery(setting.key));
-  const hasTeam = setting.scopes.includes('team');
-  // The teams, from the route every member may read.
-  const teams = useQuery({ ...teamRefsQuery, enabled: hasTeam });
+  const hasUnit = setting.scopes.includes('unit');
+  // The units, from the route every member may read.
+  const units = useQuery({ ...unitRefsQuery, enabled: hasUnit });
   const mayReadPrincipals = holds(useMe()?.can, principalReaders);
   // The roles, for a rule's role condition: the access administrators read them.
   const roles = useQuery({
@@ -89,24 +89,24 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
       .filter((o) => o.scope === 'user')
       .map((o) => o.scopeId),
   );
-  const teamNames = useTeamNames(
+  const unitNames = useUnitNames(
     (overrides.data ?? [])
-      .filter((o) => o.scope === 'team')
+      .filter((o) => o.scope === 'unit')
       .map((o) => o.scopeId),
   );
   const scopeOptions = setting.scopes.map((scope) => ({
     value: scope,
     label: t(`scope.${scope}`),
   }));
-  const teamOptions = (teams.data ?? []).map((team) => ({
-    value: team.id,
-    label: team.name,
+  const unitOptions = (units.data ?? []).map((unit) => ({
+    value: unit.id,
+    label: unit.name,
   }));
   const nameOf = (scope: Scope, scopeId: string) => {
-    if (scope === 'team') {
+    if (scope === 'unit') {
       return (
-        teamOptions.find((o) => o.value === scopeId)?.label ??
-        teamNames.get(scopeId)
+        unitOptions.find((o) => o.value === scopeId)?.label ??
+        unitNames.get(scopeId)
       );
     }
     return people.get(scopeId);
@@ -335,13 +335,13 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
               if (scope === 'tenant') {
                 return null;
               }
-              // The picker is rebuilt with the scope: a team's id is not a user's.
-              return scope === 'team' ? (
+              // The picker is rebuilt with the scope: a unit's id is not a user's.
+              return scope === 'unit' ? (
                 <form.AppField name="scopeId" key={scope}>
                   {(field) => (
                     <field.SelectField
-                      label={t('scopeId.team')}
-                      options={teamOptions}
+                      label={t('scopeId.unit')}
+                      options={unitOptions}
                     />
                   )}
                 </form.AppField>

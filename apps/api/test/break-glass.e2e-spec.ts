@@ -5,6 +5,7 @@ import type { Database } from '../src/core/database/drizzle.js';
 import { Tenancy } from '../src/core/tenancy/tenancy.service.js';
 import { readOnlyTenantScope } from '../src/core/tenancy/tenant-scope.js';
 import { auditLog, breakGlassGrants, users } from '../src/iam/iam.tables.js';
+import { testItems } from './fixtures/test-items/test-items.tables.js';
 import { OutboxRelay } from '@nestjs/outbox';
 import { bootApp, type TestApp } from './support.js';
 
@@ -64,12 +65,6 @@ describe('break-glass (e2e)', () => {
       .set('Break-Glass', grant)
       .expect(200);
     expect(me.body.tenant).toMatchObject({ id: other.id, operator: false });
-    // One tenant, never its subtree: no consolidated read through a grant.
-    await node
-      .admin()
-      .get('/v1/access/consolidated/tenants')
-      .set('Break-Glass', grant)
-      .expect(403);
     // The operators' routes stay theirs: not from inside the other tenant.
     await node.admin().get('/v1/tenants').set('Break-Glass', grant).expect(403);
 
@@ -187,6 +182,44 @@ describe('break-glass (e2e)', () => {
       .set('Break-Glass', grant)
       .expect(200);
     expect(items.body.items).toHaveLength(1);
+  });
+
+  it('reads its one target tenant and nothing else, read only', async () => {
+    const third = await node.otherTenant();
+    await node
+      .writeItem(other.admin, { title: 'Target', body: 'a' })
+      .expect(201);
+    await node
+      .writeItem(third.admin, { title: 'Third', body: 'b' })
+      .expect(201);
+    await node.writeItem(node.admin(), { title: 'Own', body: 'c' }).expect(201);
+    const grant = (await open().expect(201)).body.id as string;
+
+    // Over HTTP: the target's rows, not the operator tenant's, not a third's.
+    const read = await node
+      .admin()
+      .get('/v1/test-items')
+      .set('Break-Glass', grant)
+      .expect(200);
+    expect(
+      read.body.items.map((item: { title: string }) => item.title),
+    ).toEqual(['Target']);
+
+    // In the scope itself: one tenant (`app.tenant_id` is the target, no
+    // other setting widens a read), every transaction READ ONLY.
+    const db = node.app.get<Database>(getDrizzleToken());
+    const tenancy = node.app.get(Tenancy);
+    const seen = await tenancy.run(readOnlyTenantScope(other.id), () =>
+      db.select({ tenantId: testItems.tenantId }).from(testItems),
+    );
+    expect(new Set(seen.map((row) => row.tenantId))).toEqual(
+      new Set([other.id]),
+    );
+    await expect(
+      tenancy.run(readOnlyTenantScope(other.id), () =>
+        db.update(testItems).set({ title: 'Changed' }),
+      ),
+    ).rejects.toMatchObject({ cause: { code: '25006' } });
   });
 
   it('expires after its time, is never renewed, and ends early', async () => {

@@ -7,7 +7,7 @@ import { bootApp, type TestApp } from './support.js';
  * (`approvals.maxDelegationDays`: a number, tenant scope, shown to managers
  * only), and on the test-only feature's keys (test/fixtures/test-items/
  * test-item-settings.ts), declared as a feature declares them: a flag with
- * every scope (team, user, rollouts) and a value with team and user scopes.
+ * every scope (unit, user, rollouts) and a value with unit and user scopes.
  */
 const KEY = 'approvals.maxDelegationDays';
 const FLAG = 'testItems.richPreview';
@@ -212,7 +212,7 @@ describe('settings (e2e)', () => {
         (key) => key.startsWith('testItems.') && !RECORD_DECLARED.includes(key),
       );
 
-  it('shows a feature’s settings with their defaults; managers set values for everyone or a team, audited', async () => {
+  it('shows a feature’s settings with their defaults; managers set values for everyone or a unit, audited', async () => {
     const manager = await node.user([await role(['Access', 'manageSettings'])]);
     const editor = await node.user(['editor']);
     const other = await node.user(['editor']);
@@ -237,18 +237,18 @@ describe('settings (e2e)', () => {
       value: 'table',
       source: 'default',
       default: 'table',
-      scopes: ['tenant', 'team', 'user'],
+      scopes: ['tenant', 'unit', 'user'],
       flag: false,
       public: true,
     });
     expect(settingOf(list.body, FLAG)).toMatchObject({
       value: false,
       source: 'default',
-      scopes: ['tenant', 'team', 'user'],
+      scopes: ['tenant', 'unit', 'user'],
       flag: true,
     });
     expect(settingOf(list.body, 'testItems.publishApproval')).toMatchObject({
-      scopes: ['tenant', 'team'],
+      scopes: ['tenant', 'unit'],
       flag: true,
     });
 
@@ -289,46 +289,46 @@ describe('settings (e2e)', () => {
       (await editor.agent.get(`/v1/settings/${VIEW}`).expect(200)).body,
     ).toMatchObject({ value: 'cards', source: 'tenant' });
 
-    // For a team: its users, not the others.
-    const team = (
+    // For a unit: its users, not the others.
+    const unit = (
       await node
         .admin()
-        .post('/v1/access/teams')
-        .send({ name: 'Team A' })
+        .post('/v1/access/organizational-units')
+        .send({ type: 'team', name: 'Unit A' })
         .expect(201)
     ).body as { id: string };
     await node
       .admin()
       .patch(`/v1/access/users/${editor.id}`)
-      .send({ teamIds: [team.id] })
+      .send({ unitIds: [unit.id] })
       .expect(204);
     await manager.agent
       .put(`/v1/settings/${FLAG}`)
-      .send({ scope: 'team', scopeId: team.id, value: true })
+      .send({ scope: 'unit', scopeId: unit.id, value: true })
       .expect(200);
     expect(
       (await editor.agent.get(`/v1/settings/${FLAG}`).expect(200)).body,
-    ).toMatchObject({ value: true, source: 'team' });
+    ).toMatchObject({ value: true, source: 'unit' });
     expect(
       (await other.agent.get(`/v1/settings/${FLAG}`).expect(200)).body,
     ).toMatchObject({ value: false, source: 'default' });
     await manager.agent
       .put(`/v1/settings/${FLAG}`)
-      .send({ scope: 'team', scopeId: randomUUID(), value: true })
+      .send({ scope: 'unit', scopeId: randomUUID(), value: true })
       .expect(404);
-    // A team's value beats the tenant's.
+    // A unit's value beats the tenant's.
     await manager.agent
       .put(`/v1/settings/${VIEW}`)
-      .send({ scope: 'team', scopeId: team.id, value: 'table' })
+      .send({ scope: 'unit', scopeId: unit.id, value: 'table' })
       .expect(200);
     expect(
       (await editor.agent.get(`/v1/settings/${VIEW}`).expect(200)).body,
-    ).toMatchObject({ value: 'table', source: 'team' });
+    ).toMatchObject({ value: 'table', source: 'unit' });
     expect(
       (await other.agent.get(`/v1/settings/${VIEW}`).expect(200)).body,
     ).toMatchObject({ value: 'cards', source: 'tenant' });
     await manager.agent
-      .delete(`/v1/settings/${VIEW}?scope=team&scopeId=${team.id}`)
+      .delete(`/v1/settings/${VIEW}?scope=unit&scopeId=${unit.id}`)
       .expect(204);
 
     // The stored values, and back to the default.
@@ -337,13 +337,13 @@ describe('settings (e2e)', () => {
       .expect(200);
     expect(overrides.body.items).toHaveLength(1);
     expect(overrides.body.items[0]).toMatchObject({
-      scope: 'team',
-      scopeId: team.id,
+      scope: 'unit',
+      scopeId: unit.id,
       value: true,
     });
     await editor.agent.get(`/v1/settings/${FLAG}/overrides`).expect(403);
     await manager.agent
-      .delete(`/v1/settings/${FLAG}?scope=team&scopeId=${team.id}`)
+      .delete(`/v1/settings/${FLAG}?scope=unit&scopeId=${unit.id}`)
       .expect(204);
     expect(
       (await editor.agent.get(`/v1/settings/${FLAG}`).expect(200)).body,
@@ -882,12 +882,12 @@ describe('settings (e2e)', () => {
       const notFlag = await put({ rules: [kind(['user'])] }, VIEW);
       expect(paths(notFlag.body)).toEqual(['rules']);
       const editor = await node.user(['editor']);
-      const team = await put({
+      const unit = await put({
         scope: 'user',
         scopeId: `user:${editor.id}`,
         rules: [kind(['user'])],
       });
-      expect(paths(team.body)).toEqual(['rules']);
+      expect(paths(unit.body)).toEqual(['rules']);
       const platformRole = await node
         .admin()
         .put(`/v1/settings/${FLAG}/platform`)

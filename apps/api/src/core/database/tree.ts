@@ -25,7 +25,7 @@ import {
 } from '../tenancy/tenant-scope.js';
 
 /**
- * A closure table for a tree of rows (teams, categories, folders): one
+ * A closure table for a tree of rows (organizational units, categories, folders): one
  * row per (ancestor, descendant) pair, a node being its own ancestor at
  * depth 0. "Everything under X" is one indexed lookup at any depth, with no
  * recursive query; moving a subtree is two statements. A tenant table

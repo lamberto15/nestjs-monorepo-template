@@ -341,7 +341,7 @@ describe('approvals (e2e)', () => {
       ).toEqual(
         expect.arrayContaining([
           'role',
-          'teamRole',
+          'unitRole',
           'permission',
           'users',
           'test-pick',

@@ -2,10 +2,10 @@ import { text, uuid } from 'drizzle-orm/pg-core';
 import { defineRecord } from './record.js';
 import { recordPermissions } from './record-policy.js';
 
-const table = { ownerId: text('owner_id'), teamId: uuid('team_id') };
+const table = { ownerId: text('owner_id'), unitId: uuid('unit_id') };
 const declare = (
   extra: { clientAccess?: false | 'own'; grants?: 'standard' | 'none' } = {},
-  team = false,
+  unit = false,
 ) =>
   defineRecord({
     subject: 'Widget',
@@ -15,7 +15,7 @@ const declare = (
     noun: 'widget',
     table: 'widgets',
     softDelete: false,
-    team,
+    unit,
     fields: {},
     capabilities: [],
     ...extra,
@@ -66,12 +66,12 @@ describe('recordPermissions: clientAccess and grants', () => {
     ).toEqual([own]);
   });
 
-  it('gives team leads their teams only with a team', () => {
-    const keys = (team: boolean) =>
-      recordPermissions(declare({}, team), table).seedRoles?.map(
+  it('gives unit leads their units only with a unit', () => {
+    const keys = (unit: boolean) =>
+      recordPermissions(declare({}, unit), table).seedRoles?.map(
         (role) => role.key,
       );
-    expect(keys(true)).toEqual(['editor', 'team-lead', 'viewer']);
+    expect(keys(true)).toEqual(['editor', 'unit-lead', 'viewer']);
     expect(keys(false)).toEqual(['editor', 'viewer']);
   });
 });

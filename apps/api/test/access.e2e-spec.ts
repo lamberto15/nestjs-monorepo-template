@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { bootApp, type TestApp } from './support.js';
 
 describe('access control (e2e)', () => {
@@ -14,7 +15,7 @@ describe('access control (e2e)', () => {
   it('seeds Administrator and the roles the declarations ask for', async () => {
     const roles = await node.admin().get('/v1/access/roles').expect(200);
     expect(roles.body.items.map((role: { name: string }) => role.name)).toEqual(
-      ['Administrator', 'Editor', 'Team lead', 'Viewer'],
+      ['Administrator', 'Editor', 'Unit lead', 'Viewer'],
     );
   });
 
@@ -232,76 +233,261 @@ describe('access control (e2e)', () => {
     });
   });
 
-  describe('organization hierarchy', () => {
-    it('lets a lead see the items of their teams and every team below them', async () => {
+  describe('organizational units', () => {
+    /** Units Sales > North > North East and Sales > South, with a test item written in each but North. */
+    async function tree() {
       const admin = node.admin();
-      const team = async (name: string, parentId?: string) =>
+      const unit = async (type: string, name: string, parentId?: string) =>
         (
           await admin
-            .post('/v1/access/teams')
-            .send({ name, parentId })
+            .post('/v1/access/organizational-units')
+            .send({ type, name, parentId })
             .expect(201)
         ).body.id as string;
-      const sales = await team('Sales');
-      const north = await team('North', sales);
-      const south = await team('South', sales);
-      const northEast = await team('North East', north);
-
-      const teams = (await admin.get('/v1/access/teams').expect(200)).body
-        .items;
-      expect(
-        teams.find((u: { id: string }) => u.id === northEast),
-      ).toMatchObject({ depth: 2, parentId: north });
-
-      // Members write items in their teams.
-      const [lead] = await node.roleIds('team-lead');
-      const member = async (teamId: string) => {
+      const sales = await unit('division', 'Sales');
+      const north = await unit('department', 'North', sales);
+      const south = await unit('team', 'South', sales);
+      const northEast = await unit('team', 'North East', north);
+      // A member of exactly one unit writes items of that unit.
+      const writer = async (unitId: string, title: string) => {
         const created = await node.user(['editor']);
         await admin
           .patch(`/v1/access/users/${created.id}`)
-          .send({ teamIds: [teamId] })
+          .send({ unitIds: [unitId] })
           .expect(204);
-        return created.agent;
+        const item = await node
+          .writeItem(created.agent, { title, body: 'x' })
+          .expect(201);
+        expect(item.body.unitId).toBe(unitId);
+        return created.id;
       };
-      await node
-        .writeItem(await member(northEast), {
-          title: 'From North East',
-          body: 'x',
-        })
-        .expect(201);
-      await node
-        .writeItem(await member(south), { title: 'From South', body: 'x' })
-        .expect(201);
+      await writer(northEast, 'From North East');
+      await writer(south, 'From South');
+      await writer(sales, 'From Sales');
+      return { admin, sales, north, south, northEast };
+    }
 
-      const leadOf = async (teamId: string) => {
-        const created = await node.user([lead]);
+    /** What a user with these roles sees of the test items, by title. */
+    const titles = async (
+      agent: Awaited<ReturnType<TestApp['user']>>['agent'],
+    ) =>
+      (
+        (await agent.get('/v1/test-items').expect(200)).body.items as {
+          title: string;
+        }[]
+      )
+        .map((item) => item.title)
+        .sort((a, b) => a.localeCompare(b));
+
+    /** A role reading test items under one unit condition. */
+    const readingWith = async (key: string) =>
+      (
+        await node
+          .admin()
+          .post('/v1/access/roles')
+          .send({
+            name: `role-${randomUUID().slice(0, 8)}`,
+            permissions: [
+              { subject: 'TestItem', action: 'read', conditions: [{ key }] },
+            ],
+          })
+          .expect(201)
+      ).body.id as string;
+
+    it('grants inMyUnits the direct units only, inMyUnitsAndBelow those below too, never the parent', async () => {
+      const { admin, sales, northEast } = await tree();
+      const memberOf = async (key: string, unitId: string) => {
+        const created = await node.user([await readingWith(key)]);
         await admin
           .patch(`/v1/access/users/${created.id}`)
-          .send({ teamIds: [teamId] })
+          .send({ unitIds: [unitId] })
           .expect(204);
-        const items = (await created.agent.get('/v1/test-items').expect(200))
-          .body.items as { title: string }[];
-        return items
-          .map((item) => item.title)
-          .sort((a, b) => a.localeCompare(b));
+        return titles(created.agent);
       };
-      expect(await leadOf(sales)).toEqual(['From North East', 'From South']);
-      expect(await leadOf(north)).toEqual(['From North East']);
-      expect(await leadOf(south)).toEqual(['From South']);
+      expect(await memberOf('inMyUnits', sales)).toEqual(['From Sales']);
+      expect(await memberOf('inMyUnitsAndBelow', sales)).toEqual([
+        'From North East',
+        'From Sales',
+        'From South',
+      ]);
+      // A member of a child unit sees nothing of its parent's.
+      expect(await memberOf('inMyUnitsAndBelow', northEast)).toEqual([
+        'From North East',
+      ]);
+    });
+
+    it('grants inUnitsILeadAndBelow to leads only, until their membership ends', async () => {
+      const { admin, sales, north } = await tree();
+      const [lead] = await node.roleIds('unit-lead');
+      const user = async (unitId: string, role: 'member' | 'lead') => {
+        const created = await node.user([lead]);
+        const membership = await admin
+          .post(`/v1/access/organizational-units/${unitId}/members`)
+          .send({ userId: created.id, role })
+          .expect(201);
+        expect(membership.body).toMatchObject({ role, validTo: null });
+        return created;
+      };
+      // A member, not its lead: nothing.
+      expect(await titles((await user(sales, 'member')).agent)).toEqual([]);
+      expect(await titles((await user(sales, 'lead')).agent)).toEqual([
+        'From North East',
+        'From Sales',
+        'From South',
+      ]);
+      const northLead = await user(north, 'lead');
+      expect(await titles(northLead.agent)).toEqual(['From North East']);
+
+      // Promoted, then ended: the history stays, the grant goes at once.
+      const promoted = await user(north, 'member');
+      expect(await titles(promoted.agent)).toEqual([]);
+      await admin
+        .patch(
+          `/v1/access/organizational-units/${north}/members/${promoted.id}`,
+        )
+        .send({ role: 'lead' })
+        .expect(200);
+      expect(await titles(promoted.agent)).toEqual(['From North East']);
+      await admin
+        .delete(
+          `/v1/access/organizational-units/${north}/members/${northLead.id}`,
+        )
+        .expect(204);
+      expect(await titles(northLead.agent)).toEqual([]);
+      const history = (
+        await admin
+          .get(`/v1/access/organizational-units/${north}/members`)
+          .expect(200)
+      ).body.items as {
+        userId: string;
+        role: string;
+        validTo: string | null;
+      }[];
+      expect(
+        history
+          .filter((row) => row.userId === promoted.id)
+          .map((row) => row.role)
+          .sort((a, b) => a.localeCompare(b)),
+      ).toEqual(['lead', 'member']);
+      expect(
+        history.find((row) => row.userId === northLead.id)?.validTo,
+      ).not.toBeNull();
+      // Nobody changes their own units.
+      const me = (await admin.get('/v1/auth/me').expect(200)).body.user.id;
+      await admin
+        .post(`/v1/access/organizational-units/${north}/members`)
+        .send({ userId: me, role: 'lead' })
+        .expect(403);
+    });
+
+    it("sets a record's unit only when its owner is in exactly one unit", async () => {
+      const { admin, sales, south } = await tree();
+      const created = await node.user(['editor']);
+      const item = async () =>
+        (
+          await node
+            .writeItem(created.agent, { title: 't', body: 'x' })
+            .expect(201)
+        ).body.unitId as string | null;
+      expect(await item()).toBeNull();
+      await admin
+        .patch(`/v1/access/users/${created.id}`)
+        .send({ unitIds: [south] })
+        .expect(204);
+      expect(await item()).toBe(south);
+      await admin
+        .patch(`/v1/access/users/${created.id}`)
+        .send({ unitIds: [south, sales] })
+        .expect(204);
+      expect(await item()).toBeNull();
+    });
+
+    it('keeps sibling names unique ignoring case, moves subtrees, and deletes only empty units', async () => {
+      const { admin, sales, north, south, northEast } = await tree();
+      const listed = (
+        await admin.get('/v1/access/organizational-units').expect(200)
+      ).body.items;
+      expect(
+        listed.find((u: { id: string }) => u.id === northEast),
+      ).toMatchObject({ depth: 2, parentId: north, type: 'team' });
+
+      // Beside a sibling of the same name (any case), and at the top: 409.
+      const taken = await admin
+        .post('/v1/access/organizational-units')
+        .send({ type: 'team', name: 'north', parentId: sales })
+        .expect(409);
+      expect(taken.body.code).toBe('unit_name_taken');
+      await admin
+        .post('/v1/access/organizational-units')
+        .send({ type: 'team', name: 'SALES' })
+        .expect(409);
+      await admin
+        .patch(`/v1/access/organizational-units/${south}`)
+        .send({ name: 'NORTH' })
+        .expect(409);
+      // Elsewhere in the tree, the same name is fine.
+      const other = await admin
+        .post('/v1/access/organizational-units')
+        .send({ type: 'team', name: 'North', parentId: south })
+        .expect(201);
 
       // Moving a subtree moves what is seen through it.
+      const [lead] = await node.roleIds('unit-lead');
+      const southLead = await node.user([lead]);
       await admin
-        .patch(`/v1/access/teams/${north}`)
-        .send({ parentId: south })
+        .post(`/v1/access/organizational-units/${south}/members`)
+        .send({ userId: southLead.id, role: 'lead' })
+        .expect(201);
+      // The type changes, the name clash under South goes first.
+      await admin
+        .delete(`/v1/access/organizational-units/${other.body.id}`)
+        .expect(204);
+      await admin
+        .patch(`/v1/access/organizational-units/${north}`)
+        .send({ parentId: south, type: 'team' })
         .expect(200);
-      expect(await leadOf(south)).toEqual(['From North East', 'From South']);
-      // Never under itself or its own teams.
+      expect(await titles(southLead.agent)).toEqual([
+        'From North East',
+        'From South',
+      ]);
+      // Never under itself or a unit below it.
       await admin
-        .patch(`/v1/access/teams/${south}`)
+        .patch(`/v1/access/organizational-units/${south}`)
         .send({ parentId: northEast })
-        .expect(400);
-      // Only empty teams can go.
-      await admin.delete(`/v1/access/teams/${south}`).expect(409);
+        .expect(409);
+
+      // Units under it, members or records: no cascade.
+      const notEmpty = async (id: string) =>
+        expect(
+          (
+            await admin
+              .delete(`/v1/access/organizational-units/${id}`)
+              .expect(409)
+          ).body.code,
+        ).toBe('unit_not_empty');
+      await notEmpty(south); // units under it
+      await notEmpty(northEast); // a member, and an item
+      // Only an ended membership left: it goes with the unit.
+      const empty = (
+        await admin
+          .post('/v1/access/organizational-units')
+          .send({ type: 'department', name: 'Empty' })
+          .expect(201)
+      ).body.id as string;
+      const passing = await node.user([]);
+      await admin
+        .post(`/v1/access/organizational-units/${empty}/members`)
+        .send({ userId: passing.id })
+        .expect(201);
+      await notEmpty(empty);
+      await admin
+        .delete(
+          `/v1/access/organizational-units/${empty}/members/${passing.id}`,
+        )
+        .expect(204);
+      await admin
+        .delete(`/v1/access/organizational-units/${empty}`)
+        .expect(204);
     });
   });
 });

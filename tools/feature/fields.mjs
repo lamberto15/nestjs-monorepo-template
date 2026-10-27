@@ -11,7 +11,7 @@ export const RESERVED = new Set([
   'id',
   'tenantId',
   'ownerId',
-  'teamId',
+  'unitId',
   'createdAt',
   'updatedAt',
   'deletedAt',

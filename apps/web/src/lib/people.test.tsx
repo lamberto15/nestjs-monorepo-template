@@ -2,8 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
-import { PersonName, TeamName } from '@/components/person-name';
-import { peopleHandler, teamsHandler } from '@/test/people';
+import { PersonName, UnitName } from '@/components/person-name';
+import { peopleHandler, unitsHandler } from '@/test/people';
 import { server } from '@/test/server';
 import { usePeopleAvatars, usePeopleNames } from './people';
 
@@ -24,7 +24,7 @@ function wrap(children: ReactNode) {
   );
 }
 
-describe('people and team names', () => {
+describe('people and unit names', () => {
   it('asks once for every key a render shows, each key once', async () => {
     const asked: URLSearchParams[] = [];
     server.use(peopleHandler(people, [], asked));
@@ -164,18 +164,18 @@ describe('people and team names', () => {
     expect(asked).toHaveLength(1);
   });
 
-  it('names teams by id in one request', async () => {
+  it('names units by id in one request', async () => {
     const asked: URLSearchParams[] = [];
-    const teams = [
+    const units = [
       { id: id(501), name: 'North' },
       { id: id(502), name: 'South' },
     ];
-    server.use(teamsHandler(teams, asked));
+    server.use(unitsHandler(units, asked));
     wrap(
       <>
-        {[...teams, teams[0]!].map((t, n) => (
+        {[...units, units[0]!].map((t, n) => (
           <span key={n}>
-            <TeamName value={t.id} />
+            <UnitName value={t.id} />
           </span>
         ))}
       </>,
@@ -183,6 +183,6 @@ describe('people and team names', () => {
     expect(await screen.findByText('South')).toBeVisible();
     expect(screen.getAllByText('North')).toHaveLength(2);
     expect(asked).toHaveLength(1);
-    expect(asked[0]?.get('id')?.split(',')).toEqual(teams.map((t) => t.id));
+    expect(asked[0]?.get('id')?.split(',')).toEqual(units.map((t) => t.id));
   });
 });

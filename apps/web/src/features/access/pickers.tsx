@@ -10,7 +10,7 @@ import {
 } from '@nestjs-monorepo-template/ui/components/field';
 import { Input } from '@nestjs-monorepo-template/ui/components/input';
 import { useTranslation } from 'react-i18next';
-import type { Role, Team } from '@/features/access/api';
+import type { Role, Unit } from '@/features/access/api';
 import { endInPast, type GrantDraft } from '@/features/access/grants';
 import { useDescribedBy } from '@/lib/form';
 
@@ -116,9 +116,9 @@ function GrantEnd(props: {
   );
 }
 
-/** Teams someone belongs to: the tree, indented by depth. */
-export function TeamsPicker(props: {
-  teams: Team[];
+/** Units someone belongs to: the tree, indented by depth. */
+export function UnitsPicker(props: {
+  units: Unit[];
   value: string[];
   onChange: (value: string[]) => void;
   disabled?: boolean;
@@ -127,32 +127,32 @@ export function TeamsPicker(props: {
   const { t } = useTranslation('access');
   return (
     <FieldSet>
-      <FieldLegend variant="label">{t('teams.title')}</FieldLegend>
-      {props.teams.length === 0 ? (
-        <FieldDescription>{t('teams.none')}</FieldDescription>
+      <FieldLegend variant="label">{t('units.title')}</FieldLegend>
+      {props.units.length === 0 ? (
+        <FieldDescription>{t('units.none')}</FieldDescription>
       ) : (
         <div className="flex flex-col gap-2">
-          {orderedTree(props.teams).map((team) => {
-            const id = `${props.idPrefix}-team-${team.id}`;
+          {orderedTree(props.units).map((unit) => {
+            const id = `${props.idPrefix}-unit-${unit.id}`;
             return (
               <Field
-                key={team.id}
+                key={unit.id}
                 orientation="horizontal"
-                style={{ paddingInlineStart: `${team.depth * 1.25}rem` }}
+                style={{ paddingInlineStart: `${unit.depth * 1.25}rem` }}
               >
                 <Checkbox
                   id={id}
-                  checked={props.value.includes(team.id)}
+                  checked={props.value.includes(unit.id)}
                   disabled={props.disabled}
                   onCheckedChange={(checked) =>
                     props.onChange(
                       checked
-                        ? [...props.value, team.id]
-                        : props.value.filter((v) => v !== team.id),
+                        ? [...props.value, unit.id]
+                        : props.value.filter((v) => v !== unit.id),
                     )
                   }
                 />
-                <FieldLabel htmlFor={id}>{team.name}</FieldLabel>
+                <FieldLabel htmlFor={id}>{unit.name}</FieldLabel>
               </Field>
             );
           })}
@@ -162,23 +162,23 @@ export function TeamsPicker(props: {
   );
 }
 
-/** The teams in tree order: each followed by the teams under it. */
-export function orderedTree(teams: readonly Team[]): Team[] {
-  const children = new Map<string | null, Team[]>();
-  const ids = new Set(teams.map((team) => team.id));
-  for (const team of teams) {
+/** The units in tree order: each followed by the units under it. */
+export function orderedTree(units: readonly Unit[]): Unit[] {
+  const children = new Map<string | null, Unit[]>();
+  const ids = new Set(units.map((unit) => unit.id));
+  for (const unit of units) {
     // A parent not in the list (shouldn't happen): shown at the top.
     const parent =
-      team.parentId && ids.has(team.parentId) ? team.parentId : null;
-    children.set(parent, [...(children.get(parent) ?? []), team]);
+      unit.parentId && ids.has(unit.parentId) ? unit.parentId : null;
+    children.set(parent, [...(children.get(parent) ?? []), unit]);
   }
-  const out: Team[] = [];
+  const out: Unit[] = [];
   const walk = (parent: string | null) => {
-    for (const team of (children.get(parent) ?? []).toSorted((a, b) =>
+    for (const unit of (children.get(parent) ?? []).toSorted((a, b) =>
       a.name.localeCompare(b.name),
     )) {
-      out.push(team);
-      walk(team.id);
+      out.push(unit);
+      walk(unit.id);
     }
   };
   walk(null);

@@ -59,7 +59,7 @@ describe('choosing a view', () => {
     const { calls } = useViewsApi({
       views: [
         view(),
-        view({ id: 'v2', name: 'Team backlog', visibility: 'team' }),
+        view({ id: 'v2', name: 'Unit backlog', visibility: 'unit' }),
         view({
           id: 'v3',
           name: 'Everything open',
@@ -78,10 +78,10 @@ describe('choosing a view', () => {
       await screen.findByRole('menuitem', { name: 'Drafts' }),
     ).toBeVisible();
     expect(screen.getByText('Mine')).toBeVisible();
-    expect(screen.getByText('My teams')).toBeVisible();
+    expect(screen.getByText('My units')).toBeVisible();
     expect(screen.getByText('Everyone')).toBeVisible();
     expect(
-      screen.getByRole('menuitem', { name: 'Team backlog' }),
+      screen.getByRole('menuitem', { name: 'Unit backlog' }),
     ).toBeVisible();
     expect(new URLSearchParams(calls.reads[0]).get('subject')).toBe('TestItem');
   });
@@ -288,7 +288,7 @@ describe('saving the current view', () => {
     expect(calls.created).toEqual([]);
   });
 
-  it('shares with a team, and with the tenant only for a view manager', async () => {
+  it('shares with a unit, and with the tenant only for a view manager', async () => {
     const { calls } = useViewsApi({ views: [] });
     const user = userEvent.setup();
     await renderList('', ['Access.manageViews']);
@@ -306,16 +306,16 @@ describe('saving the current view', () => {
         name: 'Everyone in the organization',
       }),
     ).toBeVisible();
-    await user.click(screen.getByRole('option', { name: 'A team' }));
+    await user.click(screen.getByRole('option', { name: 'A unit' }));
     await user.click(
-      await within(dialog).findByRole('combobox', { name: 'Team' }),
+      await within(dialog).findByRole('combobox', { name: 'Unit' }),
     );
     await user.click(await screen.findByRole('option', { name: 'Sales' }));
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
     await findToast('View “Sales view” saved.');
     expect(calls.created[0]).toMatchObject({
-      visibility: 'team',
-      teamId: 'team-1',
+      visibility: 'unit',
+      unitId: 'unit-1',
     });
   });
 
@@ -331,7 +331,7 @@ describe('saving the current view', () => {
     await user.click(
       within(dialog).getByRole('combobox', { name: 'Who sees it' }),
     );
-    expect(await screen.findByRole('option', { name: 'A team' })).toBeVisible();
+    expect(await screen.findByRole('option', { name: 'A unit' })).toBeVisible();
     expect(
       screen.queryByRole('option', { name: 'Everyone in the organization' }),
     ).toBeNull();

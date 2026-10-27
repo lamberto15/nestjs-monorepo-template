@@ -64,7 +64,7 @@ describe('notes list filters, edge cases (e2e)', () => {
       titles.length,
     );
     expect(await found({ 'publishedAt.isNull': 'false' })).toEqual([]);
-    expect(await found({ 'teamId.isNull': 'false' })).toEqual([]);
+    expect(await found({ 'unitId.isNull': 'false' })).toEqual([]);
   });
 
   it('refuses undeclared operators on the status and the body, naming the key', async () => {

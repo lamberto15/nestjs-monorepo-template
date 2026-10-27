@@ -6,7 +6,7 @@
   "none": "Belum ada paparan yang disimpan.",
   "groups": {
     "private": "Saya",
-    "team": "Pasukan saya",
+    "unit": "Unit saya",
     "tenant": "Semua orang"
   },
   "current": "Paparan semasa: {{name}}",
@@ -21,7 +21,7 @@
   "gone": "“{{name}}” sudah tiada.",
   "visibility": {
     "private": "Peribadi (saya sahaja)",
-    "team": "Satu pasukan",
+    "unit": "Satu unit",
     "tenant": "Semua orang dalam organisasi"
   },
   "form": {
@@ -33,9 +33,9 @@
     "nameTooLong": "Nama paling banyak 200 aksara.",
     "nameTaken": "Paparan bernama “{{name}}” sudah wujud di sini.",
     "visibility": "Siapa yang melihatnya",
-    "team": "Pasukan",
-    "teamRequired": "Pilih pasukan.",
-    "teamPlaceholder": "Pilih pasukan",
+    "unit": "Unit",
+    "unitRequired": "Pilih unit.",
+    "unitPlaceholder": "Pilih unit",
     "save": "Simpan",
     "cancel": "Batal"
   },

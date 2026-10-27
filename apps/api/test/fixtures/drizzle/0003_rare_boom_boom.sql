@@ -1,1 +1,0 @@
-ALTER TABLE "test_items" ADD COLUMN "published_at" timestamp with time zone;

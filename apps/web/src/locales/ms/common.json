@@ -335,7 +335,7 @@
     "fields": {
       "tag": "Tag",
       "ownerId": "Pemilik",
-      "teamId": "Pasukan",
+      "unitId": "Unit",
       "actor": "Pelaku",
       "user": "Pengguna"
     },

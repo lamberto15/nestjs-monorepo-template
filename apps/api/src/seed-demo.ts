@@ -1,6 +1,6 @@
 /**
  * The demo seed (docs/development.md, "Demo data"): demo users with roles,
- * teams, tags and notes with comments and a file, written through the
+ * organizational units, tags and notes with comments and a file, written through the
  * services as the system principal `system:demo-seed`, on a development
  * database only. The users' passwords are printed once.
  *

@@ -24,7 +24,7 @@ export const TEST_ITEM_PUBLICATION_JOB = defineSystemJob({
  * What can be done with test items (the platform's tests' record: test/fixtures),
  * and the conditions an administrator may attach (GET /v1/access/catalog): the
  * standard actions, conditions and seed roles' grants, from test-item.record.ts
- * (recordPermissions: the recycle bin, teams and custom as it says). Generated
+ * (recordPermissions: the recycle bin, units and custom as it says). Generated
  * by `pnpm feature:add`, then a field-level permission (`body`), which the
  * platform's tests read.
  */

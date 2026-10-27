@@ -40,9 +40,9 @@ import {
   type PeopleQuery,
   peopleQuerySchema,
   personSchema,
-  teamRefSchema,
-  type TeamsQuery,
-  teamsQuerySchema,
+  unitRefSchema,
+  type UnitsQuery,
+  unitsQuerySchema,
 } from './people.schemas.js';
 import { PeopleService } from './people.service.js';
 
@@ -133,10 +133,10 @@ export class PeopleController {
 }
 
 /**
- * The tenant's teams, as every member may see them (docs/permissions.md,
- * "The teams lookup"): id, name and place in the tree, for the
- * pickers and names of a list's `ref: team` fields (`teamId`). Managing
- * teams (and their members) stays on /v1/access/teams. Users only, as
+ * The tenant's units, as every member may see them (docs/permissions.md,
+ * "The units lookup"): id, name and place in the tree, for the
+ * pickers and names of a list's `ref: unit` fields (`unitId`). Managing
+ * units (and their members) stays on /v1/access/organizational-units. Users only, as
  * GET /v1/people.
  */
 @ApiTags('people')
@@ -144,18 +144,18 @@ export class PeopleController {
 @ApiCookieAuth('user-session')
 @ApiUnauthorizedResponse({ description: 'No valid session or user token.' })
 @UserOnly()
-@Controller('teams')
-export class TeamDirectoryController {
+@Controller('organizational-units')
+export class UnitDirectoryController {
   constructor(private readonly people: PeopleService) {}
 
   @Get()
-  @Can.Anyone() // Any member of the tenant: only the teams' ids, names and tree.
+  @Can.Anyone() // Any member of the tenant: only the units' ids, names and tree.
   @ApiOperation({
-    summary: "Your tenant's teams: names and tree, for pickers",
-    description: `Every team of your tenant, newest first in cursor pages (\`limit\`: ${DEFAULT_LIMIT} a page by default, ${MAX_LIMIT} at most; follow \`nextCursor\` to read them all): its id (what \`teamId\` holds), name, parent and depth, nothing else. \`q\`: a part of the name; \`id=<id>,<id>\`: these teams (${MAX_LIMIT} ids at most; an id your tenant has no team of is left out). For any member; managing teams is /v1/access/teams.`,
+    summary: "Your tenant's organizational units: names and tree, for pickers",
+    description: `Every organizational unit of your tenant, newest first in cursor pages (\`limit\`: ${DEFAULT_LIMIT} a page by default, ${MAX_LIMIT} at most; follow \`nextCursor\` to read them all): its id (what \`unitId\` holds), name, parent and depth, nothing else. \`q\`: a part of the name; \`id=<id>,<id>\`: these units (${MAX_LIMIT} ids at most; an id your tenant has no unit of is left out). For any member; managing units is /v1/access/organizational-units.`,
   })
   @ApiOkResponse({
-    standardSchema: pageSchema(teamRefSchema).pick({
+    standardSchema: pageSchema(unitRefSchema).pick({
       items: true,
       nextCursor: true,
     }),
@@ -167,7 +167,7 @@ export class TeamDirectoryController {
   @ApiForbiddenResponse({
     description: 'Your session acts in no tenant (tenant_required).',
   })
-  list(@Query({ schema: teamsQuerySchema }) query: TeamsQuery) {
-    return this.people.teams(query);
+  list(@Query({ schema: unitsQuerySchema }) query: UnitsQuery) {
+    return this.people.units(query);
   }
 }

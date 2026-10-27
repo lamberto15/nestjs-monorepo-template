@@ -74,7 +74,7 @@ export const DEMO_NOTES: DemoNote[] = [
     body: 'The magic-link test fails about once in twenty runs on CI. Suspect: the mail arrives after the assertion.',
     tags: ['urgent', 'internal'],
     comments: [
-      'Seeded comment: @lucas, a team lead, can read this note (it belongs to his team), so the mention reached him.',
+      'Seeded comment: @lucas, a unit lead, can read this note (it belongs to his unit), so the mention reached him.',
     ],
   },
   {

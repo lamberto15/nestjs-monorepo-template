@@ -6,7 +6,7 @@
   "none": "还没有保存的视图。",
   "groups": {
     "private": "我的",
-    "team": "我的团队",
+    "unit": "我的组织单元",
     "tenant": "所有人"
   },
   "current": "当前视图：{{name}}",
@@ -21,7 +21,7 @@
   "gone": "“{{name}}”已不存在。",
   "visibility": {
     "private": "私有（仅自己）",
-    "team": "某个团队",
+    "unit": "某个组织单元",
     "tenant": "组织内所有人"
   },
   "form": {
@@ -33,9 +33,9 @@
     "nameTooLong": "名称最多 200 个字符。",
     "nameTaken": "此处已有名为“{{name}}”的视图。",
     "visibility": "谁可以看到",
-    "team": "团队",
-    "teamRequired": "请选择团队。",
-    "teamPlaceholder": "选择团队",
+    "unit": "组织单元",
+    "unitRequired": "请选择组织单元。",
+    "unitPlaceholder": "选择组织单元",
     "save": "保存",
     "cancel": "取消"
   },

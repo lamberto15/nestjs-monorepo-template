@@ -5,12 +5,17 @@ import { pgTable, text, uuid } from 'drizzle-orm/pg-core';
 import { PLATFORM_PERMISSIONS } from '../../platform/ops/ops.policy.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { mergeConditions, PermissionCatalog } from './permission-catalog.js';
-import { createdBy, definePermissions, inMyTeams } from './permissions.js';
+import {
+  createdBy,
+  definePermissions,
+  inMyUnitsAndBelow,
+  NO_UNITS,
+} from './permissions.js';
 
-/** A sample resource: owned, in a team, with a draft status. */
+/** A sample resource: owned, in a unit, with a draft status. */
 const notes = pgTable('notes', {
   ownerId: text('owner_id').notNull(),
-  teamId: uuid('team_id'),
+  unitId: uuid('unit_id'),
   status: text('status').notNull(),
 });
 const NOTE_PERMISSIONS = definePermissions({
@@ -20,7 +25,7 @@ const NOTE_PERMISSIONS = definePermissions({
       fields: { body: { label: "The note's text" } },
       conditions: {
         mine: createdBy('ownerId', notes.ownerId),
-        inMyTeams: inMyTeams('teamId', notes.teamId),
+        inMyUnitsAndBelow: inMyUnitsAndBelow('unitId', notes.unitId),
         draft: {
           label: 'Still a draft',
           description: 'Only notes not yet published.',
@@ -29,11 +34,14 @@ const NOTE_PERMISSIONS = definePermissions({
         },
       },
       actions: {
-        read: { label: 'See notes', conditions: ['mine', 'inMyTeams'] },
+        read: { label: 'See notes', conditions: ['mine', 'inMyUnitsAndBelow'] },
         create: { label: 'Write notes', conditions: [] },
         update: { label: 'Change notes', conditions: ['mine', 'draft'] },
         delete: { label: 'Delete notes', conditions: ['mine', 'draft'] },
-        restore: { label: 'Restore notes', conditions: ['mine', 'inMyTeams'] },
+        restore: {
+          label: 'Restore notes',
+          conditions: ['mine', 'inMyUnitsAndBelow'],
+        },
       },
     },
   },
@@ -63,11 +71,15 @@ const NOTE_PERMISSIONS = definePermissions({
       ],
     },
     {
-      key: 'team-lead',
-      name: 'Team lead',
-      description: 'Sees the notes of their teams.',
+      key: 'unit-lead',
+      name: 'Unit lead',
+      description: 'Sees the notes of their units.',
       permissions: [
-        { subject: 'Note', action: 'read', conditions: [{ key: 'inMyTeams' }] },
+        {
+          subject: 'Note',
+          action: 'read',
+          conditions: [{ key: 'inMyUnitsAndBelow' }],
+        },
       ],
     },
     {
@@ -152,7 +164,7 @@ describe('PermissionCatalog', () => {
     ]);
     expect(catalog.seedRoles.map((role) => role.key)).toEqual([
       'editor',
-      'team-lead',
+      'unit-lead',
       'viewer',
     ]);
     expect(catalog.clientPermissions).toHaveLength(5); // create, read, update, delete, restore
@@ -170,7 +182,6 @@ describe('PermissionCatalog', () => {
       ]),
     );
     expect(granted.every((key) => /\.read(?:[A-Z]|$)/.test(key))).toBe(true);
-    expect(granted).not.toContain('Access.readConsolidated');
     expect(
       catalog.readPermissions().every((p) => p.conditions.length === 0),
     ).toBe(true);
@@ -200,7 +211,7 @@ describe('PermissionCatalog', () => {
         action: 'delete',
         conditions: [{ key: 'mine' }, { key: 'draft' }],
       },
-      { teamIds: [] },
+      NO_UNITS,
     );
     expect(canDelete(conditions, note({}))).toBe(true);
     expect(canDelete(conditions, note({ ownerId: 'user:kim' }))).toBe(false);

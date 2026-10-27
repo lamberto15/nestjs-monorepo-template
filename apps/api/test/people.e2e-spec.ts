@@ -180,8 +180,8 @@ describe('GET /v1/people (e2e)', () => {
   });
 });
 
-/** GET /v1/teams: the tenant's teams, as every member sees them. */
-describe('GET /v1/teams (e2e)', () => {
+/** GET /v1/organizational-units: the tenant's units, as every member sees them. */
+describe('GET /v1/organizational-units (e2e)', () => {
   let node: TestApp;
 
   beforeAll(async () => {
@@ -192,90 +192,107 @@ describe('GET /v1/teams (e2e)', () => {
   });
 
   const tag = () => randomUUID().slice(0, 6);
-  interface TeamRef {
+  interface UnitRef {
     id: string;
+    type: string;
     name: string;
     parentId: string | null;
     depth: number;
   }
 
-  /** A team of the default tenant, made by its administrator. */
-  async function team(name: string, parentId?: string) {
+  /** A unit of the default tenant, made by its administrator. */
+  async function unit(name: string, parentId?: string) {
     const res = await node
       .admin()
-      .post('/v1/access/teams')
-      .send({ name, parentId })
+      .post('/v1/access/organizational-units')
+      .send({ type: 'team', name, parentId })
       .expect(201);
     return res.body.id as string;
   }
 
-  it("lets a member without a role read the teams: id, name and tree only, never another tenant's", async () => {
+  it("lets a member without a role read the units: id, name and tree only, never another tenant's", async () => {
     const t = tag();
-    const top = await team(`Sales ${t}`);
-    const north = await team(`North ${t}`, top);
-    const east = await team(`East ${t}`, north);
+    const top = await unit(`Sales ${t}`);
+    const north = await unit(`North ${t}`, top);
+    const east = await unit(`East ${t}`, north);
     const other = await node.otherTenant();
     const theirs = (
       await other.admin
-        .post('/v1/access/teams')
-        .send({ name: `Sales ${t} elsewhere` })
+        .post('/v1/access/organizational-units')
+        .send({ type: 'team', name: `Sales ${t} elsewhere` })
         .expect(201)
     ).body.id as string;
     const plain = await node.user([]);
-    await plain.agent.get('/v1/access/teams').expect(403);
+    await plain.agent.get('/v1/access/organizational-units').expect(403);
 
     const res = await plain.agent
-      .get(`/v1/teams?q=${encodeURIComponent(t)}`)
+      .get(`/v1/organizational-units?q=${encodeURIComponent(t)}`)
       .expect(200);
     expect(res.body).toEqual({
       items: [
-        { id: east, name: `East ${t}`, parentId: north, depth: 2 },
-        { id: north, name: `North ${t}`, parentId: top, depth: 1 },
-        { id: top, name: `Sales ${t}`, parentId: null, depth: 0 },
+        {
+          id: east,
+          type: 'team',
+          name: `East ${t}`,
+          parentId: north,
+          depth: 2,
+        },
+        {
+          id: north,
+          type: 'team',
+          name: `North ${t}`,
+          parentId: top,
+          depth: 1,
+        },
+        { id: top, type: 'team', name: `Sales ${t}`, parentId: null, depth: 0 },
       ],
       nextCursor: null,
     });
 
     // By id: ours, in a page; another tenant's or an unknown id is absent.
     const byId = await plain.agent
-      .get(`/v1/teams?id=${top},${theirs},${randomUUID()}`)
+      .get(`/v1/organizational-units?id=${top},${theirs},${randomUUID()}`)
       .expect(200);
-    expect((byId.body.items as TeamRef[]).map((row) => row.id)).toEqual([top]);
+    expect((byId.body.items as UnitRef[]).map((row) => row.id)).toEqual([top]);
 
     // Cursor pages: newest first, the next page after the cursor.
     const q = `q=${encodeURIComponent(t)}&limit=2`;
-    const first = await plain.agent.get(`/v1/teams?${q}`).expect(200);
-    expect((first.body.items as TeamRef[]).map((row) => row.id)).toEqual([
+    const first = await plain.agent
+      .get(`/v1/organizational-units?${q}`)
+      .expect(200);
+    expect((first.body.items as UnitRef[]).map((row) => row.id)).toEqual([
       east,
       north,
     ]);
     expect(first.body.nextCursor).toBe(north);
     const second = await plain.agent
-      .get(`/v1/teams?${q}&cursor=${first.body.nextCursor}`)
+      .get(`/v1/organizational-units?${q}&cursor=${first.body.nextCursor}`)
       .expect(200);
     expect(second.body).toEqual({
-      items: [{ id: top, name: `Sales ${t}`, parentId: null, depth: 0 }],
+      items: [
+        { id: top, type: 'team', name: `Sales ${t}`, parentId: null, depth: 0 },
+      ],
       nextCursor: null,
     });
 
     // Theirs reads only theirs.
     const back = await other.admin
-      .get(`/v1/teams?q=${encodeURIComponent(t)}`)
+      .get(`/v1/organizational-units?q=${encodeURIComponent(t)}`)
       .expect(200);
-    expect((back.body.items as TeamRef[]).map((row) => row.id)).toEqual([
+    expect((back.body.items as UnitRef[]).map((row) => row.id)).toEqual([
       theirs,
     ]);
   });
 
   it('searches names with % and _ as themselves', async () => {
     const t = tag();
-    const literal = await team(`Ops_100% ${t}`);
-    await team(`Opsx100x ${t}`);
+    const literal = await unit(`Ops_100% ${t}`);
+    await unit(`Opsx100x ${t}`);
     const plain = await node.user([]);
     const res = await plain.agent
-      .get(`/v1/teams?q=${encodeURIComponent(`ps_100% ${t}`)}`)
+      .get(`/v1/organizational-units?q=${encodeURIComponent(`ps_100% ${t}`)}`)
       .expect(200);
-    expect((res.body.items as TeamRef[]).map((row) => row.id)).toEqual([
+    expect((res.body.items as UnitRef[]).map((row) => row.id)).toEqual([
       literal,
     ]);
   });
@@ -291,24 +308,28 @@ describe('GET /v1/teams (e2e)', () => {
       'cursor=nope',
       'x=1',
     ]) {
-      const res = await plain.agent.get(`/v1/teams?${query}`).expect(400);
+      const res = await plain.agent
+        .get(`/v1/organizational-units?${query}`)
+        .expect(400);
       expect(res.body.code).toBe('validation_failed');
     }
     const client = await node.client();
     await node
       .http()
-      .get('/v1/teams')
+      .get('/v1/organizational-units')
       .set('Authorization', client.auth)
       .expect(401);
-    await node.http().get('/v1/teams').expect(401);
+    await node.http().get('/v1/organizational-units').expect(401);
   });
 
-  it('is where the list metadata points a `team` and a `principal` ref', async () => {
+  it('is where the list metadata points a `unit` and a `principal` ref', async () => {
     const document = JSON.stringify(
       (await node.http().get('/api-json').expect(200)).body,
     );
-    expect(document).toContain('`team` (GET /v1/teams');
+    expect(document).toContain('`unit` (GET /v1/organizational-units');
     expect(document).toContain('names keys with `key=`');
-    expect(document).not.toContain('`team` (GET /v1/access/teams)');
+    expect(document).not.toContain(
+      '`unit` (GET /v1/access/organizational-units)',
+    );
   });
 });

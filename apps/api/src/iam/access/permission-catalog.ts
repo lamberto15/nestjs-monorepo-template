@@ -30,15 +30,16 @@ export const ACCESS_PERMISSIONS = definePermissions({
           // Never passwords: an administrator manages the membership, not
           // the account (docs/tenancy.md).
           label:
-            'Invite users, assign their roles and teams, deactivate their memberships',
+            'Invite users, assign their roles and organizational units, deactivate their memberships',
           conditions: [],
         },
         manageClients: {
           label: 'Create API clients, rotate and revoke their keys',
           conditions: [],
         },
-        manageTeams: {
-          label: 'Create, move and delete teams (what "in my teams" covers)',
+        manageOrganizationalUnits: {
+          label:
+            'Create, retype, move and delete organizational units (what "in my units" covers)',
           conditions: [],
         },
         manageCustomFields: {
@@ -48,7 +49,7 @@ export const ACCESS_PERMISSIONS = definePermissions({
         },
         manageSettings: {
           label:
-            'Set settings and feature flags for everyone, a team or a user (platform/settings)',
+            'Set settings and feature flags for everyone, a unit or a user (platform/settings)',
           conditions: [],
         },
         manageTags: {
@@ -77,11 +78,6 @@ export const ACCESS_PERMISSIONS = definePermissions({
           conditions: [],
         },
         readAudit: { label: 'Read the audit log', conditions: [] },
-        readConsolidated: {
-          label:
-            'Read the tenants below this one in its tenant tree, read-only (consolidated reports of a holding)',
-          conditions: [],
-        },
         manageTenants: {
           label:
             "Create tenants (the deployment's operators: only in the operator tenant)",
@@ -118,9 +114,6 @@ export const ACCESS_PERMISSIONS = definePermissions({
   },
   systemJobs: IAM_SYSTEM_JOBS,
 });
-
-/** Read actions that reach past the current tenant: never a break-glass grant's. */
-const BEYOND_ONE_TENANT = new Set(['Access.readConsolidated']);
 
 /** A system job's key: lowercase words joined by `-`, groups by `.`. */
 const JOB_KEY =
@@ -226,18 +219,12 @@ export class PermissionCatalog {
    * Every read action of every subject (`read`, `readAudit`: the actions
    * whose name starts with `read`), without conditions or field limits:
    * what a break-glass request may do in the tenant it opened
-   * (docs/tenancy.md, "Break-glass"). Nothing that changes anything,
-   * and nothing that reads past that one tenant (`Access.readConsolidated`:
-   * a grant opens one tenant, never its subtree).
+   * (docs/tenancy.md, "Break-glass"). Nothing that changes anything.
    */
   readPermissions(): PermissionInput[] {
     return Object.entries(this.subjects).flatMap(([subject, declared]) =>
       Object.keys(declared.actions)
-        .filter(
-          (action) =>
-            /^read(?:[A-Z]|$)/.test(action) &&
-            !BEYOND_ONE_TENANT.has(`${subject}.${action}`),
-        )
+        .filter((action) => /^read(?:[A-Z]|$)/.test(action))
         .map((action) => ({ subject, action, conditions: [] })),
     );
   }

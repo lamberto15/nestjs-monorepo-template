@@ -7,7 +7,9 @@ import {
   createdBy,
   definePermissions,
   type FieldDefinition,
-  inMyTeams,
+  inMyUnits,
+  inMyUnitsAndBelow,
+  inUnitsILeadAndBelow,
   type PermissionInput,
   type SeedRole,
   type SystemJobDefinition,
@@ -20,7 +22,7 @@ import { RECORD_DECLARATION } from './record-contract.js';
 export interface RecordPermissionOptions {
   /** Field-level permissions: the fields a permission may grant one by one. */
   fields?: Record<string, FieldDefinition>;
-  /** Conditions of the feature's own, besides `mine` (and `inMyTeams`). */
+  /** Conditions of the feature's own, besides `mine` (and the unit conditions). */
   conditions?: Record<string, ConditionTemplate>;
   /** Actions of its own, or a standard one replaced (its label, its conditions). */
   actions?: Record<string, ActionDefinition>;
@@ -42,13 +44,14 @@ const actionsOf = (declaration: RecordDeclaration) => [
 
 /**
  * A record's permissions (definePermissions), from its declaration
- * (record.ts): the conditions `mine` and, with teams, `inMyTeams`; the
+ * (record.ts): the conditions `mine` and, with units, `inMyUnits`,
+ * `inMyUnitsAndBelow` and `inUnitsILeadAndBelow`; the
  * actions read, create, update, delete and, with a recycle bin, restore;
  * the field-level permissions of its capabilities (custom);
  * with `clientAccess: 'own'` an API client's own records (none by default);
  * the seed roles' grants (`grants`, standard unless 'none'): editors their
- * own, team leads their teams' (with teams), viewers every one. Flipping
- * `softDelete`, `team`, `clientAccess` or `grants` changes them with no
+ * own, unit leads their units' (with units), viewers every one. Flipping
+ * `softDelete`, `unit`, `clientAccess` or `grants` changes them with no
  * code of the feature's;
  * `options` adds the feature's own.
  *
@@ -58,12 +61,14 @@ const actionsOf = (declaration: RecordDeclaration) => [
  */
 export function recordPermissions(
   declaration: RecordDeclaration,
-  table: { ownerId: AnyPgColumn; teamId?: AnyPgColumn },
+  table: { ownerId: AnyPgColumn; unitId?: AnyPgColumn },
   options: RecordPermissionOptions = {},
 ) {
   const { subject } = declaration;
   const nouns = declaration.path.replace(/-/g, ' ');
-  const read = declaration.team ? ['mine', 'inMyTeams'] : ['mine'];
+  const read = declaration.unit
+    ? ['mine', 'inMyUnits', 'inMyUnitsAndBelow', 'inUnitsILeadAndBelow']
+    : ['mine'];
   const own = (action: string): PermissionInput => ({
     subject,
     action,
@@ -83,8 +88,10 @@ export function recordPermissions(
         fields: { ...recordPermissionFields(declaration), ...options.fields },
         conditions: {
           mine: createdBy('ownerId', table.ownerId),
-          ...(declaration.team && {
-            inMyTeams: inMyTeams('teamId', table.teamId!),
+          ...(declaration.unit && {
+            inMyUnits: inMyUnits('unitId', table.unitId!),
+            inMyUnitsAndBelow: inMyUnitsAndBelow('unitId', table.unitId!),
+            inUnitsILeadAndBelow: inUnitsILeadAndBelow('unitId', table.unitId!),
           }),
           ...options.conditions,
         },
@@ -120,7 +127,7 @@ export function recordPermissions(
   });
 }
 
-/** The seed roles' grants of `grants: 'standard'`: editors their own, team leads their teams' (with teams), viewers every record. */
+/** The seed roles' grants of `grants: 'standard'`: editors their own, unit leads their units' (with units), viewers every record. */
 function standardRoles(
   declaration: RecordDeclaration,
   own: PermissionInput[],
@@ -133,15 +140,19 @@ function standardRoles(
       description: 'Writes records and changes their own.',
       permissions: own,
     },
-    ...(declaration.team
+    ...(declaration.unit
       ? [
           {
-            key: 'team-lead',
-            name: 'Team lead',
+            key: 'unit-lead',
+            name: 'Unit lead',
             description:
-              'Sees the records of their teams and every team below them.',
+              'Sees the records of the units they lead and every unit below them.',
             permissions: [
-              { subject, action: 'read', conditions: [{ key: 'inMyTeams' }] },
+              {
+                subject,
+                action: 'read',
+                conditions: [{ key: 'inUnitsILeadAndBelow' }],
+              },
             ],
           },
         ]
@@ -158,14 +169,14 @@ function standardRoles(
 /** The fields of a record its standard conditions read. */
 export interface RecordConditionFields {
   ownerId: string;
-  teamId?: string | null;
+  unitId?: string | null;
   deletedAt?: Date | null;
 }
 
 /**
  * A record's policy (`@Policy()`, @nestjs/authorization): each standard
  * action checked by AccessService against the record's fields, as the
- * declaration has them (the team with teams, the recycle bin's
+ * declaration has them (the unit with units, the recycle bin's
  * `deletedAt`, which refuses all but restore). The feature's policy
  * extends it: a rule of its own overrides an action, or adds one.
  *
@@ -226,7 +237,7 @@ export abstract class RecordPolicy {
   ): Record<string, unknown> {
     return {
       ownerId: row.ownerId,
-      ...(this.declaration.team && { teamId: row.teamId }),
+      ...(this.declaration.unit && { unitId: row.unitId }),
       ...(this.declaration.softDelete && { deletedAt: row.deletedAt }),
     };
   }

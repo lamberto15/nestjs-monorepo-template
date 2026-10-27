@@ -1,11 +1,11 @@
 import { http, HttpResponse } from 'msw/http';
-import type { Member, Role, Team } from '@/features/access/api';
+import type { Member, Role, Unit } from '@/features/access/api';
 import type { Catalog } from '@/features/access/permissions';
 import type { Me } from '@/lib/session';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
 
 // The access API as the tests see it, typed by the client: the catalog,
-// roles, teams and members as the API lists them.
+// roles, units and members as the API lists them.
 
 export const catalog: Catalog = {
   subjects: [
@@ -45,9 +45,9 @@ export const catalog: Catalog = {
               input: null,
             },
             {
-              key: 'inMyTeams',
-              label: 'In my teams',
-              description: 'Only my teams’.',
+              key: 'inMyUnits',
+              label: 'In my units',
+              description: 'Only my units’.',
               input: null,
             },
           ],
@@ -152,22 +152,26 @@ export const roles: Role[] = [
   },
 ];
 
-export const teams: Team[] = [
+export const units: Unit[] = [
   {
     id: ids.sales,
+    type: 'division',
     name: 'Sales',
     parentId: null,
     depth: 0,
     members: 1,
+    managedByScim: false,
     createdAt: at,
     updatedAt: at,
   },
   {
     id: ids.north,
+    type: 'team',
     name: 'North',
     parentId: ids.sales,
     depth: 1,
     members: 0,
+    managedByScim: false,
     createdAt: at,
     updatedAt: at,
   },
@@ -191,7 +195,7 @@ export const bob: Member = {
     { roleId: ids.editor, expiresAt: null },
     { roleId: ids.viewer, expiresAt: '2026-01-01T00:00:00.000Z' },
   ],
-  teamIds: [ids.sales],
+  unitIds: [ids.sales],
 };
 
 export const carol: Member = {
@@ -201,7 +205,7 @@ export const carol: Member = {
   name: 'Carol Admin',
   roleIds: [ids.admin],
   roles: [{ roleId: ids.admin, expiresAt: null }],
-  teamIds: [],
+  unitIds: [],
 };
 
 /** GET /v1/lists/User, as the API describes the members' list. */
@@ -230,12 +234,12 @@ export const userListDescription = {
       custom: false,
     },
     {
-      name: 'teamId',
+      name: 'unitId',
       type: 'uuid',
       operators: ['eq', 'in'],
       sortable: false,
       custom: false,
-      ref: 'team',
+      ref: 'unit',
     },
     {
       name: 'createdAt',
@@ -252,15 +256,15 @@ export const userListDescription = {
   limits: { defaultLimit: 50, maxLimit: 100 },
 };
 
-/** The teams a members query asks for (flat `teamId`, or in `filter`); none: all. */
-function teamIdsOf(query: URLSearchParams): string[] | undefined {
-  const flat = query.get('teamId');
+/** The units a members query asks for (flat `unitId`, or in `filter`); none: all. */
+function unitIdsOf(query: URLSearchParams): string[] | undefined {
+  const flat = query.get('unitId');
   if (flat) return [flat];
   const filter = query.get('filter');
   if (!filter) return undefined;
   const found: string[] = [];
   const visit = (node: Record<string, unknown>) => {
-    if (node.field === 'teamId') {
+    if (node.field === 'unitId') {
       found.push(...([node.value].flat() as string[]));
     }
     for (const child of [
@@ -296,20 +300,26 @@ export function signedInWith(
       const role = roles.find((item) => item.id === params.id);
       return role ? HttpResponse.json(role) : problem(404, 'not_found');
     }),
-    http.get('/v1/access/teams', () => HttpResponse.json({ items: teams })),
-    // The directory any member may read (what list filters and cells name teams by).
-    http.get('/v1/teams', () =>
-      HttpResponse.json({ items: teams, nextCursor: null }),
+    http.get('/v1/access/organizational-units', () =>
+      HttpResponse.json({ items: units }),
+    ),
+    // Nobody is in any unit unless a test says so.
+    http.get('/v1/access/organizational-units/:id/members', () =>
+      HttpResponse.json({ items: [] }),
+    ),
+    // The directory any member may read (what list filters and cells name units by).
+    http.get('/v1/organizational-units', () =>
+      HttpResponse.json({ items: units, nextCursor: null }),
     ),
     http.get('/v1/lists/User', () => HttpResponse.json(userListDescription)),
-    // The members, as the API filters them: `?teamId=` (a team's direct
+    // The members, as the API filters them: `?unitId=` (a unit's direct
     // members) flat or as a condition of `filter`.
     http.get('/v1/access/users', ({ request }) => {
       const query = new URL(request.url).searchParams;
-      const teamIds = teamIdsOf(query);
+      const unitIds = unitIdsOf(query);
       const items = [bob, carol].filter(
         (member) =>
-          !teamIds || teamIds.some((id) => member.teamIds.includes(id)),
+          !unitIds || unitIds.some((id) => member.unitIds.includes(id)),
       );
       return HttpResponse.json({
         items,
@@ -339,7 +349,7 @@ export const invitation = {
   roleIds: [ids.editor, ids.viewer],
   // Viewer ends a while after it is accepted; Editor never does.
   roleExpiresAt: { [ids.viewer]: '2026-12-31T00:00:00.000Z' },
-  teamIds: [],
+  unitIds: [],
   invitedBy: 'ada@example.com',
   expired: false,
   expiresAt: '2026-10-20T00:00:00.000Z',
@@ -349,7 +359,7 @@ export const invitation = {
 export const everything = {
   'Access.manageRoles': true,
   'Access.manageUsers': true,
-  'Access.manageTeams': true,
+  'Access.manageOrganizationalUnits': true,
   'Note.read': true,
   'Note.create': true,
   'Note.update': true,

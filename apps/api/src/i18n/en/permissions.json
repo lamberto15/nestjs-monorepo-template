@@ -3,18 +3,17 @@
     "label": "Access control",
     "actions": {
       "manageRoles": "Create, edit and delete roles",
-      "manageUsers": "Invite users, assign their roles and teams, deactivate their memberships",
+      "manageUsers": "Invite users, assign their roles and organizational units, deactivate their memberships",
       "manageClients": "Create API clients, rotate and revoke their keys",
-      "manageTeams": "Create, move and delete teams (what \"in my teams\" covers)",
+      "manageOrganizationalUnits": "Create, retype, move and delete organizational units (what \"in my units\" covers)",
       "manageCustomFields": "Add, change, reorder and deactivate custom fields (the fields administrators add to notes and other records)",
-      "manageSettings": "Set settings and feature flags for everyone, a team or a user (platform/settings)",
+      "manageSettings": "Set settings and feature flags for everyone, a unit or a user (platform/settings)",
       "manageTags": "Create, rename, recolour and delete the tags records carry (platform/tags)",
       "manageLegalHolds": "Place and release legal holds: records kept whatever a delete, a purge or a retention rule would do (iam/holds)",
       "manageRetention": "Set how long the tenant keeps each kind of record before it is purged or anonymised (platform/retention)",
       "manageNamingSeries": "Create, change and delete the number formats of numbered records, and set their counters (platform/sequences)",
       "manageViews": "Share saved views of lists with the whole tenant, and change or delete shared views (platform/views)",
       "readAudit": "Read the audit log",
-      "readConsolidated": "Read the tenants below this one in its tenant tree, read-only (consolidated reports of a holding)",
       "manageTenants": "Create tenants (the deployment's operators: only in the operator tenant)",
       "impersonate": "Act as another user (support), never as an administrator",
       "manageSso": "Set up the tenant's single sign-on: SAML and OpenID Connect connections, verified email domains",
@@ -92,9 +91,17 @@
       "label": "Created by me",
       "description": "Only records this person (or API client) created."
     },
-    "inMyTeams": {
-      "label": "In my teams",
-      "description": "Only records of the teams I belong to, and of the teams below them."
+    "inMyUnits": {
+      "label": "In my units",
+      "description": "Only records of the units I belong to."
+    },
+    "inMyUnitsAndBelow": {
+      "label": "In my units and below",
+      "description": "Only records of the units I belong to, and of the units below them."
+    },
+    "inUnitsILeadAndBelow": {
+      "label": "In units I lead and below",
+      "description": "Only records of the units I lead, and of the units below them."
     }
   },
   "systemJobs": {
@@ -212,7 +219,7 @@
     },
     "demo-seed": {
       "label": "Demo seed",
-      "description": "Creates demo users, teams and the features' demo data on a development database (pnpm db:seed:demo); refuses any other."
+      "description": "Creates demo users, organizational units and the features' demo data on a development database (pnpm db:seed:demo); refuses any other."
     },
     "ops": {
       "label": "Operator CLI",

@@ -17,20 +17,20 @@ export function requirePermission(...permissions: Permission[]) {
 
 /**
  * Who reads the users page: the API lists users to any access administrator
- * (AccessPolicy.open), so whoever manages teams sees who is in them and
+ * (AccessPolicy.open), so whoever manages units sees who is in them and
  * whoever impersonates finds whom. Changing a member wants manageUsers.
  */
 export const usersReaders = [
   'Access.manageUsers',
-  'Access.manageTeams',
+  'Access.manageOrganizationalUnits',
   'Access.impersonate',
 ] as const satisfies Permission[];
 
 /**
- * Who reads the teams: those who manage them, and those who manage users
- * (a team's membership is the member's). Changing the tree wants manageTeams.
+ * Who reads the units: those who manage them, and those who manage users
+ * (a unit's membership is the member's). Changing the tree wants manageOrganizationalUnits.
  */
-export const teamsReaders = [
-  'Access.manageTeams',
+export const unitsReaders = [
+  'Access.manageOrganizationalUnits',
   'Access.manageUsers',
 ] as const satisfies Permission[];

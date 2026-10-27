@@ -2,7 +2,7 @@
   "nav": {
     "users": "Users",
     "roles": "Roles",
-    "teams": "Teams"
+    "units": "Organization structure"
   },
   "actions": "Actions",
   "cancel": "Cancel",
@@ -27,11 +27,11 @@
     "since": "Member since {{date}}",
     "roles": "Roles",
     "selfRoles": "These are your own roles. You can't give yourself more than you hold, and the last administrator stays.",
-    "selfTeams": "Nobody changes their own teams: another administrator does.",
+    "selfUnits": "Nobody changes their own units: another administrator does.",
     "saveRoles": "Save roles",
     "rolesSaved": "Roles saved.",
-    "saveTeams": "Save teams",
-    "teamsSaved": "Teams saved.",
+    "saveUnits": "Save units",
+    "unitsSaved": "Units saved.",
     "reactivate": "Restore access",
     "reactivated": "Access restored.",
     "remove": {
@@ -47,7 +47,7 @@
       "description": "Your session becomes theirs for a limited time, and everything you do is recorded as you acting as them. Stop from the banner to get your own session back.",
       "confirm": "Impersonate"
     },
-    "readOnly": "You can see this member. Changing their roles, teams or access needs the permission to manage users.",
+    "readOnly": "You can see this member. Changing their roles, units or access needs the permission to manage users.",
     "open": "Open"
   },
   "grants": {
@@ -62,7 +62,7 @@
   "invitations": {
     "invite": "Invite",
     "inviteTitle": "Invite someone",
-    "inviteDescription": "They get an email with a link. Their membership, with these roles and teams, starts when they accept.",
+    "inviteDescription": "They get an email with a link. Their membership, with these roles and units, starts when they accept.",
     "fields": {
       "email": "Email",
       "name": "Name (optional)",
@@ -84,7 +84,7 @@
     "expired": "Expired",
     "resend": "Resend",
     "resendTitle": "Send {{email}} a new link?",
-    "resendDescription": "The current link stops working and a new one is emailed. The roles, their end dates and the teams stay as they were.",
+    "resendDescription": "The current link stops working and a new one is emailed. The roles, their end dates and the units stay as they were.",
     "resent": "A new link was sent to {{email}}.",
     "revoke": "Revoke",
     "revokeTitle": "Revoke the invitation to {{email}}?",
@@ -151,47 +151,64 @@
       "sensitive": "Sensitive"
     }
   },
-  "teams": {
-    "title": "Teams",
-    "new": "New team",
-    "none": "No teams yet.",
-    "newTitle": "New team",
-    "editTitle": "Rename or move team",
-    "dialogDescription": "Moving a team moves every team under it. Members of a team see what its teams below own (\"in my teams\").",
+  "units": {
+    "title": "Organization structure",
+    "new": "New unit",
+    "none": "No units yet.",
+    "newTitle": "New unit",
+    "editTitle": "Edit unit",
+    "dialogDescription": "Moving a unit moves every unit under it. Members of a unit see what the units below it own (\"in my units\").",
     "fields": {
       "name": "Name",
+      "type": "Type",
       "parent": "Under"
+    },
+    "types": {
+      "division": "Division",
+      "department": "Department",
+      "team": "Team"
+    },
+    "roles": {
+      "member": "Member",
+      "lead": "Lead"
     },
     "topLevel": "Top level",
     "errors": {
       "nameRequired": "Enter a name.",
-      "nameTooLong": "At most {{max}} characters."
+      "nameTooLong": "At most {{max}} characters.",
+      "nameTaken": "A unit with this name already exists under the same parent.",
+      "notEmpty": "This unit still has units under it, members, records or saved views. Empty it first.",
+      "managedByScim": "Your identity provider manages this unit over SCIM: change it there."
     },
-    "create": "Create team",
-    "created": "Team created.",
+    "create": "Create unit",
+    "created": "Unit created.",
     "save": "Save",
-    "saved": "Team saved.",
+    "saved": "Unit saved.",
     "edit": "Edit",
     "delete": "Delete",
-    "deleteTitle": "Delete the team {{name}}?",
-    "deleteDescription": "Only an empty team can be deleted: no members and no teams under it.",
-    "deleted": "Team {{name}} deleted.",
+    "deleteTitle": "Delete the unit {{name}}?",
+    "deleteDescription": "Only an empty unit can be deleted: no units under it, no members, no records and no saved views.",
+    "deleted": "Unit {{name}} deleted.",
+    "scim": "Managed by SCIM",
     "columns": {
-      "name": "Team",
+      "name": "Unit",
+      "type": "Type",
       "member": "Member",
-      "members": "Members"
+      "members": "Members",
+      "role": "Role"
     },
-    "notFound": "This team doesn't exist (any more).",
-    "back": "Back to teams",
-    "needsManageUsers": "Adding and removing members changes their membership: it needs the permission to manage users.",
+    "notFound": "This unit doesn't exist (any more).",
+    "back": "Back to the organization structure",
+    "needsManageUsers": "Adding, changing and removing members needs the permission to manage users.",
     "addMember": "Add a member",
     "pickMember": "Choose a member",
     "add": "Add",
-    "memberAdded": "{{email}} added.",
-    "noMembers": "Nobody is in this team directly.",
+    "memberAdded": "Member added.",
+    "noMembers": "Nobody is in this unit.",
     "remove": "Remove",
-    "removeTitle": "Remove {{email}} from {{team}}?",
-    "removeDescription": "They lose what this team gives them.",
-    "memberRemoved": "{{email}} removed."
+    "removeTitle": "Remove this member from {{unit}}?",
+    "removeDescription": "They lose what this unit gives them. The membership ends and is kept as history.",
+    "memberRemoved": "Member removed.",
+    "roleChanged": "Role changed."
   }
 }

@@ -2,7 +2,7 @@
   "nav": {
     "users": "用户",
     "roles": "角色",
-    "teams": "团队"
+    "units": "组织架构"
   },
   "actions": "操作",
   "cancel": "取消",
@@ -27,11 +27,11 @@
     "since": "自 {{date}} 起为成员",
     "roles": "角色",
     "selfRoles": "这些是您自己的角色。您不能授予自己超出所拥有的权限，最后一位管理员也会保留。",
-    "selfTeams": "任何人都不能更改自己的团队：由其他管理员来操作。",
+    "selfUnits": "任何人都不能更改自己的组织单元：由其他管理员来操作。",
     "saveRoles": "保存角色",
     "rolesSaved": "角色已保存。",
-    "saveTeams": "保存团队",
-    "teamsSaved": "团队已保存。",
+    "saveUnits": "保存组织单元",
+    "unitsSaved": "组织单元已保存。",
     "reactivate": "恢复访问",
     "reactivated": "访问已恢复。",
     "remove": {
@@ -47,7 +47,7 @@
       "description": "您的会话将在限定时间内变为对方的会话，您所做的一切都会被记录为您以对方身份操作。可在横幅中停止，以取回您自己的会话。",
       "confirm": "代为操作"
     },
-    "readOnly": "您可以查看此成员。更改其角色、团队或访问权限需要管理用户的权限。",
+    "readOnly": "您可以查看此成员。更改其角色、组织单元或访问权限需要管理用户的权限。",
     "open": "打开"
   },
   "grants": {
@@ -62,7 +62,7 @@
   "invitations": {
     "invite": "邀请",
     "inviteTitle": "邀请他人",
-    "inviteDescription": "对方会收到一封带链接的电子邮件。对方接受后，将以这些角色和团队开始成员资格。",
+    "inviteDescription": "对方会收到一封带链接的电子邮件。对方接受后，将以这些角色和组织单元开始成员资格。",
     "fields": {
       "email": "电子邮件",
       "name": "姓名（可选）",
@@ -84,7 +84,7 @@
     "expired": "已过期",
     "resend": "重新发送",
     "resendTitle": "向 {{email}} 发送新链接？",
-    "resendDescription": "当前链接将失效，并通过电子邮件发送新链接。角色、其结束日期和团队保持不变。",
+    "resendDescription": "当前链接将失效，并通过电子邮件发送新链接。角色、其结束日期和组织单元保持不变。",
     "resent": "新链接已发送至 {{email}}。",
     "revoke": "撤销",
     "revokeTitle": "撤销对 {{email}} 的邀请？",
@@ -149,47 +149,64 @@
       "sensitive": "敏感"
     }
   },
-  "teams": {
-    "title": "团队",
-    "new": "新建团队",
-    "none": "还没有团队。",
-    "newTitle": "新建团队",
-    "editTitle": "重命名或移动团队",
-    "dialogDescription": "移动团队会同时移动其下的所有团队。团队成员可以看到其下级团队所拥有的内容（“我的团队中”）。",
+  "units": {
+    "title": "组织架构",
+    "new": "新建组织单元",
+    "none": "还没有组织单元。",
+    "newTitle": "新建组织单元",
+    "editTitle": "编辑组织单元",
+    "dialogDescription": "移动组织单元会同时移动其下的所有组织单元。组织单元的成员可以看到其下级单元所拥有的内容（“我的组织单元中”）。",
     "fields": {
       "name": "名称",
+      "type": "类型",
       "parent": "隶属于"
+    },
+    "types": {
+      "division": "事业部",
+      "department": "部门",
+      "team": "团队"
+    },
+    "roles": {
+      "member": "成员",
+      "lead": "负责人"
     },
     "topLevel": "顶层",
     "errors": {
       "nameRequired": "请输入名称。",
-      "nameTooLong": "最多 {{max}} 个字符。"
+      "nameTooLong": "最多 {{max}} 个字符。",
+      "nameTaken": "同一上级下已有同名的组织单元。",
+      "notEmpty": "此组织单元下仍有下级单元、成员、记录或已保存的视图。请先清空。",
+      "managedByScim": "您的身份提供商通过 SCIM 管理此组织单元：请在那里更改。"
     },
-    "create": "创建团队",
-    "created": "团队已创建。",
+    "create": "创建组织单元",
+    "created": "组织单元已创建。",
     "save": "保存",
-    "saved": "团队已保存。",
+    "saved": "组织单元已保存。",
     "edit": "编辑",
     "delete": "删除",
-    "deleteTitle": "删除团队 {{name}}？",
-    "deleteDescription": "只能删除空团队：没有成员，其下也没有团队。",
-    "deleted": "团队 {{name}} 已删除。",
+    "deleteTitle": "删除组织单元 {{name}}？",
+    "deleteDescription": "只能删除空的组织单元：其下没有下级单元、成员、记录和已保存的视图。",
+    "deleted": "组织单元 {{name}} 已删除。",
+    "scim": "由 SCIM 管理",
     "columns": {
-      "name": "团队",
+      "name": "组织单元",
+      "type": "类型",
       "member": "成员",
-      "members": "成员"
+      "members": "成员",
+      "role": "角色"
     },
-    "notFound": "此团队不存在（或已不存在）。",
-    "back": "返回团队",
-    "needsManageUsers": "添加和移除成员会改变其成员资格：需要管理用户的权限。",
+    "notFound": "此组织单元不存在（或已不存在）。",
+    "back": "返回组织架构",
+    "needsManageUsers": "添加、更改和移除成员需要管理用户的权限。",
     "addMember": "添加成员",
     "pickMember": "选择成员",
     "add": "添加",
-    "memberAdded": "已添加 {{email}}。",
-    "noMembers": "没有人直接属于此团队。",
+    "memberAdded": "已添加成员。",
+    "noMembers": "此组织单元中没有人。",
     "remove": "移除",
-    "removeTitle": "将 {{email}} 从 {{team}} 中移除？",
-    "removeDescription": "其将失去此团队赋予的内容。",
-    "memberRemoved": "已移除 {{email}}。"
+    "removeTitle": "将此成员从 {{unit}} 中移除？",
+    "removeDescription": "其将失去此组织单元赋予的内容。成员资格结束，并作为历史保留。",
+    "memberRemoved": "已移除成员。",
+    "roleChanged": "角色已更改。"
   }
 }

@@ -154,7 +154,7 @@ export function useNotesApi(options: {
             label: 'Rich text editor',
             description: null,
             flag: true,
-            scopes: ['tenant', 'team', 'user'],
+            scopes: ['tenant', 'unit', 'user'],
             public: true,
             value: options.richText ?? false,
             source: 'default',

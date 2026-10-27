@@ -3,18 +3,17 @@
     "label": "Kawalan akses",
     "actions": {
       "manageRoles": "Cipta, sunting dan padam peranan",
-      "manageUsers": "Jemput pengguna, tetapkan peranan dan pasukan mereka, nyahaktifkan keahlian mereka",
+      "manageUsers": "Jemput pengguna, tetapkan peranan dan unit organisasi mereka, nyahaktifkan keahlian mereka",
       "manageClients": "Cipta klien API, putar dan batalkan kunci mereka",
-      "manageTeams": "Cipta, alih dan padam pasukan (apa yang diliputi \"dalam pasukan saya\")",
+      "manageOrganizationalUnits": "Cipta, tukar jenis, alih dan padam unit organisasi (apa yang diliputi \"dalam unit saya\")",
       "manageCustomFields": "Tambah, ubah, susun semula dan nyahaktifkan medan tersuai (medan yang ditambah oleh pentadbir pada nota dan rekod lain)",
-      "manageSettings": "Tetapkan tetapan dan bendera ciri untuk semua orang, satu pasukan atau seorang pengguna (platform/settings)",
+      "manageSettings": "Tetapkan tetapan dan bendera ciri untuk semua orang, satu unit atau seorang pengguna (platform/settings)",
       "manageTags": "Cipta, namakan semula, warnakan semula dan padam tag yang dibawa oleh rekod (platform/tags)",
       "manageLegalHolds": "Letakkan dan lepaskan penahanan undang-undang: rekod disimpan walau apa pun yang dilakukan oleh padam, pembersihan atau peraturan pengekalan (iam/holds)",
       "manageRetention": "Tetapkan berapa lama penyewa menyimpan setiap jenis rekod sebelum ia dibersihkan atau dinyahkenalkan (platform/retention)",
       "manageNamingSeries": "Cipta, ubah dan padam format nombor rekod bernombor, dan tetapkan pembilangnya (platform/sequences)",
       "manageViews": "Kongsi paparan tersimpan senarai dengan seluruh penyewa, dan ubah atau padam paparan yang dikongsi (platform/views)",
       "readAudit": "Baca log audit",
-      "readConsolidated": "Baca penyewa di bawah penyewa ini dalam pepohon penyewanya, baca sahaja (laporan disatukan sebuah syarikat induk)",
       "manageTenants": "Cipta penyewa (pengendali penggunaan: hanya dalam penyewa pengendali)",
       "impersonate": "Bertindak sebagai pengguna lain (sokongan), tidak sekali-kali sebagai pentadbir",
       "manageSso": "Sediakan log masuk tunggal penyewa: sambungan SAML dan OpenID Connect, domain e-mel yang disahkan",
@@ -92,9 +91,17 @@
       "label": "Dicipta oleh saya",
       "description": "Hanya rekod yang dicipta oleh orang ini (atau klien API ini)."
     },
-    "inMyTeams": {
-      "label": "Dalam pasukan saya",
-      "description": "Hanya rekod pasukan yang saya sertai, dan pasukan di bawahnya."
+    "inMyUnits": {
+      "label": "Dalam unit saya",
+      "description": "Hanya rekod unit yang saya sertai."
+    },
+    "inMyUnitsAndBelow": {
+      "label": "Dalam unit saya dan di bawahnya",
+      "description": "Hanya rekod unit yang saya sertai, dan unit di bawahnya."
+    },
+    "inUnitsILeadAndBelow": {
+      "label": "Dalam unit yang saya ketuai dan di bawahnya",
+      "description": "Hanya rekod unit yang saya ketuai, dan unit di bawahnya."
     }
   },
   "systemJobs": {
@@ -212,7 +219,7 @@
     },
     "demo-seed": {
       "label": "Data demo",
-      "description": "Mencipta pengguna demo, pasukan dan data demo ciri pada pangkalan data pembangunan (pnpm db:seed:demo); menolak yang lain."
+      "description": "Mencipta pengguna demo, unit organisasi dan data demo ciri pada pangkalan data pembangunan (pnpm db:seed:demo); menolak yang lain."
     },
     "ops": {
       "label": "CLI operator",

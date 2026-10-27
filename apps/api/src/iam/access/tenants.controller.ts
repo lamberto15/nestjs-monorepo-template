@@ -129,14 +129,6 @@ const tenantSchema = z.object({
     .nullable()
     .optional()
     .describe('The erase began: it can no longer be cancelled. Always sent.'),
-  // Optional in the document, as createdBySignUp: always sent.
-  parentId: z
-    .uuid()
-    .nullable()
-    .optional()
-    .describe(
-      'Its parent in a holding’s tenant tree (docs/tenancy.md, "The tenant tree"); null: a root. Always sent.',
-    ),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
@@ -220,16 +212,9 @@ const updateTenantSchema = z
       .describe(
         'false: nobody acts in it (its sessions end, API keys stop, connections end, jobs are skipped); true: its data, members and API keys are back. Never for the operator tenant.',
       ),
-    parentId: z
-      .uuid()
-      .nullable()
-      .optional()
-      .describe(
-        'Places it under that tenant in the tenant tree (with everything below it); null makes it a root. Members of the parent with `Access.readConsolidated` then read it, read-only. Never the operator tenant, on either side; never under itself or one of its descendants (409 `tenant_tree_cycle`).',
-      ),
   })
   .refine((body) => Object.keys(body).length > 0, {
-    message: 'Send at least one of name, slug, active, parentId.',
+    message: 'Send at least one of name, slug, active.',
   });
 
 const createTenantSchema = z.object({
@@ -239,12 +224,6 @@ const createTenantSchema = z.object({
     .email()
     .describe(
       'Its first administrator: an account at this address (made, and invited to choose a password, when there is none).',
-    ),
-  parentId: z
-    .uuid()
-    .optional()
-    .describe(
-      'Its parent in a holding’s tenant tree (never the operator tenant): members of the parent with `Access.readConsolidated` read it, read-only.',
     ),
 });
 
@@ -400,8 +379,7 @@ export class TenantsController {
   @Etag()
   @Can(AccessPolicy, 'manageTenants')
   @ApiOperation({
-    summary:
-      'Rename a tenant, change its slug, (de)activate it, move it in the tenant tree (operators)',
+    summary: 'Rename a tenant, change its slug, (de)activate it (operators)',
     description:
       'Audited (`tenant.updated`) in your tenant and in that one. Deactivated (`active: false`): its sessions and token families end (its members sign in again, into another of their tenants), its API keys and invitations stop, a sign-in never starts in it, its realtime connections end, its jobs are skipped. Nothing else is deleted: `active: true` gives back its data, memberships and API keys. docs/tenancy.md, "Operators".',
   })
@@ -410,7 +388,7 @@ export class TenantsController {
   @ApiNotFoundResponse()
   @ApiConflictResponse({
     description:
-      '`tenant_slug_taken` (on `errors[].path` `slug`); `operator_tenant`: the operator tenant is never deactivated, nor in a tenant tree; `tenant_deletion_pending`: `active: true` while its deletion is pending (cancel it first), or a `parentId` whose deletion is pending; `tenant_tree_cycle`: a `parentId` that is this tenant or below it.',
+      '`tenant_slug_taken` (on `errors[].path` `slug`); `operator_tenant`: the operator tenant is never deactivated; `tenant_deletion_pending`: `active: true` while its deletion is pending (cancel it first).',
   })
   @ApiPreconditionFailedResponse({
     description: 'It changed since you read it (precondition_failed).',
@@ -441,10 +419,9 @@ export class TenantsController {
       'The tenant gets the built-in and declared roles; its first administrator is invited at `administratorEmail` (`administrator.status: invited`): the link makes the account when there is none, or adds the existing one once its owner accepts signed in. Whether the address has an account is never told (invite-only, docs/tenancy.md).',
   })
   @ApiCreatedResponse({ standardSchema: createdTenantSchema })
-  @ApiNotFoundResponse({ description: '`parentId`: no such tenant.' })
   @ApiConflictResponse({
     description:
-      '`tenant_slug_taken` (on `errors[].path` `slug`); `single_tenant`: the deployment has its one tenant (TENANCY=single); `operator_tenant`: a `parentId` that is the operator tenant; `tenant_deletion_pending`: a `parentId` whose deletion is pending.',
+      '`tenant_slug_taken` (on `errors[].path` `slug`); `single_tenant`: the deployment has its one tenant (TENANCY=single).',
   })
   create(
     @CurrentUser() user: UserPrincipal,
@@ -469,8 +446,7 @@ export class TenantsController {
   })
   @ApiNotFoundResponse()
   @ApiConflictResponse({
-    description:
-      '`operator_tenant`: the operator tenant is never deleted; `tenant_has_children`: it has children in the tenant tree (move them first).',
+    description: '`operator_tenant`: the operator tenant is never deleted.',
   })
   requestDeletion(
     @CurrentUser() user: UserPrincipal,

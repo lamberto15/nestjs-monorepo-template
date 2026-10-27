@@ -20,7 +20,7 @@ import {
   tenantReference,
   tenantTable,
 } from '../../core/tenancy/tenant-scope.js';
-import { teams } from '../../iam/iam.tables.js';
+import { organizationalUnits } from '../../iam/iam.tables.js';
 import type { NoteStatus } from './note.schemas.js';
 
 /** Notes: the example resource. `ownerId` is the principal that created it, `user:<id>` or `client:<id>`. */
@@ -33,8 +33,8 @@ export const notes = pgTable(
     /** The number people quote, `NOTE-2026-00042` (platform/sequences): set on create. */
     number: text('number'),
     ownerId: text('owner_id').notNull(),
-    /** The author's team (users in a team): what `inMyTeams` reads. */
-    teamId: uuid('team_id'),
+    /** The author's organizational unit (when they are in exactly one): what the unit conditions read. */
+    unitId: uuid('unit_id'),
     title: text('title').notNull(),
     body: text('body').notNull(),
     status: text('status').$type<NoteStatus>().notNull(),
@@ -93,10 +93,10 @@ export const notes = pgTable(
     // The `mine` read condition and ?ownerId= (one BitmapOr arm), and the
     // account export's owner pages in id order (NoteTransfer.rows).
     index('notes_owner_id_id_idx').on(table.ownerId, table.id.desc()),
-    // The `inMyTeams` read condition and ?teamId= (the other BitmapOr arm),
-    // and notes_team_fk's ON DELETE SET NULL lookup: not partial, the key
-    // also reaches deleted notes.
-    index('notes_tenant_team_id_idx').on(table.tenantId, table.teamId),
+    // The unit read conditions and ?unitId= (the other BitmapOr arm), and
+    // notes_unit_fk's ON DELETE RESTRICT lookup: not partial, the key also
+    // reaches deleted notes.
+    index('notes_tenant_unit_id_idx').on(table.tenantId, table.unitId),
     // ?status= with the default order, and ?sort=status.
     index('notes_tenant_status_id_idx')
       .on(table.tenantId, table.status, table.id.desc())
@@ -123,12 +123,13 @@ export const notes = pgTable(
     index('notes_search_idx').using('gin', table.search),
     // The policies and the unique (tenant_id, id) other tables' keys point at.
     ...tenantTable('notes', table),
-    // A key within the tenant: (tenant_id, team_id), never another tenant's team.
+    // A key within the tenant: (tenant_id, unit_id), never another tenant's
+    // unit. A unit with notes can't be deleted (409 `unit_not_empty`).
     tenantReference(
-      'notes_team_fk',
-      [table.tenantId, table.teamId],
-      [teams.tenantId, teams.id],
-      'set null',
+      'notes_unit_fk',
+      [table.tenantId, table.unitId],
+      [organizationalUnits.tenantId, organizationalUnits.id],
+      'restrict',
     ),
   ],
 ).enableRLS();

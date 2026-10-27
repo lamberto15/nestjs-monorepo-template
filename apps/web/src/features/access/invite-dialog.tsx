@@ -18,7 +18,7 @@ import {
   invalidateAccess,
   invite,
   rolesQuery,
-  teamsQuery,
+  unitsQuery,
   type InvitationBody,
 } from '@/features/access/api';
 import {
@@ -26,14 +26,14 @@ import {
   grantsBody,
   type GrantDraft,
 } from '@/features/access/grants';
-import { RoleGrantsPicker, TeamsPicker } from '@/features/access/pickers';
+import { RoleGrantsPicker, UnitsPicker } from '@/features/access/pickers';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { z } from '@/lib/zod';
 
 /**
  * Invite someone (`POST /v1/access/users`, 202): the address gets a link,
- * and the membership with these roles and teams comes when it is accepted.
+ * and the membership with these roles and units comes when it is accepted.
  * With roles, the API wants a recent sign-in (the dialog asks for it).
  */
 export function InviteDialog() {
@@ -64,7 +64,7 @@ function InviteForm(props: { onDone: () => void }) {
   const { t } = useTranslation('access');
   const queryClient = useQueryClient();
   const roles = useQuery(rolesQuery);
-  const teams = useQuery(teamsQuery);
+  const units = useQuery(unitsQuery);
   const [error, setError] = useState<string>();
   const send = useMutation({
     mutationFn: (body: InvitationBody) => invite(body),
@@ -76,7 +76,7 @@ function InviteForm(props: { onDone: () => void }) {
       email: '',
       name: '',
       grants: {} as GrantDraft,
-      teamIds: [] as string[],
+      unitIds: [] as string[],
     },
     validators: {
       onSubmit: z.object({
@@ -93,7 +93,7 @@ function InviteForm(props: { onDone: () => void }) {
             (grants) => !Object.values(grants).some((v) => endInPast(v)),
             t('grants.untilPast'),
           ),
-        teamIds: z.array(z.string()),
+        unitIds: z.array(z.string()),
       }),
     },
     onSubmit: async ({ value }) => {
@@ -103,7 +103,7 @@ function InviteForm(props: { onDone: () => void }) {
           email: value.email.trim(),
           ...(value.name.trim() && { name: value.name.trim() }),
           ...grantsBody(value.grants),
-          ...(value.teamIds.length > 0 && { teamIds: value.teamIds }),
+          ...(value.unitIds.length > 0 && { unitIds: value.unitIds }),
         });
         toast.success(t('invitations.sent', { email: sent.email }));
         props.onDone();
@@ -114,11 +114,11 @@ function InviteForm(props: { onDone: () => void }) {
       }
     },
   });
-  if (roles.isPending || teams.isPending) {
+  if (roles.isPending || units.isPending) {
     return <Spinner />;
   }
-  if (roles.isError || teams.isError) {
-    return <FormAlert message={errorMessage(roles.error ?? teams.error)} />;
+  if (roles.isError || units.isError) {
+    return <FormAlert message={errorMessage(roles.error ?? units.error)} />;
   }
   return (
     <form
@@ -158,11 +158,11 @@ function InviteForm(props: { onDone: () => void }) {
             />
           )}
         </form.Field>
-        <form.Field name="teamIds">
+        <form.Field name="unitIds">
           {(field) => (
-            <TeamsPicker
+            <UnitsPicker
               idPrefix="invite"
-              teams={teams.data}
+              units={units.data}
               value={field.state.value}
               onChange={field.handleChange}
             />

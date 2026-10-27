@@ -10,19 +10,13 @@
     "targetType": "Subject",
     "targetId": "Target",
     "ip": "IP address",
-    "details": "Details",
-    "tenant": "Tenant"
+    "details": "Details"
   },
   "details": {
     "open": "Show details",
     "actor": "Actor",
     "actorId": "Actor id",
     "none": "No details."
-  },
-  "subtenants": {
-    "switch": "Include sub-tenants",
-    "included": "Including: {{names}}",
-    "none": "No sub-tenants below this tenant."
   },
   "dashboard": {
     "title": "Recent activity",

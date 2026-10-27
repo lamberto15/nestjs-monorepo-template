@@ -5,7 +5,7 @@ pnpm install
 pnpm setup                # first run: the questions, then apps/api/.env.development (docs/configuration.md, "First setup")
 pnpm services:up          # PostgreSQL 18, Redis 8, Mailpit, Floci, Gotenberg (project <name>-dev)
 pnpm dev                  # the API and its workers (http://localhost:3000/api) and the web app (http://localhost:5173), with reload
-pnpm db:seed:demo         # optional, from a second terminal: demo users, teams and each feature's demo data (passwords printed once)
+pnpm db:seed:demo         # optional, from a second terminal: demo users, organizational units and each feature's demo data (passwords printed once)
 ```
 
 Then open the web app, http://localhost:5173, and sign in: as the
@@ -63,8 +63,8 @@ provider, and remove `floci` from `compose.dev.yaml`.
 `pnpm db:seed:demo` fills a development database with a small, believable
 company in a tenant of its own, **Demo Company** (`demo`, never the
 operators' tenant: [tenancy](tenancy.md); with `TENANCY=single`, the one
-tenant there is instead, whose administrator then acts as an operator): teams (Sales, Sales North
-under it, Engineering), seven members (its administrator, two team leads,
+tenant there is instead, whose administrator then acts as an operator): organizational units (Sales, Sales North
+under it, Engineering), seven members (its administrator, two unit leads,
 three editors, a viewer) in the seed roles, then each feature's own data
 (`FeatureDefinition.demo`; the example feature's: four tags and seven notes
 owned by those members, tagged, two with a comment that mentions a
@@ -73,7 +73,7 @@ too, so an approver of the notes' publication: to try an approval, sign in
 as them, turn `notes.publishApproval` on, have an editor (a password the
 seed printed) write a note, and approve in the inbox what its publication
 asks for ([approvals](approvals.md#the-notes-example)). Everything is in the demo
-tenant: memberships, roles, teams, the features' records, the files (under
+tenant: memberships, roles, units, the features' records, the files (under
 `tenants/<id>/`), the audit entries. The people are
 `apps/api/src/demo/demo-data.ts`; a feature's data is its own
 (`features/notes/notes.demo.ts`, [adding a feature](adding-a-feature.md)).
@@ -249,7 +249,7 @@ and `node tools/ci/pinned-deps.mjs` (part of `pnpm lint`) fails on a range in
 | `pnpm db:check` | the migrations match the schema |
 | `pnpm db:studio` | Drizzle Studio on the development database |
 | `pnpm migrate` | apply migrations as `DATABASE_OWNER_URL`, then make or check the app role of `DATABASE_URL` (what a deploy runs) |
-| `pnpm db:seed:demo` | demo users, teams and each feature's demo data on a development database ("Demo data") |
+| `pnpm db:seed:demo` | demo users, organizational units and each feature's demo data on a development database ("Demo data") |
 | `pnpm ops <command>` | the operator CLI: a one-time password, remove two-factor, unlock, delete a setting, create an administrator ([deployment](deployment.md), "Operator CLI"); on a deployment: `docker compose run --rm api node dist/cli <command>` |
 | `pnpm feature:add <plural> --fields "…" [--with …]` | a new feature from its declaration ([adding a feature](adding-a-feature.md)) |
 | `pnpm feature:sync [<plural>]` | after editing a feature's `<item>.record.ts` (fields, capabilities, options): updates what the platform derives from it |

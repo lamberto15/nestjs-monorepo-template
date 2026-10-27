@@ -1,7 +1,8 @@
-import { sql } from 'drizzle-orm';
+import { isNull, sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
+  check,
   foreignKey,
   index,
   integer,
@@ -172,8 +173,9 @@ export const passwordHistory = pgTable(
  * a sign-in picks the session's tenant from them, `GET /v1/auth/tenants`
  * lists them, the switch checks one; a tenant's administrators read and
  * change only their own tenant's (`tenant_id` filtered in code). What a
- * membership may do is in tenant tables: its roles (`user_roles`) and org
- * teams (`user_teams`), whose keys reference it.
+ * membership may do is in tenant tables: its roles (`user_roles`) and
+ * organizational units (`organizational_unit_memberships`), whose keys
+ * reference it.
  */
 export const memberships = pgTable(
   'memberships',
@@ -198,7 +200,7 @@ export const memberships = pgTable(
 
 /**
  * Invitations to a tenant (docs/tenancy.md, "Invitations"): an address, the
- * roles and teams its membership will have, and the link's token (only its
+ * roles and units its membership will have, and the link's token (only its
  * SHA-256). Nothing about an account is read or changed until the person
  * accepts: a new address chooses a password with the link; an existing
  * account accepts while signed in. A tenant table: the token names its
@@ -219,7 +221,7 @@ export const invitations = pgTable(
       .$type<Record<string, string>>()
       .notNull()
       .default({}),
-    teamIds: jsonb('team_ids').$type<string[]>().notNull().default([]),
+    unitIds: jsonb('unit_ids').$type<string[]>().notNull().default([]),
     /** The SHA-256 of the link's secret, base64url. */
     tokenHash: text('token_hash').notNull(),
     /** `user:<id>` of who invited. */
@@ -597,26 +599,49 @@ export const emailTokens = pgTable(
   ],
 );
 
+/** The kinds of organizational unit: labels of one tree, never a grant (docs/permissions.md). */
+export const UNIT_TYPES = ['division', 'department', 'team'] as const;
+export type UnitType = (typeof UNIT_TYPES)[number];
+
+/** What a member is in a unit: a lead is context for policies, never a grant by itself. */
+export const UNIT_ROLES = ['member', 'lead'] as const;
+export type UnitRole = (typeof UNIT_ROLES)[number];
+
 /**
- * The organization of a tenant: teams in a tree (company, department,
- * team). Users belong to teams; records can carry the team that owns them,
- * and the `inMyTeams` condition grants what is in a user's teams and below.
+ * The organization structure of a tenant: one tree of units (divisions,
+ * departments, teams, in any order, at any depth). Users belong to units;
+ * records can carry the unit that owns them, and the unit conditions
+ * (`inMyUnits`, `inMyUnitsAndBelow`, `inUnitsILeadAndBelow`) grant what is
+ * in them. A unit's name is unique among its siblings, ignoring case.
  */
-export const teams = pgTable(
-  'teams',
+export const organizationalUnits = pgTable(
+  'organizational_units',
   {
     id: uuidPk(),
     tenantId: tenantColumn(),
+    /** Default `team`: the teams from before units became types keep their kind. */
+    type: text('type', { enum: UNIT_TYPES }).notNull().default('team'),
     name: text('name').notNull(),
-    /** Null: a top-level team. The closure table (team_tree) holds every path. */
+    /** Null: a top-level unit. The closure table holds every path. */
     parentId: uuid('parent_id'),
     ...timestamps(),
   },
   (table) => [
-    index('teams_parent_id_idx').on(table.parentId),
-    ...tenantTable('teams', table, { referenced: true }),
+    index('organizational_units_parent_id_idx').on(table.parentId),
+    // A top-level unit's parent counts as one value (the zero uuid), so two
+    // roots can't share a name either.
+    uniqueIndex('organizational_units_sibling_name_idx').on(
+      table.tenantId,
+      sql`coalesce(${table.parentId}, '00000000-0000-0000-0000-000000000000'::uuid)`,
+      sql`lower(${table.name})`,
+    ),
+    check(
+      'organizational_units_type_check',
+      sql`${table.type} in ('division', 'department', 'team')`,
+    ),
+    ...tenantTable('organizational_units', table, { referenced: true }),
     tenantReference(
-      'teams_parent_fk',
+      'organizational_units_parent_fk',
       [table.tenantId, table.parentId],
       [table.tenantId, table.id],
       'restrict',
@@ -624,30 +649,58 @@ export const teams = pgTable(
   ],
 ).enableRLS();
 
-/** Every (ancestor, descendant) pair of teams: "under X" at any depth in one lookup. */
-export const teamTree = closureTable('team_tree', () => teams);
+/** Every (ancestor, descendant) pair of units: "under X" at any depth in one lookup. */
+export const organizationalUnitClosure = closureTable(
+  'organizational_unit_closure',
+  () => organizationalUnits,
+);
 
-/** Which teams a member belongs to. */
-export const userTeams = pgTable(
-  'user_teams',
+/**
+ * Who belongs to which unit, as a member or its lead, from `validFrom`
+ * until `validTo` (null: open-ended): an ended membership stays, so "who
+ * was in Finance when this was approved" has an answer, and a re-org can
+ * be dated ahead. At most one open membership per unit and user.
+ * Membership of a unit says nothing of its parent.
+ */
+export const organizationalUnitMemberships = pgTable(
+  'organizational_unit_memberships',
   {
+    id: uuidPk(),
     tenantId: tenantColumn(),
+    unitId: uuid('unit_id').notNull(),
     userId: uuid('user_id').notNull(),
-    teamId: uuid('team_id').notNull(),
+    role: text('role', { enum: UNIT_ROLES }).notNull().default('member'),
+    validFrom: at('valid_from').notNull().defaultNow(),
+    validTo: at('valid_to'),
+    ...timestamps(),
   },
   (table) => [
-    primaryKey({ columns: [table.userId, table.teamId] }),
-    index('user_teams_team_id_idx').on(table.teamId),
-    ...tenantTable('user_teams', table),
+    uniqueIndex('organizational_unit_memberships_open_idx')
+      .on(table.tenantId, table.unitId, table.userId)
+      .where(isNull(table.validTo)),
+    index('organizational_unit_memberships_user_idx').on(
+      table.userId,
+      table.validFrom,
+    ),
+    index('organizational_unit_memberships_unit_idx').on(table.unitId),
+    check(
+      'organizational_unit_memberships_role_check',
+      sql`${table.role} in ('member', 'lead')`,
+    ),
+    check(
+      'organizational_unit_memberships_period_check',
+      sql`${table.validTo} is null or ${table.validTo} > ${table.validFrom}`,
+    ),
+    ...tenantTable('organizational_unit_memberships', table),
     foreignKey({
-      name: 'user_teams_membership_fk',
+      name: 'organizational_unit_memberships_membership_fk',
       columns: [table.tenantId, table.userId],
       foreignColumns: [memberships.tenantId, memberships.userId],
     }).onDelete('cascade'),
     tenantReference(
-      'user_teams_team_fk',
-      [table.tenantId, table.teamId],
-      [teams.tenantId, teams.id],
+      'organizational_unit_memberships_unit_fk',
+      [table.tenantId, table.unitId],
+      [organizationalUnits.tenantId, organizationalUnits.id],
     ),
   ],
 ).enableRLS();

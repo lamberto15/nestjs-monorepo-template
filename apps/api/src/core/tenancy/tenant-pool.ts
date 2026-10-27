@@ -100,7 +100,7 @@ const STATE = Symbol('tenancy.client');
  * The pool of api and worker, the app role's. On top of node-postgres' pool:
  *
  * - **Every transaction starts with the tenant's settings.** A client's
- *   `begin` is sent together with `set_config('app.tenant_id' | …, …, true)`
+ *   `begin` is sent together with `set_config('app.tenant_id', …, true)`
  *   for the scope of the current context (CLS: the request's principal, a
  *   job's envelope, `SystemContext.run(…, { tenantId })`): one round trip,
  *   local to that transaction, gone at its end, so a pooled connection
@@ -118,9 +118,10 @@ const STATE = Symbol('tenancy.client');
  *   DATABASE_MAINTENANCE_URL, workers only): an api process holds no
  *   bypass at all, and no setting turns one on. What this does not do:
  *   SQL injected into a request still runs as the app role and may set
- *   `app.tenant_id` / `app.read_tenants` itself (to any tenant ids it can
- *   read, from the global `tenants` table): row-level security bounds an
- *   injection by what those settings allow, not by the request's tenant.
+ *   `app.tenant_id` itself (to any tenant id it can read, from the global
+ *   `tenants` table): row-level security bounds an injection by what that
+ *   setting allows, not by the request's tenant. No other setting widens
+ *   a read (a forged `app.read_tenants` is ignored: no policy reads it).
  *   The wall is against bugs in queries, not a substitute for parameters.
  *   Without that pool here, the bypass is refused.
  */
@@ -179,9 +180,9 @@ export class TenantPool extends pg.Pool {
     }
     const text = textOf(config);
     if (tenantTablesIn(text, 'any').length === 0 && !scope?.readOnly) {
-      // Global tables only: no settings to give, nothing to refuse. A
-      // read-only scope (a consolidated read) takes the transaction below
-      // even so: `READ ONLY` holds for the global tables too.
+      // Global tables only: no setting to give, nothing to refuse. A
+      // read-only scope (break-glass) takes the transaction below even so:
+      // `READ ONLY` holds for the global tables too.
       return (super.query as (...a: unknown[]) => never)(config, values);
     }
     if (!scopeOpensTenants(scope)) {

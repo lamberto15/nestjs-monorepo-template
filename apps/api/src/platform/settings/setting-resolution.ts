@@ -18,7 +18,7 @@ import type {
  * order of precedence can be read and tested apart from the service.
  *
  * An operator's enforced platform value → principal's own → one of their
- * teams' → the tenant's (or its rollout) → the operator's platform value
+ * units' → the tenant's (or its rollout) → the operator's platform value
  * (or its rollout, drawn the same way in each tenant) → default. A
  * flag's rows may carry targeting rules (setting-rules.ts), evaluated
  * before the scope's plain value: the first rule whose conditions hold
@@ -73,7 +73,7 @@ function applyRules(
 /**
  * The effective value of `declaration` for `principal` (none: the
  * tenant's value) in `tenantId`, given the tenant's stored overrides of
- * its key and the ids of the teams the principal belongs to. Without
+ * its key and the ids of the units the principal belongs to. Without
  * a tenant there are no overrides: the platform value, else the default.
  * `platform` is what an operator set for every tenant, if anything.
  */
@@ -81,7 +81,7 @@ export function resolveSetting<T>(
   declaration: SettingDeclaration<T>,
   overrides: readonly SettingOverride[],
   principal: Pick<Principal, 'kind' | 'id'> | null,
-  teamIds: readonly string[],
+  unitIds: readonly string[],
   tenantId: string | null,
   platform?: PlatformSettingValue,
   attributes?: RuleAttributes | null,
@@ -100,11 +100,11 @@ export function resolveSetting<T>(
       return { value: own.value as T, source: 'user' };
     }
   }
-  if (principal && scopes.includes('team')) {
-    for (const teamId of teamIds) {
-      const team = find('team', teamId);
-      if (team && team.value !== null) {
-        return { value: team.value as T, source: 'team' };
+  if (principal && scopes.includes('unit')) {
+    for (const unitId of unitIds) {
+      const unit = find('unit', unitId);
+      if (unit && unit.value !== null) {
+        return { value: unit.value as T, source: 'unit' };
       }
     }
   }

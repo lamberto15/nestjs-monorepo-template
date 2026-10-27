@@ -207,7 +207,7 @@
     "stagesSummary": "阶段：{{names}}",
     "edit": "编辑",
     "editLabel": "编辑{{label}}",
-    "setting": "由设置按团队开启",
+    "setting": "由设置按组织单元开启",
     "saved": "策略已保存。",
     "notFound": {
       "title": "找不到策略",
@@ -308,7 +308,7 @@
     "types": {
       "rule": {
         "role": "拥有某角色的用户",
-        "teamRole": "在发起人团队或其上级中拥有某角色的用户",
+        "unitRole": "在发起人组织单元或其上级中拥有某角色的用户",
         "permission": "可以对该记录执行某操作的用户",
         "users": "指定的用户"
       },

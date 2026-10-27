@@ -32,7 +32,7 @@ export const viewSchema = z
     subject: z.string().meta({ example: 'Note' }),
     name,
     visibility: z.enum(VIEW_VISIBILITIES),
-    teamId: z.string().nullable().describe('Set for a `team` view.'),
+    unitId: z.string().nullable().describe('Set for a `unit` view.'),
     owner: z
       .string()
       .describe(
@@ -74,9 +74,9 @@ export const viewAppliedSchema = z
   })
   .meta({ id: 'SavedViewApplied' });
 
-const teamId = z
+const unitId = z
   .uuid()
-  .describe('For `visibility: "team"`: a team you belong to.');
+  .describe('For `visibility: "unit"`: an organizational unit you belong to.');
 
 /** Body of `POST /views`. */
 export const createViewSchema = z
@@ -89,13 +89,13 @@ export const createViewSchema = z
       .meta({ example: 'Note' }),
     name,
     visibility: z.enum(VIEW_VISIBILITIES).default('private'),
-    teamId: teamId.optional(),
+    unitId: unitId.optional(),
     query: query.default({}),
     columns: columns.nullable().default(null),
   })
-  .refine((dto) => (dto.visibility === 'team') === (dto.teamId !== undefined), {
-    path: ['teamId'],
-    message: 'teamId goes with visibility "team", and only with it.',
+  .refine((dto) => (dto.visibility === 'unit') === (dto.unitId !== undefined), {
+    path: ['unitId'],
+    message: 'unitId goes with visibility "unit", and only with it.',
   });
 export type CreateViewDto = z.infer<typeof createViewSchema>;
 
@@ -103,7 +103,7 @@ export type CreateViewDto = z.infer<typeof createViewSchema>;
 export const updateViewSchema = z.object({
   name: name.optional(),
   visibility: z.enum(VIEW_VISIBILITIES).optional(),
-  teamId: teamId.nullable().optional(),
+  unitId: unitId.nullable().optional(),
   query: query.optional(),
   columns: columns.nullable().optional(),
 });

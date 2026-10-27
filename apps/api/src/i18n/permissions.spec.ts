@@ -13,7 +13,9 @@ import {
 import { pgTable, text, uuid } from 'drizzle-orm/pg-core';
 import {
   createdBy,
-  inMyTeams,
+  inMyUnits,
+  inMyUnitsAndBelow,
+  inUnitsILeadAndBelow,
   type PermissionsDefinition,
 } from '../iam/access/permissions.js';
 import { PLATFORM_PERMISSIONS } from '../platform/ops/ops.policy.js';
@@ -88,18 +90,20 @@ function flatten(catalog: Catalog, prefix = ''): Map<string, string> {
 }
 
 /**
- * The shared conditions every record may carry (createdBy, inMyTeams),
+ * The shared conditions every record may carry (createdBy and the unit conditions),
  * whether or not a feature uses them today: the template without its
  * example still ships their texts.
  */
-const records = pgTable('records', { ownerId: text(), teamId: uuid() });
+const records = pgTable('records', { ownerId: text(), unitId: uuid() });
 const SHARED: PermissionsDefinition = {
   subjects: {
     SharedConditions: {
       label: '',
       conditions: {
         mine: createdBy('ownerId', records.ownerId),
-        inMyTeams: inMyTeams('teamId', records.teamId),
+        inMyUnits: inMyUnits('unitId', records.unitId),
+        inMyUnitsAndBelow: inMyUnitsAndBelow('unitId', records.unitId),
+        inUnitsILeadAndBelow: inUnitsILeadAndBelow('unitId', records.unitId),
       },
       actions: {},
     },

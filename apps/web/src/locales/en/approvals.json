@@ -207,7 +207,7 @@
     "stagesSummary": "Stages: {{names}}",
     "edit": "Edit",
     "editLabel": "Edit {{label}}",
-    "setting": "Switched on per team by the setting",
+    "setting": "Switched on per unit by the setting",
     "saved": "Policy saved.",
     "notFound": {
       "title": "Policy not found",
@@ -308,7 +308,7 @@
     "types": {
       "rule": {
         "role": "Users holding a role",
-        "teamRole": "Users holding a role in the requester's team, or above",
+        "unitRole": "Users holding a role in the requester's unit, or above",
         "permission": "Users who may do an action on the record",
         "users": "Named users"
       },

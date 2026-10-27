@@ -11,12 +11,12 @@ import { api } from '@/lib/api';
 export type Person = GetResponse<'/v1/people'>['items'][number];
 
 /**
- * The roots of the people and team caches (searches, names, pictures): what
+ * The roots of the people and unit caches (searches, names, pictures): what
  * changes who they are or what they are called invalidates the root, from
  * wherever that happens.
  */
 export const peopleKey = ['people'] as const;
-export const teamsKey = ['teams'] as const;
+export const unitsKey = ['units'] as const;
 
 /** The longest `q` the route takes (a longer one is a 400). */
 const MAX_TERM = 100;
@@ -47,9 +47,9 @@ export function peopleQuery(term: string) {
 // ------------------------------------------------------------------ names
 
 /**
- * Names for the keys and ids a page shows (`ownerId`, `teamId`, an audit
+ * Names for the keys and ids a page shows (`ownerId`, `unitId`, an audit
  * actor, a mention): `usePeopleNames(keys)` asks `GET /v1/people?key=`,
- * `useTeamNames(ids)` asks `GET /v1/teams?id=`, both open to every member.
+ * `useUnitNames(ids)` asks `GET /v1/organizational-units?id=`, both open to every member.
  *
  * Each key is a query of its own (TanStack Query's `useQueries`: the same key
  * asked by many cells is one query, kept long), but the requests are not:
@@ -107,8 +107,8 @@ function createBatcher<T>(
 
 /** The most keys `GET /v1/people?key=` takes at once. */
 const PEOPLE_BATCH = 20;
-/** The most ids `GET /v1/teams?id=` takes at once. */
-const TEAM_BATCH = 100;
+/** The most ids `GET /v1/organizational-units?id=` takes at once. */
+const UNIT_BATCH = 100;
 
 // One request serves a key's name and its picture.
 const askPerson = createBatcher<Person>(PEOPLE_BATCH, async (keys) => {
@@ -118,13 +118,13 @@ const askPerson = createBatcher<Person>(PEOPLE_BATCH, async (keys) => {
   return new Map(items.map((person) => [person.key, person]));
 });
 
-const askTeam = createBatcher<string>(TEAM_BATCH, async (ids) => {
+const askUnit = createBatcher<string>(UNIT_BATCH, async (ids) => {
   const found = new Map<string, string>();
-  for await (const team of api.items('/v1/teams', {
+  for await (const unit of api.items('/v1/organizational-units', {
     id: ids.join(','),
     limit: 100,
   })) {
-    found.set(team.id, team.name);
+    found.set(unit.id, unit.name);
   }
   return found;
 });
@@ -132,7 +132,7 @@ const askTeam = createBatcher<string>(TEAM_BATCH, async (ids) => {
 // What the routes accept: anything else is a 400, so it is never asked.
 const PERSON_KEY =
   /^(?:user|client):[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
-const TEAM_ID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+const UNIT_ID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 
 /** Names rarely change, and a new name is not worth a request per page. */
 const NAME_STALE_MS = 30 * 60_000;
@@ -148,11 +148,11 @@ export const personNameQuery = (key: string) =>
     meta: { errorToast: false },
   });
 
-/** One team's name by id (null: this tenant has no such team). */
-export const teamNameQuery = (id: string) =>
+/** One unit's name by id (null: this tenant has no such unit). */
+export const unitNameQuery = (id: string) =>
   queryOptions({
-    queryKey: [...teamsKey, 'name', id],
-    queryFn: () => askTeam(id),
+    queryKey: [...unitsKey, 'name', id],
+    queryFn: () => askUnit(id),
     staleTime: NAME_STALE_MS,
     gcTime: 2 * NAME_STALE_MS,
     retry: false,
@@ -201,11 +201,11 @@ export function usePeopleNames(
   return useNames(keys, PERSON_KEY, personNameQuery);
 }
 
-/** The names of these team ids, one request per 100. */
-export function useTeamNames(
+/** The names of these unit ids, one request per 100. */
+export function useUnitNames(
   ids: readonly (string | null | undefined)[],
 ): Names {
-  return useNames(ids, TEAM_ID, teamNameQuery);
+  return useNames(ids, UNIT_ID, unitNameQuery);
 }
 
 // --------------------------------------------------------------- pictures

@@ -20,7 +20,7 @@ import { refuseBroadRank } from '../../core/database/search.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import type { List, ListQuery } from '../../core/http/list-query.js';
 import { LegalHoldsService } from '../../iam/holds/legal-holds.service.js';
-import { TeamsService } from '../../iam/access/teams.service.js';
+import { OrganizationalUnitsService } from '../../iam/access/organizational-units.service.js';
 import { type Principal, principalKey } from '../../iam/auth/principal.js';
 import type { RecordDeclaration } from './record.js';
 import {
@@ -35,11 +35,11 @@ type RecordTable = PgTable & Record<string, AnyPgColumn>;
 
 /**
  * The queries of a record's table whose shape its declaration decides
- * (record.ts: `softDelete`, `team`), for the feature's service: one record
+ * (record.ts: `softDelete`, `unit`), for the feature's service: one record
  * or a page of them (the recycle bin left out, or only it), a new record's
- * owner and team, a delete (to the recycle bin, or for good), a restore. The
+ * owner and unit, a delete (to the recycle bin, or for good), a restore. The
  * service keeps the transaction, the audit entry and the business logic, and
- * calls these inside them; flipping `softDelete` or `team` in the
+ * calls these inside them; flipping `softDelete` or `unit` in the
  * declaration changes no code of the feature's. Provided by recordParts().
  */
 @Injectable()
@@ -48,7 +48,7 @@ export class RecordStore {
     @Inject(RECORD_DECLARATION) private readonly declaration: RecordDeclaration,
     @Inject(RECORD_TABLE) private readonly table: RecordTable,
     private readonly txHost: TransactionHost<DrizzleTransactions>,
-    private readonly teams: TeamsService,
+    private readonly units: OrganizationalUnitsService,
     private readonly lifecycle: RecordLifecycle,
     private readonly holds: LegalHoldsService,
     private readonly quotas: TenantQuotas,
@@ -73,8 +73,9 @@ export class RecordStore {
   }
 
   /**
-   * The columns a new record's owner sets: `ownerId`, and with teams the
-   * owner's team (a user's first one; none for an API client). Every
+   * The columns a new record's owner sets: `ownerId`, and with units the
+   * owner's unit (a user's only current one; none when they are in none or
+   * several, nor for an API client). Every
    * create calls it, in its transaction, so it is also where the tenant's
    * record limit for this feature is enforced (422 `quota_exceeded`, under
    * the limit's lock): a hook every generated service already has.
@@ -87,10 +88,10 @@ export class RecordStore {
     );
     return {
       ownerId: principalKey(owner),
-      ...(this.declaration.team && {
-        teamId:
+      ...(this.declaration.unit && {
+        unitId:
           owner.kind === 'user'
-            ? ((await this.teams.teamsOf(owner.id, tx))[0] ?? null)
+            ? await this.units.onlyUnitOf(owner.id, tx)
             : null,
       }),
     };

@@ -5,8 +5,8 @@ import { registerTenantTables, tenantTablesIn } from './tenant-pool.js';
 import {
   assertUuid,
   BYPASS,
-  consolidatedScope,
   currentTenantScope,
+  readOnlyTenantScope,
   NO_TENANT,
   requireTenantId,
   TenantScopeMissingError,
@@ -19,9 +19,9 @@ const A = '0199a000-0000-7000-8000-00000000000a';
 const B = '0199a000-0000-7000-8000-00000000000b';
 
 describe('the tenant scope', () => {
-  it('sets the two settings as literals, local to the transaction', () => {
+  it('sets the tenant as a literal, local to the transaction', () => {
     expect(tenantSettingsStatement(tenantScope(A))).toBe(
-      `select set_config('app.tenant_id', '${A}', true), set_config('app.read_tenants', '${A}', true)`,
+      `select set_config('app.tenant_id', '${A}', true)`,
     );
     // No bypass setting: the bypass is the maintenance role, not a value.
     expect(tenantSettingsStatement(BYPASS)).not.toContain('bypass');
@@ -30,29 +30,20 @@ describe('the tenant scope', () => {
     );
   });
 
-  it('widens only the reads of a consolidated scope, read-only, writing to the reader', () => {
-    const scope = consolidatedScope(A, [B, A]);
-    expect(scope).toEqual({
-      tenantId: A,
-      readTenants: [A, B],
-      bypass: false,
-      readOnly: true,
-    });
+  it('opens one target tenant read-only for break-glass, nothing wider', () => {
+    const scope = readOnlyTenantScope(B);
+    expect(scope).toEqual({ tenantId: B, bypass: false, readOnly: true });
     expect(tenantSettingsStatement(scope)).toBe(
-      `select set_config('app.tenant_id', '${A}', true), set_config('app.read_tenants', '${A},${B}', true)`,
+      `select set_config('app.tenant_id', '${B}', true)`,
     );
-    expect(() => consolidatedScope(A, ["x'"])).toThrow(TypeError);
+    expect(() => readOnlyTenantScope("x'")).toThrow(TypeError);
   });
 
   it('takes nothing but a UUID into a setting', () => {
     expect(() => tenantScope(`${A}', true); --`)).toThrow(TypeError);
     expect(() => assertUuid('ACME')).toThrow(TypeError);
     expect(() =>
-      tenantSettingsStatement({
-        tenantId: A,
-        readTenants: [A, "x'"],
-        bypass: false,
-      }),
+      tenantSettingsStatement({ tenantId: "x'", bypass: false }),
     ).toThrow(TypeError);
   });
 

@@ -41,7 +41,7 @@ import type { ListColumn } from '@/lib/list-query';
 /**
  * The tenant's members (the generic list page, on GET /v1/lists/User) and,
  * for whoever manages users, its pending invitations. Whoever only manages
- * teams or impersonates reads the members (AccessPolicy.open): the
+ * units or impersonates reads the members (AccessPolicy.open): the
  * invitations and every change want manageUsers.
  */
 export function UsersPage() {
@@ -80,7 +80,7 @@ function Members() {
   const [selected, setSelected] = useState<string>();
 
   // Cells and headers only: which columns filter and sort, and how (the
-  // team filter included), comes from GET /v1/lists/User (withListMeta).
+  // unit filter included), comes from GET /v1/lists/User (withListMeta).
   const columns = useMemo<ListColumn<Member>[]>(() => {
     const header = (key: string) => {
       const label = t(`users.columns.${key}`);
@@ -154,7 +154,7 @@ function Members() {
     ];
   }, [t, roleById]);
 
-  // The sheet holds what one does to a member: roles, teams, remove or
+  // The sheet holds what one does to a member: roles, units, remove or
   // restore access, impersonate (each by its own permission).
   const rowActions = useCallback(
     (member: Member) => (
@@ -235,7 +235,7 @@ function InvitationRow(props: {
       await invalidateAccess(queryClient);
     },
   });
-  // A new link and expiry; the roles, their ends and the teams stay.
+  // A new link and expiry; the roles, their ends and the units stay.
   const resend = useMutation({
     mutationFn: () => resendInvitation(invitation.id),
     onSuccess: async () => {

@@ -14,10 +14,10 @@ import {
   tenantReference,
   tenantTable,
 } from '../../core/tenancy/tenant-scope.js';
-import { teams } from '../../iam/iam.tables.js';
+import { organizationalUnits } from '../../iam/iam.tables.js';
 
-/** Who sees a saved view: its owner alone, the members of a team, or the whole tenant. */
-export const VIEW_VISIBILITIES = ['private', 'team', 'tenant'] as const;
+/** Who sees a saved view: its owner alone, the current members of a unit, or the whole tenant. */
+export const VIEW_VISIBILITIES = ['private', 'unit', 'tenant'] as const;
 export type ViewVisibility = (typeof VIEW_VISIBILITIES)[number];
 
 /**
@@ -38,11 +38,12 @@ export const savedViews = pgTable(
     visibility: text('visibility').$type<ViewVisibility>().notNull(),
     /** Whose it is: `user:<id>` or `client:<id>`; `anonymous` once its owner's account is gone. */
     owner: text('owner').notNull(),
-    /** The team a `team` view is shared with; null otherwise. */
-    teamId: uuid('team_id'),
+    /** The organizational unit a `unit` view is shared with; null otherwise. */
+    unitId: uuid('unit_id'),
     /**
      * What the name is unique within (case-insensitively, per subject): the
-     * owner's key for a private view, `team:<id>`, or `tenant`.
+     * owner's key for a private view, `unit:<id>` (`team:<id>` for a view
+     * shared before units), or `tenant`.
      */
     scope: text('scope').notNull(),
     /** The list's query parameters, as its route takes them. */
@@ -59,21 +60,25 @@ export const savedViews = pgTable(
       sql`lower(${table.name})`,
     ),
     index('saved_views_owner_idx').on(table.owner, table.subject),
-    index('saved_views_team_idx').on(table.teamId),
+    index('saved_views_unit_idx').on(table.unitId),
+    // 'team' too, for this release only: the stored renames (stored-renames.ts)
+    // turn 'team' rows into 'unit' after the migrations run. A later release
+    // removes 'team' from both checks.
     check(
-      'saved_views_team_check',
-      sql`(${table.visibility} = 'team') = (${table.teamId} is not null)`,
+      'saved_views_unit_check',
+      sql`(${table.visibility} in ('unit', 'team')) = (${table.unitId} is not null)`,
     ),
     check(
       'saved_views_visibility_check',
-      sql`${table.visibility} in ('private', 'team', 'tenant')`,
+      sql`${table.visibility} in ('private', 'unit', 'team', 'tenant')`,
     ),
     ...tenantTable('saved_views', table),
-    // A team deleted takes its views with it.
+    // A unit with views shared with it can't be deleted (409 `unit_not_empty`).
     tenantReference(
-      'saved_views_team_fk',
-      [table.tenantId, table.teamId],
-      [teams.tenantId, teams.id],
+      'saved_views_unit_fk',
+      [table.tenantId, table.unitId],
+      [organizationalUnits.tenantId, organizationalUnits.id],
+      'restrict',
     ),
   ],
 ).enableRLS();

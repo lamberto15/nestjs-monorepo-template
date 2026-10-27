@@ -38,7 +38,8 @@ import {
   type RequestPrincipal,
   type UserPrincipal,
 } from '../../iam/auth/principal.js';
-import { teams, userTeams } from '../../iam/iam.tables.js';
+import { organizationalUnits } from '../../iam/iam.tables.js';
+import { OrganizationalUnitsService } from '../../iam/access/organizational-units.service.js';
 import { defineResource } from '../../iam/resources/resource.js';
 import {
   type PersonalDataSource,
@@ -81,17 +82,17 @@ const invalid = (errors: { path: string; message: string }[]) =>
 const scopeOf = (
   visibility: ViewVisibility,
   owner: string,
-  teamId: string | null,
+  unitId: string | null,
 ) =>
   visibility === 'private'
     ? owner
-    : visibility === 'team'
-      ? `team:${teamId}`
+    : visibility === 'unit'
+      ? `unit:${unitId}`
       : 'tenant';
 
 /**
  * Saved views: a list's filters, sort and columns kept under a name,
- * private to their owner, shared with a team, or tenant-wide. The list is
+ * private to their owner, shared with a unit, or tenant-wide. The list is
  * any registered one (`ListsRegistry`), so a view works for every subject
  * without the subject knowing. A view is validated against the list (with
  * the tenant's custom fields) as the list route validates a query, when
@@ -113,6 +114,7 @@ export class ViewsService implements PersonalDataSource {
     private readonly registry: ListsRegistry,
     private readonly access: AccessService,
     private readonly audit: AuditService,
+    private readonly units: OrganizationalUnitsService,
     personalData: PersonalDataRegistry,
   ) {
     personalData.register(this);
@@ -130,7 +132,7 @@ export class ViewsService implements PersonalDataSource {
 
   /**
    * …and go with their account: private views are theirs alone and are
-   * deleted; shared ones stay for the team or tenant, ownerless
+   * deleted; shared ones stay for the unit or tenant, ownerless
    * (`anonymous`), changeable by view managers only.
    */
   async erase(tx: Transaction, user: UserPrincipal) {
@@ -146,7 +148,7 @@ export class ViewsService implements PersonalDataSource {
       .where(eq(savedViews.owner, owner));
   }
 
-  /** A page of the views the principal sees (theirs, their teams', the tenant's) of the lists they may read. */
+  /** A page of the views the principal sees (theirs, their units', the tenant's) of the lists they may read. */
   async page(principal: RequestPrincipal, query: ListQuery) {
     const readable = await this.readableSubjects(principal);
     const where = and(
@@ -201,8 +203,8 @@ export class ViewsService implements PersonalDataSource {
       'save',
     );
     const owner = principalKey(principal);
-    const teamId = dto.teamId ?? null;
-    await this.assertMayShare(principal, dto.visibility, teamId);
+    const unitId = dto.unitId ?? null;
+    await this.assertMayShare(principal, dto.visibility, unitId);
     const row = await inTransaction(this.txHost, async (tx) => {
       await this.assertRoomFor(owner);
       const [created] = await tx
@@ -212,8 +214,8 @@ export class ViewsService implements PersonalDataSource {
           name: dto.name,
           visibility: dto.visibility,
           owner,
-          teamId,
-          scope: scopeOf(dto.visibility, owner, teamId),
+          unitId,
+          scope: scopeOf(dto.visibility, owner, unitId),
           query: dto.query,
           columns: dto.columns,
         })
@@ -251,22 +253,22 @@ export class ViewsService implements PersonalDataSource {
     }
     const visibility = values.visibility ?? view.visibility;
     const reshare =
-      values.visibility !== undefined || values.teamId !== undefined;
-    // A team is named only for a team view; leaving `team` forgets it.
-    const teamId =
-      visibility === 'team'
-        ? values.teamId !== undefined
-          ? values.teamId
-          : view.teamId
+      values.visibility !== undefined || values.unitId !== undefined;
+    // A unit is named only for a unit view; leaving `unit` forgets it.
+    const unitId =
+      visibility === 'unit'
+        ? values.unitId !== undefined
+          ? values.unitId
+          : view.unitId
         : null;
-    if (visibility === 'team' && !teamId) {
+    if (visibility === 'unit' && !unitId) {
       throw invalid([
-        { path: 'teamId', message: 'A team view names its team (teamId).' },
+        { path: 'unitId', message: 'A unit view names its unit (unitId).' },
       ]);
     }
-    if (visibility !== 'team' && values.teamId) {
+    if (visibility !== 'unit' && values.unitId) {
       throw invalid([
-        { path: 'teamId', message: 'Only a team view has a team.' },
+        { path: 'unitId', message: 'Only a unit view has a unit.' },
       ]);
     }
     if (reshare) {
@@ -276,8 +278,8 @@ export class ViewsService implements PersonalDataSource {
           message: "Only a view's owner makes it private.",
         });
       }
-      if (visibility !== view.visibility || teamId !== view.teamId) {
-        await this.assertMayShare(principal, visibility, teamId);
+      if (visibility !== view.visibility || unitId !== view.unitId) {
+        await this.assertMayShare(principal, visibility, unitId);
       }
     }
     if (values.query !== undefined || values.columns !== undefined) {
@@ -298,8 +300,8 @@ export class ViewsService implements PersonalDataSource {
           ...(values.columns !== undefined && { columns: values.columns }),
           ...(reshare && {
             visibility,
-            teamId,
-            scope: scopeOf(visibility, view.owner, teamId),
+            unitId,
+            scope: scopeOf(visibility, view.owner, unitId),
           }),
         })
         .where(eq(savedViews.id, id))
@@ -460,11 +462,11 @@ export class ViewsService implements PersonalDataSource {
     );
   }
 
-  /** Who may share with a team (a member of it, or a manager) or the tenant (a manager). */
+  /** Who may share with a unit (a current member of it, or a manager) or the tenant (a manager). */
   private async assertMayShare(
     principal: RequestPrincipal,
     visibility: ViewVisibility,
-    teamId: string | null,
+    unitId: string | null,
   ) {
     if (visibility === 'private') {
       return;
@@ -479,29 +481,29 @@ export class ViewsService implements PersonalDataSource {
       }
       return;
     }
-    const [team] = await this.db
-      .select({ id: teams.id })
-      .from(teams)
+    const [unit] = await this.db
+      .select({ id: organizationalUnits.id })
+      .from(organizationalUnits)
       .where(
         and(
-          eq(teams.id, teamId!),
-          eq(teams.tenantId, requireTenantId('A view')),
+          eq(organizationalUnits.id, unitId!),
+          eq(organizationalUnits.tenantId, requireTenantId('A view')),
         ),
       );
-    if (!team) {
-      throw invalid([{ path: 'teamId', message: 'No such team.' }]);
+    if (!unit) {
+      throw invalid([{ path: 'unitId', message: 'No such unit.' }]);
     }
     if (
       !manager &&
       !(
         principal.kind === 'user' &&
-        (await this.teamsOf(principal.id)).includes(team.id)
+        (await this.units.unitsOf(principal.id)).includes(unit.id)
       )
     ) {
       throw new ForbiddenException({
         code: 'forbidden',
         message:
-          'Sharing a view with a team takes belonging to it, or Access.manageViews.',
+          'Sharing a view with a unit takes belonging to it, or Access.manageViews.',
       });
     }
   }
@@ -541,7 +543,7 @@ export class ViewsService implements PersonalDataSource {
       subject: row.subject,
       name: row.name,
       visibility: row.visibility,
-      teamId: row.teamId,
+      unitId: row.unitId,
       owner: row.owner,
       mine: row.owner === principalKey(principal),
       editable: this.mayChange(principal, row, manager),
@@ -552,20 +554,18 @@ export class ViewsService implements PersonalDataSource {
     };
   }
 
-  /** The SQL condition for the views the principal sees: theirs, their teams', the tenant's. */
+  /** The SQL condition for the views the principal sees: theirs, their units', the tenant's. */
   private async visibleTo(principal: RequestPrincipal): Promise<SQL> {
-    const teamIds =
-      principal.kind === 'user' ? await this.teamsOf(principal.id) : [];
+    const unitIds =
+      principal.kind === 'user' ? await this.units.unitsOf(principal.id) : [];
     return or(
-      and(
-        eq(savedViews.visibility, 'private'),
-        eq(savedViews.owner, principalKey(principal)),
-      ),
+      // Theirs whatever it is shared with: an administrator shares with a unit they aren't in.
+      eq(savedViews.owner, principalKey(principal)),
       eq(savedViews.visibility, 'tenant'),
-      teamIds.length
+      unitIds.length
         ? and(
-            eq(savedViews.visibility, 'team'),
-            inArray(savedViews.teamId, teamIds),
+            eq(savedViews.visibility, 'unit'),
+            inArray(savedViews.unitId, unitIds),
           )
         : undefined,
     )!;
@@ -578,14 +578,6 @@ export class ViewsService implements PersonalDataSource {
       subjects.map((subject) => this.lists.mayRead(principal, subject)),
     );
     return subjects.filter((_, index) => may[index]);
-  }
-
-  private async teamsOf(userId: string) {
-    const rows = await this.db
-      .select({ id: userTeams.teamId })
-      .from(userTeams)
-      .where(eq(userTeams.userId, userId));
-    return rows.map((row) => row.id);
   }
 
   /** A view the principal sees (and whose list they may read), else a 404 as for one that doesn't exist. */

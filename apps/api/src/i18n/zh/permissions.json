@@ -3,18 +3,17 @@
     "label": "访问控制",
     "actions": {
       "manageRoles": "创建、编辑和删除角色",
-      "manageUsers": "邀请用户、分配其角色和团队、停用其成员资格",
+      "manageUsers": "邀请用户、分配其角色和组织单位、停用其成员资格",
       "manageClients": "创建 API 客户端，轮换和吊销其密钥",
-      "manageTeams": "创建、移动和删除团队（“在我的团队中”所涵盖的范围）",
+      "manageOrganizationalUnits": "创建、更改类型、移动和删除组织单位（“在我的单位中”所涵盖的范围）",
       "manageCustomFields": "添加、更改、重新排序和停用自定义字段（管理员为笔记和其他记录添加的字段）",
-      "manageSettings": "为所有人、某个团队或某个用户设置设置项和功能开关（platform/settings）",
+      "manageSettings": "为所有人、某个单位或某个用户设置设置项和功能开关（platform/settings）",
       "manageTags": "创建、重命名、更改颜色和删除记录所带的标签（platform/tags）",
       "manageLegalHolds": "设置和解除法律保全：无论删除、清除或保留规则如何，相关记录都会保留（iam/holds）",
       "manageRetention": "设置租户将每种记录保留多久，之后清除或匿名化（platform/retention）",
       "manageNamingSeries": "创建、更改和删除编号记录的编号格式，并设置其计数器（platform/sequences）",
       "manageViews": "与整个租户共享列表的已保存视图，并更改或删除共享视图（platform/views）",
       "readAudit": "查看审计日志",
-      "readConsolidated": "读取租户树中位于此租户之下的租户，只读（控股集团的合并报表）",
       "manageTenants": "创建租户（部署的运营者：仅在运营者租户中）",
       "impersonate": "以其他用户身份操作（支持），绝不以管理员身份",
       "manageSso": "设置租户的单点登录：SAML 和 OpenID Connect 连接、已验证的电子邮件域",
@@ -92,9 +91,17 @@
       "label": "由我创建",
       "description": "仅限此人（或此 API 客户端）创建的记录。"
     },
-    "inMyTeams": {
-      "label": "在我的团队中",
-      "description": "仅限我所属团队及其下级团队的记录。"
+    "inMyUnits": {
+      "label": "在我的单位中",
+      "description": "仅限我所属单位的记录。"
+    },
+    "inMyUnitsAndBelow": {
+      "label": "在我的单位及其下级中",
+      "description": "仅限我所属单位及其下级单位的记录。"
+    },
+    "inUnitsILeadAndBelow": {
+      "label": "在我领导的单位及其下级中",
+      "description": "仅限我领导的单位及其下级单位的记录。"
     }
   },
   "systemJobs": {
@@ -212,7 +219,7 @@
     },
     "demo-seed": {
       "label": "演示数据",
-      "description": "在开发数据库上创建演示用户、团队和各功能的演示数据（pnpm db:seed:demo）；拒绝其他任何数据库。"
+      "description": "在开发数据库上创建演示用户、组织单位和各功能的演示数据（pnpm db:seed:demo）；拒绝其他任何数据库。"
     },
     "ops": {
       "label": "运维命令行",

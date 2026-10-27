@@ -2,7 +2,7 @@
   "nav": {
     "users": "Benutzer",
     "roles": "Rollen",
-    "teams": "Teams"
+    "units": "Organisationsstruktur"
   },
   "actions": "Aktionen",
   "cancel": "Abbrechen",
@@ -27,11 +27,11 @@
     "since": "Mitglied seit {{date}}",
     "roles": "Rollen",
     "selfRoles": "Das sind Ihre eigenen Rollen. Sie können sich nicht mehr geben, als Sie selbst haben, und der letzte Administrator bleibt.",
-    "selfTeams": "Niemand ändert die eigenen Teams: Das übernimmt ein anderer Administrator.",
+    "selfUnits": "Niemand ändert die eigenen Einheiten: Das übernimmt ein anderer Administrator.",
     "saveRoles": "Rollen speichern",
     "rolesSaved": "Rollen gespeichert.",
-    "saveTeams": "Teams speichern",
-    "teamsSaved": "Teams gespeichert.",
+    "saveUnits": "Einheiten speichern",
+    "unitsSaved": "Einheiten gespeichert.",
     "reactivate": "Zugriff wiederherstellen",
     "reactivated": "Zugriff wiederhergestellt.",
     "remove": {
@@ -47,7 +47,7 @@
       "description": "Ihre Sitzung wird für begrenzte Zeit zu deren Sitzung, und alles, was Sie tun, wird als Handlung von Ihnen in deren Namen aufgezeichnet. Beenden Sie dies über das Banner, um Ihre eigene Sitzung zurückzuerhalten.",
       "confirm": "Identität übernehmen"
     },
-    "readOnly": "Sie können dieses Mitglied sehen. Um dessen Rollen, Teams oder Zugriff zu ändern, brauchen Sie die Berechtigung, Benutzer zu verwalten.",
+    "readOnly": "Sie können dieses Mitglied sehen. Um dessen Rollen, Einheiten oder Zugriff zu ändern, brauchen Sie die Berechtigung, Benutzer zu verwalten.",
     "open": "Öffnen"
   },
   "grants": {
@@ -62,7 +62,7 @@
   "invitations": {
     "invite": "Einladen",
     "inviteTitle": "Jemanden einladen",
-    "inviteDescription": "Die Person erhält eine E-Mail mit einem Link. Die Mitgliedschaft mit diesen Rollen und Teams beginnt, sobald sie die Einladung annimmt.",
+    "inviteDescription": "Die Person erhält eine E-Mail mit einem Link. Die Mitgliedschaft mit diesen Rollen und Einheiten beginnt, sobald sie die Einladung annimmt.",
     "fields": {
       "email": "E-Mail",
       "name": "Name (optional)",
@@ -84,7 +84,7 @@
     "expired": "Abgelaufen",
     "resend": "Erneut senden",
     "resendTitle": "{{email}} einen neuen Link senden?",
-    "resendDescription": "Der aktuelle Link funktioniert nicht mehr, und ein neuer wird per E-Mail gesendet. Die Rollen, ihre Enddaten und die Teams bleiben unverändert.",
+    "resendDescription": "Der aktuelle Link funktioniert nicht mehr, und ein neuer wird per E-Mail gesendet. Die Rollen, ihre Enddaten und die Einheiten bleiben unverändert.",
     "resent": "Ein neuer Link wurde an {{email}} gesendet.",
     "revoke": "Widerrufen",
     "revokeTitle": "Die Einladung an {{email}} widerrufen?",
@@ -151,47 +151,64 @@
       "sensitive": "Sensibel"
     }
   },
-  "teams": {
-    "title": "Teams",
-    "new": "Neues Team",
-    "none": "Noch keine Teams.",
-    "newTitle": "Neues Team",
-    "editTitle": "Team umbenennen oder verschieben",
-    "dialogDescription": "Das Verschieben eines Teams verschiebt alle Teams darunter. Mitglieder eines Teams sehen, was die Teams darunter besitzen („in meinen Teams“).",
+  "units": {
+    "title": "Organisationsstruktur",
+    "new": "Neue Einheit",
+    "none": "Noch keine Einheiten.",
+    "newTitle": "Neue Einheit",
+    "editTitle": "Einheit bearbeiten",
+    "dialogDescription": "Das Verschieben einer Einheit verschiebt alle Einheiten darunter. Mitglieder einer Einheit sehen, was die Einheiten darunter besitzen („in meinen Einheiten“).",
     "fields": {
       "name": "Name",
+      "type": "Typ",
       "parent": "Unterhalb von"
+    },
+    "types": {
+      "division": "Geschäftsbereich",
+      "department": "Abteilung",
+      "team": "Team"
+    },
+    "roles": {
+      "member": "Mitglied",
+      "lead": "Leitung"
     },
     "topLevel": "Oberste Ebene",
     "errors": {
       "nameRequired": "Geben Sie einen Namen ein.",
-      "nameTooLong": "Höchstens {{max}} Zeichen."
+      "nameTooLong": "Höchstens {{max}} Zeichen.",
+      "nameTaken": "Unter derselben übergeordneten Einheit gibt es bereits eine Einheit mit diesem Namen.",
+      "notEmpty": "Diese Einheit hat noch Einheiten darunter, Mitglieder, Datensätze oder gespeicherte Ansichten. Leeren Sie sie zuerst.",
+      "managedByScim": "Ihr Identitätsanbieter verwaltet diese Einheit über SCIM: Ändern Sie sie dort."
     },
-    "create": "Team erstellen",
-    "created": "Team erstellt.",
+    "create": "Einheit erstellen",
+    "created": "Einheit erstellt.",
     "save": "Speichern",
-    "saved": "Team gespeichert.",
+    "saved": "Einheit gespeichert.",
     "edit": "Bearbeiten",
     "delete": "Löschen",
-    "deleteTitle": "Das Team {{name}} löschen?",
-    "deleteDescription": "Nur ein leeres Team kann gelöscht werden: ohne Mitglieder und ohne Teams darunter.",
-    "deleted": "Team {{name}} gelöscht.",
+    "deleteTitle": "Die Einheit {{name}} löschen?",
+    "deleteDescription": "Nur eine leere Einheit kann gelöscht werden: ohne Einheiten darunter, Mitglieder, Datensätze und gespeicherte Ansichten.",
+    "deleted": "Einheit {{name}} gelöscht.",
+    "scim": "Über SCIM verwaltet",
     "columns": {
-      "name": "Team",
+      "name": "Einheit",
+      "type": "Typ",
       "member": "Mitglied",
-      "members": "Mitglieder"
+      "members": "Mitglieder",
+      "role": "Rolle"
     },
-    "notFound": "Dieses Team gibt es (nicht mehr).",
-    "back": "Zurück zu den Teams",
-    "needsManageUsers": "Das Hinzufügen und Entfernen von Mitgliedern ändert deren Mitgliedschaft: Dafür brauchen Sie die Berechtigung, Benutzer zu verwalten.",
+    "notFound": "Diese Einheit gibt es (nicht mehr).",
+    "back": "Zurück zur Organisationsstruktur",
+    "needsManageUsers": "Das Hinzufügen, Ändern und Entfernen von Mitgliedern erfordert die Berechtigung, Benutzer zu verwalten.",
     "addMember": "Mitglied hinzufügen",
     "pickMember": "Mitglied auswählen",
     "add": "Hinzufügen",
-    "memberAdded": "{{email}} hinzugefügt.",
-    "noMembers": "Niemand gehört diesem Team direkt an.",
+    "memberAdded": "Mitglied hinzugefügt.",
+    "noMembers": "Niemand gehört dieser Einheit an.",
     "remove": "Entfernen",
-    "removeTitle": "{{email}} aus {{team}} entfernen?",
-    "removeDescription": "Die Person verliert, was dieses Team ihr gibt.",
-    "memberRemoved": "{{email}} entfernt."
+    "removeTitle": "Dieses Mitglied aus {{unit}} entfernen?",
+    "removeDescription": "Die Person verliert, was diese Einheit ihr gibt. Die Mitgliedschaft endet und bleibt als Verlauf erhalten.",
+    "memberRemoved": "Mitglied entfernt.",
+    "roleChanged": "Rolle geändert."
   }
 }

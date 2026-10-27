@@ -24,7 +24,7 @@ export const settingOverrides = pgTable(
     /** A declared key: `notes.publishDelay`. */
     key: text('key').notNull(),
     scope: text('scope').$type<SettingScope>().notNull(),
-    /** The team's id, the principal's key, or '' for the tenant scope. */
+    /** The unit's id, the principal's key, or '' for the tenant scope. */
     scopeId: text('scope_id').notNull().default(''),
     /** The value (checked by the declaration's schema); null: only `rollout` applies (a flag). */
     value: jsonb('value'),
@@ -59,7 +59,7 @@ export const platformSettingValues = pgTable('platform_setting_values', {
   key: text('key').notNull().unique(),
   /** The value (checked by the declaration's schema); null: only `rollout` applies (a flag). */
   value: jsonb('value'),
-  /** Beats every tenant's, team's and principal's value (with a value only). */
+  /** Beats every tenant's, unit's and principal's value (with a value only). */
   enforced: boolean('enforced').notNull().default(false),
   /** A flag's rollout percentage (0–100) in every tenant, when no value is set. */
   rollout: integer('rollout'),

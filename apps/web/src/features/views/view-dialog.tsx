@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { useCan } from '@/lib/features';
-import { teamOptions, teamRefsQuery } from '@/lib/list-refs';
+import { unitOptions, unitRefsQuery } from '@/lib/list-refs';
 import { z } from '@/lib/zod';
 import {
   useCreateView,
@@ -51,18 +51,18 @@ export function ViewDialog(props: {
   const create = useCreateView();
   const update = useUpdateView();
   const canShareTenant = useCan('Access.manageViews');
-  const teams = useQuery(teamRefsQuery);
+  const units = useQuery(unitRefsQuery);
   const [error, setError] = useState<string>();
 
   const visibilities: Visibility[] = canShareTenant
-    ? ['private', 'team', 'tenant']
-    : ['private', 'team'];
+    ? ['private', 'unit', 'tenant']
+    : ['private', 'unit'];
 
   const form = useAppForm({
     defaultValues: {
       name: view?.name ?? '',
       visibility: 'private' as Visibility,
-      teamId: '',
+      unitId: '',
     },
     onSubmit: async ({ value }) => {
       setError(undefined);
@@ -83,7 +83,7 @@ export function ViewDialog(props: {
             subject: props.subject,
             name,
             visibility: value.visibility,
-            ...(value.visibility === 'team' && { teamId: value.teamId }),
+            ...(value.visibility === 'unit' && { unitId: value.unitId }),
             ...props.current,
           });
           toast.success(t('saved', { name }));
@@ -156,18 +156,18 @@ export function ViewDialog(props: {
                 </form.AppField>
                 <form.Subscribe selector={(state) => state.values.visibility}>
                   {(visibility) =>
-                    visibility === 'team' && (
+                    visibility === 'unit' && (
                       <form.AppField
-                        name="teamId"
+                        name="unitId"
                         validators={{
-                          onSubmit: z.string().min(1, t('form.teamRequired')),
+                          onSubmit: z.string().min(1, t('form.unitRequired')),
                         }}
                       >
                         {(f) => (
                           <f.SelectField
-                            label={t('form.team')}
-                            placeholder={t('form.teamPlaceholder')}
-                            options={teamOptions(teams.data ?? [])}
+                            label={t('form.unit')}
+                            placeholder={t('form.unitPlaceholder')}
+                            options={unitOptions(units.data ?? [])}
                           />
                         )}
                       </form.AppField>

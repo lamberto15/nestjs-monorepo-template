@@ -15,8 +15,8 @@ describe('the permission editor’s model', () => {
       'Note.update': [{ conditions: { draft: '', mine: '' }, fields: null }],
       'Note.read': [
         { conditions: { mine: '' }, fields: null },
-        // Any rule grants it: "in my teams", only the text.
-        { conditions: { inMyTeams: '' }, fields: ['body'] },
+        // Any rule grants it: "in my units", only the text.
+        { conditions: { inMyUnits: '' }, fields: ['body'] },
         // The same rule twice is one permission.
         { conditions: { mine: '' }, fields: null },
       ],
@@ -28,7 +28,7 @@ describe('the permission editor’s model', () => {
       {
         subject: 'Note',
         action: 'read',
-        conditions: [{ key: 'inMyTeams' }],
+        conditions: [{ key: 'inMyUnits' }],
         fields: ['body'],
       },
       {

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
 import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import {
@@ -17,80 +18,83 @@ import { toast } from 'sonner';
 import { ConfirmButton } from '@/components/confirm-button';
 import { Page, PageHeader } from '@/components/page-header';
 import {
-  deleteTeam,
+  deleteUnit,
   invalidateAccess,
-  teamsQuery,
-  type Team,
+  unitsQuery,
+  type Unit,
 } from '@/features/access/api';
 import { orderedTree } from '@/features/access/pickers';
-import { TeamDialog } from '@/features/access/team-dialog';
+import { UnitDialog, unitErrorMessage } from '@/features/access/unit-dialog';
 import { errorMessage } from '@/lib/errors';
 import { useCan } from '@/lib/features';
 import { FormAlert } from '@/lib/form';
 
 /**
- * The team tree (docs/permissions.md, "Organization hierarchy"): what
- * "in my teams" covers. Deleting wants an empty team (409 otherwise).
- * Whoever manages users reads it too (to reach a team's members); changing
- * the tree wants manageTeams.
+ * The organization structure (docs/permissions.md, "Organization hierarchy"):
+ * the tree of units, what "in my units" covers. Deleting wants an empty unit
+ * (409 `unit_not_empty` otherwise); a unit the IdP manages over SCIM is
+ * changed there (409 `unit_managed_by_scim`).
+ * Whoever manages users reads it too (to reach a unit's members); changing
+ * the tree wants manageOrganizationalUnits.
  */
-export function TeamsPage() {
+export function OrganizationPage() {
   const { t } = useTranslation('access');
-  const teams = useQuery(teamsQuery);
-  const mayChange = useCan('Access.manageTeams');
-  const [editing, setEditing] = useState<Team | 'new'>();
+  const units = useQuery(unitsQuery);
+  const mayChange = useCan('Access.manageOrganizationalUnits');
+  const [editing, setEditing] = useState<Unit | 'new'>();
   return (
     <Page>
       <PageHeader
-        title={t('teams.title')}
+        title={t('units.title')}
         actions={
           mayChange && (
             <Button onClick={() => setEditing('new')}>
               <PlusIcon />
-              {t('teams.new')}
+              {t('units.new')}
             </Button>
           )
         }
       />
-      {teams.isPending ? (
+      {units.isPending ? (
         <Spinner />
-      ) : teams.isError ? (
-        <FormAlert message={errorMessage(teams.error)} />
+      ) : units.isError ? (
+        <FormAlert message={errorMessage(units.error)} />
       ) : (
         <>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t('teams.columns.name')}</TableHead>
-                <TableHead>{t('teams.columns.members')}</TableHead>
+                <TableHead>{t('units.columns.name')}</TableHead>
+                <TableHead>{t('units.columns.type')}</TableHead>
+                <TableHead>{t('units.columns.members')}</TableHead>
                 <TableHead>
                   <span className="sr-only">{t('actions')}</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {teams.data.length === 0 && (
+              {units.data.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-muted-foreground">
-                    {t('teams.none')}
+                  <TableCell colSpan={4} className="text-muted-foreground">
+                    {t('units.none')}
                   </TableCell>
                 </TableRow>
               )}
-              {orderedTree(teams.data).map((team) => (
-                <TeamRow
-                  key={team.id}
-                  team={team}
+              {orderedTree(units.data).map((unit) => (
+                <UnitRow
+                  key={unit.id}
+                  unit={unit}
                   mayChange={mayChange}
-                  onEdit={() => setEditing(team)}
+                  onEdit={() => setEditing(unit)}
                 />
               ))}
             </TableBody>
           </Table>
-          <TeamDialog
+          <UnitDialog
             open={editing !== undefined}
             onOpenChange={(open) => !open && setEditing(undefined)}
-            teams={teams.data}
-            team={editing === 'new' ? undefined : editing}
+            units={units.data}
+            unit={editing === 'new' ? undefined : editing}
           />
         </>
       )}
@@ -98,35 +102,45 @@ export function TeamsPage() {
   );
 }
 
-function TeamRow(props: {
-  team: Team;
+function UnitRow(props: {
+  unit: Unit;
   mayChange: boolean;
   onEdit: () => void;
 }) {
   const { t } = useTranslation('access');
-  const { team } = props;
+  const { unit } = props;
   const queryClient = useQueryClient();
   const remove = useMutation({
-    mutationFn: () => deleteTeam(team.id),
+    mutationFn: () => deleteUnit(unit.id),
+    meta: { errorToast: false },
+    onError: (error) => toast.error(unitErrorMessage(error, t)),
     onSuccess: async () => {
-      toast.success(t('teams.deleted', { name: team.name }));
+      toast.success(t('units.deleted', { name: unit.name }));
       await invalidateAccess(queryClient);
     },
   });
   return (
     <TableRow>
       <TableCell>
-        <span style={{ paddingInlineStart: `${team.depth * 1.25}rem` }}>
+        <span style={{ paddingInlineStart: `${unit.depth * 1.25}rem` }}>
           <Link
-            to="/access/teams/$teamId"
-            params={{ teamId: team.id }}
+            to="/access/organization/$unitId"
+            params={{ unitId: unit.id }}
             className="font-medium hover:underline"
           >
-            {team.name}
+            {unit.name}
           </Link>
         </span>
       </TableCell>
-      <TableCell>{team.members}</TableCell>
+      <TableCell>{t(`units.types.${unit.type}`)}</TableCell>
+      <TableCell>
+        {unit.members}
+        {unit.managedByScim && (
+          <Badge variant="outline" className="ms-2">
+            {t('units.scim')}
+          </Badge>
+        )}
+      </TableCell>
       <TableCell>
         {props.mayChange && (
           <div className="flex justify-end gap-2">
@@ -137,19 +151,19 @@ function TeamRow(props: {
               onClick={props.onEdit}
             >
               <PencilIcon />
-              {t('teams.edit')}
+              {t('units.edit')}
             </Button>
             <ConfirmButton
               size="sm"
               variant="outline"
               className="pointer-coarse:h-10"
-              title={t('teams.deleteTitle', { name: team.name })}
-              description={t('teams.deleteDescription')}
-              confirm={t('teams.delete')}
+              title={t('units.deleteTitle', { name: unit.name })}
+              description={t('units.deleteDescription')}
+              confirm={t('units.delete')}
               onConfirm={() => remove.mutateAsync()}
             >
               <Trash2Icon />
-              {t('teams.delete')}
+              {t('units.delete')}
             </ConfirmButton>
           </div>
         )}

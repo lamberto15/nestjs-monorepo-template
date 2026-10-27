@@ -5,7 +5,7 @@ This is a **summary of documented mechanisms, not a product-support promise**. T
 | Capability | What a user or organization gains | Constraints / where to learn more |
 | --- | --- | --- |
 | Accounts and authentication | Passwords, multi-factor and passkey options; social or enterprise sign-in | Provider configuration, recovery processes and policies matter. [Auth](../auth.md) |
-| Roles, teams and permissions | Control who can do what, down to records and fields | Each new feature must declare and test its own permissions. [Permissions](../permissions.md) |
+| Roles, organizational units and permissions | Control who can do what, down to records and fields | Each new feature must declare and test its own permissions. [Permissions](../permissions.md) |
 | Multi-organization support | Serve different organizations from one deployment | Requires correct tenant-aware data access and verification. [Tenancy](../tenancy.md) |
 | Activity history | Track relevant changes with an audit trail | An audit log is not a substitute for governance or legal advice. [Permissions](../permissions.md) |
 | API and typed client | Backend interface for web, scripts and other applications | API changes and version expectations require management. [API conventions](../api-conventions.md), [client](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/packages/api-client/README.md) |

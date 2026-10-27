@@ -23,7 +23,7 @@ import {
   invalidateAccess,
   memberQuery,
   rolesQuery,
-  teamsQuery,
+  unitsQuery,
   updateMember,
   type Member,
   type MemberChanges,
@@ -37,14 +37,14 @@ import {
   type GrantDraft,
 } from '@/features/access/grants';
 import { ImpersonateButton } from '@/features/access/impersonate-button';
-import { RoleGrantsPicker, TeamsPicker } from '@/features/access/pickers';
+import { RoleGrantsPicker, UnitsPicker } from '@/features/access/pickers';
 import { formatDateTime } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
 import { useCan, useMe } from '@/lib/features';
 import { FormAlert } from '@/lib/form';
 
 /**
- * A member of the tenant: their roles (with ends), teams and status, and
+ * A member of the tenant: their roles (with ends), units and status, and
  * what an administrator may do about them (`PATCH /v1/access/users/{id}`,
  * docs/tenancy.md "Accounts and sessions"): never their name or password.
  * The member is read on their own (`GET /v1/access/users/{id}`): a list row
@@ -114,9 +114,9 @@ function MemberDetail(props: { member: Member; onDone: () => void }) {
   const mayManage = useCan('Access.manageUsers');
   const queryClient = useQueryClient();
   const roles = useQuery(rolesQuery);
-  const teams = useQuery(teamsQuery);
+  const units = useQuery(unitsQuery);
   const [grants, setGrants] = useState<GrantDraft>(() => draftOf(member.roles));
-  const [teamIds, setTeamIds] = useState<string[]>(member.teamIds);
+  const [unitIds, setUnitIds] = useState<string[]>(member.unitIds);
   const [error, setError] = useState<string>();
   const change = useMutation({
     mutationFn: (body: MemberChanges) => updateMember(member.id, body),
@@ -204,38 +204,38 @@ function MemberDetail(props: { member: Member; onDone: () => void }) {
 
       <Separator />
 
-      <section className="flex flex-col gap-3" aria-labelledby="member-teams">
-        <h3 id="member-teams" className="sr-only">
-          {t('teams.title')}
+      <section className="flex flex-col gap-3" aria-labelledby="member-units">
+        <h3 id="member-units" className="sr-only">
+          {t('units.title')}
         </h3>
-        {teams.isPending ? (
+        {units.isPending ? (
           <Spinner />
-        ) : teams.isError ? (
-          <FormAlert message={errorMessage(teams.error)} />
+        ) : units.isError ? (
+          <FormAlert message={errorMessage(units.error)} />
         ) : (
-          <TeamsPicker
+          <UnitsPicker
             idPrefix="member"
-            teams={teams.data}
-            value={teamIds}
-            onChange={setTeamIds}
-            // The API refuses changing one's own teams.
+            units={units.data}
+            value={unitIds}
+            onChange={setUnitIds}
+            // The API refuses changing one's own units.
             disabled={!mayManage || self || change.isPending}
           />
         )}
         {!mayManage ? null : self ? (
           <p className="text-xs text-muted-foreground">
-            {t('users.selfTeams')}
+            {t('users.selfUnits')}
           </p>
         ) : (
           <Button
             className="self-start"
             variant="outline"
-            disabled={change.isPending || !teams.isSuccess}
+            disabled={change.isPending || !units.isSuccess}
             onClick={() =>
-              void run({ teamIds }, t('users.teamsSaved')).catch(() => {})
+              void run({ unitIds }, t('users.unitsSaved')).catch(() => {})
             }
           >
-            {t('users.saveTeams')}
+            {t('users.saveUnits')}
           </Button>
         )}
       </section>

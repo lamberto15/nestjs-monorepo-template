@@ -21,7 +21,7 @@ const lowerFirst = (text: string) =>
 
 /**
  * The tests of each capability a record declares (platform/records), and of
- * its recycle bin (`softDelete`) and teams (`team`), for a feature's e2e
+ * its recycle bin (`softDelete`) and units (`unit`), for a feature's e2e
  * spec: `describeCapabilities(() => node, INVOICE)`. A capability added to
  * the declaration later, or a flag flipped, is tested with no change to the
  * spec; records are made with the declaration's sample bodies.
@@ -266,41 +266,41 @@ export function describeCapabilities(
     });
   }
 
-  if (record.team && record.grants !== 'none') {
-    it("belongs to its creator's team: the team's leads see it", async () => {
+  if (record.unit && record.grants !== 'none') {
+    it("belongs to its creator's unit: the unit's leads see it", async () => {
       const admin = node().admin();
-      const team = (
+      const unit = (
         await admin
-          .post('/v1/access/teams')
-          .send({ name: `Team ${randomUUID().slice(0, 8)}` })
+          .post('/v1/access/organizational-units')
+          .send({ type: 'team', name: `Unit ${randomUUID().slice(0, 8)}` })
           .expect(201)
       ).body.id as string;
       const writer = await node().user(['editor']);
       await admin
         .patch(`/v1/access/users/${writer.id}`)
-        .send({ teamIds: [team] })
+        .send({ unitIds: [unit] })
         .expect(204);
       const created = await writer.agent
         .post(path)
         .set('Idempotency-Key', randomUUID())
         .send(samples.body())
         .expect(201);
-      expect(created.body.teamId).toBe(team);
+      expect(created.body.unitId).toBe(unit);
       const id = created.body.id as string;
-      const lead = await node().user(['team-lead']);
+      const lead = await node().user(['unit-lead']);
       await lead.agent.get(`${path}/${id}`).expect(404); // not theirs to read: as if missing
       await admin
-        .patch(`/v1/access/users/${lead.id}`)
-        .send({ teamIds: [team] })
-        .expect(204);
+        .post(`/v1/access/organizational-units/${unit}/members`)
+        .send({ userId: lead.id, role: 'lead' })
+        .expect(201);
       await lead.agent.get(`${path}/${id}`).expect(200);
     });
-  } else if (!record.team) {
-    it('has no team', async () => {
+  } else if (!record.unit) {
+    it('has no unit', async () => {
       const id = await make();
       expect(
         (await node().admin().get(`${path}/${id}`).expect(200)).body,
-      ).not.toHaveProperty('teamId');
+      ).not.toHaveProperty('unitId');
     });
   }
 

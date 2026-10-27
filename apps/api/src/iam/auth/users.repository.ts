@@ -186,7 +186,7 @@ export class UsersRepository {
   /**
    * Removes the person from an account (their deletion, platform/account):
    * a placeholder address and name, no password, no sign-in methods
-   * (providers, passkeys), sessions, tokens, roles or teams; deactivated. Their audit entries keep
+   * (providers, passkeys), sessions, tokens, roles or units; deactivated. Their audit entries keep
    * the actor key (`user:<id>`), labelled "Deleted user" instead of the
    * address. The password history (earlier hashes) goes too: the row
    * stays, so its foreign key's cascade never fires. The row stays: what
@@ -214,7 +214,7 @@ export class UsersRepository {
     await tx.delete(userIdentities).where(eq(userIdentities.userId, id));
     await tx.delete(passkeys).where(eq(passkeys.userId, id));
     await tx.delete(passwordHistory).where(eq(passwordHistory.userId, id));
-    // Its roles and teams in every tenant go with the memberships (cascade).
+    // Its roles and units in every tenant go with the memberships (cascade).
     await tx.delete(memberships).where(eq(memberships.userId, id));
     await tx.delete(mfaAuthenticators).where(eq(mfaAuthenticators.userId, id));
     await tx.delete(mfaRecoveryCodes).where(eq(mfaRecoveryCodes.userId, id));

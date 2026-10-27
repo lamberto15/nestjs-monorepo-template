@@ -15,7 +15,7 @@ const declare = (capabilities: ('watch' | 'tags')[]) =>
     noun: 'invoice line',
     table: 'invoice_lines',
     softDelete: false,
-    team: false,
+    unit: false,
     fields: { title: field.string() },
     capabilities,
   });

@@ -50,27 +50,27 @@ describe('notes access control (e2e)', () => {
       .expect(400);
   });
 
-  it('lets a lead see the notes of their teams and every team below them', async () => {
+  it('lets a lead see the notes of the units they lead and every unit below them', async () => {
     const admin = node.admin();
-    const team = async (name: string, parentId?: string) =>
+    const unit = async (name: string, parentId?: string) =>
       (
         await admin
-          .post('/v1/access/teams')
-          .send({ name, parentId })
+          .post('/v1/access/organizational-units')
+          .send({ type: 'team', name, parentId })
           .expect(201)
       ).body.id as string;
-    const sales = await team('Sales');
-    const north = await team('North', sales);
-    const south = await team('South', sales);
-    const northEast = await team('North East', north);
+    const sales = await unit('Sales');
+    const north = await unit('North', sales);
+    const south = await unit('South', sales);
+    const northEast = await unit('North East', north);
 
-    // Members write notes in their teams.
-    const [lead] = await node.roleIds('team-lead');
-    const member = async (teamId: string) => {
+    // Members write notes in their units.
+    const [lead] = await node.roleIds('unit-lead');
+    const member = async (unitId: string) => {
       const created = await node.user(['editor']);
       await admin
         .patch(`/v1/access/users/${created.id}`)
-        .send({ teamIds: [teamId] })
+        .send({ unitIds: [unitId] })
         .expect(204);
       return created.agent;
     };
@@ -83,12 +83,12 @@ describe('notes access control (e2e)', () => {
       body: 'x',
     }).expect(201);
 
-    const leadOf = async (teamId: string) => {
+    const leadOf = async (unitId: string) => {
       const created = await node.user([lead]);
       await admin
-        .patch(`/v1/access/users/${created.id}`)
-        .send({ teamIds: [teamId] })
-        .expect(204);
+        .post(`/v1/access/organizational-units/${unitId}/members`)
+        .send({ userId: created.id, role: 'lead' })
+        .expect(201);
       const notes = (await created.agent.get('/v1/notes').expect(200)).body
         .items as { title: string }[];
       return notes.map((note) => note.title).sort((a, b) => a.localeCompare(b));

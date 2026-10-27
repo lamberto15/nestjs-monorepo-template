@@ -98,9 +98,11 @@ describe('audit log and search labels (e2e)', () => {
     // readAudit alone is enough; another access permission is not.
     const auditor = await node.user([await role(['Access', 'readAudit'])]);
     await auditor.agent.get('/v1/lists/Audit').expect(200);
-    const teams = await node.user([await role(['Access', 'manageTeams'])]);
-    await teams.agent.get('/v1/lists/User').expect(200);
-    await teams.agent.get('/v1/lists/Audit').expect(403);
+    const units = await node.user([
+      await role(['Access', 'manageOrganizationalUnits']),
+    ]);
+    await units.agent.get('/v1/lists/User').expect(200);
+    await units.agent.get('/v1/lists/Audit').expect(403);
     const editor = await node.user(['editor']);
     await editor.agent.get('/v1/lists/Audit').expect(403);
   });
@@ -216,8 +218,10 @@ describe('audit log and search labels (e2e)', () => {
   });
 
   it('is refused to whoever may not read the audit log', async () => {
-    const teams = await node.user([await role(['Access', 'manageTeams'])]);
-    await teams.agent.get('/v1/access/audit?actorLabel.contains=a').expect(403);
+    const units = await node.user([
+      await role(['Access', 'manageOrganizationalUnits']),
+    ]);
+    await units.agent.get('/v1/access/audit?actorLabel.contains=a').expect(403);
     await node
       .admin()
       .get('/v1/access/audit?actorLabel.endsWith=a')

@@ -45,7 +45,9 @@ export const userViewSchema = z.object({
         .describe('When the grant ends; null: never.'),
     }),
   ),
-  teamIds: z.array(z.uuid()),
+  unitIds: z
+    .array(z.uuid())
+    .describe('The organizational units they are a current member of.'),
 });
 
 /** A role of the tenant, with its permissions and how many users hold it. */
@@ -229,17 +231,3 @@ export const principalSchema = z.object({
       'A user: the membership in this tenant and the account; a client: not revoked.',
     ),
 });
-
-/** A tenant a consolidated read spans (GET /v1/access/consolidated/tenants). */
-export const subtreeTenantSchema = z
-  .object({
-    id: z.uuid(),
-    slug: z.string(),
-    name: z.string(),
-    parentId: z.uuid().nullable(),
-    depth: z
-      .number()
-      .int()
-      .describe('How far below your tenant: 1 for a child.'),
-  })
-  .meta({ id: 'SubtreeTenant' });

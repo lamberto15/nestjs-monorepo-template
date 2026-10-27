@@ -28,7 +28,7 @@ const customers = recordTable(
     noun: 'customer',
     table: 'test_customers',
     softDelete: false,
-    team: false,
+    unit: false,
     clientAccess: false,
     grants: 'standard',
     fields: { name: field.string() },

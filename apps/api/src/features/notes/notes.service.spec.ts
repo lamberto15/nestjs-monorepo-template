@@ -28,7 +28,7 @@ function setup(rows: unknown[]) {
     {} as never, // custom fields
     access as never,
     {} as never, // audit
-    {} as never, // teams
+    {} as never, // units
     {} as never, // notifications
     {} as never, // subscriptions
     registers as never, // naming series

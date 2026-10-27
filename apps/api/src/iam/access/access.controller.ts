@@ -55,7 +55,6 @@ import {
 import {
   auditPageSchema,
   signInPageSchema,
-  subtreeTenantSchema,
   catalogSchema,
   createdRoleSchema,
   principalSchema,
@@ -75,8 +74,6 @@ import { InvitationsService } from './invitations.service.js';
 import { ApiClientsService } from './api-clients.service.js';
 import { PermissionCatalog } from './permission-catalog.js';
 import { AccessPolicy } from './policies.js';
-import { TenantTree } from './tenant-tree.js';
-import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
 
 const permissionSchema = z.object({
   subject: z.string().min(1).meta({ example: 'Note' }),
@@ -125,10 +122,10 @@ const createUserSchema = z.strictObject({
     .describe('The name a new account starts with; its owner changes it.'),
   roleIds: z.array(z.uuid()).default([]),
   roleExpiresAt,
-  teamIds: z
+  unitIds: z
     .array(z.uuid())
     .optional()
-    .describe('The teams the user belongs to.'),
+    .describe('The organizational units the user belongs to, as a member.'),
 });
 
 const updateUserSchema = z.strictObject({
@@ -138,7 +135,12 @@ const updateUserSchema = z.strictObject({
     .describe('The membership in this tenant, not the account.'),
   roleIds: z.array(z.uuid()).optional(),
   roleExpiresAt,
-  teamIds: z.array(z.uuid()).optional(),
+  unitIds: z
+    .array(z.uuid())
+    .optional()
+    .describe(
+      'Replaces the units they belong to: a unit left ends its membership, a new one starts as a member.',
+    ),
 });
 
 const invitationSchema = z.object({
@@ -155,7 +157,7 @@ const pendingInvitationSchema = invitationSchema.extend({
     .describe(
       'When each grant ends once accepted, by role id; the others never do.',
     ),
-  teamIds: z.array(z.uuid()),
+  unitIds: z.array(z.uuid()),
   invitedBy: z.string(),
   expired: z.boolean(),
   createdAt: z.iso.datetime(),
@@ -295,7 +297,6 @@ export class AccessController {
     private readonly impersonation: ImpersonationService,
     private readonly invitationsService: InvitationsService,
     private readonly principals: PrincipalsService,
-    private readonly tree: TenantTree,
   ) {}
 
   @Get('catalog')
@@ -419,7 +420,7 @@ export class AccessController {
   @ApiOperation({
     summary: 'The users, with their role ids, newest first',
     description:
-      "Filter flat (`?active=true&email.contains=@example.com`, a team's members with `?teamId=<id>` or `?teamId.in=<id>,<id>`: those in it, not in the teams below) or with `filter` (and/or groups), sort with `sort=-createdAt`, pick fields with `fields=email,name`; each parameter lists what it takes. GET /v1/lists/User describes it.",
+      "Filter flat (`?active=true&email.contains=@example.com`, a unit's current members with `?unitId=<id>` or `?unitId.in=<id>,<id>`: those in it, not in the units below) or with `filter` (and/or groups), sort with `sort=-createdAt`, pick fields with `fields=email,name`; each parameter lists what it takes. GET /v1/lists/User describes it.",
   })
   @ApiOkResponse({ standardSchema: pageSchema(userViewSchema) })
   async users(@Query({ schema: USER_LIST.schema }) query: ListQuery) {
@@ -432,7 +433,7 @@ export class AccessController {
   @Get('users/:id')
   @Can(AccessPolicy, 'open')
   @ApiOperation({
-    summary: 'One member of this tenant, with their role grants and teams',
+    summary: 'One member of this tenant, with their role grants and units',
   })
   @ApiOkResponse({ standardSchema: userViewSchema })
   @ApiNotFoundResponse({ description: 'Not a member of this tenant.' })
@@ -451,7 +452,7 @@ export class AccessController {
   @ApiOperation({
     summary: 'Invite someone to this tenant',
     description:
-      "The address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). A new address chooses its password with it; an existing account accepts while signed in (POST /auth/invitations/accept). The membership, with these roles and teams, comes then. The answer is the same whether or not the address has an account; nobody sets another person's password.",
+      "The address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). A new address chooses its password with it; an existing account accepts while signed in (POST /auth/invitations/accept). The membership, with these roles and units, comes then. The answer is the same whether or not the address has an account; nobody sets another person's password.",
   })
   @ApiAcceptedResponse({ standardSchema: invitationSchema })
   createUser(
@@ -474,7 +475,7 @@ export class AccessController {
   @ApiOperation({
     summary: "Change a member's membership; only what is sent changes",
     description:
-      "Its activation, roles and teams in this tenant: never the account (its name, its password), which is its owner's. A deactivation ends their sessions and tokens in this tenant. The last active administrator stays.",
+      "Its activation, roles and units in this tenant: never the account (its name, its password), which is its owner's. A deactivation ends their sessions and tokens in this tenant. The last active administrator stays.",
   })
   @ApiNoContentResponse()
   @ApiNotFoundResponse()
@@ -507,7 +508,7 @@ export class AccessController {
   @ApiOperation({
     summary: 'Send a pending invitation again: a new link and expiry',
     description:
-      'Expired or not. The previous link stops working; the roles, their ends (`roleExpiresAt`) and the teams stay as they were. You must be able to grant its roles, as when inviting.',
+      'Expired or not. The previous link stops working; the roles, their ends (`roleExpiresAt`) and the units stay as they were. You must be able to grant its roles, as when inviting.',
   })
   @ApiAcceptedResponse({ standardSchema: invitationSchema })
   @ApiNotFoundResponse({ description: 'No pending invitation of this id.' })
@@ -713,43 +714,6 @@ export class AccessController {
       { ...page, items: await this.audit.withActorNames(page.items) },
       query,
     );
-  }
-
-  @Get('consolidated/tenants')
-  @Can(AccessPolicy, 'readConsolidated')
-  @ApiOperation({
-    summary: 'The tenants below yours that a consolidated read spans',
-    description:
-      'Your tenant’s descendants in its tenant tree (docs/tenancy.md, "The tenant tree"), nearest first: the active ones with no deactivated tenant between yours and them, none whose deletion is pending. The operators place tenants in the tree (PATCH /v1/tenants/{id} `parentId`). Needs `Access.readConsolidated`; never while impersonating.',
-  })
-  @ApiOkResponse({ standardSchema: listSchema(subtreeTenantSchema) })
-  async consolidatedTenants() {
-    return { items: await this.tree.subtree(requireTenantId('The subtree')) };
-  }
-
-  @Get('consolidated/audit')
-  @Can(AccessPolicy, 'readConsolidatedAudit')
-  @ApiOperation({
-    summary:
-      'The audit log of your tenant and the tenants below it, newest first',
-    description:
-      'A consolidated read (docs/tenancy.md, "The tenant tree"): the entries of your tenant and of every tenant GET /v1/access/consolidated/tenants lists, each with its `tenantId`, read-only; filtered, sorted and paged as GET /v1/access/audit. `actorName` names your tenant’s members and clients; another tenant’s show their `actorLabel`. Audited (`tenant.consolidated-read`) in your tenant and in each tenant read. Needs `Access.readAudit` and `Access.readConsolidated`; never while impersonating.',
-  })
-  @ApiOkResponse({ standardSchema: auditPageSchema })
-  @ApiForbiddenResponse({
-    description: '`consolidated_read_forbidden`: no `Access.readConsolidated`.',
-  })
-  async consolidatedAuditLog(
-    @CurrentUser() user: UserPrincipal,
-    @Query({ schema: AUDIT_LIST.schema }) query: ListQuery,
-  ) {
-    return this.tree.consolidated(user, 'audit', async () => {
-      const page = await this.audit.page(query, AUDIT_LIST.where(query));
-      return AUDIT_LIST.pick(
-        { ...page, items: await this.audit.withActorNames(page.items) },
-        query,
-      );
-    });
   }
 
   @Get('sign-ins')

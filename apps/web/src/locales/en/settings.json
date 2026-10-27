@@ -22,11 +22,11 @@
   "valueLabel": "Value",
   "scope": {
     "tenant": "Whole tenant",
-    "team": "Team",
+    "unit": "Unit",
     "user": "User"
   },
   "scopeId": {
-    "team": "Team",
+    "unit": "Unit",
     "user": "User"
   },
   "mode": {
@@ -50,13 +50,13 @@
     "maxLength": "Enter at most {{limit}} characters.",
     "enum": "Choose one of the values.",
     "scopeId": {
-      "team": "Choose a team.",
+      "unit": "Choose a unit.",
       "user": "Choose a user or an API client."
     }
   },
   "source": {
     "tenant": "Tenant",
-    "team": "Team",
+    "unit": "Unit",
     "user": "You",
     "rollout": "Rollout",
     "default": "Default",
@@ -104,12 +104,12 @@
   },
   "platform": {
     "title": "All tenants",
-    "description": "What the deployment's operators set for every tenant. Enforced, it beats every tenant, team and user value (a kill switch); otherwise it is the default for tenants that set nothing.",
+    "description": "What the deployment's operators set for every tenant. Enforced, it beats every tenant, unit and user value (a kill switch); otherwise it is the default for tenants that set nothing.",
     "none": "Nothing is set for all tenants.",
     "enforced": "Enforced",
     "notEnforced": "Default for tenants",
     "enforcedLabel": "Enforced (kill switch)",
-    "enforcedHint": "Overrides every tenant, team and user value.",
+    "enforcedHint": "Overrides every tenant, unit and user value.",
     "save": "Save for all tenants",
     "saved": "Saved for all tenants.",
     "remove": "Remove",
@@ -123,7 +123,7 @@
     "label": "Show",
     "all": "All settings",
     "flags": "Feature flags",
-    "flagsHint": "Turn a flag on for the whole tenant, a team or one person, or roll it out gradually: Edit, then “Applies as: a gradual rollout”."
+    "flagsHint": "Turn a flag on for the whole tenant, a unit or one person, or roll it out gradually: Edit, then “Applies as: a gradual rollout”."
   },
   "rules": {
     "title": "Targeting rules",

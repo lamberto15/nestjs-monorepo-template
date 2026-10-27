@@ -16,7 +16,7 @@ export const TEST_ITEM = defineRecord({
   noun: 'test item',
   table: 'test_items',
   softDelete: true,
-  team: true,
+  unit: true,
   // Many platform tests act as an API client on test items.
   clientAccess: 'own',
   grants: 'standard',

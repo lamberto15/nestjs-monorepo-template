@@ -386,13 +386,13 @@ repeating the declaration:
 - **References:** a field whose values are ids of something has `ref`
   (absent on any other field, the record's own `id` included), so a client
   shows a picker instead of a text box and sends the id as the filter value.
-  `tag`: tag ids (`GET /v1/tags`; the `tag` filter, `tagFilter()`); `team`:
-  team ids (`teamId`; `GET /v1/teams`, which any member may read: `q`
+  `tag`: tag ids (`GET /v1/tags`; the `tag` filter, `tagFilter()`); `unit`:
+  organizational unit ids (`unitId`; `GET /v1/organizational-units`, which any member may read: `q`
   searches, `id=` names); `principal`: a user's or an API client's key,
   `user:<id>` or `client:<id>` (`ownerId`, as the creator is stored; not a
   bare user id; `GET /v1/people`, which any member may read: `q` searches
   users, `key=` names up to 20 keys, former members' too; see
-  [permissions.md](permissions.md), "The people directory" and "The teams
+  [permissions.md](permissions.md), "The people directory" and "The units
   lookup"); a record's subject (`Invoice`): the ids of
   that record's list, for a `field.ref(() => invoices)` of a generated
   record. It is declared with the filter (`ref` of a `listQuery()` field),
@@ -431,7 +431,7 @@ repeating the declaration:
   (`GET /v1/mail/suppressions`), each to an operator-tenant principal who may call
   that route (`platform/lists/tenant-lists.ts`,
   `platform/deliverability/suppression.list-source.ts`).
-  Roles and teams have none: their routes answer every item at once,
+  Roles and organizational units have none: their routes answer every item at once,
   with nothing to filter, sort or page.
 - **Capabilities:** `capabilities` says which record panels and routes
   the subject has in this deployment, one boolean each: every capability

@@ -36,11 +36,11 @@ export const NOTE_LIST = listQuery(
       ops: ['eq'],
       ref: 'principal',
     },
-    teamId: {
-      column: notes.teamId,
+    unitId: {
+      column: notes.unitId,
       type: 'uuid',
       ops: ['eq', 'in', 'isNull'],
-      ref: 'team',
+      ref: 'unit',
     },
     createdAt: {
       column: notes.createdAt,

@@ -6,7 +6,7 @@ export const RICH_TEXT_KEY = 'notes.richText';
 
 /**
  * Whether bodies are Markdown for this user: the `notes.richText` flag, as
- * `GET /v1/settings` resolves it (their value, their team's, the tenant's, the
+ * `GET /v1/settings` resolves it (their value, their unit's, the tenant's, the
  * rollout, the platform value, the default; see `useFlag`). Off while it loads
  * and when it can't be read: a failing settings call leaves the plain text it
  * always was; `pending` says it is still loading.

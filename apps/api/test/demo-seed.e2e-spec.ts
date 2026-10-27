@@ -163,7 +163,11 @@ describe('demo seed (e2e)', () => {
         .expect(200)
     ).body.items as { action: string; actorLabel: string }[];
     const actions = new Set(audited.map((entry) => entry.action));
-    for (const action of ['team.created', 'user.seeded', 'demo.seeded']) {
+    for (const action of [
+      'organizationalUnit.created',
+      'user.seeded',
+      'demo.seeded',
+    ]) {
       expect(actions).toContain(action);
     }
     expect(new Set(audited.map((entry) => entry.actorLabel))).toEqual(

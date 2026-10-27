@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import type { HeaderContext, RowData } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { PersonName, TeamName } from '@/components/person-name';
+import { PersonName, UnitName } from '@/components/person-name';
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
 import type { DataTableFeatures } from '@/lib/data-table-features';
 import type { ListColumn, ListDescription, ListField } from '@/lib/list-query';
@@ -10,7 +10,7 @@ import { refKinds, type RefSources } from '@/lib/list-refs';
 /**
  * Columns the list's own metadata asks for, so a page built on ListPage gets
  * them without declaring them: the active custom fields (`custom.<key>`,
- * docs/custom-fields.md) and the reference fields (`ref`: tags, teams,
+ * docs/custom-fields.md) and the reference fields (`ref`: tags, units,
  * users), shown by name.
  */
 
@@ -94,10 +94,10 @@ export function fieldLabel(name: string): string {
 /**
  * A column per reference field (`ref`) the caller declared none for, its
  * values named from `refs` (the id or key itself when unknown):
- * - a field `fields=` may pick (`ownerId`, `teamId`) is a column, hidden at
+ * - a field `fields=` may pick (`ownerId`, `unitId`) is a column, hidden at
  *   first (the view options turn it on);
  * - one it may not (`tag`: a filter only) is never shown, never asked for.
- * Only the kinds `refs` has a source for (tag, team, principal).
+ * Only the kinds `refs` has a source for (tag, unit, principal).
  */
 export function refColumns<TData extends RowData>(
   description: ListDescription,
@@ -120,10 +120,10 @@ export function refColumns<TData extends RowData>(
           meta: { label },
         } as ListColumn<TData>;
       }
-      // People and teams are named by the lookups (batched for the whole
+      // People and units are named by the lookups (batched for the whole
       // page, lib/people.ts); tags by the list's own options.
-      const lookup = field.ref === 'principal' || field.ref === 'team';
-      const Name = field.ref === 'team' ? TeamName : PersonName;
+      const lookup = field.ref === 'principal' || field.ref === 'unit';
+      const Name = field.ref === 'unit' ? UnitName : PersonName;
       const names = new Map(
         (refs[field.ref as string]?.options ?? []).map((o) => [
           o.value,

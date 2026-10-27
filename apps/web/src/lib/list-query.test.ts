@@ -282,7 +282,7 @@ describe('filterSpec', () => {
     ).toBe('text');
   });
 
-  it('offers a searched picker for users, and a picker of teams', () => {
+  it('offers a searched picker for users, and a picker of units', () => {
     const search = { key: ['people'], query: vi.fn() };
     expect(
       filterSpec(
@@ -290,13 +290,13 @@ describe('filterSpec', () => {
         { principal: { options: [], search } },
       ),
     ).toEqual({ variant: 'select', operators: ['eq'], options: [], search });
-    const team = field({
-      name: 'teamId',
+    const unit = field({
+      name: 'unitId',
       type: 'uuid',
       operators: ['eq', 'in', 'isNull'],
-      ref: 'team',
+      ref: 'unit',
     });
-    expect(filterSpec(team, { team: { options: [] } })).toEqual({
+    expect(filterSpec(unit, { unit: { options: [] } })).toEqual({
       variant: 'multiSelect',
       operators: ['inArray', 'isEmpty', 'isNotEmpty'],
       options: [],

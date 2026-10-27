@@ -77,8 +77,7 @@ export function decidedBy(userId: string): SQL {
 
 /**
  * The ids of every request the user may take part in, read once per
- * statement (an uncorrelated InitPlan array, as tenant-scope.ts's
- * readTenants): what they were assigned or decided, and the pending
+ * statement (an uncorrelated InitPlan array): what they were assigned or decided, and the pending
  * assignments of those they stand in for now. A superset of
  * participates(): the exact condition rechecks these rows only.
  * Raw SQL: Drizzle has no `= any(array(subquery))`; an `inArray(id,
