@@ -89,7 +89,7 @@ describe('local analytics query helpers', () => {
       ).toEqual({
         total:
           'SELECT count(*) AS count FROM (SELECT "region" FROM "t" GROUP BY "region") grouped',
-        rows: 'SELECT "region", SUM("amount") AS value FROM "t" GROUP BY "region" ORDER BY "value" ASC NULLS LAST LIMIT 100 OFFSET 0',
+        rows: 'SELECT "region", CAST(SUM("amount") AS DOUBLE) AS value FROM "t" GROUP BY "region" ORDER BY "value" ASC NULLS LAST LIMIT 100 OFFSET 0',
       });
       expect(
         buildDatasetSql('t', columns, {
@@ -97,6 +97,17 @@ describe('local analytics query helpers', () => {
           aggregate: { fn: 'count' },
         }).rows,
       ).toContain('COUNT(*) AS value');
+    });
+
+    it('casts SUM and AVG to DOUBLE so grouped integer columns stay chartable', () => {
+      const sql = (fn: 'sum' | 'avg' | 'min') =>
+        buildDatasetSql('t', columns, {
+          groupBy: 'amount',
+          aggregate: { column: 'amount', fn },
+        }).rows;
+      expect(sql('sum')).toContain('CAST(SUM("amount") AS DOUBLE) AS value');
+      expect(sql('avg')).toContain('CAST(AVG("amount") AS DOUBLE) AS value');
+      expect(sql('min')).toContain('MIN("amount") AS value');
     });
 
     it.each([

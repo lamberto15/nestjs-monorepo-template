@@ -21,6 +21,25 @@ function cloneableValue(value: unknown): unknown {
   return value;
 }
 
+/**
+ * One rule for 64-bit integers: DuckDB reads JSON and CSV integers as BIGINT and
+ * counts as BIGINT, and Arrow hands those back as `bigint`, which Recharts and
+ * the grouping keys of the page cannot use. A top-level cell inside JavaScript's
+ * safe integer range therefore becomes a `number`; one beyond it stays a `bigint`
+ * so no digit is lost (the page prints it with `String`). Values nested in
+ * structs, lists and maps keep their native Arrow form.
+ */
+function topLevelValue(value: unknown): unknown {
+  if (
+    typeof value === 'bigint' &&
+    value >= BigInt(Number.MIN_SAFE_INTEGER) &&
+    value <= BigInt(Number.MAX_SAFE_INTEGER)
+  ) {
+    return Number(value);
+  }
+  return cloneableValue(value);
+}
+
 /** Materialize Arrow query results as plain values for the page. */
 export function arrowTableRows(table: Table) {
   const columns = table.schema.fields.map((field) => field.name);
@@ -29,7 +48,7 @@ export function arrowTableRows(table: Table) {
     Object.fromEntries(
       columns.map((name, index) => [
         name,
-        cloneableValue(vectors[index]!.get(row)),
+        topLevelValue(vectors[index]!.get(row)),
       ]),
     ),
   );

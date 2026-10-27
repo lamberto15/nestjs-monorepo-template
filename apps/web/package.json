@@ -11,6 +11,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "size": "size-limit",
+    "duckdb:extensions": "node scripts/duckdb-extensions.mjs",
+    "duckdb:extensions:check": "node scripts/duckdb-extensions.mjs --check",
     "lighthouse": "lhci autorun",
     "test:cov": "vitest run --coverage"
   },

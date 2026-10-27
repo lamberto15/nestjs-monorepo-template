@@ -1,11 +1,11 @@
 import type { AsyncDuckDB, AsyncDuckDBConnection } from '@duckdb/duckdb-wasm';
-import { arrowTableRows } from './arrow-rows';
+import extensions from './duckdb-extensions.json';
 import { buildDatasetSql, quoteIdentifier, quoteLiteral } from './query';
 
 export type AnalyticsColumn = {
   name: string;
   type: string;
-  /** Rounded from SUMMARIZE's null percentage (two decimals): approximate on very large tables. */
+  /** Exact: `count(*) - count(column)`, a separate statement because SUMMARIZE only reports a rounded percentage. */
   nullCount: number;
   /** SUMMARIZE's `approx_unique` (HyperLogLog), not an exact count. */
   distinctCount: number;
@@ -78,6 +78,21 @@ type Handle = {
 let current: Handle | undefined;
 
 /**
+ * Where the page serves DuckDB's official json and parquet extensions from, on its
+ * own origin: `<repo>/v<duckdb version>/<platform>/<name>.duckdb_extension.wasm`
+ * (public/duckdb-extensions, written by `pnpm duckdb:extensions`; DuckDB-Wasm's
+ * documented `custom_extension_repository`:
+ * https://duckdb.org/docs/1.4/clients/wasm/extensions.html). The wasm bundles do
+ * not link these in (only the Node build does). DuckDB fetches the files itself
+ * and checks the signature on LOAD, so unsigned extensions stay refused.
+ */
+const extensionRepository = () =>
+  new URL(
+    `${import.meta.env.BASE_URL}duckdb-extensions`,
+    globalThis.location.href,
+  ).href;
+
+/**
  * DuckDB-Wasm the way its README documents for Vite: the package and the `?url`
  * wasm and worker files of the MVP and EH bundles load lazily (dynamic `import()`,
  * so none of it is in the entry chunk), `selectBundle` picks one by browser
@@ -102,8 +117,25 @@ async function openSession(): Promise<Session> {
   try {
     await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
     const conn = await db.connect();
-    // json and parquet are linked into the wasm build, so LOAD needs no download.
-    // Load them first: autoload is switched off right after.
+    // The vendored extensions are for one DuckDB version. A duckdb-wasm update that
+    // moves it must fail here, loudly, instead of requesting files that do not exist.
+    const running = String(
+      (
+        (
+          await conn.query('SELECT version() AS version')
+        ).toArray()[0] as Record<string, unknown>
+      ).version,
+    );
+    if (running !== `v${extensions.duckdbVersion}`) {
+      throw new Error(
+        `DuckDB-Wasm runs ${running}, but the vendored extensions are for v${extensions.duckdbVersion}: update duckdbVersion in duckdb-extensions.json and run pnpm duckdb:extensions --record.`,
+      );
+    }
+    // Same-origin repository first, then LOAD (which downloads, verifies the
+    // signature and loads); autoinstall and autoload are switched off right after.
+    await conn.query(
+      `SET custom_extension_repository = ${quoteLiteral(extensionRepository())}`,
+    );
     await conn.query('LOAD json');
     await conn.query('LOAD parquet');
     await conn.query('SET autoinstall_known_extensions = false');
@@ -139,15 +171,20 @@ function startSession(): Handle {
       if (handle.closed) return;
       handle.closed = true;
       abort(closedError());
-      void ready.then(
-        (session) => {
-          // Best effort: ask DuckDB to cancel the running query, then end its
-          // worker, which frees the engine and its memory either way.
-          void session.conn.cancelSent().catch(() => undefined);
-          return session.db.terminate();
-        },
-        () => undefined,
-      );
+      void ready
+        .then(
+          (session) => {
+            // Best effort: ask DuckDB to cancel the running query, then end its
+            // worker, which frees the engine and its memory either way.
+            void session.conn.cancelSent().catch(() => undefined);
+            return session.db.terminate();
+          },
+          () => undefined,
+        )
+        // Closing is fire and forget: a worker that fails to terminate (already
+        // gone, or the session's own failure handler ended it) leaves nothing to
+        // clean up, so the rejection is dropped instead of surfacing unhandled.
+        .catch(() => undefined);
     },
   };
   return handle;
@@ -225,18 +262,28 @@ export async function loadLocalFile(file: File): Promise<AnalyticsDataset> {
     }
     // One statement profiles every column (min, max, approx_unique, null share).
     const summary = await conn.query(
-      `SELECT column_name, column_type, min, max, approx_unique, count, CAST(null_percentage AS DOUBLE) AS null_percentage FROM (SUMMARIZE ${quoteIdentifier(tableName)})`,
+      `SELECT column_name, column_type, min, max, approx_unique, count FROM (SUMMARIZE ${quoteIdentifier(tableName)})`,
     );
     const version = await conn.query('SELECT version() AS version');
+    const stats = summary.toArray() as Array<Record<string, unknown>>;
+    // SUMMARIZE only has a two-decimal null percentage (1 null in 30,000 rows reads
+    // 0), so the exact null counts come from one more statement. Aliases are
+    // positional: a column may be named like an Arrow row property.
+    const nulls = await conn.query(
+      `SELECT ${stats
+        .map(
+          (stat, index) =>
+            `count(*) - count(${quoteIdentifier(String(stat.column_name))}) AS n${index}`,
+        )
+        .join(', ')} FROM ${quoteIdentifier(tableName)}`,
+    );
     let rowCount = 0;
-    const columns: AnalyticsColumn[] = (
-      summary.toArray() as Array<Record<string, unknown>>
-    ).map((stat) => {
+    const columns: AnalyticsColumn[] = stats.map((stat, index) => {
       rowCount = Number(stat.count);
       return {
         name: String(stat.column_name),
         type: String(stat.column_type),
-        nullCount: Math.round((rowCount * Number(stat.null_percentage)) / 100),
+        nullCount: Number(nulls.getChildAt(index)!.get(0)),
         distinctCount: Number(stat.approx_unique),
         min: stat.min ?? null,
         max: stat.max ?? null,
@@ -267,6 +314,7 @@ export function queryDataset(
   return run(current, async ({ conn, datasets }) => {
     const info = datasets.get(dataset.id);
     if (!info) throw new Error('The dataset has been closed.');
+    const { arrowTableRows } = await import('./arrow-rows');
     const sql = buildDatasetSql(info.table, info.columns, query);
     const total = await conn.query(sql.total);
     const result = await conn.query(sql.rows);

@@ -24,5 +24,11 @@
     "path": ["dist/assets/*duckdb*.wasm"],
     "brotli": false,
     "limit": "80 MB"
+  },
+  {
+    "name": "Optional analytics extensions, json and parquet (uncompressed; a browser fetches one platform's two)",
+    "path": ["dist/duckdb-extensions/**/*.wasm"],
+    "brotli": false,
+    "limit": "8 MB"
   }
 ]

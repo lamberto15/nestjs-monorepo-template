@@ -27,6 +27,7 @@ const fakes = vi.hoisted(() => ({
   selected: [] as unknown[],
   failInstantiate: undefined as Error | undefined,
   failures: new Map<string, Error>(),
+  version: 'v1.4.3',
 }));
 
 type Row = Record<string, unknown>;
@@ -65,8 +66,12 @@ class FakeConnection {
       if (sql.includes(part)) await pending.promise;
     if (sql.includes('SUMMARIZE')) return tableFromJSON(this.summary);
     if (sql.startsWith('SELECT version()'))
-      return tableFromJSON([{ version: 'v1.4.3' }]);
-    if (sql.startsWith('SELECT count(*)')) return tableFromJSON([{ count: 7 }]);
+      return tableFromJSON([{ version: fakes.version }]);
+    // The exact null counts, one positional column per profiled column.
+    if (sql.startsWith('SELECT count(*) - count('))
+      return tableFromJSON([{ n0: 1, n1: 0 }]);
+    if (sql.startsWith('SELECT count(*) AS count'))
+      return tableFromJSON([{ count: 7 }]);
     if (sql.startsWith('SELECT *'))
       return tableFromJSON([{ amount: 12 }, { amount: 24 }]);
     return new Table();
@@ -132,6 +137,7 @@ beforeEach(() => {
   fakes.selected.length = 0;
   fakes.failInstantiate = undefined;
   fakes.failures.clear();
+  fakes.version = 'v1.4.3';
   vi.stubGlobal(
     'Worker',
     class {
@@ -166,7 +172,9 @@ describe('starting DuckDB-Wasm', () => {
   it('turns off external access and locks the configuration before any file is read', async () => {
     await loadLocalFile(localFile('sales.csv').file);
 
-    expect(latest().connection.queries.slice(0, 7)).toEqual([
+    expect(latest().connection.queries.slice(0, 9)).toEqual([
+      'SELECT version() AS version',
+      "SET custom_extension_repository = 'http://localhost:3000/duckdb-extensions'",
       'LOAD json',
       'LOAD parquet',
       'SET autoinstall_known_extensions = false',
@@ -176,8 +184,20 @@ describe('starting DuckDB-Wasm', () => {
       'SET lock_configuration = true',
     ]);
     const registered = latest().registerFileHandle.mock.invocationCallOrder[0]!;
-    const locked = latest().connection.query.mock.invocationCallOrder[6]!;
+    const locked = latest().connection.query.mock.invocationCallOrder[8]!;
     expect(locked).toBeLessThan(registered);
+  });
+
+  it('refuses to start when DuckDB-Wasm no longer runs the vendored extensions’ version', async () => {
+    fakes.version = 'v1.5.0';
+
+    await expect(loadLocalFile(localFile('sales.csv').file)).rejects.toThrow(
+      'vendored extensions are for v1.4.3',
+    );
+    expect(
+      latest().connection.queries.some((sql) => sql.startsWith('LOAD')),
+    ).toBe(false);
+    expect(latest().terminate).toHaveBeenCalledOnce();
   });
 
   it('terminates the engine and reports the error when start-up fails', async () => {
@@ -262,6 +282,18 @@ describe('loading a file', () => {
     });
   });
 
+  it('counts nulls exactly with one extra statement, not from SUMMARIZE’s rounded percentage', async () => {
+    await loadLocalFile(localFile('sales.csv').file);
+
+    const queries = latest().connection.queries;
+    expect(queries.filter((sql) => sql.includes('count(*) - count('))).toEqual([
+      expect.stringMatching(
+        /^SELECT count\(\*\) - count\("amount"\) AS n0, count\(\*\) - count\("details"\) AS n1 FROM "dataset_/,
+      ),
+    ]);
+    expect(queries.join('\n')).not.toContain('null_percentage');
+  });
+
   it('profiles every column with one SUMMARIZE statement', async () => {
     const dataset = await loadLocalFile(localFile('sales.csv').file);
 
@@ -299,7 +331,7 @@ describe('loading a file', () => {
 
     expect(latest().dropFile).toHaveBeenCalledWith('analytics-input.csv');
     const queries = latest().connection.queries;
-    expect(queries.findIndex((sql) => sql.startsWith('CREATE TEMP'))).toBe(7);
+    expect(queries.findIndex((sql) => sql.startsWith('CREATE TEMP'))).toBe(9);
   });
 
   it.each([
@@ -394,7 +426,7 @@ describe('querying', () => {
     const second = queryDataset(dataset, { limit: 1 });
     await settle();
     const started = latest().connection.queries.filter((sql) =>
-      sql.startsWith('SELECT count(*)'),
+      sql.startsWith('SELECT count(*) AS count'),
     );
     expect(started).toHaveLength(1);
 
@@ -403,7 +435,7 @@ describe('querying', () => {
     await Promise.all([first, second]);
     expect(
       latest().connection.queries.filter((sql) =>
-        sql.startsWith('SELECT count(*)'),
+        sql.startsWith('SELECT count(*) AS count'),
       ),
     ).toHaveLength(2);
   });
@@ -474,9 +506,23 @@ describe('disposing and ending the session', () => {
     // The queued query never reaches DuckDB.
     expect(
       database.connection.queries.filter((sql) =>
-        sql.startsWith('SELECT count(*)'),
+        sql.startsWith('SELECT count(*) AS count'),
       ),
     ).toHaveLength(1);
+  });
+
+  it('ignores a worker that fails to terminate while closing', async () => {
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    await loadLocalFile(localFile('sales.csv').file);
+    latest().terminate.mockRejectedValueOnce(new Error('already gone'));
+
+    terminateAnalyticsEngine();
+    await settle();
+    await settle();
+
+    process.off('unhandledRejection', unhandled);
+    expect(unhandled).not.toHaveBeenCalled();
   });
 
   it('cancels a load that is still starting and ends its engine once it is up', async () => {

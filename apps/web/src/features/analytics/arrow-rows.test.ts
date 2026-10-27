@@ -84,7 +84,20 @@ describe('Arrow result materialization', () => {
     expect(structuredClone(result)).toEqual(result);
   });
 
-  it('keeps binary, bigint, and date values in their native Arrow forms', () => {
+  it('turns safe 64-bit integers into numbers and keeps larger ones as bigint', () => {
+    const table = new Table({
+      key: vectorFromArray([7n, -3n, null], new Int64()),
+      big: vectorFromArray([9_007_199_254_740_993n, 1n, 2n], new Int64()),
+    });
+    const { rows } = arrowTableRows(table);
+    expect(rows).toEqual([
+      { key: 7, big: 9_007_199_254_740_993n },
+      { key: -3, big: 1 },
+      { key: null, big: 2 },
+    ]);
+  });
+
+  it('keeps binary, large bigint, and date values in their native Arrow forms', () => {
     const bytes = new Uint8Array([0, 127, 255]);
     const integer = 9_007_199_254_740_993n;
     const date = new Date('2026-10-25T12:00:00Z');

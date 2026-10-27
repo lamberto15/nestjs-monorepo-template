@@ -90,7 +90,17 @@ export function buildDatasetSql(
         : aggregation.column;
     if (column !== '*' && (!column || !allowed.has(column)))
       throw new Error('Choose a valid aggregate column.');
-    select = `${quoteIdentifier(query.groupBy)}, ${aggregation.fn.toUpperCase()}(${column === '*' ? '*' : quoteIdentifier(column)}) AS value`;
+    const call = `${aggregation.fn.toUpperCase()}(${column === '*' ? '*' : quoteIdentifier(column)})`;
+    // SUM of an integer column is a HUGEINT and SUM of a DECIMAL a DECIMAL: both
+    // reach the page as Arrow objects it cannot chart. SUM and AVG are therefore
+    // cast to DOUBLE (exact up to 2^53, the precision a chart shows anyway).
+    // COUNT, MIN and MAX keep their type; a BIGINT among them becomes a number in
+    // arrowTableRows (see there).
+    const value =
+      aggregation.fn === 'sum' || aggregation.fn === 'avg'
+        ? `CAST(${call} AS DOUBLE)`
+        : call;
+    select = `${quoteIdentifier(query.groupBy)}, ${value} AS value`;
     group = ` GROUP BY ${quoteIdentifier(query.groupBy)}`;
   }
   const sortColumn = query.sort?.column;

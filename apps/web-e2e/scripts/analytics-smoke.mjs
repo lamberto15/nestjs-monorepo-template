@@ -48,6 +48,7 @@ import {loadLocalFile,queryDataset,disposeDataset,terminateAnalyticsEngine} from
 window.runAnalyticsSmoke = async () => {
  const csv = await loadLocalFile(new File(['name,amount\\nalpha,2\\nbeta,10\\n'], 'tiny.csv'));
  const sorted = await queryDataset(csv, { sort: { column: 'amount', direction: 'desc' }, limit: 1 });
+ const grouped = await queryDataset(csv, { groupBy: 'amount', aggregate: { column: 'amount', fn: 'sum' }, sort: { column: 'amount', direction: 'asc' } });
  const filtered = await queryDataset(csv, { filters: [{ column: 'name', operator: 'contains', value: 'alp' }] });
  const json = await loadLocalFile(new File(['[{"name":"gamma","code":"001","empty":"","nil":null,"mix":1,"nested":{"x":1},"amount":7},{"name":"delta","code":"002","empty":"x","nil":4,"mix":"word","nested":{"y":2},"amount":8}]'], 'tiny.json'));
  const jsonRows = await queryDataset(json);
@@ -58,7 +59,7 @@ window.runAnalyticsSmoke = async () => {
  terminateAnalyticsEngine();
  let cancelled = false;
  try { await pending; } catch (error) { cancelled = error.message.includes('session was closed'); }
- return { csv, sorted, filtered, json, jsonRows, parquet, parquetRows, cancelled };
+ return { csv, sorted, grouped, filtered, json, jsonRows, parquet, parquetRows, cancelled };
 };
 </script>`;
 
@@ -128,6 +129,20 @@ try {
     '10',
   );
   assert.equal(result.sorted.rows[0].name, 'beta');
+  // Integer group keys and SUM results reach the page as plain numbers (charts).
+  assert.deepEqual(result.grouped.rows, [
+    { amount: 2, value: 2 },
+    { amount: 10, value: 10 },
+  ]);
+  // Exact null counts (the JSON file has one null in "nil").
+  assert.equal(
+    result.json.columns.find((column) => column.name === 'nil')?.nullCount,
+    1,
+  );
+  assert.equal(
+    result.json.columns.find((column) => column.name === 'name')?.nullCount,
+    0,
+  );
   assert.equal(result.filtered.totalRows, 1);
   assert.equal(result.filtered.rows[0].name, 'alpha');
   assert.equal(result.json.engineVersion, 'v1.4.3');
@@ -135,7 +150,7 @@ try {
   assert.equal(result.jsonRows.rows[0].code, '001');
   assert.equal(result.jsonRows.rows[0].empty, '');
   assert.equal(result.jsonRows.rows[0].nil, null);
-  assert.equal(String(result.jsonRows.rows[1].nil), '4');
+  assert.equal(result.jsonRows.rows[1].nil, 4);
   assert.equal(result.jsonRows.rows[0].mix, '1');
   assert.equal(result.jsonRows.rows[1].mix, '"word"');
   assert.deepEqual(result.jsonRows.rows[1].nested, { x: null, y: 2n });
