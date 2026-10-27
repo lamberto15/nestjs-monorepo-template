@@ -35,6 +35,7 @@ import {
 } from './database/drizzle.js';
 import { useCursorKeys } from './http/cursor-seal.js';
 import { HealthController } from './health/health.controller.js';
+import { BuildVersionController } from './health/build-version.controller.js';
 import { AppThrottlerGuard } from './http/throttler.guard.js';
 import {
   ProblemDetailsFilter,
@@ -160,7 +161,7 @@ const CURSOR_KEYS = Symbol('CURSOR_KEYS');
       { debug: false, timeout: 60_000 },
     ),
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, BuildVersionController],
   exports: [MailQueue, BullModule, Tenancy, TenantQuotas, EncryptionService],
   providers: [
     Tenancy,
