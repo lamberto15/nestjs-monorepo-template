@@ -75,18 +75,45 @@ export function decidedBy(userId: string): SQL {
   return anAssignment(eq(a.decidedBy, userId));
 }
 
+/**
+ * The ids of every request the user may take part in, read once per
+ * statement (an uncorrelated InitPlan array, as tenant-scope.ts's
+ * readTenants): what they were assigned or decided, and the pending
+ * assignments of those they stand in for now. A superset of
+ * participates(): the exact condition rechecks these rows only.
+ * Raw SQL: Drizzle has no `= any(array(subquery))`; an `inArray(id,
+ * subquery)` under OR stays a per-row hashed SubPlan, which can't drive
+ * an index scan.
+ */
+function candidateIds(userId: string): SQL {
+  const d = approvalDelegations;
+  return sql`${r.id} = any(array(
+    select ${a.requestId} from ${a} where ${a.approverId} = ${userId}
+    union
+    select ${a.requestId} from ${a} where ${a.decidedBy} = ${userId}
+    union
+    select ${a.requestId} from ${a}
+    where ${a.status} = 'pending' and ${a.approverId} in (
+      select ${d.fromUserId} from ${d}
+      where ${d.toUserId} = ${userId}
+        and ${d.startsAt} <= now() and ${d.endsAt} > now())))`;
+}
+
 /** Requests the principal takes part in: made them, was assigned, decided one, or may decide one now. */
 export function participates(principal: Principal): SQL {
   if (principal.kind !== 'user') {
     return eq(r.requester, principalKey(principal));
   }
-  return or(
-    eq(r.requester, principalKey(principal)),
+  const requester = eq(r.requester, principalKey(principal));
+  const exact = or(
+    requester,
     anAssignment(
       or(eq(a.approverId, principal.id), eq(a.decidedBy, principal.id)),
     ),
     assignedTo(principal.id),
   )!;
+  // Candidates first (index-driven), then the exact rule on those rows.
+  return and(or(requester, candidateIds(principal.id)), exact)!;
 }
 
 /**

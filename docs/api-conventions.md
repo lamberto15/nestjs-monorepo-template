@@ -51,7 +51,8 @@ Every error, whatever produced it, is `application/problem+json`:
 ```
 
 - `code` is stable and machine-readable: `validation_failed`, `unauthorized`,
-  `forbidden`, `field_forbidden`, `not_found`, `conflict`, `rate_limited`,
+  `forbidden`, `field_forbidden`, `search_too_broad` (400: `?sort=-rank` with a `q`
+  matching more than 1,000 records), `not_found`, `conflict`, `rate_limited`,
   `mfa_required`, `password_breached` (a new password found in data
   breaches, 400 with the field in `errors`), `reauthentication_required`
   (403 on a sensitive route: no sign-in in the last
@@ -266,13 +267,16 @@ caller's permissions.
 A searchable list takes `?q=` (`core/database/search.ts`): words match
 anywhere in the record's text, `"quoted words"` as a phrase, `-word`
 excludes, `or` between words; `?sort=-rank` puts the best match first
-(`rank` is a sortable field of such lists, 0 without `q`). PostgreSQL's
+(`rank` is a sortable field of such lists, 0 without `q`, and the id orders).
+Ranking reads every match, so `?sort=-rank` is refused with a 400
+`search_too_broad` when `q` matches more than 1,000 records (`RANK_CAP`):
+narrow `q`, or sort by another field. PostgreSQL's
 full-text search, on a generated `tsvector` column with a GIN index; the
 `simple` configuration (every language, no stemming).
 
 `GET /v1/search?q=…[&subject=Note&limit=20]` searches every kind of record
 the caller may read at once: `{ subject, subjectLabel, id, title, snippet,
-score, link }`, best first; `subjectLabel` is `{ singular, plural }`
+score, link }`, best first (the best of the newest 1,000 matches per kind); `subjectLabel` is `{ singular, plural }`
 (`Note`, `Notes`), in the response's language (the subject's `names`,
 [permissions](permissions.md)); the snippet marks matches with `<b>…</b>` and is null for a text
 the caller may not read. A text the caller may read on no record isn't

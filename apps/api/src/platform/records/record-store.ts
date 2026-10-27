@@ -16,6 +16,7 @@ import {
   pageOrder,
   toPage,
 } from '../../core/http/pagination.js';
+import { refuseBroadRank } from '../../core/database/search.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import type { List, ListQuery } from '../../core/http/list-query.js';
 import { LegalHoldsService } from '../../iam/holds/legal-holds.service.js';
@@ -187,6 +188,7 @@ export class RecordStore {
       ),
       list.where(query),
     );
+    await refuseBroadRank(this.db, table, where, query);
     // Sort values that aren't columns (custom fields), for the cursor.
     const extra = list.sortSelect(query);
     const [rows, total] = await Promise.all([
