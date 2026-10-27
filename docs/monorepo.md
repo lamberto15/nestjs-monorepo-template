@@ -150,7 +150,15 @@ web app needs the API, so `dev:web` alone suits an API already running.
   Errors go through `lib/errors.ts` (TanStack Query's cache `onError`): a 401
   while signed in ends the session (to sign-in, back to the page after),
   anything else is a toast with the problem's `detail` unless the query sets
-  `meta: { errorToast: false }`.
+  `meta: { errorToast: false }` (a 5xx's toast gives the request id the API
+  logged it under). An error that is not the API's answer is a fault of the
+  app's: it is reported with a short report id, which the toast and the
+  route's error page show (`reportClientError`, `lib/report-error.ts`, also
+  fed by createRoot's error callbacks and the window's uncaught errors and
+  rejections; one report per error, at most 20 a minute). Reports go to the
+  console and to `POST /v1/client-errors` (`platform/client-errors`), which
+  logs them server-side; nothing is stored beyond the log (#751). A dropped
+  connection is not one: it says so.
 - **Forms** (`lib/form.tsx`, TanStack Form's form composition): a form is
   `useAppForm` with the `TextField`, `TextAreaField`, `MarkdownField`,
   `CodeField` and `SelectField` of `form.AppField`, which tie a control to

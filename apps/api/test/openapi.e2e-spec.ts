@@ -243,6 +243,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/branding/{tenantId}/logo',
         '/v1/bulk',
         '/v1/bulk/{id}',
+        '/v1/client-errors',
         '/v1/custom-fields',
         '/v1/custom-fields/order',
         '/v1/custom-fields/subjects',

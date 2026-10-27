@@ -3,7 +3,8 @@ import { FormApi, type AnyFormApi } from '@tanstack/react-form';
 import { QueryObserver, type QueryClient } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw/http';
 import { toast } from 'sonner';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { initI18n } from '@/i18n';
 import { api, reauthenticationMiddleware } from '@/lib/api';
 import {
   applyFieldErrors,
@@ -29,6 +30,10 @@ const target = (inApp = true) => ({
 });
 
 describe('the global error handler', () => {
+  // Its toasts are worded with the app's own i18n.
+  beforeAll(async () => {
+    await initI18n();
+  });
   beforeEach(() => vi.mocked(toast.error).mockClear());
 
   it('sends a user whose session ended to sign-in, back here afterwards', () => {
@@ -205,6 +210,58 @@ describe('the global error handler', () => {
       undefined,
     );
     expect(toast.error).toHaveBeenCalledWith('Down');
+  });
+
+  it('gives the request id of a 5xx, which the API logged the error under', () => {
+    const queryClient = createQueryClient(() => target());
+    handleApiError(
+      queryClient,
+      target(),
+      new ApiError({
+        status: 500,
+        code: 'internal',
+        detail: 'Something broke.',
+        requestId: 'req-12345678',
+      }),
+      undefined,
+    );
+    expect(toast.error).toHaveBeenCalledWith('Something broke.', {
+      description: 'Request ID: req-12345678',
+    });
+  });
+
+  it('reports an error that is not the API answer, and says so with its report id', () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const queryClient = createQueryClient(() => target());
+    // A bug in a query function, not a connection that dropped.
+    const bug = new TypeError(
+      "Cannot read properties of undefined (reading 'id')",
+    );
+    handleApiError(queryClient, target(), bug, undefined);
+    expect(logged).toHaveBeenCalledWith(
+      expect.stringMatching(/^\[[0-9a-f]{8}\] request error$/),
+      bug,
+    );
+    expect(toast.error).toHaveBeenCalledWith('Something went wrong.', {
+      description: expect.stringMatching(/^Report ID: [0-9a-f]{8}$/),
+    });
+    logged.mockRestore();
+  });
+
+  it('says a dropped connection is one, and reports nothing', () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const queryClient = createQueryClient(() => target());
+    handleApiError(
+      queryClient,
+      target(),
+      new TypeError('Failed to fetch'),
+      undefined,
+    );
+    expect(logged).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(
+      "The server can't be reached. Check your connection and try again.",
+    );
+    logged.mockRestore();
   });
 
   it('goes to sign-in when a refetch of `me` finds nobody signed in', async () => {
