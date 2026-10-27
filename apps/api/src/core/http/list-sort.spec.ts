@@ -59,7 +59,7 @@ describe('datetime list sorting', () => {
       )!,
     );
     expect(query.sql).toContain('date_trunc');
-    expect(query.sql).toContain('"audit_log"."id" <');
+    expect(query.sql).toContain('"audit_log"."id") < (');
   });
 
   it('uses the id tie breaker in the supporting index in the list order (desc nulls first)', () => {
