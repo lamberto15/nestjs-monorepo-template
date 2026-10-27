@@ -5,7 +5,8 @@
   },
   "nav": {
     "platform": "Platform",
-    "dashboard": "Papan pemuka"
+    "dashboard": "Papan pemuka",
+    "skipToContent": "Langkau ke kandungan"
   },
   "auth": {
     "signIn": {

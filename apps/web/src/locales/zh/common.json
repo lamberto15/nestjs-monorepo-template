@@ -5,7 +5,8 @@
   },
   "nav": {
     "platform": "平台",
-    "dashboard": "仪表盘"
+    "dashboard": "仪表盘",
+    "skipToContent": "跳到内容"
   },
   "auth": {
     "signIn": {

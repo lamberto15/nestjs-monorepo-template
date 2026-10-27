@@ -5,7 +5,8 @@
   },
   "nav": {
     "platform": "Plattform",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "skipToContent": "Zum Inhalt springen"
   },
   "auth": {
     "signIn": {

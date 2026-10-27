@@ -5,7 +5,8 @@
   },
   "nav": {
     "platform": "المنصة",
-    "dashboard": "لوحة التحكم"
+    "dashboard": "لوحة التحكم",
+    "skipToContent": "الانتقال إلى المحتوى"
   },
   "auth": {
     "signIn": {
