@@ -1,4 +1,5 @@
 import {
+  etagOf,
   unwrap,
   type GetResponse,
   type paths,
@@ -67,11 +68,22 @@ export const rolesQuery = queryOptions({
 });
 
 /** One role, with its permissions and member count (404: none such). */
+/**
+ * One role with the ETag it came with: the `If-Match` of its save, so a role
+ * another administrator saved meanwhile is refused (412), not overwritten.
+ */
 export function roleQuery(id: string) {
   return queryOptions({
     queryKey: [...accessKeys.roles, id],
-    queryFn: () =>
-      unwrap(api.GET('/v1/access/roles/{id}', { params: { path: { id } } })),
+    queryFn: async () => {
+      const result = await api.GET('/v1/access/roles/{id}', {
+        params: { path: { id } },
+      });
+      return {
+        role: await unwrap(Promise.resolve(result)),
+        etag: etagOf(result),
+      };
+    },
   });
 }
 
@@ -130,9 +142,9 @@ export async function createRole(body: RoleBody) {
   return unwrap(api.POST('/v1/access/roles', { body }));
 }
 
-export async function updateRole(id: string, body: RoleBody) {
+export async function updateRole(id: string, body: RoleBody, etag?: string) {
   await api.PATCH('/v1/access/roles/{id}', {
-    params: { path: { id } },
+    params: { path: { id }, header: etag ? { 'If-Match': etag } : {} },
     body,
   });
 }

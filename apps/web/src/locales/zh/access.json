@@ -97,6 +97,11 @@
     "newTitle": "新建角色",
     "editTitle": "角色",
     "notFound": "此角色不存在（或已不存在）。",
+    "conflict": {
+      "title": "此角色已更改",
+      "description": "自您打开以来，已有人保存了它。",
+      "reload": "重新加载"
+    },
     "columns": {
       "name": "角色",
       "permissions": "权限",

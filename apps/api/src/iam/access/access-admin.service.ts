@@ -31,6 +31,7 @@ import {
   sql,
 } from 'drizzle-orm';
 import type { PageQuery } from '../../core/http/pagination.js';
+import { untagged } from '../../core/http/etag.js';
 import {
   isSystemPrincipal,
   type SystemPrincipal,
@@ -183,18 +184,45 @@ export class AccessAdminService {
         .where(and(inArray(userRoles.roleId, ids), liveGrant(userRoles)))
         .groupBy(userRoles.roleId),
     ]);
-    return allRoles.map((role) => ({
-      ...role,
-      permissions: permissions
-        .filter((permission) => permission.roleId === role.id)
-        .map(({ subject, action, conditions, fields }) => ({
-          subject,
-          action,
-          conditions,
-          ...(fields && { fields }),
-        })),
-      members: members.find((row) => row.roleId === role.id)?.members ?? 0,
-    }));
+    return allRoles.map((role) =>
+      // The ETag is the role's definition: a grant to someone (`members`)
+      // doesn't make an editor's If-Match stale.
+      untagged(
+        {
+          ...role,
+          permissions: permissions
+            .filter((permission) => permission.roleId === role.id)
+            .map(({ subject, action, conditions, fields }) => ({
+              subject,
+              action,
+              conditions,
+              ...(fields && { fields }),
+            })),
+          members: members.find((row) => row.roleId === role.id)?.members ?? 0,
+        },
+        ['members'],
+      ),
+    );
+  }
+
+  /**
+   * Locks the role until the transaction ends and hands `check` the role as
+   * GET shows it: the If-Match comparison (`assertUnchanged`), so two
+   * administrators can't both save over the same version.
+   */
+  private async lockRole(
+    tx: Transaction,
+    id: string,
+    check?: (shown: object) => void,
+  ) {
+    await tx
+      .select({ id: roles.id })
+      .from(roles)
+      .where(eq(roles.id, id))
+      .for('update');
+    if (check) {
+      check(await this.getRole(id));
+    }
   }
 
   async createRole(actor: UserPrincipal, input: RoleInput, ip?: string) {
@@ -229,6 +257,7 @@ export class AccessAdminService {
     id: string,
     input: RoleInput,
     ip?: string,
+    check?: (shown: object) => void,
   ) {
     const role = await this.findRole(id);
     if (role.system) {
@@ -237,35 +266,39 @@ export class AccessAdminService {
       );
     }
     const permissions = await this.checkGrant(actor, input.permissions);
-    await this.db
-      .transaction(async (tx) => {
-        await tx
-          .update(roles)
-          .set({
-            name: input.name,
-            description: input.description ?? '',
-            updatedAt: new Date(),
-          })
-          .where(eq(roles.id, id));
-        await tx.delete(rolePermissions).where(eq(rolePermissions.roleId, id));
-        await this.writePermissions(tx, id, permissions);
-        await this.audit.record(
-          actor,
-          {
-            action: 'role.updated',
-            targetType: 'role',
-            targetId: id,
-            details: { name: input.name, permissions },
-            ip,
-          },
-          tx,
-        );
-      })
-      .catch(rethrowUnique('A role with this name already exists.'));
+    await inTransaction(this.txHost, async (tx) => {
+      await this.lockRole(tx, id, check);
+      await tx
+        .update(roles)
+        .set({
+          name: input.name,
+          description: input.description ?? '',
+          updatedAt: new Date(),
+        })
+        .where(eq(roles.id, id));
+      await tx.delete(rolePermissions).where(eq(rolePermissions.roleId, id));
+      await this.writePermissions(tx, id, permissions);
+      await this.audit.record(
+        actor,
+        {
+          action: 'role.updated',
+          targetType: 'role',
+          targetId: id,
+          details: { name: input.name, permissions },
+          ip,
+        },
+        tx,
+      );
+    }).catch(rethrowUnique('A role with this name already exists.'));
     this.access.invalidate();
   }
 
-  async deleteRole(actor: UserPrincipal, id: string, ip?: string) {
+  async deleteRole(
+    actor: UserPrincipal,
+    id: string,
+    ip?: string,
+    check?: (shown: object) => void,
+  ) {
     const role = await this.findRole(id);
     if (role.system) {
       throw new ConflictException(
@@ -275,6 +308,7 @@ export class AccessAdminService {
     // Deleting a role takes its permissions away: the same rule as granting them.
     await this.checkGrant(actor, await this.rolePermissionsOf([id]));
     await inTransaction(this.txHost, async (tx) => {
+      await this.lockRole(tx, id, check);
       await tx.delete(roles).where(eq(roles.id, id));
       await this.audit.record(
         actor,

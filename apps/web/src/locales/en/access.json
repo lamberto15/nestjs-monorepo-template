@@ -97,6 +97,11 @@
     "newTitle": "New role",
     "editTitle": "Role",
     "notFound": "This role doesn't exist (any more).",
+    "conflict": {
+      "title": "This role changed",
+      "description": "Someone saved it since you opened it.",
+      "reload": "Reload"
+    },
     "columns": {
       "name": "Role",
       "permissions": "Permissions",
