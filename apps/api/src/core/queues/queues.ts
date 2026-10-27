@@ -239,10 +239,14 @@ export class QueueWorkers implements OnModuleInit, BeforeApplicationShutdown {
     this.logger.warn(
       `Redis doesn't answer: closing ${workers.length} queue workers without waiting for their jobs.`,
     );
-    // Connection lost (reconnecting): BullModule's close() needs no help for
-    // queues, a QUIT with nothing queued disconnects at once; and
-    // disconnect() would wait for a ready connection, for ever. Connected
-    // but silent: the QUIT would wait for a reply, so disconnect.
+    // Connection lost (reconnecting): BullModule's close() of the queues is
+    // left to run, but only because closeWhenRedisIsDown() (onModuleInit)
+    // wraps it: the producers have no offline queue, so ioredis rejects their
+    // QUIT ("Stream isn't writeable…", Redis.js) instead of disconnecting, and
+    // unwrapped that leaves the reconnect loop running and the shutdown
+    // failing. Do not remove the wrapper. disconnect() here would wait for a
+    // ready connection, for ever. Connected but silent: the QUIT would wait
+    // for a reply, so disconnect.
     const silent = this.redis.status === 'ready';
     await Promise.race([
       Promise.allSettled([

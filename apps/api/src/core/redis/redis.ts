@@ -52,6 +52,10 @@ export function redisOptions(config: Config<CoreEnv>): RedisOptions {
  */
 export const PRODUCER_MAX_RETRIES_PER_REQUEST = 1;
 
+/** Reconnect delay of the producer connection: 50 ms per attempt, 2 s at most (ioredis's default). */
+export const producerRetryStrategy = (times: number) =>
+  Math.min(times * 50, 2000);
+
 /**
  * The connection options of BullMQ's `Queue` instances (what `queue.add()`
  * runs on), as BullMQ's production guide recommends for producers: no
@@ -66,7 +70,37 @@ export function producerRedisOptions(config: Config<CoreEnv>): RedisOptions {
     ...redisOptions(config),
     enableOfflineQueue: false,
     maxRetriesPerRequest: PRODUCER_MAX_RETRIES_PER_REQUEST,
+    // With no offline queue, every add fails while the client is not ready.
+    // BullMQ's own default waits at least 1 s between attempts; ioredis's
+    // (50 ms steps, 2 s at most) keeps that window short after a drop.
+    retryStrategy: producerRetryStrategy,
   };
+}
+
+/**
+ * Sends a write that must not be lost, without waiting for it: the command
+ * goes out whatever the client's state, so a reconnecting client delivers it
+ * from its offline queue when Redis returns (a late increment is harmless),
+ * and the caller waits `timeoutMs` at most, then gets a RedisUnavailableError.
+ * A late failure of the command is swallowed.
+ */
+export async function redisSendWithin<T>(
+  send: () => Promise<T>,
+  timeoutMs = 500,
+): Promise<T> {
+  const pending = send();
+  pending.catch(() => undefined);
+  const gaveUp = Symbol('timeout');
+  const result = await Promise.race([
+    pending,
+    setTimeout(timeoutMs, gaveUp, { ref: false }),
+  ]);
+  if (result === gaveUp) {
+    throw new RedisUnavailableError(
+      `Redis did not confirm within ${timeoutMs} ms`,
+    );
+  }
+  return result as T;
 }
 
 /** Thrown by `redisWithin()` when Redis can't answer in time. */

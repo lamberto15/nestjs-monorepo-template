@@ -14,6 +14,7 @@ import {
   redisOptions,
   RedisUnavailableError,
   redisResponds,
+  redisSendWithin,
   redisVersionOf,
   redisVersionSupported,
   redisWithin,
@@ -244,5 +245,50 @@ describe('redisWithin', () => {
       redisWithin({ status: 'ready' }, () => new Promise(() => {}), 100),
     ).rejects.toThrow('took over 100 ms');
     expect(Date.now() - started).toBeLessThan(1000);
+  });
+});
+
+describe('the producer connection reconnects quickly', () => {
+  it('waits 50 ms before the first retry, with the production options', async () => {
+    const server = createServer().listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const { port } = server.address() as AddressInfo;
+    server.close();
+    await once(server, 'close');
+    // Only host and port are the test's: retryStrategy is the production one.
+    const client = new Redis({
+      ...producerRedisOptions(config()),
+      host: '127.0.0.1',
+      port,
+    });
+    client.on('error', () => undefined);
+    const delay = await new Promise<number>((resolve) =>
+      client.once('reconnecting', resolve),
+    );
+    client.disconnect();
+    expect(delay).toBe(50);
+  });
+});
+
+describe('redisSendWithin', () => {
+  it('sends whatever the state and waits no longer than the bound', async () => {
+    const send = vi.fn(() => new Promise<number>(() => {}));
+    const started = Date.now();
+    await expect(redisSendWithin(send, 100)).rejects.toBeInstanceOf(
+      RedisUnavailableError,
+    );
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
+  it('swallows the late failure of a command it gave up on', async () => {
+    let fail!: (error: Error) => void;
+    const send = () =>
+      new Promise<number>((_, reject) => {
+        fail = reject;
+      });
+    await expect(redisSendWithin(send, 20)).rejects.toThrow('did not confirm');
+    fail(new Error('late'));
+    await new Promise((resolve) => setTimeout(resolve, 10));
   });
 });

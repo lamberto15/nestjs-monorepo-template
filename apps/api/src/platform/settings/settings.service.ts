@@ -14,7 +14,7 @@ import {
   type DrizzleTransactions,
   inTransaction,
 } from '../../core/database/transactions.js';
-import { REDIS, redisWithin } from '../../core/redis/redis.js';
+import { REDIS, redisSendWithin, redisWithin } from '../../core/redis/redis.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { AccessPolicy } from '../../iam/access/policies.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
@@ -974,13 +974,12 @@ export class SettingsService {
   private async bump() {
     const tenantId = requireTenantId('A setting');
     this.caches.delete(tenantId);
-    await redisWithin(
-      this.redis,
+    await redisSendWithin(
       () => this.redis.incr(tenantKey(SettingsService.VERSION_KEY, tenantId)),
       SettingsService.REDIS_READ_TIMEOUT_MS,
     ).catch((error: unknown) =>
       this.logger.warn(
-        `Could not publish a settings change; other instances see it within ${SettingsService.FALLBACK_TTL_MS} ms.`,
+        `Settings change not confirmed by Redis; it is sent when Redis returns, and other instances may serve the old value until then (at most ${SettingsService.MAX_AGE_MS} ms).`,
         { error: String(error) },
       ),
     );
@@ -990,13 +989,12 @@ export class SettingsService {
   private async bumpPlatform() {
     this.platformCache = undefined;
     for (const listener of this.platformListeners) listener();
-    await redisWithin(
-      this.redis,
+    await redisSendWithin(
       () => this.redis.incr(SettingsService.PLATFORM_VERSION_KEY),
       SettingsService.REDIS_READ_TIMEOUT_MS,
     ).catch((error: unknown) =>
       this.logger.warn(
-        `Could not publish a platform settings change; other instances see it within ${SettingsService.FALLBACK_TTL_MS} ms.`,
+        `Platform settings change not confirmed by Redis; it is sent when Redis returns, and other instances may serve the old value until then (at most ${SettingsService.MAX_AGE_MS} ms).`,
         { error: String(error) },
       ),
     );

@@ -46,7 +46,9 @@ at once instead of being buffered and sent when Redis returns (an abandoned
 request leaves no job behind); a worker's connections keep
 `maxRetriesPerRequest: null` and wait out an outage (`QueueWorker`). The
 callers' own retry (the outbox relay, a job's attempts, the user's retry)
-absorbs the rejection. An add already on the wire when a caller gives up
+absorbs the rejection; in a request it answers 503 `queue_unavailable` with
+`Retry-After`, not a 500. The producer reconnects after 50 ms steps (2 s at
+most), so the window in which adds fail stays short. An add already on the wire when a caller gives up
 (`abortable()`) may still land: give it a deterministic `jobId`. Defaults: 3 attempts with exponential backoff; finished
 jobs kept a day, failed ones a week. Each queue's concurrency (jobs at once per worker) is
 `QUEUE_CONCURRENCY_<QUEUE>`, set on the running worker by `QueueWorkers`

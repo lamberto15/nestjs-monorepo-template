@@ -12,6 +12,7 @@ import {
 } from './database/database-health.js';
 // Overload errors (pool exhausted, statement timeout) as 503 problems.
 import './database/database-errors.js';
+import './queues/queue-errors.js';
 // Work on tenant tables without a tenant as 403 tenant_required.
 import './tenancy/tenancy-errors.js';
 import { ConditionalModule, ConfigService } from '@nestjs/config';

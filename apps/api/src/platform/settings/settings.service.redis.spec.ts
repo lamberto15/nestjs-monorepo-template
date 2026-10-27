@@ -42,4 +42,19 @@ describe('SettingsService without Redis', () => {
       SettingsService.REDIS_READ_TIMEOUT_MS + 500,
     );
   });
+
+  it('still sends a version increment while Redis is reconnecting, without hanging', async () => {
+    const incr = vi.fn(() => new Promise<number>(() => {}));
+    const settings = service({ status: 'reconnecting', incr }) as unknown as {
+      bumpPlatform(): Promise<void>;
+      platformListeners: (() => void)[];
+    };
+    settings.platformListeners = [];
+    const started = Date.now();
+    await settings.bumpPlatform();
+    expect(incr).toHaveBeenCalledTimes(1);
+    expect(Date.now() - started).toBeLessThan(
+      SettingsService.REDIS_READ_TIMEOUT_MS + 500,
+    );
+  });
 });
