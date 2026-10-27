@@ -9,6 +9,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Page, PageHeader } from '@/components/page-header';
 import { useDateTimeFormat } from '@/lib/date-time';
 import { useFeature } from '@/lib/features';
 import { pollInterval } from '@/lib/realtime';
@@ -29,13 +30,15 @@ export function InboxPage(props: { tab: Tab }) {
   const items = list.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
-    <div className="flex max-w-4xl flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-medium">{t('inbox.title')}</h1>
-        <Button variant="outline" onClick={() => setDelegating(true)}>
-          {t('delegations.open')}
-        </Button>
-      </div>
+    <Page>
+      <PageHeader
+        title={t('inbox.title')}
+        actions={
+          <Button variant="outline" onClick={() => setDelegating(true)}>
+            {t('delegations.open')}
+          </Button>
+        }
+      />
       <Tabs
         value={props.tab}
         onValueChange={(value) =>
@@ -82,7 +85,7 @@ export function InboxPage(props: { tab: Tab }) {
         </Button>
       )}
       <DelegationsDialog open={delegating} onOpenChange={setDelegating} />
-    </div>
+    </Page>
   );
 }
 
