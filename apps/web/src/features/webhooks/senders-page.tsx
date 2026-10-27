@@ -21,6 +21,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ConfirmButton } from '@/components/confirm-button';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { useDateTimeFormat } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
 import { FormAlert } from '@/lib/form';
@@ -64,7 +66,7 @@ export function SendersPage() {
     }
   };
   return (
-    <div className="flex flex-col gap-4">
+    <Page>
       <Link
         to="/webhooks"
         className={cn(
@@ -75,18 +77,16 @@ export function SendersPage() {
         <ArrowLeftIcon className="rtl:rotate-180" />
         {t('senders.back')}
       </Link>
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="flex-1">
-          <h1 className="text-xl font-medium">{t('senders.title')}</h1>
-          <p className="text-sm text-muted-foreground">
-            {t('senders.description')}
-          </p>
-        </div>
-        <Button onClick={() => setCreating(true)}>
-          <PlusIcon />
-          {t('senders.create')}
-        </Button>
-      </div>
+      <PageHeader
+        title={t('senders.title')}
+        description={t('senders.description')}
+        actions={
+          <Button onClick={() => setCreating(true)}>
+            <PlusIcon />
+            {t('senders.create')}
+          </Button>
+        }
+      />
       <FormAlert message={error} />
       {list.isPending ? (
         <Spinner />
@@ -219,7 +219,7 @@ export function SendersPage() {
           </Table>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">{t('senders.empty')}</p>
+        <EmptyState title={t('senders.empty')} />
       )}
       <SenderFormDialog
         open={creating}
@@ -256,6 +256,6 @@ export function SendersPage() {
           rotate.reset();
         }}
       />
-    </div>
+    </Page>
   );
 }

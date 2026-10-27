@@ -4,6 +4,8 @@ import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { errorMessage } from '@/lib/errors';
 import { policiesQuery, type PolicyView } from './api';
 
@@ -24,13 +26,11 @@ export function PoliciesPage() {
   const { t } = useTranslation('approvals');
   const policies = useQuery({ ...policiesQuery, meta: { errorToast: false } });
   return (
-    <div className="flex max-w-4xl flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-medium">{t('policies.title')}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t('policies.description')}
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title={t('policies.title')}
+        description={t('policies.description')}
+      />
       {policies.isPending && <Skeleton className="h-40 w-full" aria-busy />}
       {policies.isError && (
         <p role="alert" className="text-sm text-destructive">
@@ -39,12 +39,7 @@ export function PoliciesPage() {
       )}
       {policies.isSuccess &&
         (policies.data.length === 0 ? (
-          <p
-            role="status"
-            className="py-12 text-center text-sm text-muted-foreground"
-          >
-            {t('policies.none')}
-          </p>
+          <EmptyState title={t('policies.none')} />
         ) : (
           <ul aria-label={t('policies.title')} className="rounded-lg border">
             {policies.data.map((policy) => (
@@ -52,7 +47,7 @@ export function PoliciesPage() {
             ))}
           </ul>
         ))}
-    </div>
+    </Page>
   );
 }
 

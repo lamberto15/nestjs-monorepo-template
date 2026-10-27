@@ -10,6 +10,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import de from '@/locales/de/common.json';
 import en from '@/locales/en/common.json';
 import { recordKeys } from '@/lib/records';
+import { EmptyState } from './empty-state';
+import { PageHeader } from './page-header';
 import { ListPage, type ListPageProps } from './list-page';
 import type { ListColumn, ListPath } from '@/lib/list-query';
 
@@ -737,5 +739,44 @@ describe('ListPage', () => {
     expect(screen.getByText('Zeilen pro Seite')).toBeInTheDocument();
     expect(screen.getByText('Seite 1 von 1')).toBeInTheDocument();
     expect(screen.getByText('0 Zeilen ausgewählt.')).toBeInTheDocument();
+  });
+});
+
+describe('PageHeader and EmptyState', () => {
+  it('renders the title as an h1 (h2 when asked), with description, badges and actions', () => {
+    render(
+      <>
+        <PageHeader
+          title="Roles"
+          description="Who can do what"
+          badges={<span>Built-in</span>}
+          actions={<button type="button">New</button>}
+        />
+        <PageHeader title="Section" level={2} />
+      </>,
+    );
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Roles' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Section' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Who can do what')).toBeInTheDocument();
+    expect(screen.getByText('Built-in')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New' })).toBeInTheDocument();
+  });
+
+  it('shows an empty state as a status with its action', () => {
+    render(
+      <EmptyState
+        title="No tags yet."
+        description="Tag a record to see it here."
+        action={<button type="button">Add</button>}
+      />,
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('No tags yet.');
+    expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
   });
 });

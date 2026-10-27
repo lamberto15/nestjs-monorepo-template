@@ -17,6 +17,8 @@ import { getDataTableSelectColumn } from '@/components/data-table/data-table-sel
 import { DataTableFilterMenu } from '@/components/data-table/data-table-filter-menu';
 import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { DataTableSortMenu } from '@/components/data-table/data-table-sort-menu';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { ListBulkBar } from '@/components/list-bulk-bar';
 import { ViewsPicker } from '@/features/views/views-picker';
 import type { BulkContext } from '@/features/bulk/types';
@@ -96,19 +98,15 @@ export interface ListPageProps<P extends ListPath> {
 export function ListPage<P extends ListPath>(props: ListPageProps<P>) {
   const description = useListDescription(props.subject);
   const { t } = useTranslation();
-  const Heading = props.headingLevel === 2 ? 'h2' : 'h1';
 
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Heading className="text-xl font-medium">{props.title}</Heading>
-        {props.toolbarActions && (
-          <div className="flex items-center gap-2">{props.toolbarActions}</div>
-        )}
-      </div>
-      {props.subtitle && (
-        <p className="text-sm text-muted-foreground">{props.subtitle}</p>
-      )}
+    <Page>
+      <PageHeader
+        title={props.title}
+        description={props.subtitle}
+        actions={props.toolbarActions}
+        level={props.headingLevel}
+      />
       {description.isPending ? (
         <DataTableSkeleton columnCount={props.columns.length} />
       ) : description.isError ? (
@@ -119,7 +117,7 @@ export function ListPage<P extends ListPath>(props: ListPageProps<P>) {
       <span className="sr-only" aria-live="polite">
         {description.isPending ? t('list.loading') : ''}
       </span>
-    </section>
+    </Page>
   );
 }
 
@@ -225,13 +223,10 @@ function ListTable<P extends ListPath>({
       ) : query.isPending ? (
         <DataTableSkeleton columnCount={cols.length} withViewOptions={false} />
       ) : empty ? (
-        <div
-          role="status"
-          className="rounded-md border p-8 text-center text-sm text-muted-foreground"
-        >
-          <p className="font-medium text-foreground">{t('list.empty.title')}</p>
-          <p>{t('list.empty.description')}</p>
-        </div>
+        <EmptyState
+          title={t('list.empty.title')}
+          description={t('list.empty.description')}
+        />
       ) : (
         <DataTable
           table={table}

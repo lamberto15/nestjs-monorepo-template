@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { z } from '@/lib/zod';
 import { IdentitiesSection } from '@/components/account/identities-section';
+import { Page, PageHeader } from '@/components/page-header';
 import { MfaSection } from '@/components/account/mfa-section';
 import { PasskeysSection } from '@/components/account/passkeys-section';
 import { PasswordSection } from '@/components/account/password-section';
@@ -35,17 +36,17 @@ function SecurityPage() {
   // the API refuses changes (and hides the lists), so none are offered.
   if (me?.user.impersonator) {
     return (
-      <div className="flex max-w-2xl flex-col gap-6">
-        <h1 className="text-xl font-medium">{t('account.security.title')}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t('account.impersonating')}
-        </p>
-      </div>
+      <Page width="narrow">
+        <PageHeader
+          title={t('account.security.title')}
+          description={t('account.impersonating')}
+        />
+      </Page>
     );
   }
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
-      <h1 className="text-xl font-medium">{t('account.security.title')}</h1>
+    <Page width="narrow">
+      <PageHeader title={t('account.security.title')} />
       <MfaSection />
       {!me?.mfaEnrollmentRequired && (
         <>
@@ -57,6 +58,6 @@ function SecurityPage() {
           <SessionsSection />
         </>
       )}
-    </div>
+    </Page>
   );
 }
