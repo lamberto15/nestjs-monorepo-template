@@ -225,11 +225,14 @@ describe('bulk delete', () => {
     await expectNoBar();
   });
 
-  it('sends nothing when the question is answered with Cancel', async () => {
+  it('sends nothing when the question is answered with Cancel, and keeps the selection', async () => {
     const calls = useBulkApi();
     await renderList();
     const user = await choose('Old plan');
     const confirm = await askDelete(user, 'Delete 1 record?');
+    // Opening the dialog re-renders the list; the selection stays (#763).
+    // (The modal dialog hides the bar from the accessibility tree meanwhile.)
+    expect(screen.getByText('1 selected')).toBeInTheDocument();
     await user.click(within(confirm).getByRole('button', { name: 'Cancel' }));
 
     await waitFor(() =>
@@ -238,6 +241,7 @@ describe('bulk delete', () => {
       ).not.toBeInTheDocument(),
     );
     expect(calls.bulk).toEqual([]);
+    expect(within(await bar()).getByText('1 selected')).toBeVisible();
   });
 
   it('lists the records it could not do, with the reason', async () => {

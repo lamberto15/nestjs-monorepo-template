@@ -138,6 +138,48 @@ test.describe('signed in as the administrator', () => {
     }
   });
 
+  // Reflow (WCAG 1.4.10): narrowing the window (or zooming in) under the
+  // two-column breakpoint, the dashboard's chart shrinks with it rather than
+  // keeping its width and scrolling the page sideways.
+  test('the dashboard reflows when the window narrows', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    await expect(page.locator('[data-slot="chart"] svg')).toBeVisible();
+    await page.setViewportSize({ width: 375, height: 812 });
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            document.documentElement.scrollWidth -
+            document.documentElement.clientWidth,
+        ),
+      )
+      .toBe(0);
+  });
+
+  // A wide table scrolls inside its own box, never the page (the box shows
+  // edge shadows to say so: `scroll-shadow-x`).
+  test('a table scrolls sideways on a phone, not the page', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto('/notes');
+    const box = page.locator('[data-slot="table-container"]').first();
+    await expect(box).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            document.documentElement.scrollWidth -
+            document.documentElement.clientWidth,
+        ),
+      )
+      .toBe(0);
+    await expect
+      .poll(() => box.evaluate((el) => el.scrollWidth - el.clientWidth))
+      .toBeGreaterThan(0);
+  });
+
   test.describe('open overlays', () => {
     // Only what the overlay holds is scanned: the page behind it is inert
     // while a modal is open, and the page-level rules are covered above.

@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, createFileRoute, redirect } from '@tanstack/react-router';
 import { LockIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Page, PageHeader } from '@/components/page-header';
 import { RecordState } from '@/components/records/record-state';
 import { noteQuery } from '@/features/notes/api';
 import { NoteForm } from '@/features/notes/note-form';
@@ -35,8 +36,8 @@ function EditNote() {
     refetchOnReconnect: false,
   });
   return (
-    <section className="flex flex-col gap-4">
-      <h1 className="text-xl font-medium">{t('edit.title')}</h1>
+    <Page width="narrow">
+      <PageHeader title={t('edit.title')} />
       <RecordState
         query={query}
         notFound={{
@@ -78,6 +79,6 @@ function EditNote() {
           )
         }
       </RecordState>
-    </section>
+    </Page>
   );
 }

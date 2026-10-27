@@ -28,5 +28,10 @@
     "rejected": "{{name}}: {{reason}}",
     "tooLarge": "Fail melebihi {{max}} KB.",
     "typeRefused": "Gunakan imej PNG, JPEG atau WebP."
+  },
+  "error": {
+    "title": "Penjenamaan tidak dapat dimuatkan",
+    "generic": "Sesuatu telah berlaku. Cuba lagi.",
+    "retry": "Cuba lagi"
   }
 }

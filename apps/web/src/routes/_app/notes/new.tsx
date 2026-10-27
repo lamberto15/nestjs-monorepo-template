@@ -1,5 +1,6 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { Page, PageHeader } from '@/components/page-header';
 import { NoteForm } from '@/features/notes/note-form';
 
 export const Route = createFileRoute('/_app/notes/new')({
@@ -15,9 +16,9 @@ export const Route = createFileRoute('/_app/notes/new')({
 function NewNote() {
   const { t } = useTranslation('notes');
   return (
-    <section className="flex flex-col gap-4">
-      <h1 className="text-xl font-medium">{t('new.title')}</h1>
+    <Page width="narrow">
+      <PageHeader title={t('new.title')} />
       <NoteForm />
-    </section>
+    </Page>
   );
 }

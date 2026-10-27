@@ -4,7 +4,7 @@
 @import "@fontsource-variable/geist";
 
 @custom-variant dark (&:is(.dark *));
-@source "../../../apps/**/*.{ts,tsx}";
+@source "../../../../apps/**/*.{ts,tsx}";
 @source "../../../components/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
@@ -129,4 +129,16 @@
   body {
     @apply bg-background text-foreground;
     }
+}
+
+/* Edge shadows on a horizontally scrolling box: one shows on each side that
+   has more to scroll to (symmetric, so it needs no RTL variant). The
+   `local` fades cover the `scroll` shadows once the edge is reached. */
+@utility scroll-shadow-x {
+  --scroll-shadow: color-mix(in oklab, var(--foreground) 22%, transparent);
+  background:
+    linear-gradient(to right, var(--background) 30%, transparent) left center / 2rem 100% no-repeat local,
+    linear-gradient(to left, var(--background) 30%, transparent) right center / 2rem 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, var(--scroll-shadow), transparent) left center / 0.75rem 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, var(--scroll-shadow), transparent) right center / 0.75rem 100% no-repeat scroll;
 }

@@ -152,8 +152,6 @@ export function ViewsPicker<TData extends RowData>(props: {
           render={
             <Button
               variant="outline"
-              size="sm"
-              className="h-8 border-dashed"
               aria-label={
                 active ? t('current', { name: active.name }) : t('title')
               }

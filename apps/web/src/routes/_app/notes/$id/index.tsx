@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ArrowLeftIcon, EllipsisIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Page, PageHeader } from '@/components/page-header';
 import { MarkdownText } from '@/components/markdown/lazy';
 import { AiPanel } from '@/features/ai/ai-panel';
 import { ApprovalBanner } from '@/features/approvals/record-banner';
@@ -36,7 +37,7 @@ function NoteDetail() {
   const { t } = useTranslation('notes');
   const query = useQuery(noteQuery(id));
   return (
-    <section className="flex flex-col gap-4">
+    <Page>
       <Link
         to="/notes"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:underline"
@@ -58,7 +59,7 @@ function NoteDetail() {
       >
         {({ note }) => <NoteView note={note} />}
       </RecordState>
-    </section>
+    </Page>
   );
 }
 
@@ -80,62 +81,60 @@ function NoteView({ note }: { note: Note }) {
 
   return (
     <>
-      <header className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-xl font-medium break-words">{note.title}</h1>
-          {note.number && (
-            <p className="text-sm text-muted-foreground">{note.number}</p>
-          )}
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <WatchButton
-            subject="Note"
-            path="/v1/notes/{id}"
-            id={note.id}
-            watching={note.watching}
-            onToggled={(watching) =>
-              setNoteWatching(queryClient, note.id, watching)
-            }
-          />
-          {(canUpdate || canDelete) && (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    aria-label={t('actions.open')}
-                  />
-                }
-              >
-                <EllipsisIcon />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {canUpdate && (
-                  <DropdownMenuItem
-                    disabled={paused}
-                    render={
-                      <Link to="/notes/$id/edit" params={{ id: note.id }} />
-                    }
-                  >
-                    {t('actions.edit')}
-                  </DropdownMenuItem>
-                )}
-                {canUpdate && canDelete && <DropdownMenuSeparator />}
-                {canDelete && (
-                  <DropdownMenuItem
-                    variant="destructive"
-                    disabled={paused}
-                    onClick={() => ask(note)}
-                  >
-                    {t('actions.delete')}
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-      </header>
+      <PageHeader
+        title={note.title}
+        description={note.number}
+        actions={
+          <>
+            <WatchButton
+              subject="Note"
+              path="/v1/notes/{id}"
+              id={note.id}
+              watching={note.watching}
+              onToggled={(watching) =>
+                setNoteWatching(queryClient, note.id, watching)
+              }
+            />
+            {(canUpdate || canDelete) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label={t('actions.open')}
+                    />
+                  }
+                >
+                  <EllipsisIcon />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {canUpdate && (
+                    <DropdownMenuItem
+                      disabled={paused}
+                      render={
+                        <Link to="/notes/$id/edit" params={{ id: note.id }} />
+                      }
+                    >
+                      {t('actions.edit')}
+                    </DropdownMenuItem>
+                  )}
+                  {canUpdate && canDelete && <DropdownMenuSeparator />}
+                  {canDelete && (
+                    <DropdownMenuItem
+                      variant="destructive"
+                      disabled={paused}
+                      onClick={() => ask(note)}
+                    >
+                      {t('actions.delete')}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </>
+        }
+      />
       <ApprovalBanner subject="Note" recordId={note.id} />
       <DetailList>
         <DetailItem

@@ -19,6 +19,8 @@ import { ArrowLeftIcon, PlusIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { clientQuery } from '@/features/api-clients/queries';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { errorMessage } from '@/lib/errors';
 import { FormAlert } from '@/lib/form';
 import {
@@ -53,7 +55,7 @@ export function EndpointsPage(props: { clientId: string }) {
     (isApiError(client.error) && client.error.status === 404) ||
     (isApiError(list.error) && list.error.status === 404);
   return (
-    <div className="flex flex-col gap-4">
+    <Page>
       <Link
         to="/webhooks"
         className={cn(
@@ -65,25 +67,19 @@ export function EndpointsPage(props: { clientId: string }) {
         {t('endpoints.back')}
       </Link>
       {missing ? (
-        <p className="text-sm text-muted-foreground">
-          {t('endpoints.notFound')}
-        </p>
+        <EmptyState title={t('endpoints.notFound')} />
       ) : (
         <>
-          <div className="flex flex-wrap items-start gap-3">
-            <div className="flex-1">
-              <h1 className="text-xl font-medium">
-                {t('endpoints.title', { client: client.data?.name ?? '' })}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {t('endpoints.description')}
-              </p>
-            </div>
-            <Button onClick={() => setCreating(true)}>
-              <PlusIcon />
-              {t('endpoints.create')}
-            </Button>
-          </div>
+          <PageHeader
+            title={t('endpoints.title', { client: client.data?.name ?? '' })}
+            description={t('endpoints.description')}
+            actions={
+              <Button onClick={() => setCreating(true)}>
+                <PlusIcon />
+                {t('endpoints.create')}
+              </Button>
+            }
+          />
           {list.isPending ? (
             <Spinner />
           ) : list.isError ? (
@@ -131,9 +127,7 @@ export function EndpointsPage(props: { clientId: string }) {
               </Table>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              {t('endpoints.empty')}
-            </p>
+            <EmptyState title={t('endpoints.empty')} />
           )}
         </>
       )}
@@ -147,6 +141,6 @@ export function EndpointsPage(props: { clientId: string }) {
         title={t('secret.createdTitle')}
         onClose={() => create.reset()}
       />
-    </div>
+    </Page>
   );
 }

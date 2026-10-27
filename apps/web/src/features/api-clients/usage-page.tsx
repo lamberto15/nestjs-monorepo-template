@@ -30,6 +30,8 @@ import {
 import { useNavigate } from '@tanstack/react-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { clientsQuery, usageQuery, type Usage } from './queries';
 
@@ -67,17 +69,15 @@ export function UsagePage(props: { client?: string; days: UsageRange }) {
   const items = clients.data?.items ?? [];
   const selected = items.find((item) => item.id === props.client) ?? items[0];
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-medium">{t('usage.title')}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t('usage.description')}
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title={t('usage.title')}
+        description={t('usage.description')}
+      />
       {clients.isPending ? (
         <Spinner />
       ) : !selected ? (
-        <p className="text-sm text-muted-foreground">{t('usage.noClients')}</p>
+        <EmptyState title={t('usage.noClients')} />
       ) : (
         <>
           <div className="flex flex-wrap gap-4">
@@ -148,7 +148,7 @@ export function UsagePage(props: { client?: string; days: UsageRange }) {
           />
         </>
       )}
-    </div>
+    </Page>
   );
 }
 
@@ -161,7 +161,7 @@ function UsageReport(props: {
   const { from, to } = useMemo(() => rangeFor(props.days), [props.days]);
   const usage = useQuery(usageQuery(props.id, from, to));
   const chartConfig = {
-    total: { label: t('usage.chart.series'), color: 'var(--primary)' },
+    total: { label: t('usage.chart.series'), color: 'var(--chart-2)' },
   } satisfies ChartConfig;
   if (usage.isPending) {
     return <Spinner />;
@@ -231,7 +231,12 @@ function UsageReport(props: {
                 allowDecimals={false}
               />
               <ChartTooltip content={<ChartTooltipContent labelKey="day" />} />
-              <Bar dataKey="total" fill="var(--color-total)" radius={3} />
+              <Bar
+                dataKey="total"
+                fill="var(--color-total)"
+                radius={3}
+                maxBarSize={48}
+              />
             </BarChart>
           </ChartContainer>
         )}
