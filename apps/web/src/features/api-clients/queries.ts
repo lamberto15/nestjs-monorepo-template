@@ -35,6 +35,12 @@ type JsonBody<T> = T extends {
   ? B
   : never;
 
+/**
+ * A client's name mirrors the API's `maxLength`; lib/limits.test.ts
+ * compares it with openapi.json.
+ */
+export const API_CLIENT_LIMITS = { name: 80 } as const;
+
 /** What a create sends: the name, its daily quota and roles, at once. */
 export type CreateClientBody = JsonBody<paths['/v1/access/clients']['post']>;
 

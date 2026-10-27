@@ -18,12 +18,10 @@ test('API and web changes route independently on PRs and main', () => {
   assert.deepEqual(selected(api), ['code', 'app', 'api', 'image', 'api_image']);
   const web = route('apps/web/src/routes/index.tsx');
   assert.deepEqual(selected(web), ['code', 'app', 'web', 'caddy']);
-  for (const event of ['push', 'pull_request']) {
-    assert.ok(expectedJobs(api, event).includes('e2e'));
-    assert.ok(!expectedJobs(web, event).includes('e2e'));
-    assert.ok(expectedJobs(web, event).includes('e2e-web'));
-    assert.ok(!expectedJobs(api, event).includes('unit-web'));
-  }
+  assert.ok(expectedJobs(api).includes('e2e'));
+  assert.ok(!expectedJobs(web).includes('e2e'));
+  assert.ok(expectedJobs(web).includes('e2e-web'));
+  assert.ok(!expectedJobs(api).includes('unit-web'));
 });
 
 test('shared, migrations, infrastructure, tooling, CI and unknown paths', () => {
@@ -83,13 +81,10 @@ test('ambiguous comparisons and comprehensive triggers never skip checks', () =>
     { files: ['docs/a'], full: true },
   ])
     assert.ok(keys.every((k) => classify(input)[k]));
-  const full = classify({ full: true });
-  for (const event of ['schedule', 'workflow_dispatch', 'push']) {
-    const jobs = expectedJobs(full, event);
-    assert.ok(jobs.includes('template-without-notes'));
-    assert.ok(jobs.includes('e2e-web'));
-    assert.ok(jobs.includes('feature-smoke'));
-  }
+  const jobs = expectedJobs(classify({ full: true }));
+  assert.ok(jobs.includes('template-without-notes'));
+  assert.ok(jobs.includes('e2e-web'));
+  assert.ok(jobs.includes('feature-smoke'));
 });
 
 test('compare parsing includes deleted and both renamed paths and rejects caps', () => {
@@ -182,20 +177,23 @@ test('publication gate rejects a failed or skipped required image', () => {
     );
 });
 
-test('benchmark routing preserves coverage merging only for sharded runs', () => {
-  assert.deepEqual(expectedJobs({}, 'workflow_dispatch', 'e2e'), [
-    'changes',
-    'compose-images',
-    'e2e',
-  ]);
-  assert.deepEqual(expectedJobs({}, 'workflow_dispatch', 'unit', true), [
-    'changes',
-    'unit-api',
-    'unit-web',
-  ]);
-  assert.ok(
-    expectedJobs({}, 'workflow_dispatch', 'unit', false).includes('coverage'),
+// The runners an ordinary pull request occupies (issue #681): quick checks
+// ride on check and image rather than taking runners of their own. A new
+// job here is a runner every such pull request waits for.
+test('ordinary API, web and docs pull requests occupy few runners', () => {
+  assert.deepEqual(
+    expectedJobs(route('apps/api/src/features/notes/notes.service.ts')),
+    ['changes', 'check', 'e2e', 'e2e-web', 'security', 'image'],
   );
+  assert.deepEqual(expectedJobs(route('apps/web/src/routes/index.tsx')), [
+    'changes',
+    'check',
+    'unit-web',
+    'e2e-web',
+    'security',
+    'caddy-image',
+  ]);
+  assert.deepEqual(expectedJobs(route('docs/deployment.md')), ['changes']);
 });
 
 test('root dependency routing never hides another affected image or an unknown path', () => {

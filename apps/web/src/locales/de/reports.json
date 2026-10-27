@@ -62,6 +62,7 @@
     "name": "Name",
     "namePlaceholder": "Wöchentliche Entwürfe",
     "nameRequired": "Geben Sie einen Namen ein.",
+    "nameTooLong": "Höchstens {{max}} Zeichen.",
     "exporter": "Daten",
     "exporterPlaceholder": "Wählen Sie, was exportiert wird",
     "exporterRequired": "Wählen Sie, was exportiert wird.",

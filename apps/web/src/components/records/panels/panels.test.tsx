@@ -452,6 +452,31 @@ describe('comments', () => {
     await waitFor(() => expect(calls.removedComments).toEqual(['mine']));
   });
 
+  it('says why a comment was not deleted, and shows what is true', async () => {
+    const calls = usePanelsApi({
+      comments: [{ id: 'mine', author: ME, body: 'Mine' }],
+    });
+    server.use(
+      http.delete('/v1/test-items/:id/comments/:commentId', () =>
+        problem(409, 'conflict'),
+      ),
+    );
+    await mountPanels(['TestItem.read']);
+    const user = await open('Comments');
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    const listings = calls.commentListings;
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Delete',
+      }),
+    );
+    await findToast('conflict (test)');
+    // Whoever refused may have been right: the thread is read again.
+    await waitFor(() =>
+      expect(calls.commentListings).toBeGreaterThan(listings),
+    );
+  });
+
   it('searches the people by what follows the @', async () => {
     const calls = usePanelsApi({ people: [MAYA] });
     await mountPanels(ALL);
@@ -682,6 +707,37 @@ describe('attachments', () => {
       }),
     );
     await waitFor(() => expect(calls.removedAttachments).toEqual(['a1']));
+  });
+
+  it('says why a file was not deleted, and shows what is true', async () => {
+    const calls = usePanelsApi({
+      attachments: [
+        {
+          id: 'a1',
+          name: 'contract.pdf',
+          size: 1536,
+          contentType: 'application/pdf',
+          uploadedBy: ME,
+        },
+      ],
+    });
+    server.use(
+      http.delete('/v1/attachments/:id', () => problem(403, 'forbidden')),
+    );
+    await mountPanels(ALL);
+    const user = await open('Attachments');
+    const row = (await screen.findByText('contract.pdf')).closest('li')!;
+    await user.click(within(row).getByRole('button', { name: 'Delete' }));
+    const listings = calls.attachmentListings;
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Delete',
+      }),
+    );
+    await findToast('forbidden (test)');
+    await waitFor(() =>
+      expect(calls.attachmentListings).toBeGreaterThan(listings),
+    );
   });
 
   it("holds uploads to the API's limits", async () => {

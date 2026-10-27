@@ -28,7 +28,7 @@ services:
 
   # Catches every mail the app sends (SMTP on 1025): read them at http://localhost:8025
   mailpit:
-    image: axllent/mailpit:v1.31
+    image: axllent/mailpit:v1.32
     restart: unless-stopped
     logging: *logging
     ports:

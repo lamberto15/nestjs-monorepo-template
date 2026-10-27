@@ -13,8 +13,9 @@ import { toast } from 'sonner';
 import {
   createTeam,
   invalidateAccess,
-  updateTeam,
   type Team,
+  TEAM_LIMITS,
+  updateTeam,
 } from '@/features/access/api';
 import { orderedTree } from '@/features/access/pickers';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
@@ -82,7 +83,14 @@ function TeamForm(props: { teams: Team[]; team?: Team; onDone: () => void }) {
     },
     validators: {
       onSubmit: z.object({
-        name: z.string().trim().min(1, t('teams.errors.nameRequired')),
+        name: z
+          .string()
+          .trim()
+          .min(1, t('teams.errors.nameRequired'))
+          .max(
+            TEAM_LIMITS.name,
+            t('teams.errors.nameTooLong', { max: TEAM_LIMITS.name }),
+          ),
         parentId: z.string(),
       }),
     },

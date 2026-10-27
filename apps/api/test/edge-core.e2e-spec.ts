@@ -122,8 +122,12 @@ describe('Tree: a closure table (PostgreSQL)', () => {
         chain.push(await node(`level ${i}`, chain.at(-1) ?? null));
       }
       expect(await actualClosure()).toEqual(expectedClosure());
-      expect(await under(chain[0])).toEqual([...chain].sort((a, b) => a.localeCompare(b)));
-      expect(await above(chain[11])).toEqual([...chain].sort((a, b) => a.localeCompare(b)));
+      expect(await under(chain[0])).toEqual(
+        [...chain].sort((a, b) => a.localeCompare(b)),
+      );
+      expect(await above(chain[11])).toEqual(
+        [...chain].sort((a, b) => a.localeCompare(b)),
+      );
       expect(await under(chain[11])).toEqual([chain[11]]);
       const [deepest] = await db
         .select({ depth: teamTree.depth })
@@ -149,8 +153,12 @@ describe('Tree: a closure table (PostgreSQL)', () => {
       await move(a, null);
       expect(await actualClosure()).toEqual(expectedClosure());
       expect(await under(root)).toEqual([root]);
-      expect(await under(a)).toEqual([a, b, c].sort((a, b) => a.localeCompare(b)));
-      expect(await above(c)).toEqual([a, b, c].sort((a, b) => a.localeCompare(b)));
+      expect(await under(a)).toEqual(
+        [a, b, c].sort((a, b) => a.localeCompare(b)),
+      );
+      expect(await above(c)).toEqual(
+        [a, b, c].sort((a, b) => a.localeCompare(b)),
+      );
       // Moving a root to the root changes nothing.
       await move(a, null);
       expect(await actualClosure()).toEqual(expectedClosure());
@@ -169,10 +177,14 @@ describe('Tree: a closure table (PostgreSQL)', () => {
       await move(left, rightGrandchild);
       expect(await actualClosure()).toEqual(expectedClosure());
       expect(await above(leftChild)).toEqual(
-        [root, right, rightChild, rightGrandchild, left, leftChild].sort((a, b) => a.localeCompare(b)),
+        [root, right, rightChild, rightGrandchild, left, leftChild].sort(
+          (a, b) => a.localeCompare(b),
+        ),
       );
       expect(await under(right)).toEqual(
-        [right, rightChild, rightGrandchild, left, leftChild].sort((a, b) => a.localeCompare(b)),
+        [right, rightChild, rightGrandchild, left, leftChild].sort((a, b) =>
+          a.localeCompare(b),
+        ),
       );
       const [path] = await db
         .select({ depth: teamTree.depth })
@@ -196,7 +208,9 @@ describe('Tree: a closure table (PostgreSQL)', () => {
       const before = await actualClosure();
       await move(a, root);
       expect(await actualClosure()).toEqual(before);
-      expect(await under(root)).toEqual([root, a, b].sort((a, b) => a.localeCompare(b)));
+      expect(await under(root)).toEqual(
+        [root, a, b].sort((a, b) => a.localeCompare(b)),
+      );
     }),
   );
 

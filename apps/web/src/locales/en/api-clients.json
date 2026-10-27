@@ -29,6 +29,7 @@
     "name": "Name",
     "namePlaceholder": "Billing exporter",
     "nameRequired": "Give the client a name.",
+    "nameTooLong": "At most {{max}} characters.",
     "quota": "Daily quota (optional)",
     "quotaHint": "Requests a day (UTC); past it, the API answers 429. Leave empty for none.",
     "quotaInvalid": "A whole number of 1 or more.",

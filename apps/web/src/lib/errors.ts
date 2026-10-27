@@ -3,7 +3,9 @@ import type { AnyFormApi } from '@tanstack/react-form';
 import { isApiError } from '@nestjs-monorepo-template/api-client';
 import { toast } from 'sonner';
 import { i18n } from '@/i18n';
+import { focusFirstInvalid } from '@/lib/form-focus';
 import { isModeRefusal } from '@/lib/mode';
+import { isNetworkError, reportClientError } from '@/lib/report-error';
 import { announceSessionIdentity, onSessionIdentity } from '@/lib/session-bus';
 import {
   createSession,
@@ -36,6 +38,11 @@ export type ErrorHandlerTarget = {
   toMfaSetup(): void;
   /** The first administrator's onboarding page. */
   toOnboarding(): void;
+  /**
+   * Re-runs the current page's route guards and loaders (the router's
+   * `invalidate()`): the session changed under a page another session opened.
+   */
+  invalidate(): void;
 };
 
 /**
@@ -71,7 +78,11 @@ export function endSession(
  * - 403 `onboarding_required` (the first administrator still has the
  *   placeholder email or generated password): to the onboarding page, explained.
  * - Anything else: a toast with the problem's `detail` (in the request's
- *   language), unless the caller shows it (`meta: { errorToast: false }`).
+ *   language), unless the caller shows it (`meta: { errorToast: false }`);
+ *   for a 5xx, with the request id the API logged it under.
+ * - Not the API's answer: a connection that dropped says so; anything else
+ *   is a fault of the app's, reported (lib/report-error.ts) and toasted with
+ *   its report id, which the user can quote.
  */
 export function handleApiError(
   queryClient: QueryClient,
@@ -121,18 +132,35 @@ export function handleApiError(
       return;
     }
   }
+  const reportId =
+    isApiError(error) || isNetworkError(error)
+      ? undefined
+      : reportClientError(error, 'request');
   if (meta?.errorToast === false) {
     return;
   }
-  toast.error(errorMessage(error));
+  const quoted = reportId
+    ? i18n.t('errors.reportId', { id: reportId })
+    : isApiError(error) && error.status >= 500 && error.requestId
+      ? i18n.t('errors.requestId', { id: error.requestId })
+      : undefined;
+  if (quoted) {
+    toast.error(errorMessage(error), { description: quoted });
+  } else {
+    toast.error(errorMessage(error));
+  }
 }
 
 /** What to tell the user about an error. */
 export function errorMessage(error: unknown): string {
   if (isApiError(error)) {
-    return error.detail;
+    // The field errors no field of the form showed (applyFieldErrors): what
+    // the form-level alert says, not the problem's generic `detail`.
+    return unplaced.get(error)?.join('; ') ?? error.detail;
   }
-  return i18n.t('auth.errors.network');
+  return isNetworkError(error)
+    ? i18n.t('auth.errors.network')
+    : i18n.t('errors.unexpected');
 }
 
 export function createQueryClient(
@@ -264,21 +292,34 @@ function watchSession(
     // Whoever switched (this tab's flow announced and is applying, or
     // another tab announced and this refetch confirms): forget the previous
     // context's data and mutations now, before anything of it is shown or
-    // submitted again.
+    // submitted again. Then the page's route guards run again for the new
+    // session (a flow of this tab navigates after its reset; nothing else
+    // would here): a page the new identity may not open, or one only for
+    // another tenancy, leaves rather than stays on screen.
     void createSession(queryClient)
       .reset()
+      .then(() => target()?.invalidate())
       .catch((error) =>
         console.warn('the session identity change could not be re-read', error),
       );
   });
 }
 
+/** A problem's field errors that no field took, by applyFieldErrors. */
+const unplaced = new WeakMap<object, string[]>();
+
 /**
  * A `validation_failed` (or any problem with `errors`) shown on the form's
- * fields: each `errors[].path` that names a field gets its message, as a
- * submit error (TanStack Form clears it when the field changes; `aliases`
- * maps a path to a field of another name). Returns
- * whether any field took one; the rest is the caller's (a form-level alert).
+ * fields: each `errors[].path` gets its message on a field, as a submit
+ * error (TanStack Form clears it when the field changes), and the focus goes
+ * to the first one (lib/form-focus.ts). The field is the path's alias
+ * (`aliases`: path → field of another name), the path itself, else the
+ * alias or field of its first segment: the API's paths are dotted
+ * (`recipients.1`, `permissions.0.key`).
+ *
+ * Returns whether every error took a field. Otherwise the caller's
+ * form-level alert says the rest: `errorMessage(error)` then gives the
+ * messages no field showed (with their paths), not the generic `detail`.
  */
 export function applyFieldErrors(
   form: AnyFormApi,
@@ -290,13 +331,23 @@ export function applyFieldErrors(
     return false;
   }
   const fields = new Set(Object.keys(form.state.values as object));
-  let applied = false;
+  const fieldOf = (path: string) => {
+    const first = path.split('.')[0] ?? '';
+    return [aliases[path], path, aliases[first], first].find(
+      (name) => name !== undefined && fields.has(name),
+    );
+  };
+  const rest: string[] = [];
   for (const fieldError of error.errors) {
-    const name = aliases[fieldError.path] ?? fieldError.path;
-    if (!fields.has(name)) {
+    const name = fieldOf(fieldError.path);
+    if (name === undefined) {
+      rest.push(
+        fieldError.path
+          ? `${fieldError.path}: ${fieldError.message}`
+          : fieldError.message,
+      );
       continue;
     }
-    applied = true;
     form.setFieldMeta(name, (meta) => ({
       ...meta,
       isTouched: true,
@@ -306,5 +357,11 @@ export function applyFieldErrors(
       },
     }));
   }
-  return applied;
+  if (rest.length < error.errors.length) {
+    focusFirstInvalid(form);
+  }
+  if (rest.length > 0) {
+    unplaced.set(error, rest);
+  }
+  return rest.length === 0;
 }

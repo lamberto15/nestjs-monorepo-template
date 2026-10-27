@@ -172,6 +172,14 @@ export function useRealtimeConnected(): boolean {
   return useSyncExternalStore(subscribe, () => !!realtime?.socket.connected);
 }
 
+/**
+ * Without realtime nothing pushes: a page that is open and watched (an inbox)
+ * asks again this often. Not for the signed-in layout, which stays mounted
+ * on an unattended tab: a timer there would keep the session alive
+ * (`useRefreshOnInput`).
+ */
+export const pollInterval = 60_000;
+
 /** A job as a poll sees it: its id and the status last read (if any). */
 export interface PolledJob {
   id: string;

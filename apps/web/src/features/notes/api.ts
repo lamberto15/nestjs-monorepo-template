@@ -68,6 +68,9 @@ export const noteQuery = (id: string) =>
       query.state.data && query.state.data.note.can === undefined
         ? CREATED_FRESH
         : 0,
+    // RecordState says a 404 or a failure on the page (with a retry): not
+    // a toast as well.
+    meta: { errorToast: false },
   });
 
 /** How long a just-created note is shown from the create's answer. */

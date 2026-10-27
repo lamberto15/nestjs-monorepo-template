@@ -6,21 +6,27 @@ Defaults are 50 MiB and 1,000,000 data rows; headers are not data rows.
 Tenant overrides and operators' platform defaults/enforced values follow the
 existing settings permissions and audit rules. No restart is required.
 
-`IMPORT_MAX_BYTES` (52428800) and `IMPORT_MAX_ROWS` (1000000) supply deployment
-fallbacks when no runtime value applies. They are not ceilings on UI settings.
+`IMPORT_MAX_BYTES` (52428800) and `IMPORT_MAX_ROWS` (1000000) are the
+deployment's ceilings and the values used when no runtime value applies. A
+setting may only lower them: a higher value is refused (400
+`setting_not_allowed`), and one stored before the ceiling existed is capped
+when read. To allow larger imports, raise the environment values and restart.
 Reverse proxies may impose a lower request-size limit; configure those separately.
-Spreadsheet ZIP expansion safeguards remain independent of upload size.
+Spreadsheet ZIP expansion safeguards (at most 300 MiB unpacked and 2,000
+entries, checked from the zip's directory before it is opened) remain
+independent of upload size.
 
 The catalog returns effective `importLimits.maxBytes` and `maxRows`. The API
 enforces the byte cap while receiving the file. An accepted job retains its
-resolved limits, so a later settings change affects new uploads only. Workers
-validate syntax and row count before writing records, including dry runs.
-Malformed or over-limit files fail without writing records. Ordinary row
-validation errors retain the existing partial-success behavior.
+resolved limits, so a later settings change affects new uploads only. The
+worker enforces both limits again while it reads: bytes as the file streams
+in, rows as they are read. A file over either limit fails the job with a
+message naming the limit. Rows are written in groups as they are read (a dry
+run writes nothing), so groups completed before the row that crosses the
+limit have already been imported.
+Ordinary row validation errors retain the existing partial-success behavior.
 
-Uploads and validation scratch files remain private. Operators raising limits
-must provision temporary disk and worker capacity for concurrent imports.
-`IMPORT_TEMP_DIR` defaults to `.data/import-scratch` beside the API. Use a
-disk-backed filesystem, not a RAM-backed `/tmp`. Production Compose gives each
-worker its own anonymous scratch volume; Helm uses a disk-backed `emptyDir`.
-Keep scratch private to one container/process namespace for safe crash recovery.
+Uploads stay private. CSV is streamed; a JSON array and an Excel workbook are
+read whole, so a worker holds up to the byte limit (and, for a workbook, what
+it unpacks to) in memory per import: size the worker's memory for concurrent
+imports before raising the limits.

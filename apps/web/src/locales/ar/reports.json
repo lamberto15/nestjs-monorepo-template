@@ -62,6 +62,7 @@
     "name": "الاسم",
     "namePlaceholder": "المسودات الأسبوعية",
     "nameRequired": "أدخل اسمًا.",
+    "nameTooLong": "{{max}} حرفًا كحد أقصى.",
     "exporter": "البيانات",
     "exporterPlaceholder": "اختر ما تريد تصديره",
     "exporterRequired": "اختر ما تريد تصديره.",

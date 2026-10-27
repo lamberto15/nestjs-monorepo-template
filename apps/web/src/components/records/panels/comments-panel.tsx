@@ -223,6 +223,13 @@ function CommentItem(props: {
       await props.refresh();
     },
   });
+  // A mutation, so a refusal reaches the global handler (the toast with the
+  // problem's detail). Settled either way: a 404 or 409 means the thread
+  // changed meanwhile.
+  const remove = useMutation({
+    mutationFn: () => removeComment(props.base, props.recordId, comment.id),
+    onSettled: props.refresh,
+  });
 
   return (
     <li
@@ -281,10 +288,7 @@ function CommentItem(props: {
             title={t('comments.deleteTitle')}
             description={t('comments.deleteDescription')}
             confirm={t('comments.delete')}
-            onConfirm={async () => {
-              await removeComment(props.base, props.recordId, comment.id);
-              await props.refresh();
-            }}
+            onConfirm={() => remove.mutateAsync()}
           >
             {t('comments.delete')}
           </ConfirmButton>

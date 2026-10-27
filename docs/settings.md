@@ -62,6 +62,12 @@ const rich = await this.settings.enabled(NOTE_RICH_TEXT, user);     // for this 
   tenant's version in Redis (`tenant:<id>:settings:version`) after every
   change, like custom fields: a change applies on the next request on
   every instance, and reloads that tenant's cache alone.
+- A read never waits for Redis. The version is read within 500 ms
+  (`redisWithin()`): Redis down, reconnecting or silent, the cached values
+  are served while younger than 5 s and reloaded from PostgreSQL after
+  that (defaults for a tenant with no rows), with one warning per outage.
+  That keeps the notification delivery handler's email policy and the mail
+  queue's branding lookup from piling up behind Redis.
 - In a durable workflow, read a setting inside `ctx.step()` so a replay
   sees the value the instance started with (`note-publication.workflow.ts`).
 

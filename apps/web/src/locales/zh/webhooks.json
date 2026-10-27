@@ -41,6 +41,7 @@
     "urlInvalid": "请输入完整的网址，例如 https://example.com/hooks。",
     "descriptionLabel": "说明（可选）",
     "descriptionPlaceholder": "发送给仓库系统的订单",
+    "descriptionTooLong": "最多 {{max}} 个字符。",
     "events": "事件",
     "allEvents": "所有事件",
     "eventsHint": "API 发送的全部事件，或只接收勾选的类型。",
@@ -177,6 +178,7 @@
       "nameInvalid": "请使用小写字母、数字和连字符，最多 63 个字符。",
       "descriptionLabel": "描述（可选）",
       "descriptionPlaceholder": "计费系统",
+      "descriptionTooLong": "最多 {{max}} 个字符。",
       "create": "创建发送方"
     }
   }

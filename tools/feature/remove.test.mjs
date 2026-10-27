@@ -6,11 +6,13 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -19,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { after, before, describe, it } from 'node:test';
 import { addFeature } from './add.mjs';
 import { format } from './format.mjs';
-import { removeFeature } from './remove.mjs';
+import { regenerateRouteTree, removeFeature } from './remove.mjs';
 
 const REPO = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -307,5 +309,40 @@ describe('removeFeature on the web app', () => {
       () => removeFeature(root, { name: 'invoices' }),
       /no features\/invoices/,
     );
+  });
+});
+
+describe('regenerateRouteTree', () => {
+  it('drops the removed routes from the route tree without a build', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'feature-routes-'));
+    try {
+      const web = path.join(root, 'apps/web');
+      mkdirSync(path.join(web, 'src'), { recursive: true });
+      cpSync(
+        path.join(REPO, 'apps/web/src/routes'),
+        path.join(web, 'src/routes'),
+        {
+          recursive: true,
+        },
+      );
+      copyFileSync(
+        path.join(REPO, 'apps/web/package.json'),
+        path.join(web, 'package.json'),
+      );
+      symlinkSync(
+        path.join(REPO, 'apps/web/node_modules'),
+        path.join(web, 'node_modules'),
+      );
+      const tree = path.join(web, 'src/routeTree.gen.ts');
+      assert.equal(await regenerateRouteTree(root), true);
+      assert.match(readFileSync(tree, 'utf8'), /routes\/_app\/notes\/index/);
+      rmSync(path.join(web, 'src/routes/_app/notes'), { recursive: true });
+      assert.equal(await regenerateRouteTree(root), true);
+      assert.doesNotMatch(readFileSync(tree, 'utf8'), /notes/);
+      // No web app: nothing to do.
+      assert.equal(await regenerateRouteTree(path.join(root, 'none')), false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

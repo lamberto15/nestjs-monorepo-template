@@ -117,7 +117,7 @@ describe('soft delete (e2e)', () => {
       .http()
       .post(`/v1/test-items/${id}/restore`)
       .set('Authorization', other.auth)
-      .expect(403);
+      .expect(404); // not in a bin they may see: as if missing
     // A viewer (read everything, no restore) sees no bin at all.
     const viewer = await node.user(['viewer']);
     const viewed = await viewer.agent

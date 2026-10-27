@@ -73,13 +73,14 @@ import { pageSchema } from '../../core/http/pagination.js';
 import { ApiListQuery } from '../../core/http/list-docs.js';
 import { CustomFieldsService } from '../../platform/custom-fields/custom-fields.service.js';
 import { DocumentsService } from '../../platform/documents/documents.service.js';
-import { and } from 'drizzle-orm';
 import { NOTE_LIST } from './note.list.js';
 
 /**
  * The example feature's API, for API clients (a key) and users (a session).
  * It shows the three ways a permission is checked: on the route (create),
- * on the loaded record (read, delete), and in the query (list).
+ * on the loaded record (update, delete), and in the query (list, and the
+ * lookup of one note: a note the caller may not read is a 404 like a
+ * missing one, on every route, so none tells that it exists).
  */
 @ApiTags('notes')
 @ApiBearerAuth('api-key')
@@ -187,20 +188,7 @@ export class NotesController {
     await this.access.assertQueryFields(user, 'Note', query, {
       reach: query.deleted ? 'restore' : 'read',
     });
-    const page = await this.notes.findPage(
-      and(
-        // The recycle bin (?deleted=true) is for those who may restore.
-        await this.access.sqlFilter(
-          user,
-          'Note',
-          query.deleted ? 'restore' : 'read',
-          { deleted: query.deleted === true },
-        ),
-        list.where(query),
-      ),
-      query,
-      list.sortSelect(query),
-    );
+    const page = await this.notes.findPage(user, list, query);
     // Field-level: the text only for those whose permissions include it.
     // Then `fields`: after redaction, so what it hid stays hidden.
     const picked = list.pick(
@@ -249,18 +237,7 @@ export class NotesController {
     if (from.getUTCDay() !== 1) {
       throw new BadRequestException('from must be a Monday in UTC.');
     }
-    const to = new Date(from.getTime() + query.weeks * 7 * 24 * 60 * 60 * 1000);
-    const list = await this.customFields.extendList(NOTE_LIST, 'Note');
-    const filters = list.parse({
-      'createdAt.gte': from.toISOString(),
-      'createdAt.lt': to.toISOString(),
-    });
-    await this.access.assertQueryFields(user, 'Note', filters);
-    const where = and(
-      await this.access.sqlFilter(user, 'Note', 'read'),
-      list.where(filters),
-    );
-    return this.notes.weeklyCounts(where, from, query.weeks);
+    return this.notes.weeklyCounts(user, from, query.weeks);
   }
 
   @Get(':id')
@@ -280,7 +257,8 @@ export class NotesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query('include', IncludePipe) include: RecordInclude,
   ) {
-    const note = await this.notes.findOne(id);
+    // A note the caller may not read: the same 404 as a missing one.
+    const note = await this.notes.findOne(id, undefined, { visibleTo: user });
     await this.authorization.authorize(NotePolicy, 'read', user, note);
     const shown = await this.shown(user, note);
     return include.can || include.watching
@@ -309,7 +287,8 @@ export class NotesController {
     @Headers('if-match') ifMatch: string | undefined,
     @Ip() ip: string,
   ) {
-    const note = await this.notes.findOne(id);
+    // Unreadable: a 404; readable but not theirs to change: a 403 (below).
+    const note = await this.notes.findOne(id, undefined, { visibleTo: user });
     const updated = await this.notes.update(user, note, dto, ip, {
       assertCurrent: async (current) => {
         await this.authorization.authorize(NotePolicy, 'update', user, current);
@@ -348,7 +327,11 @@ export class NotesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Ip() ip: string,
   ) {
-    const note = await this.notes.findOne(id, undefined, { deleted: true });
+    // In the recycle bin and theirs to restore (what ?deleted=true lists), else a 404.
+    const note = await this.notes.findOne(id, undefined, {
+      deleted: true,
+      visibleTo: user,
+    });
     await this.authorization.authorize(NotePolicy, 'restore', user, note);
     return this.shown(user, await this.notes.restore(user, note, ip));
   }
@@ -373,7 +356,8 @@ export class NotesController {
     @Headers('if-match') ifMatch: string | undefined,
     @Ip() ip: string,
   ) {
-    const note = await this.notes.findOne(id);
+    // Unreadable: a 404; readable but not theirs to delete: a 403 (below).
+    const note = await this.notes.findOne(id, undefined, { visibleTo: user });
     await this.notes.delete(user, note, ip, async (current) => {
       await this.authorization.authorize(NotePolicy, 'delete', user, current);
       assertUnchanged(ifMatch, await this.shown(user, current));

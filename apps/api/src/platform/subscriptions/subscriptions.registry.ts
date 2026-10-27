@@ -9,14 +9,15 @@ import type { Principal } from '../../iam/auth/principal.js';
  * ```ts
  * readonly subject = 'Note';
  * async assertCanWatch(principal, id) {
- *   await this.authorization.authorize(NotePolicy, 'read', principal, await this.notes.findOne(id));
+ *   const note = await this.notes.findOne(id, undefined, { visibleTo: principal });
+ *   await this.authorization.authorize(NotePolicy, 'read', principal, note);
  * }
  * ```
  */
 export interface SubscriptionTarget {
   /** The records' permission subject: `Note`. */
   readonly subject: string;
-  /** Throws unless the principal may watch the record (a 404 when it doesn't exist, a 403 when they may not read it). */
+  /** Throws unless the principal may watch the record: a 404 when it doesn't exist or they may not read it (the same one). */
   assertCanWatch(principal: Principal, recordId: string): Promise<void>;
 }
 

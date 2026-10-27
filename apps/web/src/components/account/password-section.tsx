@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { z } from '@/lib/zod';
 import { Section } from '@/components/account/section';
 import { api } from '@/lib/api';
+import { AUTH_LIMITS } from '@/lib/auth-limits';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { useSettleBreachAlerts } from '@/features/notifications/breach-alert';
 import { FormAlert, useAppForm } from '@/lib/form';
@@ -31,6 +32,8 @@ export function PasswordSection() {
       await api.POST('/v1/auth/password/change', { body });
     },
     meta: { errorToast: false },
+    // Its variables hold the passwords: dropped from the cache once reset.
+    gcTime: 0,
   });
   const form = useAppForm({
     defaultValues: { currentPassword: '', newPassword: '', confirm: '' },
@@ -40,8 +43,18 @@ export function PasswordSection() {
           currentPassword: z.string(),
           newPassword: z
             .string()
-            .min(12, t('auth.fields.passwordTooShort', { min: 12 }))
-            .max(128),
+            .min(
+              AUTH_LIMITS.passwordMin,
+              t('auth.fields.passwordTooShort', {
+                min: AUTH_LIMITS.passwordMin,
+              }),
+            )
+            .max(
+              AUTH_LIMITS.passwordMax,
+              t('auth.fields.tooLong', {
+                max: AUTH_LIMITS.passwordMax,
+              }),
+            ),
           confirm: z.string(),
         })
         .refine((value) => value.newPassword === value.confirm, {
@@ -59,6 +72,8 @@ export function PasswordSection() {
           }),
           newPassword: value.newPassword,
         });
+        // The passwords must not outlive the request in the mutation cache.
+        change.reset();
         form.reset();
         toast.success(t('account.password.changed'));
         // A new password answers the breached-password alert (and its banner).
@@ -66,6 +81,7 @@ export function PasswordSection() {
         // Last: the onboarding page leaves this section once `me` says so.
         await queryClient.invalidateQueries({ queryKey: meQuery.queryKey });
       } catch (caught) {
+        change.reset();
         if (!applyFieldErrors(form, caught)) {
           setError(errorMessage(caught));
         }

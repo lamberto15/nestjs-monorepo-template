@@ -22,13 +22,17 @@ import { z } from '@/lib/zod';
 import { languages } from '@/i18n';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { api } from '@/lib/api';
+import { AUTH_LIMITS } from '@/lib/auth-limits';
 import { AvatarSection } from '@/components/account/avatar-section';
 import { useMe } from '@/lib/features';
 import { FormAlert, useAppForm } from '@/lib/form';
+import { useUnsavedChangesGuard } from '@/lib/unsaved-changes';
 import { browserTimeZone } from '@/lib/link-token';
+import { peopleKey } from '@/lib/people';
 import { meQuery, type Me } from '@/lib/session';
 
 export const Route = createFileRoute('/_app/account/profile')({
+  staticData: { title: 'account.profile.title' },
   component: ProfilePage,
 });
 
@@ -77,7 +81,14 @@ function ProfileForm({ me }: { me: Me }) {
     },
     validators: {
       onSubmit: z.object({
-        name: z.string().trim().min(1, t('auth.fields.nameRequired')).max(120),
+        name: z
+          .string()
+          .trim()
+          .min(1, t('auth.fields.nameRequired'))
+          .max(
+            AUTH_LIMITS.name,
+            t('auth.fields.tooLong', { max: AUTH_LIMITS.name }),
+          ),
         locale: z.string(),
         timezone: z.string(),
       }),
@@ -89,9 +100,18 @@ function ProfileForm({ me }: { me: Me }) {
           ...value,
           name: value.name.trim(),
         });
+        // Saved: the form's defaults now, so leaving asks nothing.
+        form.reset({
+          name: user.name,
+          locale: user.locale ?? '',
+          timezone: user.timezone ?? '',
+        });
         queryClient.setQueryData(meQuery.queryKey, (old) =>
           old ? { ...old, user } : old,
         );
+        // The name is cached for others to see: audit actors, owner cells,
+        // mention pickers.
+        void queryClient.invalidateQueries({ queryKey: peopleKey });
         const language = languages.find((x) => x === user.locale);
         if (language && language !== i18n.language) {
           await i18n.changeLanguage(language);
@@ -104,6 +124,7 @@ function ProfileForm({ me }: { me: Me }) {
       }
     },
   });
+  useUnsavedChangesGuard(form);
   return (
     <Card>
       <CardHeader>

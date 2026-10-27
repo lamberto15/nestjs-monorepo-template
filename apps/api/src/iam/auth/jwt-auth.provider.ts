@@ -7,6 +7,7 @@ import {
 import type { Principal } from './principal.js';
 import { z } from 'zod';
 import { UsersRepository } from './users.repository.js';
+import { DrizzleAuthenticationStore } from './drizzle-authentication.store.js';
 
 /** A user's id: anything else (`system:…`, a typo) is no one, not a database error. */
 const userId = z.uuid();
@@ -20,6 +21,7 @@ const userId = z.uuid();
 export class JwtAuth extends JwtBearerProvider<Principal> {
   constructor(
     private readonly accounts: UsersRepository,
+    private readonly store: DrizzleAuthenticationStore,
     registry: AuthenticationRegistry,
   ) {
     super({ realm: 'api' });
@@ -36,5 +38,20 @@ export class JwtAuth extends JwtBearerProvider<Principal> {
           typeof tid === 'string' && userId.safeParse(tid).success ? tid : null,
         )
       : null;
+  }
+
+  /**
+   * Whether the refresh family these claims come from (their `sid`,
+   * tokenClaims()) was revoked. Not asked on requests: an access token
+   * lives until it expires (docs/auth.md). A realtime handshake asks
+   * (Realtime): a socket outlives its access token, so one opened after the
+   * sign-out would keep hearing the account's events. A token without a
+   * `sid` (a family from before it) is not known revoked.
+   */
+  async familyRevoked(claims: JwtClaims): Promise<boolean> {
+    const { sub, sid } = claims;
+    return typeof sub === 'string' && typeof sid === 'string'
+      ? this.store.isTokenSessionRevoked(sub, sid)
+      : false;
   }
 }

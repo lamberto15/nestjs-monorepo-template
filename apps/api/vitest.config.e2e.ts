@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { SizeSequencer } from './test/size-sequencer.js';
 
 export default defineConfig({
   // tsconfig.json's path aliases (`nest g library`), built into Vite 8.
@@ -22,5 +23,7 @@ export default defineConfig({
     // Each app holds a pool of 10 test connections: CI's PostgreSQL allows
     // 100 (the local one 1000), so raise its max_connections before this.
     maxWorkers: 4,
+    // CI's shards by file size, not count (test/size-sequencer.ts).
+    sequence: { sequencer: SizeSequencer },
   },
 });

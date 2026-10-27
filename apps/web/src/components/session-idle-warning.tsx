@@ -12,6 +12,7 @@ import { useRouter } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMe } from '@/lib/features';
+import { INPUT_EVENTS } from '@/lib/refresh-on-input';
 import { meQuery } from '@/lib/session';
 
 /** How long before the idle timeout the warning shows. */
@@ -59,8 +60,7 @@ export function SessionIdleWarning() {
         void ping().catch(() => undefined);
       }
     };
-    const events = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
-    for (const event of events) {
+    for (const event of INPUT_EVENTS) {
       window.addEventListener(event, onInput, { passive: true });
     }
     const timer = setInterval(() => {
@@ -94,7 +94,7 @@ export function SessionIdleWarning() {
     }, 1000);
     return () => {
       clearInterval(timer);
-      for (const event of events) {
+      for (const event of INPUT_EVENTS) {
         window.removeEventListener(event, onInput);
       }
     };

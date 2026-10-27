@@ -1,6 +1,13 @@
 import { unwrap, type paths } from '@nestjs-monorepo-template/api-client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { recordKeys } from '@/lib/records';
+
+/**
+ * A tag's name and description mirror the API's `maxLength`;
+ * lib/limits.test.ts compares them with openapi.json.
+ */
+export const TAG_LIMITS = { name: 100, description: 500 } as const;
 
 /** What a PATCH changes: only what is sent; `null` clears the color or the description. */
 export type TagChanges = paths['/v1/tags/{id}']['patch'] extends {
@@ -13,14 +20,14 @@ export type TagChanges = paths['/v1/tags/{id}']['patch'] extends {
  * A tag's name, color or removal reaches everything that shows it: the tag
  * lists (the record pages' picker, the lists' tag filter: `['tags', …]`), and
  * the records that carry it, whose lists and details embed `tags` by name
- * (`['list', …]`, `['record', …]`).
+ * (`recordKeys.allLists`, `recordKeys.allDetails`).
  */
 function useRefresh() {
   const queryClient = useQueryClient();
   return () =>
     Promise.all(
-      (['tags', 'list', 'record'] as const).map((key) =>
-        queryClient.invalidateQueries({ queryKey: [key] }),
+      [['tags'], recordKeys.allLists, recordKeys.allDetails].map((queryKey) =>
+        queryClient.invalidateQueries({ queryKey }),
       ),
     );
 }

@@ -8,6 +8,11 @@
 # GHCR (docs/deployment.md, "CI"); a v* tag then gets its GitHub release
 # (docs/releases.md).
 #
+# Runners are the scarce resource (docs/ci-runtime.md): a job exists where
+# it needs a runner of its own (services, a browser, Docker, or minutes that
+# would lengthen the critical path); quick checks ride on a job that has
+# already installed the workspace.
+#
 # Third-party actions are pinned by commit SHA (the comment names the
 # release); Dependabot proposes newer ones.
 name: CI / CD
@@ -21,8 +26,8 @@ on:
     paths-ignore:
       - 'docs/**'
       - 'README.md'
-      - 'AGENTS.md'
-      - 'CLAUDE.md'
+      - '**/AGENTS.md'
+      - '**/CLAUDE.md'
       - '.claude/**'
   pull_request:
   workflow_dispatch:
@@ -31,26 +36,6 @@ on:
         description: 'Build and publish a complete manifest on main (no deployment)'
         type: boolean
         default: false
-      benchmark:
-        description: 'Run only the selected benchmark suites'
-        type: choice
-        options: ['off', e2e, unit]
-        default: 'off'
-      validation_scope:
-        description: 'Manual timing scenario; full is comprehensive (no publication)'
-        type: choice
-        options: [full, api, web, shared, infrastructure, ci]
-        default: full
-      e2e_shards:
-        description: 'API E2E shards (at most two run concurrently)'
-        type: choice
-        options: ['2', '3', '6']
-        default: '2'
-      unit_layout:
-        description: 'Unit coverage layout for measurement'
-        type: choice
-        options: [whole, sharded]
-        default: whole
   # A nightly run of everything on main, the checks a pull request skips
   # included (below): new advisories in the images, the generated template.
   schedule:
@@ -60,7 +45,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}${{ inputs.benchmark && inputs.benchmark != 'off' && format('-benchmark-{0}', github.run_id) || '' }}
+  group: ci-${{ github.ref }}
   # A newer push to a pull request replaces its run; on main and tags a run
   # finishes, so a publish is never stopped halfway.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -95,10 +80,10 @@ jobs:
       head: ${{ steps.paths.outputs.head }}
       affected: ${{ steps.paths.outputs.affected }}
       expected: ${{ steps.paths.outputs.expected }}
-      benchmark: ${{ steps.paths.outputs.benchmark }}
       publish: ${{ steps.paths.outputs.publish }}
       release_ready: ${{ steps.paths.outputs.release_ready }}
-      unit_whole: ${{ steps.paths.outputs.unit_whole }}
+      postgres: ${{ steps.images.outputs.postgres }}
+      redis: ${{ steps.images.outputs.redis }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -108,6 +93,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node tools/ci/changes.mjs
+      # CI's PostgreSQL and Redis are compose.yaml's images, read from it: they
+      # can't drift apart, and Dependabot's compose.yaml updates reach CI too
+      # (a change to compose.yaml runs the jobs on them: `services`).
+      - name: Read the images compose.yaml runs
+        id: images
+        run: |
+          for service in postgres redis; do
+            image=$(yq ".services.$service.image" compose.yaml)
+            if [ -z "$image" ] || [ "$image" = null ]; then
+              echo "::error file=compose.yaml::services.$service.image is missing"
+              exit 1
+            fi
+            echo "$service: $image"
+            echo "$service=$image" >> "$GITHUB_OUTPUT"
+          done
       - name: Release comparison evidence
         if: steps.paths.outputs.publish == 'true'
         uses: actions/upload-artifact@v7
@@ -120,8 +120,7 @@ jobs:
   # Workflow-only changes require orchestration tests, not application suites.
   ci-validate:
     needs: changes
-    if: >-
-      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.ci == 'true')
+    if: needs.changes.outputs.ci == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     services:
@@ -151,45 +150,15 @@ jobs:
           tar -xzf "$RUNNER_TEMP/helm.tar.gz" -C "$RUNNER_TEMP" linux-amd64/helm
           PATH="$RUNNER_TEMP/linux-amd64:$PATH" REQUIRE_HELM=true node --test tools/ci/release-helm.test.mjs
 
-  # CI's PostgreSQL and Redis are compose.yaml's images, read from it: they
-  # can't drift apart, and Dependabot's compose.yaml updates reach CI too
-  # (a change to compose.yaml runs the jobs on them: changes' `services`).
-  compose-images:
+  # The production stack's configuration, rendered (no image is built): its
+  # secrets (docs/deployment.md, "Secrets in files") with the values in .env
+  # as before, and with every one in a file, as Compose renders them (the
+  # monitoring stack too); the hardening of every service; then the shell
+  # readers in their images, and the Swarm stack. The app booting on files:
+  # secret-files.e2e-spec.ts.
+  stack-config:
     needs: changes
-    # Only jobs that use the Compose service image outputs need this runner.
-    if: >-
-      needs.changes.outputs.benchmark == 'e2e' ||
-      (needs.changes.outputs.benchmark == 'off' &&
-      (needs.changes.outputs.app == 'true' || needs.changes.outputs.tools == 'true' ||
-      needs.changes.outputs.services == 'true' || needs.changes.outputs.generator == 'true' || needs.changes.outputs.full == 'true' || needs.changes.outputs.web == 'true'))
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    outputs:
-      postgres: ${{ steps.images.outputs.postgres }}
-      redis: ${{ steps.images.outputs.redis }}
-    steps:
-      - uses: actions/checkout@v7
-      - name: Read the images compose.yaml runs
-        id: images
-        run: |
-          for service in postgres redis; do
-            image=$(yq ".services.$service.image" compose.yaml)
-            if [ -z "$image" ] || [ "$image" = null ]; then
-              echo "::error file=compose.yaml::services.$service.image is missing"
-              exit 1
-            fi
-            echo "$service: $image"
-            echo "$service=$image" >> "$GITHUB_OUTPUT"
-          done
-
-  # The production stack's secrets (docs/deployment.md, "Secrets in files"):
-  # with the values in .env as before, and with every one in a file, as
-  # Compose renders them (the monitoring stack too); then the shell readers
-  # in their images. The app booting on files: secret-files.e2e-spec.ts.
-  compose-secrets:
-    needs: changes
-    if: >-
-      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.stack == 'true')
+    if: needs.changes.outputs.stack == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
@@ -415,22 +384,14 @@ jobs:
           done
       - name: The shell readers of the files, in their images
         run: scripts/test-secret-readers.sh
-
-  # The Swarm stack (docs/deploy-swarm.md): compose.swarm.yaml rendered over
-  # the Compose files with dummy values and accepted by `docker stack config`
-  # (which needs no Swarm). The script's unit tests run in feature-smoke.
-  swarm-stack:
-    needs: changes
-    if: >-
-      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.stack == 'true')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install pnpm and Node.js
+      # The Swarm stack (docs/deploy-swarm.md): compose.swarm.yaml rendered over
+      # the Compose files with dummy values and accepted by `docker stack config`
+      # (which needs no Swarm). The script's unit tests run in feature-smoke.
+      - name: Install Node.js (the script has no dependencies)
         uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
         with:
           runtime: node@24
+          install: false
       - name: The stack file renders and is valid
         env:
           APP_DOMAIN: app.example.test
@@ -453,7 +414,7 @@ jobs:
     # Generator smoke already installs dependencies and can run lint there.
     # This separate runner is only needed when Knip changed without tools.
     if: >-
-      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true' && needs.changes.outputs.tools != 'true')
+      needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true' && needs.changes.outputs.tools != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -464,23 +425,25 @@ jobs:
           runtime: node@24
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
       - name: Lint the workspace and check unused dependencies
         run: pnpm lint
 
-  # Lint, build, the typed client and migrations. The unit tests (the unit
-  # job) and the e2e tests (the e2e job) run beside it, not after it.
+  # Lint, build, the typed client, migrations and the unit tests that take a
+  # minute or two (the API's and the packages'), then the quick checks of the
+  # same installed workspace: the OpenAPI diff, the web app's bundle budget
+  # and Storybook. The web app's unit tests (the unit-web job) and the e2e
+  # tests (the e2e jobs) run beside it, not after it.
   check:
-    needs: [compose-images, changes]
+    needs: changes
     # Tooling-only edits already get lint and relevant generator smoke checks.
-    if: >-
-      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.app == 'true')
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     services:
       # PostgreSQL: the migrations applied as a deploy does.
       postgres:
-        image: ${{ needs.compose-images.outputs.postgres }}
+        image: ${{ needs.changes.outputs.postgres }}
         env:
           POSTGRES_USER: app
           POSTGRES_PASSWORD: app
@@ -493,6 +456,8 @@ jobs:
       TURBO_SCM_BASE: ${{ needs.changes.outputs.base }}
       TURBO_SCM_HEAD: ${{ needs.changes.outputs.head }}
     steps:
+      # The full history: Turborepo's affected filter and, on a pull request
+      # (its merge commit), the OpenAPI diff against HEAD^1.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -502,11 +467,25 @@ jobs:
           runtime: node@24
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
       # Oxlint in every package, the translation parity check, then knip:
       # unused files, exports and dependencies (knip.jsonc).
       - run: pnpm turbo run lint ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }} && pnpm i18n:check && pnpm knip
+      # packages/ui has no build of its own to typecheck it (Storybook is
+      # built later); its `typecheck` script is a Turborepo task. Prettier
+      # over the same files as `pnpm format`.
+      - name: Types of packages/ui, and formatting
+        run: pnpm turbo run typecheck ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }} && pnpm format:check
       - run: pnpm turbo run build ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }}
+      # The committed src/routeTree.gen.ts must be what the router's generator
+      # writes. Run here rather than read off the build, which Turborepo may
+      # replay from its cache without running the plugin. Before the notes
+      # feature is removed, below.
+      - name: The committed route tree is what the router generates
+        if: needs.changes.outputs.web == 'true'
+        run: |
+          node -e "import('./tools/feature/remove.mjs').then((m) => m.regenerateRouteTree(process.cwd()))"
+          git diff --exit-code -- apps/web/src/routeTree.gen.ts
       # The typed client's OpenAPI document and types must match the routes.
       - run: pnpm client:check
         if: needs.changes.outputs.api == 'true'
@@ -525,601 +504,23 @@ jobs:
         env:
           DATABASE_OWNER_URL: postgres://app:app@localhost:5432/app
           DATABASE_URL: postgres://app_runtime:app_runtime@localhost:5432/app
-      # The release notes' generator (tools/release/, docs/releases.md): git only.
-      - name: The release notes' tests
-        run: node --test tools/release/notes.test.mjs
-      # The translation parity check's tests (tools/i18n/); the check itself
-      # runs in `pnpm lint`.
-      - name: The i18n check's tests
-        run: node --test tools/i18n/check.test.mjs
-      # Guards on this workflow (tools/ci/): its artifact uploads (a run of
-      # the workflow is the only other way to learn a blob report went
-      # missing) and which jobs a pull request's paths run.
-      - name: The workflow's tests
-        run: node --test 'tools/ci/*.test.mjs'
-      # The env templates (tools/setup/envcheck.mjs): no variable set twice,
-      # the REQUIRED ones named. The wizard's tests run in feature-smoke.
-      - name: The env templates
-        run: pnpm env:check --templates
-
-  # The unit tests in parallel (Vitest's --shard): the API's in 3 shards and
-  # the web app's in 3 (jsdom, the run's longest at 3 min whole) plus the
-  # packages' (the client's), as two jobs so each side runs only when its
-  # paths changed (a job-level `if` can't read the matrix). Turborepo builds
-  # what they depend on, replayed from its cache when nothing changed.
-  # They also measure coverage (`test:cov`, the same run: no second one). A
-  # shard writes a blob report (Vitest's .vitest/blob) with its coverage and
-  # no threshold of its own: a share of the tests covers only a share of the
-  # code. The `coverage` job below merges the shards' blobs and enforces the
-  # thresholds in each package's vitest.config.ts. The packages job runs
-  # whole, so it enforces its own.
-  unit-api:
-    needs: changes
-    if: >-
-      needs.changes.outputs.benchmark == 'unit' || (needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.api == 'true'))
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      # Reserve runner capacity for other pull requests.
-      max-parallel: 2
-      matrix:
-        include: ${{ fromJSON(needs.changes.outputs.unit_whole == 'true' && '[{"name":"api whole","filter":"--filter=@nestjs-monorepo-template/api","blob":"","args":""}]' || '[{"name":"api 1/3","blob":"api-1","app":"api","filter":"--filter=@nestjs-monorepo-template/api","args":"--shard=1/3"},{"name":"api 2/3","blob":"api-2","app":"api","filter":"--filter=@nestjs-monorepo-template/api","args":"--shard=2/3"},{"name":"api 3/3","blob":"api-3","app":"api","filter":"--filter=@nestjs-monorepo-template/api","args":"--shard=3/3"}]') }}
-    name: unit (${{ matrix.name }})
-    env:
-      TURBO_SCM_BASE: ${{ needs.changes.outputs.base }}
-      TURBO_SCM_HEAD: ${{ needs.changes.outputs.head }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - name: Install pnpm, Node.js and the dependencies
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
-        with:
-          runtime: node@24
-          cache: true
-      - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
-      - name: A shard (blob report, coverage; thresholds are checked when merged)
-        if: matrix.blob
-        run: >-
-          pnpm turbo run test:cov ${{ needs.changes.outputs.benchmark == 'unit' && '--force' || '' }} ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }} ${{ matrix.filter }} --
-          ${{ matrix.args }} --reporter=default --reporter=blob
-          --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
-          --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
-      - name: Whole (coverage and its thresholds)
-        if: ${{ !matrix.blob }}
-        run: pnpm turbo run test:cov ${{ needs.changes.outputs.benchmark == 'unit' && '--force' || '' }} ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }} ${{ matrix.filter }}
-      - name: The shard's blob report
-        if: matrix.blob
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-${{ matrix.blob }}
-          # One app's directory, so the files keep their bare names (a glob
-          # over apps/* would nest them one level down, which Vitest's
-          # --merge-reports does not read). .vitest is hidden, which
-          # upload-artifact skips unless told otherwise; with no files it
-          # fails, so the coverage job is never left with nothing to merge.
-          path: apps/${{ matrix.app }}/.vitest/blob/
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 1
-
-  unit-web:
-    needs: changes
-    if: >-
-      needs.changes.outputs.benchmark == 'unit' || (needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.web == 'true'))
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      # Reserve runner capacity for other pull requests.
-      max-parallel: 2
-      matrix:
-        include: ${{ fromJSON(needs.changes.outputs.unit_whole == 'true' && '[{"name":"web whole","filter":"--filter=@nestjs-monorepo-template/web","blob":"","args":""},{"name":"packages","filter":"--filter=!@nestjs-monorepo-template/api --filter=!@nestjs-monorepo-template/web","args":""}]' || '[{"name":"web 1/3","blob":"web-1","app":"web","filter":"--filter=@nestjs-monorepo-template/web","args":"--shard=1/3"},{"name":"web 2/3","blob":"web-2","app":"web","filter":"--filter=@nestjs-monorepo-template/web","args":"--shard=2/3"},{"name":"web 3/3","blob":"web-3","app":"web","filter":"--filter=@nestjs-monorepo-template/web","args":"--shard=3/3"},{"name":"packages","filter":"--filter=!@nestjs-monorepo-template/api --filter=!@nestjs-monorepo-template/web","args":""}]') }}
-    name: unit (${{ matrix.name }})
-    env:
-      TURBO_SCM_BASE: ${{ needs.changes.outputs.base }}
-      TURBO_SCM_HEAD: ${{ needs.changes.outputs.head }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - name: Install pnpm, Node.js and the dependencies
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
-        with:
-          runtime: node@24
-          cache: true
-      - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
-      - name: A shard (blob report, coverage; thresholds are checked when merged)
-        if: matrix.blob
-        run: >-
-          pnpm turbo run test:cov ${{ needs.changes.outputs.benchmark == 'unit' && '--force' || '' }} ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }} ${{ matrix.filter }} --
-          ${{ matrix.args }} --reporter=default --reporter=blob
-          --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
-          --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
-      - name: Whole (coverage and its thresholds)
-        if: ${{ !matrix.blob }}
-        run: pnpm turbo run test:cov ${{ needs.changes.outputs.benchmark == 'unit' && '--force' || '' }} ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }} ${{ matrix.filter }}
-      - name: The shard's blob report
-        if: matrix.blob
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-${{ matrix.blob }}
-          # One app's directory, so the files keep their bare names (a glob
-          # over apps/* would nest them one level down, which Vitest's
-          # --merge-reports does not read). .vitest is hidden, which
-          # upload-artifact skips unless told otherwise; with no files it
-          # fails, so the coverage job is never left with nothing to merge.
-          path: apps/${{ matrix.app }}/.vitest/blob/
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 1
-
-  # The coverage thresholds (each package's vitest.config.ts): the unit
-  # shards' blob reports merged, no test run again. On a pull request a unit
-  # job whose paths didn't change is skipped, which would skip this job too
-  # (a skipped `needs` skips its dependents): so it runs once neither unit
-  # job failed or was cancelled and one of them ran, and merges the side(s)
-  # that ran. Main, tags and the nightly run have both.
-  coverage:
-    needs: [changes, unit-api, unit-web]
-    if: >-
-      !cancelled() && needs.changes.outputs.unit_whole != 'true' &&
-      (needs.unit-api.result == 'success' || needs.unit-api.result == 'skipped') &&
-      (needs.unit-web.result == 'success' || needs.unit-web.result == 'skipped') &&
-      (needs.unit-api.result == 'success' || needs.unit-web.result == 'success')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install pnpm, Node.js and the dependencies
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
-        with:
-          runtime: node@24
-          cache: true
-      - name: The API's shards
-        if: needs.unit-api.result == 'success'
-        uses: actions/download-artifact@v8
-        with:
-          pattern: coverage-api-*
-          path: apps/api/.vitest/blob
-          merge-multiple: true
-      - name: The web app's shards
-        if: needs.unit-web.result == 'success'
-        uses: actions/download-artifact@v8
-        with:
-          pattern: coverage-web-*
-          path: apps/web/.vitest/blob
-          merge-multiple: true
-      - name: The API's coverage
-        if: needs.unit-api.result == 'success'
-        run: pnpm --filter @nestjs-monorepo-template/api exec vitest --merge-reports --coverage
-      - name: The web app's coverage
-        if: needs.unit-web.result == 'success'
-        run: pnpm --filter @nestjs-monorepo-template/web exec vitest --merge-reports --coverage
-
-  # The e2e tests in shards, each on its own runner with its own Redis and
-  # PostgreSQL: the slowest step of CI, split (Vitest's --shard). They run
-  # the sources (no build needed). Raise `shard`'s list and --shard's total
-  # together.
-  e2e:
-    needs: [compose-images, changes]
-    if: >-
-      needs.changes.outputs.benchmark == 'e2e' || (needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'))
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      # Reserve runner capacity for other pull requests.
-      max-parallel: 2
-      matrix:
-        shard: ${{ fromJSON(inputs.e2e_shards == '2' && '[1,2]' || inputs.e2e_shards == '3' && '[1,2,3]' || inputs.e2e_shards == '6' && '[1,2,3,4,5,6]' || '[1,2]') }}
-    name: e2e (${{ matrix.shard }}/${{ inputs.e2e_shards || '2' }})
-    services:
-      # Redis: queues, rate limits, realtime; each file keeps to its own prefix.
-      redis:
-        image: ${{ needs.compose-images.outputs.redis }}
-        ports: ['6379:6379']
-        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
-      # PostgreSQL: the tests' databases. max_connections is the default 100:
-      # raise it before the e2e maxWorkers or the test pool size (docs/pitfalls.md).
-      postgres:
-        image: ${{ needs.compose-images.outputs.postgres }}
-        env:
-          POSTGRES_USER: app
-          POSTGRES_PASSWORD: app
-          POSTGRES_DB: app
-          POSTGRES_INITDB_ARGS: --nosync
-        command: postgres -c fsync=off -c synchronous_commit=off -c full_page_writes=off
-        ports: ['5432:5432']
-        options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install pnpm, Node.js and the dependencies
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
-        with:
-          runtime: node@24
-          cache: true
-      - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
-      - run: pnpm test:e2e --shard=${{ matrix.shard }}/${{ inputs.e2e_shards || '2' }}
-        env:
-          REDIS_URL: redis://localhost:6379
-          # The tests create their databases here (a template, then a copy per app).
-          TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
-
-  # One shard of the e2e suite with the instrumentation on: OpenTelemetry
-  # (OTEL_EXPORTER_OTLP_ENDPOINT) and Sentry (SENTRY_DSN) pointing at a stub
-  # collector on loopback (apps/api/test/telemetry-stub.mjs). test/setup-env.ts
-  # starts the SDKs when either is set, as main.ts does, so http, Express, pg
-  # and ioredis are patched while the tests run: the instrumentation must not
-  # break the app (as NestJS Observe's proxies broke the mail transports and
-  # the lock-decorated jobs, issue #392), and the collector must have received
-  # the spans of requests the app served (docs/deployment.md, "Telemetry").
-  # The suite starts the SDKs itself, before it loads the app; the last step
-  # starts the built app as production does (`node dist/main`) and checks that
-  # main.ts does the same, with the credentials as `_FILE` secrets. Hosted
-  # vendors need credentials CI doesn't have, so NestJS Observe's own path is
-  # covered by observe.spec.ts.
-  e2e-telemetry:
-    needs: [compose-images, changes]
-    if: >-
-      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    services:
-      redis:
-        image: ${{ needs.compose-images.outputs.redis }}
-        ports: ['6379:6379']
-        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
-      postgres:
-        image: ${{ needs.compose-images.outputs.postgres }}
-        env:
-          POSTGRES_USER: app
-          POSTGRES_PASSWORD: app
-          POSTGRES_DB: app
-          POSTGRES_INITDB_ARGS: --nosync
-        command: postgres -c fsync=off -c synchronous_commit=off -c full_page_writes=off
-        ports: ['5432:5432']
-        options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install pnpm, Node.js and the dependencies
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
-        with:
-          runtime: node@24
-          cache: true
-      - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
-      - name: The stub collector (OTLP/HTTP and Sentry's envelope endpoint)
-        run: |
-          nohup node apps/api/test/telemetry-stub.mjs serve 4318 > "$RUNNER_TEMP/stub.log" 2>&1 &
-          for _ in $(seq 1 20); do
-            curl -fs http://127.0.0.1:4318/stats && break
-            sleep 0.5
-          done
-      - name: The e2e tests with OpenTelemetry and Sentry on
-        run: pnpm test:e2e --shard=1/6
-        env:
-          REDIS_URL: redis://localhost:6379
-          TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
-          OTEL_EXPORTER_OTLP_ENDPOINT: http://127.0.0.1:4318
-          # Spans leave the process every second, not every five.
-          OTEL_BSP_SCHEDULE_DELAY: '1000'
-          SENTRY_DSN: http://public@127.0.0.1:4318/1
-      - name: The collector received the spans of requests served
-        run: node apps/api/test/telemetry-stub.mjs check 4318
-      # The start-up order: the SDKs must be running before main.ts loads the
-      # app, or http, Express and pg are loaded unpatched and nothing is traced
-      # (the suite above cannot show it).
-      - name: The built app, started as production starts it, is traced
-        # The database and Redis above, as the browser tests' job has them. The
-        # CI roles' passwords are their names; the URLs are built from them so
-        # no literal password sits in the file (SonarCloud's secret check).
-        run: |
-          pnpm --filter @nestjs-monorepo-template/api build
-          runtime=app_runtime maintenance=app_maintenance
-          DATABASE_URL="postgres://$runtime:$runtime@localhost:5432/app" \
-          DATABASE_MAINTENANCE_URL="postgres://$maintenance:$maintenance@localhost:5432/app" \
-            node apps/api/test/telemetry-stub.mjs boot
-        env:
-          DATABASE_OWNER_URL: postgres://app:app@localhost:5432/app
-          REDIS_URL: redis://localhost:6379
-
-  # The browser tests (apps/web-e2e, docs/development.md, "Browser tests"):
-  # Playwright drives the built web app on the built API with the demo data,
-  # on one origin (`vite preview` proxies /v1 as Caddy does), against this
-  # job's PostgreSQL and Redis. Apart from the API's e2e shards: a browser
-  # to install, and a different failure to read (the HTML report and traces
-  # are uploaded when it fails). Accessibility findings (axe) go to the job
-  # summary; serious and critical ones fail the tests.
-  e2e-web:
-    needs: [compose-images, changes]
-    if: >-
-      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true' || needs.changes.outputs.services == 'true')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    services:
-      redis:
-        image: ${{ needs.compose-images.outputs.redis }}
-        ports: ['6379:6379']
-        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
-      postgres:
-        image: ${{ needs.compose-images.outputs.postgres }}
-        env:
-          POSTGRES_USER: app
-          POSTGRES_PASSWORD: app
-          POSTGRES_DB: app
-        ports: ['5432:5432']
-        options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
-    env:
-      # The database and Redis above (apps/web-e2e/scripts/api.mjs reads them).
-      DATABASE_URL: postgres://app_runtime:app_runtime@localhost:5432/app
-      DATABASE_OWNER_URL: postgres://app:app@localhost:5432/app
-      DATABASE_MAINTENANCE_URL: postgres://app_maintenance:app_maintenance@localhost:5432/app
-      REDIS_URL: redis://localhost:6379
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install pnpm, Node.js and the dependencies
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
-        with:
-          runtime: node@24
-          cache: true
-      - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
-      # Playwright's browsers, kept between runs by its version; the system
-      # libraries are installed each time (`--with-deps`: apt, a few seconds).
-      - name: Playwright's version
-        id: playwright
-        run: echo "version=$(pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
-      - name: Playwright's browsers (cache)
-        id: browsers
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      - name: Install Chromium
-        run: |
-          if [ "${{ steps.browsers.outputs.cache-hit }}" = true ]; then
-            pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright install-deps chromium
-          else
-            pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright install --with-deps chromium
-          fi
-      # The seed runs only on a database marked as a development one
-      # (docs/development.md, "Demo data"): what the development services do
-      # when they create theirs (dev/postgres/10-dev-database.sql).
-      - name: Mark the database as a development one
-        run: PGPASSWORD=app psql -h localhost -U app -d app -c "alter database app set app.dev_database = 'on'"
-      - name: The browser tests
-        run: pnpm test:e2e:web
-        env:
-          CI: 'true'
-      - name: Accessibility findings in the job summary
-        if: ${{ !cancelled() }}
-        run: node apps/web-e2e/scripts/axe-summary.mjs >> "$GITHUB_STEP_SUMMARY"
-      - name: The HTML report and traces
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: playwright-report
-          path: |
-            apps/web-e2e/playwright-report/
-            apps/web-e2e/test-results/
-          retention-days: 14
-
-  # The feature generator (tools/feature, `pnpm feature:add`): its tests, then
-  # two features generated with every field type and option, which must
-  # build, lint, migrate and pass their own generated e2e tests on today's
-  # core. Nothing generated is committed: the checkout is thrown away. On a
-  # pull request, for the API and tools/ (the generator writes into the API
-  # only; the web app's build and lint are check's).
-  feature-smoke:
-    needs: [compose-images, changes]
-    if: >-
-      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.generator == 'true' || needs.changes.outputs.tools == 'true' || needs.changes.outputs.services == 'true')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    services:
-      redis:
-        image: ${{ needs.compose-images.outputs.redis }}
-        ports: ['6379:6379']
-        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
-      postgres:
-        image: ${{ needs.compose-images.outputs.postgres }}
-        env:
-          POSTGRES_USER: app
-          POSTGRES_PASSWORD: app
-          POSTGRES_DB: app
-        ports: ['5432:5432']
-        options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install pnpm, Node.js and the dependencies
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
-        with:
-          runtime: node@24
-          cache: true
-      - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
-      # Reuse this already-installed workspace for tooling-only lint, avoiding
-      # a second GitHub runner (and do it before generators modify the tree).
-      - name: Lint tooling and unused dependencies
-        if: needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true'
-        run: pnpm lint
-      # The full app check usually runs these guards. Keep them when only
-      # scripts change, so moving lint to this job does not lose coverage.
-      - name: Release, i18n and environment tooling invariants
-        if: needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true'
-        run: |
-          node --test tools/release/notes.test.mjs tools/i18n/check.test.mjs
-          pnpm env:check --templates
-      - name: The generator's tests
-        run: node --test 'tools/feature/*.test.mjs'
-      - name: The setup wizard's tests (tools/setup, `pnpm setup`)
-        run: node --test 'tools/setup/*.test.mjs'
-      - name: The deploy scripts' tests (tools/deploy, `pnpm deploy:*`)
-        run: node --test 'tools/deploy/*.test.mjs'
-      - name: 'Generate three features (every field type and capability; a team, a reference, no recycle bin, an approval and settings; API keys and an optional Idempotency-Key, no seed-role grants, no Idempotency-Key)'
-        run: |
-          pnpm feature:add smoke-widgets --team --client-access own --idempotency optional --description "Generated by CI" \
-            --with tags,comments,attachments,revisions,pdf,bulk,watch,search,transfer,custom,events,numbered \
-            --fields "title:string,notes:text?,quantity:int,rate:decimal?,total:money,discount:money?,paid:bool,dueOn:date?,sentAt:datetime?,status:enum(draft|sent|paid),meta:json?,code:string!unique,rank:int?"
-          pnpm feature:add smoke-parts --no-soft-delete --grants none --with bulk,transfer,watch,comments,events \
-            --approvals archive --settings "pageSize:int=25,beta:flag,tone:enum(formal|casual)=formal" \
-            --fields "name:string,widgetId:ref(smoke-widgets)?"
-          pnpm feature:add smoke-entries --no-soft-delete --idempotency off --fields "title:string,total:money"
-      - name: 'Their migration (new tables only: drizzle-kit asks nothing)'
-        run: pnpm db:generate
-      - name: 'Change a feature by its declaration only: capabilities, fields, an approval, a setting, the recycle bin and teams turned on, then sync'
-        run: |
-          python3 - <<'PY'
-          import pathlib
-          p = pathlib.Path('apps/api/src/features/smoke-entries/smoke-entry.record.ts')
-          s = p.read_text()
-          s = s.replace("    title: field.string(),", "    title: field.string().searchable(),\n    rank: field.int().default(1),\n    note: field.text().optional(),")
-          s = s.replace("  capabilities: [],", "  capabilities: ['tags', 'comments', 'attachments', 'revisions', 'pdf', 'bulk', 'watch', 'search', 'transfer', 'custom', 'events', 'numbered'],")
-          # An approval and a setting, by the declaration only: sync writes the effects file and wires the module.
-          assert "  fields: {" in s
-          s = s.replace("  fields: {", "  approvals: {\n    markDone: { label: 'Mark an entry done' },\n  },\n  settings: {\n    pageSize: recordSetting.int(25),\n  },\n  fields: {", 1)
-          s = s.replace("import { defineRecord } from '../../platform/records/record.js';", "import { defineRecord } from '../../platform/records/record.js';\nimport { recordSetting } from '../../platform/records/record-settings.js';", 1)
-          for flag in ('softDelete', 'team'):
-              assert f"  {flag}: false," in s, flag
-              s = s.replace(f"  {flag}: false,", f"  {flag}: true,")
-          p.write_text(s)
-          PY
-          pnpm feature:sync
-          pnpm feature:sync --check
-          pnpm db:generate
-      # Without knip: it checks this repository's own code (knip.jsonc), not a
-      # generated one.
-      - run: pnpm lint:code
-      - run: pnpm build
-      - run: pnpm db:check
-      - run: pnpm turbo run client:generate
-      - name: Their generated e2e tests, and the OpenAPI document's paths
-        run: pnpm --filter @nestjs-monorepo-template/api exec vitest run --config ./vitest.config.e2e.ts test/smoke-widgets.e2e-spec.ts test/smoke-parts.e2e-spec.ts test/smoke-entries.e2e-spec.ts test/openapi.e2e-spec.ts
-        env:
-          REDIS_URL: redis://localhost:6379
-          TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
-
-  # A new project's first step, on every change: the example feature removed
-  # (`pnpm feature:remove notes`), the template must still build, lint,
-  # migrate and pass every remaining test, unit and e2e (the platform's run
-  # on the test-only record, test/fixtures). Thrown away like feature-smoke's.
-  template-without-notes:
-    needs: [compose-images, changes]
-    if: >-
-      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.full == 'true')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    # A pull request runs shard 1's cheap steps only (the example removed, then
-    # lint, build, migrations, the client): the unit and e2e suites are the
-    # same tests as the unit and e2e jobs' with a feature fewer, and doubled the
-    # run's length. Main, tags and the nightly run do all of it, in six shards
-    # like e2e's, so they last as long as a pull request: each shard runs its
-    # sixth of the e2e suite and a sixth of the unit tests (shards 1-3 the
-    # API's third, 4-6 the web app's, as the unit jobs split them); each
-    # repeats the cheap steps before. Raise the list and the totals together.
-    strategy:
-      fail-fast: false
-      # Reserve runner capacity for other pull requests.
-      max-parallel: 2
-      matrix:
-        # Matrix expressions: the job-level `if` can't read the matrix.
-        shard: [1, 2, 3, 4, 5, 6]
-    name: template-without-notes (${{ matrix.shard }}/6)
-    services:
-      redis:
-        image: ${{ needs.compose-images.outputs.redis }}
-        ports: ['6379:6379']
-        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
-      postgres:
-        image: ${{ needs.compose-images.outputs.postgres }}
-        env:
-          POSTGRES_USER: app
-          POSTGRES_PASSWORD: app
-          POSTGRES_DB: app
-        ports: ['5432:5432']
-        options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install pnpm, Node.js and the dependencies
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
-        with:
-          runtime: node@24
-          cache: true
-      - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
-      - name: Remove the example feature
-        run: pnpm feature:remove notes
-      - name: 'Its table dropped (a generated migration: drizzle-kit asks nothing)'
-        run: pnpm db:generate
-      - name: Nothing of notes is left outside docs and generated files
-        run: |
-          if grep -rn --include='*.ts' --include='*.tsx' -e 'features/notes' -e "'/v1/notes" apps/api/src apps/api/test apps/web/src; then
-            echo "Still referenced after pnpm feature:remove notes" >&2
-            exit 1
-          fi
-      - name: 'Lint (once: shard 1)'
-        if: matrix.shard == 1
-        run: pnpm lint:code
-      - run: pnpm build
-      - run: pnpm db:check
-      - run: pnpm turbo run client:generate
-      # The web app types its calls with the client: built again on the one
-      # without notes (Turborepo rebuilds the client and the web app only).
-      - name: 'Build on the regenerated client (once: shard 1)'
-        if: matrix.shard == 1
-        run: pnpm build
-      # The unit jobs' split (3 API shards, 3 web shards), over this job's six;
-      # the small packages' tests ride on shard 1.
-      - name: Unit and web tests (a share per shard; not on pull requests)
-        if: needs.changes.outputs.full == 'true'
-        run: |
-          shard=${{ matrix.shard }}
-          if [ "$shard" -le 3 ]; then
-            pnpm turbo run test --filter=@nestjs-monorepo-template/api -- --shard="$shard/3"
-          else
-            pnpm turbo run test --filter=@nestjs-monorepo-template/web -- --shard="$((shard - 3))/3"
-          fi
-          if [ "$shard" -eq 1 ]; then
-            pnpm turbo run test --filter='!@nestjs-monorepo-template/api' --filter='!@nestjs-monorepo-template/web'
-          fi
-      - name: Every e2e test (this shard's sixth; not on pull requests)
-        if: needs.changes.outputs.full == 'true'
-        run: pnpm --filter @nestjs-monorepo-template/api exec vitest run --config ./vitest.config.e2e.ts --shard=${{ matrix.shard }}/6
-        env:
-          REDIS_URL: redis://localhost:6379
-          TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
-
-  # Pull requests: the typed client's contract (packages/api-client/openapi.json,
-  # kept in sync with the routes by `client:check`) compared with the base
-  # branch's by oasdiff. Breaking changes (removed endpoints, fields, enum
-  # values, tightened requests...) and the full changelog go to the job
-  # summary. Report-only while the template has no adopters: set
-  # OASDIFF_FAIL_ON to ERR (or WARN) to fail the pull request on them
-  # (docs/development.md, "Typed client").
-  openapi-diff:
-    needs: changes
-    if: >-
-      needs.changes.outputs.benchmark == 'off' && (github.event_name == 'pull_request' && needs.changes.outputs.api == 'true')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    env:
-      # '' reports only; ERR fails on breaking changes, WARN also on warnings.
-      OASDIFF_FAIL_ON: ''
-      # oasdiff's own release (github.com/oasdiff/oasdiff), tag and digest:
-      # Dependabot doesn't raise it.
-      OASDIFF_IMAGE: tufin/oasdiff:v1.33.0@sha256:6263a96dd2ef0726c54e21fea9b8e1607eac4841add0079324b424c1f52b819c
-    steps:
-      # A pull request checks out its merge commit: HEAD^1 is the base
-      # branch it was merged onto, so the diff is this pull request's alone.
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 2
+      # The unit tests with coverage and the thresholds in each package's
+      # vitest.config.ts (`test:cov`: one run). The web app's, the longest
+      # (jsdom), have a job of their own: unit-web.
+      - name: The API's unit tests (coverage and its thresholds)
+        if: needs.changes.outputs.api == 'true'
+        run: pnpm turbo run test:cov --filter=@nestjs-monorepo-template/api
+      - name: The packages' unit tests (the typed client, the components)
+        if: needs.changes.outputs.web == 'true'
+        run: pnpm turbo run test:cov --filter='!@nestjs-monorepo-template/api' --filter='!@nestjs-monorepo-template/web'
       - name: Breaking changes in the OpenAPI document
+        if: github.event_name == 'pull_request' && needs.changes.outputs.api == 'true'
+        env:
+          # '' reports only; ERR fails on breaking changes, WARN also on warnings.
+          OASDIFF_FAIL_ON: ''
+          # oasdiff's own release (github.com/oasdiff/oasdiff), tag and digest:
+          # Dependabot doesn't raise it.
+          OASDIFF_IMAGE: tufin/oasdiff:v1.33.0@sha256:6263a96dd2ef0726c54e21fea9b8e1607eac4841add0079324b424c1f52b819c
         run: |
           set -o pipefail
           spec=packages/api-client/openapi.json
@@ -1191,6 +592,452 @@ jobs:
             oasdiff breaking --format githubactions --fail-on "$OASDIFF_FAIL_ON" |
               sed "s|,file=base\.json::|,file=$spec::|"
           fi
+      # The web app's bundle budget (size-limit; fails over its limits) on the
+      # build above, and Storybook for packages/ui, published as an artifact.
+      - name: Bundle budget
+        id: size
+        if: needs.changes.outputs.web == 'true'
+        run: pnpm turbo run size --filter=@nestjs-monorepo-template/web
+      - name: Sizes in the job summary
+        if: ${{ !cancelled() && (steps.size.outcome == 'success' || steps.size.outcome == 'failure') }}
+        working-directory: apps/web
+        run: |
+          {
+            echo '### Bundle size (brotli) against the budget'
+            echo
+            echo '| Entry | Size | Limit | |'
+            echo '| --- | --- | --- | --- |'
+            pnpm exec size-limit --json | jq -r '.[] | "| \(.name) | \(.size) B | \(.sizeLimit) B | \(if .passed then "ok" else "over" end) |"'
+            echo
+            echo '### Largest JavaScript chunks'
+            echo
+            echo '| Chunk | Raw | gzip | brotli |'
+            echo '| --- | ---: | ---: | ---: |'
+            jq -r '.chunks[:10][] | "| \(.file) | \(.bytes) B | \(.gzipBytes) B | \(.brotliBytes) B |"' .bundle-analysis/bundle.json
+            echo
+            echo '### Largest modules in the biggest chunk'
+            echo
+            echo '| Module | Rendered |'
+            echo '| --- | ---: |'
+            jq -r '.chunks[0].modules[:15][] | "| `\(.id)` | \(.renderedBytes) B |"' .bundle-analysis/bundle.json
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Bundle analysis
+        if: ${{ !cancelled() && (steps.size.outcome == 'success' || steps.size.outcome == 'failure') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-bundle-analysis
+          path: apps/web/.bundle-analysis/bundle.json
+          include-hidden-files: true
+          retention-days: 14
+      - name: Storybook
+        if: needs.changes.outputs.web == 'true'
+        run: pnpm turbo run build-storybook --filter=@nestjs-monorepo-template/ui
+      - name: Storybook (artifact)
+        if: needs.changes.outputs.web == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: storybook
+          path: packages/ui/storybook-static/
+          retention-days: 14
+      # The release notes' generator (tools/release/, docs/releases.md): git only.
+      - name: The release notes' tests
+        run: node --test tools/release/notes.test.mjs
+      # The translation parity check's tests (tools/i18n/); the check itself
+      # runs in `pnpm lint`.
+      - name: The i18n check's tests
+        run: node --test tools/i18n/check.test.mjs
+      # Guards on this workflow (tools/ci/): its artifact uploads and which
+      # jobs a pull request's paths run.
+      - name: The workflow's tests
+        run: node --test 'tools/ci/*.test.mjs'
+      # The env templates (tools/setup/envcheck.mjs): no variable set twice,
+      # the REQUIRED ones named. The wizard's tests run in feature-smoke.
+      - name: The env templates
+        run: pnpm env:check --templates
+      # A new project's first step (`pnpm feature:remove notes`) must leave no
+      # reference to the example behind: seconds here, where the nightly
+      # template-without-notes run found them a day late. Last: it deletes
+      # files of this throwaway checkout.
+      - name: Nothing of notes is left after `pnpm feature:remove notes`
+        run: |
+          pnpm feature:remove notes
+          if grep -rn --include='*.ts' --include='*.tsx' -e 'features/notes' -e "'/v1/notes" apps/api/src apps/api/test apps/web/src; then
+            echo "::error::Still referenced after pnpm feature:remove notes (template-without-notes fails on it)"
+            exit 1
+          fi
+
+  # The web app's unit tests (jsdom: the longest unit run, ~4 min), with
+  # coverage and its thresholds (vitest.config.ts), on a runner of their own
+  # so they run beside check rather than after it. Whole, not sharded: shards
+  # cost a third more runner-minutes for no shorter run (docs/ci-runtime.md).
+  # Turborepo builds what they depend on, replayed from its cache.
+  unit-web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    name: unit (web)
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
+      - name: Coverage and its thresholds
+        run: pnpm turbo run test:cov --filter=@nestjs-monorepo-template/web
+
+  # The e2e tests in two shards, each on its own runner with its own Redis
+  # and PostgreSQL: the slowest step of CI. Vitest's --shard, split by file
+  # size (apps/api/test/size-sequencer.ts). They run the sources (no build
+  # needed). Raise the list and --shard's total together. A sixth of the
+  # suite runs again with the instrumentation on, in e2e-web.
+  e2e:
+    needs: changes
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    name: e2e (${{ matrix.shard }}/2)
+    services:
+      # Redis: queues, rate limits, realtime; each file keeps to its own prefix.
+      redis:
+        image: ${{ needs.changes.outputs.redis }}
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+      # PostgreSQL: the tests' databases. max_connections is the default 100:
+      # raise it before the e2e maxWorkers or the test pool size (docs/pitfalls.md).
+      postgres:
+        image: ${{ needs.changes.outputs.postgres }}
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+          POSTGRES_INITDB_ARGS: --nosync
+        command: postgres -c fsync=off -c synchronous_commit=off -c full_page_writes=off
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
+      - run: pnpm test:e2e --shard=${{ matrix.shard }}/2
+        env:
+          REDIS_URL: redis://localhost:6379
+          # The tests create their databases here (a template, then a copy per app).
+          TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
+
+  # The browser tests (apps/web-e2e, docs/development.md, "Browser tests"):
+  # Playwright drives the built web app on the built API with the demo data,
+  # on one origin (`vite preview` proxies /v1 as Caddy does), against this
+  # job's PostgreSQL and Redis. Apart from the API's e2e shards: a browser
+  # to install, and a different failure to read (the HTML report and traces
+  # are uploaded when it fails). Accessibility findings (axe) go to the job
+  # summary; serious and critical ones fail the tests. Then, on the same
+  # build and services: the instrumentation (below).
+  #
+  # The instrumentation: a sixth of the e2e suite with OpenTelemetry
+  # (OTEL_EXPORTER_OTLP_ENDPOINT) and Sentry (SENTRY_DSN) pointing at a stub
+  # collector on loopback (apps/api/test/telemetry-stub.mjs). test/setup-env.ts
+  # starts the SDKs when either is set, as main.ts does, so http, Express, pg
+  # and ioredis are patched while the tests run: the instrumentation must not
+  # break the app (as NestJS Observe's proxies broke the mail transports and
+  # the lock-decorated jobs, issue #392), and the collector must have received
+  # the spans of requests the app served (docs/deployment.md, "Telemetry").
+  # A sixth, not more: on half the suite it cost ~100 s of an e2e shard (#681).
+  # Then the built app started as production starts it. Hosted vendors need
+  # credentials CI doesn't have, so NestJS Observe's own path is covered by
+  # observe.spec.ts.
+  e2e-web:
+    needs: changes
+    if: >-
+      needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true' || needs.changes.outputs.services == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      redis:
+        image: ${{ needs.changes.outputs.redis }}
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+      postgres:
+        image: ${{ needs.changes.outputs.postgres }}
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+          POSTGRES_INITDB_ARGS: --nosync
+        command: postgres -c fsync=off -c synchronous_commit=off -c full_page_writes=off
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # The database and Redis above (apps/web-e2e/scripts/api.mjs reads them).
+      DATABASE_URL: postgres://app_runtime:app_runtime@localhost:5432/app
+      DATABASE_OWNER_URL: postgres://app:app@localhost:5432/app
+      DATABASE_MAINTENANCE_URL: postgres://app_maintenance:app_maintenance@localhost:5432/app
+      REDIS_URL: redis://localhost:6379
+      # The browser tests run in the runner's Chrome.
+      E2E_BROWSER_CHANNEL: chrome
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
+      # The runner's own Google Chrome (E2E_BROWSER_CHANNEL, below), not
+      # Playwright's Chromium: no download and no apt, whose mirror took 6-8
+      # minutes in 3 of 97 runs (docs/ci-runtime.md). Its version is the
+      # runner image's, named here for the log.
+      - name: The browser (the runner's Google Chrome)
+        run: |
+          google-chrome --version
+          echo "Chrome: $(google-chrome --version)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Playwright: $(pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright --version)" >> "$GITHUB_STEP_SUMMARY"
+      # The seed runs only on a database marked as a development one
+      # (docs/development.md, "Demo data"): what the development services do
+      # when they create theirs (dev/postgres/10-dev-database.sql).
+      - name: Mark the database as a development one
+        run: PGPASSWORD=app psql -h localhost -U app -d app -c "alter database app set app.dev_database = 'on'"
+      - name: The browser tests
+        run: pnpm test:e2e:web
+        env:
+          CI: 'true'
+      - name: The stub collector (OTLP/HTTP and Sentry's envelope endpoint)
+        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'
+        run: |
+          nohup node apps/api/test/telemetry-stub.mjs serve 4318 > "$RUNNER_TEMP/stub.log" 2>&1 &
+          for _ in $(seq 1 20); do
+            curl -fs http://127.0.0.1:4318/stats && break
+            sleep 0.5
+          done
+      - name: A sixth of the e2e tests with OpenTelemetry and Sentry on
+        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'
+        run: pnpm test:e2e --shard=1/6
+        env:
+          # Its own databases on this server (a template, then a copy per app).
+          TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
+          OTEL_EXPORTER_OTLP_ENDPOINT: http://127.0.0.1:4318
+          # Spans leave the process every second, not every five.
+          OTEL_BSP_SCHEDULE_DELAY: '1000'
+          SENTRY_DSN: http://public@127.0.0.1:4318/1
+      - name: The collector received the spans of requests served
+        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'
+        run: node apps/api/test/telemetry-stub.mjs check 4318
+      # The start-up order, which the suite (it starts the SDKs itself) cannot
+      # show: the built API (the browser tests built it), with the credentials
+      # as `_FILE` secrets and its own collector, on this job's services.
+      - name: The built app, started as production starts it, is traced
+        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'
+        run: node apps/api/test/telemetry-stub.mjs boot
+      - name: Accessibility findings in the job summary
+        if: ${{ !cancelled() }}
+        run: node apps/web-e2e/scripts/axe-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+      # A failed attempt keeps its trace (retain-on-failure), a retried one
+      # included: a flaky test leaves its evidence too, not only a failure.
+      - name: The HTML report and traces
+        if: ${{ !cancelled() && (failure() || hashFiles('apps/web-e2e/test-results/**/trace.zip') != '') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            apps/web-e2e/playwright-report/
+            apps/web-e2e/test-results/
+          retention-days: 14
+
+  # The feature generator (tools/feature, `pnpm feature:add`): its tests, then
+  # two features generated with every field type and option, which must
+  # build, lint, migrate and pass their own generated e2e tests on today's
+  # core. Nothing generated is committed: the checkout is thrown away. On a
+  # pull request, for the API and tools/ (the generator writes into the API
+  # only; the web app's build and lint are check's).
+  feature-smoke:
+    needs: changes
+    if: >-
+      needs.changes.outputs.generator == 'true' || needs.changes.outputs.tools == 'true' || needs.changes.outputs.services == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      redis:
+        image: ${{ needs.changes.outputs.redis }}
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+      postgres:
+        image: ${{ needs.changes.outputs.postgres }}
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
+      # Reuse this already-installed workspace for tooling-only lint, avoiding
+      # a second GitHub runner (and do it before generators modify the tree).
+      - name: Lint tooling and unused dependencies
+        if: needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true'
+        run: pnpm lint
+      # The full app check usually runs these guards. Keep them when only
+      # scripts change, so moving lint to this job does not lose coverage.
+      - name: Release, i18n and environment tooling invariants
+        if: needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true'
+        run: |
+          node --test tools/release/notes.test.mjs tools/i18n/check.test.mjs
+          pnpm env:check --templates
+      - name: The generator's tests
+        run: node --test 'tools/feature/*.test.mjs'
+      - name: The setup wizard's tests (tools/setup, `pnpm setup`)
+        run: node --test 'tools/setup/*.test.mjs'
+      - name: The deploy scripts' tests (tools/deploy, `pnpm deploy:*`)
+        run: node --test 'tools/deploy/*.test.mjs'
+      - name: 'Generate three features (every field type and capability; a team, a reference, no recycle bin, an approval and settings; API keys and an optional Idempotency-Key, no seed-role grants, no Idempotency-Key)'
+        run: |
+          pnpm feature:add smoke-widgets --team --client-access own --idempotency optional --description "Generated by CI" \
+            --with tags,comments,attachments,revisions,pdf,bulk,watch,search,transfer,custom,events,numbered \
+            --fields "title:string,notes:text?,quantity:int,rate:decimal?,total:money,discount:money?,paid:bool,dueOn:date?,sentAt:datetime?,status:enum(draft|sent|paid),meta:json?,code:string!unique,rank:int?"
+          pnpm feature:add smoke-parts --no-soft-delete --grants none --with bulk,transfer,watch,comments,events \
+            --approvals archive --settings "pageSize:int=25,beta:flag,tone:enum(formal|casual)=formal" \
+            --fields "name:string,widgetId:ref(smoke-widgets)?"
+          pnpm feature:add smoke-entries --no-soft-delete --idempotency off --fields "title:string,total:money"
+      - name: 'Their migration (new tables only: drizzle-kit asks nothing)'
+        run: pnpm db:generate
+      - name: 'Change a feature by its declaration only: capabilities, fields, an approval, a setting, the recycle bin and teams turned on, then sync'
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          p = pathlib.Path('apps/api/src/features/smoke-entries/smoke-entry.record.ts')
+          s = p.read_text()
+          s = s.replace("    title: field.string(),", "    title: field.string().searchable(),\n    rank: field.int().default(1),\n    note: field.text().optional(),")
+          s = s.replace("  capabilities: [],", "  capabilities: ['tags', 'comments', 'attachments', 'revisions', 'pdf', 'bulk', 'watch', 'search', 'transfer', 'custom', 'events', 'numbered'],")
+          # An approval and a setting, by the declaration only: sync writes the effects file and wires the module.
+          assert "  fields: {" in s
+          s = s.replace("  fields: {", "  approvals: {\n    markDone: { label: 'Mark an entry done' },\n  },\n  settings: {\n    pageSize: recordSetting.int(25),\n  },\n  fields: {", 1)
+          s = s.replace("import { defineRecord } from '../../platform/records/record.js';", "import { defineRecord } from '../../platform/records/record.js';\nimport { recordSetting } from '../../platform/records/record-settings.js';", 1)
+          for flag in ('softDelete', 'team'):
+              assert f"  {flag}: false," in s, flag
+              s = s.replace(f"  {flag}: false,", f"  {flag}: true,")
+          p.write_text(s)
+          PY
+          pnpm feature:sync
+          pnpm feature:sync --check
+          pnpm db:generate
+      # Without knip: it checks this repository's own code (knip.jsonc), not a
+      # generated one.
+      - run: pnpm lint:code
+      - run: pnpm build
+      - run: pnpm db:check
+      - run: pnpm turbo run client:generate
+      - name: Their generated e2e tests, and the OpenAPI document's paths
+        run: pnpm --filter @nestjs-monorepo-template/api exec vitest run --config ./vitest.config.e2e.ts test/smoke-widgets.e2e-spec.ts test/smoke-parts.e2e-spec.ts test/smoke-entries.e2e-spec.ts test/openapi.e2e-spec.ts
+        env:
+          REDIS_URL: redis://localhost:6379
+          TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
+
+  # A new project's first step: the example feature removed
+  # (`pnpm feature:remove notes`), the template must still build, lint,
+  # migrate and pass every remaining test, unit and e2e (the platform's run
+  # on the test-only record, test/fixtures). Thrown away like feature-smoke's.
+  template-without-notes:
+    needs: changes
+    if: needs.changes.outputs.full == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # Tags, the nightly and manual runs, and any change that validates
+    # everything (`full`): in six shards, so it lasts as long as a pull
+    # request's run; each shard repeats the cheap steps, then
+    # runs its sixth of the e2e suite and a sixth of the unit tests (shards
+    # 1-3 the API's third, 4-6 the web app's). A pull request runs only the
+    # leftover check (`check`, last step): the suites are the e2e and unit
+    # jobs' with a feature fewer. Raise the list and the totals together.
+    strategy:
+      fail-fast: false
+      # Reserve runner capacity for other pull requests.
+      max-parallel: 2
+      matrix:
+        # Matrix expressions: the job-level `if` can't read the matrix.
+        shard: [1, 2, 3, 4, 5, 6]
+    name: template-without-notes (${{ matrix.shard }}/6)
+    services:
+      redis:
+        image: ${{ needs.changes.outputs.redis }}
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+      postgres:
+        image: ${{ needs.changes.outputs.postgres }}
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
+      - name: Remove the example feature
+        run: pnpm feature:remove notes
+      - name: 'Its table dropped (a generated migration: drizzle-kit asks nothing)'
+        run: pnpm db:generate
+      - name: Nothing of notes is left outside docs and generated files
+        run: |
+          if grep -rn --include='*.ts' --include='*.tsx' -e 'features/notes' -e "'/v1/notes" apps/api/src apps/api/test apps/web/src; then
+            echo "Still referenced after pnpm feature:remove notes" >&2
+            exit 1
+          fi
+      - name: 'Lint (once: shard 1)'
+        if: matrix.shard == 1
+        run: pnpm lint:code
+      - run: pnpm build
+      - run: pnpm db:check
+      - run: pnpm turbo run client:generate
+      # The web app types its calls with the client: built again on the one
+      # without notes (Turborepo rebuilds the client and the web app only).
+      - name: 'Build on the regenerated client (once: shard 1)'
+        if: matrix.shard == 1
+        run: pnpm build
+      # The unit jobs' split (3 API shards, 3 web shards), over this job's six;
+      # the small packages' tests ride on shard 1.
+      - name: Unit and web tests (a share per shard; not on pull requests)
+        if: needs.changes.outputs.full == 'true'
+        run: |
+          shard=${{ matrix.shard }}
+          if [ "$shard" -le 3 ]; then
+            pnpm turbo run test --filter=@nestjs-monorepo-template/api -- --shard="$shard/3"
+          else
+            pnpm turbo run test --filter=@nestjs-monorepo-template/web -- --shard="$((shard - 3))/3"
+          fi
+          if [ "$shard" -eq 1 ]; then
+            pnpm turbo run test --filter='!@nestjs-monorepo-template/api' --filter='!@nestjs-monorepo-template/web'
+          fi
+      - name: Every e2e test (this shard's sixth; not on pull requests)
+        if: needs.changes.outputs.full == 'true'
+        run: pnpm --filter @nestjs-monorepo-template/api exec vitest run --config ./vitest.config.e2e.ts --shard=${{ matrix.shard }}/6
+        env:
+          REDIS_URL: redis://localhost:6379
+          TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
 
   # Fails on: a high or critical advisory in a production dependency, any
   # secret in the repository, a high or critical misconfiguration in a
@@ -1199,8 +1046,7 @@ jobs:
   security:
     needs: changes
     # Scan runtime/deploy changes and executable tooling, not Knip-only edits.
-    if: >-
-      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.app == 'true' || needs.changes.outputs.tools == 'true')
+    if: needs.changes.outputs.app == 'true' || needs.changes.outputs.tools == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -1241,16 +1087,27 @@ jobs:
           cache-dir: ${{ runner.temp }}/trivy
 
   # The production image builds and has no fixable high or critical
-  # vulnerability (OS packages and node_modules).
+  # vulnerability (OS packages and node_modules); then, for API and stack
+  # changes, the production stack runs on it under its hardening, on the same
+  # runner (no artifact to hand over). The image goes to the publish job only
+  # when this run publishes.
   image:
     needs: changes
-    if: >-
-      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.image == 'true')
+    if: needs.changes.outputs.image == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
+    env:
+      # loadtest/run.sh's names only: its `down` removes the project's volumes.
+      LOADTEST_PROJECT: loadtest-hardened
+      LOADTEST_GHA_CACHE: '1'
+      # run.sh's default; ignored by git.
+      LOADTEST_OUT: loadtest/results
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          # The runner is thrown away: removing the builder took 30-90 s.
+          cleanup: false
       - name: Build the production image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -1264,7 +1121,10 @@ jobs:
           tags: app:ci
           build-args: GIT_SHA=${{ github.sha }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Written by main and the nightly run, read by every pull request: a
+          # pull request's own cache serves only its later pushes, and writing
+          # it cost ~40 s a run.
+          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,mode=max' || '' }}
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
@@ -1281,131 +1141,19 @@ jobs:
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
 
-      # The backup service's image (backup/) builds and passes the same scan.
-      # Its own cache scope, so it never evicts the app image's. Not published:
-      # every deploy builds it (`docker compose up -d --build`).
-      - name: Export the verified image
-        run: |
-          docker save app:ci -o "${{ runner.temp }}/app.tar"
-          (cd "${{ runner.temp }}" && sha256sum app.tar > app.tar.sha256)
-          docker image inspect --format '{{.Id}}' app:ci > "${{ runner.temp }}/app.id"
-      - name: Transfer the verified image
-        uses: actions/upload-artifact@v7
-        with:
-          name: image-app
-          path: |
-            ${{ runner.temp }}/app.tar
-            ${{ runner.temp }}/app.tar.sha256
-            ${{ runner.temp }}/app.id
-          compression-level: 0
-          if-no-files-found: error
-          retention-days: 2
-
-  backup-image:
-    needs: changes
-    if: >-
-      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.backup == 'true')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - name: Build the backup image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: backup
-          load: true
-          tags: backup:ci
-          cache-from: type=gha,scope=backup
-          cache-to: type=gha,scope=backup,mode=max
-      # Encryption (age) and point-in-time recovery, end to end in the image,
-      # on a throwaway PostgreSQL (backup/test-pitr.sh).
-      - name: Encryption and point-in-time recovery work
-        run: scripts/test-backup-pitr.sh backup:ci
-      - name: Install Trivy
-        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
-        with:
-          version: v0.76.0
-          cache: true
-      - name: No fixable high or critical vulnerabilities in the image
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          skip-setup-trivy: true
-          image-ref: backup:ci
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
-          trivyignores: .trivyignore.yaml
-          cache-dir: ${{ runner.temp }}/trivy
-      - name: Export the verified image
-        run: |
-          docker save backup:ci -o "${{ runner.temp }}/backup.tar"
-          (cd "${{ runner.temp }}" && sha256sum backup.tar > backup.tar.sha256)
-          docker image inspect --format '{{.Id}}' backup:ci > "${{ runner.temp }}/backup.id"
-      - name: Transfer the verified image
-        uses: actions/upload-artifact@v7
-        with:
-          name: image-backup
-          path: |
-            ${{ runner.temp }}/backup.tar
-            ${{ runner.temp }}/backup.tar.sha256
-            ${{ runner.temp }}/backup.id
-          compression-level: 0
-          if-no-files-found: error
-          retention-days: 2
-
-  hardened-stack:
-    needs: [changes, image, backup-image]
-    if: >-
-      !cancelled() && needs.image.result == 'success' &&
-      (needs.backup-image.result == 'success' || needs.backup-image.result == 'skipped') &&
-      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.stack == 'true')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    env:
-      # loadtest/run.sh's names only: its `down` removes the project's volumes.
-      LOADTEST_PROJECT: loadtest-hardened
-      LOADTEST_GHA_CACHE: '1'
-      # run.sh's default; ignored by git.
-      LOADTEST_OUT: loadtest/results
-    steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
-      - uses: actions/download-artifact@v8
-        with:
-          name: image-app
-          path: ${{ runner.temp }}/image
-      - name: Load the verified API image
-        run: |
-          (cd "${{ runner.temp }}/image" && sha256sum -c app.tar.sha256)
-          docker load -i "${{ runner.temp }}/image/app.tar"
-          test "$(docker image inspect --format '{{.Id}}' app:ci)" = "$(cat "${{ runner.temp }}/image/app.id")"
-          docker tag app:ci app:hardened
-      - name: Download the verified backup when it was built
-        if: needs.backup-image.result == 'success'
-        uses: actions/download-artifact@v8
-        with:
-          name: image-backup
-          path: ${{ runner.temp }}/image
-      - name: Load the verified backup
-        if: needs.backup-image.result == 'success'
-        run: |
-          (cd "${{ runner.temp }}/image" && sha256sum -c backup.tar.sha256)
-          docker load -i "${{ runner.temp }}/image/backup.tar"
-          test "$(docker image inspect --format '{{.Id}}' backup:ci)" = "$(cat "${{ runner.temp }}/image/backup.id")"
-          docker tag backup:ci "$LOADTEST_PROJECT-backup"
       # Returns once the API answers behind Caddy; otherwise prints the logs
       # and fails.
       - name: Start the stack
+        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.stack == 'true'
         env:
-          APP_IMAGE: app:hardened
+          APP_IMAGE: app:ci
         run: loadtest/run.sh up
       # `docker compose up --build` invokes Buildx directly, so expose the
       # GitHub cache runtime URL and token for the `type=gha` build cache.
       - uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.stack == 'true'
       - name: Every container runs, healthy and never restarted
-        env:
-          BACKUP_VERIFIED: ${{ needs.backup-image.result == 'success' }}
+        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.stack == 'true'
         run: |
           # The files and the environment run.sh starts the stack with.
           compose() {
@@ -1416,11 +1164,9 @@ jobs:
           }
           # The backup service writes /backups as `postgres`: its first run
           # (the scheduler takes one at once on an empty volume) proves it can.
-          if [ "$BACKUP_VERIFIED" = true ]; then
-            compose up -d --no-build --no-deps backup
-          else
-            compose up -d --build --no-deps backup
-          fi
+          # Built from backup/ (its own cache scope, compose.ci-cache.yaml);
+          # backup-image verifies the image itself when backup/ changes.
+          compose up -d --build --no-deps backup
           for _ in $(seq 1 45); do
             compose exec -T backup test -s /backups/.last-success && break
             sleep 2
@@ -1459,7 +1205,7 @@ jobs:
             exit 1
           fi
       - name: The containers' logs
-        if: failure()
+        if: failure() && (needs.changes.outputs.api == 'true' || needs.changes.outputs.stack == 'true')
         run: |
           for id in $(docker ps -aq --filter "label=com.docker.compose.project=$LOADTEST_PROJECT"); do
             echo "::group::$(docker inspect -f '{{.Name}} {{.State.Status}} {{.State.Error}}' "$id")"
@@ -1467,8 +1213,68 @@ jobs:
             echo "::endgroup::"
           done
       - name: Remove the stack and its volumes
-        if: always()
+        if: always() && (needs.changes.outputs.api == 'true' || needs.changes.outputs.stack == 'true')
         run: loadtest/run.sh down
+      - name: Export the verified image
+        if: needs.changes.outputs.publish == 'true'
+        run: |
+          docker save app:ci -o "${{ runner.temp }}/app.tar"
+          (cd "${{ runner.temp }}" && sha256sum app.tar > app.tar.sha256)
+          docker image inspect --format '{{.Id}}' app:ci > "${{ runner.temp }}/app.id"
+      - name: Transfer the verified image
+        if: needs.changes.outputs.publish == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: image-app
+          path: |
+            ${{ runner.temp }}/app.tar
+            ${{ runner.temp }}/app.tar.sha256
+            ${{ runner.temp }}/app.id
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 2
+
+  # The backup service's image (backup/) builds, works and passes the same
+  # scan. Its own cache scope, so it never evicts the app image's. Not
+  # published: every deploy builds it (`docker compose up -d --build`).
+  backup-image:
+    needs: changes
+    if: needs.changes.outputs.backup == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          # The runner is thrown away: removing the builder took 30-90 s.
+          cleanup: false
+      - name: Build the backup image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: backup
+          load: true
+          tags: backup:ci
+          cache-from: type=gha,scope=backup
+          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=backup,mode=max' || '' }}
+      # Encryption (age) and point-in-time recovery, end to end in the image,
+      # on a throwaway PostgreSQL (backup/test-pitr.sh).
+      - name: Encryption and point-in-time recovery work
+        run: scripts/test-backup-pitr.sh backup:ci
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.76.0
+          cache: true
+      - name: No fixable high or critical vulnerabilities in the image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          skip-setup-trivy: true
+          image-ref: backup:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          trivyignores: .trivyignore.yaml
+          cache-dir: ${{ runner.temp }}/trivy
 
   # Caddy's image (caddy/Dockerfile, built from the repository root as
   # compose.prod.yaml does; caddy/Dockerfile.dockerignore picks what goes
@@ -1477,13 +1283,15 @@ jobs:
   # Published by publish-caddy, as the app image is.
   caddy-image:
     needs: changes
-    if: >-
-      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.caddy == 'true')
+    if: needs.changes.outputs.caddy == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          # The runner is thrown away: removing the builder took 30-90 s.
+          cleanup: false
       - name: Build the Caddy image (with the web app)
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -1496,7 +1304,9 @@ jobs:
           load: true
           tags: caddy:ci
           cache-from: type=gha,scope=caddy
-          cache-to: type=gha,scope=caddy,mode=max
+          # Main and the nightly run write it, pull requests only read it: the
+          # export took ~110 s of a 211 s build (the install layer, 389 MB).
+          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=caddy,mode=max' || '' }}
       - name: Non-root runtime, HTTPS, restarts and certificate-volume migration
         run: caddy/test-runtime.sh caddy:ci
       - name: The web app is in the image
@@ -1507,6 +1317,14 @@ jobs:
             jq -e --arg sha "$GITHUB_SHA" '.sha == $sha'
       - name: The maintenance page is in the image
         run: docker run --rm --entrypoint test caddy:ci -f /srv/maintenance/index.html
+      # The build compressed the assets once (apps/web/scripts/precompress.mjs),
+      # for the Caddyfile's `precompressed`: the entry script, each with its .br and .gz.
+      - name: The assets are precompressed in the image
+        run: |
+          docker run --rm --entrypoint sh caddy:ci -ec '
+            for file in /srv/web/assets/index-*.js; do
+              test -s "$file.br" && test -s "$file.gz" && echo "$file: .br .gz"
+            done'
       # The Caddyfile parses (its security.txt handle included), and the entrypoint
       # writes the file from SECURITY_CONTACT, and writes none without it (docs/deployment.md).
       # Caddy's Cloudflare module checks the token's format while it provisions the
@@ -1523,10 +1341,12 @@ jobs:
             caddy:ci test -f /tmp/caddy-security/.well-known/security.txt
           docker run --rm -e CLOUDFLARE_API_TOKEN=ci caddy:ci \
             sh -c 'test ! -f /tmp/caddy-security/.well-known/security.txt'
-      # The Caddyfile's behaviour, run by the image's own Caddy: the app, and
-      # with MAINTENANCE_PAGE=on the static page (503) for the web app's paths
-      # and the API's paths untouched (caddy/caddyfile.test.mjs, which edits out
-      # the TLS block and the Docker names, and fails if an edit finds nothing).
+      # The Caddyfile's behaviour, run by the image's own Caddy: the app, its
+      # headers and compression, and with MAINTENANCE_PAGE=on the static page
+      # (503) for the web app's paths and the API's paths untouched, its
+      # responses not compressed and its event stream unbuffered
+      # (caddy/caddyfile.test.mjs, which edits out the TLS block and the
+      # Docker names, and fails if an edit finds nothing).
       - name: The Caddyfile serves the app, and the maintenance page when asked
         run: |
           docker create --name caddy-bin caddy:ci
@@ -1549,17 +1369,14 @@ jobs:
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
 
-      # Gotenberg's image (gotenberg/: the official one, pinned, made thin on
-      # top of), which renders the PDF documents: its pins agree with each other
-      # and with compose.dev.yaml, then it builds (its Debian upgrade fresh each
-      # run) and passes the same scan. Its own cache scope. Published by
-      # publish-gotenberg, as the app image is.
       - name: Export the verified image
+        if: needs.changes.outputs.publish == 'true'
         run: |
           docker save caddy:ci -o "${{ runner.temp }}/caddy.tar"
           (cd "${{ runner.temp }}" && sha256sum caddy.tar > caddy.tar.sha256)
           docker image inspect --format '{{.Id}}' caddy:ci > "${{ runner.temp }}/caddy.id"
       - name: Transfer the verified image
+        if: needs.changes.outputs.publish == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: image-caddy
@@ -1571,10 +1388,14 @@ jobs:
           if-no-files-found: error
           retention-days: 2
 
+  # Gotenberg's image (gotenberg/: the official one, pinned, made thin on
+  # top of), which renders the PDF documents: its pins agree with each other
+  # and with compose.dev.yaml, then it builds (its Debian upgrade fresh each
+  # run that can publish) and passes the same scan. Its own cache scope.
+  # Published by publish-gotenberg, as the app image is.
   gotenberg-image:
     needs: changes
-    if: >-
-      needs.changes.outputs.benchmark == 'off' && (needs.changes.outputs.gotenberg == 'true')
+    if: needs.changes.outputs.gotenberg == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -1599,6 +1420,12 @@ jobs:
             exit 1
           fi
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          # The runner is thrown away: removing the builder took 30-90 s.
+          cleanup: false
+      - name: The day (a pull request's Debian upgrade)
+        id: day
+        run: echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
       - name: Build the Gotenberg image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -1610,10 +1437,12 @@ jobs:
           tags: gotenberg:ci
           # A new value per workflow run: the Debian upgrade runs again (the
           # cache would keep the first one's packages for ever), and the
-          # publish job of the same run reuses this very build.
-          build-args: APT_REFRESH=${{ github.run_id }}
+          # publish job of the same run reuses this very build. A pull request
+          # publishes nothing: its value is the day's, so its later pushes
+          # reuse that upgrade (3-7 min) from its own cache.
+          build-args: APT_REFRESH=${{ github.event_name == 'pull_request' && format('pr-{0}', steps.day.outputs.day) || github.run_id }}
           cache-from: type=gha,scope=gotenberg
-          cache-to: type=gha,scope=gotenberg,mode=max
+          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=gotenberg,mode=max' || '' }}
       # The unit and e2e tests answer with a stub PDF, never Gotenberg's: only
       # here does the image render for real (its Go programs rebuilt, its
       # Debian packages, Chromium among them, upgraded this very run).
@@ -1653,11 +1482,13 @@ jobs:
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
       - name: Export the verified image
+        if: needs.changes.outputs.publish == 'true'
         run: |
           docker save gotenberg:ci -o "${{ runner.temp }}/gotenberg.tar"
           (cd "${{ runner.temp }}" && sha256sum gotenberg.tar > gotenberg.tar.sha256)
           docker image inspect --format '{{.Id}}' gotenberg:ci > "${{ runner.temp }}/gotenberg.id"
       - name: Transfer the verified image
+        if: needs.changes.outputs.publish == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: image-gotenberg
@@ -1676,24 +1507,17 @@ jobs:
       [
         changes,
         ci-validate,
-        compose-images,
-        compose-secrets,
-        swarm-stack,
+        stack-config,
         tooling-lint,
         check,
-        unit-api,
         unit-web,
-        coverage,
         e2e,
-        e2e-telemetry,
         e2e-web,
         feature-smoke,
         template-without-notes,
-        openapi-diff,
         security,
         image,
         backup-image,
-        hardened-stack,
         caddy-image,
         gotenberg-image,
       ]
@@ -1746,7 +1570,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
       - name: Log in to GHCR
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -1828,7 +1652,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
       - name: Log in to GHCR
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -1910,7 +1734,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
       - name: Log in to GHCR
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -1986,7 +1810,7 @@ jobs:
         run: node tools/ci/publication-gate.mjs
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
       - name: Log in to GHCR for evidence verification
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}

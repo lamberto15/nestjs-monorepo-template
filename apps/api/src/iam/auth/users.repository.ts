@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import {
   database,
@@ -33,6 +33,19 @@ import {
 import { isPlaceholderEmail } from './onboarding.js';
 import { avatarUrl } from '../account/avatar-url.js';
 import type { UserPrincipal } from './principal.js';
+import { SessionLifecycleRegistry } from './session-lifecycle.registry.js';
+import { distinctTokenSessionIds, tokenSessionId } from './token-session.js';
+
+/**
+ * The credentials a revocation here ended: the browser sessions it deleted
+ * and the `sid`s of the token families it revoked. What
+ * `afterCredentialsEnded()` tells SessionLifecycleRegistry (Realtime ends
+ * their sockets) once the revocation committed.
+ */
+export interface EndedCredentials {
+  sessionIds: string[];
+  tokenSessionIds: string[];
+}
 
 export interface UserView extends UserPrincipal {
   active: boolean;
@@ -56,6 +69,7 @@ export class UsersRepository {
   constructor(
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly quotas: TenantQuotas,
+    @Optional() private readonly sessionLifecycle?: SessionLifecycleRegistry,
   ) {
     // A seat is an active membership (invited, not yet accepted: none).
     quotas.count('members', async (db, tenantId) => {
@@ -177,9 +191,10 @@ export class UsersRepository {
    * address. The password history (earlier hashes) goes too: the row
    * stays, so its foreign key's cascade never fires. The row stays: what
    * references it (records they created) keeps pointing at an account that
-   * is nobody's.
+   * is nobody's. What it ended goes to `afterCredentialsEnded()` once `tx`
+   * committed.
    */
-  async anonymize(tx: Transaction, id: string) {
+  async anonymize(tx: Transaction, id: string): Promise<EndedCredentials> {
     await this.lockAccount(tx, id);
     await tx
       .update(users)
@@ -204,11 +219,9 @@ export class UsersRepository {
     await tx.delete(mfaAuthenticators).where(eq(mfaAuthenticators.userId, id));
     await tx.delete(mfaRecoveryCodes).where(eq(mfaRecoveryCodes.userId, id));
     await tx.delete(mfaFailures).where(eq(mfaFailures.userId, id));
-    await tx.delete(sessions).where(eq(sessions.userId, id));
-    await tx
-      .update(refreshTokens)
-      .set({ revoked: true })
-      .where(eq(refreshTokens.userId, id));
+    return this.endCredentials(tx, eq(sessions.userId, id), [
+      eq(refreshTokens.userId, id),
+    ]);
   }
 
   /** The account as its owner sees it (`GET /v1/auth/me`): no tenant's view of it. */
@@ -308,26 +321,22 @@ export class UsersRepository {
   /**
    * Ends what acts in one tenant for the user (a membership deactivated):
    * the sessions in it and the token families issued for it. Their other
-   * tenants' sessions and tokens go on.
+   * tenants' sessions and tokens go on. Called after the deactivation
+   * committed: their sockets end here too.
    */
   async endTenantSessions(userId: string, tenantId: string, db: Db = this.db) {
-    await db
-      .delete(sessions)
-      .where(
-        and(
-          eq(sessions.userId, userId),
-          sql`${sessions.metadata}->>'tenantId' = ${tenantId}`,
-        ),
-      );
-    await db
-      .update(refreshTokens)
-      .set({ revoked: true })
-      .where(
-        and(
-          eq(refreshTokens.userId, userId),
-          sql`${refreshTokens.claims}->>'tid' = ${tenantId}`,
-        ),
-      );
+    const ended = await this.endCredentials(
+      db,
+      and(
+        eq(sessions.userId, userId),
+        sql`${sessions.metadata}->>'tenantId' = ${tenantId}`,
+      ),
+      [
+        eq(refreshTokens.userId, userId),
+        sql`${refreshTokens.claims}->>'tid' = ${tenantId}`,
+      ],
+    );
+    await this.afterCredentialsEnded(ended);
   }
 
   /**
@@ -335,21 +344,25 @@ export class UsersRepository {
    * deactivates the account when no active membership remains, in any
    * tenant (the owner's decision: deactivated, never deleted; its data,
    * audit history, holds and records stay). Every session and token family
-   * of the account ends with it. Whether it was deactivated now.
+   * of the account ends with it. What it ended when it was deactivated now
+   * (for `afterCredentialsEnded()` once `tx` committed), else null.
    *
    * The caller holds the account's lock (`lockAccount`) and has written the
    * membership in `tx`: the memberships are read `for update`, so a
    * membership being turned on in another transaction (an administrator's,
    * another tenant's IdP) is waited for and counted, never missed.
    */
-  async deactivateIfNoMembership(tx: Transaction, userId: string) {
+  async deactivateIfNoMembership(
+    tx: Transaction,
+    userId: string,
+  ): Promise<EndedCredentials | null> {
     const rows = await tx
       .select({ active: memberships.active })
       .from(memberships)
       .where(eq(memberships.userId, userId))
       .for('update');
     if (rows.some((row) => row.active)) {
-      return false;
+      return null;
     }
     const changed = await tx
       .update(users)
@@ -357,14 +370,11 @@ export class UsersRepository {
       .where(and(eq(users.id, userId), eq(users.active, true)))
       .returning({ id: users.id });
     if (!changed.length) {
-      return false;
+      return null;
     }
-    await tx.delete(sessions).where(eq(sessions.userId, userId));
-    await tx
-      .update(refreshTokens)
-      .set({ revoked: true })
-      .where(eq(refreshTokens.userId, userId));
-    return true;
+    return this.endCredentials(tx, eq(sessions.userId, userId), [
+      eq(refreshTokens.userId, userId),
+    ]);
   }
 
   /**
@@ -394,16 +404,58 @@ export class UsersRepository {
   /**
    * Ends everything that acts in a tenant (the tenant deactivated): every
    * user's sessions in it and token families issued for it. Their other
-   * tenants' go on: a new sign-in starts in one of those.
+   * tenants' go on: a new sign-in starts in one of those. Called after the
+   * deactivation committed: their sockets end here too.
    */
   async endAllTenantSessions(tenantId: string, db: Db = this.db) {
-    await db
+    const ended = await this.endCredentials(
+      db,
+      sql`${sessions.metadata}->>'tenantId' = ${tenantId}`,
+      [sql`${refreshTokens.claims}->>'tid' = ${tenantId}`],
+    );
+    await this.afterCredentialsEnded(ended);
+  }
+
+  /**
+   * Deletes the sessions `sessionsWhere` matches and revokes the token
+   * families `tokensWhere` does (those still live), saying which.
+   */
+  private async endCredentials(
+    db: Db,
+    sessionsWhere: SQL | undefined,
+    tokensWhere: (SQL | undefined)[],
+  ): Promise<EndedCredentials> {
+    const deleted = await db
       .delete(sessions)
-      .where(sql`${sessions.metadata}->>'tenantId' = ${tenantId}`);
-    await db
+      .where(sessionsWhere)
+      .returning({ id: sessions.id });
+    const revoked = await db
       .update(refreshTokens)
       .set({ revoked: true })
-      .where(sql`${refreshTokens.claims}->>'tid' = ${tenantId}`);
+      .where(and(...tokensWhere, eq(refreshTokens.revoked, false)))
+      .returning({ sid: tokenSessionId });
+    return {
+      sessionIds: deleted.map(({ id }) => id),
+      tokenSessionIds: distinctTokenSessionIds(revoked),
+    };
+  }
+
+  /**
+   * After the commit of a revocation above: its sessions' and token
+   * families' realtime sockets end (SessionLifecycleRegistry, Realtime).
+   * Never inside the transaction: one that rolled back disconnects nobody.
+   */
+  async afterCredentialsEnded(ended: EndedCredentials | null | undefined) {
+    const lifecycle = this.sessionLifecycle;
+    if (!lifecycle || !ended) {
+      return;
+    }
+    await Promise.all([
+      ...ended.sessionIds.map((id) => lifecycle.afterRevocation(id)),
+      ...ended.tokenSessionIds.map((sid) =>
+        lifecycle.afterTokenRevocation(sid),
+      ),
+    ]);
   }
 
   async findView(id: string, db: Db = this.db) {

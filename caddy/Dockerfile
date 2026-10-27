@@ -6,7 +6,7 @@
 # The web app, built as apps/api/Dockerfile builds the API: the official pnpm
 # image, the store in an image layer (#480), the workspace's packages the
 # app needs (the typed client, the shared UI).
-FROM ghcr.io/pnpm/pnpm:12.15.0 AS web
+FROM ghcr.io/pnpm/pnpm:12.16.0 AS web
 WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN CI=true pnpm fetch --store-dir /pnpm-store
@@ -22,6 +22,10 @@ COPY . .
 # cacheable when a new commit changes no dependencies.
 ARG GIT_SHA=""
 RUN pnpm --filter @nestjs-monorepo-template/web... build
+# A .br and a .gz beside each asset that compresses
+# (apps/web/scripts/precompress.mjs), which the Caddyfile's `precompressed`
+# sends: compressed once here, not for each request.
+RUN pnpm --filter @nestjs-monorepo-template/web precompress
 
 FROM caddy:2.11.7-builder AS builder
 # The Cloudflare DNS plugin is pinned (v0.2.4, its newest release), so two

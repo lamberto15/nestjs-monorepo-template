@@ -69,4 +69,30 @@ describe('MailQueue', () => {
       expect.objectContaining({ error: 'object store down' }),
     );
   });
+
+  it('stops waiting for Redis when the signal aborts', async () => {
+    const { queue, add } = queueWith();
+    add.mockImplementation(() => new Promise<undefined>(() => {}));
+    const controller = new AbortController();
+    const sending = queue.send(Hello, { to: 'a@example.com' } as never, {
+      jobId: 'j1',
+      signal: controller.signal,
+    });
+    const outcome = expect(sending).rejects.toThrow('timed out');
+    await vi.waitFor(() => expect(add).toHaveBeenCalledTimes(1));
+    controller.abort(new Error('timed out'));
+    await outcome;
+  });
+
+  it('adds nothing when the signal is already aborted', async () => {
+    const { queue, add } = queueWith();
+    const controller = new AbortController();
+    controller.abort(new Error('timed out'));
+    await expect(
+      queue.send(Hello, { to: 'a@example.com' } as never, {
+        signal: controller.signal,
+      }),
+    ).rejects.toThrow('timed out');
+    expect(add).not.toHaveBeenCalled();
+  });
 });

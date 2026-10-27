@@ -219,6 +219,15 @@ workspace with Node.js 24 and pnpm 12.15.0 (the versions of `package.json`'s
 - Dependabot raises the base image; pnpm's version is raised with
   `devEngines` by hand (`PNPM_VERSION`).
 
+## Dependencies are pinned
+
+Every dependency in every `package.json` is an exact version, no `^` or `~`.
+`saveExact: true` in `pnpm-workspace.yaml` makes `pnpm add` save it that way,
+Dependabot (`versioning-strategy: increase`) raises the pinned version itself,
+and `node tools/ci/pinned-deps.mjs` (part of `pnpm lint`) fails on a range in
+`dependencies`, `devDependencies` or `optionalDependencies`. `engines`,
+`devEngines` and `peerDependencies` stay ranges.
+
 ## Commands
 
 | Command | Does |
@@ -229,10 +238,12 @@ workspace with Node.js 24 and pnpm 12.15.0 (the versions of `package.json`'s
 | `pnpm dev:api` / `pnpm start:dev` | the API and its workers alone, with reload (through Turborepo / straight through pnpm) |
 | `pnpm start:debug` | the same with the Node.js inspector (`nest start --debug --watch`) |
 | `pnpm dev:web` | the web app's dev server alone, http://localhost:5173; it proxies `/v1`, `/health`, `/files` and `/socket.io` to the API on :3000 (`apps/web/dev-proxy.ts`), so the session cookie is same-origin and a signed file link is too |
-| `pnpm build && pnpm lint && pnpm test && pnpm test:e2e` | the check before every commit (Turborepo: a task whose inputs didn't change is replayed from `.turbo/cache`) |
+| `pnpm build && pnpm lint && pnpm test && pnpm test:e2e` | the checks CI runs on every pull request; run them locally only to investigate a CI failure (Turborepo: a task whose inputs didn't change is replayed from `.turbo/cache`) |
 | `pnpm i18n:check` | the translation parity check (also run by `pnpm lint`): every locale's keys, placeholders and plural forms against `en`, web and API ([i18n](i18n-and-time.md)) |
 | `pnpm lint` | oxlint in every package (Turborepo), the translation parity check, then knip: unused files, exports and dependencies across the workspaces ([Dead code](#dead-code-knip)); `pnpm lint:code` is the first two, `pnpm knip` knip alone |
 | `pnpm format` | Prettier on the TypeScript of every package (not on Markdown, nor `packages/ui`: the shadcn CLI writes it) |
+| `pnpm format:check` | the same files, `prettier --check`: what CI runs in `check`; `pnpm format` fixes it |
+| `pnpm turbo run typecheck` | `tsc --noEmit` of `packages/ui` (it has no build); run by CI in `check` |
 | `pnpm db:generate` | a migration from the tables (after any `*.tables.ts` change) |
 | `pnpm db:generate:fixtures` | the test-only record's migrations (`apps/api/test/fixtures/drizzle`), after changing `test/fixtures/test-items` |
 | `pnpm db:check` | the migrations match the schema |
@@ -322,12 +333,12 @@ a drop fails CI.
 
 - **Locally:** `pnpm --filter @nestjs-monorepo-template/web test:cov` (or
   `api`, `api-client`); `pnpm test` stays without coverage.
-- **In CI:** `unit-api` and `unit-web` run whole `test:cov` tasks and enforce
-  each package's thresholds directly. Three-run benchmarks selected this layout
-  for lower runner consumption. An explicit `unit_layout=sharded` manual run
-  retains three shards per app and their blob reports; the `coverage` job merges
-  those reports and enforces the same thresholds. Coverage outputs are cached;
-  database and browser E2E are not. See [CI measurements](ci-runtime.md).
+- **In CI:** the API's and the packages' unit tests run as steps of `check`,
+  and the web app's in the `unit-web` job (check name "unit (web)"). Each runs
+  a whole `test:cov` task, not shards, and enforces the package's thresholds
+  directly. Three-run benchmarks selected this layout for lower runner
+  consumption. Coverage outputs are cached; database and browser E2E are not.
+  See [CI measurements](ci-runtime.md).
 - **Measure again** before raising: run `test:cov` and read the summary; set
   each threshold to the figure rounded down.
 
@@ -362,16 +373,26 @@ link, sign-out), the notes list (server paging, a filter in the URL), creating,
 viewing, editing, deleting and restoring a note, the notification bell, the
 settings page (an administrator sees it, a viewer is sent away) and an
 [axe](https://github.com/dequelabs/axe-core-npm/tree/develop/packages/playwright)
-accessibility scan of the sign-in, dashboard, notes list, note detail and
-settings pages. It is not part of `pnpm test:e2e` (the API's).
+accessibility scan of the signed-out auth pages, the dashboard, the notes
+list, a note, the settings and account pages, in the dark theme, in Arabic
+(right to left) and on a phone, and of an open dialog, popover and menu. It is
+not part of `pnpm test:e2e` (the API's).
 
 - **What it runs against:** the *built* API (`node dist/main`) and the *built*
   web app, served by `vite preview`, which proxies `/v1` to the API as Caddy
   does in production (`preview.proxy` in `apps/web/vite.config.ts`). One
-  origin, so the `__Host-sid` cookie works; no CORS, no Vite dev server. The
-  Caddy image would add a build of Caddy with its plugin for nothing the tests
-  check (it serves the same `dist`); its own image is built and scanned in CI
-  (`caddy-image`).
+  origin, so the `__Host-sid` cookie works; no CORS, no Vite dev server.
+  The Caddy image would add a build of Caddy with its plugin for nothing else
+  the tests check (it serves the same `dist`); its own image is built and
+  scanned in CI (`caddy-image`).
+- **The production CSP isn't sent here.** `test/fixtures.ts`'s context still
+  listens for a `securitypolicyviolation` on every page (a worker's own don't
+  reach it) and fails the test with what was refused, but `vite preview` stopped
+  sending Caddy's headers when `apps/web/preview-headers.ts` was removed with
+  the browser analytics feature it also served (#776): the listener is dead
+  code until it either gets a header source again or is removed.
+  `caddy/caddyfile.test.mjs` (deployment.md, "The web app's security headers")
+  is the one place this policy is checked.
 - **Ports:** the API on **3300** and the web app on **4173**, never 3000 and
   5173, so the suite runs beside `pnpm dev`. Nothing it uses is the default
   stack's but PostgreSQL and Redis (see below).
@@ -404,17 +425,31 @@ settings pages. It is not part of `pnpm test:e2e` (the API's).
   A database seeded earlier prints nothing: the file from that run stays, or
   `E2E_CREDENTIALS` names another. Lost it: drop the database's volume.
 - **Accessibility:** serious and critical axe violations (WCAG 2.0/2.1 A and
-  AA) fail the test; every finding is attached to it and listed in the job
-  summary (`node apps/web-e2e/scripts/axe-summary.mjs` prints the same after a
-  run). A real finding is fixed in the web app; one that can't be yet gets
-  an issue, and only then a `disableRules()` in `test/fixtures.ts` naming it.
+  AA) fail the test, and so do the rules in `LANDMARK_RULES`
+  (`test/fixtures.ts`): the best-practice ones for one `<main>`, a level-1
+  heading, content inside landmarks and a working skip link
+  (`landmark-one-main`, `landmark-no-duplicate-main`, `page-has-heading-one`,
+  `region`, `skip-link`, `bypass`). The other best-practice findings are only
+  listed. Every finding is attached to the test and listed in the job summary
+  (`node apps/web-e2e/scripts/axe-summary.mjs` prints the same after a run).
+  A real finding is fixed in the web app; one that can't be yet gets an issue,
+  and only then a `disableRules()` in `test/fixtures.ts` naming it. A rule is
+  added to `LANDMARK_RULES` once it passes on every scanned page.
+  `expectAccessible(page, name)` waits for the finite animations to end first;
+  `{ scope: '[role="dialog"]' }` scans only an open overlay (the page behind a
+  modal is inert, and the page-level rules are covered by the page's own
+  scan). The dark theme and Arabic are set the way the app remembers them
+  (`localStorage`), or by answering `GET /v1/auth/me` with `locale: 'ar'`, so
+  no test changes the shared account. Unit tests of the same behaviour
+  (`apps/web/src/test/navigation-a11y.test.tsx`): [monorepo](monorepo.md),
+  "Accessibility".
 - **In CI:** the `e2e-web` job of `.github/workflows/ci.yml`, on every pull
   request, beside the API's e2e shards: its own PostgreSQL and Redis service
   containers, the database marked as a development one, Turborepo's cache for
-  the builds, Chromium cached by Playwright's version
-  (`~/.cache/ms-playwright`; the system libraries installed with
-  `--with-deps`), one retry. On a failure the HTML report and the traces
-  (`playwright-report` artifact, 14 days) are uploaded.
+  the builds, the runner's own Google Chrome (`E2E_BROWSER_CHANNEL=chrome`:
+  no browser download and no apt; unset, as locally, Playwright's Chromium),
+  one retry. When an attempt failed, a retried one included, the HTML report
+  and the traces (`playwright-report` artifact, 14 days) are uploaded.
 
 ## Load tests
 
@@ -614,15 +649,16 @@ pages, ETags. Usage, the bell-icon recipe included:
 - `pnpm client:check` regenerates both in a temporary directory and fails
   when the committed ones differ; `apps/api/test/api-client.e2e-spec.ts` also fails
   when the committed document isn't what the app serves.
-- **Breaking changes:** on a pull request, CI's `openapi-diff` job compares the
+- **Breaking changes:** on a pull request with API changes, a step of CI's
+  `check` job ("Breaking changes in the OpenAPI document") compares the
   committed `openapi.json` with the base branch's using
   [oasdiff](https://github.com/oasdiff/oasdiff). `client:check` only catches
   drift; this catches what breaks a client: removed endpoints, fields and
-  enum values, a new required parameter, a tightened request. The job's
+  enum values, a new required parameter, a tightened request. The step's
   summary lists the breaking changes (errors and warnings) and the full
   changelog. A pull request without a base document (the first one) passes.
 - **Report-only for now:** breaking changes are accepted while the template
-  has no adopters, so the job never fails on them. Once the first project is
+  has no adopters, so the step never fails on them. Once the first project is
   built on the template, make it blocking: set `OASDIFF_FAIL_ON: ERR` in
   `.github/workflows/ci.yml` (`WARN` also fails on warnings). A deliberate
   break then ships as a new version (`/v2` next to `/v1`,

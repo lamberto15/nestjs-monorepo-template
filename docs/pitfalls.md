@@ -111,8 +111,8 @@
   the e2e suite, which starts the SDKs before it loads the app, looked fine.
   `main.ts` loads the app with `await import()` after the SDKs; a static
   import there brings the bug back (`node apps/api/test/telemetry-stub.mjs boot`,
-  CI's `e2e-telemetry`, starts the built app and fails on it). The SDKs also
-  run before the environment is validated, so a secret they use read from
+  the last step of CI's `e2e-web`, starts the built app and fails on it). The
+  SDKs also run before the environment is validated, so a secret they use read from
   its `_FILE` is read by them (`secretValue()`), not left to ConfigModule.
 
 - **`Promise.all` of two queries takes two connections** (a page and its
@@ -126,6 +126,14 @@
   limit, then `disconnect()`). `main.ts` also exits after 25 s (api) / 55 s
   (worker, all) whatever hangs: keep these under Compose's
   `stop_grace_period` (30 s / 60 s) if you change either.
+  The queues' producer connections have no offline queue, so their QUIT is
+  rejected while Redis is away: `closeWhenRedisIsDown()` drops them instead.
+
+- **Redis commands that must not wait:** the shared clients wait for Redis
+  (`maxRetriesPerRequest: null`), so a request-path read of a cache or
+  counter hangs while it is down. Use `redisWithin()` (fails at once when
+  not connected, after a timeout when silent) and fall back, as settings
+  and usage do. Queues need nothing: their connection already fails fast.
 
 - **Shutdown order: queue workers before dispose().** Nest closes the HTTP
   server and socket.io (the Redis adapter's connections) before

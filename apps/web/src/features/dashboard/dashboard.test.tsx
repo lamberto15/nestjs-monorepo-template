@@ -24,7 +24,8 @@ function useData(seen: string[] = []) {
           {
             key: 'dashboard.layout',
             label: 'Dashboard layout',
-            description: 'Which dashboard cards you hide and the order you prefer.',
+            description:
+              'Which dashboard cards you hide and the order you prefer.',
             flag: false,
             scopes: ['user'],
             public: true,

@@ -11,7 +11,7 @@ subject, which records carry, show and are filtered by.
 export class NoteTags implements TagTarget {
   readonly subject = 'Note';
   constructor(private readonly notes: NotesService, private readonly policy: NotePolicy, registry: TagsRegistry) { registry.register(this); }
-  async canTag(p, id) { return this.policy.update(p, await this.notes.findOne(id)); }   // 404 when missing
+  async canTag(p, id) { return this.policy.update(p, await this.notes.findOne(id, undefined, { visibleTo: p })); } // 404 when missing or unreadable; false: 403
 }
 // its list: ?tag=<id>, ?tag.in=<id>,<id> (an EXISTS on record_tags)
 export const NOTE_LIST = listQuery({ ...tagFilter('Note', notes.id), … });
@@ -53,5 +53,6 @@ color picker, `#rrggbb`; "Remove the color" sends `null`) and describes
 field); Delete asks first and says every record of the subject loses the tag.
 The tag routes take no ETag, so there is no `If-Match` and no 412: the last
 write wins. Tags are still created in a record's tag editor. A change refreshes
-the tag lists (`['tags', …]`) and the record lists and details (`['list', …]`,
-`['record', …]`), which embed tags by name.
+the tag lists (`['tags', …]`) and the record lists and details
+(`recordKeys.allLists`, `recordKeys.allDetails` in `lib/records.ts`), which embed
+tags by name.

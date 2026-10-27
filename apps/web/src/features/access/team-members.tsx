@@ -165,7 +165,7 @@ export function TeamMembers(props: { teamId: string }) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>{t('users.columns.member')}</TableHead>
+            <TableHead>{t('teams.columns.member')}</TableHead>
             <TableHead>
               <span className="sr-only">{t('actions')}</span>
             </TableHead>

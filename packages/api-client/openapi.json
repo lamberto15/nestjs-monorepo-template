@@ -21745,6 +21745,70 @@
         ]
       }
     },
+    "/v1/client-errors": {
+      "post": {
+        "description": "The report id shown to the user, where it was heard, its message and stack, and the route. Logged, never stored.",
+        "operationId": "ClientErrorsController_report_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 32
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "uncaught",
+                      "caught",
+                      "recoverable",
+                      "window",
+                      "rejection",
+                      "request",
+                      "route"
+                    ]
+                  },
+                  "message": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "stack": {
+                    "type": "string",
+                    "maxLength": 8000
+                  },
+                  "path": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "id",
+                  "source",
+                  "message",
+                  "path"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Logged."
+          }
+        },
+        "summary": "Report a web app error it did not expect",
+        "tags": [
+          "client errors"
+        ]
+      }
+    },
     "/v1/webhooks/mail/{provider}": {
       "post": {
         "description": "`postmark`: a Bounce, SpamComplaint or Delivery webhook (JSON) carrying POSTMARK_WEBHOOK_SECRET as the Basic Auth password or in X-Postmark-Webhook-Secret. `resend`: a Svix-signed webhook (`email.bounced`, `email.complained`, `email.delivered`), verified with RESEND_WEBHOOK_SECRET. `sendgrid`: the signed Event Webhook (a JSON array), verified with SENDGRID_WEBHOOK_PUBLIC_KEY. `ses`: an SNS HTTP(S) notification (JSON, sent as text/plain) from one of SES_SNS_TOPIC_ARNS, signed by SNS (SignatureVersion 1 or 2). A `SubscriptionConfirmation` from an allowed topic is confirmed; a `Notification` carrying SES bounces, complaints or deliveries is queued for the suppression list. Nothing is written in the request.",

@@ -5,7 +5,7 @@ import { memberships, userRoles, users } from '../src/iam/iam.tables.js';
 import { SSO_TXT_RESOLVER } from '../src/iam/sso/sso.queue.js';
 import { fakeDns, verifyDomain } from './sso-support.js';
 import { testItems } from './fixtures/test-items/test-items.tables.js';
-import { bootApp, type TestApp } from './support.js';
+import { bootApp, connect, type TestApp } from './support.js';
 
 const DOMAIN = 'acme.test';
 const USER = 'urn:ietf:params:scim:schemas:core:2.0:User';
@@ -323,6 +323,68 @@ describe('SCIM provisioning (e2e)', () => {
 
     const account = async (id: string) =>
       (await node.db.select().from(users).where(eq(users.id, id)))[0];
+
+    it('DELETE ends the live connection of a token signed in outside any tenant', async () => {
+      // A member whose membership an administrator turned off: their token
+      // then acts in no tenant (no `tid`), its socket in no tenant's room,
+      // only the account's. The IdP then provisions and deprovisions them.
+      const email = `${randomUUID().slice(0, 8)}@${DOMAIN}`;
+      const password = await node.acceptAsNew(
+        await node.invite(node.admin(), {
+          email,
+          name: 'Ada',
+          roleIds: await node.roleIds('editor'),
+        }),
+      );
+      const id = (
+        await (
+          await node.signIn(email, password)
+        )
+          .get('/v1/auth/me')
+          .expect(200)
+      ).body.user.id as string;
+      await node
+        .admin()
+        .patch(`/v1/access/users/${id}`)
+        .send({ active: false })
+        .expect(204);
+      const { accessToken } = (
+        await node
+          .http()
+          .post('/v1/auth/token')
+          .send({ email, password })
+          .expect(200)
+      ).body as { accessToken: string };
+      const socket = await connect(node, accessToken);
+      try {
+        const me = await socket.emitWithAck('whoami');
+        expect(me.tenantId).toBeNull();
+        expect(
+          (me.rooms as string[]).filter((room) => room.startsWith('tenant:')),
+        ).toEqual([]);
+        const user = JSON.parse(
+          (
+            await as(scim)
+              .post(
+                '/Users',
+                newUser({
+                  userName: email,
+                  emails: [{ value: email, primary: true }],
+                }),
+              )
+              .expect(201)
+          ).text,
+        );
+        const ended = new Promise<string>((resolve) =>
+          socket.once('disconnect', resolve),
+        );
+        // Its last membership: the account is deactivated, its families revoked.
+        await as(scim).delete(`/Users/${user.id}`).expect(204);
+        expect(await ended).toBe('io server disconnect');
+      } finally {
+        socket.disconnect();
+      }
+    });
 
     it('DELETE ends every session and token, refuses sign-in, keeps the data; POST brings the same account back', async () => {
       const person = await member();

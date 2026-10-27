@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
+  INVITATION_LIMITS,
   invalidateAccess,
   invite,
   rolesQuery,
@@ -80,7 +81,12 @@ function InviteForm(props: { onDone: () => void }) {
     validators: {
       onSubmit: z.object({
         email: z.email(t('invitations.errors.email')),
-        name: z.string().max(120),
+        name: z.string().max(
+          INVITATION_LIMITS.name,
+          t('invitations.errors.nameTooLong', {
+            max: INVITATION_LIMITS.name,
+          }),
+        ),
         grants: z
           .record(z.string(), z.string())
           .refine(

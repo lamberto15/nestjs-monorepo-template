@@ -114,13 +114,15 @@ export const INVOICE = defineRecord({
   records stay without a number). Both are done by `RecordLifecycle`, so the
   generated service changes with neither.
 
-  Texts go to every locale in English (each locale's plural forms); the
-  command lists the keys to translate. Generated texts start in English in
-  every language, the web app's `locales/<lng>/<name>.json` included: translate
-  the `de`, `ar`, `zh` and `ms` values by hand, keeping keys, `{{placeholders}}`
-  and plural suffixes (`apps/api/src/i18n/catalogs.spec.ts` and
-  `apps/web/src/locales.test.ts` check them), and have a native speaker
-  review the result.
+  Texts go to every locale of the API in English (each locale's plural
+  forms); the command lists the keys to translate. Generated texts start in
+  English in every language: translate the `de`, `ar`, `zh` and `ms` values by
+  hand, keeping keys, `{{placeholders}}` and plural suffixes
+  (`apps/api/src/i18n/catalogs.spec.ts` checks them), and have a native
+  speaker review the result. The command writes the API's catalogs only: the
+  web app's `locales/<lng>/<name>.json` are part of the web page you write by
+  hand (docs/monorepo.md, "Adding a page for a feature"), checked by
+  `apps/web/src/locales.test.ts`.
 
 - **Approvals (`--approvals publish,markPaid`, or `approvals` in the
   declaration)** and **settings (`--settings "paymentDays:int=30,autoSend:flag"`,
@@ -357,8 +359,10 @@ the controller (`notes.*`); singular for what describes one record
      sql`lower(${t.name})` `` (an order that ignores case; index that
      expression). The page then selects `list.sortSelect(query)` next to the
      row for the cursor, and `list.pick()` drops it (as `NotesService.findPage`).
-   - The page (as `NotesService.findPage`): `and(access.sqlFilter(…),
-     list.where(query))`, ordered by `pageOrder(table.id, query)`,
+   - The page (as `NotesService.findPage(user, list, query)`: the service
+     composes the filters, the controller passes the parsed query and imports
+     nothing from `drizzle-orm`, which oxlint enforces for `*.controller.ts`):
+     `and(access.sqlFilter(…), list.where(query))`, ordered by `pageOrder(table.id, query)`,
      `.offset(pageOffset(query))`, `countPage()` beside it, `toPage()`.
      Then `access.redactAll()` on the items, and `list.pick(page, query)` last.
    - Described to clients at `GET /v1/lists/<Subject>` (filters, operators,
@@ -411,7 +415,10 @@ the controller (`notes.*`); singular for what describes one record
     `MAX_TEXT_LENGTH` (the body limit); the response never carries
     `tenantId`.
    - `@Can()` on the route, or a check on the loaded record; field-level
-     checks on writes (`field_forbidden`).
+     checks on writes (`field_forbidden`). A route on one record finds it
+     with `findOne(id, undefined, { visibleTo: user })`, so one the caller
+     may not read is the 404 of a missing one; the action's check after it
+     is the 403 ([permissions.md](permissions.md), "A record you may not read is a 404").
    - `@ApiOperation`, `@Api*Response` with the Zod schemas; errors are
      problem details (throw Nest's exceptions with a `code`).
    - **Record-level routes are declared, not written.** The platform builds
@@ -502,7 +509,6 @@ scope of the packages, `API_TITLE` in `apps/api/src/openapi.ts`,
 pnpm feature:remove notes   # --dry-run shows what goes
 pnpm db:generate
 pnpm client:generate
-pnpm build                  # first: the web's build regenerates its route tree
 ```
 
 `pnpm feature:remove <name>` removes any feature the same way: its folder,
@@ -516,17 +522,18 @@ for a feature"): `apps/web/src/features/<name>/` (its queries, forms, nav
 entry and tests), `routes/_app/<name>/`, `locales/<lng>/<name>.json`, and its
 names in the shared texts (`search.json`'s `subjects.<Subject>`,
 `settings.json`'s `groups.<name>`, `approvals.json`'s `actions.<Subject>`).
-The router's plugin then rewrites `routeTree.gen.ts` on the next build or
-`pnpm dev:web`. It refuses while another feature refers to it, or another web
-file imports from its folder. On a live database, dropping a table is a
+The command regenerates `routeTree.gen.ts` itself (TanStack Router's
+generator, the Vite plugin's), so no build is needed first. It refuses while
+another feature refers to it, or another web file imports from its folder. On a live database, dropping a table is a
 contract step: release the code that no longer uses it first
 (docs/development.md, migrations).
 
 Nothing else depends on a feature: the platform's own tests run on a
 test-only record (`apps/api/test/fixtures/test-items`, made by the generator,
 its migrations in `test/fixtures/drizzle`, `pnpm db:generate:fixtures`), and
-CI's `template-without-notes` job removes notes on every change and runs
-everything. The web app's shared tests do the same: they mount the shared
+CI checks it: every pull request removes notes and fails on a reference left
+behind (`check`), and the `template-without-notes` job (nightly, tags) builds
+and runs everything without them. The web app's shared tests do the same: they mount the shared
 components alone (`renderComponent()`) on a test-only subject (`TestItem`),
 and the tests of a feature's pages sit in its folder. A feature's own tests live in `test/<name>.e2e-spec.ts` or
 `test/features/<name>/`, with their helpers next to them.

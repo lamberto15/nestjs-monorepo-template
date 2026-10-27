@@ -227,16 +227,14 @@ export const coreEnv = z.object({
   SENTRY_TRACES_SAMPLE_RATE: optional(),
   /** Off for the docs at /api in production. */
   OPENAPI: flag('on'),
-  /** Default data import limit, in bytes; tenant settings can override it. */
+  /** Data import size ceiling, in bytes; settings may only lower it. */
   IMPORT_MAX_BYTES: z.coerce
     .number()
     .int()
     .positive()
     .default(50 * 1024 * 1024),
-  /** Default data import row limit; tenant settings can override it. */
+  /** Data import row ceiling; settings may only lower it. */
   IMPORT_MAX_ROWS: z.coerce.number().int().positive().default(1_000_000),
-  /** Disk-backed scratch directory for staged and expanded data imports. */
-  IMPORT_TEMP_DIR: pathWithDefault('.data/import-scratch'),
   /**
    * Seal sorted lists' cursors (`nextCursor`, core/http/cursor-seal.ts): keys
    * newest first, comma-separated. Unset: created once, kept in the database.
@@ -266,6 +264,12 @@ export const coreEnv = z.object({
       'at least 16 characters (openssl rand -hex 24)',
     ),
   ),
+  /**
+   * Jobs the mail queue's worker runs at once in this process. Every queue
+   * has one such variable, `QUEUE_CONCURRENCY_<QUEUE NAME>` (dashes as
+   * underscores), declared in its own group; QueueWorkers applies them.
+   */
+  QUEUE_CONCURRENCY_MAIL: z.coerce.number().int().min(1).default(5),
 });
 
 export type CoreEnv = z.output<typeof coreEnv>;

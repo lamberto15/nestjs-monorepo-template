@@ -11,7 +11,11 @@ export function* markdownLinks(line) {
     offset += 1;
 
     const hrefStart = offset;
-    while (offset < line.length && line[offset] !== ')' && !/\s/.test(line[offset])) {
+    while (
+      offset < line.length &&
+      line[offset] !== ')' &&
+      !/\s/.test(line[offset])
+    ) {
       offset += 1;
     }
     if (offset === hrefStart) continue;

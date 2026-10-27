@@ -14,10 +14,59 @@ import {
 } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { DiscoveryService } from '@nestjs/core';
-import { type ConnectionOptions, QueueBase, type Worker } from 'bullmq';
+import {
+  type ConnectionOptions,
+  type DefaultJobOptions,
+  QueueBase,
+  Worker,
+  type WorkerOptions,
+} from 'bullmq';
 import type { Redis } from 'ioredis';
 import { type Config, type CoreEnv, runsWorkers } from '../config/core.env.js';
-import { REDIS, redisOptions, redisResponds } from '../redis/redis.js';
+import { REDIS, producerRedisOptions, redisResponds } from '../redis/redis.js';
+
+/**
+ * The worker's connection from the queues' (producer) options: the offline
+ * queue back on and `maxRetriesPerRequest: null`, which a worker needs to
+ * wait out a Redis outage (https://docs.bullmq.io/guide/going-to-production).
+ * BullMQ forces the latter on a worker's blocking connections anyway, but
+ * prints a warning for every one when the options say otherwise.
+ */
+export function workerConnection(
+  connection: WorkerOptions['connection'],
+): WorkerOptions['connection'] {
+  // A client instance is the caller's own: leave it.
+  if (!connection || typeof connection !== 'object' || 'status' in connection) {
+    return connection;
+  }
+  return {
+    ...connection,
+    enableOfflineQueue: true,
+    maxRetriesPerRequest: null,
+  } as ConnectionOptions;
+}
+
+/**
+ * The class @nestjs/bullmq creates a `@Processor`'s worker from
+ * (`BullModule.workerClass`, its documented hook): one root connection
+ * serves queues and workers there, so the worker takes its own options here.
+ */
+export class QueueWorker extends Worker {
+  constructor(
+    name: string,
+    processor: ConstructorParameters<typeof Worker>[1],
+    options?: WorkerOptions,
+  ) {
+    super(
+      name,
+      processor,
+      options && {
+        ...options,
+        connection: workerConnection(options.connection),
+      },
+    );
+  }
+}
 
 /**
  * BullMQ on Redis (@nestjs/bullmq): work that doesn't belong in a request
@@ -33,23 +82,105 @@ import { REDIS, redisOptions, redisResponds } from '../redis/redis.js';
  * waits for days is a workflow; heavy or slow work started on demand is a
  * queue job.
  */
-export const queueRoot = () =>
-  BullModule.forRootAsync({
+/** Every queue's job defaults (a queue's own `defaultJobOptions` replaces them wholesale, so spread these). */
+export const DEFAULT_JOB_OPTIONS: DefaultJobOptions = {
+  attempts: 3,
+  backoff: { type: 'exponential', delay: 1000 },
+  // Finished jobs stay a while, for the ops view and debugging.
+  removeOnComplete: { age: 24 * 3600, count: 1000 },
+  removeOnFail: { age: 7 * 24 * 3600 },
+};
+
+/**
+ * The mail queue's defaults. A finished mail job stays as the `jobId`
+ * duplicate guard: adding a job whose id exists is a no-op, so a dead letter
+ * replayed (or an abandoned add resent) while the finished job is kept
+ * can't send a second mail. With the defaults' 24 h / 1,000 jobs that
+ * guard lapsed quickly on a busy deployment. Mail keeps its finished jobs
+ * 7 days, capped at 50,000: the price is Redis memory (a job holds the
+ * rendered mail, a few KB: tens of MB at the cap), and the cap, not the
+ * age, binds only above ~7,000 mails a day. Not forever: an idempotency
+ * table would cost a write per mail for a replay that comes within days.
+ */
+export const MAIL_JOB_OPTIONS: DefaultJobOptions = {
+  ...DEFAULT_JOB_OPTIONS,
+  removeOnComplete: { age: 7 * 24 * 3600, count: 50_000 },
+};
+
+export const queueRoot = () => {
+  BullModule.workerClass = QueueWorker;
+  return BullModule.forRootAsync({
     inject: [ConfigService],
     useFactory: (config: Config<CoreEnv>) => ({
-      // The same Redis (and Sentinel failover) as the rest of the app.
-      connection: redisOptions(config) as ConnectionOptions,
+      // The same Redis (and Sentinel failover) as the rest of the app. The
+      // queues (producers) fail fast; BullMQ makes the connections of the
+      // workers it creates from these options block and wait for Redis
+      // (maxRetriesPerRequest: null), as they must.
+      connection: producerRedisOptions(config) as ConnectionOptions,
       prefix: `${config.get('REDIS_PREFIX', { infer: true })}:bull`,
-      defaultJobOptions: {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 1000 },
-        // Finished jobs stay a while, for the ops view and debugging.
-        removeOnComplete: { age: 24 * 3600, count: 1000 },
-        removeOnFail: { age: 7 * 24 * 3600 },
-      },
+      defaultJobOptions: DEFAULT_JOB_OPTIONS,
     }),
     extraOptions: { manualRegistration: true },
   });
+};
+
+/** The variable that sets a queue's concurrency: `data-transfers` is `QUEUE_CONCURRENCY_DATA_TRANSFERS`. */
+export const queueConcurrencyVariable = (queue: string) =>
+  `QUEUE_CONCURRENCY_${queue.toUpperCase().replaceAll('-', '_')}`;
+
+/**
+ * Sets each worker's concurrency from its queue's variable (each declared
+ * with its queue's group: core, iam or platform; the groups' rule keeps
+ * core from importing them, so the name is built from the queue's). A
+ * queue without a variable keeps its `@Processor` value. `@Processor`
+ * options are static decorator arguments, so the deployment's value is set
+ * on the running worker instead: `concurrency` is a settable property of
+ * BullMQ's Worker (https://docs.bullmq.io/guide/workers/concurrency).
+ */
+export function applyQueueConcurrency(
+  workers: readonly Pick<Worker, 'name' | 'concurrency'>[],
+  read: (variable: string) => unknown,
+) {
+  for (const worker of workers) {
+    const value = read(queueConcurrencyVariable(worker.name));
+    if (typeof value === 'number' && Number.isInteger(value) && value >= 1) {
+      worker.concurrency = value;
+    }
+  }
+}
+
+/**
+ * Makes `queue.close()` survive a producer connection that is down. A
+ * producer has no offline queue, so with Redis unreachable its QUIT is
+ * rejected ("Stream isn't writeable and enableOfflineQueue options is
+ * false") where an offline-queued one would just disconnect; BullMQ passes
+ * that error on, and @nestjs/bullmq's shutdown with it. Redis being gone,
+ * there is nothing to quit: the connection is dropped (which also ends its
+ * reconnect loop, so the process can exit).
+ */
+export function closeWhenRedisIsDown(
+  queue: Pick<QueueBase, 'close' | 'getBackend'>,
+) {
+  const close = queue.close.bind(queue);
+  queue.close = async () => {
+    try {
+      await close();
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        !error.message.includes('enableOfflineQueue')
+      ) {
+        throw error;
+      }
+      // Not `queue.disconnect()`: it waits for the client's 'end', which a
+      // client that is reconnecting only emits after its next attempt.
+      const backend = queue.getBackend() as unknown as {
+        connection: { client: Promise<{ disconnect(): void }> };
+      };
+      (await backend.connection.client).disconnect();
+    }
+  };
+}
 
 /**
  * Starts the consumers (and queue events) where this process runs workers,
@@ -63,11 +194,18 @@ export class QueueWorkers implements OnModuleInit, BeforeApplicationShutdown {
     private readonly registrar: BullRegistrar,
     private readonly discovery: DiscoveryService,
     @Inject(REDIS) private readonly redis: Redis,
+    private readonly config: ConfigService,
   ) {}
 
   onModuleInit() {
+    for (const queue of this.clients().others) {
+      closeWhenRedisIsDown(queue);
+    }
     if (runsWorkers()) {
       this.registrar.register();
+      applyQueueConcurrency(this.clients().workers, (key) =>
+        this.config.get<unknown>(key),
+      );
     }
   }
 
@@ -101,10 +239,14 @@ export class QueueWorkers implements OnModuleInit, BeforeApplicationShutdown {
     this.logger.warn(
       `Redis doesn't answer: closing ${workers.length} queue workers without waiting for their jobs.`,
     );
-    // Connection lost (reconnecting): BullModule's close() needs no help for
-    // queues, a QUIT with nothing queued disconnects at once; and
-    // disconnect() would wait for a ready connection, for ever. Connected
-    // but silent: the QUIT would wait for a reply, so disconnect.
+    // Connection lost (reconnecting): BullModule's close() of the queues is
+    // left to run, but only because closeWhenRedisIsDown() (onModuleInit)
+    // wraps it: the producers have no offline queue, so ioredis rejects their
+    // QUIT ("Stream isn't writeable…", Redis.js) instead of disconnecting, and
+    // unwrapped that leaves the reconnect loop running and the shutdown
+    // failing. Do not remove the wrapper. disconnect() here would wait for a
+    // ready connection, for ever. Connected but silent: the QUIT would wait
+    // for a reply, so disconnect.
     const silent = this.redis.status === 'ready';
     await Promise.race([
       Promise.allSettled([

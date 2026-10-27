@@ -112,10 +112,9 @@ describe('demo seed: notes (e2e)', () => {
       ownerId: string;
       tags: { name: string }[];
     }[];
-    expect(northwind!.tags.map((tag) => tag.name).sort((a, b) => a.localeCompare(b))).toEqual([
-      'Customer',
-      'Urgent',
-    ]);
+    expect(
+      northwind!.tags.map((tag) => tag.name).sort((a, b) => a.localeCompare(b)),
+    ).toEqual(['Customer', 'Urgent']);
     const jonas = (
       await admin
         .get(

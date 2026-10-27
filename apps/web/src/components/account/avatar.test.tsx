@@ -2,6 +2,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { personNameQuery, peopleQuery } from '@/lib/people';
 import { peopleHandler } from '@/test/people';
 import { renderApp } from '@/test/render-app';
 import { findToast } from '@/test/toast';
@@ -135,5 +136,47 @@ describe('the account picture', () => {
       }),
     );
     await findToast(/larger than 1 MB/);
+  });
+
+  it("gives the file input a visible label (axe 'label-title-only'): its clipped label alone does not count", async () => {
+    useAccount({ avatarUrl: null, puts: [] });
+    await renderApp('/account/profile');
+    await screen.findByText('Choose a picture');
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    // A <label> around the input and the button: axe takes its visible text.
+    const label = input.closest('label');
+    expect(label).not.toBeNull();
+    expect(label).toHaveTextContent('Choose a picture');
+    expect(input).toHaveAccessibleName('Picture');
+  });
+});
+
+describe('saving the profile', () => {
+  it('reads again the name others see: the directory and the pickers', async () => {
+    useAccount({ avatarUrl: null, puts: [] });
+    server.use(
+      http.patch('/v1/auth/me', () =>
+        HttpResponse.json({ ...signedInUser.user, name: 'Ada Byron' }),
+      ),
+    );
+    const { queryClient } = await renderApp('/account/profile');
+    const user = userEvent.setup();
+    const name = await screen.findByRole('textbox', { name: 'Name' });
+    // Cached with the old name: audit actors, owner cells, mention pickers.
+    const cached = [
+      personNameQuery(`user:${signedInUser.user.id}`).queryKey,
+      peopleQuery('ada').queryKey,
+    ];
+    for (const queryKey of cached) queryClient.setQueryData(queryKey, []);
+
+    await user.clear(name);
+    await user.type(name, 'Ada Byron');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await findToast('Profile saved.');
+    for (const queryKey of cached) {
+      expect(queryClient.getQueryState(queryKey)?.isInvalidated).toBe(true);
+    }
   });
 });

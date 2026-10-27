@@ -7,13 +7,13 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeRealtime, type FakeRealtime } from '@/test/fake-realtime';
 import { renderApp } from '@/test/render-app';
 import { renderComponent } from '@/test/render-component';
 import { ApprovalBanner } from './record-banner';
 import { peopleHandler } from '@/test/people';
-import { findToast } from '@/test/toast';
+import { expectNoToast, findToast } from '@/test/toast';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
 
 const connections: FakeRealtime[] = [];
@@ -242,6 +242,57 @@ describe('the nav badge', () => {
     await renderApp('/');
     const link = await screen.findByRole('link', { name: /Approvals/ });
     expect(link.parentElement).not.toHaveTextContent(/\d/);
+  });
+
+  describe('without a timer', () => {
+    afterEach(() => vi.useRealTimers());
+
+    // A timer would keep an idle session alive (docs/auth.md, "Session
+    // lifetime"); the user's input is what the API should count.
+    const input = () =>
+      act(async () => {
+        window.dispatchEvent(new Event('pointerdown'));
+      });
+    const counts = (api: ReturnType<typeof useApprovalsApi>) =>
+      api.listQueries.filter((query) => query.get('count') === 'true').length;
+
+    it('is asked again when the user does something a minute later', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      const api = useApprovalsApi({ waiting: [item()] });
+      await renderApp('/');
+      const link = await screen.findByRole('link', { name: /Approvals/ });
+      expect(await within(link.parentElement!).findByText('1')).toBeVisible();
+      const asked = counts(api);
+
+      api.waiting = [item(), item({ id: 'b' })];
+      await input();
+      expect(counts(api)).toBe(asked);
+
+      await act(async () => {
+        vi.advanceTimersByTime(60_000);
+      });
+      await input();
+      expect(await within(link.parentElement!).findByText('2')).toBeVisible();
+      expect(counts(api)).toBe(asked + 1);
+    });
+
+    it('is left to the socket when realtime is on', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      const api = useApprovalsApi({ waiting: [item()], realtime: true });
+      await renderApp('/');
+      const link = await screen.findByRole('link', { name: /Approvals/ });
+      expect(await within(link.parentElement!).findByText('1')).toBeVisible();
+      const asked = counts(api);
+
+      await act(async () => {
+        vi.advanceTimersByTime(60_000);
+      });
+      await input();
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+      expect(counts(api)).toBe(asked);
+    });
   });
 
   it('follows the socket when realtime is on', async () => {
@@ -524,6 +575,27 @@ describe('the inbox', () => {
     expect(
       await within(dialog).findByText('The end must be after the start.'),
     ).toBeVisible();
+    // The error is the input's accessible description, not only text near it.
+    expect(within(dialog).getByLabelText('Until')).toHaveAccessibleDescription(
+      'The end must be after the start.',
+    );
+    expect(api.delegations).toHaveLength(0);
+  });
+
+  it('describes the person picker by why nobody was chosen', async () => {
+    const api = useApprovalsApi();
+    const user = userEvent.setup();
+    await renderApp('/approvals');
+    await user.click(await screen.findByRole('button', { name: 'Delegate' }));
+    const dialog = await screen.findByRole('dialog');
+    const person = await within(dialog).findByRole('combobox', {
+      name: 'Delegate to',
+    });
+    expect(person).toHaveAccessibleDescription('');
+    await user.click(within(dialog).getByRole('button', { name: 'Delegate' }));
+    expect(await within(dialog).findByText('Choose a person.')).toBeVisible();
+    expect(person).toBeInvalid();
+    expect(person).toHaveAccessibleDescription('Choose a person.');
     expect(api.delegations).toHaveLength(0);
   });
 });
@@ -773,6 +845,8 @@ describe('the approval page', () => {
     server.use(http.get('/v1/approvals/:id', () => problem(404, 'not_found')));
     await renderApp(`/approvals/${REQUEST_ID}`);
     expect(await screen.findByText('Approval not found')).toBeVisible();
+    // The page says it: not a toast as well.
+    await expectNoToast();
   });
 });
 

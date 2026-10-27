@@ -1,6 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { and, eq, isNull, type SQL } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import type {
   Database,
   Transaction,
@@ -14,7 +14,7 @@ import {
   type DrizzleTransactions,
   inTransaction,
 } from '../../../src/core/database/transactions.js';
-import type { PageQuery } from '../../../src/core/http/pagination.js';
+import type { List, ListQuery } from '../../../src/core/http/list-query.js';
 import { AuditService } from '../../../src/iam/audit/audit.service.js';
 import type {
   Principal,
@@ -87,25 +87,21 @@ export class TestItemsService {
     });
   }
 
-  /** One, or a 404 (with `deleted`, one in the recycle bin). */
+  /** One, or a 404 (with `deleted`, one in the recycle bin; with `visibleTo`, only one that principal may read: else the same 404). */
   findOne(
     id: string,
     db: Database | Transaction = this.db,
-    options: { deleted?: boolean } = {},
+    options: { deleted?: boolean; visibleTo?: Principal } = {},
   ) {
     return this.records.findOne<TestItem>(id, db, options);
   }
 
   /**
-   * A page of those matching `where` (the caller's read filter, from AccessService), newest
-   * first; `extra`: sort values that aren't columns (the list's sortSelect(query)).
+   * A page of those `user` may read matching the list's query, newest first: the read
+   * filter and the query's `where` compose in RecordStore, so the controller builds no predicate.
    */
-  findPage(
-    where: SQL | undefined,
-    query: PageQuery,
-    extra: Record<string, SQL.Aliased> = {},
-  ) {
-    return this.records.findPage<TestItem>(where, query, extra);
+  findPage(user: Principal, list: List, query: ListQuery) {
+    return this.records.findPage<TestItem>(user, list, query);
   }
 
   /** Runs a read of your own on its table (exports, bulk actions, search). */

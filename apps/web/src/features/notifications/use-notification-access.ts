@@ -1,13 +1,11 @@
 import { useFeature, useMe } from '@/lib/features';
-
-/** Without realtime nothing pushes: the count and the inbox ask again this often. */
-export const pollInterval = 60_000;
+import { pollInterval } from '@/lib/realtime';
 
 /**
- * What the notifications UI may do now. `poll`: the interval to ask again at
- * (false while the socket keeps things current). `canChange`: false while an
- * administrator impersonates, since the API refuses read, read-all, delete
- * and the preferences then (docs/notifications.md, "For clients").
+ * What the notifications UI may do now. `poll`: the interval the inbox asks
+ * again at (false while the socket keeps things current). `canChange`: false
+ * while an administrator impersonates, since the API refuses read, read-all,
+ * delete and the preferences then (docs/notifications.md, "For clients").
  */
 export function useNotificationAccess() {
   const realtime = useFeature('realtime');

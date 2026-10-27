@@ -184,10 +184,13 @@ describe('exporting from a list', () => {
       within(dialog).getByRole('button', { name: 'Start the export' }),
     );
 
-    const download = await within(dialog).findByRole('button', {
+    const download = await within(dialog).findByRole('link', {
       name: 'Download (xlsx)',
     });
-    expect(download).toBeVisible();
+    expect(download).toHaveAttribute(
+      'href',
+      'https://files.test/test-items.xlsx',
+    );
     expect(within(dialog).getByText('3 rows exported.')).toBeVisible();
     expect(calls.exports).toEqual([
       { name: 'test-items', format: 'xlsx', filters: { q: 'Q3' } },
@@ -467,22 +470,12 @@ describe('your exports and imports', () => {
       await within(list).findByText('Working… 40 rows so far.'),
     ).toBeVisible();
     expect(
-      await within(list).findByRole('button', { name: 'Download (csv)' }),
-    ).toBeVisible();
+      await within(list).findByRole('link', { name: 'Download (csv)' }),
+    ).toHaveAttribute('href', 'https://files.test/done.csv');
     const bulk = await screen.findByRole('list', { name: 'Bulk runs' });
     expect(
       within(bulk).getByText('3 done, 1 failed, 1 skipped.'),
     ).toBeVisible();
-  });
-
-  it('offers the Data Explorer action for an authorized CSV export', async () => {
-    useSignedIn(ALL);
-    useTransferApi({ list: [exported('done', 'test-items')] });
-    await renderApp('/transfers');
-    const open = await screen.findByRole('link', {
-      name: 'Open in Data Explorer',
-    });
-    expect(open).toHaveAttribute('href', '/analytics?transferId=done');
   });
 
   it('pages by cursor and filters by kind on the server', async () => {
@@ -630,8 +623,8 @@ describe('your exports and imports', () => {
       name: 'Account exports',
     });
     expect(
-      await within(accounts).findByRole('button', { name: 'Download (json)' }),
-    ).toBeVisible();
+      await within(accounts).findByRole('link', { name: 'Download (json)' }),
+    ).toHaveAttribute('href', 'https://files.test/acc.json');
     expect(within(accounts).getByText('Account export')).toBeVisible();
     expect(screen.getByText('good-export')).toBeVisible();
 

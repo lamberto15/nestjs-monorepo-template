@@ -6,6 +6,7 @@ import { z } from '@/lib/zod';
 import { AuthLayout } from '@/components/auth/auth-layout';
 import { LinkResult, MissingToken } from '@/components/auth/link-result';
 import { api } from '@/lib/api';
+import { AUTH_LIMITS } from '@/lib/auth-limits';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { tokenSearchSchema } from '@/lib/link-token';
@@ -13,6 +14,7 @@ import { tokenSearchSchema } from '@/lib/link-token';
 // The reset mail's link (WEB_URL/reset-password?token=…): the page POSTs the
 // token with the new password, never on load (mail scanners follow links).
 export const Route = createFileRoute('/reset-password')({
+  staticData: { title: 'auth.reset.title' },
   validateSearch: tokenSearchSchema,
   component: ResetPasswordPage,
 });
@@ -29,8 +31,18 @@ function ResetPasswordPage() {
         .object({
           password: z
             .string()
-            .min(12, t('auth.fields.passwordTooShort', { min: 12 }))
-            .max(128),
+            .min(
+              AUTH_LIMITS.passwordMin,
+              t('auth.fields.passwordTooShort', {
+                min: AUTH_LIMITS.passwordMin,
+              }),
+            )
+            .max(
+              AUTH_LIMITS.passwordMax,
+              t('auth.fields.tooLong', {
+                max: AUTH_LIMITS.passwordMax,
+              }),
+            ),
           confirm: z.string(),
         })
         .refine((value) => value.password === value.confirm, {

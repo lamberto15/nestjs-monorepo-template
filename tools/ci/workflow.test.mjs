@@ -6,6 +6,10 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 const WORKFLOW = new URL('../../.github/workflows/ci.yml', import.meta.url);
+const WEB_WORKFLOW = new URL(
+  '../../.github/workflows/web.yml',
+  import.meta.url,
+);
 
 /** The steps of the workflow as arrays of lines. */
 function steps(text) {
@@ -83,15 +87,8 @@ test('the workflow uploads its hidden blob reports, and fails when there are non
   assert.deepEqual(problems(readFileSync(WORKFLOW, 'utf8')), []);
 });
 
-test("the coverage shards upload one app's blob directory", () => {
-  const text = readFileSync(WORKFLOW, 'utf8');
-  const shard = steps(text).find((s) =>
-    field(s, 'name')?.startsWith('coverage-'),
-  );
-  assert.ok(shard, 'the unit job uploads a coverage-* artifact');
-  assert.deepEqual(uploadPaths(shard), [
-    'apps/${{ matrix.app }}/.vitest/blob/',
-  ]);
+test('web.yml uploads the Lighthouse reports (hidden under .lighthouseci), and fails when there are none', () => {
+  assert.deepEqual(problems(readFileSync(WEB_WORKFLOW, 'utf8')), []);
 });
 
 test('a hidden path without include-hidden-files, and a glob, are reported', () => {
@@ -165,4 +162,29 @@ test('client and migration workflows do not run on unrelated pull requests', () 
       );
     }
   }
+});
+
+test('the check job typechecks packages/ui, checks formatting and the committed route tree before notes are removed', () => {
+  const text = readFileSync(WORKFLOW, 'utf8');
+  const index = (needle) => text.indexOf(needle);
+  const removal = index('pnpm feature:remove notes\n');
+  assert.ok(removal > 0, 'the notes-removal step is gone');
+  const typecheck = index('pnpm turbo run typecheck');
+  const format = index('pnpm format:check');
+  const build = index('pnpm turbo run build');
+  const tree = index('git diff --exit-code -- apps/web/src/routeTree.gen.ts');
+  for (const [name, at] of Object.entries({ typecheck, format, tree })) {
+    assert.ok(at > 0, `the ${name} step is missing`);
+    assert.ok(at < removal, `the ${name} step must run before the removal`);
+  }
+  assert.ok(typecheck < build, 'typecheck runs before the build');
+  assert.ok(tree > build, 'the route tree is compared after the web build');
+  assert.ok(
+    index('m.regenerateRouteTree(process.cwd())') < tree,
+    'the route tree is regenerated before the comparison, not read off a cached build',
+  );
+  const treeStep = steps(text).find((s) =>
+    s.some((l) => l.includes('routeTree.gen.ts')),
+  );
+  assert.equal(field(treeStep, 'if'), "needs.changes.outputs.web == 'true'");
 });

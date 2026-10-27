@@ -25,6 +25,7 @@ import { meQuery } from '@/lib/session';
 // password proves who signed up (POST /v1/auth/email/verify { token,
 // password }; docs/auth.md, "Sign-up: verify first").
 export const Route = createFileRoute('/verify-email')({
+  staticData: { title: 'auth.verify.title' },
   validateSearch: tokenSearchSchema,
   component: VerifyEmailPage,
 });

@@ -30,23 +30,28 @@ export function OnboardingEmailSection() {
       await unwrap(api.POST('/v1/auth/email/change', { body }));
     },
     meta: { errorToast: false },
+    // Its variables hold the password: dropped from the cache once reset.
+    gcTime: 0,
   });
   const form = useAppForm({
     defaultValues: { email: '', currentPassword: '' },
     validators: {
       onSubmit: z.object({
-        email: z.email(),
-        currentPassword: z.string().min(1),
+        email: z.email(t('auth.fields.emailInvalid')),
+        currentPassword: z.string().min(1, t('auth.fields.passwordRequired')),
       }),
     },
     onSubmit: async ({ value }) => {
       setError(undefined);
       try {
         await change.mutateAsync(value);
+        // The password must not outlive the request in the mutation cache.
+        change.reset();
         form.setFieldValue('currentPassword', '');
         await queryClient.invalidateQueries({ queryKey: meQuery.queryKey });
         toast.success(t('onboarding.emailSent', { email: value.email }));
       } catch (caught) {
+        change.reset();
         if (!applyFieldErrors(form, caught)) {
           setError(errorMessage(caught));
         }

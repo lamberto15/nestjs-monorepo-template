@@ -69,7 +69,8 @@
       "nameHint": "仅用于新账户；账户所有者可以更改。"
     },
     "errors": {
-      "email": "请输入有效的电子邮件地址。"
+      "email": "请输入有效的电子邮件地址。",
+      "nameTooLong": "最多 {{max}} 个字符。"
     },
     "send": "发送邀请",
     "sent": "邀请已发送至 {{email}}。",
@@ -156,7 +157,8 @@
     },
     "topLevel": "顶层",
     "errors": {
-      "nameRequired": "请输入名称。"
+      "nameRequired": "请输入名称。",
+      "nameTooLong": "最多 {{max}} 个字符。"
     },
     "create": "创建团队",
     "created": "团队已创建。",
@@ -169,6 +171,7 @@
     "deleted": "团队 {{name}} 已删除。",
     "columns": {
       "name": "团队",
+      "member": "成员",
       "members": "成员"
     },
     "notFound": "此团队不存在（或已不存在）。",
