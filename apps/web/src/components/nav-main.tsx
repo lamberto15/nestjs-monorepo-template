@@ -6,6 +6,7 @@ import {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from '@nestjs-monorepo-template/ui/components/sidebar';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
@@ -16,6 +17,7 @@ import { nav, visibleGroups, type NavItem } from '@/nav';
 
 export function NavMain() {
   const { t } = useTranslation();
+  const { setOpenMobile } = useSidebar();
   // The one place the menu is filtered (UX only: the API enforces both).
   const me = useMe();
   const settings = useQuery({ ...settingsQuery, meta: { errorToast: false } });
@@ -40,6 +42,10 @@ export function NavMain() {
           <SidebarMenuItem key={item.to}>
             <SidebarMenuButton
               tooltip={t(item.label)}
+              // On a phone the menu is a sheet over the page: close it on any
+              // tap of an entry. A click, not a change of path, so the entry
+              // of the page the user is on closes it too (desktop ignores it).
+              onClick={() => setOpenMobile(false)}
               render={
                 <Link
                   to={item.to}

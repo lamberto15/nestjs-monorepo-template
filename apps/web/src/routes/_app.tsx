@@ -64,6 +64,21 @@ export const Route = createFileRoute('/_app')({
   component: AppLayout,
 });
 
+/**
+ * Whether the sidebar starts expanded: the choice it kept in its cookie
+ * (`SIDEBAR_COOKIE_NAME` in the generated sidebar, written when the user
+ * collapses or expands it). Next.js apps read it on the server; this app has
+ * none, so the browser does. Expanded when there is none or it can't be read.
+ */
+function savedSidebarOpen() {
+  try {
+    return !document.cookie.split('; ').includes('sidebar_state=false');
+  } catch {
+    // cookies refused (a sandboxed frame): no saved choice
+    return true;
+  }
+}
+
 function AppLayout() {
   const identity = useQuery(meQuery).data;
   useEffect(() => {
@@ -81,7 +96,8 @@ function AppLayout() {
       {/* The tenant's colour on the theme; read again after a tenant switch. */}
       <BrandTheme />
       <RealtimeProvider>
-        <SidebarProvider>
+        {/* Only its starting state: the provider keeps its own after that. */}
+        <SidebarProvider defaultOpen={savedSidebarOpen()}>
           <AppSidebar />
           <SidebarInset>
             <OfflineBanner />

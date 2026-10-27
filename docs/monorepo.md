@@ -181,8 +181,10 @@ web app needs the API, so `dev:web` alone suits an API already running.
   impersonation).
 - **Routes:** `__root.tsx` (router context `{ queryClient, session }`),
   `_app.tsx` (the signed-in layout and its guard, shadcn's `sidebar-07`
-  block), `_app/index.tsx` (dashboard), the signed-out pages beside them. A
-  new page is a file there.
+  block; the sidebar starts as the user left it, from its `sidebar_state`
+  cookie, and on a phone a tap on a menu entry closes its sheet),
+  `_app/index.tsx` (dashboard), the signed-out pages beside them. A new page
+  is a file there.
 - **Menu:** a feature's entries are `features/<feature>/nav.ts` (default
   export: one entry or an array; `group`, `order`, `to`, an i18n `label`,
   `icon`, optional `feature`, `permission` (one, or a list: any of them),
@@ -396,7 +398,10 @@ pnpm dlx shadcn@4.22.0 add @diceui/<name>  # Dice UI (https://diceui.com): look 
 
 Both packages have a `components.json` with the same style, icon library
 and base colour. Prettier skips `packages/ui` and the lint rules are
-relaxed there, so a CLI update stays a clean diff.
+relaxed there, so a CLI update stays a clean diff. A change made by hand to
+a generated file carries a `Local change to the generated file` comment that
+says why, so an update shows what to keep
+(`grep -rn "Local change to the generated file" packages/ui/src`).
 
 **Rich text** (`components/markdown/`): neither Dice UI nor shadcn's registry
 has a Markdown editor, so the web app uses [Tiptap](https://tiptap.dev) (with
