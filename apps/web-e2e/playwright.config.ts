@@ -5,6 +5,26 @@ import { defineConfig, devices } from '@playwright/test';
 // the __Host-sid session cookie needs it (docs/development.md, "Browser tests").
 const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:4173';
 
+// E2E_BROWSER_CHANNEL=chrome (CI): the machine's own Google Chrome for the
+// Chromium projects (the setup project's sign-ins too) rather than
+// Playwright's Chromium, which needs a download and its system libraries from
+// apt (docs/ci-runtime.md). Unset: the bundled one. It is a project option, not
+// a global one: Firefox and WebKit have no such channel.
+const channel = process.env.E2E_BROWSER_CHANNEL || undefined;
+
+// Firefox and WebKit run the Data Explorer spec only (the engine is the part
+// of the web app that differs between browsers), and only when asked:
+// E2E_EXTRA_BROWSERS=firefox,webkit. Every other spec stays on Chromium, and a
+// plain run needs no browser besides it (docs/development.md, "Browser tests").
+const extraBrowsers = (process.env.E2E_EXTRA_BROWSERS ?? '')
+  .split(',')
+  .map((name) => name.trim())
+  .filter(Boolean);
+const engines = {
+  firefox: devices['Desktop Firefox'],
+  webkit: devices['Desktop Safari'],
+};
+
 export default defineConfig({
   testDir: './test',
   // One browser, one worker: the tests share one database, and a note one
@@ -24,22 +44,33 @@ export default defineConfig({
     // The trace of a test that failed, kept with the HTML report.
     trace: 'retain-on-failure',
     locale: 'en-US',
-    // E2E_BROWSER_CHANNEL=chrome (CI): the machine's own Google Chrome for
-    // every project (the setup project's sign-ins too) rather than
-    // Playwright's Chromium, which needs a download and its system libraries
-    // from apt (docs/ci-runtime.md). Unset: the bundled one.
-    channel: process.env.E2E_BROWSER_CHANNEL || undefined,
   },
   projects: [
     // Signs in once per role; the others reuse the saved state (storageState)
     // since the API limits sign-ins to 5 per email per 15 minutes.
-    { name: 'setup', testMatch: /auth\.setup\.ts/ },
+    { name: 'setup', testMatch: /auth\.setup\.ts/, use: { channel } },
     {
       name: 'chromium',
       dependencies: ['setup'],
       testIgnore: /auth\.setup\.ts/,
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], channel },
     },
+    // A project per extra browser (docs: playwright.dev/docs/test-projects),
+    // restricted to the analytics spec. The saved sign-in state is the
+    // setup project's, a cookie any browser takes.
+    ...extraBrowsers.map((name) => {
+      if (!(name in engines)) {
+        throw new Error(
+          `E2E_EXTRA_BROWSERS: "${name}" is not firefox or webkit`,
+        );
+      }
+      return {
+        name: `analytics-${name}`,
+        dependencies: ['setup'],
+        testMatch: /analytics\.spec\.ts/,
+        use: { ...engines[name as keyof typeof engines] },
+      };
+    }),
   ],
   webServer: [
     {

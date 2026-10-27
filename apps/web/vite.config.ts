@@ -8,6 +8,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { devProxy } from './dev-proxy.ts';
+import { caddyHeaders } from './preview-headers.ts';
 import { apiPathPattern } from './pwa-paths.ts';
 
 // The API is same-origin in development too (a proxy: dev-proxy.ts), as behind
@@ -25,7 +26,7 @@ const bundleReportFile = fileURLToPath(
   new URL('./.bundle-analysis/bundle.json', import.meta.url),
 );
 
-export default defineConfig({
+export default defineConfig(({ isPreview }) => ({
   // Discover worker-only dependencies before serving a fresh dev session.
   // Late optimization otherwise reloads the page during the first file import.
   optimizeDeps: {
@@ -142,5 +143,10 @@ export default defineConfig({
   },
   // `vite preview` (the built app, what the browser tests open) proxies the
   // same way: one origin, as behind Caddy (docs/development.md, "Browser tests").
-  preview: { proxy },
-});
+  // Also the headers Caddy adds to the app's files, Content-Security-Policy
+  // first, read from caddy/Caddyfile (preview-headers.ts): the browser tests
+  // open this server, and a script, worker or request the policy forbids
+  // fails there rather than only in production. Read for `vite preview` only:
+  // the Docker build of the app has no Caddyfile in its context.
+  preview: { proxy, headers: isPreview ? caddyHeaders() : undefined },
+}));
