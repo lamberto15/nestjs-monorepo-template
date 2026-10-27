@@ -13,3 +13,13 @@ export function findToast(text: string | RegExp) {
     return toast;
   });
 }
+
+/**
+ * No sonner toast on screen: sonner adds one a frame after the call, so this
+ * waits a little first. For an error the page states itself (a not-found
+ * view), which must not be said twice.
+ */
+export async function expectNoToast() {
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  expect(document.querySelector('[data-sonner-toast]')).toBeNull();
+}

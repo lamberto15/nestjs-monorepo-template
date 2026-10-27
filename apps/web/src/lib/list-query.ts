@@ -20,7 +20,7 @@ import {
   useQueryState,
   useQueryStates,
 } from 'nuqs';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { api } from '@/lib/api';
 import type { DataTableFeatures } from '@/lib/data-table-features';
 import {
@@ -427,6 +427,26 @@ export function useListDescription(subject: string, enabled = true) {
   });
 }
 
+/**
+ * The page and its size within what the list route serves (the description's
+ * `limits`): a `limit` outside 1..maxLimit, a page below 1 or one starting at
+ * or past row maxOffset is a 400 (`?page=0`, `?perPage=500`, page 999).
+ */
+function withinLimits(
+  page: number,
+  perPage: number,
+  limits: Partial<ListDescription['limits']>,
+) {
+  const size =
+    perPage < 1
+      ? DEFAULT_PER_PAGE
+      : Math.min(perPage, limits.maxLimit ?? perPage);
+  const last = limits.maxOffset
+    ? Math.max(1, Math.ceil(limits.maxOffset / size))
+    : page;
+  return { page: Math.min(Math.max(1, page), last), perPage: size };
+}
+
 async function fetchPage<P extends ListPath>(
   path: P,
   query: Record<string, string>,
@@ -494,11 +514,28 @@ export function useListQuery<P extends ListPath>(
   );
   const filterIds = useMemo(() => filterable.map(([id]) => id), [filterable]);
 
-  const [page, setPage] = useQueryState('page', parseAsInteger.withDefault(1));
-  const [perPage] = useQueryState(
+  const [urlPage, setPage] = useQueryState(
+    'page',
+    parseAsInteger.withDefault(1),
+  );
+  const [urlPerPage, setPerPage] = useQueryState(
     'perPage',
     parseAsInteger.withDefault(DEFAULT_PER_PAGE),
   );
+  const { page, perPage } = withinLimits(
+    urlPage,
+    urlPerPage,
+    description.limits,
+  );
+  // The URL says so too: the table's pager reads the same keys (useDataTable).
+  useEffect(() => {
+    if (urlPage !== page) {
+      void setPage(page === 1 ? null : page);
+    }
+    if (urlPerPage !== perPage) {
+      void setPerPage(perPage === DEFAULT_PER_PAGE ? null : perPage);
+    }
+  }, [urlPage, page, urlPerPage, perPage, setPage, setPerPage]);
   const [sorting] = useQueryState(
     'sort',
     getSortingStateParser(sortableIds).withDefault(defaultSorting(description)),
@@ -569,6 +606,22 @@ export function useListQuery<P extends ListPath>(
       ? (query) => refetchInterval(query.state.data?.items ?? [])
       : false,
   });
+
+  // A page with nothing on it past the first (a stale ?page=, the last row of
+  // the last page deleted): the last page there is, so the pager stays
+  // reachable rather than "nothing here" (as features/suppressions does).
+  const pageCount = result.data?.pageCount;
+  const stranded =
+    page > 1 &&
+    !result.isPlaceholderData &&
+    result.data !== undefined &&
+    result.data.items.length === 0;
+  useEffect(() => {
+    if (stranded) {
+      const last = Math.min(page - 1, Math.max(1, pageCount ?? 1));
+      void setPage(last <= 1 ? null : last);
+    }
+  }, [stranded, page, pageCount, setPage]);
 
   const search = useCallback(
     (value: string) => {

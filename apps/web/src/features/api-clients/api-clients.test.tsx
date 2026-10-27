@@ -483,6 +483,21 @@ describe('usage', () => {
     );
   });
 
+  it.each(['7', '90'] as const)(
+    'reads ?days=%s as typed in the address bar, not as 30 days',
+    async (days) => {
+      // The router parses `7` into a number (a link of the page's own writes
+      // the quoted "7"): both name the same period.
+      const state = api();
+      await renderApp(`/api-clients/usage?days=${days}`);
+      await screen.findByText('60 left today');
+      const query = state.usageQueries.at(-1)!;
+      expect({ from: query.get('from'), to: query.get('to') }).toEqual(
+        rangeFor(days),
+      );
+    },
+  );
+
   it('says so when the quota is used up', async () => {
     const state = api();
     state.clients = [client({ dailyQuota: 40 })];
