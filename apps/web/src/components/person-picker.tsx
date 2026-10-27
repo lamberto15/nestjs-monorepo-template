@@ -34,6 +34,8 @@ export function PersonPicker(props: {
   initialLabel?: string;
   placeholder?: string;
   invalid?: boolean;
+  /** The ids of the hint and the error the caller shows beside it (`useDescribedBy`). */
+  describedBy?: string;
   disabled?: boolean;
 }) {
   const { t } = useTranslation();
@@ -79,6 +81,7 @@ export function PersonPicker(props: {
           id={props.id}
           aria-label={props.label}
           aria-invalid={props.invalid}
+          aria-describedby={props.describedBy}
           placeholder={props.placeholder ?? t('people.placeholder')}
         />
         <ComboboxTrigger />

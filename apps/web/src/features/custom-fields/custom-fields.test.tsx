@@ -252,6 +252,26 @@ describe('creating a field', () => {
     expect(calls.created).toHaveLength(0);
   });
 
+  it('describes a limit by why it is refused', async () => {
+    const { calls } = useCustomFieldsApi({ can: ADMIN, fields: [] });
+    const user = userEvent.setup();
+    await renderApp('/custom-fields');
+    await user.click(
+      await screen.findByRole('button', { name: 'Add a field' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Key'), 'code');
+    await user.type(within(dialog).getByLabelText('Label'), 'Code');
+    const shortest = within(dialog).getByLabelText('Shortest length');
+    expect(shortest).toHaveAccessibleDescription('');
+    await user.type(shortest, 'abc');
+    await user.click(within(dialog).getByRole('button', { name: 'Add field' }));
+    expect(await within(dialog).findByText('Enter a number.')).toBeVisible();
+    expect(shortest).toBeInvalid();
+    expect(shortest).toHaveAccessibleDescription('Enter a number.');
+    expect(calls.created).toHaveLength(0);
+  });
+
   it('shows the API problem in the dialog, which stays open', async () => {
     const { calls, fail } = useCustomFieldsApi({ can: ADMIN, fields: [] });
     fail.next = problem(409, 'custom_field_exists', {

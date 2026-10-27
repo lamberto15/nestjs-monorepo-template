@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { Section } from '@/components/account/section';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
-import { FormAlert } from '@/lib/form';
+import { FormAlert, useDescribedBy } from '@/lib/form';
 import { useStaleDraftSession } from '@/lib/form';
 import { SourceBadge } from './source-badge';
 import { fromDraft, settingsQuery, toDraft, type Setting } from './settings';
@@ -51,6 +51,11 @@ function PreferenceRow({ setting }: { setting: Setting }) {
   const parsed = fromDraft(setting, draft);
   const dirty = draft !== toDraft(setting, setting.value);
   const hint = boundsHint(setting, t);
+  // The bounds, or why the draft is refused, describe the input (as lib/form.tsx's fields).
+  const { descriptionId, errorId, describedBy } = useDescribedBy(
+    Boolean(hint) && parsed.ok,
+    !parsed.ok,
+  );
 
   // The answer is the setting as the user now sees it: put it in the list.
   const stored = (next: Setting) => {
@@ -115,11 +120,16 @@ function PreferenceRow({ setting }: { setting: Setting }) {
           value={draft}
           onChange={setDraft}
           invalid={!parsed.ok}
+          describedBy={describedBy}
         />
         {parsed.ok ? (
-          hint && <p className="text-sm text-muted-foreground">{hint}</p>
+          hint && (
+            <p id={descriptionId} className="text-sm text-muted-foreground">
+              {hint}
+            </p>
+          )
         ) : (
-          <p className="text-sm text-destructive">
+          <p id={errorId} className="text-sm text-destructive">
             {invalidText(parsed.invalid, t)}
           </p>
         )}

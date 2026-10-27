@@ -30,6 +30,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDescribedBy } from '@/lib/form';
 import {
   initialOf,
   looseFromText,
@@ -334,6 +335,11 @@ function JsonField(props: {
     report?.(id, invalid);
     return () => report?.(id, false);
   }, [report, id, invalid]);
+  // The hint and the error take turns under the input; either describes it.
+  const { descriptionId, errorId, describedBy } = useDescribedBy(
+    Boolean(props.hint) && !invalid,
+    invalid,
+  );
   // The value changed from outside (a sibling removed, the type switched):
   // show it, unless the text already says it (typing " 5" is the value 5).
   if (shown !== seen) {
@@ -359,6 +365,7 @@ function JsonField(props: {
         id={props.id}
         value={text}
         aria-invalid={invalid}
+        aria-describedby={describedBy}
         onChange={(event) => {
           const next = event.target.value;
           setText(next);
@@ -375,11 +382,17 @@ function JsonField(props: {
         }}
       />
       {invalid ? (
-        <FieldDescription role="alert" className="text-destructive">
+        <FieldDescription
+          id={errorId}
+          role="alert"
+          className="text-destructive"
+        >
           {t('policies.invalidJson')}
         </FieldDescription>
       ) : (
-        props.hint && <FieldDescription>{props.hint}</FieldDescription>
+        props.hint && (
+          <FieldDescription id={descriptionId}>{props.hint}</FieldDescription>
+        )
       )}
     </Field>
   );

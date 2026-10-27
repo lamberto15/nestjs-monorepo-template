@@ -21,7 +21,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/errors';
-import { useStaleDraftSession } from '@/lib/form';
+import { useDescribedBy, useStaleDraftSession } from '@/lib/form';
 import {
   numberedSubjectsQuery,
   patternFields,
@@ -89,6 +89,8 @@ export function CounterDialog(props: {
   const setCounter = useSetCounter();
   const [value, setValue] = useState<string>();
   const [error, setError] = useState<string>();
+  // The hint and the error describe the counter's input (as lib/form.tsx's fields).
+  const counterInput = useDescribedBy(true, !!error);
 
   const shown = value ?? (shownCounter ? String(shownCounter.current) : '');
 
@@ -189,21 +191,26 @@ export function CounterDialog(props: {
               </dd>
             </dl>
             <Field data-invalid={!!error}>
-              <FieldLabel htmlFor="series-counter">
+              <FieldLabel htmlFor={counterInput.controlId}>
                 {t('counter.set')}
               </FieldLabel>
               <Input
-                id="series-counter"
+                id={counterInput.controlId}
                 type="number"
                 min={0}
                 step={1}
                 inputMode="numeric"
                 value={shown}
                 aria-invalid={!!error}
+                aria-describedby={counterInput.describedBy}
                 onChange={(event) => setValue(event.target.value)}
               />
-              <FieldDescription>{t('counter.hint')}</FieldDescription>
-              {error && <FieldError>{error}</FieldError>}
+              <FieldDescription id={counterInput.descriptionId}>
+                {t('counter.hint')}
+              </FieldDescription>
+              {error && (
+                <FieldError id={counterInput.errorId}>{error}</FieldError>
+              )}
             </Field>
             <DialogFooter>
               <Button

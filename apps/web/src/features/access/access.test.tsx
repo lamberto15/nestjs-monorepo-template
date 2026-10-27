@@ -2,16 +2,19 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { afterEach, describe, expect, it } from 'vitest';
+import { RoleGrantsPicker } from '@/features/access/pickers';
 import {
   bob,
   everything,
   ids,
   invitation,
+  roles,
   signedInWith,
 } from '@/features/access/test/fixtures';
 import { nav, visibleGroups } from '@/nav';
 import { principalsHandler, userPrincipal } from '@/test/principals';
 import { renderApp } from '@/test/render-app';
+import { renderComponent } from '@/test/render-component';
 import { allFeatures, server, signedInUser } from '@/test/server';
 import { findToast } from '@/test/toast';
 
@@ -91,6 +94,35 @@ describe('roles: the permission editor', () => {
     );
   });
 
+  it('describes a condition’s parameter by its hint and its problem', async () => {
+    signedInWith({ ...everything, 'Expense.approve': true });
+    const user = userEvent.setup();
+    await renderApp('/access/roles/new');
+    await user.click(
+      await screen.findByRole('checkbox', { name: /Approve expenses/ }),
+    );
+    const rule = screen.getByRole('group', { name: 'Rule 1' });
+    await user.click(
+      within(rule).getByRole('checkbox', { name: /Up to an amount/ }),
+    );
+    // An empty parameter is refused at once; the hint stays beside the reason.
+    const amount = within(rule).getByLabelText('Amount');
+    expect(amount).toBeInvalid();
+    expect(amount).toHaveAccessibleDescription(
+      'An amount in cents (minor units). Enter a value.',
+    );
+    await user.type(amount, 'ten');
+    expect(amount).toHaveAccessibleDescription(
+      'An amount in cents (minor units). A whole number of cents.',
+    );
+    await user.clear(amount);
+    await user.type(amount, '1000');
+    expect(amount).toBeValid();
+    expect(amount).toHaveAccessibleDescription(
+      'An amount in cents (minor units).',
+    );
+  });
+
   it('does not offer to grant what the user doesn’t hold', async () => {
     signedInWith({ 'Access.manageRoles': true, 'Note.read': true });
     await renderApp('/access/roles/new');
@@ -114,6 +146,33 @@ describe('roles: the permission editor', () => {
     expect(
       screen.getByText('Everything, including access control'),
     ).toBeVisible();
+  });
+});
+
+describe('grants: the role picker', () => {
+  const editor = roles.find((role) => role.id === ids.editor)!;
+  const render = (until: string) =>
+    renderComponent(
+      <RoleGrantsPicker
+        roles={[editor]}
+        value={{ [editor.id]: until }}
+        onChange={() => undefined}
+        idPrefix="test"
+      />,
+    );
+
+  it('describes the end of a grant by its hint', async () => {
+    await render('2999-01-01T09:00');
+    const until = screen.getByLabelText('Until (optional)');
+    expect(until).toBeValid();
+    expect(until).toHaveAccessibleDescription('Your local time.');
+  });
+
+  it('describes an end in the past by why it is refused', async () => {
+    await render('2020-01-01T09:00');
+    const until = screen.getByLabelText('Until (optional)');
+    expect(until).toBeInvalid();
+    expect(until).toHaveAccessibleDescription('Pick a time in the future.');
   });
 });
 
@@ -173,6 +232,27 @@ describe('users: the invitation form', () => {
     await user.paste('x'.repeat(121));
     await user.click(
       within(dialog).getByRole('button', { name: 'Send invitation' }),
+    );
+    expect(
+      await within(dialog).findByText('At most 120 characters.'),
+    ).toBeVisible();
+    expect(sent).toEqual([]);
+  });
+});
+
+describe('teams: the team form', () => {
+  it('refuses a name over 120 characters before sending', async () => {
+    signedInWith(everything);
+    const sent = capture('post', '/v1/access/teams', 201);
+    await renderApp('/access/teams');
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'New team' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByLabelText('Name'));
+    await user.paste('x'.repeat(121));
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Create team' }),
     );
     expect(
       await within(dialog).findByText('At most 120 characters.'),

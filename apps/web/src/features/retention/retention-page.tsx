@@ -25,7 +25,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { formatDateTime } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
-import { useStaleDraftSession } from '@/lib/form';
+import { useDescribedBy, useStaleDraftSession } from '@/lib/form';
 import {
   retentionRulesQuery,
   useSetRetention,
@@ -89,6 +89,8 @@ function RuleCard({ rule }: { rule: RetentionRule }) {
   const dirty = enabled !== rule.enabled || days !== String(rule.days);
   const switchId = `retention-${rule.name}-enabled`;
   const daysId = `retention-${rule.name}-days`;
+  // The hint and the error describe the days (as lib/form.tsx's fields).
+  const { descriptionId, errorId, describedBy } = useDescribedBy(true, !!error);
 
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -146,13 +148,14 @@ function RuleCard({ rule }: { rule: RetentionRule }) {
               value={days}
               onChange={(event) => setDays(event.target.value)}
               aria-invalid={error ? true : undefined}
+              aria-describedby={describedBy}
             />
-            <FieldDescription>
+            <FieldDescription id={descriptionId}>
               {t('daysHelp', { min: rule.minDays, def: rule.defaultDays })}
             </FieldDescription>
           </Field>
           {error && (
-            <p role="alert" className="text-sm text-destructive">
+            <p id={errorId} role="alert" className="text-sm text-destructive">
               {error}
             </p>
           )}

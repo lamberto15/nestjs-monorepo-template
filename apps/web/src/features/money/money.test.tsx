@@ -97,4 +97,19 @@ describe('the converter', () => {
       calls.convert.some((query) => /[,x]/.test(query.get('amount') ?? '')),
     ).toBe(false);
   });
+
+  it('describes the amount by why it is refused', async () => {
+    useMoneyApi();
+    const user = userEvent.setup();
+    await renderApp('/exchange-rates');
+    const amount = await screen.findByLabelText('Amount');
+    expect(amount).toBeValid();
+    expect(amount).toHaveAccessibleDescription('');
+    await user.clear(amount);
+    await user.type(amount, '1,5x');
+    expect(amount).toBeInvalid();
+    expect(amount).toHaveAccessibleDescription(
+      'Enter an amount such as 12.34.',
+    );
+  });
 });

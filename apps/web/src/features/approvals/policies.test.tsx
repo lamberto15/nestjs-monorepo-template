@@ -450,6 +450,9 @@ describe('editing a policy', () => {
     await user.click(range);
     await user.paste('[1,');
     expect(await within(condition).findByText('Not valid JSON.')).toBeVisible();
+    // The error is the input's accessible description (aria-describedby).
+    expect(range).toBeInvalid();
+    expect(range).toHaveAccessibleDescription('Not valid JSON.');
     expect(screen.getByRole('button', { name: 'Save policy' })).toBeDisabled();
 
     await user.clear(range);
@@ -461,6 +464,17 @@ describe('editing a policy', () => {
     await user.click(screen.getByRole('button', { name: 'Save policy' }));
     await findToast('Policy saved.');
     expect(api.puts[0]!.body.when).toEqual({ type: 'between', range: [1, 2] });
+  });
+
+  it('describes a JSON field by its hint', async () => {
+    const { user } = await open();
+    await user.click(
+      screen.getByRole('switch', { name: 'Only when a condition holds' }),
+    );
+    const condition = await screen.findByRole('group', { name: 'Condition' });
+    expect(
+      within(condition).getByLabelText('Value'),
+    ).toHaveAccessibleDescription(/^A number, text or true\/false/);
   });
 
   it('removes the condition when it is switched off', async () => {
