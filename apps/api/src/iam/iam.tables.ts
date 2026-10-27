@@ -92,46 +92,55 @@ export const apiKeys = pgTable(
  * password, sign-in methods); a tenant's administrators manage the
  * membership, never the account.
  */
-export const users = pgTable('users', {
-  id: uuidPk(),
-  email: text('email').notNull().unique(),
-  name: text('name').notNull(),
-  /**
-   * scrypt, from PasswordHasher. Never leaves UsersRepository. Null for an
-   * invited user who hasn't set one yet, or one who only signs in with a
-   * provider.
-   */
-  passwordHash: text('password_hash'),
-  /** The owner proved the address (a verification, reset or invitation link, or the provider). */
-  emailVerified: boolean('email_verified').notNull().default(false),
-  /** The language the user chose (one of LOCALES); null: the request's. */
-  locale: text('locale'),
-  /** The user's IANA time zone (`Europe/Berlin`); null: APP_TIMEZONE. */
-  timezone: text('timezone'),
-  active: boolean('active').notNull().default(true),
-  /**
-   * First administrator's onboarding (docs/auth.md, "Administrator
-   * onboarding"): the seeded address is a placeholder (or unproved) and must
-   * be replaced by a real, verified one. Cleared once it is. False for
-   * everyone else.
-   */
-  onboardingEmail: boolean('onboarding_email').notNull().default(false),
-  /** Likewise: the seeded password was generated and must be changed. */
-  onboardingPassword: boolean('onboarding_password').notNull().default(false),
-  /**
-   * The picture's file on the private disk (`accounts/<id>/avatar/<uuid>.<ext>`,
-   * PUT /v1/account/avatar); null: none. Read as `avatarUrl`, never as a key.
-   */
-  avatarKey: text('avatar_key'),
-  /**
-   * When an identity provider's deprovisioning (SCIM) ended the account's
-   * last active membership and so deactivated it; null otherwise. Only an
-   * account deactivated this way comes back when a membership does
-   * (docs/auth.md, "SCIM provisioning"): never a deleted one.
-   */
-  deprovisionedAt: at('deprovisioned_at'),
-  ...timestamps(),
-});
+export const users = pgTable(
+  'users',
+  {
+    id: uuidPk(),
+    email: text('email').notNull().unique(),
+    name: text('name').notNull(),
+    /**
+     * scrypt, from PasswordHasher. Never leaves UsersRepository. Null for an
+     * invited user who hasn't set one yet, or one who only signs in with a
+     * provider.
+     */
+    passwordHash: text('password_hash'),
+    /** The owner proved the address (a verification, reset or invitation link, or the provider). */
+    emailVerified: boolean('email_verified').notNull().default(false),
+    /** The language the user chose (one of LOCALES); null: the request's. */
+    locale: text('locale'),
+    /** The user's IANA time zone (`Europe/Berlin`); null: APP_TIMEZONE. */
+    timezone: text('timezone'),
+    active: boolean('active').notNull().default(true),
+    /**
+     * First administrator's onboarding (docs/auth.md, "Administrator
+     * onboarding"): the seeded address is a placeholder (or unproved) and must
+     * be replaced by a real, verified one. Cleared once it is. False for
+     * everyone else.
+     */
+    onboardingEmail: boolean('onboarding_email').notNull().default(false),
+    /** Likewise: the seeded password was generated and must be changed. */
+    onboardingPassword: boolean('onboarding_password').notNull().default(false),
+    /**
+     * The picture's file on the private disk (`accounts/<id>/avatar/<uuid>.<ext>`,
+     * PUT /v1/account/avatar); null: none. Read as `avatarUrl`, never as a key.
+     */
+    avatarKey: text('avatar_key'),
+    /**
+     * When an identity provider's deprovisioning (SCIM) ended the account's
+     * last active membership and so deactivated it; null otherwise. Only an
+     * account deactivated this way comes back when a membership does
+     * (docs/auth.md, "SCIM provisioning"): never a deleted one.
+     */
+    deprovisionedAt: at('deprovisioned_at'),
+    ...timestamps(),
+  },
+  (table) => [
+    // The users list's ?email.contains= / startsWith / endsWith and
+    // ?name.contains= / startsWith (ILIKE): trigrams (pg_trgm).
+    index('users_email_trgm_idx').using('gin', table.email.op('gin_trgm_ops')),
+    index('users_name_trgm_idx').using('gin', table.name.op('gin_trgm_ops')),
+  ],
+);
 
 /**
  * The hashes of an account's previous passwords (`auth.passwordHistory`,

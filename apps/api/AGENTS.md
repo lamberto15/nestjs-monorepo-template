@@ -32,7 +32,8 @@ NestJS's own building blocks, one job each, and no extra layers:
   `timestamps()`, the list declaration, routes, audit, tests. Changing one:
   edit its `<item>.record.ts`, then `pnpm feature:sync`.
 - Never hand-write migrations or DDL: change a `*.tables.ts`, run
-  `pnpm db:generate`, commit `apps/api/drizzle/`.
+  `pnpm db:generate`, commit `apps/api/drizzle/` (extensions: docs/development.md,
+  "Database").
 - **No raw SQL.** Query with Drizzle's builder and the tables' columns:
   `select`/`insert`/`update`/`delete`, `insert().select()`,
   `update().set().from()`, `onConflictDoUpdate`, and the operators (`eq`,
