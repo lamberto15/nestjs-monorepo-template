@@ -73,7 +73,6 @@ import { pageSchema } from '../../core/http/pagination.js';
 import { ApiListQuery } from '../../core/http/list-docs.js';
 import { CustomFieldsService } from '../../platform/custom-fields/custom-fields.service.js';
 import { DocumentsService } from '../../platform/documents/documents.service.js';
-import { and } from 'drizzle-orm';
 import { NOTE_LIST } from './note.list.js';
 
 /**
@@ -187,20 +186,7 @@ export class NotesController {
     await this.access.assertQueryFields(user, 'Note', query, {
       reach: query.deleted ? 'restore' : 'read',
     });
-    const page = await this.notes.findPage(
-      and(
-        // The recycle bin (?deleted=true) is for those who may restore.
-        await this.access.sqlFilter(
-          user,
-          'Note',
-          query.deleted ? 'restore' : 'read',
-          { deleted: query.deleted === true },
-        ),
-        list.where(query),
-      ),
-      query,
-      list.sortSelect(query),
-    );
+    const page = await this.notes.findPage(user, list, query);
     // Field-level: the text only for those whose permissions include it.
     // Then `fields`: after redaction, so what it hid stays hidden.
     const picked = list.pick(
@@ -249,18 +235,7 @@ export class NotesController {
     if (from.getUTCDay() !== 1) {
       throw new BadRequestException('from must be a Monday in UTC.');
     }
-    const to = new Date(from.getTime() + query.weeks * 7 * 24 * 60 * 60 * 1000);
-    const list = await this.customFields.extendList(NOTE_LIST, 'Note');
-    const filters = list.parse({
-      'createdAt.gte': from.toISOString(),
-      'createdAt.lt': to.toISOString(),
-    });
-    await this.access.assertQueryFields(user, 'Note', filters);
-    const where = and(
-      await this.access.sqlFilter(user, 'Note', 'read'),
-      list.where(filters),
-    );
-    return this.notes.weeklyCounts(where, from, query.weeks);
+    return this.notes.weeklyCounts(user, from, query.weeks);
   }
 
   @Get(':id')

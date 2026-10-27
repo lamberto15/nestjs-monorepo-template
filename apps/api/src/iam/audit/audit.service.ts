@@ -17,6 +17,8 @@ import { actorOf, type Principal } from '../auth/principal.js';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { encryptedProperties } from '../../core/encryption/encrypted-columns.js';
 import { auditLog } from '../iam.tables.js';
+import type { ListQuery } from '../../core/http/list-query.js';
+import { SIGN_IN_ENTRIES, SIGN_IN_LIST } from '../access/access.lists.js';
 import { inTenant } from '../../core/tenancy/tenant-query.js';
 import { PermissionCatalog } from '../access/permission-catalog.js';
 import { ACTOR_NAMES, type ActorNames } from './actor-names.js';
@@ -220,6 +222,11 @@ export class AuditService {
       countPage(this.db, auditLog, inTenant(auditLog.tenantId, where), query),
     ]);
     return toPage(rows, query, total);
+  }
+
+  /** A page of the tenant's sign-in entries matching the sign-in list's query, newest first. */
+  signInPage(query: ListQuery) {
+    return this.page(query, and(SIGN_IN_ENTRIES, SIGN_IN_LIST.where(query)));
   }
 
   /**
