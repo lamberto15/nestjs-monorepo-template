@@ -120,14 +120,19 @@ const fingerprintOf = (sql: string) => {
 const SLOW_QUERY_MS = 1000;
 // The client-side duration includes event-loop lag. Subtract the recent p99 lag
 // (histogram reset every 10 s) so a saturated loop does not turn queries into incidents.
+const LOOP_RESOLUTION_MS = 20;
 let loopDelay: ReturnType<typeof monitorEventLoopDelay> | undefined;
 const eventLoopLagMs = () => {
   if (!loopDelay) {
-    loopDelay = monitorEventLoopDelay({ resolution: 20 });
+    loopDelay = monitorEventLoopDelay({ resolution: LOOP_RESOLUTION_MS });
     loopDelay.enable();
     setInterval(() => loopDelay?.reset(), 10_000).unref();
   }
-  return loopDelay.percentile(99) / 1e6;
+  // Node records each full timer interval (resolution + lag), so an idle loop
+  // reads ~20 ms; only the excess is lag. No samples yet means no measured lag.
+  if (loopDelay.count === 0) return 0;
+  const lag = loopDelay.percentile(99) / 1e6 - LOOP_RESOLUTION_MS;
+  return Number.isFinite(lag) && lag > 0 ? lag : 0;
 };
 
 /**
@@ -254,7 +259,9 @@ export class DatabaseObserver {
       const slow = () => {
         if (slowRecorded) return;
         const durationMs = performance.now() - started;
-        if (durationMs - this.loopLagMs() < SLOW_QUERY_MS) return;
+        const lag = this.loopLagMs();
+        if (durationMs - (Number.isFinite(lag) ? lag : 0) < SLOW_QUERY_MS)
+          return;
         slowRecorded = true;
         this.incidents.record({
           ...evidence,
