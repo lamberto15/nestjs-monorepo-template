@@ -36,7 +36,7 @@ RUN pnpm --filter @nestjs-monorepo-template/api deploy --prod \
       --store-dir /pnpm-store /deploy/api
 
 # glibc like the pnpm image, so native modules installed above run here.
-FROM node:24.22.0-trixie-slim
+FROM node:24.22.1-trixie-slim
 # The app runs on node alone: drop the npm CLI the base image bundles. Nothing
 # uses it, and its own dependencies are what the image scan (CI) flags first.
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
