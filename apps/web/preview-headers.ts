@@ -29,7 +29,7 @@ export function caddyHeaders(
       if (/^\s*\}\s*$/.test(line)) break;
       const header = /^\s*([A-Za-z][A-Za-z-]*) "(.*)"\s*$/.exec(line);
       if (header) {
-        headers[header[1]] = header[2].replace(/\s*\{env\.[A-Z0-9_]+\}/g, '');
+        headers[header[1]] = header[2].replace(/ ?\{env\.\w+\}/g, '');
       }
     }
   }
