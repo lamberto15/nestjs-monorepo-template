@@ -461,7 +461,7 @@ tests:
               severity: warning
             exp_annotations:
               summary: 2 outbox messages were given up on
-              description: Dead letters stay until someone requeues or purges them in /v1/ops (docs/background-work.md).
+              description: Dead letters stay until someone requeues or purges them in /v1/ops, or for OUTBOX_DEAD_LETTER_RETENTION_DAYS (docs/background-work.md).
       - eval_time: 11m
         alertname: WebhookDeliveriesLagging
         exp_alerts:

@@ -134,6 +134,15 @@ export const WEBHOOK_DELIVERY_RETENTION_JOB = defineSystemJob({
   permissions: [],
 });
 
+/** OutboxRetentionJob: dead letters and inbox records older than OUTBOX_*_RETENTION_DAYS. */
+export const OUTBOX_RETENTION_JOB = defineSystemJob({
+  key: 'outbox-retention',
+  label: 'Outbox retention',
+  description:
+    "Deletes outbox dead letters older than OUTBOX_DEAD_LETTER_RETENTION_DAYS and consumers' inbox records older than OUTBOX_INBOX_RETENTION_DAYS, every night.",
+  permissions: [],
+});
+
 /** PlatformAnalyticsJob: the anonymized aggregates of analytics.platform_metrics. */
 export const PLATFORM_ANALYTICS_JOB = defineSystemJob({
   key: 'platform-analytics',
@@ -222,6 +231,7 @@ export const PLATFORM_SYSTEM_JOBS = [
   MAIL_INTAKE_JOB,
   MAIL_EVENTS_RETENTION_JOB,
   WEBHOOK_DELIVERY_RETENTION_JOB,
+  OUTBOX_RETENTION_JOB,
   PLATFORM_ANALYTICS_JOB,
   REENCRYPTION_JOB,
   RETENTION_JOB,

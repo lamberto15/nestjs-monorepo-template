@@ -48,6 +48,10 @@ export const platformEnv = z.object({
    */
   /** Outbox events the relay claims per poll. */
   OUTBOX_RELAY_BATCH_SIZE: z.coerce.number().int().min(1).default(100),
+  /** Outbox dead letters (messages given up on) older than this many days are deleted every night; requeue them before. */
+  OUTBOX_DEAD_LETTER_RETENTION_DAYS: z.coerce.number().int().min(1).default(14),
+  /** Consumers' inbox records (which messages each processed) older than this many days are deleted every night. */
+  OUTBOX_INBOX_RETENTION_DAYS: z.coerce.number().int().min(1).default(30),
   /** Outbox events the relay dispatches at once. */
   OUTBOX_RELAY_CONCURRENCY: z.coerce.number().int().min(1).default(10),
   /** Workflow instances this process executes at once. */
