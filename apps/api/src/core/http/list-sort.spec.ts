@@ -7,8 +7,7 @@ import {
   type SortBy,
 } from './list-sort.js';
 import type { FilterField } from './list-query.js';
-import { auditLog } from '../../iam/iam.tables.js';
-import { notes } from '../../features/notes/notes.tables.js';
+import { auditLog, users } from '../../iam/iam.tables.js';
 
 const dialect = new PgDialect();
 
@@ -97,7 +96,11 @@ describe('the keyset cursor shapes', () => {
   const id = '0199a000-0000-7000-8000-00000000000a';
   const fields = {
     at: { column: auditLog.at, type: 'datetime', sortable: true },
-    published: { column: notes.publishedAt, type: 'datetime', sortable: true },
+    published: {
+      column: users.deprovisionedAt,
+      type: 'datetime',
+      sortable: true,
+    },
     name: { column: sql`lower(x)`, type: 'string', sortable: true },
     size: { column: auditLog.id, type: 'number', sortable: true },
   } satisfies Record<string, FilterField>;
