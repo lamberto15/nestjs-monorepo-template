@@ -180,5 +180,6 @@
   },
   "noLimit": "Tiada had",
   "notSet": "Tidak ditetapkan",
-  "layoutSummary": "Susun atur tersuai: {{ordered}} kad disusun, {{hidden}} disembunyikan"
+  "layoutSummary": "Susun atur tersuai: {{ordered}} kad disusun, {{hidden}} disembunyikan",
+  "layoutDefault": "Susun atur standard"
 }

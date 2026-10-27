@@ -180,5 +180,6 @@
   },
   "noLimit": "No limit",
   "notSet": "Not set",
-  "layoutSummary": "Custom layout: {{ordered}} cards ordered, {{hidden}} hidden"
+  "layoutSummary": "Custom layout: {{ordered}} cards ordered, {{hidden}} hidden",
+  "layoutDefault": "Standard layout"
 }

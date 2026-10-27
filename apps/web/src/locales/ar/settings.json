@@ -180,5 +180,6 @@
   },
   "noLimit": "بلا حد",
   "notSet": "غير محدد",
-  "layoutSummary": "تخطيط مخصص: {{ordered}} بطاقات مرتبة، {{hidden}} مخفية"
+  "layoutSummary": "تخطيط مخصص: {{ordered}} بطاقات مرتبة، {{hidden}} مخفية",
+  "layoutDefault": "التخطيط القياسي"
 }

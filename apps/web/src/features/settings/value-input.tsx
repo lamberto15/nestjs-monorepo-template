@@ -163,10 +163,13 @@ export function displayValue(
   }
   if (key === 'dashboard.layout' && typeof value === 'object') {
     const { order, hidden } = value as { order?: unknown; hidden?: unknown };
-    return t('layoutSummary', {
+    const counts = {
       ordered: Array.isArray(order) ? order.length : 0,
       hidden: Array.isArray(hidden) ? hidden.length : 0,
-    });
+    };
+    return counts.ordered + counts.hidden === 0
+      ? t('layoutDefault')
+      : t('layoutSummary', counts);
   }
   return formatValue(value, t('on'), t('off'));
 }
