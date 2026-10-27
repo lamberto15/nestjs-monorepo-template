@@ -185,6 +185,19 @@ beforeEach(() => {
   );
 });
 
+/** The list page, a client "Mail relay" created there, its key's dialog open. */
+async function openNewKey() {
+  api();
+  const user = userEvent.setup();
+  const rendered = await renderApp('/api-clients');
+  await screen.findByText('Billing exporter');
+  await user.click(screen.getByRole('button', { name: 'New client' }));
+  await user.type(screen.getByLabelText('Name'), 'Mail relay');
+  await user.click(screen.getByRole('button', { name: 'Create client' }));
+  await screen.findByRole('dialog', { name: 'Copy the key of Mail relay' });
+  return rendered;
+}
+
 describe('creating a client: the key is shown once', () => {
   it('shows the key in a dialog, and nowhere after it is closed', async () => {
     const state = api();
@@ -215,14 +228,7 @@ describe('creating a client: the key is shown once', () => {
   });
 
   it('does not keep the key in the caches while the dialog is still open', async () => {
-    api();
-    const user = userEvent.setup();
-    const { queryClient } = await renderApp('/api-clients');
-    await screen.findByText('Billing exporter');
-    await user.click(screen.getByRole('button', { name: 'New client' }));
-    await user.type(screen.getByLabelText('Name'), 'Mail relay');
-    await user.click(screen.getByRole('button', { name: 'Create client' }));
-    await screen.findByRole('dialog', { name: 'Copy the key of Mail relay' });
+    const { queryClient } = await openNewKey();
     // Only the observed mutation holds it (gcTime 0): none of the queries.
     const queries = JSON.stringify(
       queryClient
@@ -234,14 +240,7 @@ describe('creating a client: the key is shown once', () => {
   });
 
   it('never shows the key to a session that changes under the dialog', async () => {
-    api();
-    const user = userEvent.setup();
-    const { queryClient } = await renderApp('/api-clients');
-    await screen.findByText('Billing exporter');
-    await user.click(screen.getByRole('button', { name: 'New client' }));
-    await user.type(screen.getByLabelText('Name'), 'Mail relay');
-    await user.click(screen.getByRole('button', { name: 'Create client' }));
-    await screen.findByRole('dialog', { name: 'Copy the key of Mail relay' });
+    const { queryClient } = await openNewKey();
 
     // Another tenant or account now (a switch here, or in another tab: the
     // session watcher runs the same reset): the dialog goes, and its key
