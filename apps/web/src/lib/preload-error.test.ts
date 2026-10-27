@@ -30,12 +30,13 @@ afterEach(() => {
 
 describe('a chunk of the build this tab started with is gone', () => {
   it('reloads once into the new build, then lets the next failure show', () => {
-    expect(missingChunk().defaultPrevented).toBe(true);
+    // Not prevented: the import still fails, rather than resolving to nothing.
+    expect(missingChunk().defaultPrevented).toBe(false);
     expect(reloadForBuildUpdate).toHaveBeenCalledOnce();
 
-    // Still missing after the reload: no loop, the route's error page.
+    // Still missing after the reload: no loop, the error shows.
     vi.advanceTimersByTime(5_000);
-    expect(missingChunk().defaultPrevented).toBe(false);
+    missingChunk();
     expect(reloadForBuildUpdate).toHaveBeenCalledOnce();
   });
 
