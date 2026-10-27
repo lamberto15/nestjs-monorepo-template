@@ -465,6 +465,24 @@ describe('querying', () => {
     expect(sent.some((sql) => sql.includes('LIMIT 2 '))).toBe(true);
   });
 
+  it('sends no SQL when the signal aborts while the Arrow helper is loading', async () => {
+    const dataset = await load();
+    const before = latest().connection.queries.length;
+    // Not aborted at the first check (before the dynamic import), aborted at the next.
+    let reads = 0;
+    const signal = {
+      get aborted() {
+        reads += 1;
+        return reads > 1;
+      },
+    } as AbortSignal;
+
+    await expect(queryDataset(dataset, {}, { signal })).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+    expect(latest().connection.queries).toHaveLength(before);
+  });
+
   it('rejects an already aborted query before it starts', async () => {
     const dataset = await load();
     const before = latest().connection.queries.length;

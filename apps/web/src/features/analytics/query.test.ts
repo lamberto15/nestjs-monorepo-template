@@ -89,7 +89,7 @@ describe('local analytics query helpers', () => {
       ).toEqual({
         total:
           'SELECT count(*) AS count FROM (SELECT "region" FROM "t" GROUP BY "region") grouped',
-        rows: 'SELECT "region", CAST(SUM("amount") AS DOUBLE) AS value FROM "t" GROUP BY "region" ORDER BY "value" ASC NULLS LAST LIMIT 100 OFFSET 0',
+        rows: 'SELECT "region", CAST(SUM("amount") AS DOUBLE) AS value FROM "t" GROUP BY "region" ORDER BY 2 ASC NULLS LAST LIMIT 100 OFFSET 0',
       });
       expect(
         buildDatasetSql('t', columns, {
@@ -99,15 +99,16 @@ describe('local analytics query helpers', () => {
       ).toContain('COUNT(*) AS value');
     });
 
-    it('casts SUM and AVG to DOUBLE so grouped integer columns stay chartable', () => {
-      const sql = (fn: 'sum' | 'avg' | 'min') =>
+    it('casts every aggregate but COUNT to DOUBLE so integers and decimals stay chartable', () => {
+      const sql = (fn: 'sum' | 'avg' | 'min' | 'max') =>
         buildDatasetSql('t', columns, {
           groupBy: 'amount',
           aggregate: { column: 'amount', fn },
         }).rows;
       expect(sql('sum')).toContain('CAST(SUM("amount") AS DOUBLE) AS value');
       expect(sql('avg')).toContain('CAST(AVG("amount") AS DOUBLE) AS value');
-      expect(sql('min')).toContain('MIN("amount") AS value');
+      expect(sql('min')).toContain('CAST(MIN("amount") AS DOUBLE) AS value');
+      expect(sql('max')).toContain('CAST(MAX("amount") AS DOUBLE) AS value');
     });
 
     it.each(['count', 'sum', 'avg', 'min', 'max'] as const)(
@@ -120,7 +121,7 @@ describe('local analytics query helpers', () => {
         expect(sql).toContain(
           fn === 'count'
             ? 'COUNT(*) AS value'
-            : `${fn.toUpperCase()}("amount")`,
+            : `CAST(${fn.toUpperCase()}("amount") AS DOUBLE)`,
         );
       },
     );
@@ -131,19 +132,24 @@ describe('local analytics query helpers', () => {
         filters: [{ column: 'region', operator: 'eq', value: "O'Hare" }],
       });
       expect(sql.rows).toContain(
-        `FROM "t" WHERE "region" = 'O''Hare' AND "amount" IS NOT NULL)`,
+        `FROM "t" WHERE "region" = 'O''Hare' AND isfinite(CAST("amount" AS DOUBLE)))`,
       );
-      expect(sql.rows).toContain('* 100 / (s.hi - s.lo)');
+      expect(sql.rows).toContain('* 100) AS INTEGER)');
       expect(sql.rows).toContain('ORDER BY bucket LIMIT 100 OFFSET 0');
       expect(sql.total).toMatch(/^SELECT count\(\*\) AS count FROM \(WITH r/);
       expect(
         buildDatasetSql('t', columns, { histogram: { column: 'amount' } }).rows,
-      ).toContain('* 20 / (s.hi - s.lo)');
+      ).toContain('* 20) AS INTEGER)');
+      expect(
+        buildDatasetSql('t', columns, {
+          histogram: { column: 'amount', bins: Number.NaN },
+        }).rows,
+      ).toContain('* 20) AS INTEGER)');
       expect(
         buildDatasetSql('t', columns, {
           histogram: { column: 'amount', bins: 0 },
         }).rows,
-      ).toContain('* 1 / (s.hi - s.lo)');
+      ).toContain('* 1) AS INTEGER)');
     });
 
     it('buckets a date column by day, week or month, with a count by default', () => {
@@ -153,7 +159,7 @@ describe('local analytics query helpers', () => {
         limit: 9_000,
       });
       expect(sql.rows).toBe(
-        `SELECT CAST(CAST(date_trunc('week', CAST("when" AS TIMESTAMP)) AS DATE) AS VARCHAR) AS bucket, COUNT(*) AS value FROM "t" WHERE "amount" > 1 AND "when" IS NOT NULL GROUP BY bucket ORDER BY bucket LIMIT 500 OFFSET 0`,
+        `SELECT CAST(CAST(date_trunc('week', CAST("when" AS TIMESTAMP)) AS DATE) AS VARCHAR) AS bucket, COUNT(*) AS value FROM "t" WHERE "amount" > 1 AND "when" IS NOT NULL GROUP BY 1 ORDER BY 1 LIMIT 500 OFFSET 0`,
       );
       expect(sql.total).toContain('FROM (SELECT CAST(CAST(date_trunc');
       expect(

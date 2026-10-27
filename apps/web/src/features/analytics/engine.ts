@@ -333,6 +333,7 @@ export function queryDataset(
     if (!info) throw new Error('The dataset has been closed.');
     if (options.signal?.aborted) throw abortedError();
     const { arrowTableRows } = await import('./arrow-rows');
+    if (options.signal?.aborted) throw abortedError();
     const sql = buildDatasetSql(info.table, info.columns, query);
     const total = await conn.query(sql.total);
     if (options.signal?.aborted) throw abortedError();
