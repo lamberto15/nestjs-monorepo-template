@@ -29,6 +29,19 @@ export interface DatabaseIncident extends IncidentEvidence {
     'pending' | 'unconfigured' | 'in_progress' | 'cooldown' | 'closed';
 }
 
+/** Log lines per fingerprint+trigger and window; metrics and listeners still see every incident. */
+const LOG_LIMIT = 5;
+const LOG_WINDOW_MS = 60_000;
+const LOG_KEYS_MAX = 500;
+
+interface LogWindow {
+  trigger: IncidentTrigger;
+  fingerprint?: string;
+  start: number;
+  logged: number;
+  suppressed: number;
+}
+
 /** Statistics only: never select query text, parameters, users or application rows. */
 const ACTIVITY = `select pid, state, query_id::text as "queryId",
   extract(epoch from (clock_timestamp() - query_start)) * 1000 as "queryAgeMs",
@@ -52,6 +65,8 @@ export class DatabaseIncidents {
   private nextCapture = 0;
   private closed = false;
   private readonly listeners = new Set<(incident: DatabaseIncident) => void>();
+  // Custom: nothing in the repo or Nest samples logs. Insertion order is window-start order.
+  private readonly logWindows = new Map<string, LogWindow>();
 
   constructor(
     private readonly stats: () => PoolStats,
@@ -98,7 +113,7 @@ export class DatabaseIncidents {
       pool: this.stats(),
       captureStatus,
     };
-    this.logger.warn('Database incident', incident);
+    this.log(incident);
     for (const listener of this.listeners) {
       try {
         listener(incident);
@@ -112,6 +127,51 @@ export class DatabaseIncidents {
       void this.capture(incident);
     }
     return incident;
+  }
+
+  /** At most LOG_LIMIT lines per key and window; a closed window logs one summary. */
+  private log(incident: DatabaseIncident) {
+    const now = Date.now();
+    const key = `${incident.trigger}:${incident.fingerprint ?? ''}`;
+    let window = this.logWindows.get(key);
+    if (window && now - window.start >= LOG_WINDOW_MS) {
+      this.summarize(window);
+      this.logWindows.delete(key);
+      window = undefined;
+    }
+    if (!window) {
+      if (this.logWindows.size >= LOG_KEYS_MAX) {
+        const oldest = this.logWindows.keys().next().value as string;
+        this.summarize(this.logWindows.get(oldest)!);
+        this.logWindows.delete(oldest);
+      }
+      window = {
+        trigger: incident.trigger,
+        fingerprint: incident.fingerprint,
+        start: now,
+        logged: 0,
+        suppressed: 0,
+      };
+      this.logWindows.set(key, window);
+    }
+    if (window.logged < LOG_LIMIT) {
+      window.logged++;
+      this.logger.warn('Database incident', incident);
+    } else {
+      window.suppressed++;
+    }
+  }
+
+  private summarize(window: LogWindow) {
+    if (window.suppressed === 0) return;
+    this.logger.warn('Database incidents suppressed', {
+      event: 'database_incident_summary',
+      trigger: window.trigger,
+      fingerprint: window.fingerprint,
+      suppressed: window.suppressed,
+      windowMs: LOG_WINDOW_MS,
+      replica: this.replica,
+    });
   }
 
   private async capture(incident: DatabaseIncident) {
@@ -197,6 +257,8 @@ export class DatabaseIncidents {
 
   async close() {
     this.closed = true;
+    for (const window of this.logWindows.values()) this.summarize(window);
+    this.logWindows.clear();
     this.listeners.clear();
     await this.monitor?.end();
   }

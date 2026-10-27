@@ -1,10 +1,5 @@
 import { HttpException, Logger } from '@nestjs/common';
-import { DatabaseSync } from 'node:sqlite';
-import { rm } from 'node:fs/promises';
-import { createWriteStream } from 'node:fs';
-import { join } from 'node:path';
-import { pipeline } from 'node:stream/promises';
-import { Transform } from 'node:stream';
+import { pipeline, Transform } from 'node:stream';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import {
   database,
@@ -41,15 +36,9 @@ import type {
   TransferJob,
   TransferResult,
 } from './data-transfer.types.js';
-import { CONTENT_TYPES, createWriter } from './formats.js';
+import { CONTENT_TYPES, createWriter, readRecords } from './formats.js';
 import { columnsOf } from './import-columns.js';
 import { LEGACY_IMPORT_LIMITS } from './import-limits.js';
-import { createImportScratchDirectory } from './import-scratch.js';
-import {
-  ImportSpoolLimitError,
-  readImportSpool,
-  spoolImportRecords,
-} from './import-spool.js';
 
 /** BullMQ's reason for a job it fails itself: stalled past `maxStalledCount` (the worker died mid-run). */
 export const STALLED_REASON = 'job stalled more than allowable limit';
@@ -378,8 +367,7 @@ export class DataTransferProcessor extends TenantWorkerHost<
     const action = job.data.matchOn ? 'update' : (importer.action ?? 'create');
     const errors: ImportRowError[] = [];
     const group: { row: number; data: Record<string, unknown> }[] = [];
-    let tempDirectory: string | undefined;
-    let seenMatches: DatabaseSync | undefined;
+    const seenMatchValues = new Set<string>();
     const limits = job.data.limits ?? LEGACY_IMPORT_LIMITS;
     let rows = 0;
     let imported = 0;
@@ -443,23 +431,15 @@ export class DataTransferProcessor extends TenantWorkerHost<
       );
     }
     try {
-      // Stage on a private, job-local directory: every format is fully
-      // parsed and counted before the first importer write can happen.
-      tempDirectory = await createImportScratchDirectory(
-        this.config.get('IMPORT_TEMP_DIR', { infer: true }),
-        'data-import',
-      );
-      const scratchDirectory = this.config.get('IMPORT_TEMP_DIR', {
-        infer: true,
-      });
-      const stagedPath = join(tempDirectory, `upload.${job.data.format}`);
-      const spoolPath = join(tempDirectory, 'normalized.ndjson');
       const { body } = await this.disk.get(job.data.key);
-      let stagedSize = 0;
+      // The job's size limit, enforced on the bytes read (the upload
+      // interceptor refused anything larger already; a spreadsheet is loaded
+      // whole, so this bounds what the worker holds in memory).
+      let readSize = 0;
       const sizeLimit = new Transform({
         transform(chunk: Buffer, _encoding, callback) {
-          stagedSize += chunk.length;
-          if (stagedSize > limits.maxBytes) {
+          readSize += chunk.length;
+          if (readSize > limits.maxBytes) {
             callback(
               new TransferRefused(
                 `The file is larger than the ${limits.maxBytes} byte limit.`,
@@ -470,56 +450,43 @@ export class DataTransferProcessor extends TenantWorkerHost<
           }
         },
       });
-      await pipeline(
-        body,
+      // pipeline, not pipe: an error of the source reaches the reader, and
+      // leaving early releases the source.
+      pipeline(body, sizeLimit, () => undefined);
+      for await (const { row, record } of readRecords(
+        job.data.format,
         sizeLimit,
-        createWriteStream(stagedPath, { mode: 0o600 }),
-      );
-      let inspected: Awaited<ReturnType<typeof spoolImportRecords>>;
-      try {
-        inspected = await spoolImportRecords(
-          job.data.format,
-          stagedPath,
-          spoolPath,
-          { dateColumns, maxRows: limits.maxRows, scratchDirectory },
-        );
-      } catch (error) {
-        if (error instanceof ImportSpoolLimitError) {
+        { dateColumns },
+      )) {
+        if (row > limits.maxRows) {
           throw new TransferRefused(
             `The file has more than the ${limits.maxRows} row limit.`,
           );
         }
-        throw error;
-      }
-      if (importer.refusedColumns) {
-        const refused = await importer.refusedColumns(
-          principal,
-          inspected.headers,
-        );
-        if (refused.length) {
+        rows = row;
+        if (row === 1 && importer.refusedColumns) {
+          // Once, on the file's columns: one no row could pass (a custom
+          // field that no longer exists) fails the import with one message
+          // instead of refusing every row.
+          const refused = await importer.refusedColumns(
+            principal,
+            Object.keys(record),
+          );
+          if (refused.length) {
+            throw new TransferRefused(
+              `Unknown columns: ${refused.join(', ')}. Check the template.`,
+            );
+          }
+        }
+        if (
+          row === 1 &&
+          job.data.matchOn &&
+          !Object.hasOwn(record, job.data.matchOn)
+        ) {
           throw new TransferRefused(
-            `Unknown columns: ${refused.join(', ')}. Check the template.`,
+            `The file is missing the match column "${job.data.matchOn}".`,
           );
         }
-      }
-      if (job.data.matchOn && !inspected.headers.includes(job.data.matchOn)) {
-        throw new TransferRefused(
-          `The file is missing the match column "${job.data.matchOn}".`,
-        );
-      }
-      if (job.data.matchOn) {
-        seenMatches = new DatabaseSync(join(tempDirectory, 'matches.sqlite'));
-        // This index is disposable scratch, rebuilt from the upload after a crash.
-        // Avoid a durability fsync for each row while keeping its cache bounded.
-        seenMatches.exec(
-          'PRAGMA journal_mode=OFF; PRAGMA synchronous=OFF; PRAGMA cache_size=-2048',
-        );
-        seenMatches.exec(
-          'CREATE TABLE seen (value TEXT PRIMARY KEY) WITHOUT ROWID',
-        );
-      }
-      for await (const { row, record } of readImportSpool(spoolPath)) {
-        rows = row;
         if (job.data.matchOn) {
           const keyValue = record[job.data.matchOn];
           const normalized = String(keyValue ?? '').trim();
@@ -533,10 +500,7 @@ export class DataTransferProcessor extends TenantWorkerHost<
             ]);
             continue;
           }
-          const insert = seenMatches!
-            .prepare('INSERT OR IGNORE INTO seen (value) VALUES (?)')
-            .run(normalized);
-          if (Number(insert.changes) === 0) {
+          if (seenMatchValues.has(normalized)) {
             refuse([
               {
                 row,
@@ -546,6 +510,7 @@ export class DataTransferProcessor extends TenantWorkerHost<
             ]);
             continue;
           }
+          seenMatchValues.add(normalized);
         }
         // Each row as one POST of the feature: its schema, the field-level
         // permissions, then the same service call (its 4xx refuses the row).
@@ -609,12 +574,6 @@ export class DataTransferProcessor extends TenantWorkerHost<
       }
       await flush();
     } finally {
-      seenMatches?.close();
-      if (tempDirectory) {
-        await rm(tempDirectory, { recursive: true, force: true }).catch(
-          () => undefined,
-        );
-      }
       // The upload was only a means: it goes, whatever happened.
       await this.disk.delete(job.data.key).catch(() => undefined);
     }

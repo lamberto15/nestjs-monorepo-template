@@ -136,6 +136,8 @@ export const iamEnv = z.object({
     .min(100)
     .max(60_000)
     .default(5000),
+  /** Jobs the SSO queue's worker runs at once in this process. */
+  QUEUE_CONCURRENCY_SSO: z.coerce.number().int().min(1).default(2),
   /** Passwordless sign-in by email link (POST /auth/magic-link). */
   AUTH_MAGIC_LINK: flag('on'),
 

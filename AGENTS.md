@@ -99,8 +99,8 @@ CLI commands.
 | Roles, conditions, field-level, grants, teams, audit | [docs/permissions.md](docs/permissions.md) |
 | Queues, mail, outbox, workflows, cron, realtime | [docs/background-work.md](docs/background-work.md) |
 | Exports and imports | [docs/data-transfer.md](docs/data-transfer.md) |
-| Import size and row limits (`dataTransfer.importMaxMiB`/`importMaxRows` settings, `IMPORT_MAX_*`, `IMPORT_TEMP_DIR`) | [docs/import-limits.md](docs/import-limits.md) |
-| Analytics: the backend DuckDB go/no-go, the probe; the web app's local data explorer | [docs/analytics.md](docs/analytics.md) |
+| Import size and row limits (`dataTransfer.importMaxMiB`/`importMaxRows` settings, `IMPORT_MAX_*`) | [docs/import-limits.md](docs/import-limits.md) |
+| Browser Data Explorer (DuckDB-Wasm, opt-in `analytics.browser.enabled`): ADR, version pin and support window, threat model, limitations, self-hosted extensions and upgrading; the backend DuckDB go/no-go | [docs/analytics.md](docs/analytics.md) |
 | Bulk operations (delete, restore, change many records; 202 jobs) | [docs/bulk-operations.md](docs/bulk-operations.md) |
 | Custom fields (runtime fields, JSONB values) | [docs/custom-fields.md](docs/custom-fields.md) |
 | Notifications (in-app, realtime, mail, webhook, push, SMS; preferences, digests, devices, toll-fraud caps, STOP) | [docs/notifications.md](docs/notifications.md) |

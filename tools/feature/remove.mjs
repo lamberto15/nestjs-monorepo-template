@@ -20,9 +20,12 @@
 //
 // Then: pnpm db:generate (drops the table: on a live project that is an
 // expand/contract change, docs/development.md), pnpm client:generate, and
-// the check before every commit (AGENTS.md). `pnpm build` comes first: the
-// web's build regenerates its route tree (src/routeTree.gen.ts, the TanStack
-// Router plugin's) before it type-checks, and the tests import that tree.
+// the check before every commit (AGENTS.md). The command itself regenerates
+// the web's route tree (src/routeTree.gen.ts) with TanStack Router's
+// generator, the one the Vite plugin runs, so the tests never import deleted
+// routes: a Turborepo cache hit replays `pnpm build` without running Vite,
+// so the build cannot be relied on to do it.
+import { createRequire } from 'node:module';
 import {
   existsSync,
   readdirSync,
@@ -41,6 +44,23 @@ const REPO = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '../..',
 );
+
+/**
+ * Rewrites apps/web/src/routeTree.gen.ts from the routes left on disk, with
+ * the generator the web's Vite plugin runs (`tanstackRouter()` in
+ * apps/web/vite.config.ts, same options). Skipped when the web app is gone.
+ */
+export async function regenerateRouteTree(root) {
+  const web = path.join(root, 'apps/web');
+  if (!existsSync(path.join(web, 'src/routes'))) return false;
+  // Resolved from the web app: it owns the devDependency.
+  const { Generator, getConfig } = createRequire(
+    path.join(web, 'package.json'),
+  )('@tanstack/router-generator');
+  const config = getConfig({ target: 'react', autoCodeSplitting: true }, web);
+  await new Generator({ config, root: web }).run();
+  return true;
+}
 
 /** The barrels a feature is listed in; they may import it. */
 const BARRELS = ['index.ts', 'tables.ts', 'env.ts'];
@@ -328,7 +348,8 @@ async function main() {
   }
   const name = positionals[0];
   // --root: this checkout by default, or a copy in a temp directory (checkout()).
-  const result = await removeFeature(values.root ?? REPO, {
+  const root = values.root ?? REPO;
+  const result = await removeFeature(root, {
     name,
     dryRun: values['dry-run'],
   });
@@ -338,11 +359,12 @@ async function main() {
   for (const file of result.deleted) console.log(`  - ${file}`);
   for (const change of result.removed) console.log(`  ~ ${change}`);
   if (values['dry-run']) return console.log('\nDry run: nothing changed.');
+  if (await regenerateRouteTree(root))
+    console.log('  ~ apps/web/src/routeTree.gen.ts (regenerated)');
   console.log(`
 Next:
   pnpm db:generate        # drops the table; on a live project that is an expand/contract change (docs/development.md)
   pnpm client:generate    # the typed client
-  pnpm build              # first: the web's build regenerates its route tree (src/routeTree.gen.ts)
   pnpm lint && pnpm test`);
 }
 

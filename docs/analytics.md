@@ -1,112 +1,265 @@
-# Analytics engine feasibility
+# Analytics: the browser Data Explorer and backend feasibility
 
-## Decision
+This page has two parts. **Part 1** is the decision record, threat model and
+limitations of the **Data Explorer**, the web app's opt-in tool that profiles and
+queries a data file inside the user's own browser (DuckDB-Wasm). **Part 2** is the
+earlier **backend feasibility** study of DuckDB in the API and worker, which ended
+in a no-go. The explorer does not change that decision: it never runs on the server.
 
-**Do not add DuckDB to the production API or worker yet.** The current platform analytics job writes a small, daily, anonymized aggregate table in PostgreSQL; it has no analytical query surface that needs a second engine. The import path is a separate question: JSON and XLSX parsing happen in the data-transfer worker, and there is no evidence yet that DuckDB improves the supported import behavior enough to justify a native runtime dependency.
+## Part 1: The browser Data Explorer
 
-This is a no-go for a production dependency pending measurements and a compatibility review. It is not a claim that DuckDB is slower or unsuitable. The optional probe below gives a reproducible starting point; its synthetic measurements do not substitute for representative uploads or browser testing.
+### Decision record (ADR)
 
-## Engine and API checked
+- **Status:** accepted; shipped behind a tenant flag, off by default. It began as
+  issue #541 (browser exploration) and its engine rework is #736.
+- **Context:** users have CSV, JSON or Parquet files (their own, or an export or a
+  file they are about to import) and want to look at them: row counts, column
+  types, nulls, ranges, a filtered or grouped view. Sending those files to the
+  server for analysis would add a new data path, storage and a queue job.
+- **Decision:** run [DuckDB-Wasm](https://duckdb.org/docs/1.4/clients/wasm/overview.html)
+  in the browser. The file is read from the user's disk (or, for an export, from
+  the bytes the user was already allowed to download), profiled and queried
+  locally, and kept only in memory while the page is open. The API gets no new
+  endpoint and receives nothing from the explorer.
+- **Scope:** a single file at a time; formats CSV, JSON (array or nested), JSON
+  Lines, NDJSON and Parquet; a column profile (type, nulls, approximate distinct
+  count, min and max), one filter, one sort, a single group-by with a count or sum,
+  a bounded page of at most 100 rows and a chart of a grouped result. Out of scope:
+  joins across files, saving results, user-written SQL, remote files, persistence
+  (nothing is stored in OPFS or IndexedDB), and any server-side analytics. The
+  controls are changing; this page describes capabilities, not the layout.
+- **Consequences:** the engine is a separately versioned dependency whose
+  extensions we host ourselves (below), the page is excluded from offline
+  caching, and the CSP has to allow WebAssembly compilation.
 
-DuckDB's official Node bindings documentation describes `@duckdb/node-api` as the Promise based API backed by the C API, and lists Linux x64/arm64 glibc and musl, macOS, and Windows packages. The published `1.5` line checked for this work reaches `1.5.6-r.2`; the package's `lts-v1.4` tag is `1.4.5-r.1`, and its moving `latest` tag is already `2.0.0-r.1`. Pin the explicit 1.5 release in any reproduction; never use `latest` for this comparison. DuckDB releases and native prebuilds must match the deployment's OS and libc.
+### The version pin
+
+The engine is `@duckdb/duckdb-wasm` **1.32.0**, pinned exactly in
+`apps/web/package.json`, which runs **DuckDB SQL v1.4.3**.
+
+#541 asked for `@duckdb/duckdb-wasm@1.5.6`. **That version does not exist on npm.**
+`1.5.6` is a DuckDB (and `@duckdb/node-api`) release number; DuckDB-Wasm is
+versioned separately (1.32.0 here; checked against the npm registry on 2026-10-27,
+where the newest tags are `1.33.1-dev*` builds). Do not read "DuckDB 1.5" and
+"duckdb-wasm 1.5" as the same thing: the number that matters for compatibility is
+the one `SELECT version()` returns, and the engine checks it at start-up.
+
+**Support window.** DuckDB's [release calendar](https://duckdb.org/release_calendar)
+(read on 2026-10-27) lists v1.4 as a Long-Term Support release whose support was
+extended **until 17 November 2026**. v1.5 is supported until March 2027, and
+**v2.0 LTS** was released on 2026-10-21 (supported until October 2027). So the
+engine's SQL version is still supported on the date of writing but leaves its
+support window within weeks. Moving to a newer DuckDB means a newer duckdb-wasm
+that runs it, once DuckDB-Wasm publishes one, followed by the upgrade procedure
+below. A Dependabot bump of `@duckdb/duckdb-wasm` that changes the DuckDB version
+fails a unit test on purpose (see "Upgrading").
+
+### Turning it on (opt-in)
+
+The explorer is behind the tenant flag **`analytics.browser.enabled`**, declared
+in `apps/api/src/platform/data-transfer/data-transfer.settings.ts`: scope
+`tenant`, **default off**. An administrator turns it on per tenant under settings
+([settings.md](settings.md)). While it is off:
+
+- the navigation entry is hidden (`apps/web/src/features/analytics/nav.ts`), the
+  `/analytics` route redirects home before any engine code is requested, and the
+  "Open in Data Explorer" (exports) and "profile locally" (import) actions do not
+  appear;
+- turning the flag off while a file is open terminates the engine and clears the
+  page on the spot.
+
+The flag gates the **UI only**. The explorer reads no tenant data from the API on
+its own, so there is nothing for the API to refuse; the files it opens come from
+the user's disk or from the existing, permission-checked export download.
+
+### Where the data comes from
+
+1. **A file the user picks** with the browser's file chooser. It is never uploaded.
+2. **A completed export** (CSV or JSON): "Open in Data Explorer" on the transfer
+   status (`apps/web/src/features/transfer/transfer-status.tsx`), and the account
+   export for the user's own data. Only after the user presses the open button does
+   the page ask the API for a **fresh** signed link (`freshExportFile` in
+   `apps/web/src/features/transfer/api.ts`), download the file into a `Blob` and
+   hand it to the engine. The file is exactly what the user could already download.
+3. **A file chosen for import** ("profile locally" on the import page), so the
+   user can inspect it before uploading. It is passed through a one-use,
+   memory-only handoff (`apps/web/src/features/analytics/handoff.ts`) together with
+   the importer's expected column names. The handoff is discarded after 30 seconds
+   if unused, and cleared when the signed-in user or tenant changes and when the
+   route redirects because the flag is off.
+
+Usability and failure notes for the transfer integration: an expired or already
+removed export shows the generic error (the signed link lasts 30 minutes, and a
+fresh one is requested on each open); a failed download or an unreadable file shows
+a generic error, not a partial table; an export is held in the tab's memory as a
+`Blob` before DuckDB reads it, so a very large export costs more than a file picked
+from disk (which DuckDB reads in slices, without a copy).
+
+### Threat model
+
+| Concern                  | What is true                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What reaches the browser | Only the file the user chose, or an export they were authorized to download. The explorer adds no API route and sends nothing back: no file content, column names, queries or results are transmitted.                                                                                                                                                                                                                                                        |
+| Snapshot, not permission | A file released to the browser is an **authorized snapshot**. Having it open is not evidence that the user may still see that data: after a role change, revocation or deactivation, a copy already downloaded or opened stays readable until the tab closes, exactly like a downloaded export. The explorer never rechecks permissions per row. Revocation is enforced on the API (no new exports), not on bytes already released.                           |
+| Remote reads             | None. `enable_external_access = false` and `allowed_paths` limited to five fixed virtual file names, so `read_csv('https://…')`, `httpfs`, other files and ATTACH of remote databases are refused. The page cannot submit SQL or file paths: queries are built internally from validated columns, escaped identifiers and escaped literals (`apps/web/src/features/analytics/query.ts`).                                                                      |
+| Extensions               | Only the official `json` and `parquet` extensions, **self-hosted** on the app's origin and loaded before the lockdown. DuckDB verifies each extension's signature on `LOAD` (signature checking stays on), the files are pinned by SHA-256, and auto-install and auto-load are switched off afterwards. Nothing is requested from `extensions.duckdb.org`.                                                                                                    |
+| Configuration            | The lockdown order in `apps/web/src/features/analytics/engine.ts` is: check `SELECT version()` against the pin, set `custom_extension_repository` (same origin), `LOAD json`, `LOAD parquet`, turn auto-install and auto-load off, set `allowed_paths`, `enable_external_access = false`, then `lock_configuration = true`, so a query cannot undo it.                                                                                                        |
+| Content Security Policy  | `caddy/Caddyfile` and the Helm `deploy/helm/app/templates/web-configmap.yaml` send `script-src 'self' 'wasm-unsafe-eval'` (WebAssembly compilation only; `unsafe-eval` stays blocked), `worker-src 'self'` and `connect-src 'self'` plus the operator-configured file-store origins (`WEB_FILES_ORIGINS`, for downloading exports). Engine, worker and extensions are all first-party files, so the policy needed no relaxation beyond `wasm-unsafe-eval`.    |
+| Persistence              | In memory only: no OPFS, IndexedDB or localStorage copy of the data. The engine and extensions are not in the PWA precache (`apps/web/vite.config.ts`, `globIgnores`), so offline mode neither stores them nor the data. The browser may still keep a downloaded export `Blob` or its HTTP cache entry for its own reasons.                                                                                                                                   |
+| Logout                   | Signing out clears the session (`apps/web/src/lib/sign-out.ts`), the signed-in identity becomes empty, and the page's identity effect terminates the engine and drops the open dataset; navigating to the sign-in page unmounts the page, which terminates it again. Other tabs end their sessions when the sign-out is announced, which unmounts the page there too. Termination cancels the running query and ends DuckDB's worker, which frees its memory. |
+| Tenant or user switch    | The page watches `user.id:tenant.id`. When it changes, the engine is terminated, the file and results are cleared, and any in-flight export lookup that finishes later is ignored. A pending handoff is cleared by the app layout. A file the user must open again in the new tenant is a fresh selection.                                                                                                                                                    |
+| Leaving the page         | Leaving the route unmounts the page, which terminates the engine. A load that was still starting is cancelled and its engine ended once it is up. Replacing a file starts a fresh engine, because wasm memory never shrinks.                                                                                                                                                                                                                                  |
+| Residual risks           | A compromised page or a malicious browser extension can read the user's files and memory regardless of the explorer. The explorer trusts the chosen file's bytes only as data; hostile Parquet or JSON is parsed by DuckDB inside its worker with external access disabled. Leaving the tab open after stepping away is the user's risk: the session idle warning and expiry apply, and sign-out or a tenant switch terminate the engine.                     |
+
+The termination paths are covered by unit tests in
+`apps/web/src/features/analytics/analytics.test.tsx` (flag turned off, identity
+change, export lookup racing a tenant change, unmount) and `engine.test.ts`
+(lockdown order, cancellation, fresh engine per import). There is no test that
+drives a real sign-out through the sign-out hook; the identity change it causes is
+what is tested.
+
+### Limitations users will see
+
+- **Memory.** DuckDB-Wasm is bounded by the browser's WebAssembly memory. The
+  explorer has no file-size check of its own, nothing is copied into the JavaScript
+  heap, but the table is materialized in DuckDB's memory, so a file that does not
+  fit fails to load with a generic error. There is **no promise for multi-GB files**,
+  . A tab may be killed by the browser
+  under memory pressure.
+- **Approximate distinct counts.** "Distinct values" is SUMMARIZE's `approx_unique`
+  (HyperLogLog), not exact. Null counts are exact (a separate statement).
+- **Nested JSON** is kept as structs and lists (mixed-type columns as JSON text),
+  so deeply nested or inconsistent documents appear in DuckDB's inferred types.
+- **Large and exact numbers.** Query results arrive as plain values: `SUM` and
+  `AVG` are cast to `DOUBLE`; a 64-bit integer inside JavaScript's safe range
+  becomes a number, a larger one stays a `bigint`. `HUGEINT` and `DECIMAL` columns
+  shown as-is arrive as Arrow objects, and their min and max cannot be charted.
+  Casting to `DOUBLE` loses exactness above 2^53.
+- **Error messages.** For CSV the DuckDB error text is passed through unchanged; for
+  JSON and Parquet a fixed "malformed or unsupported" message replaces it. The
+  page itself shows one generic error.
+- **Formats.** CSV, JSON, JSON Lines, NDJSON and Parquet only, one file at a time
+  (`.csv`, `.json`, `.jsonl`, `.ndjson`, `.parquet`). Every format is detected by
+  extension, and sample-based type inference reads the whole file (`sample_size = -1`).
+- **Exports.** Only completed CSV and JSON exports can be opened from the transfer
+  status, and only while the signed link can be refreshed.
+- **Size of the import is unchanged.** Exploring a file locally does not raise the
+  server's import limits (`dataTransfer.importMaxMiB`, default 50 MiB, and
+  `importMaxRows`; [import-limits.md](import-limits.md)). A file that explores
+  fine may still be refused by the importer.
+- **Browser support.** CI runs the same smoke test in Chromium, Firefox and WebKit,
+  but only against small fixtures; large-file behavior was measured on headless
+  Chromium alone and varies by device.
+
+### Engine, bundles and size
+
+`apps/web/src/features/analytics/engine.ts` follows DuckDB-Wasm's documented Vite
+setup: one `AsyncDuckDB` drives DuckDB's own worker (the app has no worker of its
+own), and `selectBundle` picks the self-hosted MVP or EH build by browser
+features. The package, workers and wasm are loaded with a **dynamic `import()` only
+when the page opens**, so none of it is in the entry chunk. Files are registered as
+browser file handles (`BROWSER_FILEREADER`), so DuckDB reads the `File` in slices;
+CSV uses `read_csv`, JSON `read_json`, Parquet `read_parquet`; the file is
+materialized once into a temporary table and then released. Profiling is one
+`SUMMARIZE` statement plus one exact null-count statement. A new import always
+starts a fresh engine.
+
+Size budgets (`apps/web/.size-limit.json`, enforced in CI): the existing
+application scripts stay at 1.1 MB Brotli; the optional engine scripts have a
+separate 360 kB Brotli budget (343.55 kB measured when set), the engine wasm an
+80 MB uncompressed budget (73.61 MB measured for both bundles; a browser fetches
+one) and the self-hosted extensions 8 MB (about 7.5 MB for all four; a browser
+fetches two). These are fetched on use and excluded from PWA precaching.
+
+### Self-hosted extensions and upgrading
+
+The wasm bundles do not link in `json` and `parquet`, and DuckDB-Wasm
+[documents](https://duckdb.org/docs/1.4/clients/wasm/extensions.html) pointing
+`custom_extension_repository` at your own copy. The signed official files are
+committed under
+`apps/web/public/duckdb-extensions/v<duckdb version>/{wasm_eh,wasm_mvp}/{json,parquet}.duckdb_extension.wasm`
+(currently `v1.4.3`). `apps/web/src/features/analytics/duckdb-extensions.json`
+holds the DuckDB version and the SHA-256 of each file; the script
+`apps/web/scripts/duckdb-extensions.mjs` manages them:
+
+```bash
+pnpm --filter @nestjs-monorepo-template/web duckdb:extensions         # download what is missing, verify the pins
+pnpm --filter @nestjs-monorepo-template/web duckdb:extensions:check   # verify the committed files offline
+node apps/web/scripts/duckdb-extensions.mjs --record                  # download everything, rewrite the pinned hashes
+```
+
+**Upgrading `@duckdb/duckdb-wasm`.** If the new package runs a different DuckDB
+version, two things fail on purpose: `duckdb-extensions.test.ts` (it asks the
+package's Node build for its version) and the engine's start-up check. Then:
+
+1. Bump the package in `apps/web/package.json` (exact version, never a range).
+2. Change `duckdbVersion` in `duckdb-extensions.json`.
+3. Run the script with `--record`, review the diff, commit the new files and
+   remove the old `v<version>` folder.
+4. Check the size budgets, and run the unit tests and the browser smoke test.
+
+### Tests
+
+- Unit tests in `apps/web/src/features/analytics/*.test.ts(x)`: SQL generation,
+  Arrow conversion, the engine's lockdown and lifecycle, the handoff, the page.
+- The browser smoke `apps/web-e2e/scripts/analytics-smoke.mjs` loads CSV, JSON and
+  Parquet in a real browser, checks filters, sorting, JSON nulls and mixed values,
+  cancellation, and **asserts that no request leaves the page's origin**. Chromium
+  runs in the `e2e-web` job; Firefox and WebKit in the `analytics-smoke` job of
+  `.github/workflows/web.yml`. Locally: `CHROMIUM_PATH=/usr/bin/chromium node apps/web-e2e/scripts/analytics-smoke.mjs`
+  against the web development server on port 5178 (`ANALYTICS_BROWSER=chromium|firefox|webkit`).
+
+### Measurements
+
+A single headless Chromium probe loaded synthetic CSV files of 50,200,014,
+251,000,014 and 502,000,014 bytes and returned a 100-row query in 2.40, 5.51 and
+7.50 seconds. Each case used a fresh browser, a numeric group column and a
+repetitive 1,000-character text column (50,000 / 250,000 / 500,000 rows). No page
+error or crash occurred. RSS was not sampled; these low-cardinality fixtures do
+not establish memory limits or performance for typical data, and large-file
+Firefox and WebKit cases are unmeasured. Representative devices and less
+repetitive data still need measurement before broader promises.
+
+## Part 2: Backend feasibility
+
+### Decision
+
+**Do not add DuckDB to the production API or worker yet.** The current platform
+analytics job writes a small, daily, anonymized aggregate table in PostgreSQL; it
+has no analytical query surface that needs a second engine. The import path is a
+separate question: JSON and XLSX parsing happen in the data-transfer worker, and
+there is no evidence yet that DuckDB improves the supported import behavior enough
+to justify a native runtime dependency.
+
+This is a no-go for a production dependency pending measurements and a
+compatibility review. It is not a claim that DuckDB is slower or unsuitable. The
+import path stays on the library-based readers (ExcelJS loads a workbook whole
+under the size limit, CSV streams); an earlier worker-side rewrite with a DuckDB
+probe was reverted (#695), and no DuckDB measurements of the worker import path are
+kept here.
+
+### Engine and API checked
+
+DuckDB's official Node bindings documentation describes `@duckdb/node-api` as the
+Promise based API backed by the C API, and lists Linux x64/arm64 glibc and musl,
+macOS, and Windows packages. The published `1.5` line checked for this work reaches
+`1.5.6-r.2`; the package's `lts-v1.4` tag is `1.4.5-r.1`, and its moving `latest`
+tag is already `2.0.0-r.1`. Pin the explicit release in any reproduction; never use
+`latest` for this comparison. DuckDB releases and native prebuilds must match the
+deployment's OS and libc. (This `1.5.6` is the Node bindings' version; the browser
+package is versioned separately, see Part 1.)
 
 - [DuckDB Node bindings README](https://github.com/duckdb/duckdb-node-neo/blob/main/api/pkgs/%40duckdb/node-api/README.md)
 - [DuckDB Node bindings package](https://www.npmjs.com/package/%40duckdb/node-api)
 - [DuckDB releases](https://github.com/duckdb/duckdb/releases)
 - [DuckDB WASM package](https://www.npmjs.com/package/@duckdb/duckdb-wasm)
 
-## Reproduce the local probe
+### What would reopen it
 
-The optional native module is installed outside the repository so it cannot enter a production manifest or lockfile. The API build is used for the existing reader; use the same checkout and machine for both reader revisions. The published browser package checked here is `@duckdb/duckdb-wasm@1.32.0`, whose runtime reports DuckDB SQL `v1.4.3`; it does not provide a browser comparison on SQL 1.5. UI unit tests use mocked API responses. Separate Chromium file-size measurements appear under Browser exploration below.
-
-```bash
-tmpdir="$(mktemp -d)"
-pnpm --dir "$tmpdir" init
-pnpm --dir "$tmpdir" add --save-exact @duckdb/node-api@1.5.6-r.2
-pnpm --filter @nestjs-monorepo-template/api build
-DUCKDB_NODE_API="$tmpdir/node_modules/@duckdb/node-api/lib/index.js" \
-  TRANSFER_READER_ENTRY="$PWD/apps/api/dist/platform/data-transfer/formats.js" \
-  TRANSFER_SPOOL_ENTRY="$PWD/apps/api/dist/platform/data-transfer/import-spool.js" \
-  BENCH_SIZES_MB=5,25 BENCH_TWO_PASS=1 BENCH_SPOOL=1 \
-  node tools/benchmarks/duckdb-feasibility.mjs
-```
-
-Set `BENCH_SIZES_MB=5,25,50` to select JSON target sizes (the default), and `BENCH_KEEP_FILES=1` to keep generated inputs and private per-worker scratch directories, including any database and Parquet outputs. JSON and XLSX sizes are reported as generated; XLSX compression means its file is smaller than the JSON file for the same rows. Each parser runs in a fresh child process; the parent passes the generated fixture through an inherited read-only file descriptor, and the worker stages it in a private directory before timing starts. The report includes elapsed time, throughput, OS peak RSS, CPU time, Parquet and database bytes, and estimated peak temporary disk (or total retained disk when `BENCH_KEEP_FILES=1`). `BENCH_TWO_PASS=1` also measures `inspectRecords()` followed by `readRecords()`, which measures the superseded two-pass implementation for comparison with the final validated spool. This still excludes schema checks, database writes, audit, progress reporting, and the full queue job. Runs are serial; they do not measure two-job concurrency or cgroup memory. Record host/container CPU and memory limits alongside shared results.
-
-The JSON and XLSX baseline cases reproduce the existing full-buffer `JSON.parse` and ExcelJS whole-workbook read. The spooled modes run the current `spoolImportRecords()` source parse/normalization/write followed by `readImportSpool()` replay in one fresh child process. They report spool bytes as well as peak RSS. They do not include application schema validation, importer writes, duplicate matching, progress, or queue overhead. The DuckDB case reads JSON, groups, joins, and writes Parquet; XLSX stays on ExcelJS because DuckDB has no core XLSX reader. Baseline and revised readers use the same files. Keep the generated files identical between runs, do a warm-up, then record at least three runs and report the median. Record the exact revision and host/container limits with results.
-
-For large JSON-only cases, set `BENCH_JSON_ONLY=1` to skip XLSX generation and DuckDB while retaining streaming JSON fixture generation. For example:
-
-```bash
-BENCH_JSON_ONLY=1 BENCH_SIZES_MB=50,100 BENCH_TWO_PASS=1 BENCH_SPOOL=1 \
-  TRANSFER_READER_ENTRY="$PWD/apps/api/dist/platform/data-transfer/formats.js" \
-  TRANSFER_SPOOL_ENTRY="$PWD/apps/api/dist/platform/data-transfer/import-spool.js" \
-  node tools/benchmarks/duckdb-feasibility.mjs
-```
-
-## Evidence and open checks
-
-The worker probe does not prove compatibility with field validation, date handling, malformed input errors, limits, or import batching. A single synthetic run is exploratory; repeat each case at least three times for a median before treating small differences as meaningful. Large-file Firefox/WebKit cases and two-job production-container concurrency remain unmeasured; the host helper and Chromium probes below have narrower coverage.
-
-### Worker probe (one synthetic run)
-
-The probe ran on Node `v24.19.0` with `@duckdb/node-api@1.5.6-r.2`. JSON and XLSX were generated from the same rows using a streaming XLSX writer. At the 5 MiB target there were 44,058 rows (JSON 5.45 MiB, XLSX 1.56 MiB); at 25 MiB there were 220,290 rows (JSON 27.55 MiB, XLSX 7.84 MiB). The host/container CPU limits were not captured. These are single-run measurements, not medians:
-
-| Input target | Path | Elapsed | CPU | Peak RSS | Throughput |
-| --- | --- | ---: | ---: | ---: | ---: |
-| 5 MiB | JSON baseline full-buffer parse | 64 ms | 59 ms | 78 MiB | 85.0 MiB/s |
-| 5 MiB | JSON revised one pass | 761 ms | 868 ms | 114 MiB | 7.2 MiB/s |
-| 5 MiB | JSON revised inspect + process | 1,967 ms | 1,806 ms | 191 MiB | 2.8 MiB/s |
-| 5 MiB | JSON final spool + replay | 984 ms | 1,393 ms | 198 MiB | 5.5 MiB/s |
-| 5 MiB | XLSX ExcelJS baseline | 2,629 ms | 2,107 ms | 296 MiB | 0.60 MiB/s |
-| 5 MiB | XLSX revised one pass | 4,114 ms | 2,624 ms | 117 MiB | 0.38 MiB/s |
-| 5 MiB | XLSX revised inspect + process | 3,825 ms | 3,769 ms | 126 MiB | 0.41 MiB/s |
-| 5 MiB | XLSX final spool + replay | 1,960 ms | 2,319 ms | 140 MiB | 0.80 MiB/s |
-| 25 MiB | JSON baseline full-buffer parse | 157 ms | 197 ms | 185 MiB | 175.3 MiB/s |
-| 25 MiB | JSON revised one pass | 1,828 ms | 2,155 ms | 108 MiB | 15.1 MiB/s |
-| 25 MiB | JSON revised inspect + process | 5,470 ms | 6,382 ms | 269 MiB | 5.0 MiB/s |
-| 25 MiB | JSON final spool + replay | 3,505 ms | 4,271 ms | 328 MiB | 7.9 MiB/s |
-| 25 MiB | XLSX ExcelJS baseline | 3,819 ms | 5,343 ms | 931 MiB | 2.05 MiB/s |
-| 25 MiB | XLSX revised one pass | 5,757 ms | 6,064 ms | 188 MiB | 1.36 MiB/s |
-| 25 MiB | XLSX revised inspect + process | 12,254 ms | 12,878 ms | 237 MiB | 0.64 MiB/s |
-| 25 MiB | XLSX final spool + replay | 16,071 ms | 10,007 ms | 245 MiB | 0.49 MiB/s |
-
-The final spool output was 8,309,202 bytes (7.92 MiB) for the 5 MiB JSON target and 8,744,370 bytes (8.34 MiB) for its 1.56 MiB XLSX. At the 25 MiB target it was 41,891,809 bytes (39.95 MiB) for JSON and 44,298,145 bytes (42.25 MiB) for its 7.84 MiB XLSX. Those are spool file sizes, not a measured peak for all scratch files. The harness's total generated temporary disk at the end of the run, including fixtures, DuckDB files, and Parquet outputs for both sizes, was 49.75 MiB.
-
-On these inputs, final JSON spooling took less time than the earlier two-pass streaming flow at both sizes, but at 25 MiB its 328 MiB peak RSS was higher than both two-pass streaming (269 MiB), one-pass streaming (108 MiB), and the full-buffer `JSON.parse` baseline (185 MiB); it was also far slower than the baseline. Final XLSX spooling lowered peak RSS versus ExcelJS's full-workbook baseline at both sizes (140 vs 296 MiB and 245 vs 931 MiB), and was faster at 5 MiB. At 25 MiB it took about 4.2 times as long as the baseline. Spooling therefore trades temporary disk and time for lower peak memory most clearly on the 25 MiB XLSX input; it does not show a JSON memory win here. The generated Parquet transform (DuckDB 1.5.6, JSON read + grouping + join + Parquet write) took 213 ms at 5 MiB (241 ms CPU, 143 MiB peak RSS, 25.5 MiB/s) and 2,167 ms at 25 MiB (1,136 ms CPU, 344 MiB peak RSS, 12.7 MiB/s). Output files were 191 KB and 932 KB, temporary DuckDB files were 1.59 MiB and 4.99 MiB. These aggregate queries are not a replacement for import parsing or application validation.
-
-### Large JSON scaling probe (one synthetic run)
-
-A JSON-only run generated inputs incrementally, without an XLSX workbook or a retained row array. The nominal 50 and 100 MiB targets produced 55.31 and 110.84 MiB files (440,579 and 881,157 rows). Peak RSS stayed similar for final spooling as input doubled (330.1 to 324.8 MiB), while the full-buffer `JSON.parse` baseline rose from 316.6 to 493.6 MiB. At 100 MiB the spool path peaked 34% below that baseline, but took 12.6 seconds versus 0.7 seconds. The one-pass streaming reader at 100 MiB took 5.6 seconds and peaked at 129.4 MiB, so final spooling did not beat that path on time or memory. The spool path took 6.9 seconds at 50 MiB and 12.6 seconds at 100 MiB; its spool files were 83,963,792 bytes (80.07 MiB) and 168,107,722 bytes (160.32 MiB). Source plus spool occupied about 135.4 and 271.2 MiB while both files existed; no other scratch files were produced for JSON. Total generated source fixture disk was 166.16 MiB. This single run supports bounded spool memory over this size range, not a general memory or performance win; the 25 MiB JSON result above remains a counterexample to a memory benefit at smaller sizes.
-
-There are no 50 MiB-target XLSX results. An earlier fixture generator retained the full ExcelJS workbook in memory; generation reached 2.5 GiB RSS while the container was at 6.9 of its 8 GiB memory limit, so that run was stopped before parsing. The committed harness now streams fixture generation; JSON-only scaling was rerun as described above. A two-job host helper probe and large Chromium examples follow; production-container concurrency remains unmeasured.
-
-### Two concurrent helper jobs
-
-Two JSON spool/replay jobs in one fresh Node 24.19 process each read the same
-29,748,263-byte synthetic file (125,000 rows) and produced a 41,743,319-byte
-spool. Both returned all rows with the expected checksum. Combined elapsed time
-was 6,338 ms and process peak RSS was 338,076 KiB (about 330 MiB). This measures
-concurrent helper work, excluding upload staging, business database writes,
-queue overhead, and production-container resource accounting.
-
-## Browser exploration
-
-A single headless Chromium probe loaded synthetic CSV files of 50,200,014,
-251,000,014, and 502,000,014 bytes and returned a 100-row query in 2.40, 5.51,
-and 7.50 seconds, respectively. Each case used a fresh browser, a numeric group
-column, and a repetitive 1,000-character text column (50,000 / 250,000 / 500,000
-rows). No page error or browser crash occurred. RSS was not sampled; these
-low-cardinality fixtures do not establish memory limits or performance for
-typical user data. Large-file Firefox/WebKit cases remain unmeasured.
-
-The existing application script budget remains 1.1 MB Brotli and the entry
-budgets remain unchanged. Optional analytics scripts have a separate 250 kB
-Brotli budget; their self-hosted Wasm assets have a 50 MB uncompressed budget.
-These engine assets are fetched on use and excluded from PWA precaching.
-
-The UI's browser explorer is behind the tenant setting `analytics.browser.enabled`, default off. The engine supports CSV, JSON, JSON Lines, NDJSON, and Parquet. Parquet uses the lazy, self-hosted `parquet-wasm@0.9.0` decoder to produce Arrow IPC for DuckDB; it does not download a DuckDB extension. JSON uses an explicit Arrow schema: primitive columns keep their types and mixed or structured columns retain their values as JSON text. The import is materialized in the page's worker memory, and replacing a file, leaving the page, signing out, or changing user/tenant terminates the worker. It does not persist data in OPFS. Query SQL is constructed internally from validated columns, escaped identifiers, and escaped literals; the page cannot submit SQL or file paths. DuckDB auto-install and auto-load of extensions are disabled, and no remote extension fallback is used. The 1 GiB file-size check is a hard ceiling, not a promise that every browser/device can safely use that much memory. The PWA precache excludes `**/*duckdb*` and `**/*parquet*` so the optional engine does not inflate the offline bundle. The WASM engine is a separately versioned experiment on SQL 1.4.3; representative devices and less repetitive data still need measurement before broader use.
-
-Before considering a production dependency, compare the existing and revised `readRecords()` behavior for JSON and XLSX with the same files, measure inside the deployment container, and verify graceful shutdown, native package availability for every published image architecture, temporary disk bounds, and any extensions needed for Parquet. A positive aggregate benchmark alone is insufficient: DuckDB must improve a real supported path while preserving these application contracts. The decision should be revisited only with those results.
-
-The browser smoke test loads CSV, JSON, and Parquet, verifies filters and sorting, preserves JSON nulls and mixed values, cancels pending loads, and checks that no external requests occur. Run `CHROMIUM_PATH=/usr/bin/chromium node apps/web-e2e/scripts/analytics-smoke.mjs` against the web development server on port 5178. CI runs the same check with `ANALYTICS_BROWSER=chromium|firefox|webkit`. Large-file Firefox/WebKit cases and varying data shapes remain unmeasured.
+Before considering a production dependency, compare the existing `readRecords()`
+behavior for JSON and XLSX with the candidate engine on the same files, measure
+inside the deployment container, and verify graceful shutdown, native package
+availability for every published image architecture, temporary disk bounds, and any
+extensions needed for Parquet. A positive aggregate benchmark alone is
+insufficient: DuckDB must improve a real supported path while preserving these
+application contracts. The decision should be revisited only with those results.

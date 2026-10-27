@@ -101,6 +101,37 @@ describe('database incident snapshots', () => {
     ).toHaveLength(3);
   });
 
+  it('rate-limits incident logs per fingerprint and trigger with a summary, but notifies every listener', () => {
+    vi.useFakeTimers();
+    capture = new DatabaseIncidents(stats);
+    const seen = vi.fn();
+    capture.subscribe(seen);
+    const incidentLogs = () =>
+      logs().filter(
+        (l) => (l as { event?: string }).event === 'database_incident',
+      );
+    const summaries = () =>
+      logs().filter(
+        (l) => (l as { event?: string }).event === 'database_incident_summary',
+      );
+    for (let i = 0; i < 8; i++)
+      capture.record({ trigger: 'slow_query', fingerprint: 'a' });
+    capture.record({ trigger: 'slow_query', fingerprint: 'b' });
+    expect(seen).toHaveBeenCalledTimes(9);
+    expect(incidentLogs()).toHaveLength(6);
+    expect(summaries()).toHaveLength(0);
+    vi.advanceTimersByTime(60_000);
+    capture.record({ trigger: 'slow_query', fingerprint: 'a' });
+    expect(summaries()).toEqual([
+      expect.objectContaining({
+        trigger: 'slow_query',
+        fingerprint: 'a',
+        suppressed: 3,
+      }),
+    ]);
+    expect(incidentLogs()).toHaveLength(7);
+  });
+
   it('destroys an active diagnostic connection at the one-second total deadline', async () => {
     vi.useFakeTimers();
     const release = vi.fn();
