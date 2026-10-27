@@ -92,8 +92,12 @@ try {
   });
   const page = await browser.newPage();
   const outsideRequests = [];
+  // By origin: WebKit also reports reads of the page's own blob: URLs (the test's
+  // File objects), whose origin is the page's, as requests.
+  const pageOrigin = new URL(baseUrl).origin;
   page.on('request', (request) => {
-    if (!request.url().startsWith(baseUrl)) outsideRequests.push(request.url());
+    if (new URL(request.url()).origin !== pageOrigin)
+      outsideRequests.push(request.url());
   });
   // A browser reports a failed module import without naming the module: print
   // what the page saw, so a failure in CI says which file and why.
