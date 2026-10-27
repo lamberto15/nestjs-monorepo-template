@@ -1182,7 +1182,7 @@ describe('custom fields (e2e)', () => {
       await field({
         key: 'tags',
         type: 'multiSelect',
-        options: ['a', 'b', 'c'].map((value) => ({ value, label: value })),
+        options: ['a', 'b', 'c', 'd'].map((value) => ({ value, label: value })),
         filterable: true,
       });
       const list = await itemsWith([
@@ -1225,7 +1225,7 @@ describe('custom fields (e2e)', () => {
       expect(await found('?custom.done=true')).toEqual(['Item 1']);
       expect(await found('?custom.due=2026-01-05')).toEqual(['Item 0']);
       expect(await found('?custom.tags.in=b,c')).toEqual(['Item 0', 'Item 1']);
-      expect(await found('?custom.tags.in=zz')).toEqual([]);
+      expect(await found('?custom.tags.in=d')).toEqual([]);
       expect(await found('?custom.region.isNull=false')).toEqual([
         'Item 0',
         'Item 1',
