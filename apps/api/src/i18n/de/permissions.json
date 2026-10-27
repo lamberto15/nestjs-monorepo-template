@@ -14,7 +14,6 @@
       "manageNamingSeries": "Die Nummernformate nummerierter Datensätze anlegen, ändern und löschen und ihre Zähler setzen (platform/sequences)",
       "manageViews": "Gespeicherte Ansichten von Listen mit dem ganzen Mandanten teilen sowie geteilte Ansichten ändern oder löschen (platform/views)",
       "readAudit": "Das Audit-Protokoll lesen",
-      "readConsolidated": "Die Mandanten unterhalb dieses Mandanten in seinem Mandantenbaum lesen, nur lesend (konsolidierte Berichte einer Holding)",
       "manageTenants": "Mandanten anlegen (die Betreiber der Installation: nur im Betreiber-Mandanten)",
       "impersonate": "Als ein anderer Benutzer handeln (Support), nie als Administrator",
       "manageSso": "Single Sign-on des Mandanten einrichten: SAML- und OpenID-Connect-Verbindungen, verifizierte E-Mail-Domains",

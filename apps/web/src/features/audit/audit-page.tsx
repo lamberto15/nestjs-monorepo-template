@@ -7,12 +7,7 @@ import {
   DialogTitle,
 } from '@nestjs-monorepo-template/ui/components/dialog';
 import { DropdownMenuItem } from '@nestjs-monorepo-template/ui/components/dropdown-menu';
-import { Label } from '@nestjs-monorepo-template/ui/components/label';
-import { Switch } from '@nestjs-monorepo-template/ui/components/switch';
-import { unwrap } from '@nestjs-monorepo-template/api-client';
-import { useQuery } from '@tanstack/react-query';
 import type { HeaderContext } from '@tanstack/react-table';
-import { parseAsBoolean, useQueryState } from 'nuqs';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { actionLabel } from './action-label';
@@ -20,9 +15,7 @@ import { DataTableColumnHeader } from '@/components/data-table/data-table-column
 import { ListPage } from '@/components/list-page';
 import type { AuditEntry } from '@/features/audit/api';
 import type { DataTableFeatures } from '@/lib/data-table-features';
-import { api } from '@/lib/api';
 import { useDateTimeFormat } from '@/lib/date-time';
-import { useCan, useMe } from '@/lib/features';
 import type { ListColumn } from '@/lib/list-query';
 
 /** Details as text: a string as is, anything else as indented JSON. Never HTML. */
@@ -44,29 +37,6 @@ export function AuditPage() {
   const { t } = useTranslation('audit');
   const format = useDateTimeFormat();
   const [shown, setShown] = useState<AuditEntry>();
-  const me = useMe();
-  // "Include sub-tenants": the consolidated read of the tenant tree. Never
-  // while impersonating (the API refuses it), so the switch is not offered.
-  const canConsolidate =
-    useCan('Access.readConsolidated') && !me?.user.impersonator;
-  const [subtenants, setSubtenants] = useQueryState(
-    'subtenants',
-    parseAsBoolean.withDefault(false),
-  );
-  const consolidated = canConsolidate && subtenants;
-  const tenants = useQuery({
-    queryKey: ['access', 'consolidated', 'tenants'],
-    queryFn: () => unwrap(api.GET('/v1/access/consolidated/tenants')),
-    enabled: consolidated,
-  });
-  const tenantNames = useMemo(
-    () =>
-      new Map([
-        ...(me?.tenant ? [[me.tenant.id, me.tenant.name] as const] : []),
-        ...(tenants.data?.items ?? []).map((x) => [x.id, x.name] as const),
-      ]),
-    [me, tenants.data],
-  );
 
   // Cells and headers only: filters and sorts come from the list's metadata.
   const columns = useMemo<ListColumn<AuditEntry>[]>(() => {
@@ -85,20 +55,6 @@ export function AuditPage() {
       <span className="font-mono text-xs">{value}</span>
     );
     return [
-      ...(consolidated
-        ? [
-            {
-              // `tenantId` is a field and filter of the list; named from the tree.
-              id: 'tenantId',
-              accessorFn: (entry: AuditEntry) => entry.tenantId,
-              ...header('tenant'),
-              enableSorting: false,
-              cell: ({ row }: { row: { original: AuditEntry } }) =>
-                tenantNames.get(row.original.tenantId ?? '') ??
-                row.original.tenantId,
-            },
-          ]
-        : []),
       {
         id: 'at',
         accessorFn: (entry) => format(entry.at),
@@ -156,7 +112,7 @@ export function AuditPage() {
         ),
       },
     ];
-  }, [t, format, consolidated, tenantNames]);
+  }, [t, format]);
 
   const rowActions = useCallback(
     (entry: AuditEntry) => (
@@ -170,36 +126,11 @@ export function AuditPage() {
   return (
     <>
       <ListPage
-        // The two routes are two lists: start the table again on a switch.
-        key={consolidated ? 'consolidated' : 'own'}
         subject="Audit"
-        path={
-          consolidated ? '/v1/access/consolidated/audit' : '/v1/access/audit'
-        }
+        path="/v1/access/audit"
         title={t('title')}
-        subtitle={
-          consolidated && tenants.data
-            ? tenants.data.items.length > 0
-              ? t('subtenants.included', {
-                  names: tenants.data.items.map((x) => x.name).join(', '),
-                })
-              : t('subtenants.none')
-            : undefined
-        }
         columns={columns}
         rowActions={rowActions}
-        toolbarActions={
-          canConsolidate && (
-            <div className="flex items-center gap-2">
-              <Switch
-                id="audit-subtenants"
-                checked={subtenants}
-                onCheckedChange={(on) => void setSubtenants(on || null)}
-              />
-              <Label htmlFor="audit-subtenants">{t('subtenants.switch')}</Label>
-            </div>
-          )
-        }
       />
       <Dialog
         open={!!shown}

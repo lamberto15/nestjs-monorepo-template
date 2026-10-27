@@ -8,6 +8,13 @@
       "when": 1793120683804,
       "tag": "0000_test_items",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793123858280,
+      "tag": "0001_groovy_joseph",
+      "breakpoints": true
     }
   ]
 }

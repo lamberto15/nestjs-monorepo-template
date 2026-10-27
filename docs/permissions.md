@@ -211,9 +211,7 @@ session acts in. `Access.manageTenants` (the tenants: list, create, read,
 rename, deactivate) answers only in the operator tenant (`GET /v1/auth/me`'s
 `tenant.operator`), and so does `Platform.breakGlass` (reading another
 tenant read only, without its invitation: [tenancy](tenancy.md#break-glass)).
-`Access.readConsolidated` reads the tenants below the session's in its tenant
-tree, read-only (consolidated reports of a holding: [tenancy](tenancy.md),
-"The tenant tree"); users only, never while impersonating.
+No permission reads past the session's tenant: tenants are independent.
 
 The built-in `Access` permissions (`ACCESS_PERMISSIONS`,
 `iam/access/permission-catalog.ts`; none takes conditions) and the one `Platform` permission:
@@ -227,7 +225,7 @@ The built-in `Access` permissions (`ACCESS_PERMISSIONS`,
 | `Access.manageRetention`, `manageLegalHolds`                                                     | retention rules; legal holds ([retention](retention.md))                                                                         |
 | `Access.manageSso`                                                                               | the tenant's SAML and OpenID Connect connections and verified domains ([auth](auth.md), "Enterprise SSO")                        |
 | `Access.provisionScim`                                                                           | SCIM 2.0 provisioning: API clients only, the identity provider's token ([auth](auth.md), "Enterprise SSO")                       |
-| `Access.manageTenants`, `readConsolidated`; `Platform.breakGlass`                                | as above                                                                                                                         |
+| `Access.manageTenants`; `Platform.breakGlass`                                                    | as above                                                                                                                         |
 
 - **Reading** the access API (`GET` of the catalog, roles, users, organizational units,
   API clients, principals; one role, user or client by id) takes any
@@ -394,9 +392,9 @@ Three conditions read the current memberships (`iam/access/permissions.ts`):
 | `inMyUnitsAndBelow(field, column)` | those units and every unit below them: a member of "Sales" sees "Sales / North / East" |
 | `inUnitsILeadAndBelow(field, column)` | the units the user currently leads, and every unit below them (the seed role `unit-lead` uses it) |
 
-Parent and sub-organizations and cross-functional project groups are
-deferred: units are one tree of one tenant (tenants have their own tree:
-[tenancy](tenancy.md)).
+Units are one tree of one tenant. There are no parent or sub-organizations:
+tenants are independent ([tenancy](tenancy.md)); cross-functional project
+groups are deferred.
 
 Other trees (categories, folders): `closureTable()` and `Tree` in
 `core/database/tree.ts`.

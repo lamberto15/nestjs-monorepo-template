@@ -145,9 +145,9 @@ carried over.
    - **Organizational units** (item 25) organize people and data inside a tenant. They are flexible
      and enforced by permissions (CASL), not RLS, so overlapping memberships and
      roll-up reports stay possible.
-   - A **holding group** whose subsidiaries must be separate tenants but want
-     consolidated reports gets a tenant tree (1b): reads may span the parent's
-     subtree for users granted that, while writes always target one tenant.
+   - A **holding group** whose subsidiaries must be separate tenants gets one
+     independent tenant per subsidiary. There is no tenant tree and no read
+     across tenants (#601 removed both).
 
    The test: a separate customer, whose data must never leak even through a bug, is a
    tenant. A way one customer organizes itself is a unit. Never make each team a
@@ -197,15 +197,12 @@ Split into **1a** (core) and **1b** (per-tenant product features).
   step once (no init-script re-run).
 - **The settings.** Use `set_config(..., true)` at the start of every transaction,
   issued by the transaction adapter. Never a plain `SET`, which outlives the pooled
-  connection. There are two settings:
-  - `app.tenant_id`: the one tenant writes go to;
-  - `app.read_tenants`: the tenants reads may see. It is the same one tenant unless a
-    consolidated read (1b) widens it.
+  connection. One setting, `app.tenant_id`: the one tenant reads see and
+  writes go to (a second, `app.read_tenants`, served the tenant tree until
+  #601 removed both).
 
-  Policies read them once per query through a `(select current_setting(...))`
-  subquery:
-  - `USING (tenant_id = any(... read_tenants ...::uuid[]))`;
-  - `WITH CHECK (tenant_id = ... tenant_id ...::uuid)`.
+  Policies read it once per query through a `(select current_setting(...))`
+  subquery: `USING` and `WITH CHECK (tenant_id = ... tenant_id ...::uuid)`.
 
   A missing setting fails loudly.
 - **Reads outside a transaction** go straight to the pool with no setting: they fail
@@ -264,14 +261,12 @@ Split into **1a** (core) and **1b** (per-tenant product features).
   transfer, step-up) and deletion (deactivated, a grace period, then a worker erases
   rows, files, queued jobs, workflows and outbox messages). docs/tenancy.md.
 - The platform "super tenant" for operators.
-- **The tenant tree** for holding groups: **done** (#233): `parent_id` on `tenants`
-  and the `tenant_closure` table, placed by the operators (a cycle refused); a user
-  with `Access.readConsolidated` reads the parent's active subtree, read-only, audited
-  in every tenant read (`TenantTree.consolidated()`, the consolidated audit log); the
-  read policies check the tree too, so a child never reads its parent or a sibling.
-  docs/tenancy.md, "The tenant tree". Open: consolidated exports and the features'
-  own consolidated reports (each calls `TenantTree.consolidated()`).
-  - Writes and everything else stay in one tenant.
+- **The tenant tree** for holding groups (#233): **removed** on branch
+  `feat/org-units` (#601, done): independent tenants are the only organization
+  boundary. `tenants.parent_id`, `tenant_closure`, `Access.readConsolidated`,
+  `/v1/access/consolidated/*` and `app.read_tenants` are gone; the read
+  policies are strict current-tenant isolation; break-glass reads its one
+  target tenant read-only. docs/tenancy.md.
 - Platform analytics across unrelated tenants never go through the app role. They use
   a separate reporting role on anonymized aggregates: **done** (#235): the worker's
   nightly `PlatformAnalyticsJob` stores suppressed counts in the `analytics` schema,
@@ -683,8 +678,10 @@ directory `GET /v1/organizational-units` for every member.
   columns; `stored-renames.ts` rewrites the team-era names in rows at
   migrate. The saved-views visibility check accepts `team` and `unit` for
   this release; `team` goes in a later one (#602).
-- **Deferred:** parent and sub-organizations, and cross-functional project
-  groups (several trees per tenant, extra groups a record is shared with).
+- **Removed, not deferred:** parent and sub-organizations (#601, done on this
+  branch): tenants are independent, no read spans two.
+- **Deferred:** cross-functional project groups (several trees per tenant,
+  extra groups a record is shared with).
 - **Kept in permissions, not RLS:** memberships overlap and change often.
   RLS stays the tenant wall, and CASL handles units.
 
@@ -711,6 +708,6 @@ directory `GET /v1/organizational-units` for every member.
   - moving the existing MFA key out of `app_secrets`;
   - a sensitive flag for custom-field JSONB.
 - **Gaps** got item numbers (18–24) and places in the order.
-- **Organizational units (25) and the tenant tree (1b)** come from the owner's requirement that
+- **Organizational units (25)** (and the tenant tree of 1b, removed by #601) come from the owner's requirement that
   companies organize and report across their own units. The review assumed a flat
   tenant.

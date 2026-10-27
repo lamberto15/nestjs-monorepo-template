@@ -219,8 +219,7 @@ export class TenantRunsFailed extends AggregateError {
 const sameScope = (a: TenantScope | undefined, b: TenantScope) =>
   (a?.tenantId ?? null) === b.tenantId &&
   (a?.bypass ?? false) === b.bypass &&
-  (a?.readOnly ?? false) === (b.readOnly ?? false) &&
-  (a?.readTenants ?? []).join() === b.readTenants.join();
+  (a?.readOnly ?? false) === (b.readOnly ?? false);
 
 const describe = (scope: TenantScope | undefined) =>
   scope?.bypass

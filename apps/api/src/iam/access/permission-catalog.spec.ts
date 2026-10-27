@@ -182,7 +182,6 @@ describe('PermissionCatalog', () => {
       ]),
     );
     expect(granted.every((key) => /\.read(?:[A-Z]|$)/.test(key))).toBe(true);
-    expect(granted).not.toContain('Access.readConsolidated');
     expect(
       catalog.readPermissions().every((p) => p.conditions.length === 0),
     ).toBe(true);

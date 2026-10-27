@@ -3,8 +3,9 @@
 A **tenant** is a customer: a contract, a billing and legal boundary, and a hard
 wall that PostgreSQL's row-level security (RLS) enforces. One customer is one
 tenant, with all its organizational units (divisions, departments, teams) inside it (roadmap item 25).
-A holding whose subsidiaries must stay apart gets a tenant per subsidiary, and
-reads them together through the tenant tree ("The tenant tree", below).
+Tenants are independent: none sits above another, and no read spans two
+(#601 removed the tenant tree and its consolidated reads). A holding whose
+subsidiaries must stay apart gets a tenant per subsidiary, each read on its own.
 
 The test: a separate customer, whose data must never leak even through a bug,
 is a tenant. A way one customer organizes itself is a group.
@@ -13,8 +14,7 @@ is a tenant. A way one customer organizes itself is a group.
 
 | Table | Kind | What it holds |
 | --- | --- | --- |
-| `tenants` | global | `slug`, `name`, `active`, `operator`, `parent_id` (the tenant tree) |
-| `tenant_closure` | global | the tenant tree's closure: every ancestor and descendant pair, with its depth |
+| `tenants` | global | `slug`, `name`, `active`, `operator`, `quotas`, deletion state |
 | `users` | global | one account per address, in every tenant it belongs to |
 | `memberships` | global, with `tenant_id` | which tenants a user belongs to, `active`, `selected_at` |
 | `api_keys` | global, with `tenant_id` | keys are looked up by id before the tenant is known |
@@ -40,33 +40,27 @@ belong to one tenant; their roles, keys and usage too.
 `core/tenancy/tenant-pool.ts`) sends, with the `begin` in the same round trip:
 
 ```sql
-select set_config('app.tenant_id', '<uuid>', true),
-       set_config('app.read_tenants', '<uuid>[,<uuid>…]', true)
+select set_config('app.tenant_id', '<uuid>', true)
 ```
 
-`true` is `SET LOCAL`: the values end with the transaction and never stay on a
-pooled connection. They come from the scope of the current CLS context
-(below); every value is a checked UUID. The hook sits in the pool rather than
+`true` is `SET LOCAL`: the value ends with the transaction and never stays on a
+pooled connection. It comes from the scope of the current CLS context
+(below), a checked UUID. The hook sits in the pool rather than
 the transaction adapter so that every transaction carries it: the transaction
 host's, and a store's own `db.transaction()`.
 
 **Policies** (`tenantPolicies()`, `core/tenancy/tenant-scope.ts`), declared with
-each table so `pnpm db:generate` emits them; each setting is read once per
+each table so `pnpm db:generate` emits them; the setting is read once per
 statement through a `(select current_setting(…))` subquery:
 
 | Command | Rows |
 | --- | --- |
-| `SELECT` | `tenant_id = any(app.read_tenants)`, and `tenant_id` is `app.tenant_id` or one of its descendants in `tenant_closure` |
-| `INSERT`, `UPDATE` (both sides), `DELETE` | `tenant_id = app.tenant_id` |
+| `SELECT`, `INSERT`, `UPDATE` (both sides), `DELETE` | `tenant_id = app.tenant_id` |
 
-There is no bypass clause: work across tenants runs as another role (below,
-"The bypass"). The tree in the `SELECT` policy is a second wall for the
-consolidated reads ("The tenant tree", below): whatever `app.read_tenants`
-names, a tenant other than `app.tenant_id` is read only when the closure says
-it is below it, so a parent or a sibling is never read. A tenant in no tree
-(every tenant but a holding's) has no descendants: its reads are its own, as
-before. The closure is read once per statement too (an uncorrelated
-`array(select …)`, an InitPlan).
+Strict isolation: a tenant's rows are read and written only in that tenant.
+No other setting widens a read (an `app.read_tenants` someone sets is
+ignored: no policy reads it). There is no bypass clause: work across tenants
+runs as another role (below, "The bypass").
 
 An unset or empty setting matches no row: a connection without a tenant reads
 nothing and writes nothing. `FORCE ROW LEVEL SECURITY` (which drizzle-kit
@@ -153,8 +147,8 @@ role) hold its URL: an api process has no bypass at all, and no setting turns
 one on. (An `APP_ROLE=all` process, as in development and the tests, holds both;
 `Tenancy.bypass()` still refuses inside a request, and the metrics' read-only
 aggregates are the only other user.) What the wall is not: SQL injected into a
-request still runs as the app role and may set `app.tenant_id` and
-`app.read_tenants` itself, to any tenant id it can read from the global
+request still runs as the app role and may set `app.tenant_id` itself, to
+any tenant id it can read from the global
 `tenants` table. Row-level security protects against bugs in correct queries
 (a forgotten filter, a wrong join), not against injection, which parameters
 prevent. It runs only in a process that
@@ -192,62 +186,6 @@ have. `migrate` refuses a table of `analytics` with a `tenant_id` or
 snapshots (a total that grew by one); the daily grain and the minimum group
 size keep that coarse. A new figure goes in the job's `count()`, never as a
 grant on another table.
-
-## The tenant tree
-
-A holding whose subsidiaries are separate tenants (separate customers, each
-behind its wall) reads them together for consolidated reports through a tree:
-`tenants.parent_id`, and its closure, `tenant_closure` (one row per ancestor
-and descendant at any depth, `depth` 1 for a parent and its child; none for a
-tenant and itself). Both global. Writes always go to one tenant.
-
-**Placing tenants** is the operators' (`PATCH /v1/tenants/{id} { parentId }`,
-null for a root; `POST /v1/tenants { parentId }`). `TenantTree.place()`
-(`iam/access/tenant-tree.ts`) writes `parent_id` and the closure in the same
-transaction as the tenant's row lock and its audit entry, under one advisory
-lock for the whole tree (two moves at once could each miss the cycle the
-other closes). A move takes the tenant's subtree with it. Refused: a parent
-that is the tenant or below it (409 `tenant_tree_cycle`), the operator
-tenant on either side (409 `operator_tenant`: the operators never read a
-tenant's data, nor a tenant theirs), a parent whose deletion is pending
-(409 `tenant_deletion_pending`), one that isn't there (404). A tenant with
-children is never deleted (409 `tenant_has_children` on its deletion; the
-key is `on delete restrict`, and `TenantsService.deleteRow()` skips one).
-The moved tenant's own log says so (`tenant.updated`, `parentId` from → to):
-its administrators see that it is now read from above.
-
-**Consolidated reads** are an explicit opt-in; by default every request reads
-one tenant, as always. `TenantTree.consolidated(principal, what, work)`:
-
-- needs `Access.readConsolidated` (a user, never while impersonating, never
-  an API client; 403 `consolidated_read_forbidden`), checked there whatever
-  the route checked. The built-in Administrator role has it (it has
-  everything); other roles get it through the access API;
-- reads the reader's **active subtree**: its descendants that are active,
-  with no deletion pending, and with no deactivated tenant between the
-  reader's and them (a deactivated tenant exposes nothing, nor what is below
-  it). Never a parent, never a sibling;
-- audits `tenant.consolidated-read` (`what`, the tenants read) in the
-  reader's tenant and in each tenant read, before reading;
-- runs `work` in a consolidated scope (`consolidatedScope()`):
-  `app.tenant_id` the reader's, `app.read_tenants` the reader's and the
-  subtree's, every transaction `READ ONLY` (global tables too: the pool
-  wraps them in one). The write policies take `app.tenant_id` alone anyway.
-
-The database checks the tree again: the `SELECT` policy of every tenant
-table reads only the tenants the closure puts below `app.tenant_id` ("The
-wall", above), so a bug that set a child's `app.read_tenants` to its parent
-or a sibling reads nothing of theirs.
-
-| Route | What |
-| --- | --- |
-| `GET /v1/access/consolidated/tenants` | The tenants a consolidated read spans (`id`, `slug`, `name`, `parentId`, `depth`), nearest first. `Access.readConsolidated`. |
-| `GET /v1/access/consolidated/audit` | The audit log of your tenant and that subtree, each entry with its `tenantId` (a field, and a filter: `tenantId=<id>`, `tenantId.in=<id>,<id>`), filtered, sorted and paged as `GET /v1/access/audit`. `actorName` names your tenant's members and clients; another tenant's show their `actorLabel`. `Access.readAudit` and `Access.readConsolidated`. |
-
-A feature's consolidated report calls `TenantTree.consolidated()` the same
-way, and reads with its usual queries: row-level security does the rest.
-What a role may do (its CASL conditions, its field permissions) is the
-reader's, in the reader's tenant, applied to every tenant read.
 
 ## Per-principal keys carry the tenant
 
@@ -348,11 +286,11 @@ outside the operators ever sees another tenant):
 | Route | What |
 | --- | --- |
 | `GET /v1/tenants` | A page, newest first: `listQuery()` filters (`name`, `slug`: `eq`, `contains`, `startsWith`; `active`, `operator`; `createdAt`, `updatedAt` ranges), `sort` (`name`, `slug`, `createdAt`, `updatedAt`), `cursor`/`page`, `count`, `fields`. `GET /v1/lists/Tenant` describes it (to the same callers). |
-| `POST /v1/tenants { name, slug, administratorEmail, parentId? }` | A tenant, its roles and its first administrator's invitation (`administrator: { email, status: 'invited', expiresAt }`), audited in both tenants. 409 `tenant_slug_taken` (with `errors: [{ path: 'slug' }]`), 409 `single_tenant`. |
+| `POST /v1/tenants { name, slug, administratorEmail }` | A tenant, its roles and its first administrator's invitation (`administrator: { email, status: 'invited', expiresAt }`), audited in both tenants. 409 `tenant_slug_taken` (with `errors: [{ path: 'slug' }]`), 409 `single_tenant`. |
 | `GET /v1/tenants/{id}` | One tenant, with an `ETag`. |
-| `PATCH /v1/tenants/{id} { name?, slug?, active?, parentId? }` | Rename, a new slug (409 `tenant_slug_taken` on the field), (de)activate, move it in the tenant tree (below). `If-Match` optional (412 `precondition_failed`). Audited `tenant.updated` (each field from → to) in the operator's tenant and in that one. `active: true` while a deletion is pending: 409 `tenant_deletion_pending`. |
+| `PATCH /v1/tenants/{id} { name?, slug?, active? }` | Rename, a new slug (409 `tenant_slug_taken` on the field), (de)activate. `If-Match` optional (412 `precondition_failed`). Audited `tenant.updated` (each field from → to) in the operator's tenant and in that one. `active: true` while a deletion is pending: 409 `tenant_deletion_pending`. |
 | `POST /v1/tenants/{id}/export { format? }` | Every record of it, as a file (202, a data transfer): "Exporting a tenant", below. A recent sign-in, `Idempotency-Key`. |
-| `POST /v1/tenants/{id}/deletion { slug }`, `DELETE /v1/tenants/{id}/deletion` | Its deletion after a grace period, and its cancel: "Deleting a tenant", below. The request wants a recent sign-in; a tenant with children in the tree is refused (409 `tenant_has_children`: move them first). |
+| `POST /v1/tenants/{id}/deletion { slug }`, `DELETE /v1/tenants/{id}/deletion` | Its deletion after a grace period, and its cancel: "Deleting a tenant", below. The request wants a recent sign-in. |
 
 **The first administrator is always invited.** The create's answer says
 `status: 'invited'` whether or not the address has an account: like every
@@ -524,7 +462,7 @@ case the tenant can't open the door for). The owner's decision is pending
 | **Who** | A member of the operator tenant holding `Platform.breakGlass` (its Administrator role does), acting as themselves (not while impersonating), with a recent sign-in. `@OperatorOnly()` and the permission are checked when the grant opens and again on every request through it. |
 | **Opening** | `POST /v1/tenants/{id}/break-glass { reason, minutes? }` (201): a grant (`break_glass_grants`, a row of the operators' tenant) with its `id`, `reason` (10 to 1000 characters, required) and `expiresAt`. 409 `break_glass_active` while you hold an open one to that tenant, `break_glass_own_tenant` for the operator tenant, `tenant_inactive`; 403 `break_glass_disabled` when the tenant opted out, `break_glass_not_allowed` while impersonating or acting through a grant. `GET /v1/tenants/{id}/break-glass` lists your grants to it. |
 | **Using** | GET requests with the header `Break-Glass: <grant id>`: the request acts in that tenant (`GET /v1/auth/me` says so), with every read action of the catalog (`read`, `readAudit`), unconditional, and nothing else. A request that isn't a read answers 403 `break_glass_read_only`; a grant that ended, isn't yours, or whose permission you lost, 403 `break_glass_invalid`; one past its time, 403 `break_glass_expired`. HTTP only: a socket never breaks glass. |
-| **Read only, in the database** | `BreakGlassGuard` (after the authentication and two-factor guards, before authorization's) sets the request's scope to `readOnlyTenantScope()`: the consolidated read's scope ("The tenant tree") with no descendants, so `app.tenant_id` and `app.read_tenants` are that tenant alone (the read policies' tree check passes on the tenant itself) and `TenantPool`'s one read-only path applies: every query in a transaction begun with `set transaction read only`, a global table's too, so PostgreSQL refuses any write (SQLSTATE 25006) whatever a route would do. The method check is the clear answer; the database is the wall. A grant never reads the tenant's subtree (`Access.readConsolidated` is not among its permissions). |
+| **Read only, in the database** | `BreakGlassGuard` (after the authentication and two-factor guards, before authorization's) sets the request's scope to `readOnlyTenantScope()`: `app.tenant_id` is that one target tenant (the policies' strict isolation shows its rows and no other tenant's: neither the operator tenant's nor a third's) and `TenantPool`'s read-only path applies: every query in a transaction begun with `set transaction read only`, a global table's too, so PostgreSQL refuses any write (SQLSTATE 25006) whatever a route would do. The method check is the clear answer; the database is the wall. |
 | **How long** | At most 60 minutes (`minutes`, default 60), never extended: another grant to the same tenant needs the first ended (`DELETE /v1/tenants/{id}/break-glass/{grantId}`, which stops it at once) or expired, and a new reason. |
 | **Told** | In one transaction in the tenant opened: `tenant.break-glass-started` in its audit log (with the reason and the grant), a `member.signed-in` entry with `method: break-glass` in its sign-in log (`GET /v1/access/sign-ins`), and `security.breakGlassStarted` to each of its administrators (the built-in role, active members; mandatory: in the app and by mail). Then the grant and the same entry in the operators' log. Ending it: `tenant.break-glass-ended` in both. The reads themselves are logged by the api (`BreakGlass` logger), not audited: the transactions are read only. |
 | **Opt-out** | The tenant's setting `auth.allowBreakGlass: false` ([settings](settings.md)): new grants are refused, running ones stop on their next request. Any tenant's administrator may set it; there is no plan tier in the template to restrict it to enterprise tenants. |
@@ -673,15 +611,13 @@ administrator's invitation). `database-roles.e2e-spec.ts`, "the reporting
 role": no privilege on a tenant table, a global table or a store, even with
 a tenant's settings; reads the aggregates; refused when it could read more.
 `platform-analytics.e2e-spec.ts`: the job's figures and their suppression,
-read as the reporting role. `tenant-tree.e2e-spec.ts`: placing tenants and
-their closure, moves, a cycle refused, the operator tenant kept out, a tenant
-with children kept from deletion; as the app role in SQL, one tenant without
-the opt-in, the subtree with it, never a parent or a sibling whatever
-`app.read_tenants` says, writes to `app.tenant_id` only, the consolidated
-scope read-only; the consolidated audit log over HTTP and its permission. `break-glass.e2e-spec.ts`: a grant's reads, its
+read as the reporting role. `tenancy.e2e-spec.ts`, "as the app role, in
+SQL": a forged `app.read_tenants` opens no other tenant's rows; one pooled
+connection reused after a break-glass scope and tenant switches carries no
+other tenant's visibility. `break-glass.e2e-spec.ts`: a grant's reads (its
+one target, never the operator tenant's rows nor a third tenant's), its
 audit entries, notification and sign-in log entry, the refusal of writes
-(the guard, and PostgreSQL's 25006 in the read-only scope), no consolidated
-read through it, its expiry, no renewal, ending it, the refusals without the
+(the guard, and PostgreSQL's 25006 in the read-only scope), its expiry, no renewal, ending it, the refusals without the
 permission, and the opt-out.
 Test helpers: `node.otherTenant()` (a second tenant, its administrator signed
 in), `node.inTenant(work, tenantId?)` and `node.acrossTenants(work)` for a

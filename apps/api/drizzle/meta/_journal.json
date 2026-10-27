@@ -477,6 +477,13 @@
       "when": 1793118927177,
       "tag": "0067_org_units_foreign_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1793123842437,
+      "tag": "0068_remove_tenant_tree",
+      "breakpoints": true
     }
   ]
 }

@@ -39,11 +39,9 @@ export async function applyStoredRenames(
     const counts = new Map<StoredRename, number>();
     for (const { id } of all) {
       await db.transaction(async (tx) => {
-        // Both settings, as TenantPool sends them: an UPDATE's WHERE reads
-        // rows, so the select policy (app.read_tenants) must see them too.
-        await tx.execute(
-          sql`select set_config('app.tenant_id', ${id}, true), set_config('app.read_tenants', ${id}, true)`,
-        );
+        // The tenant's setting, as TenantPool sends it: the select and
+        // update policies both read `app.tenant_id` alone.
+        await tx.execute(sql`select set_config('app.tenant_id', ${id}, true)`);
         for (const rename of renames) {
           const { column } = rename;
           const table = column.table as PgTable;

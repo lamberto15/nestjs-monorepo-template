@@ -428,10 +428,7 @@ describe('the app role', () => {
       // text differs from drizzle-kit's, the expression doesn't.
       await database.asOwner(
         `alter policy audit_log_tenant_select on audit_log using (
-           ((tenant_id   =   ANY ((SELECT String_To_Array(COALESCE(current_setting('app.read_tenants', TRUE), ''), ',')::uuid[])::uuid[]))
-             AND (tenant_id = (SELECT nullif(current_setting('app.tenant_id', true), '')::uuid)
-                  OR tenant_id = ANY (ARRAY(SELECT descendant_id FROM tenant_closure
-                                            WHERE ancestor_id = (SELECT NULLIF(current_setting('app.tenant_id', TRUE), '')::uuid)))))
+           ((tenant_id   =   (SELECT NULLIF(Current_Setting('app.tenant_id', TRUE), '')::uuid)))
            OR ((tenant_id IS NULL) AND ((SELECT nullif(current_setting('app.tenant_id', true), '')::uuid) IS NULL))
          )`,
       );
@@ -727,7 +724,7 @@ describe('the app role', () => {
             // the role holds no privilege on the table at all.
             if (tenant) {
               await client.query(
-                `select set_config('app.tenant_id', $1, true), set_config('app.read_tenants', $1, true)`,
+                `select set_config('app.tenant_id', $1, true)`,
                 [tenant.id],
               );
             }

@@ -7,7 +7,7 @@ import { nav, visibleGroups } from '@/nav';
 import { peopleHandler } from '@/test/people';
 import { principalsHandler, userPrincipal } from '@/test/principals';
 import { renderApp } from '@/test/render-app';
-import { allFeatures, server, signedInUser } from '@/test/server';
+import { allFeatures, server } from '@/test/server';
 
 const entry = (id: string, extra: object = {}) => ({
   id,
@@ -52,13 +52,6 @@ const description = {
       name: 'targetType',
       type: 'string',
       operators: ['eq', 'in', 'isNull'],
-      sortable: false,
-      custom: false,
-    },
-    {
-      name: 'tenantId',
-      type: 'uuid',
-      operators: ['eq', 'in'],
       sortable: false,
       custom: false,
     },
@@ -241,88 +234,5 @@ describe('the audit log page', () => {
     signedInWith({});
     const { router } = await renderApp('/audit');
     await vi.waitFor(() => expect(router.state.location.pathname).toBe('/'));
-  });
-});
-
-describe('the audit log across the tenant tree', () => {
-  const SUB = '0199a3f2-0000-7000-8000-0000000000bb';
-  const subTenants = () =>
-    http.get('/v1/access/consolidated/tenants', () =>
-      HttpResponse.json({
-        items: [
-          {
-            id: SUB,
-            slug: 'alpha',
-            name: 'Alpha Ltd',
-            parentId: null,
-            depth: 1,
-          },
-        ],
-      }),
-    );
-
-  it('has no switch without Access.readConsolidated', async () => {
-    signedInWith({ 'Access.readAudit': true });
-    auditApi([entry('1')]);
-    await renderApp('/audit');
-    expect(await screen.findByText('noah@example.com')).toBeInTheDocument();
-    expect(
-      screen.queryByRole('switch', { name: 'Include sub-tenants' }),
-    ).toBeNull();
-  });
-
-  it('reads the consolidated route with a tenant column and names the sub-tenants', async () => {
-    signedInWith({ 'Access.readAudit': true, 'Access.readConsolidated': true });
-    auditApi([entry('0')]);
-    const urls: URL[] = [];
-    server.use(
-      subTenants(),
-      http.get('/v1/access/consolidated/audit', ({ request }) => {
-        const url = new URL(request.url);
-        urls.push(url);
-        return HttpResponse.json({
-          items: [entry('1', { tenantId: SUB })],
-          nextCursor: null,
-          page: 1,
-          nextPage: null,
-          total: 1,
-          pageCount: 1,
-        });
-      }),
-    );
-    await renderApp('/audit');
-    const user = userEvent.setup();
-    await user.click(
-      await screen.findByRole('switch', { name: 'Include sub-tenants' }),
-    );
-
-    expect(await screen.findByText('Alpha Ltd')).toBeInTheDocument();
-    expect(await screen.findByText(/Including: Alpha Ltd/)).toBeInTheDocument();
-    // tenantId is a declared field, so the column asks for it by name.
-    expect(urls.at(-1)!.searchParams.get('fields')?.split(',')).toContain(
-      'tenantId',
-    );
-  });
-
-  it('offers no switch while impersonating', async () => {
-    signedInWith({ 'Access.readAudit': true, 'Access.readConsolidated': true });
-    server.use(
-      http.get('/v1/auth/me', () =>
-        HttpResponse.json({
-          ...signedInUser,
-          can: { 'Access.readAudit': true, 'Access.readConsolidated': true },
-          user: {
-            ...signedInUser.user,
-            impersonator: { id: 'a1', name: 'Admin' },
-          },
-        }),
-      ),
-    );
-    auditApi([entry('1')]);
-    await renderApp('/audit');
-    expect(await screen.findByText('noah@example.com')).toBeInTheDocument();
-    expect(
-      screen.queryByRole('switch', { name: 'Include sub-tenants' }),
-    ).toBeNull();
   });
 });

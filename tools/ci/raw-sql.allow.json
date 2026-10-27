@@ -51,10 +51,6 @@
     "count": 1,
     "why": "keep: advisory lock"
   },
-  "apps/api/src/iam/access/tenant-tree.ts": {
-    "count": 3,
-    "why": "removed by #601 (sub-organizations); until then: keep the advisory lock, the closure SQL goes with the file"
-  },
   "apps/api/src/iam/access/tenants.service.ts": {
     "count": 1,
     "why": "keep: `select uuidv7()`: the id is needed before the insert (the transaction runs in the new tenant), time-ordered like every row's"

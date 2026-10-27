@@ -3,7 +3,7 @@ import { eq, isNull, or } from 'drizzle-orm';
 import { PgDialect, pgTable, uuid } from 'drizzle-orm/pg-core';
 import { ClsService, ClsServiceManager } from 'nestjs-cls';
 import {
-  consolidatedScope,
+  readOnlyTenantScope,
   TENANT_SCOPE,
   tenantScope,
 } from './tenant-scope.js';
@@ -37,11 +37,13 @@ describe('tenant query predicates', () => {
     });
   });
 
-  it('leaves consolidated, bypass and absent scopes to their existing semantics', async () => {
+  it('narrows a break-glass read to its one target, and leaves bypass and absent scopes alone', async () => {
     await cls.run(async () => {
-      cls.set(TENANT_SCOPE, consolidatedScope(A, [B]));
-      expect(tenantPredicate(rows.tenantId)).toBeUndefined();
-      cls.set(TENANT_SCOPE, { tenantId: null, readTenants: [], bypass: true });
+      cls.set(TENANT_SCOPE, readOnlyTenantScope(B));
+      expect(dialect.sqlToQuery(tenantPredicate(rows.tenantId)!)).toEqual(
+        dialect.sqlToQuery(eq(rows.tenantId, B)),
+      );
+      cls.set(TENANT_SCOPE, { tenantId: null, bypass: true });
       expect(tenantPredicate(rows.tenantId)).toBeUndefined();
       cls.set(TENANT_SCOPE, undefined);
       expect(tenantPredicate(rows.tenantId)).toBeUndefined();

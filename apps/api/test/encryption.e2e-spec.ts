@@ -232,10 +232,9 @@ describe('encrypted columns and re-encryption (e2e)', () => {
     await client.connect();
     try {
       await client.query('begin');
-      await client.query(
-        "select set_config('app.tenant_id', $1, true), set_config('app.read_tenants', $1, true)",
-        [node.tenantId],
-      );
+      await client.query("select set_config('app.tenant_id', $1, true)", [
+        node.tenantId,
+      ]);
       await client.query(
         'update test_encrypted_records set tax_number = $1, tax_number_index = $2 where id = $3',
         [concurrent.taxNumber, concurrent.taxNumberIndex, row!.id],
