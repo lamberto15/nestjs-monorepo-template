@@ -73,6 +73,9 @@ export const problem = (status: number, code: string, extra: object = {}) =>
   );
 
 export const handlers = [
+  // report-error.ts's `send`: any test that triggers an error report (a
+  // thrown render, an unhandled rejection) must not also need a handler for it.
+  http.post('/v1/client-errors', () => new HttpResponse(null, { status: 204 })),
   http.get('/v1/auth/me', () => problem(401, 'unauthorized')),
   http.get('/v1/auth/methods', () => HttpResponse.json(allMethods)),
   http.get('/v1/features', () => HttpResponse.json(allFeatures)),

@@ -6,6 +6,8 @@ The image smoke tests assert the manifest SHA equals the GitHub Actions source c
 
 Both Caddy configurations return the manifest with `Cache-Control: no-store`. It is not included in the PWA precache. The API version endpoint sends `Cache-Control: no-store`, discloses only its source SHA and does not alter readiness checks. Local builds without `GIT_SHA`, offline requests and malformed metadata result in an unknown status.
 
+The route's error page shows the tab's build (12 characters) beside its report id, and the API's request id when the route's request failed. A tab opened before a deploy can ask for a code-split chunk the new build no longer has (Caddy answers 404). The router reloads once by itself for a page's chunk; for the rest (React.lazy components, stylesheets) Vite's `vite:preloadError` reloads the tab into the new build once, through the same service-worker activation (`apps/web/src/lib/preload-error.ts`). A chunk still missing within a minute shows its error rather than reloading again.
+
 ## Who can read the commit
 
 `GET /health/version` answers only a signed-in principal (a session, a token client's access token or an API key; 401 otherwise), unlike `/health` and `/health/live` beside it (`core/health/build-version.controller.ts`). The template is public, so an anonymous answer would tell anyone which revision a deployment runs, known-vulnerable ones included. The account menu is shown signed in only and fetches the route from the same origin, so the browser sends the session cookie and the menu works as before; signed out, or for a user who still has to enroll in two-factor or finish onboarding, the API's commit shows as unknown.

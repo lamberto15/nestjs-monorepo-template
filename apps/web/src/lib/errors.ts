@@ -4,6 +4,7 @@ import { isApiError } from '@nestjs-monorepo-template/api-client';
 import { toast } from 'sonner';
 import { i18n } from '@/i18n';
 import { isModeRefusal } from '@/lib/mode';
+import { isNetworkError, reportClientError } from '@/lib/report-error';
 import { announceSessionIdentity, onSessionIdentity } from '@/lib/session-bus';
 import {
   createSession,
@@ -76,7 +77,11 @@ export function endSession(
  * - 403 `onboarding_required` (the first administrator still has the
  *   placeholder email or generated password): to the onboarding page, explained.
  * - Anything else: a toast with the problem's `detail` (in the request's
- *   language), unless the caller shows it (`meta: { errorToast: false }`).
+ *   language), unless the caller shows it (`meta: { errorToast: false }`);
+ *   for a 5xx, with the request id the API logged it under.
+ * - Not the API's answer: a connection that dropped says so; anything else
+ *   is a fault of the app's, reported (lib/report-error.ts) and toasted with
+ *   its report id, which the user can quote.
  */
 export function handleApiError(
   queryClient: QueryClient,
@@ -126,10 +131,23 @@ export function handleApiError(
       return;
     }
   }
+  const reportId =
+    isApiError(error) || isNetworkError(error)
+      ? undefined
+      : reportClientError(error, 'request');
   if (meta?.errorToast === false) {
     return;
   }
-  toast.error(errorMessage(error));
+  const quoted = reportId
+    ? i18n.t('errors.reportId', { id: reportId })
+    : isApiError(error) && error.status >= 500 && error.requestId
+      ? i18n.t('errors.requestId', { id: error.requestId })
+      : undefined;
+  if (quoted) {
+    toast.error(errorMessage(error), { description: quoted });
+  } else {
+    toast.error(errorMessage(error));
+  }
 }
 
 /** What to tell the user about an error. */
@@ -137,7 +155,9 @@ export function errorMessage(error: unknown): string {
   if (isApiError(error)) {
     return error.detail;
   }
-  return i18n.t('auth.errors.network');
+  return isNetworkError(error)
+    ? i18n.t('auth.errors.network')
+    : i18n.t('errors.unexpected');
 }
 
 export function createQueryClient(
