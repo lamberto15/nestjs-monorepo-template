@@ -260,8 +260,16 @@ export class DatabaseObserver {
         if (slowRecorded) return;
         const durationMs = performance.now() - started;
         const lag = this.loopLagMs();
-        if (durationMs - (Number.isFinite(lag) ? lag : 0) < SLOW_QUERY_MS)
+        const adjusted = durationMs - (Number.isFinite(lag) ? lag : 0);
+        if (adjusted < SLOW_QUERY_MS) {
+          // Lag explains the time so far, but the query may still be waiting (a
+          // lock): check again once the rest has passed, not only at completion.
+          if (!finished) {
+            timer = setTimeout(slow, SLOW_QUERY_MS - adjusted);
+            timer.unref();
+          }
           return;
+        }
         slowRecorded = true;
         this.incidents.record({
           ...evidence,
@@ -269,7 +277,7 @@ export class DatabaseObserver {
           durationMs,
         });
       };
-      const timer = setTimeout(slow, SLOW_QUERY_MS);
+      let timer = setTimeout(slow, SLOW_QUERY_MS);
       timer.unref();
       const done = (error?: unknown) => {
         if (finished) return;
