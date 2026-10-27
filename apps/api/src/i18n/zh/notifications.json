@@ -11,7 +11,6 @@
       "label": "批量发布的笔记",
       "title": "笔记已发布",
       "body": {
-        "one": "已发布 {notes} 篇笔记，其中包括“{title}”。",
         "other": "已发布 {count} 批笔记；最近一批有 {notes} 篇，其中包括“{title}”。"
       }
     },

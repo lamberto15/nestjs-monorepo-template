@@ -11,7 +11,6 @@
       "label": "Nota diterbitkan secara pukal",
       "title": "Nota diterbitkan",
       "body": {
-        "one": "{notes} nota telah diterbitkan, termasuk \"{title}\".",
         "other": "{count} kelompok nota telah diterbitkan; yang terakhir ada {notes}, termasuk \"{title}\"."
       }
     },
