@@ -300,6 +300,9 @@ describe('editing a note', () => {
   it('preserves a saved draft across navigation and requires explicit recovery or discard', async () => {
     localStorage.clear();
     useNotesApi({ can: ALL, notes: [sampleNote()] });
+    // Navigating away from the dirty form asks first (lib/unsaved-changes.ts);
+    // this test is about the draft, not that guard, so it always says yes.
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { router } = await renderApp(`/notes/${NOTE_ID}/edit`);
     const user = userEvent.setup();
     await user.clear(await screen.findByLabelText('Title'));
@@ -335,6 +338,7 @@ describe('editing a note', () => {
         readEditorDraft(identity, signedInUser.tenant!.id, NOTE_ID),
       ).toBeUndefined(),
     );
+    confirmSpy.mockRestore();
   });
 
   it('compares server and draft values, then reconciles with the latest ETag without losing concurrent edits', async () => {
@@ -343,7 +347,9 @@ describe('editing a note', () => {
     const user = userEvent.setup();
     await screen.findByLabelText('Title');
     api.changeElsewhere(NOTE_ID, { title: 'Edited elsewhere' });
-    await user.clear(screen.getByLabelText('Text'));
+    // The body control waits on notes.richText (use-rich-text.ts) before it
+    // renders: findBy, not getBy, the first time this test reaches it.
+    await user.clear(await screen.findByLabelText('Text'));
     await user.type(screen.getByLabelText('Text'), 'My text');
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
     expect(
