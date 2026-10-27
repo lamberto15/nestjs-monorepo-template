@@ -221,17 +221,20 @@ export function SendersPage() {
       ) : (
         <EmptyState title={t('senders.empty')} />
       )}
-      <SenderFormDialog
-        open={creating}
-        onOpenChange={setCreating}
-        onSubmit={(values: SenderValues) =>
-          create.mutateAsync({
-            name: values.name,
-            // An empty description is a 400: leave it out.
-            ...(values.description && { description: values.description }),
-          })
-        }
-      />
+      {/* Mounted only while open, as editing: a cancelled draft doesn't come back. */}
+      {creating && (
+        <SenderFormDialog
+          open
+          onOpenChange={setCreating}
+          onSubmit={(values: SenderValues) =>
+            create.mutateAsync({
+              name: values.name,
+              // An empty description is a 400: leave it out.
+              ...(values.description && { description: values.description }),
+            })
+          }
+        />
+      )}
       {editing && (
         <SenderFormDialog
           open

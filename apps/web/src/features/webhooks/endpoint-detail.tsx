@@ -343,7 +343,14 @@ function RetryFailedButton(props: { clientId: string; endpointId: string }) {
   const retry = useRetryFailed(props.clientId, props.endpointId);
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
+      <Button
+        variant="outline"
+        onClick={() => {
+          // Each retry starts from "everything", not the last one's time.
+          setSince('');
+          setOpen(true);
+        }}
+      >
         {t('retryFailed.button')}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>

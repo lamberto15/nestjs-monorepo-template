@@ -22,7 +22,7 @@ export class NoteAttachments implements AttachmentTarget {
   constructor(…, registry: AttachmentsRegistry) { registry.register(this); }
   canRead(principal, id)  { … }   // false for a missing or deleted record: 404
   canWrite(principal, id) { … }   // upload, and removing others' files
-  exists(ids)             { … }   // which still exist, recycle bin included
+  readonly records = { table: notes, id: notes.id };   // the sweep's join: no row there, the record is gone
 }
 
 @Post(':id/attachments')
@@ -129,7 +129,7 @@ upload(…, @UploadedFile() file: StoredUpload) { return this.attachments.upload
   with it (404) until restored. Once it is gone for good (purged by
   SoftDeletePurgeJob, or deleted outright), the nightly sweep
   (`AttachmentSweepJob`, 04:05 in `APP_TIMEZONE`, on one instance) deletes
-  its attachments, file and row, and logs how many; each round's rows go
+  its attachments (found in the database: no row of the record is left), file and row, and logs how many; each round's rows go
   with an `attachments.swept` audit entry (the ids) by the system principal
   `system:attachment-sweep`. A subject no target registers any more is
   left alone. The same sweep removes the direct uploads nobody completed

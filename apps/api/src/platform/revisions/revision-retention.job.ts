@@ -5,6 +5,7 @@ import { OnOneInstance, WithoutOverlapping } from '@nestjs/locks';
 import { Cron } from '@nestjs/schedule';
 import { alias } from 'drizzle-orm/pg-core';
 import { and, eq, exists, gt, lt } from 'drizzle-orm';
+import { deleteInBatches } from '../../core/database/batched-delete.js';
 import {
   database,
   type DrizzleTransactions,
@@ -56,36 +57,36 @@ export class RevisionRetentionJob {
           const days = this.config.get('REVISIONS_RETENTION_DAYS', {
             infer: true,
           });
-          const deleted = await this.db
-            .delete(revisions)
-            .where(
-              and(
-                lt(
-                  revisions.changedAt,
-                  new Date(now.getTime() - days * 86_400_000),
-                ),
-                // Not a record's latest: a newer revision of the same record exists.
-                exists(
-                  this.db
-                    .select({ one: newer.id })
-                    .from(newer)
-                    .where(
-                      and(
-                        eq(newer.tenantId, revisions.tenantId),
-                        eq(newer.subject, revisions.subject),
-                        eq(newer.recordId, revisions.recordId),
-                        gt(newer.number, revisions.number),
-                      ),
-                    ),
-                ),
+          const deleted = await deleteInBatches(
+            this.txHost,
+            revisions,
+            revisions.id,
+            and(
+              lt(
+                revisions.changedAt,
+                new Date(now.getTime() - days * 86_400_000),
               ),
-            )
-            .returning({ id: revisions.id });
+              // Not a record's latest: a newer revision of the same record exists.
+              exists(
+                this.db
+                  .select({ one: newer.id })
+                  .from(newer)
+                  .where(
+                    and(
+                      eq(newer.tenantId, revisions.tenantId),
+                      eq(newer.subject, revisions.subject),
+                      eq(newer.recordId, revisions.recordId),
+                      gt(newer.number, revisions.number),
+                    ),
+                  ),
+              ),
+            ),
+          );
           this.logger.log('Old revisions deleted', {
-            deleted: deleted.length,
+            deleted,
             days,
           });
-          return deleted.length;
+          return deleted;
         }),
       { transaction: false },
     );

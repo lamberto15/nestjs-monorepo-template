@@ -1,5 +1,4 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { inArray } from 'drizzle-orm';
 import { AccessService } from '../../iam/access/access.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import {
@@ -19,6 +18,7 @@ import { notes } from './notes.tables.js';
  */
 @Injectable()
 export class NoteAttachments implements AttachmentTarget {
+  readonly records = { table: notes, id: notes.id };
   readonly subject = 'Note';
 
   constructor(
@@ -50,17 +50,6 @@ export class NoteAttachments implements AttachmentTarget {
     if (!note || !(await this.policy.read(principal, note))) return false;
     const shown = await this.access.redact(principal, 'read', 'Note', note);
     return fields.every((field) => field in shown);
-  }
-
-  async exists(ids: readonly string[]) {
-    // Deleted ones too: they may be restored.
-    const rows = await this.notes.query((db) =>
-      db
-        .select({ id: notes.id })
-        .from(notes)
-        .where(inArray(notes.id, [...ids])),
-    );
-    return rows.map((row) => row.id);
   }
 
   /** The note, or null when it doesn't exist (with `visibleTo`: or that principal may not read it). */
