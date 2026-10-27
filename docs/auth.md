@@ -372,7 +372,12 @@ credential's `authentication` (`via`: `session` or `token`) and
 Token clients (`POST /v1/auth/token`) carry it in the access token: `amr`
 (RFC 8176: `pwd`, `pop` for a passkey, and `mfa` from the package) and `auth_time` (OpenID
 Connect, epoch seconds), fixed for the refresh family's life
-(`RefreshTokenRecord.claims`). The package has no listing of refresh
+(`RefreshTokenRecord.claims`), with `sid`, the family's own id (random, per
+sign-in): revoking the family disconnects the realtime sockets its access
+tokens opened, and they open no new one
+([realtime](webhooks-and-realtime.md#realtime)). A family signed in before
+`sid` existed has none, so a revocation ends none of its sockets; its next
+sign-in starts a family with one. The package has no listing of refresh
 families, so they aren't in the sessions list.
 
 ### Requiring it on a route

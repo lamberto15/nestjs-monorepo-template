@@ -1,10 +1,15 @@
 import { ApiClientLifecycleRegistry } from '../../iam/access/api-client-lifecycle.registry.js';
 import { UserLifecycleRegistry } from '../../iam/auth/user-lifecycle.registry.js';
 import { SessionLifecycleRegistry } from '../../iam/auth/session-lifecycle.registry.js';
+import { JwtAuth } from '../../iam/auth/jwt-auth.provider.js';
 import { TenantLifecycleRegistry } from '../../iam/access/tenant-lifecycle.registry.js';
 import { Inject, Logger, Optional, UseInterceptors } from '@nestjs/common';
 import { ClsInterceptor } from 'nestjs-cls';
-import { CurrentUser, WsAuthenticator } from '@nestjs/authentication';
+import {
+  CurrentUser,
+  type JwtClaims,
+  WsAuthenticator,
+} from '@nestjs/authentication';
 import { Can } from '@nestjs/authorization';
 import {
   ConnectedSocket,
@@ -52,16 +57,25 @@ export const principalRoom = (
 export const sessionRoom = (sessionId: string) => `session:${sessionId}`;
 
 /**
+ * A private room for the refresh family whose access token opened a token
+ * client's socket: its `sid` claim (tokenClaims()).
+ */
+export const tokenRoom = (tokenSessionId: string) => `token:${tokenSessionId}`;
+
+/**
  * Realtime events over socket.io, namespace `/realtime`, on every instance
  * (the Redis adapter, realtime-adapter.ts).
  *
- * Who connects: signed-in users (the handshake's session cookie) and API
- * clients (`auth: { token: 'sk_…' }`); anyone else is refused at the
+ * Who connects: signed-in users (the handshake's session cookie, or a token
+ * client's access token: `auth: { token: '<JWT>' }`) and API clients
+ * (`auth: { token: 'sk_…' }`); anyone else is refused at the
  * handshake (`connect_error` "unauthorized"; socket.io doesn't retry it).
  * Each connection is in its principal's room of its tenant (and, for a
  * user, their account room) before the client hears it's connected; browser
- * sockets also join their session's private room. Revoking a session
- * disconnects its sockets across instances. A session's tenant switch
+ * sockets also join their session's private room, a token client's its
+ * refresh family's. Revoking a session or a family disconnects its sockets
+ * across instances, and a revoked family's access token, still unexpired,
+ * opens none. A session's tenant switch
  * issues a new session, and a socket opened before stays in the old tenant's
  * room: reconnect after switching. The global guard authenticates every
  * message again; each message runs in a CLS context with its principal's
@@ -92,6 +106,7 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
 
   constructor(
     private readonly wsAuth: WsAuthenticator,
+    private readonly jwtAuth: JwtAuth,
     lifecycle: UserLifecycleRegistry,
     sessionLifecycle: SessionLifecycleRegistry,
     clientLifecycle: ApiClientLifecycleRegistry,
@@ -107,6 +122,15 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
       afterRevocation: (sessionId) => {
         if (this.server) {
           this.server.in(sessionRoom(sessionId)).disconnectSockets(true);
+        }
+      },
+      // A token client's family: sign-out, a reused refresh token, a
+      // re-authentication, signing out everywhere. Its access token would
+      // still pass each message's check until it expires, so the socket
+      // ends here rather than there.
+      afterTokenRevocation: (tokenSessionId) => {
+        if (this.server) {
+          this.server.in(tokenRoom(tokenSessionId)).disconnectSockets(true);
         }
       },
     });
@@ -249,9 +273,9 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
     if (user?.kind === 'system') {
       return undefined;
     }
-    socket.data.principal = user;
     const session = result?.session as
-      { id?: unknown; userId?: unknown } | undefined;
+      | { id?: unknown; userId?: unknown; sid?: unknown; sub?: unknown }
+      | undefined;
     if (
       user?.kind === 'user' &&
       typeof session?.id === 'string' &&
@@ -259,6 +283,20 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
     ) {
       socket.data.sessionId = session.id;
     }
+    // An access token (JwtAuth: the session is its claims) of a family
+    // revoked since it was issued opens nothing: the revocation that would
+    // end this socket has happened already.
+    if (
+      user?.kind === 'user' &&
+      typeof session?.sid === 'string' &&
+      session.sub === user.id
+    ) {
+      if (await this.jwtAuth.familyRevoked(session as JwtClaims)) {
+        return undefined;
+      }
+      socket.data.tokenSessionId = session.sid;
+    }
+    socket.data.principal = user;
     return user;
   }
 
@@ -276,6 +314,9 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
       ];
       if (typeof client.data.sessionId === 'string') {
         rooms.push(sessionRoom(client.data.sessionId));
+      }
+      if (typeof client.data.tokenSessionId === 'string') {
+        rooms.push(tokenRoom(client.data.tokenSessionId));
       }
       void client.join(rooms);
       this.logger.debug(`Connected: ${principalKey(user)}`);
