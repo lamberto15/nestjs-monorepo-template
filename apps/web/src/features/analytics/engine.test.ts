@@ -1,6 +1,7 @@
 import { Table, tableFromJSON } from 'apache-arrow';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  checkDataset,
   disposeDataset,
   loadLocalFile,
   queryDataset,
@@ -67,6 +68,11 @@ class FakeConnection {
     if (sql.includes('SUMMARIZE')) return tableFromJSON(this.summary);
     if (sql.startsWith('SELECT version()'))
       return tableFromJSON([{ version: fakes.version }]);
+    // The import checks: duplicate keys, then unparseable values.
+    if (sql.includes('AS extra')) return tableFromJSON([{ extra: 3 }]);
+    if (sql.includes('HAVING count(*) > 1'))
+      return tableFromJSON([{ key: 'a', rows: 4n }]);
+    if (sql.includes('try_cast')) return tableFromJSON([{ n0: 2 }]);
     // The exact null counts, one positional column per profiled column.
     if (sql.startsWith('SELECT count(*) - count('))
       return tableFromJSON([{ n0: 1, n1: 0 }]);
@@ -506,6 +512,49 @@ describe('querying', () => {
     await expect(queryDataset(dataset)).resolves.toMatchObject({
       totalRows: 7,
     });
+  });
+});
+
+describe('checking an import file', () => {
+  it('counts duplicate keys and unparseable values with the generated SQL', async () => {
+    const dataset = await loadLocalFile(localFile('sales.csv').file);
+
+    const checks = await checkDataset(dataset, {
+      duplicateKey: 'amount',
+      parse: [{ column: 'amount', as: 'number' }],
+    });
+
+    expect(checks).toEqual({
+      duplicates: {
+        column: 'amount',
+        extraRows: 3,
+        samples: [{ value: 'a', rows: 4 }],
+      },
+      unparseable: { amount: 2 },
+    });
+    const sent = latest().connection.queries.slice(-3);
+    expect(sent[0]).toMatch(
+      /^SELECT count\("amount"\) - count\(DISTINCT "amount"\) AS extra FROM "dataset_[0-9a-f]+"$/,
+    );
+    expect(sent[2]).toContain('try_cast(CAST("amount" AS VARCHAR) AS DOUBLE)');
+  });
+
+  it('rejects a column the file does not have without sending SQL', async () => {
+    const dataset = await loadLocalFile(localFile('sales.csv').file);
+    const before = latest().connection.queries.length;
+
+    await expect(
+      checkDataset(dataset, { duplicateKey: 'nope' }),
+    ).rejects.toThrow('Choose a valid match key column.');
+    expect(latest().connection.queries).toHaveLength(before);
+  });
+
+  it('rejects a dataset that has been closed', async () => {
+    const dataset = await loadLocalFile(localFile('sales.csv').file);
+    await disposeDataset(dataset);
+    await expect(checkDataset(dataset, {})).rejects.toThrow(
+      'The dataset has been closed.',
+    );
   });
 });
 

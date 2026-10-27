@@ -96,7 +96,32 @@
     "rowLimit": "Dieser Import kann bis zu {{count}} Zeilen enthalten.",
     "profile": "Dateispalten stimmen mit {{matched}} von {{expected}} Importspalten überein. Fehlend: {{missing}}. Diese Vorschau dient nur zur Information.",
     "noneMissing": "keine",
-    "profileLocally": "Diese Datei lokal analysieren"
+    "profileLocally": "Diese Datei lokal analysieren",
+    "local": {
+      "title": "Lokale Prüfung (nicht maßgeblich)",
+      "description": "Wird nur in diesem Browser gelesen; nichts wird hochgeladen. Die Prüfung des Servers („Datei nur prüfen“) entscheidet, was importiert wird.",
+      "unsupported": "Excel-Dateien können nicht lokal geprüft werden, nur CSV und JSON. Die Prüfung des Servers gilt weiterhin.",
+      "loading": "Die Datei wird in diesem Browser geprüft…",
+      "cancel": "Abbrechen",
+      "cancelled": "Die lokale Prüfung wurde abgebrochen. Der Import ist nicht betroffen.",
+      "error": "Die Datei konnte nicht lokal geprüft werden. Sie können sie trotzdem importieren; der Server prüft jede Zeile.",
+      "retry": "Erneut versuchen",
+      "checksFailed": "Die Prüfungen auf Duplikate und Werte konnten nicht ausgeführt werden.",
+      "summary": "{{rows}} Zeilen und {{columns}} Spalten gelesen.",
+      "clean": "Keine Probleme gefunden. Der Server kann dennoch Zeilen ablehnen.",
+      "missing": "Fehlende Pflichtspalten",
+      "matchKeyMissing": "Der Abgleichsschlüssel ist keine Spalte der Datei",
+      "unknown": "Spalten, die der Import nicht übernimmt",
+      "types": "Werte, die möglicherweise nicht zum Spaltentyp passen",
+      "expected": "Erwartet",
+      "found": "In der Datei gefunden",
+      "badValues": "{{amount}} Werte lassen sich nicht als {{type}} lesen",
+      "duplicates": "Mehrfach vorkommende Werte des Abgleichsschlüssels {{key}}",
+      "duplicatesDetail": "Zeilen mit bereits vorhandenem Schlüssel: {{amount}}. Am häufigsten: {{samples}}.",
+      "nulls": "Pflichtspalten mit vielen leeren Werten",
+      "empty": "Leere Werte",
+      "emptyShare": "{{percent}} ({{amount}} von {{rows}} Zeilen)"
+    }
   },
   "status": {
     "queued": "Wartet auf einen Worker…",

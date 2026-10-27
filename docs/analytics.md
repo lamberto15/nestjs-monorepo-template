@@ -88,6 +88,21 @@ the user's disk or from the existing, permission-checked export download.
    if unused, and cleared when the signed-in user or tenant changes and when the
    route redirects because the flag is off.
 
+**Local check on the import page.** With the flag on, choosing a CSV or JSON file
+on the import page also starts a read-only check against the importer's columns
+from `GET /v1/data` (`apps/web/src/features/transfer/local-check.tsx`; the
+comparison is the pure `import-profile.ts`). The engine loads lazily, only then.
+It reports, under "Local check (not authoritative)": required columns the file
+lacks, file columns the import does not take, columns whose detected type
+contradicts the catalog's (a text column where some values do not parse as the
+catalog's `number`, `boolean`, `date` or `datetime`, counted with `try_cast`, or
+a clearly different type), repeated values of the chosen match key, and required
+columns with at least 20% empty values (`NULL_HEAVY_SHARE`). Excel files are
+skipped with a note. It is informational: the server's `dryRun` stays the
+authority, and the import is never blocked or changed by it. Leaving the page,
+removing or replacing the file, turning the flag off, changing user or tenant, or
+Cancel ends the engine or disposes the dataset.
+
 Usability and failure notes for the transfer integration: an expired or already
 removed export shows the generic error (the signed link lasts 30 minutes, and a
 fresh one is requested on each open); a failed download or an unreadable file shows

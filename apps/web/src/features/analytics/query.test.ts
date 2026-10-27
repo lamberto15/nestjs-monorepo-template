@@ -3,6 +3,8 @@ import type { DatasetFilter, DatasetQuery } from './engine';
 import {
   boundedPage,
   buildDatasetSql,
+  buildDuplicateKeySql,
+  buildParseFailureSql,
   buildWhereClause,
   quoteIdentifier,
 } from './query';
@@ -232,5 +234,49 @@ describe('local analytics query helpers', () => {
         buildDatasetSql('t', columns, query as DatasetQuery),
       ).toThrow(message);
     });
+  });
+});
+
+describe('import profiling SQL', () => {
+  it('counts duplicates of a quoted key column with a bounded sample', () => {
+    const sql = buildDuplicateKeySql('t', new Set(['sku"1']), 'sku"1');
+    expect(sql.count).toBe(
+      'SELECT count("sku""1") - count(DISTINCT "sku""1") AS extra FROM "t"',
+    );
+    expect(sql.samples).toContain('HAVING count(*) > 1');
+    expect(sql.samples).toMatch(/LIMIT 5$/);
+  });
+
+  it('refuses a key that is not a column of the dataset', () => {
+    expect(() => buildDuplicateKeySql('t', new Set(['a']), 'b')).toThrow(
+      'Choose a valid match key column.',
+    );
+  });
+
+  it('builds one positional count per parse check', () => {
+    const sql = buildParseFailureSql('t', new Set(['a', 'b']), [
+      { column: 'a', as: 'number' },
+      { column: 'b', as: 'datetime' },
+    ]);
+    expect(sql).toContain('AS n0');
+    expect(sql).toContain('AS n1');
+    expect(sql).toContain('AS DOUBLE)');
+    expect(sql).toContain('AS TIMESTAMPTZ)');
+  });
+
+  it('refuses unknown columns, no checks and too many checks', () => {
+    expect(() =>
+      buildParseFailureSql('t', new Set(['a']), [{ column: 'z', as: 'date' }]),
+    ).toThrow('A check refers to an unknown column.');
+    expect(() => buildParseFailureSql('t', new Set(['a']), [])).toThrow(
+      'Check between 1 and 100 columns.',
+    );
+    const many = Array.from({ length: 101 }, () => ({
+      column: 'a',
+      as: 'date' as const,
+    }));
+    expect(() => buildParseFailureSql('t', new Set(['a']), many)).toThrow(
+      'Check between 1 and 100 columns.',
+    );
   });
 });

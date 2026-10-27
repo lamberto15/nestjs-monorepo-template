@@ -94,7 +94,32 @@
     "rowLimit": "Import ini boleh mengandungi sehingga {{count}} baris.",
     "profile": "Lajur fail sepadan dengan {{matched}} daripada {{expected}} lajur import. Tiada: {{missing}}. Pratonton ini untuk maklumat sahaja.",
     "noneMissing": "tiada",
-    "profileLocally": "Analisis fail ini secara setempat"
+    "profileLocally": "Analisis fail ini secara setempat",
+    "local": {
+      "title": "Semakan setempat (bukan muktamad)",
+      "description": "Dibaca dalam pelayar ini sahaja; tiada apa-apa dimuat naik. Semakan pelayan (\"Semak fail sahaja\") menentukan apa yang diimport.",
+      "unsupported": "Fail Excel tidak boleh disemak secara setempat; hanya CSV dan JSON. Semakan pelayan masih terpakai.",
+      "loading": "Menyemak fail dalam pelayar ini…",
+      "cancel": "Batal",
+      "cancelled": "Semakan setempat dibatalkan. Import tidak terjejas.",
+      "error": "Fail tidak dapat disemak secara setempat. Anda masih boleh mengimportnya; pelayan menyemak setiap baris.",
+      "retry": "Cuba lagi",
+      "checksFailed": "Semakan pendua dan nilai tidak dapat dijalankan.",
+      "summary": "{{rows}} baris dan {{columns}} lajur dibaca.",
+      "clean": "Tiada masalah ditemui. Pelayan masih boleh menolak baris.",
+      "missing": "Lajur wajib yang tiada",
+      "matchKeyMissing": "Kunci padanan bukan lajur dalam fail",
+      "unknown": "Lajur yang tidak diterima oleh import",
+      "types": "Nilai yang mungkin tidak sesuai dengan jenis lajur",
+      "expected": "Dijangka",
+      "found": "Ditemui dalam fail",
+      "badValues": "{{amount}} nilai tidak boleh dibaca sebagai {{type}}",
+      "duplicates": "Nilai berulang bagi kunci padanan {{key}}",
+      "duplicatesDetail": "Baris yang mengulang kunci terdahulu: {{amount}}. Paling kerap: {{samples}}.",
+      "nulls": "Lajur wajib dengan banyak nilai kosong",
+      "empty": "Nilai kosong",
+      "emptyShare": "{{percent}} ({{amount}} daripada {{rows}} baris)"
+    }
   },
   "status": {
     "queued": "Menunggu pekerja…",

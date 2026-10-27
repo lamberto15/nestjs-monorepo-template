@@ -1,6 +1,13 @@
 import type { AsyncDuckDB, AsyncDuckDBConnection } from '@duckdb/duckdb-wasm';
 import extensions from './duckdb-extensions.json';
-import { buildDatasetSql, quoteIdentifier, quoteLiteral } from './query';
+import {
+  buildDatasetSql,
+  buildDuplicateKeySql,
+  buildParseFailureSql,
+  quoteIdentifier,
+  quoteLiteral,
+  type ParseTarget,
+} from './query';
 
 export type AnalyticsColumn = {
   name: string;
@@ -342,6 +349,64 @@ export function queryDataset(
       ...arrowTableRows(result),
       totalRows: Number((total.toArray()[0] as Record<string, unknown>).count),
     };
+  });
+}
+
+/** Extra checks of a loaded import file (see `checkDataset`). */
+export type DatasetCheckRequest = {
+  /** A column whose repeated values are counted (an import's match key). */
+  duplicateKey?: string;
+  /** Text columns whose values must read as a type; counts the ones that do not. */
+  parse?: { column: string; as: ParseTarget }[];
+};
+
+export type DatasetChecks = {
+  duplicates?: {
+    column: string;
+    /** Rows whose key already appeared earlier in the file. */
+    extraRows: number;
+    samples: { value: string; rows: number }[];
+  };
+  /** Per checked column: the non-empty values that do not read as the type. */
+  unparseable: Record<string, number>;
+};
+
+/** Duplicate keys and unparseable values of a loaded dataset: bounded, read only. */
+export function checkDataset(
+  dataset: AnalyticsDataset,
+  request: DatasetCheckRequest,
+): Promise<DatasetChecks> {
+  if (!current)
+    return Promise.reject(new Error('The dataset has been closed.'));
+  return run(current, async ({ conn, datasets }) => {
+    const info = datasets.get(dataset.id);
+    if (!info) throw new Error('The dataset has been closed.');
+    const checks: DatasetChecks = { unparseable: {} };
+    if (request.duplicateKey !== undefined) {
+      const sql = buildDuplicateKeySql(
+        info.table,
+        info.columns,
+        request.duplicateKey,
+      );
+      const count = await conn.query(sql.count);
+      const samples = await conn.query(sql.samples);
+      checks.duplicates = {
+        column: request.duplicateKey,
+        extraRows: Number(count.getChildAt(0)!.get(0)),
+        samples: (samples.toArray() as Array<Record<string, unknown>>).map(
+          (row) => ({ value: String(row.key), rows: Number(row.rows) }),
+        ),
+      };
+    }
+    if (request.parse?.length) {
+      const result = await conn.query(
+        buildParseFailureSql(info.table, info.columns, request.parse),
+      );
+      request.parse.forEach(({ column }, index) => {
+        checks.unparseable[column] = Number(result.getChildAt(index)!.get(0));
+      });
+    }
+    return checks;
   });
 }
 

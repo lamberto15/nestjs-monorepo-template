@@ -195,3 +195,62 @@ export function buildDatasetSql(
     rows: `SELECT ${select} FROM ${table}${where}${group}${order} LIMIT ${limit} OFFSET ${offset}`,
   };
 }
+
+export const MAX_DUPLICATE_SAMPLES = 5;
+export const MAX_PARSE_CHECKS = 100;
+
+/**
+ * What a text column must read as for an import: the target of `try_cast`.
+ * A datetime is cast to TIMESTAMPTZ because it accepts both local times and
+ * ISO 8601 with an offset (`2026-10-15T18:30:00+04:00`); a plain TIMESTAMP
+ * refuses the offset form.
+ */
+export const PARSE_TARGETS = {
+  number: 'DOUBLE',
+  boolean: 'BOOLEAN',
+  date: 'DATE',
+  datetime: 'TIMESTAMPTZ',
+} as const;
+export type ParseTarget = keyof typeof PARSE_TARGETS;
+
+/**
+ * Duplicates of a match key: `extra` is the number of rows whose key was
+ * already seen (empty keys are not counted), `samples` the most repeated
+ * values (at most MAX_DUPLICATE_SAMPLES, each with its row count).
+ */
+export function buildDuplicateKeySql(
+  tableName: string,
+  allowed: Set<string>,
+  key: string,
+): { count: string; samples: string } {
+  if (!allowed.has(key)) throw new Error('Choose a valid match key column.');
+  const table = quoteIdentifier(tableName);
+  const column = quoteIdentifier(key);
+  return {
+    count: `SELECT count(${column}) - count(DISTINCT ${column}) AS extra FROM ${table}`,
+    samples: `SELECT CAST(${column} AS VARCHAR) AS key, count(*) AS rows FROM ${table} WHERE ${column} IS NOT NULL GROUP BY ${column} HAVING count(*) > 1 ORDER BY 2 DESC, 1 LIMIT ${MAX_DUPLICATE_SAMPLES}`,
+  };
+}
+
+/**
+ * One statement counting, per checked column, the non-empty values that do not
+ * read as the target type (`try_cast` yields NULL). Result aliases are
+ * positional (`n0`, `n1`, ...): a column may be named like an alias.
+ */
+export function buildParseFailureSql(
+  tableName: string,
+  allowed: Set<string>,
+  checks: { column: string; as: ParseTarget }[],
+): string {
+  if (checks.length === 0 || checks.length > MAX_PARSE_CHECKS)
+    throw new Error(`Check between 1 and ${MAX_PARSE_CHECKS} columns.`);
+  const counts = checks.map(({ column, as }, index) => {
+    if (!allowed.has(column))
+      throw new Error('A check refers to an unknown column.');
+    const target = PARSE_TARGETS[as];
+    if (!target) throw new Error('Unsupported check type.');
+    const identifier = quoteIdentifier(column);
+    return `count(*) FILTER (WHERE ${identifier} IS NOT NULL AND try_cast(CAST(${identifier} AS VARCHAR) AS ${target}) IS NULL) AS n${index}`;
+  });
+  return `SELECT ${counts.join(', ')} FROM ${quoteIdentifier(tableName)}`;
+}
