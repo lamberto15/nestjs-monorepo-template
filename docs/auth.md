@@ -372,8 +372,31 @@ credential's `authentication` (`via`: `session` or `token`) and
 Token clients (`POST /v1/auth/token`) carry it in the access token: `amr`
 (RFC 8176: `pwd`, `pop` for a passkey, and `mfa` from the package) and `auth_time` (OpenID
 Connect, epoch seconds), fixed for the refresh family's life
-(`RefreshTokenRecord.claims`). The package has no listing of refresh
+(`RefreshTokenRecord.claims`), with `sid`, the family's own id (random, per
+sign-in): revoking the family disconnects the realtime sockets its access
+tokens opened, and they open no new one
+([realtime](webhooks-and-realtime.md#realtime)). The package has no listing of refresh
 families, so they aren't in the sessions list.
+
+**Families from before `sid`.** A refresh copies the family's stored
+claims, so a family signed in before the release that added `sid` never
+gets one, for its whole life (a family lasts up to 90 days): revoking
+it still refuses its refreshes, but its realtime sockets are not
+disconnected at once and a reconnect with its unexpired access token is not
+refused. Nothing revokes those families on upgrade (that would sign every
+app out). Each is covered from its next sign-in. To end them sooner: the
+person signs out everywhere (`POST /v1/auth/sign-out-everywhere`, every
+browser and app), an operator resets one account (`user:reset-password`,
+[deployment](deployment.md#operator-cli)), or, for the whole deployment,
+revoking the families without one signs those apps out (their users sign in
+again):
+
+```sql
+update refresh_tokens set revoked = true where not revoked and claims ->> 'sid' is null;
+```
+
+Their live sockets end at the next restart of the API (a deploy restarts
+it), and a reconnect then finds the family revoked.
 
 ### Requiring it on a route
 

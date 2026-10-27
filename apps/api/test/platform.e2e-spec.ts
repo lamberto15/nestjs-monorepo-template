@@ -11,6 +11,11 @@ import {
   TransferRefused,
 } from '../src/platform/data-transfer/data-transfer.processor.js';
 import { DATA_TRANSFERS } from '../src/platform/data-transfer/data-transfer.service.js';
+import {
+  principalRoom,
+  Realtime,
+} from '../src/platform/realtime/realtime.service.js';
+import { RealtimeEmitter } from '../src/platform/realtime/realtime-emitter.js';
 import { bootApp, connect, type TestApp } from './support.js';
 
 /** The path and query of a signed URL: the tests reach the app on its own port. */
@@ -96,6 +101,117 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       .expect(204);
     await disconnected;
     await node.http().get('/v1/auth/me').set('Cookie', cookie).expect(401);
+  });
+
+  it("disconnects a token client's socket when its refresh family is revoked, and opens no other with its access token", async () => {
+    const user = await node.user(['editor']);
+    const tokens = (
+      await node
+        .http()
+        .post('/v1/auth/token')
+        .send({ email: user.email, password: user.password })
+        .expect(200)
+    ).body as { accessToken: string; refreshToken: string };
+    const socket = await connect(node, tokens.accessToken);
+    sockets.push(socket);
+    const identity = await socket.emitWithAck('whoami');
+    expect(identity).toMatchObject({ kind: 'user', id: user.id });
+    expect(
+      identity.rooms.filter((room: string) => room.startsWith('token:')),
+    ).toHaveLength(1);
+
+    // It hears its principal's room (the Redis adapter, as every push).
+    const room = principalRoom({ kind: 'user', id: user.id }, node.tenantId);
+    const realtime = node.app.get(Realtime);
+    const heard: unknown[] = [];
+    socket.on('test.probe', (data: unknown) => heard.push(data));
+    const first = new Promise((resolve) => socket.once('test.probe', resolve));
+    realtime.toRoom(room, 'test.probe', { n: 1 });
+    await first;
+
+    const disconnected = new Promise<string>((resolve) =>
+      socket.once('disconnect', resolve),
+    );
+    await node
+      .http()
+      .post('/v1/auth/token/revoke')
+      .send({ refreshToken: tokens.refreshToken })
+      .expect(204);
+    // Ended by the server, at once: no message of its own was needed.
+    expect(await disconnected).toBe('io server disconnect');
+    realtime.toRoom(room, 'test.probe', { n: 2 });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(heard).toEqual([{ n: 1 }]);
+
+    // The access token lives until it expires, for requests (docs/auth.md);
+    // it opens no socket again: one would outlive it, with nothing left to end it.
+    await node
+      .http()
+      .get('/v1/auth/me')
+      .set('Authorization', `Bearer ${tokens.accessToken}`)
+      .expect(200);
+    const { port } = node.app.getHttpServer().address() as AddressInfo;
+    const again = io(`http://127.0.0.1:${port}/realtime`, {
+      auth: { token: tokens.accessToken },
+      transports: ['websocket'],
+    });
+    sockets.push(again);
+    const refused = await new Promise<Error>((resolve) =>
+      again.once('connect_error', resolve),
+    );
+    expect(refused.message).toBe('unauthorized');
+    expect(again.connected).toBe(false);
+  });
+
+  it('ends sockets from a process without a socket server, through the Redis emitter (the operator CLI)', async () => {
+    const user = await node.user(['editor']);
+    const { accessToken } = (
+      await node
+        .http()
+        .post('/v1/auth/token')
+        .send({ email: user.email, password: user.password })
+        .expect(200)
+    ).body as { accessToken: string };
+    const signedIn = await node
+      .http()
+      .post('/v1/auth/sign-in')
+      .send({ email: user.email, password: user.password })
+      .expect(200);
+    const cookie = signedIn.get('Set-Cookie')![0]!.split(';', 1)[0]!;
+    const { port } = node.app.getHttpServer().address() as AddressInfo;
+    const browser = io(`http://127.0.0.1:${port}/realtime`, {
+      extraHeaders: { Cookie: cookie },
+      transports: ['websocket'],
+    });
+    sockets.push(browser);
+    await new Promise<void>((resolve, reject) => {
+      browser.once('connect', resolve);
+      browser.once('connect_error', reject);
+    });
+    const app = await connect(node, accessToken);
+    sockets.push(app);
+    const roomOf = async (socket: typeof app, prefix: string) =>
+      ((await socket.emitWithAck('whoami')).rooms as string[]).find((room) =>
+        room.startsWith(prefix),
+      )!;
+    const rooms = [
+      await roomOf(app, 'token:'),
+      await roomOf(browser, 'session:'),
+    ];
+
+    const ended = Promise.all(
+      [app, browser].map(
+        (socket) =>
+          new Promise<string>((resolve) => socket.once('disconnect', resolve)),
+      ),
+    );
+    // What Realtime does when it has no server of its own: a message on
+    // Redis that this replica's adapter acts on, as every other replica's.
+    node.app.get(RealtimeEmitter).disconnect(rooms);
+    expect(await ended).toEqual([
+      'io server disconnect',
+      'io server disconnect',
+    ]);
   });
 
   it('puts a connection in its room before it hears it is connected', async () => {

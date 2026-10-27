@@ -326,7 +326,8 @@ this API at once.
 ## Realtime
 
 socket.io, namespace `/realtime` (`platform/realtime/`). Users connect with
-their session cookie, API clients with their key. Anyone else is refused
+their session cookie (or a token client's access token, `auth: { token }`),
+API clients with their key. Anyone else is refused
 at the handshake: `connect_error` with the message `unauthorized`, which
 socket.io doesn't retry (`socket.active` is false; sign in, then
 `socket.connect()`):
@@ -368,7 +369,21 @@ through the same connection.
 Every message is authenticated again. A browser socket also joins a private
 room for its session; sign-out, session revocation, rotation and bulk sign-out
 disconnect that session's sockets across API replicas through the Redis
-adapter. Revoked API keys stop working on their next message.
+adapter. A token client's socket joins one for its refresh family
+(`token:<sid>`, the access token's `sid` claim, [auth.md](auth.md)): revoking
+the family (`POST /v1/auth/token/revoke`, a reused refresh token, a
+re-authentication, a password change or any other sign-out everywhere)
+disconnects it the same way, and the handshake refuses an access token of a
+revoked family, which would otherwise pass until it expires (asked again
+once the socket is in its room, so a revocation in between is not missed;
+families from before `sid`: [auth.md](auth.md)). A deactivated account,
+membership or tenant, a SCIM deprovisioning and an account's deletion end
+their sockets the same way, after the change commits. A process without a
+socket server (the operator CLI, `pnpm ops`) ends them through
+`@socket.io/redis-emitter` (`RealtimeEmitter`), on the channels the API
+replicas' Redis adapter listens to. A failure of the server's own during
+the handshake is `connect_error` `unavailable` (logged; the client never
+sees its text). Revoked API keys stop working on their next message.
 
 ### The event manifest
 
