@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { UserAvatar } from '@/components/user-avatar';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
+import { peopleKey } from '@/lib/people';
 import { meQuery, type Me } from '@/lib/session';
 import { postMultipart } from '@/lib/upload';
 import { unwrap } from '@nestjs-monorepo-template/api-client';
@@ -34,7 +35,7 @@ export function AvatarSection({ me }: { me: Me }) {
   const refresh = () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: meQuery.queryKey }),
-      queryClient.invalidateQueries({ queryKey: ['people'] }),
+      queryClient.invalidateQueries({ queryKey: peopleKey }),
     ]);
   const remove = useMutation({
     mutationFn: () => unwrap(api.DELETE('/v1/account/avatar')),

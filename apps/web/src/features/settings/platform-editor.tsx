@@ -27,6 +27,7 @@ import { api } from '@/lib/api';
 import { catalogQuery } from '@/features/transfer/api';
 import { errorMessage } from '@/lib/errors';
 import { FormAlert, useDescribedBy } from '@/lib/form';
+import { featuresQuery } from '@/lib/session';
 import { useStaleDraftSession } from '@/lib/form';
 import {
   fromDraft,
@@ -78,6 +79,11 @@ export function PlatformEditor({ setting }: { setting: Setting }) {
     Promise.all([
       queryClient.invalidateQueries({ queryKey: settingsQuery.queryKey }),
       queryClient.invalidateQueries({ queryKey: catalogQuery.queryKey }),
+      // Only GET /v1/features serves the mode, and a read-only tab gets no 503
+      // for a read: without this it keeps the old mode until the next input.
+      ...(setting.key === 'platform.mode'
+        ? [queryClient.invalidateQueries({ queryKey: featuresQuery.queryKey })]
+        : []),
     ]);
   const save = useMutation({
     mutationFn: (body: {

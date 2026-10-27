@@ -280,7 +280,10 @@ web app needs the API, so `dev:web` alone suits an API already running.
   it), a red banner in the signed-in layout links to `/account/security`.
   It reads `GET /v1/notifications?read=false&type=…` under the notifications
   `list` key, so the realtime event and every mark-read refresh it (without
-  realtime it polls like the inbox). Reading the notification, or changing the password in
+  realtime it is asked again when the window regains focus and when the user does
+  something a minute after the last answer, never on a timer: the layout stays
+  mounted on an unattended tab, see "Maintenance and read-only mode" below).
+  Reading the notification, or changing the password in
   `PasswordSection` (which fetches and marks every unread alert read, with a
   toast if that fails), hides it; none while impersonating.
   In the list the row gets a shield icon, a tint and a "Change your password"
@@ -291,7 +294,9 @@ web app needs the API, so `dev:web` alone suits an API already running.
   knows it before its first paint (`_app`'s `beforeLoad` fetches the switches; a
   failure holds nothing back) and keeps it fresh with `useModeWatch()`: when the
   user does something (pointer, keys, scrolling) at least a minute after the last
-  answer, when the tab returns after 30 s, and at once when any request is refused
+  answer (`useRefreshOnInput`, `lib/refresh-on-input.ts`: one set of listeners for
+  every query that asks, the throttle is `fetchQuery`'s `staleTime`), when the tab
+  returns after 30 s, and at once when any request is refused
   with 503 `read_only` or `maintenance` (`lib/errors.ts` asks again, and toasts once,
   however many requests were refused). While it is `normal` there is **no timer**: the
   API counts every request as activity, so a poll would keep an unattended tab signed
@@ -342,7 +347,12 @@ web app needs the API, so `dev:web` alone suits an API already running.
   running on its first one. With a connected socket nothing is polled;
   `useLivePoll()` makes the poll a fallback: 1 s (2 s in lists) without one
   (`useRealtimeConnected()`), and fast again for a job whose end event came
-  but which the queue still reports running. Tests play it with `fake.emit('connect')` / `emit('disconnect')`.
+  but which the queue still reports running. Without realtime the signed-in
+  layout's own queries (the approvals count in the menu, the breached-password
+  alert) are not polled: they are asked again on the window's focus and on the
+  user's input (`useRefreshOnInput`), since a timer would keep an idle session
+  alive; the open, watched inbox pages do poll, every 60 s (`pollInterval`).
+  Tests play it with `fake.emit('connect')` / `emit('disconnect')`.
 - **The dashboard** (`features/dashboard`, the home page `/`): cards for the
   approvals assigned to the user, their unread notifications, the latest audit
   entries (`Access.readAudit`), the notes changed last and a bar chart of notes

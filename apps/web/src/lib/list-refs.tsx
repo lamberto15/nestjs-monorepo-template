@@ -42,9 +42,15 @@ type Team = ItemOf<'/v1/teams'>;
 /** The most teams the picker reads: far past what a tenant has. */
 const TEAMS_MAX = 1000;
 
+/**
+ * The root of the filters' option lists (teams, people): a change to either
+ * invalidates it, from wherever that happens.
+ */
+export const refsKey = ['refs'] as const;
+
 /** The tenant's teams, for any member. */
 export const teamRefsQuery = queryOptions({
-  queryKey: ['refs', 'teams'],
+  queryKey: [...refsKey, 'teams'],
   queryFn: async (): Promise<Team[]> => {
     const found: Team[] = [];
     for await (const team of api.items('/v1/teams', { limit: 100 })) {
@@ -63,13 +69,13 @@ const MAX_TERM = 100;
 
 /** Users by name, as a picker's options: the key is the value. */
 export const peopleSearch: OptionSearch = {
-  key: ['refs', 'people'],
+  key: [...refsKey, 'people'],
   // The held keys, named by the lookup (every member may read it).
   useNames: (values) => usePeopleNames(values).name,
   query: (term) => {
     const q = term.trim().slice(0, MAX_TERM);
     return {
-      queryKey: ['refs', 'people', q],
+      queryKey: [...refsKey, 'people', q],
       queryFn: async () =>
         (
           await unwrap(

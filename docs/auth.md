@@ -1461,7 +1461,10 @@ never loosen it. Unset, every policy is today's behaviour.
   the signed-in layout may ask the API on a timer for an unattended tab (every
   authenticated request is activity): the deployment mode's watch
   (`useModeWatch`, [monorepo](monorepo.md), "Maintenance and read-only mode")
-  has no timer while the mode is `normal` for this reason.
+  has no timer while the mode is `normal` for this reason, and without realtime
+  the menu's approvals count and the breached-password alert are asked again on
+  the window's focus and on the user's input (`useRefreshOnInput`), not every
+  minute. The inbox pages, open and watched, still poll.
 - **Who meets a minimum length.** A password is the account's, in every
   tenant: the strictest of the tenants it is an active member of; an
   invitation's new address, the inviting tenant's. A reset link is read

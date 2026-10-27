@@ -11,7 +11,7 @@ import {
 import { peopleHandler, teamsHandler } from '@/test/people';
 import { renderComponent } from '@/test/render-component';
 import { renderApp } from '@/test/render-app';
-import { server, signedInUser } from '@/test/server';
+import { allFeatures, server, signedInUser } from '@/test/server';
 import { findToast } from '@/test/toast';
 import {
   fromDraft,
@@ -815,6 +815,130 @@ describe('platform values', () => {
     await waitFor(() =>
       expect(writes).toEqual([{ value: 'read-only', enforced: false }]),
     );
+  });
+
+  describe('the deployment mode', () => {
+    const mode = (extra: object = {}) =>
+      setting({
+        key: 'platform.mode',
+        label: 'Deployment mode',
+        type: 'enum',
+        options: ['normal', 'read-only', 'maintenance'],
+        value: 'normal',
+        default: 'normal',
+        canEditPlatform: true,
+        ...extra,
+      });
+    // Only GET /v1/features serves the mode: the tab that changed it must
+    // read it again, or it keeps writes enabled (or the banner) until an
+    // input at least a minute after the last answer.
+    const countFeatureReads = () => {
+      const reads = { count: 0 };
+      server.use(
+        http.get('/v1/features', () => {
+          reads.count += 1;
+          return HttpResponse.json(allFeatures);
+        }),
+        http.put('/v1/settings/:key/platform', () => HttpResponse.json({})),
+        http.delete(
+          '/v1/settings/:key/platform',
+          () => new HttpResponse(null, { status: 204 }),
+        ),
+      );
+      return reads;
+    };
+
+    // The mode set for all tenants to read-only, to change or to remove.
+    const readOnly = () =>
+      mode({
+        value: 'read-only',
+        source: 'platform',
+        platform: {
+          value: 'read-only',
+          enforced: false,
+          rollout: null,
+          rules: [],
+        },
+      });
+    // Serves `item`, counts the reads of the mode and opens the dialog on its
+    // "All tenants" section. `pick` chooses a value, `save` is the button,
+    // `confirm` answers the alert dialog by the button's name.
+    const openAllTenants = async (label: string, item: object) => {
+      api(admin, [item]);
+      const reads = countFeatureReads();
+      const { user, dialog } = await open(label);
+      const platform = within(
+        within(dialog).getByRole('region', { name: 'All tenants' }),
+      );
+      return {
+        reads,
+        user,
+        platform,
+        pick: async (option: string) => {
+          await user.click(platform.getByRole('combobox', { name: /Value/ }));
+          await user.click(await screen.findByRole('option', { name: option }));
+        },
+        save: () =>
+          user.click(
+            platform.getByRole('button', { name: 'Save for all tenants' }),
+          ),
+        confirm: async (name: string) =>
+          user.click(
+            within(await screen.findByRole('alertdialog')).getByRole('button', {
+              name,
+            }),
+          ),
+      };
+    };
+
+    it('is read again after a confirmed change', async () => {
+      const { reads, pick, save, confirm } = await openAllTenants(
+        'Deployment mode',
+        mode(),
+      );
+      await pick('read-only');
+      await save();
+      const before = reads.count;
+      await confirm('Apply to all tenants');
+      await findToast('Saved for all tenants.');
+      expect(reads.count).toBeGreaterThan(before);
+    });
+
+    it('is read again after a change that needs no confirmation', async () => {
+      const { reads, pick, save } = await openAllTenants(
+        'Deployment mode',
+        readOnly(),
+      );
+      await pick('normal');
+      const before = reads.count;
+      await save();
+      await findToast('Saved for all tenants.');
+      expect(reads.count).toBeGreaterThan(before);
+    });
+
+    it('is read again after the value is removed', async () => {
+      const { reads, user, platform, confirm } = await openAllTenants(
+        'Deployment mode',
+        readOnly(),
+      );
+      await user.click(platform.getByRole('button', { name: 'Remove' }));
+      const before = reads.count;
+      await confirm('Remove');
+      await findToast('Removed for all tenants.');
+      expect(reads.count).toBeGreaterThan(before);
+    });
+
+    it('is not asked for by any other platform setting', async () => {
+      const { reads, user, platform, save } = await openAllTenants(
+        'Platform flag',
+        platformFlag({ canEditPlatform: true }),
+      );
+      await user.click(platform.getByRole('switch', { name: /Value/ }));
+      const before = reads.count;
+      await save();
+      await findToast('Saved for all tenants.');
+      expect(reads.count).toBe(before);
+    });
   });
 
   it('lets an operator roll a flag out to a share of principals', async () => {

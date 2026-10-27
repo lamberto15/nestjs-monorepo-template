@@ -11,6 +11,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { recordKeys } from '@/lib/records';
 
 export type ApprovalItem = GetResponse<'/v1/approvals'>['items'][number];
 export type Approval = GetResponse<'/v1/approvals/{id}'>;
@@ -68,28 +69,26 @@ export const inboxQuery = (tab: Tab, poll: number | false) =>
   });
 
 /** The nav badge: how many requests wait for the user (`total` of a one-row page). */
-export const pendingCountQuery = (poll: number | false) =>
-  queryOptions({
-    queryKey: [...approvalsKey, 'count'],
-    queryFn: async () =>
-      (
-        await unwrap(
-          api.GET('/v1/approvals', {
-            params: {
-              query: {
-                assignedToMe: 'true',
-                limit: 1,
-                page: 1,
-                count: 'true',
-              },
+export const pendingCountQuery = queryOptions({
+  queryKey: [...approvalsKey, 'count'],
+  queryFn: async () =>
+    (
+      await unwrap(
+        api.GET('/v1/approvals', {
+          params: {
+            query: {
+              assignedToMe: 'true',
+              limit: 1,
+              page: 1,
+              count: 'true',
             },
-          }),
-        )
-      ).total ?? 0,
-    refetchInterval: poll,
-    // The badge is a hint: a failure is not worth a toast.
-    meta: { errorToast: false },
-  });
+          },
+        }),
+      )
+    ).total ?? 0,
+  // The badge is a hint: a failure is not worth a toast.
+  meta: { errorToast: false },
+});
 
 /** One request with its ETag (the `If-Match` of a decision). */
 export const approvalQuery = (id: string) =>
@@ -207,8 +206,8 @@ export function useDecide() {
     onSettled: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: approvalsKey }),
-        queryClient.invalidateQueries({ queryKey: ['record'] }),
-        queryClient.invalidateQueries({ queryKey: ['list'] }),
+        queryClient.invalidateQueries({ queryKey: recordKeys.allDetails }),
+        queryClient.invalidateQueries({ queryKey: recordKeys.allLists }),
       ]),
   });
 }
