@@ -334,6 +334,9 @@ importers:
       bullmq:
         specifier: 6.3.15
         version: 6.3.15(ioredis@6.0.0(supports-color@10.2.2))(pg@8.23.1)
+      compression:
+        specifier: 1.8.2
+        version: 1.8.2(supports-color@10.2.2)
       csv-parse:
         specifier: 7.0.3
         version: 7.0.3
@@ -413,6 +416,9 @@ importers:
       '@opentelemetry/sdk-trace':
         specifier: 3.0.0
         version: 3.0.0(@opentelemetry/api@1.10.0)
+      '@types/compression':
+        specifier: 1.8.1
+        version: 1.8.1
       '@types/express':
         specifier: 5.0.6
         version: 5.0.6
@@ -5781,6 +5787,9 @@ packages:
 
   '@types/command-line-usage@5.0.4':
     resolution: {integrity: sha512-BwR5KP3Es/CSht0xqBcUXS3qCAUVXwpRKsV2+arxeb65atasuXG9LykC9Ab10Cw3s2raH92ZqOeILaQbsB2ACg==}
+
+  '@types/compression@1.8.1':
+    resolution: {integrity: sha512-kCFuWS0ebDbmxs0AXYn6e2r2nrGAb5KwQhknjSPSPgJcGd8+HVSILlUyFhGqML2gk39HcG7D1ydW9/qpYkN00Q==}
 
   '@types/connect@3.4.38':
     resolution: {integrity: sha512-K6uROf1LD88uDQqJCktA4yzL1YYAK6NgfsI0v/mTgyPKWsX1CnJ0XPSDhViejru1GcRkLWb8RlzFYJRqGUbaug==}
@@ -16281,6 +16290,11 @@ snapshots:
   '@types/command-line-args@5.2.3': {}
 
   '@types/command-line-usage@5.0.4': {}
+
+  '@types/compression@1.8.1':
+    dependencies:
+      '@types/express': 5.0.6
+      '@types/node': 24.19.2
 
   '@types/connect@3.4.38':
     dependencies:

@@ -1,6 +1,7 @@
 import { RequestMethod, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import compression from 'compression';
 import type { Config, CoreEnv } from '../config/core.env.js';
 import { assignRequestId } from '../logging/logging.js';
 import { JSON_BODY_LIMIT } from './body-limit.js';
@@ -62,6 +63,15 @@ export function setupHttp(app: NestExpressApplication) {
       contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } },
     }),
   });
+
+  // gzip responses the web app's `encode` never reaches: Caddy skips `/v1/*`
+  // because its `encode` would suffix the strong ETags etag.ts sends
+  // (docs/deployment.md, "Compression"). Express's `compression` leaves ETag
+  // and every other header untouched, so no suffix, no mismatch to work
+  // around. `text/event-stream` isn't in the compressible media types (no
+  // `compressible` entry for it), so the ops event stream (GET
+  // /v1/ops/events) still flushes each event unbuffered, uncompressed.
+  app.use(compression());
 
   // Browser apps on other origins (CORS_ORIGINS): they may call the API with
   // the session cookie. Same-origin apps need nothing.

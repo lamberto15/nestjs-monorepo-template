@@ -82,11 +82,14 @@
 			# script, and its iframe. Everything else is this origin: socket.io's
 			# ws/wss included ('self' covers it in current browsers; Safari
 			# before 15.4 didn't, and no template target is that old).
-			# connect-src and img-src also take WEB_FILES_ORIGINS, the origins the
-			# browser reaches for files: with STORAGE_DRIVER=s3 it PUTs a direct
-			# upload to the bucket, and an <img> follows an attachment's thumbnail
-			# to the bucket's signed link (docs/attachments.md, "Direct uploads",
-			# "Image renditions"). caddy/entrypoint.sh makes that list at each start
+			# img-src's blob: is the queued-upload preview (packages/ui's
+			# FileUpload): the browser's own object URL for a file not yet sent,
+			# never fetched over the network. connect-src and img-src also take
+			# WEB_FILES_ORIGINS, the origins the browser reaches for files: with
+			# STORAGE_DRIVER=s3 it PUTs a direct upload to the bucket, and an
+			# <img> follows an attachment's thumbnail to the bucket's signed link
+			# (docs/attachments.md, "Direct uploads", "Image renditions").
+			# caddy/entrypoint.sh makes that list at each start
 			# (the bucket's origin from the S3 settings, then FILES_ORIGIN's) and
 			# exports it to this process. {env.*} is read by the running Caddy, so
 			# a `caddy reload` from a shell that lacks it keeps the list; empty or
@@ -97,19 +100,19 @@
 			# and the theme provider inject
 			# <style> elements at runtime (checked in the browser; without it the
 			# page logs violations). 'unsafe-eval' remains blocked; zod is jitless.
-			Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://challenges.cloudflare.com; worker-src 'self'; frame-src https://challenges.cloudflare.com; connect-src 'self' {env.WEB_FILES_ORIGINS}; img-src 'self' data: {env.WEB_FILES_ORIGINS}; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+			Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://challenges.cloudflare.com; worker-src 'self'; frame-src https://challenges.cloudflare.com; connect-src 'self' {env.WEB_FILES_ORIGINS}; img-src 'self' data: blob: {env.WEB_FILES_ORIGINS}; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 			# frame-ancestors' older twin, for browsers that predate CSP level 2.
 			X-Frame-Options "DENY"
 			X-Content-Type-Options "nosniff"
 			Referrer-Policy "strict-origin-when-cross-origin"
 			# WebAuthn (publickey-credentials-*) stays on for this origin; the rest is off.
 			Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), publickey-credentials-get=(self), publickey-credentials-create=(self)"
-			# HTTPS only, for two years: the API's max-age (helmet,
-			# core/http/http-setup.ts), here on the page itself, which a first
-			# visit loads before any API call. This host only: no
-			# includeSubDomains or preload, which would bind every name under
-			# APP_DOMAIN's, and those are not this app's to decide.
-			Strict-Transport-Security "max-age=63072000"
+			# HTTPS only, for two years, every subdomain included: matches the
+			# API's own (helmet, core/http/http-setup.ts) — this deployment
+			# serves every subdomain under APP_DOMAIN over HTTPS only. No
+			# preload: that submits the domain to browsers' built-in list, a
+			# step this app doesn't take for the owner.
+			Strict-Transport-Security "max-age=63072000; includeSubDomains"
 			# A page of another origin that opens this one, or that this one
 			# opens, gets no handle on its window (window.opener): the app needs
 			# none (sign-in providers are full-page redirects, Turnstile is an

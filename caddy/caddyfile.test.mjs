@@ -262,7 +262,7 @@ const WEB_HEADERS = {
   'referrer-policy': 'strict-origin-when-cross-origin',
   'permissions-policy':
     'camera=(), microphone=(), geolocation=(), payment=(), usb=(), publickey-credentials-get=(self), publickey-credentials-create=(self)',
-  'strict-transport-security': 'max-age=63072000',
+  'strict-transport-security': 'max-age=63072000; includeSubDomains',
   'cross-origin-opener-policy': 'same-origin',
 };
 
@@ -545,10 +545,10 @@ describe('the web app, WEB_FILES_ORIGINS unset', { skip }, () => {
   before(async () => (caddy = await startCaddy({})));
   after(() => caddy.stop());
 
-  it('connects to this origin only, and takes images from it and data: URLs', async () => {
+  it('connects to this origin only, and takes images from it, data: and blob: URLs', async () => {
     const response = await get(caddy, '/');
     assert.deepEqual(connectSources(response), ["'self'"]);
-    assert.deepEqual(imgSources(response), ["'self'", 'data:']);
+    assert.deepEqual(imgSources(response), ["'self'", 'data:', 'blob:']);
   });
 });
 
@@ -568,7 +568,7 @@ describe(
         assert.deepEqual(connectSources(response), ["'self'", bucket], path);
         assert.deepEqual(
           imgSources(response),
-          ["'self'", 'data:', bucket],
+          ["'self'", 'data:', 'blob:', bucket],
           path,
         );
         const policy = response.headers.get('content-security-policy') ?? '';
@@ -585,6 +585,7 @@ describe(
         assert.deepEqual(imgSources(response), [
           "'self'",
           'data:',
+          'blob:',
           bucket,
           cdn,
         ]);
@@ -618,14 +619,14 @@ describe('the web app started by caddy/entrypoint.sh', { skip }, () => {
   it("puts the bucket's origin, derived from the S3 settings, in connect-src and img-src", async () => {
     assert.deepEqual(await policyWith(s3), {
       connect: ["'self'", bucket],
-      img: ["'self'", 'data:', bucket],
+      img: ["'self'", 'data:', 'blob:', bucket],
     });
   });
 
   it("adds FILES_ORIGIN after the bucket's origin, in both", async () => {
     assert.deepEqual(await policyWith({ ...s3, FILES_ORIGIN: cdn }), {
       connect: ["'self'", bucket, cdn],
-      img: ["'self'", 'data:', bucket, cdn],
+      img: ["'self'", 'data:', 'blob:', bucket, cdn],
     });
   });
 
@@ -633,7 +634,7 @@ describe('the web app started by caddy/entrypoint.sh', { skip }, () => {
     const pathStyle = 'https://s3.eu-west-1.amazonaws.com/my.files/';
     assert.deepEqual(await policyWith({ ...s3, S3_BUCKET: 'my.files' }), {
       connect: ["'self'", pathStyle],
-      img: ["'self'", 'data:', pathStyle],
+      img: ["'self'", 'data:', 'blob:', pathStyle],
     });
   });
 
@@ -645,7 +646,7 @@ describe('the web app started by caddy/entrypoint.sh', { skip }, () => {
         S3_REGION: 'eu-west-1',
         WEB_FILES_ORIGINS: "'unsafe-inline'",
       }),
-      { connect: ["'self'"], img: ["'self'", 'data:'] },
+      { connect: ["'self'"], img: ["'self'", 'data:', 'blob:'] },
     );
   });
 });

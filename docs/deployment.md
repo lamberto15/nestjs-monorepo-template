@@ -61,12 +61,16 @@ Filling `.env` (each step is commented in `env.example`):
   (the API's responses keep helmet's own): `Content-Security-Policy`
   (`default-src 'self'`; scripts and frames also from `https://challenges.cloudflare.com`,
   Turnstile's only needs; `connect-src 'self'` covers the API and socket.io;
-  `img-src 'self' data:`; both also name the origins of files, below; `style-src` keeps `'unsafe-inline'` because sonner and the theme
+  `img-src 'self' data: blob:` (`blob:` is the queued-upload preview, `packages/ui`'s
+  `FileUpload`: the browser's own object URL for a file not yet sent, never a network
+  request); both also name the origins of files, below; `style-src` keeps `'unsafe-inline'` because sonner and the theme
   provider inject `<style>` elements; no `'unsafe-eval'`, so `apps/web` imports `z` from `@/lib/zod`, which sets zod to
   `jitless`; `frame-ancestors 'none'`), `X-Frame-Options: DENY`, `X-Content-Type-Options`,
   `Referrer-Policy: strict-origin-when-cross-origin` and a `Permissions-Policy` that turns
-  off everything but WebAuthn, `Strict-Transport-Security` (`max-age=63072000`, this
-  host only: no `includeSubDomains`, since the template does not own a whole domain)
+  off everything but WebAuthn, `Strict-Transport-Security` (`max-age=63072000;
+  includeSubDomains`, matching the API's own: this deployment serves every subdomain
+  under `APP_DOMAIN` over HTTPS only; no `preload`, which submits the domain to browsers'
+  built-in list, a step this template doesn't take for the owner)
   and `Cross-Origin-Opener-Policy: same-origin`. **A new third-party script, frame, API or
   font host** needs its origin in the matching directive of that one line (`script-src`,
   `frame-src`, `connect-src`, `font-src`, `img-src`), taken from the provider's CSP page; no
