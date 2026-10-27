@@ -12,6 +12,7 @@ import { notifications } from '../src/platform/notifications/notifications.table
 import {
   NotificationsService,
   type NotifyInput,
+  READ_ALL_BATCH,
   UNREAD_COUNT_CAP,
 } from '../src/platform/notifications/notifications.service.js';
 import { bootApp, connect, type TestApp, webhookReceiver } from './support.js';
@@ -120,6 +121,33 @@ describe('notifications (e2e)', () => {
         .map((item: { id: string }) => item.id)
         .sort((a: string, b: string) => a.localeCompare(b)),
     ).toEqual(ids.slice(0, 2).sort((a, b) => a.localeCompare(b)));
+  });
+
+  it('marks all read in batches', async () => {
+    const editor = await node.user(['editor']);
+    const recipient = `user:${editor.id}`;
+    const total = READ_ALL_BATCH * 2 + 3;
+    for (let done = 0; done < total; done += 2_000) {
+      await db()
+        .insert(notifications)
+        .values(
+          Array.from({ length: Math.min(2_000, total - done) }, () => ({
+            tenantId: node.tenantId,
+            recipient,
+            type: 'testItem.commented',
+            data: commentData('Batch'),
+          })),
+        );
+    }
+    const res = await editor.agent
+      .post('/v1/notifications/read-all')
+      .send({})
+      .expect(200);
+    expect(res.body).toEqual({ updated: total });
+    const count = await editor.agent
+      .get('/v1/notifications/unread-count')
+      .expect(200);
+    expect(count.body.unread).toBe(0);
   });
 
   it('caps the unread count and delivers without an ordering key', async () => {
@@ -521,6 +549,17 @@ describe('notifications (e2e)', () => {
       .get('/v1/notifications?read=false')
       .expect(200);
     expect(unread.body.items.map((i: { id: string }) => i.id)).toEqual([c]);
+    const d = await notify(to, { data: commentData('D') });
+    const page1 = await editor.agent
+      .get('/v1/notifications?read=false&limit=1')
+      .expect(200);
+    expect(page1.body.items.map((i: { id: string }) => i.id)).toEqual([d]);
+    const page2 = await editor.agent
+      .get(
+        `/v1/notifications?read=false&limit=1&cursor=${page1.body.nextCursor}`,
+      )
+      .expect(200);
+    expect(page2.body.items.map((i: { id: string }) => i.id)).toEqual([c]);
     expect(
       (
         await editor.agent
@@ -542,7 +581,7 @@ describe('notifications (e2e)', () => {
           .send({})
           .expect(200)
       ).body,
-    ).toEqual({ updated: 1 });
+    ).toEqual({ updated: 2 });
     await editor.agent.get('/v1/notifications?sort=nope').expect(400);
     await editor.agent.get('/v1/notifications?nope=1').expect(400);
   });

@@ -7,7 +7,17 @@ import { randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { Outbox, type NewOutboxMessage } from '@nestjs/outbox';
-import { and, count, eq, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
+import {
+  and,
+  count,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  or,
+  sql,
+} from 'drizzle-orm';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import type { Transaction } from '../../core/database/drizzle.js';
 import { currentTenantId } from '../../core/tenancy/tenant-scope.js';
@@ -54,6 +64,9 @@ export const MAX_RECIPIENTS = 500;
 
 /** The unread count stops here (`unreadCapped`): counting a big backlog exactly costs a read of all of it. */
 export const UNREAD_COUNT_CAP = 1_000;
+
+/** Rows one read-all statement updates. */
+export const READ_ALL_BATCH = 5_000;
 
 export interface NotifyInput {
   type: NotificationType;
@@ -482,27 +495,46 @@ export class NotificationsService {
     );
   }
 
-  /** Marks every unread one read (those created before `before`, when given); how many changed. */
+  /**
+   * Marks every unread one read (those created before `before`, when given);
+   * how many changed. Works in batches of `READ_ALL_BATCH`, each committing
+   * on its own: a failure part-way leaves some rows read, which is harmless
+   * and idempotent.
+   */
   async markAllRead(principal: Principal, before?: Date) {
-    const updated = await this.db
-      .update(notifications)
-      .set({ readAt: new Date() })
-      .where(
-        and(
-          eq(notifications.recipient, principalKey(principal)),
-          isNull(notifications.readAt),
-          before ? lt(notifications.createdAt, before) : undefined,
-        ),
-      )
-      .returning({ id: notifications.id });
-    if (updated.length > 0) {
+    const now = new Date();
+    let updated = 0;
+    for (;;) {
+      const batch = this.db
+        .select({ id: notifications.id })
+        .from(notifications)
+        .where(
+          and(
+            eq(notifications.recipient, principalKey(principal)),
+            isNull(notifications.readAt),
+            before ? lt(notifications.createdAt, before) : undefined,
+          ),
+        )
+        .limit(READ_ALL_BATCH);
+      const result = await this.db
+        .update(notifications)
+        .set({ readAt: now })
+        .where(
+          and(inArray(notifications.id, batch), isNull(notifications.readAt)),
+        );
+      // Database's portable result type is unknown; node-postgres reports rowCount.
+      const changed = (result as { rowCount?: number | null }).rowCount ?? 0;
+      updated += changed;
+      if (changed < READ_ALL_BATCH) break;
+    }
+    if (updated > 0) {
       this.realtime.toPrincipal(principal, NOTIFICATION_EVENTS.readAll, {
         before: before?.toISOString() ?? null,
-        updated: updated.length,
+        updated,
       });
       await this.announceUnread(principal);
     }
-    return { updated: updated.length };
+    return { updated };
   }
 
   async remove(principal: Principal, id: string) {
