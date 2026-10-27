@@ -12,6 +12,7 @@ import {
 } from './database/database-health.js';
 // Overload errors (pool exhausted, statement timeout) as 503 problems.
 import './database/database-errors.js';
+import './queues/queue-errors.js';
 // Work on tenant tables without a tenant as 403 tenant_required.
 import './tenancy/tenancy-errors.js';
 import { ConditionalModule, ConfigService } from '@nestjs/config';
@@ -46,7 +47,7 @@ import { DrizzleLockStore } from './locks/drizzle-lock.store.js';
 import { RequestLogMiddleware } from './logging/logging.js';
 import { mail } from './mail/mail.js';
 import { MAIL_QUEUE, MailProcessor, MailQueue } from './mail/mail-queue.js';
-import { QueueWorkers, queueRoot } from './queues/queues.js';
+import { MAIL_JOB_OPTIONS, QueueWorkers, queueRoot } from './queues/queues.js';
 import { BullModule } from '@nestjs/bullmq';
 import { ErrorTracker, errorTracker } from './observability/error-tracker.js';
 import { observability } from './observability/observe.js';
@@ -148,7 +149,10 @@ const CURSOR_KEYS = Symbol('CURSOR_KEYS');
     mail(),
     // BullMQ, and the queue every mail goes through.
     queueRoot(),
-    BullModule.registerQueue({ name: MAIL_QUEUE }),
+    BullModule.registerQueue({
+      name: MAIL_QUEUE,
+      defaultJobOptions: MAIL_JOB_OPTIONS,
+    }),
     // Distributed locks in PostgreSQL (DrizzleLockStore): Locks.withLock(), and
     // @OnOneInstance() / @WithoutOverlapping() next to @Cron().
     LocksModule.forRoot(),

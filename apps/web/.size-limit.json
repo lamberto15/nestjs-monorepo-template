@@ -10,9 +10,18 @@
     "limit": "22 kB"
   },
   {
-    "name": "Application scripts (brotli; optional analytics engine separate)",
-    "path": ["dist/assets/*.js", "!dist/assets/*duckdb*.js"],
-    "limit": "1.1 MB"
+    "name": "Application scripts (brotli; without the languages and the optional analytics engine)",
+    "path": [
+      "dist/assets/*.js",
+      "!dist/assets/*duckdb*.js",
+      "!dist/assets/locale-*.js"
+    ],
+    "limit": "1.07 MB"
+  },
+  {
+    "name": "Language scripts, all four besides en (brotli; a visitor loads one)",
+    "path": ["dist/assets/locale-*.js"],
+    "limit": "162 kB"
   },
   {
     "name": "Optional analytics engine scripts (brotli)",

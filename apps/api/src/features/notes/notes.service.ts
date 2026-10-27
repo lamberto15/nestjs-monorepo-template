@@ -19,7 +19,6 @@ import {
   getTableColumns,
   isNotNull,
   isNull,
-  SQL,
   inArray,
   sql,
 } from 'drizzle-orm';
@@ -29,7 +28,6 @@ import {
   countPage,
   pageOffset,
   pageOrder,
-  type PageQuery,
   toPage,
 } from '../../core/http/pagination.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
@@ -42,6 +40,7 @@ import { TagsService } from '../../platform/tags/tags.service.js';
 import { IncomingEventHandlers } from '../../platform/webhooks/incoming-event-handlers.js';
 import { RevisionsService } from '../../platform/revisions/revisions.service.js';
 import { ApprovalsService } from '../../platform/approvals/approvals.service.js';
+import { AccessService } from '../../iam/access/access.service.js';
 import { TeamsService } from '../../iam/access/teams.service.js';
 import { SystemContext } from '../../iam/access/system-context.js';
 import { LegalHoldsService } from '../../iam/holds/legal-holds.service.js';
@@ -49,6 +48,8 @@ import { RetentionRegistry } from '../../platform/retention/retention.registry.j
 import { principalKey, type Principal } from '../../iam/auth/principal.js';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { notes } from './notes.tables.js';
+import { NOTE_LIST } from './note.list.js';
+import type { List, ListQuery } from '../../core/http/list-query.js';
 import { inTenant } from '../../core/tenancy/tenant-query.js';
 import { NOTE_PUBLICATION_JOB } from './note.policy.js';
 import { publishNow } from './note-events.js';
@@ -74,6 +75,7 @@ export class NotesService {
     private readonly webhooks: Webhooks<Transaction>,
     private readonly publisher: NotePublisher,
     private readonly customFields: CustomFieldsService,
+    private readonly access: AccessService,
     private readonly audit: AuditService,
     private readonly teams: TeamsService,
     private readonly notifications: NotificationsService,
@@ -323,13 +325,24 @@ export class NotesService {
     return note;
   }
 
-  /** A page of the notes matching `where` (the caller's read filter, from AccessService), newest first. */
-  async findPage(
-    where: SQL | undefined,
-    query: PageQuery,
-    /** Sort values that aren't columns (custom fields), for the cursor: list.sortSelect(query). */
-    extra: Record<string, SQL.Aliased> = {},
-  ) {
+  /**
+   * A page of the notes `user` may read matching the list's query, newest first.
+   * The read filter (the recycle bin, ?deleted=true, is for those who may
+   * restore) and the query's `where` compose here; `list` is the one the query
+   * was parsed with (custom fields included).
+   */
+  async findPage(user: Principal, list: List, query: ListQuery) {
+    const where = and(
+      await this.access.sqlFilter(
+        user,
+        'Note',
+        query.deleted ? 'restore' : 'read',
+        { deleted: query.deleted === true },
+      ),
+      list.where(query),
+    );
+    // Sort values that aren't columns (custom fields), for the cursor.
+    const extra = list.sortSelect(query);
     const [rows, total] = await Promise.all([
       this.db
         .select({ ...getTableColumns(notes), ...extra })
@@ -345,8 +358,19 @@ export class NotesService {
     return toPage(rows, query, total);
   }
 
-  /** Counts visible, live notes by UTC week in one grouped query. */
-  async weeklyCounts(where: SQL | undefined, from: Date, weeks: number) {
+  /** Counts the live notes `user` may read by UTC week (from a Monday) in one grouped query. */
+  async weeklyCounts(user: Principal, from: Date, weeks: number) {
+    const to = new Date(from.getTime() + weeks * 7 * 24 * 60 * 60 * 1000);
+    const list = await this.customFields.extendList(NOTE_LIST, 'Note');
+    const filters = list.parse({
+      'createdAt.gte': from.toISOString(),
+      'createdAt.lt': to.toISOString(),
+    });
+    await this.access.assertQueryFields(user, 'Note', filters);
+    const where = and(
+      await this.access.sqlFilter(user, 'Note', 'read'),
+      list.where(filters),
+    );
     const week = sql<string>`to_char(
       date_trunc('week', ${notes.createdAt} at time zone 'UTC'),
       'YYYY-MM-DD'

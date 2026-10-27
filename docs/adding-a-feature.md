@@ -357,8 +357,10 @@ the controller (`notes.*`); singular for what describes one record
      sql`lower(${t.name})` `` (an order that ignores case; index that
      expression). The page then selects `list.sortSelect(query)` next to the
      row for the cursor, and `list.pick()` drops it (as `NotesService.findPage`).
-   - The page (as `NotesService.findPage`): `and(access.sqlFilter(…),
-     list.where(query))`, ordered by `pageOrder(table.id, query)`,
+   - The page (as `NotesService.findPage(user, list, query)`: the service
+     composes the filters, the controller passes the parsed query and imports
+     nothing from `drizzle-orm`, which oxlint enforces for `*.controller.ts`):
+     `and(access.sqlFilter(…), list.where(query))`, ordered by `pageOrder(table.id, query)`,
      `.offset(pageOffset(query))`, `countPage()` beside it, `toPage()`.
      Then `access.redactAll()` on the items, and `list.pick(page, query)` last.
    - Described to clients at `GET /v1/lists/<Subject>` (filters, operators,

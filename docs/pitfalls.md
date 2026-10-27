@@ -126,6 +126,14 @@
   limit, then `disconnect()`). `main.ts` also exits after 25 s (api) / 55 s
   (worker, all) whatever hangs: keep these under Compose's
   `stop_grace_period` (30 s / 60 s) if you change either.
+  The queues' producer connections have no offline queue, so their QUIT is
+  rejected while Redis is away: `closeWhenRedisIsDown()` drops them instead.
+
+- **Redis commands that must not wait:** the shared clients wait for Redis
+  (`maxRetriesPerRequest: null`), so a request-path read of a cache or
+  counter hangs while it is down. Use `redisWithin()` (fails at once when
+  not connected, after a timeout when silent) and fall back, as settings
+  and usage do. Queues need nothing: their connection already fails fast.
 
 - **Shutdown order: queue workers before dispose().** Nest closes the HTTP
   server and socket.io (the Redis adapter's connections) before
