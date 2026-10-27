@@ -65,7 +65,7 @@ export function NotesPerWeekCard() {
   const ranges = useMemo(() => weekRanges(), []);
   const query = useQuery(weeklyCountsQuery(ranges[0]!.week));
   const config = {
-    count: { label: t('dashboard.chart.series'), color: 'var(--primary)' },
+    count: { label: t('dashboard.chart.series'), color: 'var(--chart-2)' },
   } satisfies ChartConfig;
   const counts = new Map(query.data?.map((item) => [item.week, item.count]));
   const pending = query.isPending;
@@ -106,7 +106,12 @@ export function NotesPerWeekCard() {
                 has no entry for a week, so the header would be empty. Without
                 it the header is the x value, the week's Monday. */}
             <ChartTooltip content={<ChartTooltipContent />} />
-            <Bar dataKey="count" fill="var(--color-count)" radius={3} />
+            <Bar
+              dataKey="count"
+              fill="var(--color-count)"
+              radius={3}
+              maxBarSize={48}
+            />
           </BarChart>
         </ChartContainer>
       )}
