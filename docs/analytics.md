@@ -88,6 +88,27 @@ the user's disk or from the existing, permission-checked export download.
    if unused, and cleared when the signed-in user or tenant changes and when the
    route redirects because the flag is off.
 
+**Local check on the import page.** With the flag on, choosing a CSV or JSON file
+on the import page also starts a read-only check against the importer's columns
+from `GET /v1/data` (`apps/web/src/features/transfer/local-check.tsx`; the
+comparison is the pure `import-profile.ts`). The engine loads lazily, only then.
+It reports, under "Local check (not authoritative)": required columns the file
+lacks, file columns the import does not take, columns whose detected type
+contradicts the catalog's (values the server would not take as the catalog's
+`number`, `boolean`, `date` or `datetime`, counted with SQL that mirrors the
+server's rules: a CSV is read as text, so `31/01/2024` is not a date and `maybe`
+is not a boolean; or, in JSON, a clearly different type), repeated values of the
+chosen match key (compared trimmed, blank keys ignored), headers the file
+repeats (the server keeps the last), and required columns with at least 20%
+empty values (`NULL_HEAVY_SHARE`). The match key is looked up in the file's
+header, not the catalog's columns (a notes import matches on `id` or `number`).
+A `.json` file that is not an array of objects (JSON Lines) is reported as
+refused, as the server refuses it; the data explorer still reads JSON Lines.
+Excel files are skipped with a note. It is informational: the server's `dryRun` stays the
+authority, and the import is never blocked or changed by it. Leaving the page,
+removing or replacing the file, turning the flag off, changing user or tenant, or
+Cancel ends the engine or disposes the dataset.
+
 Usability and failure notes for the transfer integration: an expired or already
 removed export shows the generic error (the signed link lasts 30 minutes, and a
 fresh one is requested on each open); a failed download or an unreadable file shows
