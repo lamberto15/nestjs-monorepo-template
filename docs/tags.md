@@ -11,7 +11,7 @@ subject, which records carry, show and are filtered by.
 export class NoteTags implements TagTarget {
   readonly subject = 'Note';
   constructor(private readonly notes: NotesService, private readonly policy: NotePolicy, registry: TagsRegistry) { registry.register(this); }
-  async canTag(p, id) { return this.policy.update(p, await this.notes.findOne(id)); }   // 404 when missing
+  async canTag(p, id) { return this.policy.update(p, await this.notes.findOne(id, undefined, { visibleTo: p })); } // 404 when missing or unreadable; false: 403
 }
 // its list: ?tag=<id>, ?tag.in=<id>,<id> (an EXISTS on record_tags)
 export const NOTE_LIST = listQuery({ ...tagFilter('Note', notes.id), … });

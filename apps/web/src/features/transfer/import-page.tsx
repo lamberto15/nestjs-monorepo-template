@@ -36,13 +36,11 @@ import {
   TableRow,
 } from '@nestjs-monorepo-template/ui/components/table';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 import { DownloadIcon, UploadIcon, XIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { useFlag } from '@/features/settings/use-flag';
-import { stageAnalyticsFile } from '@/features/analytics/handoff';
 import { formatSize } from '@/components/records/panels/attachments-panel';
 import {
   catalogQuery,
@@ -60,8 +58,6 @@ import { TransferStatus } from './transfer-status';
  */
 export function ImportPage(props: { name?: string }) {
   const { t, i18n } = useTranslation('transfer');
-  const navigate = useNavigate();
-  const analytics = useFlag('analytics.browser.enabled');
   const catalog = useQuery({ ...catalogQuery, meta: { errorToast: false } });
   const [chosen, setChosen] = useState(props.name);
   const [files, setFiles] = useState<File[]>([]);
@@ -321,22 +317,6 @@ export function ImportPage(props: { name?: string }) {
               {t('import.dryRun')}
             </label>
           </div>
-          {analytics.enabled && file && /\.(csv|json)$/i.test(file.name) && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                stageAnalyticsFile({
-                  file,
-                  expectedColumns: importer.columns.map(
-                    (column) => column.name,
-                  ),
-                });
-                void navigate({ to: '/analytics' });
-              }}
-            >
-              {t('import.profileLocally')}
-            </Button>
-          )}
           <p className="-mt-2 text-xs text-muted-foreground">
             {dryRun ? t('import.dryRunHint') : t('import.writeHint')}
           </p>

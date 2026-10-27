@@ -150,7 +150,9 @@ export class ApiClientsService {
 
   /**
    * A new key; the client's current keys stop working after `graceSeconds`
-   * (0: now). Returns the new key, shown this once.
+   * (0: now). Returns the client with the new key, shown this once, and the
+   * public ids of the keys revoked now (graceSeconds 0), for the caller to
+   * report once committed (ApiClientLifecycleRegistry).
    */
   async rotate(
     actor: UserPrincipal,
@@ -160,69 +162,77 @@ export class ApiClientsService {
   ) {
     const now = new Date();
     const until = new Date(now.getTime() + options.graceSeconds * 1000);
-    const key = await inTransaction(this.txHost, async (tx) => {
-      const client = await this.findView(id, tx);
-      // Current keys end at the grace period's end (or sooner, if they expire earlier).
-      await tx
-        .update(apiKeys)
-        .set(
-          options.graceSeconds === 0
-            ? { revokedAt: now }
-            : { expiresAt: until },
-        )
-        .where(
-          and(
-            // api_keys is global (looked up before the tenant is known):
-            // this tenant's keys only, said here.
-            eq(apiKeys.tenantId, requireTenantId()),
-            eq(apiKeys.clientId, id),
-            isNull(apiKeys.revokedAt),
-            or(isNull(apiKeys.expiresAt), gt(apiKeys.expiresAt, until)),
-          ),
+    const { key, revokedKeyIds } = await inTransaction(
+      this.txHost,
+      async (tx) => {
+        const client = await this.findView(id, tx);
+        // Current keys end at the grace period's end (or sooner, if they expire earlier).
+        const ended = await tx
+          .update(apiKeys)
+          .set(
+            options.graceSeconds === 0
+              ? { revokedAt: now }
+              : { expiresAt: until },
+          )
+          .where(
+            and(
+              // api_keys is global (looked up before the tenant is known):
+              // this tenant's keys only, said here.
+              eq(apiKeys.tenantId, requireTenantId()),
+              eq(apiKeys.clientId, id),
+              isNull(apiKeys.revokedAt),
+              or(isNull(apiKeys.expiresAt), gt(apiKeys.expiresAt, until)),
+            ),
+          )
+          .returning({ keyId: apiKeys.keyId });
+        const created = await this.addKey(tx, id, options.expiresAt);
+        await this.audit.record(
+          actor,
+          {
+            action: 'client.key-rotated',
+            targetType: 'client',
+            targetId: id,
+            details: {
+              name: client.name,
+              keyId: apiKeyId(created),
+              previousKeysEnd: until.toISOString(),
+            },
+            ip,
+          },
+          tx,
         );
-      const created = await this.addKey(tx, id, options.expiresAt);
-      await this.audit.record(
-        actor,
-        {
-          action: 'client.key-rotated',
-          targetType: 'client',
-          targetId: id,
-          details: {
-            name: client.name,
-            keyId: apiKeyId(created),
-            previousKeysEnd: until.toISOString(),
+        // The client itself is told (its webhook, when it subscribed to notification.created).
+        await this.securityAlerts.alert(
+          tx,
+          'security.apiKeyRotated',
+          principalKey({ kind: 'client', id }),
+          {
+            data: {
+              clientId: id,
+              keyId: apiKeyId(created),
+              previousKeysEnd: until.toISOString(),
+            },
           },
-          ip,
-        },
-        tx,
-      );
-      // The client itself is told (its webhook, when it subscribed to notification.created).
-      await this.securityAlerts.alert(
-        tx,
-        'security.apiKeyRotated',
-        principalKey({ kind: 'client', id }),
-        {
-          data: {
-            clientId: id,
-            keyId: apiKeyId(created),
-            previousKeysEnd: until.toISOString(),
-          },
-        },
-      );
-      return created;
-    });
+        );
+        return {
+          key: created,
+          revokedKeyIds:
+            options.graceSeconds === 0 ? ended.map((row) => row.keyId) : [],
+        };
+      },
+    );
     this.securityAlerts.deliverNow();
-    return { ...(await this.findView(id)), key };
+    return { client: { ...(await this.findView(id)), key }, revokedKeyIds };
   }
 
-  /** Stops one key now. */
+  /** Stops one key now. Returns its public id (`sk_<id>_…`). */
   async revokeKey(
     actor: UserPrincipal,
     clientId: string,
     keyId: string,
     ip?: string,
   ) {
-    await inTransaction(this.txHost, async (tx) => {
+    return inTransaction(this.txHost, async (tx) => {
       const [row] = await tx
         .update(apiKeys)
         .set({ revokedAt: new Date() })
@@ -249,6 +259,7 @@ export class ApiClientsService {
         },
         tx,
       );
+      return row.keyId;
     });
   }
 

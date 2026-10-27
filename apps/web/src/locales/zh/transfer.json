@@ -20,8 +20,7 @@
     "start": "开始导出",
     "mine": "你的导出与导入",
     "done_other": "已导出 {{count}} 行。",
-    "download": "下载（{{format}}）",
-    "openInAnalytics": "在数据浏览器中打开"
+    "download": "下载（{{format}}）"
   },
   "mine": {
     "title": "导出与导入",
@@ -93,8 +92,7 @@
     "downloadErrors": "下载被拒绝的行（CSV）",
     "rowLimit": "此导入最多可包含 {{count}} 行。",
     "profile": "文件列与 {{expected}} 个导入列中的 {{matched}} 个匹配。缺少：{{missing}}。此预览仅供参考。",
-    "noneMissing": "无",
-    "profileLocally": "在本地分析此文件"
+    "noneMissing": "无"
   },
   "status": {
     "queued": "等待工作进程…",

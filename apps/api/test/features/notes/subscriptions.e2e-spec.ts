@@ -29,13 +29,13 @@ describe('record subscriptions: watching notes (e2e)', () => {
       )
     ).body as { id: string };
 
-    // The owner watches from the start; someone who can't read it can't watch.
+    // The owner watches from the start; someone who can't read it can't watch (a 404: as if missing).
     const mine = await editor.agent.get('/v1/subscriptions').expect(200);
     expect(mine.body.items).toEqual([
       expect.objectContaining({ subject: 'Note', recordId: note.id }),
     ]);
     const refused = await other.agent.post(`/v1/notes/${note.id}/watch`);
-    expect([403, 404]).toContain(refused.status);
+    expect(refused.status).toBe(404);
 
     // The administrator changes it twice: one collapsed notification for the owner, none for themselves.
     await node

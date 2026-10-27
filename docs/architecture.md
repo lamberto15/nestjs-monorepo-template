@@ -133,7 +133,10 @@ groups. Each layer has one job:
 | Declarations (`*.policy.ts`, `*.list.ts`, `*.resource.ts`, `*.schemas.ts`) | what a feature allows, filters, audits, accepts | run anything |
 | Processors, workflows, jobs | background work, calling services | serve HTTP |
 
-- **Services own their queries.** Drizzle is the data layer: typed tables and
+- **Services own their queries, predicates included.** A controller passes
+  the caller and the parsed query (`notes.findPage(user, list, query)`); the
+  service composes `access.sqlFilter()` and `list.where()`. No controller
+  imports `drizzle-orm` (oxlint `no-restricted-imports`). Drizzle is the data layer: typed tables and
   results, SQL kept visible (permission filters, `countPage()`, transactions
   across tables). No repository wrapping each table.
 - **A repository only for shared data:** add one when several services read

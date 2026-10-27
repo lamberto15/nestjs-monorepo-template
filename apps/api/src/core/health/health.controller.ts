@@ -1,4 +1,4 @@
-import { Controller, Get, Header, Inject, VERSION_NEUTRAL } from '@nestjs/common';
+import { Controller, Get, Inject, VERSION_NEUTRAL } from '@nestjs/common';
 import { Public } from '@nestjs/authentication';
 import { ApiExcludeController } from '@nestjs/swagger';
 import {
@@ -18,6 +18,9 @@ import { REDIS } from '../redis/redis.js';
  * - `GET /health` (readiness): 200 when PostgreSQL and Redis answer, 503 when
  *   one doesn't, or while the app shuts down (stop sending it traffic).
  * - `GET /health/live` (liveness): 200 while the process serves requests.
+ *
+ * `GET /health/version` (the build's commit) is not public:
+ * BuildVersionController.
  */
 @ApiExcludeController()
 @Public()
@@ -54,12 +57,6 @@ export class HealthController {
           .withTimeout(2000)
           .cacheFor(1000),
     ]);
-  }
-
-  @Get('version')
-  @Header('Cache-Control', 'no-store')
-  version() {
-    return { sha: process.env.GIT_SHA ?? '' };
   }
 
   @Get('live')

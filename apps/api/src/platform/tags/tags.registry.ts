@@ -8,13 +8,13 @@ import type { Principal } from '../../iam/auth/principal.js';
  *
  * ```ts
  * readonly subject = 'Note';
- * async canTag(principal, id) { return this.policy.update(principal, await this.notes.findOne(id)); }
+ * async canTag(principal, id) { return this.policy.update(principal, await this.notes.findOne(id, undefined, { visibleTo: principal })); }
  * ```
  */
 export interface TagTarget {
   /** The records' permission subject: `Note`. */
   readonly subject: string;
-  /** Whether the principal may change the record's tags; a 404 (thrown) when it doesn't exist. */
+  /** Whether the principal may change the record's tags; a 404 (thrown) when it doesn't exist or they may not read it (the same 404). */
   canTag(principal: Principal, recordId: string): Promise<boolean>;
 }
 

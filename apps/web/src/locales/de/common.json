@@ -289,10 +289,16 @@
     "description": "Die gesuchte Seite existiert nicht.",
     "back": "Zurück zum Dashboard"
   },
+  "errors": {
+    "unexpected": "Etwas ist schiefgelaufen.",
+    "reportId": "Meldungs-ID: {{id}}",
+    "requestId": "Anfrage-ID: {{id}}"
+  },
   "routeError": {
     "title": "Etwas ist schiefgelaufen",
     "description": "Diese Seite konnte nicht geladen werden. Der Rest der App funktioniert weiterhin.",
     "reportId": "Meldungs-ID: {{id}}",
+    "build": "Build: {{sha}}",
     "retry": "Erneut versuchen"
   },
   "preferences": {
@@ -325,7 +331,9 @@
     "fields": {
       "tag": "Tag",
       "ownerId": "Eigentümer",
-      "teamId": "Team"
+      "teamId": "Team",
+      "actor": "Akteur",
+      "user": "Benutzer"
     },
     "refs": {
       "searching": "Wird gesucht…",

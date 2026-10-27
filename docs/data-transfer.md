@@ -116,9 +116,15 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
   keys; the key must be present in the file. Without it, imports insert as
   usual. With it, each key must find one existing record; missing records
   are refused, never inserted, and a repeated key refuses its later
-  occurrence. Matching is tenant-scoped. Notes allow `id` and `number`;
-  matched rows need update permission and the same record and field checks
-  as a note update. The API does not choose a key for the caller.
+  occurrence. Matching is tenant-scoped, and only finds records the caller
+  may read: an importer's lookup takes `access.sqlFilter(principal, subject,
+  'read')`, so a record they may not read is refused as not found, with the
+  same message as one that doesn't exist (a file can't probe which ids or
+  numbers exist). Notes allow `id` and `number`; matched rows need update
+  permission and the same record and field checks as a note update. The API
+  does not choose a key for the caller. Generated features import through
+  the platform's record transfer (`platform/records`), which inserts only:
+  no `matchKeys`, so no lookup to filter.
 - **Templates**: the columns the caller may set (forbidden fields left
   out), read from the importer's schema with `z.toJSONSchema`, required,
   limits, choices, `.meta({ example })` and `.describe()` included;

@@ -123,12 +123,12 @@ describe('comments and mentions on test items (e2e)', () => {
       [viewer.key, 'Vera'],
     ]);
 
-    // Who may not read the note sees none of it, nor writes.
-    await outsider.agent.get(`/v1/test-items/${itemId}/comments`).expect(403);
+    // Who may not read the note sees none of it, nor writes: as if it didn't exist.
+    await outsider.agent.get(`/v1/test-items/${itemId}/comments`).expect(404);
     await outsider.agent
       .post(`/v1/test-items/${itemId}/comments`)
       .send({ body: 'Hi' })
-      .expect(403);
+      .expect(404);
     await owner.agent
       .get(`/v1/test-items/${randomUUID()}/comments`)
       .expect(404);

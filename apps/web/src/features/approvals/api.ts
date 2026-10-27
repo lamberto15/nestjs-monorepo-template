@@ -254,6 +254,8 @@ export const policyQuery = (key: string) =>
         etag: etagOf(result),
       };
     },
+    // RecordState says a 404 or a failure on the page: not a toast as well.
+    meta: { errorToast: false },
   });
 
 /** The registered approver rules, stage modes and conditions, with their parameters' JSON Schema. */

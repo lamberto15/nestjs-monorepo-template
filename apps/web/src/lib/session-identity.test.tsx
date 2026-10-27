@@ -2,7 +2,10 @@ import { QueryObserver, type QueryClient } from '@tanstack/react-query';
 import { screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import type { CreateClientBody } from '@/features/api-clients/queries';
+import { api } from '@/lib/api';
 import { createQueryClient } from '@/lib/errors';
+import { requestReauthentication } from '@/lib/reauth';
 import { recordKeys } from '@/lib/records';
 import { announceSessionIdentity } from '@/lib/session-bus';
 import {
@@ -74,6 +77,7 @@ const target = () => ({
   toSignIn: vi.fn(),
   toMfaSetup: vi.fn(),
   toOnboarding: vi.fn(),
+  invalidate: vi.fn(),
 });
 
 /**
@@ -391,7 +395,7 @@ describe('a refetch of `me` that does not change the session', () => {
 
 describe('the session another tab announced', () => {
   it('applies a switch announced by another tab', async () => {
-    const { queryClient } = await watchedClient(
+    const { to, queryClient } = await watchedClient(
       meInTenant(signedInUser.tenant!.id),
     );
 
@@ -407,6 +411,8 @@ describe('the session another tab announced', () => {
     );
     expect(queryClient.getQueryData(recordKey)).toBeUndefined();
     expect(queryClient.getQueryData(['orphan'])).toBeUndefined();
+    // And the page's route guards run again, for the new session.
+    await waitFor(() => expect(to.invalidate).toHaveBeenCalledOnce());
   });
 
   it('keeps the cache when the announcement changes nothing here', async () => {
@@ -616,6 +622,20 @@ describe('the watcher on the rendered app', () => {
     await waitFor(() => expect(meCalls).toBe(2));
   });
 
+  it("runs the page's route guards again for the new session", async () => {
+    useSignedIn(['Access.readAudit']);
+    const { router } = await renderApp('/audit');
+    expect(router.state.location.pathname).toBe('/audit');
+
+    // Another tab switched to a tenant where this account may not read the
+    // audit log: the page this tab shows is left, not kept on screen with
+    // its refetches refused.
+    meAfter(meInTenant(otherTenantId));
+    announceSessionIdentity(sessionIdentity(meInTenant(otherTenantId)));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+  });
+
   it('does not reset again for its own announcement, mid-apply', async () => {
     const { queryClient } = await watchedClient(
       meInTenant(signedInUser.tenant!.id),
@@ -637,6 +657,61 @@ describe('the watcher on the rendered app', () => {
 
     expect(meCalls).toBe(1);
     expect(queryClient.getQueryData(recordKey)).toBeUndefined();
+  });
+});
+
+describe('a step-up dialog open when the session changes', () => {
+  it('closes, and its request is never sent again under the new session', async () => {
+    notifications('Q3 targets');
+    useSignedIn([]);
+    let creates = 0;
+    server.use(
+      http.post('/v1/access/clients', () => {
+        creates += 1;
+        return problem(403, 'reauthentication_required', {
+          methods: ['password'],
+        });
+      }),
+    );
+    await renderApp('/notifications');
+    await screen.findByText('Q3 targets');
+
+    // An API key for this tenant is refused for an old sign-in: the dialog
+    // asks the user to confirm it's them before the request goes again.
+    // Its outcome is held from the start: it settles while the switch runs.
+    const sent = api
+      .POST('/v1/access/clients', {
+        body: { name: 'CI deploys' } as CreateClientBody,
+      })
+      .then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+    await screen.findByRole('dialog', { name: /confirm/i });
+
+    // Another tab switched to tenant B meanwhile: the request was built for
+    // tenant A, and confirming now would resend it under B's cookie.
+    meAfter(meInTenant(otherTenantId));
+    notifications('Q4 plans');
+    announceSessionIdentity(sessionIdentity(meInTenant(otherTenantId)));
+
+    await screen.findByText('Q4 plans', { exact: false });
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /confirm/i })).toBeNull(),
+    );
+    expect(await sent).toMatchObject({ code: 'reauthentication_required' });
+    expect(creates).toBe(1);
+  });
+
+  it('is settled by a sign-out too', async () => {
+    const { queryClient } = await watchedClient(signedInUser);
+    const asked = requestReauthentication({
+      status: 403,
+      code: 'reauthentication_required',
+      detail: 'Confirm it is you.',
+    });
+    createSession(queryClient).clear();
+    await expect(asked).resolves.toBe(false);
   });
 });
 

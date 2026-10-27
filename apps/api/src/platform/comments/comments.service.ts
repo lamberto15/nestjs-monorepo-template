@@ -339,11 +339,17 @@ export class CommentsService implements PersonalDataSource {
       );
   }
 
-  /** The record's target, once the principal may read the record (else a 403; a 404 when it doesn't exist). */
+  /**
+   * The record's target, once the principal may read the record: else a 404,
+   * the same whether it doesn't exist or they may not read it (its existence
+   * stays hidden: docs/permissions.md).
+   */
   private async readable(principal: Principal, record: RecordRef) {
     const target = this.registry.get(record.subject);
     if (!(await target.canRead(principal, record.recordId))) {
-      throw new ForbiddenException(`You may not read this ${record.subject}.`);
+      throw new NotFoundException(
+        `${record.subject} ${record.recordId} not found.`,
+      );
     }
     return target;
   }

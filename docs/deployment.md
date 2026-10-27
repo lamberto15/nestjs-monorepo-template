@@ -1613,7 +1613,7 @@ environment (the database URL, the keys). Nothing in the API calls it.
 | `tenant:list` | the tenants: id, slug, members, active |
 | `user:list <tenant>` | a tenant's users (id or slug): roles, two-factor, active |
 | `admin:create <email> [--tenant <id\|slug>] [--name <name>]` | an administrator of a tenant (`--tenant` is optional when the deployment has one tenant). A new address gets an account (verified) and a one-time password; an existing account keeps its password and becomes the tenant's administrator |
-| `user:reset-password <email>` | a new one-time password; every session and token client of the account is signed out |
+| `user:reset-password <email>` | a new one-time password; every session and token client of the account is signed out, and their realtime connections on the API end (through Redis) |
 | `user:remove-mfa <email>` | removes the authenticator and the recovery codes, clears the failed-code counter, revokes the account's tokens |
 | `user:unlock <email>` | clears the failed second-factor attempts (the 15-minute lockout) and takes the address off the mail suppression list. Per-address rate limits (Redis) lapse by themselves within minutes |
 | `setting:delete <key> (--tenant <id\|slug> \| --platform)` | removes a stored value; the next scope's, or the default, holds again |
@@ -2048,10 +2048,8 @@ replace task-input hashing. See [CI measurements](ci-runtime.md) for the
 runner budget, the evidence and the chosen defaults.
 
 The bundle budget and the Storybook build run in `check` for frontend changes,
-and the Chromium analytics smoke in `e2e-web`. The Web workflow holds only the
-analytics smoke in Firefox and WebKit (pull requests touching the analytics
-engine) and report-only Lighthouse, which runs nightly, manually and for
-version tags.
+and the browser tests in `e2e-web`. The Web workflow holds only report-only
+Lighthouse, which runs nightly, manually and for version tags.
 Migration lint retains its separate PR workflow and existing acceptance controls
 ([migrations](development.md#migrations)). Third-party actions remain pinned;
 Dependabot proposes updates. PostgreSQL and Redis are read from `compose.yaml`,

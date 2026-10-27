@@ -288,10 +288,16 @@
     "description": "您要查找的页面不存在。",
     "back": "返回仪表盘"
   },
+  "errors": {
+    "unexpected": "出了点问题。",
+    "reportId": "报告编号：{{id}}",
+    "requestId": "请求编号：{{id}}"
+  },
   "routeError": {
     "title": "出错了",
     "description": "此页面加载失败，应用的其余部分仍可使用。",
     "reportId": "报告编号：{{id}}",
+    "build": "构建：{{sha}}",
     "retry": "重试"
   },
   "preferences": {
@@ -324,7 +330,9 @@
     "fields": {
       "tag": "标签",
       "ownerId": "所有者",
-      "teamId": "团队"
+      "teamId": "团队",
+      "actor": "操作者",
+      "user": "用户"
     },
     "refs": {
       "searching": "正在搜索…",
