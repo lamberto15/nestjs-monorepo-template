@@ -535,6 +535,48 @@ describe('approvals (e2e)', () => {
       });
     });
 
+    it('the inbox lists exactly the requests the caller takes part in, delegates included', async () => {
+      const [requester, approver, delegate, later, stranger] = [
+        await node.user([]),
+        await node.user([]),
+        await node.user([]),
+        await node.user([]),
+        await node.user([]),
+      ];
+      await setPolicy({ stages: [stage([users(approver)])] });
+      const now = Date.now();
+      for (const [to, from, until] of [
+        [delegate, now - 60_000, now + 86_400_000],
+        [later, now + 86_400_000, now + 2 * 86_400_000],
+      ] as const) {
+        await approver.agent
+          .post('/v1/approvals/delegations')
+          .send({
+            toUserId: to.id,
+            startsAt: new Date(from).toISOString(),
+            endsAt: new Date(until).toISOString(),
+          })
+          .expect(201);
+      }
+      const id = await ask(requester);
+      const inbox = async (who: { agent: typeof requester.agent }, q = '') =>
+        (
+          (await who.agent.get(`/v1/approvals${q}`).expect(200)).body.items as {
+            id: string;
+          }[]
+        ).map((x) => x.id);
+      expect(await inbox(requester)).toEqual([id]);
+      expect(await inbox(approver)).toEqual([id]);
+      expect(await inbox(delegate)).toEqual([id]);
+      expect(await inbox(later)).toEqual([]);
+      expect(await inbox(stranger)).toEqual([]);
+
+      await approve(delegate, id).expect(200);
+      expect(await inbox(delegate)).toEqual([id]);
+      expect(await inbox(delegate, '?decidedByMe=true')).toEqual([id]);
+      await stranger.agent.get(`/v1/approvals/${id}`).expect(404);
+    });
+
     it('one decision per person per stage, even standing in for another approver', async () => {
       const [requester, a, d, c] = [
         await node.user([]),
