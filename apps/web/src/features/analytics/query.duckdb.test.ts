@@ -3,7 +3,11 @@ import { dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { DatasetQuery } from './engine';
 import { arrowTableRows } from './arrow-rows';
-import { buildDatasetSql } from './query';
+import {
+  buildDatasetSql,
+  buildDuplicateKeySql,
+  buildParseFailureSql,
+} from './query';
 
 // The builders' SQL run by a real DuckDB (the package's Node build, as in
 // duckdb-extensions.test.ts), because comparing strings cannot show that a
@@ -194,5 +198,43 @@ d", DATE '2024-03-05' AS "when"`;
         aggregate: { fn: 'sum', column: name },
       }).rows,
     ).toEqual([{ bucket: '2024-03-04', value: 1.5 }]);
+  });
+});
+
+describe('import profiling SQL on DuckDB', () => {
+  const rows = (sql: string) => arrowTableRows(conn.query(sql)).rows;
+
+  it('counts repeated keys, ignoring empty ones, and lists the most repeated', () => {
+    conn.query(
+      `CREATE OR REPLACE TABLE "t" AS SELECT * FROM (VALUES ('a'), ('b'), ('a'), (NULL), (NULL), ('c'), ('a'), ('b')) v(sku)`,
+    );
+    const sql = buildDuplicateKeySql('t', new Set(['sku']), 'sku');
+    expect(rows(sql.count)).toEqual([{ extra: 3 }]);
+    expect(rows(sql.samples)).toEqual([
+      { key: 'a', rows: 3 },
+      { key: 'b', rows: 2 },
+    ]);
+  });
+
+  it('bounds the sample list and handles a key named like an alias', () => {
+    conn.query(
+      `CREATE OR REPLACE TABLE "t" AS SELECT (i // 2)::VARCHAR AS "rows" FROM range(30) r(i)`,
+    );
+    const sql = buildDuplicateKeySql('t', new Set(['rows']), 'rows');
+    expect(rows(sql.count)).toEqual([{ extra: 15 }]);
+    expect(rows(sql.samples)).toHaveLength(5);
+  });
+
+  it('counts the values of a text column that do not read as the type', () => {
+    conn.query(
+      `CREATE OR REPLACE TABLE "t" AS SELECT * FROM (VALUES ('1', '2024-01-31', '2026-10-15T18:30:00+04:00', 'true'), ('x', '31/01/2024', '2026-10-15 18:30:00', 'maybe'), (NULL, NULL, NULL, NULL), ('2.5', 'soon', 'later', 'false')) v(n, d, dt, b)`,
+    );
+    const sql = buildParseFailureSql('t', new Set(['n', 'd', 'dt', 'b']), [
+      { column: 'n', as: 'number' },
+      { column: 'd', as: 'date' },
+      { column: 'dt', as: 'datetime' },
+      { column: 'b', as: 'boolean' },
+    ]);
+    expect(rows(sql)).toEqual([{ n0: 1, n1: 2, n2: 1, n3: 1 }]);
   });
 });
