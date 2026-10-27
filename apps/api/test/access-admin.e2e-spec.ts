@@ -187,6 +187,37 @@ describe('access administration (e2e)', () => {
       await node.admin().get('/v1/access/users?unitId=nope').expect(400);
     });
 
+    it("keeps a membership dated ahead when the user's units are saved", async () => {
+      const [current, scheduled] = [await unit(), await unit()];
+      const user = await node.user([]);
+      await node
+        .admin()
+        .patch(`/v1/access/users/${user.id}`)
+        .send({ unitIds: [current] })
+        .expect(204);
+      const validFrom = new Date(Date.now() + 86_400_000).toISOString();
+      await node
+        .admin()
+        .post(`/v1/access/organizational-units/${scheduled}/members`)
+        .send({ userId: user.id, validFrom })
+        .expect(201);
+      // The users view lists started memberships only; sending it back keeps the scheduled one.
+      await node
+        .admin()
+        .patch(`/v1/access/users/${user.id}`)
+        .send({ unitIds: [current] })
+        .expect(204);
+      const members = (
+        await node
+          .admin()
+          .get(`/v1/access/organizational-units/${scheduled}/members`)
+          .expect(200)
+      ).body.items as { userId: string; validFrom: string }[];
+      expect(members.find((row) => row.userId === user.id)?.validFrom).toBe(
+        validFrom,
+      );
+    });
+
     it('describes the users list at GET /v1/lists/User, to whoever may list them', async () => {
       const { body } = await node.admin().get('/v1/lists/User').expect(200);
       expect(body.subject).toBe('User');

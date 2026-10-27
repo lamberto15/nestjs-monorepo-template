@@ -511,7 +511,11 @@ export class OrganizationalUnitsService {
           ),
         ),
       );
-    const left = open.filter((row) => !unique.includes(row.unitId));
+    // Only started memberships can be left: one dated ahead isn't among the
+    // user's units yet, so a list sent back without it keeps it.
+    const left = open.filter(
+      (row) => row.validFrom <= now && !unique.includes(row.unitId),
+    );
     const joined = unique.filter(
       (id) => !open.some((row) => row.unitId === id),
     );
