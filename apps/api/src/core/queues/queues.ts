@@ -51,6 +51,31 @@ export const queueRoot = () =>
     extraOptions: { manualRegistration: true },
   });
 
+/** The variable that sets a queue's concurrency: `data-transfers` is `QUEUE_CONCURRENCY_DATA_TRANSFERS`. */
+export const queueConcurrencyVariable = (queue: string) =>
+  `QUEUE_CONCURRENCY_${queue.toUpperCase().replaceAll('-', '_')}`;
+
+/**
+ * Sets each worker's concurrency from its queue's variable (each declared
+ * with its queue's group: core, iam or platform; the groups' rule keeps
+ * core from importing them, so the name is built from the queue's). A
+ * queue without a variable keeps its `@Processor` value. `@Processor`
+ * options are static decorator arguments, so the deployment's value is set
+ * on the running worker instead: `concurrency` is a settable property of
+ * BullMQ's Worker (https://docs.bullmq.io/guide/workers/concurrency).
+ */
+export function applyQueueConcurrency(
+  workers: readonly Pick<Worker, 'name' | 'concurrency'>[],
+  read: (variable: string) => unknown,
+) {
+  for (const worker of workers) {
+    const value = read(queueConcurrencyVariable(worker.name));
+    if (typeof value === 'number' && Number.isInteger(value) && value >= 1) {
+      worker.concurrency = value;
+    }
+  }
+}
+
 /**
  * Starts the consumers (and queue events) where this process runs workers,
  * and stops them on shutdown even when Redis is gone.
@@ -63,11 +88,15 @@ export class QueueWorkers implements OnModuleInit, BeforeApplicationShutdown {
     private readonly registrar: BullRegistrar,
     private readonly discovery: DiscoveryService,
     @Inject(REDIS) private readonly redis: Redis,
+    private readonly config: ConfigService,
   ) {}
 
   onModuleInit() {
     if (runsWorkers()) {
       this.registrar.register();
+      applyQueueConcurrency(this.clients().workers, (key) =>
+        this.config.get<unknown>(key),
+      );
     }
   }
 

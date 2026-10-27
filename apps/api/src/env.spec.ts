@@ -72,3 +72,55 @@ describe('the passkeys relying party', () => {
     ).toEqual(['PASSKEY_APPLE_APPS']);
   });
 });
+
+describe('worker concurrency variables', () => {
+  const parsed = envSchema.parse({
+    DATABASE_URL: 'postgres://app_runtime@localhost:5432/app',
+  }) as Record<string, unknown>;
+
+  it('default to the values that were hard-coded', () => {
+    expect({
+      mail: parsed.QUEUE_CONCURRENCY_MAIL,
+      messaging: parsed.QUEUE_CONCURRENCY_MESSAGING,
+      attachmentScan: parsed.QUEUE_CONCURRENCY_ATTACHMENT_SCAN,
+      dataTransfers: parsed.QUEUE_CONCURRENCY_DATA_TRANSFERS,
+      bulk: parsed.QUEUE_CONCURRENCY_BULK,
+      documents: parsed.QUEUE_CONCURRENCY_DOCUMENTS,
+      ai: parsed.QUEUE_CONCURRENCY_AI,
+      mailEvents: parsed.QUEUE_CONCURRENCY_MAIL_EVENTS,
+      sso: parsed.QUEUE_CONCURRENCY_SSO,
+      retention: parsed.QUEUE_CONCURRENCY_RETENTION,
+      reencryption: parsed.QUEUE_CONCURRENCY_REENCRYPTION,
+      attachmentImages: parsed.QUEUE_CONCURRENCY_ATTACHMENT_IMAGES,
+      relayBatch: parsed.OUTBOX_RELAY_BATCH_SIZE,
+      relayConcurrency: parsed.OUTBOX_RELAY_CONCURRENCY,
+      workflows: parsed.WORKFLOW_CONCURRENCY,
+    }).toEqual({
+      mail: 5,
+      messaging: 5,
+      attachmentScan: 4,
+      dataTransfers: 2,
+      bulk: 2,
+      documents: 2,
+      ai: 2,
+      mailEvents: 2,
+      sso: 2,
+      retention: 1,
+      reencryption: 1,
+      attachmentImages: 1,
+      relayBatch: 100,
+      relayConcurrency: 10,
+      workflows: 10,
+    });
+  });
+
+  it('refuse zero and parse numbers from strings', () => {
+    const base = { DATABASE_URL: 'postgres://app_runtime@localhost:5432/app' };
+    expect(
+      envSchema.safeParse({ ...base, QUEUE_CONCURRENCY_BULK: '0' }).success,
+    ).toBe(false);
+    expect(
+      envSchema.parse({ ...base, QUEUE_CONCURRENCY_BULK: '1' }),
+    ).toMatchObject({ QUEUE_CONCURRENCY_BULK: 1 });
+  });
+});

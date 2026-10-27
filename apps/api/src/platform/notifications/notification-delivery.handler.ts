@@ -39,7 +39,9 @@ import { NOTIFICATION_EMAIL_POLICY } from './notification-email-policy.setting.j
 /**
  * Delivers a stored notification through its channels, on a worker, once
  * the transaction that created it committed (the outbox relay hands it
- * over; `OutboxRelay.runOnce()` in tests). Exactly once: the channels'
+ * over; `OutboxRelay.runOnce()` in tests). A channel's slow call (the mail
+ * queue's Redis) runs first, outside any transaction, under a deterministic
+ * job id, so a retry repeats it harmlessly. Exactly once: the channels'
  * transactional effects commit with the inbox record and `delivered_at`;
  * a crash before that commit repeats the whole, after it nothing. A
  * failure retries the message (then a dead letter in GET /ops/outbox).
@@ -158,6 +160,11 @@ export class NotificationDeliveryHandler {
               ...(quiet ? { quietUntil: quiet } : {}),
             },
           });
+        }
+        // Before the transaction: a Redis call waits for as long as Redis is
+        // down, and must not hold a connection (and its locks) meanwhile.
+        for (const { channel, delivery } of deliveries) {
+          await channel.beforeTransaction?.(delivery, ctx.signal);
         }
         const result = await inTransaction(this.txHost, async (tx) =>
           ctx.processInTransaction(tx, async () => {

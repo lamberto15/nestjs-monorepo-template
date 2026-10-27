@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { z } from 'zod';
+import { abortable } from '../../../core/queues/abortable.js';
 import { NotificationChannelRegistry } from '../../notifications/notification-channel.registry.js';
 import type {
   NotificationChannel,
@@ -46,13 +47,17 @@ export class SmsChannel implements NotificationChannel<boolean> {
     return this.provider !== null && recipient.kind === 'user';
   }
 
-  async inTransaction({
-    notification,
-    recipient,
-    setting,
-    rendered,
-    quietUntil,
-  }: NotificationDelivery) {
+  // Before the transaction: the add waits on Redis, and must not hold a connection.
+  async beforeTransaction(
+    {
+      notification,
+      recipient,
+      setting,
+      rendered,
+      quietUntil,
+    }: NotificationDelivery,
+    signal: AbortSignal,
+  ) {
     if (recipient.kind !== 'user' || setting !== true) return;
     if (!(await this.messaging.hasSendablePhone(recipient.id))) return;
     // An account's own notification has no tenant; the caps are the user's tenant's.
@@ -65,12 +70,15 @@ export class SmsChannel implements NotificationChannel<boolean> {
       notificationId: notification.id,
       text: clip(`${rendered.title}: ${rendered.body}`, 1600),
     };
-    await this.queue.add('sms', job, {
-      jobId: `sms-${notification.id}`,
-      // Quiet hours: texted when they end.
-      ...(quietUntil
-        ? { delay: Math.max(0, quietUntil.getTime() - Date.now()) }
-        : {}),
-    });
+    await abortable(
+      signal,
+      this.queue.add('sms', job, {
+        jobId: `sms-${notification.id}`,
+        // Quiet hours: texted when they end.
+        ...(quietUntil
+          ? { delay: Math.max(0, quietUntil.getTime() - Date.now()) }
+          : {}),
+      }),
+    );
   }
 }

@@ -16,6 +16,7 @@ import {
 } from '@nestjs/mail';
 import { type Job, type Queue, UnrecoverableError } from 'bullmq';
 import { Counter } from 'prom-client';
+import { abortable } from '../queues/abortable.js';
 import { MetricsService } from '../metrics/metrics.service.js';
 import {
   DEFAULT_MAIL_BRAND,
@@ -83,9 +84,17 @@ export class MailQueue {
   async send<M extends Mailable<any>>(
     mail: Type<M>,
     options: MailableRenderOptions<Parameters<M['render']>[0]>,
-    /** Your own job id when the call may repeat (a retried handler): the mail goes once. */
-    { jobId = randomUUID() }: { jobId?: string } = {},
+    {
+      jobId = randomUUID(),
+      signal,
+    }: {
+      /** Your own job id when the call may repeat (a retried handler): the mail goes once. */
+      jobId?: string;
+      /** Stops waiting for Redis (the add may still land: the job id makes that harmless). */
+      signal?: AbortSignal;
+    } = {},
   ) {
+    signal?.throwIfAborted();
     // The tenant's logo and colour in the templates, its name on the sender
     // (unless the mail class sets its own `from`: options.from).
     // Cosmetic: a failed lookup (the settings, the object store) never keeps
@@ -99,29 +108,32 @@ export class MailQueue {
         'Queued mail carries no attachments: store the file and link to it.',
       );
     }
-    await this.queue.add(
-      mail.name,
-      {
-        from:
-          brand.name && !options.from
-            ? { ...message.from, name: brand.name }
-            : message.from,
-        replyTo: [...message.replyTo],
-        to: [...message.to],
-        cc: [...message.cc],
-        bcc: [...message.bcc],
-        subject: message.subject,
-        html: message.html,
-        text: message.text,
-        headers: { ...message.headers },
-        essential: isEssentialMail(mail),
-      },
-      {
-        jobId,
-        // About six hours of retries: a provider outage doesn't lose the mail.
-        attempts: 10,
-        backoff: { type: 'exponential', delay: 30_000 },
-      },
+    await abortable(
+      signal,
+      this.queue.add(
+        mail.name,
+        {
+          from:
+            brand.name && !options.from
+              ? { ...message.from, name: brand.name }
+              : message.from,
+          replyTo: [...message.replyTo],
+          to: [...message.to],
+          cc: [...message.cc],
+          bcc: [...message.bcc],
+          subject: message.subject,
+          html: message.html,
+          text: message.text,
+          headers: { ...message.headers },
+          essential: isEssentialMail(mail),
+        },
+        {
+          jobId,
+          // About six hours of retries: a provider outage doesn't lose the mail.
+          attempts: 10,
+          backoff: { type: 'exponential', delay: 30_000 },
+        },
+      ),
     );
   }
 
