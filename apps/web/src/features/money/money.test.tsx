@@ -67,7 +67,9 @@ describe('the exchange rates page', () => {
     const { calls } = useMoneyApi({ rates: null });
     await renderApp('/exchange-rates');
     await screen.findByText('No exchange rates yet.');
-    expect(screen.queryByText(/on or before/)).toBeNull();
+    expect(
+      screen.queryByText(/No exchange rates? (for \w+ )?on or before/),
+    ).toBeNull();
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.queryByText('Currency converter')).toBeNull();
     expect(calls.convert).toEqual([]);
