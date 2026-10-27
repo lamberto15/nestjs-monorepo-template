@@ -16,6 +16,7 @@ import { createQueryClient } from '@/lib/errors';
 import { featuresQuery, meQuery, type Features, type Me } from '@/lib/session';
 import { allFeatures, signedInUser } from '@/test/server';
 import { trackClient } from '@/test/app-clients';
+import { missingKeyOptions } from '@/test/i18n';
 
 /**
  * One component with what the app gives it (the texts, the query client
@@ -46,6 +47,8 @@ export async function renderComponent(
       }),
     ),
     defaultNS: 'common',
+    // A key no catalog has fails the test (test/i18n.ts).
+    ...missingKeyOptions,
   });
   const queryClient = options.queryClient ?? createQueryClient(() => undefined);
   trackClient(queryClient);

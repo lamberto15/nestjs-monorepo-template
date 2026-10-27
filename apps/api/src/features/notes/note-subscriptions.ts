@@ -22,7 +22,10 @@ export class NoteSubscriptions implements SubscriptionTarget {
   }
 
   async assertCanWatch(principal: Principal, recordId: string) {
-    const note = await this.notes.findOne(recordId);
+    // A note they may not read: the same 404 as a missing one.
+    const note = await this.notes.findOne(recordId, undefined, {
+      visibleTo: principal,
+    });
     await this.authorization.authorize(NotePolicy, 'read', principal, note);
   }
 }

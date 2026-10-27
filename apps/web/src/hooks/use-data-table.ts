@@ -110,24 +110,17 @@ function useDataTable<TData extends RowData>({
   const queryStateOptions = React.useMemo<
     Omit<UseQueryStateOptions<string>, 'parse'>
   >(
+    // nuqs has no debounce option: `debounceMs` is the filters' own
+    // (useDebouncedCallback, below), not a URL-write setting.
     () => ({
       history,
       scroll,
       shallow,
       throttleMs,
-      debounceMs,
       clearOnDefault,
       startTransition,
     }),
-    [
-      history,
-      scroll,
-      shallow,
-      throttleMs,
-      debounceMs,
-      clearOnDefault,
-      startTransition,
-    ],
+    [history, scroll, shallow, throttleMs, clearOnDefault, startTransition],
   );
 
   const [initialTableState] = React.useState(initialState);

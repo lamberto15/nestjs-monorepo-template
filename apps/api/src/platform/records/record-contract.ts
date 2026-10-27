@@ -52,6 +52,17 @@ export type RecordRow = { id: string; ownerId: string } & Record<
 >;
 
 /**
+ * How a single-record lookup finds its record. `deleted`: one in the recycle
+ * bin, and only those. `visibleTo`: only one this principal may read (in the
+ * recycle bin, restore), filtered in the query: a record they may not read is
+ * the same 404 as one that doesn't exist, so a route never tells which.
+ */
+export interface RecordLookup {
+  deleted?: boolean;
+  visibleTo?: Principal;
+}
+
+/**
  * What a feature's service offers the platform's generic targets
  * (record-targets.ts): the standard methods `pnpm feature:add` writes.
  */
@@ -60,7 +71,7 @@ export interface RecordServiceContract {
   findOne(
     id: string,
     db?: Database | Transaction,
-    options?: { deleted?: boolean },
+    options?: RecordLookup,
   ): Promise<RecordRow>;
   update(
     by: Principal,

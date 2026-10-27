@@ -33,6 +33,10 @@ native speaker review them.
   placeholders, and for a plural message exactly the forms the language uses
   (`Intl.PluralRules`: `ar` six, `en` and `de` two, `zh` and `ms` only
   `_other`). So a `_one` in `zh` is stale, and `_zero` in `ar` is required.
+  It compares catalogs, not the code: a key the web app's code asks for that
+  `en` lacks fails the test that renders it instead (`saveMissing`,
+  `apps/web/src/test/i18n.ts`; a lookup with a `defaultValue` is a fallback
+  and passes).
 - Direction: `ar` is right to left. In the web app `<html dir>` follows
   `i18n.dir()` and so does Base UI's `DirectionProvider` (`LanguageDirection`
   in `apps/web/src/app.tsx`), so menus, popovers and arrow-key navigation flip

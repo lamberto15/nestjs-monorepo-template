@@ -26,8 +26,8 @@ on:
     paths-ignore:
       - 'docs/**'
       - 'README.md'
-      - 'AGENTS.md'
-      - 'CLAUDE.md'
+      - '**/AGENTS.md'
+      - '**/CLAUDE.md'
       - '.claude/**'
   pull_request:
   workflow_dispatch:
@@ -730,9 +730,7 @@ jobs:
   # to install, and a different failure to read (the HTML report and traces
   # are uploaded when it fails). Accessibility findings (axe) go to the job
   # summary; serious and critical ones fail the tests. Then, on the same
-  # build and services: the instrumentation (below). The Data Explorer's spec
-  # (test/analytics.spec.ts) is one of the browser tests, in Chrome, under the
-  # production Content-Security-Policy; Firefox and WebKit run it in web.yml.
+  # build and services: the instrumentation (below).
   #
   # The instrumentation: a sixth of the e2e suite with OpenTelemetry
   # (OTEL_EXPORTER_OTLP_ENDPOINT) and Sentry (SENTRY_DSN) pointing at a stub

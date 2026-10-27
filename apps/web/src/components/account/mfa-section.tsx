@@ -26,6 +26,7 @@ import { toast } from 'sonner';
 import { z } from '@/lib/zod';
 import { Section } from '@/components/account/section';
 import { ConfirmButton } from '@/components/confirm-button';
+import { useOnSessionChange } from '@/hooks/use-on-session-change';
 import { api } from '@/lib/api';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { useFeatures, useMe } from '@/lib/features';
@@ -87,6 +88,16 @@ export function MfaSection() {
       setCodes(result.recoveryCodes);
       await refresh();
     },
+  });
+  // Shown once, to the session that asked: a session that changes under the
+  // page (signed out, another account or tenant, here or in another tab)
+  // never sees the codes or the secret, nor the mutations' results.
+  useOnSessionChange(() => {
+    setCodes(undefined);
+    setEnrollment(undefined);
+    enroll.reset();
+    newCodes.reset();
+    autoEnrolled.current = false;
   });
   const disable = useMutation({
     mutationFn: async () => {

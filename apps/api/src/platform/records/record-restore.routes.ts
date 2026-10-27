@@ -73,8 +73,10 @@ export function restoreRoutes(
       @Param('id', ParseUUIDPipe) id: string,
       @Ip() ip: string,
     ) {
+      // In the recycle bin and theirs to restore (what ?deleted=true lists): else the same 404.
       const row = await this.c.service.findOne(id, undefined, {
         deleted: true,
+        visibleTo: user,
       });
       await this.authorization.authorize(options.policy, 'restore', user, row);
       return this.presenter.one(

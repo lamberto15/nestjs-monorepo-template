@@ -49,7 +49,7 @@ const themes = ['light', 'dark', 'system'] as const;
 
 /** The signed-in user: their account, the preferences, signing out. */
 export function NavUser() {
-  const { isMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
   const { t, i18n } = useTranslation();
   const { t: tn } = useTranslation('notifications');
   const { t: tw } = useTranslation('watching');
@@ -108,6 +108,11 @@ export function NavUser() {
                   </span>
                 </div>
               </DropdownMenuLabel>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            {/* On a phone the menu is in the sidebar's sheet: a page of the
+                account closes it, as the menu entries do (nav-main.tsx). */}
+            <DropdownMenuGroup onClick={() => setOpenMobile(false)}>
               <DropdownMenuItem render={<Link to="/account/profile" />}>
                 <UserIcon />
                 {t('account.profile.title')}

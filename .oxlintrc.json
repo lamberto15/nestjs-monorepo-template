@@ -83,6 +83,22 @@
       }
     },
     {
+      "files": ["apps/api/**/*.controller.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["drizzle-orm", "drizzle-orm/*"],
+                "message": "Controllers do HTTP only: a service composes its query predicates (docs/architecture.md, 'Code style')."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "files": ["apps/web/src/lib/zod.ts"],
       "rules": {
         "no-restricted-imports": "off"

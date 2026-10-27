@@ -2,8 +2,12 @@
 
 @AGENTS.md
 
-Shared project rules live in `AGENTS.md`; update that file for changes that apply
-to every agent. Keep only Claude-specific settings here.
+<!--
+Shared project rules live in AGENTS.md (and the folders' AGENTS.md, which
+their CLAUDE.md imports); update those for changes that apply to every
+agent. Keep only Claude-specific settings here. `/doctor prompt-audit` finds
+outdated or conflicting instructions.
+-->
 
 ## Claude model selection
 
@@ -12,3 +16,6 @@ to every agent. Keep only Claude-specific settings here.
   mechanical edits, Sonnet 5.5 for ordinary coding and exploration, Opus 5.5
   only for complex or security work (and the main session). Set `model` on
   every Agent call.
+- **Delegate only what pays for itself.** Do a lookup you can make in a few
+  tool calls yourself. Spawn subagents, workflows or research fan-outs only
+  when the owner asks or the work is truly independent and broad.

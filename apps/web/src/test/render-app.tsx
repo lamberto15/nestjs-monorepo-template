@@ -6,6 +6,7 @@ import { resourcesFrom } from '@/i18n';
 import { App, createApp } from '@/app';
 import { featuresQuery, meQuery } from '@/lib/session';
 import { trackClient } from '@/test/app-clients';
+import { missingKeyOptions } from '@/test/i18n';
 
 /** The whole app (every provider, the router, the error handler) at a path. */
 export async function renderApp(path: string) {
@@ -19,6 +20,8 @@ export async function renderApp(path: string) {
       }),
     ),
     defaultNS: 'common',
+    // A key no catalog has fails the test (test/i18n.ts).
+    ...missingKeyOptions,
   });
   const history = createMemoryHistory({ initialEntries: [path] });
   const { queryClient, router } = createApp(history);

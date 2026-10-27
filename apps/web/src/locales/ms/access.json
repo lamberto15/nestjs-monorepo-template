@@ -169,6 +169,7 @@
     "deleted": "Pasukan {{name}} dipadam.",
     "columns": {
       "name": "Pasukan",
+      "member": "Ahli",
       "members": "Ahli"
     },
     "notFound": "Pasukan ini tidak wujud (lagi).",

@@ -213,7 +213,7 @@ export class AccountDeletionJob {
         continue; // anonymized only once every tenant erased it
       }
       try {
-        await inTransaction(this.txHost, async (tx) => {
+        const ended = await inTransaction(this.txHost, async (tx) => {
           // The account's own (no tenant): its security notifications, its
           // preferences, its sign-in and sign-up entries.
           await tx
@@ -223,7 +223,7 @@ export class AccountDeletionJob {
             .delete(notificationPreferences)
             .where(eq(notificationPreferences.recipient, key));
           await relabel(tx, key);
-          await this.users.anonymize(tx, user.id);
+          const credentials = await this.users.anonymize(tx, user.id);
           await tx
             .update(accountDeletions)
             .set({ completedAt: now })
@@ -241,8 +241,11 @@ export class AccountDeletionJob {
             },
             tx,
           );
+          return credentials;
         });
         deleted++;
+        // Committed: the account's live connections end too.
+        await this.users.afterCredentialsEnded(ended);
         await this.removePictures(user.id);
       } catch (error) {
         failures.push({ userId: user.id, tenantId: null, error });

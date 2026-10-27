@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { brotliCompressSync, gzipSync } from 'node:zlib';
@@ -8,7 +8,6 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { devProxy } from './dev-proxy.ts';
-import { caddyHeaders } from './preview-headers.ts';
 import { apiPathPattern } from './pwa-paths.ts';
 
 // The API is same-origin in development too (a proxy: dev-proxy.ts), as behind
@@ -26,12 +25,12 @@ const bundleReportFile = fileURLToPath(
   new URL('./.bundle-analysis/bundle.json', import.meta.url),
 );
 
-export default defineConfig(({ isPreview }) => ({
-  // Discover worker-only dependencies before serving a fresh dev session.
-  // Late optimization otherwise reloads the page during the first file import.
-  optimizeDeps: {
-    include: ['@duckdb/duckdb-wasm', 'apache-arrow'],
-  },
+// The folders of src/locales except `en`, which is bundled (src/i18n.ts).
+const lazyLanguages = readdirSync(new URL('./src/locales', import.meta.url))
+  .filter((language) => language !== 'en')
+  .toSorted();
+
+export default defineConfig({
   define: { __APP_GIT_SHA__: JSON.stringify(gitSha) },
   plugins: [
     {
@@ -84,8 +83,9 @@ export default defineConfig(({ isPreview }) => ({
     react(),
     tailwindcss(),
     // vite-plugin-pwa's documented setup (generateSW, Workbox). The worker
-    // precaches the built shell only (scripts, styles, icons); there is no
-    // runtime caching, so no API response (user data) is ever stored by it.
+    // precaches the built shell only (scripts, styles, icons); its one runtime
+    // cache holds the build's own language files, so no API response (user
+    // data) is ever stored by it.
     // Navigations fall back to the shell except for the API's own paths.
     VitePWA({
       registerType: 'prompt',
@@ -117,10 +117,28 @@ export default defineConfig(({ isPreview }) => ({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
-        // The optional local explorer loads its engine only when used, and so
-        // its self-hosted extensions (public/duckdb-extensions; `.wasm` is not
-        // in globPatterns either: this is the explicit guard).
-        globIgnores: ['**/*duckdb*', '**/duckdb-extensions/**'],
+        globIgnores: [
+          // Only `en` (the fallback) is in the entry. The other languages are
+          // not precached: nearly everybody uses one, and precaching all four
+          // would make every install download the three it never uses
+          // (#705). They are cached the first time they are loaded instead
+          // (runtimeCaching below), so offline works for a language already
+          // used; before that, offline shows English.
+          '**/assets/locale-*.js',
+        ],
+        runtimeCaching: [
+          {
+            // Hashed, immutable files of the build itself (no user data):
+            // CacheFirst is Workbox's strategy for such files.
+            urlPattern: ({ url }) =>
+              /^\/assets\/locale-[^/]+\.js$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'locales',
+              expiration: { maxEntries: 200 },
+            },
+          },
+        ],
         cleanupOutdatedCaches: true,
         navigateFallback: 'index.html',
         // What Caddy sends to the API (routes, Swagger UI and its documents,
@@ -129,6 +147,28 @@ export default defineConfig(({ isPreview }) => ({
       },
     }),
   ],
+  build: {
+    rolldownOptions: {
+      output: {
+        // Every locale chunk is named `locale-*` (the language's chunk, and
+        // the small module that loads one namespace file): the service
+        // worker (VitePWA above) leaves exactly these out of the precache.
+        chunkFileNames: (chunk) =>
+          chunk.facadeModuleId?.includes('/src/locales/')
+            ? 'assets/locale-[name]-[hash].js'
+            : 'assets/[name]-[hash].js',
+        // One chunk per language (src/i18n.ts loads a language on demand):
+        // without it each of the 36 namespace files is its own request.
+        // `en` is bundled in the entry and has no group.
+        codeSplitting: {
+          groups: lazyLanguages.map((language) => ({
+            name: `locale-${language}`,
+            test: new RegExp(`/src/locales/${language}/`),
+          })),
+        },
+      },
+    },
+  },
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
@@ -143,10 +183,5 @@ export default defineConfig(({ isPreview }) => ({
   },
   // `vite preview` (the built app, what the browser tests open) proxies the
   // same way: one origin, as behind Caddy (docs/development.md, "Browser tests").
-  // Also the headers Caddy adds to the app's files, Content-Security-Policy
-  // first, read from caddy/Caddyfile (preview-headers.ts): the browser tests
-  // open this server, and a script, worker or request the policy forbids
-  // fails there rather than only in production. Read for `vite preview` only:
-  // the Docker build of the app has no Caddyfile in its context.
-  preview: { proxy, headers: isPreview ? caddyHeaders() : undefined },
-}));
+  preview: { proxy },
+});

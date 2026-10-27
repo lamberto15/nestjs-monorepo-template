@@ -57,23 +57,23 @@ function disableTransitionsTemporarily() {
   }
 }
 
-function isEditableTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) {
-    return false
+// Local change to the generated file: the browser's storage can refuse (site
+// data blocked, storage full). Reading then gives the default theme and
+// writing is skipped: the choice lasts until reload, but the page works.
+function readStoredTheme(storageKey: string) {
+  try {
+    return localStorage.getItem(storageKey)
+  } catch {
+    return null
   }
+}
 
-  if (target.isContentEditable) {
-    return true
+function storeTheme(storageKey: string, theme: Theme) {
+  try {
+    localStorage.setItem(storageKey, theme)
+  } catch {
+    // storage blocked or full: the choice lasts until reload
   }
-
-  const editableParent = target.closest(
-    "input, textarea, select, [contenteditable='true']"
-  )
-  if (editableParent) {
-    return true
-  }
-
-  return false
 }
 
 export function ThemeProvider({
@@ -84,7 +84,7 @@ export function ThemeProvider({
   ...props
 }: ThemeProviderProps) {
   const [theme, setThemeState] = React.useState<Theme>(() => {
-    const storedTheme = localStorage.getItem(storageKey)
+    const storedTheme = readStoredTheme(storageKey)
     if (isTheme(storedTheme)) {
       return storedTheme
     }
@@ -94,7 +94,7 @@ export function ThemeProvider({
 
   const setTheme = React.useCallback(
     (nextTheme: Theme) => {
-      localStorage.setItem(storageKey, nextTheme)
+      storeTheme(storageKey, nextTheme)
       setThemeState(nextTheme)
     },
     [storageKey]
@@ -138,45 +138,10 @@ export function ThemeProvider({
     }
   }, [theme, applyTheme])
 
-  React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat) {
-        return
-      }
-
-      if (event.metaKey || event.ctrlKey || event.altKey) {
-        return
-      }
-
-      if (isEditableTarget(event.target)) {
-        return
-      }
-
-      if (event.key.toLowerCase() !== "d") {
-        return
-      }
-
-      setThemeState((currentTheme) => {
-        const nextTheme =
-          currentTheme === "dark"
-            ? "light"
-            : currentTheme === "light"
-              ? "dark"
-              : getSystemTheme() === "dark"
-                ? "light"
-                : "dark"
-
-        localStorage.setItem(storageKey, nextTheme)
-        return nextTheme
-      })
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown)
-    }
-  }, [storageKey])
+  // Local change to the generated file: the template switched the theme on a
+  // bare "d" key. A shortcut of one character that can't be turned off or
+  // remapped fails WCAG 2.1.4 (Character Key Shortcuts), so the theme changes
+  // only through setTheme (the user menu).
 
   React.useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {

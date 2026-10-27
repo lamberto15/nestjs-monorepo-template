@@ -15,13 +15,11 @@ import {
   TableRow,
 } from '@nestjs-monorepo-template/ui/components/table';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
 import { CircleAlertIcon, DownloadIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useLivePoll, useRealtimeEvent, withProgress } from '@/lib/realtime';
 import { useIsPast } from '@/lib/use-is-past';
 import { parseRowErrors } from './csv';
-import { useFlag } from '@/features/settings/use-flag';
 import { POLL, transferQuery, type Transfer } from './api';
 
 /** The report shows this many refused rows; the CSV has all of them. */
@@ -94,7 +92,7 @@ export function TransferStatus(props: { id: string }) {
  * the answer of the single route. Once `expiresAt` has passed the links are
  * not offered: the API no longer gives them.
  */
-export function TransferView(props: { transfer: Transfer; account?: boolean }) {
+export function TransferView(props: { transfer: Transfer }) {
   const { t } = useTranslation('transfer');
   const { transfer } = props;
   // The API stops giving the links after `expiresAt`; a page left open past
@@ -135,17 +133,15 @@ export function TransferView(props: { transfer: Transfer; account?: boolean }) {
     );
   }
   return transfer.kind === 'export' ? (
-    <ExportDone transfer={transfer} account={props.account} />
+    <ExportDone transfer={transfer} />
   ) : (
     <ImportReport transfer={transfer} />
   );
 }
 
-function ExportDone(props: { transfer: Transfer; account?: boolean }) {
+function ExportDone(props: { transfer: Transfer }) {
   const { t } = useTranslation('transfer');
   const { result } = props.transfer;
-  // The explorer's route redirects away while the tenant flag is off.
-  const analytics = useFlag('analytics.browser.enabled');
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <p role="status" className="text-sm">
@@ -162,20 +158,6 @@ function ExportDone(props: { transfer: Transfer; account?: boolean }) {
           {t('export.download', { format: props.transfer.format })}
         </a>
       )}
-      {analytics.enabled &&
-        (props.transfer.format === 'csv' ||
-          props.transfer.format === 'json') && (
-          <Link
-            to="/analytics"
-            search={{
-              transferId: props.transfer.id,
-              ...(props.account && { account: true }),
-            }}
-            className={buttonVariants({ variant: 'outline', size: 'sm' })}
-          >
-            {t('export.openInAnalytics')}
-          </Link>
-        )}
     </div>
   );
 }

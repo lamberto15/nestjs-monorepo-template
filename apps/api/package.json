@@ -71,6 +71,7 @@
     "@sentry/nestjs": "11.8.0",
     "@simplewebauthn/server": "14.0.3",
     "@socket.io/redis-adapter": "8.3.0",
+    "@socket.io/redis-emitter": "5.1.0",
     "@standard-schema/spec": "1.1.0",
     "@xmldom/xmldom": "0.9.12",
     "bullmq": "6.3.15",
