@@ -13,25 +13,28 @@ describe('recordKeys', () => {
 
   it('builds a list page key under its feature’s lists, nested routes included', () => {
     const params = { page: 1 };
-    expect(recordKeys.list('/v1/notes', params)).toEqual([
+    expect(recordKeys.list('/v1/test-items', params)).toEqual([
       'list',
-      '/v1/notes',
+      '/v1/test-items',
       params,
     ]);
     const nested = recordKeys.list('/v1/a/{id}/b', params, { id: 'x' });
     expect(nested).toEqual(['list', '/v1/a/{id}/b', params, { id: 'x' }]);
-    for (const key of [recordKeys.list('/v1/notes', params), nested]) {
+    for (const key of [recordKeys.list('/v1/test-items', params), nested]) {
       expect(key.slice(0, 2)).toEqual(recordKeys.lists(key[1]));
     }
   });
 
   it('builds a record key under its feature’s records', () => {
-    expect(recordKeys.detail('/v1/notes', 'n1')).toEqual([
+    expect(recordKeys.detail('/v1/test-items', 'n1')).toEqual([
       'record',
-      '/v1/notes',
+      '/v1/test-items',
       'n1',
     ]);
-    expect(recordKeys.details('/v1/notes')).toEqual(['record', '/v1/notes']);
+    expect(recordKeys.details('/v1/test-items')).toEqual([
+      'record',
+      '/v1/test-items',
+    ]);
   });
 });
 
