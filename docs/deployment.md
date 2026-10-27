@@ -857,7 +857,10 @@ without the driver's SQL text, detail, or parameter values.
 Incident evidence is in the JSON log entry's `params` object (for example `params.incidentId`).
 Each incident includes an `incidentId`, replica, request/trace IDs when present, matched route
 pattern, operation, SHA-256 query-template fingerprint, duration, backend PID when available, and
-application pool state. A fingerprint identifies the submitted SQL template; it is not a database
+application pool state. Log lines are limited to five per fingerprint and trigger per 60 seconds, then one
+`database_incident_summary` entry carries the suppressed count; metrics still count every incident. A
+`slow_query` is recorded only when its duration minus the recent event-loop lag (p99, 10-second window)
+is still at least one second, so a saturated process does not report its own lag as slow queries. A fingerprint identifies the submitted SQL template; it is not a database
 execution plan or a guarantee that two queries differing in literal SQL have the same fingerprint.
 No request IDs, fingerprints, or SQL values become metric labels. HTTP problem responses are unchanged.
 

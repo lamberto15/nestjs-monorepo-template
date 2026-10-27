@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { Logger } from '@nestjs/common';
 import type pg from 'pg';
@@ -9,6 +10,11 @@ import {
   DatabaseObserver,
   inDatabaseContext,
 } from './database-observer.js';
+
+vi.mock('node:crypto', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:crypto')>();
+  return { ...actual, createHash: vi.fn(actual.createHash) };
+});
 
 describe('database observer', () => {
   const stats = () => ({ max: 10, inUse: 10, idle: 0, waiting: 2 });
@@ -131,6 +137,44 @@ describe('database observer', () => {
     expect(record).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ trigger: 'slow_query', durationMs: 1500 }),
     );
+  });
+
+  it('hashes each distinct query text once', async () => {
+    const client = clientOf(async () => ({ rows: [] }));
+    observer.instrument(client);
+    const record = vi.spyOn(observer.incidents, 'record');
+    vi.mocked(createHash).mockClear();
+    vi.spyOn(performance, 'now').mockReturnValueOnce(0).mockReturnValue(1500);
+    await client.query('select cached_text_1');
+    await client.query('select cached_text_1');
+    expect(createHash).toHaveBeenCalledTimes(1);
+    await client.query('select cached_text_2');
+    expect(createHash).toHaveBeenCalledTimes(2);
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
+      }),
+    );
+  });
+
+  it('ignores a slow duration explained by event-loop lag, but not the rest', async () => {
+    let lag = 1400;
+    const lagged = new DatabaseObserver(stats, undefined, () => lag);
+    const record = vi.spyOn(lagged.incidents, 'record');
+    const samples = vi.fn();
+    lagged.subscribe(samples);
+    const client = clientOf(async () => ({ rows: [] }));
+    lagged.instrument(client);
+    const now = vi.spyOn(performance, 'now');
+    now.mockReturnValueOnce(0).mockReturnValue(1500);
+    await client.query('select 1');
+    expect(record).not.toHaveBeenCalled();
+    expect(samples).toHaveBeenCalledOnce();
+    lag = 200;
+    now.mockReset().mockReturnValueOnce(0).mockReturnValue(1500);
+    await client.query('select 1');
+    expect(record).toHaveBeenCalledOnce();
+    await lagged.incidents.close();
   });
 
   it('preserves callback-style query and pool APIs, including release', async () => {

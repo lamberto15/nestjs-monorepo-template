@@ -264,6 +264,12 @@ export const coreEnv = z.object({
       'at least 16 characters (openssl rand -hex 24)',
     ),
   ),
+  /**
+   * Jobs the mail queue's worker runs at once in this process. Every queue
+   * has one such variable, `QUEUE_CONCURRENCY_<QUEUE NAME>` (dashes as
+   * underscores), declared in its own group; QueueWorkers applies them.
+   */
+  QUEUE_CONCURRENCY_MAIL: z.coerce.number().int().min(1).default(5),
 });
 
 export type CoreEnv = z.output<typeof coreEnv>;

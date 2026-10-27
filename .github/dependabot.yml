@@ -5,6 +5,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Every dependency is an exact version (pnpm-workspace.yaml saveExact; `pnpm lint`
+    # refuses ranges): raise the pinned version itself, never widen it to a range.
+    versioning-strategy: increase
     groups:
       nestjs:
         patterns: ['@nestjs/*']

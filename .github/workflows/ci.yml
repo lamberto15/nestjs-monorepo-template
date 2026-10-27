@@ -788,7 +788,10 @@ jobs:
       # minutes in 3 of 97 runs (docs/ci-runtime.md). Its version is the
       # runner image's, named here for the log.
       - name: The browser (the runner's Google Chrome)
-        run: google-chrome --version
+        run: |
+          google-chrome --version
+          echo "Chrome: $(google-chrome --version)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Playwright: $(pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright --version)" >> "$GITHUB_STEP_SUMMARY"
       # The seed runs only on a database marked as a development one
       # (docs/development.md, "Demo data"): what the development services do
       # when they create theirs (dev/postgres/10-dev-database.sql).
@@ -1430,7 +1433,7 @@ jobs:
           # reuse that upgrade (3-7 min) from its own cache.
           build-args: APT_REFRESH=${{ github.event_name == 'pull_request' && format('pr-{0}', steps.day.outputs.day) || github.run_id }}
           cache-from: type=gha,scope=gotenberg
-          cache-to: type=gha,scope=gotenberg,mode=max
+          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=gotenberg,mode=max' || '' }}
       # The unit and e2e tests answer with a stub PDF, never Gotenberg's: only
       # here does the image render for real (its Go programs rebuilt, its
       # Debian packages, Chromium among them, upgraded this very run).
