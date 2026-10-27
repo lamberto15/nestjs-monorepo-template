@@ -14,14 +14,41 @@
   "overrides": [
     {
       "files": ["apps/web/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"],
-      "plugins": ["react", "typescript", "oxc"],
+      "plugins": ["react", "typescript", "oxc", "jsx-a11y"],
       "env": {
         "browser": true,
         "node": false
       },
       "rules": {
         "react/rules-of-hooks": "error",
-        "react/only-export-components": "off"
+        "react/only-export-components": "off",
+        // jsx-a11y (apps/web only; the rest of its rules stay on as warnings,
+        // the ones that never fire are errors). Each rule below is off for a
+        // deliberate pattern, not a finding:
+        "jsx-a11y/alt-text": "error",
+        "jsx-a11y/anchor-is-valid": "error",
+        "jsx-a11y/aria-props": "error",
+        "jsx-a11y/aria-role": "error",
+        "jsx-a11y/click-events-have-key-events": "error",
+        "jsx-a11y/label-has-associated-control": "error",
+        "jsx-a11y/no-static-element-interactions": "error",
+        // role="status" on a <p>/<div>/<Alert> is a live region with our own
+        // styling; <output> is a form-result element, not a status message.
+        // The same goes for the roles of Base UI parts and roving-focus lists.
+        "jsx-a11y/prefer-tag-over-role": "off",
+        // The first field of a dialog or of a sign-in step takes the focus on
+        // purpose (the user just asked for it); WCAG 3.2.1 is about focus that
+        // moves on its own on a page load, not a dialog the user opened.
+        "jsx-a11y/no-autofocus": "off",
+        // Base UI's `render={<a href />}` links get their text from the
+        // Button's children (merged at render time); the rule sees an empty <a>.
+        "jsx-a11y/control-has-associated-label": "off",
+        // Roving-focus rows (the sort and filter menus) take the arrow keys on
+        // a listitem; the keys move focus between the controls inside it.
+        "jsx-a11y/no-noninteractive-element-interactions": "off",
+        // A named scroll region takes tabIndex 0 so the keyboard can scroll it
+        // (axe's scrollable-region-focusable asks for exactly this).
+        "jsx-a11y/no-noninteractive-tabindex": "off"
       }
     },
     {
