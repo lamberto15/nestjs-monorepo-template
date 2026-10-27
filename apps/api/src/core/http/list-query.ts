@@ -95,7 +95,7 @@ export type FilterField = {
   reads?: readonly string[];
   /**
    * What the field's values are ids of, so a client shows a picker of them
-   * instead of a text box: `'tag'` (GET /v1/tags), `'team'` (GET /v1/teams),
+   * instead of a text box: `'tag'` (GET /v1/tags), `'unit'` (GET /v1/organizational-units),
    * `'principal'` (a user's or an API client's key, `user:<id>` /
    * `client:<id>`: a record's owner, an author; GET /v1/people names them,
    * `?key=`) or the subject of a record (`'Invoice'`, a `field.ref`).

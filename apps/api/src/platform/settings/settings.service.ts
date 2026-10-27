@@ -29,11 +29,11 @@ import {
   apiClientRoles,
   apiClients,
   memberships,
+  organizationalUnits,
   roles,
-  teams,
   userRoles,
-  userTeams,
 } from '../../iam/iam.tables.js';
+import { OrganizationalUnitsService } from '../../iam/access/organizational-units.service.js';
 import { PLATFORM_OPTIONS, type PlatformOptions } from '../platform.options.js';
 import { resolveSetting, type SettingSource } from './setting-resolution.js';
 import {
@@ -166,6 +166,7 @@ export class SettingsService {
     private readonly audit: AuditService,
     private readonly accessPolicy: AccessPolicy,
     private readonly tenancy: Tenancy,
+    private readonly units: OrganizationalUnitsService,
   ) {
     for (const declaration of options.settings ?? []) {
       if (this.byKey.has(declaration.key)) {
@@ -260,7 +261,7 @@ export class SettingsService {
 
   /**
    * Whether any value that applies to the principal is `true`: the
-   * tenant's, one of their teams', their own (when the setting takes a
+   * tenant's, one of their units', their own (when the setting takes a
    * user scope). For policies whose `true` is the strict side: a narrower
    * scope's `false` doesn't exempt anyone from a wider scope's `true`, as
    * the usual precedence (`resolve()`) would. No rollout counts. The
@@ -291,16 +292,16 @@ export class SettingsService {
     ) {
       return true;
     }
-    const teams = on.filter((override) => override.scope === 'team');
+    const units = on.filter((override) => override.scope === 'unit');
     if (
-      !scopes.includes('team') ||
+      !scopes.includes('unit') ||
       principal.kind !== 'user' ||
-      !teams.length
+      !units.length
     ) {
       return false;
     }
-    const mine = new Set(await this.teamsOf(principal.id));
-    return teams.some((override) => mine.has(override.scopeId));
+    const mine = new Set(await this.units.unitsOf(principal.id));
+    return units.some((override) => mine.has(override.scopeId));
   }
 
   /** The value of a setting for a principal (none: for everyone). */
@@ -325,18 +326,18 @@ export class SettingsService {
     principal: Principal | null,
   ) {
     const overrides = (await this.load()).byKey.get(declaration.key) ?? [];
-    const teams =
+    const units =
       principal?.kind === 'user' &&
-      (declaration.scopes ?? []).includes('team') &&
-      overrides.some((override) => override.scope === 'team')
-        ? await this.teamsOf(principal.id)
+      (declaration.scopes ?? []).includes('unit') &&
+      overrides.some((override) => override.scope === 'unit')
+        ? await this.units.unitsOf(principal.id)
         : [];
     const platform = await this.platformValue(declaration.key);
     return resolveSetting(
       declaration,
       overrides,
       principal,
-      teams,
+      units,
       currentTenantId(),
       platform,
       declaration.flag
@@ -789,9 +790,9 @@ export class SettingsService {
   }
 
   /**
-   * The scope's id as stored: '' for the tenant; one of its teams; one
+   * The scope's id as stored: '' for the tenant; one of its units; one
    * of its members or API clients (a user is global: a member of the
-   * tenant, by its memberships; a team or a client of another tenant is
+   * tenant, by its memberships; a unit or a client of another tenant is
    * no row, row-level security).
    */
   private async scopeId(
@@ -815,13 +816,17 @@ export class SettingsService {
     if (!scopeId) {
       refuse('scopeId', `Required for the ${scope} scope.`);
     }
-    if (scope === 'team') {
-      const [team] = await this.db
-        .select({ id: teams.id })
-        .from(teams)
-        .where(eq(teams.id, scopeId!));
-      if (!team) throw new NotFoundException(`Team ${scopeId} not found.`);
-      return team.id;
+    if (scope === 'unit') {
+      const [unit] = await this.db
+        .select({ id: organizationalUnits.id })
+        .from(organizationalUnits)
+        .where(eq(organizationalUnits.id, scopeId!));
+      if (!unit) {
+        throw new NotFoundException(
+          `Organizational unit ${scopeId} not found.`,
+        );
+      }
+      return unit.id;
     }
     const [kind, id] = scopeId!.split(':') as [string, string | undefined];
     const found =
@@ -960,14 +965,6 @@ export class SettingsService {
       return before;
     });
     if (removed) await this.bump();
-  }
-
-  async teamsOf(userId: string) {
-    const rows = await this.db
-      .select({ id: userTeams.teamId })
-      .from(userTeams)
-      .where(eq(userTeams.userId, userId));
-    return rows.map((row) => row.id);
   }
 
   /** After a commit: this instance forgets the tenant's cache, the others see a new version. */

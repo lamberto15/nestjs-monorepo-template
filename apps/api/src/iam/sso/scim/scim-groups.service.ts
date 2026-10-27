@@ -7,6 +7,7 @@ import { z } from 'zod';
 import type { CoreEnv } from '../../../core/config/core.env.js';
 import type { Transaction } from '../../../core/database/drizzle.js';
 import {
+  FOREIGN_KEY_VIOLATION,
   pgErrorCode,
   UNIQUE_VIOLATION,
 } from '../../../core/database/errors.js';
@@ -16,10 +17,15 @@ import {
   inTransaction,
 } from '../../../core/database/transactions.js';
 import { AccessService } from '../../access/access.service.js';
-import { TeamsService } from '../../access/teams.service.js';
+import { OrganizationalUnitsService } from '../../access/organizational-units.service.js';
+import { currentMembership } from '../../access/permissions.js';
 import { AuditService } from '../../audit/audit.service.js';
 import type { ClientPrincipal } from '../../auth/principal.js';
-import { teams, userTeams, users } from '../../iam.tables.js';
+import {
+  organizationalUnitMemberships,
+  organizationalUnits,
+  users,
+} from '../../iam.tables.js';
 import { scimGroups } from '../sso.tables.js';
 import { SCIM_SCHEMA, ScimException } from './scim-error.filter.js';
 import { scimFilter, scimPage } from './scim-filter.js';
@@ -42,19 +48,20 @@ export const scimGroupSchema = z.looseObject({
 export type ScimGroupInput = z.infer<typeof scimGroupSchema>;
 
 /**
- * SCIM 2.0 Groups as the tenant's teams (docs/auth.md, "SCIM
- * provisioning"): a group the IdP creates is a top-level team, its
- * members those of the team. Only the teams the SCIM client created (a
- * `scim_groups` row) are its, and only users it provisioned can be their
- * members: an IdP never reaches the teams and members administrators
- * manage. A team grants what roles with team conditions say, so the
- * abilities are dropped on every change, as the access API's are.
+ * SCIM 2.0 Groups as the tenant's organizational units (docs/auth.md,
+ * "SCIM provisioning"): a group the IdP creates is a top-level unit of type
+ * `team`, its members the unit's current members. Only the units the SCIM
+ * client created (a `scim_groups` row) are its, and only users it
+ * provisioned can be their members: an IdP never reaches the units and
+ * members administrators manage. A unit grants what roles with unit
+ * conditions say, so the abilities are dropped on every change, as the
+ * access API's are. A member removed has their membership ended (kept).
  */
 @Injectable()
 export class ScimGroupsService {
   constructor(
     private readonly txHost: TransactionHost<DrizzleTransactions>,
-    private readonly teamsService: TeamsService,
+    private readonly units: OrganizationalUnitsService,
     private readonly scimUsers: ScimUsersService,
     private readonly audit: AuditService,
     private readonly access: AccessService,
@@ -72,8 +79,8 @@ export class ScimGroupsService {
     excludedAttributes?: string;
   }) {
     const where = scimFilter(query.filter, {
-      id: { column: scimGroups.teamId, uuid: true },
-      displayName: { column: teams.name, caseInsensitive: true },
+      id: { column: scimGroups.unitId, uuid: true },
+      displayName: { column: organizationalUnits.name, caseInsensitive: true },
       externalId: { column: scimGroups.externalId },
     });
     const page = scimPage(query.startIndex, query.count);
@@ -83,20 +90,23 @@ export class ScimGroupsService {
     const [rows, [{ total }]] = await Promise.all([
       page.limit
         ? this.select(this.db, where)
-            .orderBy(asc(scimGroups.createdAt), asc(scimGroups.teamId))
+            .orderBy(asc(scimGroups.createdAt), asc(scimGroups.unitId))
             .limit(page.limit)
             .offset(page.offset)
         : Promise.resolve([]),
       this.db
         .select({ total: count() })
         .from(scimGroups)
-        .innerJoin(teams, eq(teams.id, scimGroups.teamId))
+        .innerJoin(
+          organizationalUnits,
+          eq(organizationalUnits.id, scimGroups.unitId),
+        )
         .where(where),
     ]);
     const members = withMembers
       ? await this.membersOf(
           this.db,
-          rows.map((row) => row.teamId),
+          rows.map((row) => row.unitId),
         )
       : undefined;
     return {
@@ -105,7 +115,7 @@ export class ScimGroupsService {
       startIndex: page.startIndex,
       itemsPerPage: rows.length,
       Resources: rows.map((row) =>
-        this.resource(row, members?.get(row.teamId)),
+        this.resource(row, members?.get(row.unitId)),
       ),
     };
   }
@@ -117,29 +127,29 @@ export class ScimGroupsService {
   }
 
   async create(actor: ClientPrincipal, input: ScimGroupInput, ip?: string) {
-    const teamId = await this.unique(() =>
+    const unitId = await this.unique(() =>
       inTransaction(this.txHost, async (tx) => {
         if (input.externalId) {
           await this.assertExternalIdFree(tx, input.externalId);
         }
-        const [team] = await tx
-          .insert(teams)
-          .values({ name: input.displayName, parentId: null })
+        const [unit] = await tx
+          .insert(organizationalUnits)
+          .values({ type: 'team', name: input.displayName, parentId: null })
           .returning();
-        await this.teamsService.tree.add(tx, team.id, null);
+        await this.units.tree.add(tx, unit.id, null);
         await tx.insert(scimGroups).values({
-          teamId: team.id,
+          unitId: unit.id,
           externalId: input.externalId ?? null,
         });
-        const members = await this.setMembers(tx, team.id, memberIds(input));
+        const members = await this.setMembers(tx, unit.id, memberIds(input));
         await this.audit.record(
           actor,
           {
             action: 'scim.group-created',
-            targetType: 'team',
-            targetId: team.id,
+            targetType: 'organizationalUnit',
+            targetId: unit.id,
             details: {
-              name: team.name,
+              name: unit.name,
               externalId: input.externalId ?? null,
               members,
             },
@@ -147,11 +157,11 @@ export class ScimGroupsService {
           },
           tx,
         );
-        return team.id;
+        return unit.id;
       }),
     );
     this.access.invalidate();
-    return this.get(teamId);
+    return this.get(unitId);
   }
 
   /** PUT: its name, externalId and members are what the IdP sent. */
@@ -168,19 +178,19 @@ export class ScimGroupsService {
           await this.assertExternalIdFree(tx, input.externalId);
         }
         await tx
-          .update(teams)
+          .update(organizationalUnits)
           .set({ name: input.displayName })
-          .where(eq(teams.id, id));
+          .where(eq(organizationalUnits.id, id));
         await tx
           .update(scimGroups)
           .set({ externalId: input.externalId ?? null, updatedAt: new Date() })
-          .where(eq(scimGroups.teamId, id));
+          .where(eq(scimGroups.unitId, id));
         const members = await this.setMembers(tx, id, memberIds(input));
         await this.audit.record(
           actor,
           {
             action: 'scim.group-updated',
-            targetType: 'team',
+            targetType: 'organizationalUnit',
             targetId: id,
             details: {
               ...(before.name !== input.displayName && {
@@ -225,29 +235,42 @@ export class ScimGroupsService {
     return this.replace(actor, id, parsed.data, ip);
   }
 
-  /** DELETE: the team goes, with its members' places in it (not the members). */
+  /** DELETE: the unit goes, with its memberships (not the members). */
   async remove(actor: ClientPrincipal, id: string, ip?: string) {
     await inTransaction(this.txHost, async (tx) => {
       const before = await this.find(tx, id);
       const [{ children }] = await tx
         .select({ children: count() })
-        .from(teams)
-        .where(eq(teams.parentId, id));
+        .from(organizationalUnits)
+        .where(eq(organizationalUnits.parentId, id));
       if (children > 0) {
-        // An administrator put teams under it: theirs to move first.
+        // An administrator put units under it: theirs to move first.
         throw new ScimException(
           409,
-          'Teams were put under this group: an administrator moves them first.',
+          'Units were put under this group: an administrator moves them first.',
         );
       }
-      await tx.delete(userTeams).where(eq(userTeams.teamId, id));
-      await tx.delete(scimGroups).where(eq(scimGroups.teamId, id));
-      await tx.delete(teams).where(eq(teams.id, id));
+      await tx
+        .delete(organizationalUnitMemberships)
+        .where(eq(organizationalUnitMemberships.unitId, id));
+      await tx.delete(scimGroups).where(eq(scimGroups.unitId, id));
+      await tx
+        .delete(organizationalUnits)
+        .where(eq(organizationalUnits.id, id))
+        .catch((error: unknown) => {
+          // Records or saved views of the unit: no cascade.
+          throw pgErrorCode(error) === FOREIGN_KEY_VIOLATION
+            ? new ScimException(
+                409,
+                'Records or saved views belong to this group: an administrator moves them first.',
+              )
+            : error;
+        });
       await this.audit.record(
         actor,
         {
           action: 'scim.group-deleted',
-          targetType: 'team',
+          targetType: 'organizationalUnit',
           targetId: id,
           details: { name: before.name, externalId: before.externalId },
           ip,
@@ -259,11 +282,11 @@ export class ScimGroupsService {
   }
 
   /**
-   * The team's members become `ids`: only users the SCIM client
+   * The unit's current members become `ids`: only users the SCIM client
    * provisioned (any other id is a 400, never a member of the tenant
    * added through a group). Returns what changed, for the audit entry.
    */
-  private async setMembers(tx: Transaction, teamId: string, ids: string[]) {
+  private async setMembers(tx: Transaction, unitId: string, ids: string[]) {
     const wanted = [...new Set(ids)];
     const valid = wanted.filter((id) => z.uuid().safeParse(id).success);
     const provisioned = await this.scimUsers.provisioned(tx, valid);
@@ -274,58 +297,39 @@ export class ScimGroupsService {
         'invalidValue',
       );
     }
-    const current = (
-      await tx
-        .select({ userId: userTeams.userId })
-        .from(userTeams)
-        .where(eq(userTeams.teamId, teamId))
-    ).map((row) => row.userId);
-    const added = wanted.filter((id) => !current.includes(id));
-    const removed = current.filter((id) => !wanted.includes(id));
-    if (removed.length) {
-      await tx
-        .delete(userTeams)
-        .where(
-          and(eq(userTeams.teamId, teamId), inArray(userTeams.userId, removed)),
-        );
-    }
-    if (added.length) {
-      await tx
-        .insert(userTeams)
-        .values(added.map((userId) => ({ userId, teamId })));
-    }
-    return { added, removed };
+    return this.units.setMembers(tx, unitId, wanted);
   }
 
   private async membersOf(
     db: ReturnType<typeof database> | Transaction,
-    teamIds: string[],
+    unitIds: string[],
   ) {
-    const byTeam = new Map<string, { value: string; display: string }[]>();
-    if (!teamIds.length) {
-      return byTeam;
+    const byUnit = new Map<string, { value: string; display: string }[]>();
+    if (!unitIds.length) {
+      return byUnit;
     }
+    const member = organizationalUnitMemberships;
     const rows = await db
       .select({
-        teamId: userTeams.teamId,
-        userId: userTeams.userId,
+        unitId: member.unitId,
+        userId: member.userId,
         email: users.email,
       })
-      .from(userTeams)
-      .innerJoin(users, eq(users.id, userTeams.userId))
-      .where(inArray(userTeams.teamId, teamIds))
+      .from(member)
+      .innerJoin(users, eq(users.id, member.userId))
+      .where(and(inArray(member.unitId, unitIds), currentMembership()))
       .orderBy(asc(users.email));
     for (const row of rows) {
-      const list = byTeam.get(row.teamId) ?? [];
+      const list = byUnit.get(row.unitId) ?? [];
       list.push({ value: row.userId, display: row.email });
-      byTeam.set(row.teamId, list);
+      byUnit.set(row.unitId, list);
     }
-    return byTeam;
+    return byUnit;
   }
 
   private async assertExternalIdFree(tx: Transaction, externalId: string) {
     const [taken] = await tx
-      .select({ teamId: scimGroups.teamId })
+      .select({ unitId: scimGroups.unitId })
       .from(scimGroups)
       .where(eq(scimGroups.externalId, externalId));
     if (taken) {
@@ -344,7 +348,9 @@ export class ScimGroupsService {
       if (pgErrorCode(error) === UNIQUE_VIOLATION) {
         throw new ScimException(
           409,
-          'Another group has this externalId.',
+          constraintOf(error) === 'organizational_units_sibling_name_idx'
+            ? 'A top-level unit already has this displayName (any case).'
+            : 'Another group has this externalId.',
           'uniqueness',
         );
       }
@@ -355,14 +361,17 @@ export class ScimGroupsService {
   private select(db: ReturnType<typeof database> | Transaction, where?: SQL) {
     return db
       .select({
-        teamId: scimGroups.teamId,
+        unitId: scimGroups.unitId,
         externalId: scimGroups.externalId,
-        name: teams.name,
+        name: organizationalUnits.name,
         createdAt: scimGroups.createdAt,
         updatedAt: scimGroups.updatedAt,
       })
       .from(scimGroups)
-      .innerJoin(teams, eq(teams.id, scimGroups.teamId))
+      .innerJoin(
+        organizationalUnits,
+        eq(organizationalUnits.id, scimGroups.unitId),
+      )
       .where(where);
   }
 
@@ -373,7 +382,7 @@ export class ScimGroupsService {
     if (!z.uuid().safeParse(id).success) {
       throw new ScimException(404, `Group ${id} not found.`);
     }
-    const [row] = await this.select(db, eq(scimGroups.teamId, id));
+    const [row] = await this.select(db, eq(scimGroups.unitId, id));
     if (!row) {
       throw new ScimException(404, `Group ${id} not found.`);
     }
@@ -382,7 +391,7 @@ export class ScimGroupsService {
 
   private resource(
     row: {
-      teamId: string;
+      unitId: string;
       externalId: string | null;
       name: string;
       createdAt: Date;
@@ -393,7 +402,7 @@ export class ScimGroupsService {
     const base = `${this.config.get('APP_URL', { infer: true })}`;
     return {
       schemas: [SCIM_SCHEMA.group],
-      id: row.teamId,
+      id: row.unitId,
       ...(row.externalId !== null && { externalId: row.externalId }),
       displayName: row.name,
       ...(members && {
@@ -406,7 +415,7 @@ export class ScimGroupsService {
         resourceType: 'Group',
         created: row.createdAt.toISOString(),
         lastModified: row.updatedAt.toISOString(),
-        location: `${base}/v1/scim/Groups/${row.teamId}`,
+        location: `${base}/v1/scim/Groups/${row.unitId}`,
       },
     };
   }
@@ -414,3 +423,8 @@ export class ScimGroupsService {
 
 const memberIds = (input: ScimGroupInput) =>
   (input.members ?? []).map((member) => member.value);
+
+/** The constraint a PostgreSQL error names (on the error, or the `cause` Drizzle wraps it in). */
+const constraintOf = (error: unknown): string | undefined =>
+  (error as { constraint?: string })?.constraint ??
+  (error as { cause?: { constraint?: string } })?.cause?.constraint;

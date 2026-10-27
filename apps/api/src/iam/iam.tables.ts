@@ -164,8 +164,9 @@ export const passwordHistory = pgTable(
  * a sign-in picks the session's tenant from them, `GET /v1/auth/tenants`
  * lists them, the switch checks one; a tenant's administrators read and
  * change only their own tenant's (`tenant_id` filtered in code). What a
- * membership may do is in tenant tables: its roles (`user_roles`) and org
- * teams (`user_teams`), whose keys reference it.
+ * membership may do is in tenant tables: its roles (`user_roles`) and
+ * organizational units (`organizational_unit_memberships`), whose keys
+ * reference it.
  */
 export const memberships = pgTable(
   'memberships',
@@ -190,7 +191,7 @@ export const memberships = pgTable(
 
 /**
  * Invitations to a tenant (docs/tenancy.md, "Invitations"): an address, the
- * roles and teams its membership will have, and the link's token (only its
+ * roles and units its membership will have, and the link's token (only its
  * SHA-256). Nothing about an account is read or changed until the person
  * accepts: a new address chooses a password with the link; an existing
  * account accepts while signed in. A tenant table: the token names its
@@ -590,7 +591,8 @@ export const organizationalUnits = pgTable(
   {
     id: uuidPk(),
     tenantId: tenantColumn(),
-    type: text('type', { enum: UNIT_TYPES }).notNull(),
+    /** Default `team`: the teams from before units became types keep their kind. */
+    type: text('type', { enum: UNIT_TYPES }).notNull().default('team'),
     name: text('name').notNull(),
     /** Null: a top-level unit. The closure table holds every path. */
     parentId: uuid('parent_id'),

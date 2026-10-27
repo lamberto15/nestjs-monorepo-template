@@ -9,7 +9,7 @@ import {
 import { bootApp, connect, type TestApp, webhookReceiver } from './support.js';
 
 /**
- * The access API's single-record routes, the users list's team filter, the
+ * The access API's single-record routes, the users list's unit filter, the
  * invitations' resend, the clients' quota on create and their deletion,
  * who may read (AccessPolicy.open), the list description of users and the
  * catalog's texts in the request's language (#115, #122).
@@ -41,11 +41,11 @@ describe('access administration (e2e)', () => {
     return created.body.id as string;
   }
 
-  async function team(name = `team-${randomUUID().slice(0, 8)}`) {
+  async function unit(name = `unit-${randomUUID().slice(0, 8)}`) {
     const created = await node
       .admin()
-      .post('/v1/access/teams')
-      .send({ name })
+      .post('/v1/access/organizational-units')
+      .send({ type: 'team', name })
       .expect(201);
     return created.body.id as string;
   }
@@ -61,12 +61,14 @@ describe('access administration (e2e)', () => {
     }[];
 
   describe('reading', () => {
-    it('lets whoever manages teams, or impersonates, list what they work with', async () => {
-      const teams = await node.user([await role(['Access', 'manageTeams'])]);
-      await teams.agent.get('/v1/access/teams').expect(200);
-      await teams.agent.get('/v1/access/users').expect(200);
-      await teams.agent.get('/v1/access/roles').expect(200);
-      await teams.agent.get('/v1/access/catalog').expect(200);
+    it('lets whoever manages units, or impersonates, list what they work with', async () => {
+      const units = await node.user([
+        await role(['Access', 'manageOrganizationalUnits']),
+      ]);
+      await units.agent.get('/v1/access/organizational-units').expect(200);
+      await units.agent.get('/v1/access/users').expect(200);
+      await units.agent.get('/v1/access/roles').expect(200);
+      await units.agent.get('/v1/access/catalog').expect(200);
 
       // An SSO-only administrator reads the two lists the SSO page's pickers
       // use, nothing else, and changes nothing (#370).
@@ -75,7 +77,7 @@ describe('access administration (e2e)', () => {
       await sso.agent.get('/v1/access/roles').expect(200);
       for (const path of [
         '/v1/access/catalog',
-        '/v1/access/teams',
+        '/v1/access/organizational-units',
         '/v1/access/clients',
         '/v1/access/principals',
       ]) {
@@ -86,8 +88,8 @@ describe('access administration (e2e)', () => {
         .send({ name: 'Nope', permissions: [] })
         .expect(403);
       await sso.agent
-        .post('/v1/access/teams')
-        .send({ name: 'Nope' })
+        .post('/v1/access/organizational-units')
+        .send({ type: 'team', name: 'Nope' })
         .expect(403);
 
       const support = await node.user([await role(['Access', 'impersonate'])]);
@@ -96,13 +98,13 @@ describe('access administration (e2e)', () => {
       await support.agent.get('/v1/access/principals').expect(200);
       // Not more than reading: managing stays with its own permission.
       await support.agent
-        .post('/v1/access/teams')
-        .send({ name: 'Nope' })
+        .post('/v1/access/organizational-units')
+        .send({ type: 'team', name: 'Nope' })
         .expect(403);
 
       const editor = await node.user(['editor']);
       await editor.agent.get('/v1/access/users').expect(403);
-      await editor.agent.get('/v1/access/teams').expect(403);
+      await editor.agent.get('/v1/access/organizational-units').expect(403);
     });
 
     it('answers one user and one role as the lists do', async () => {
@@ -141,12 +143,16 @@ describe('access administration (e2e)', () => {
       await editor.agent.get(`/v1/access/roles/${editorRole}`).expect(403);
     });
 
-    it("filters the users by team: the team's own members", async () => {
-      const parent = await team();
+    it("filters the users by unit: the unit's own members", async () => {
+      const parent = await unit();
       const child = await node
         .admin()
-        .post('/v1/access/teams')
-        .send({ name: `child-${randomUUID().slice(0, 8)}`, parentId: parent })
+        .post('/v1/access/organizational-units')
+        .send({
+          type: 'team',
+          name: `child-${randomUUID().slice(0, 8)}`,
+          parentId: parent,
+        })
         .expect(201);
       const [a, b, c] = [
         await node.user([]),
@@ -156,12 +162,12 @@ describe('access administration (e2e)', () => {
       await node
         .admin()
         .patch(`/v1/access/users/${a.id}`)
-        .send({ teamIds: [parent] })
+        .send({ unitIds: [parent] })
         .expect(204);
       await node
         .admin()
         .patch(`/v1/access/users/${b.id}`)
-        .send({ teamIds: [child.body.id] })
+        .send({ unitIds: [child.body.id] })
         .expect(204);
 
       const ids = async (query: string) =>
@@ -171,14 +177,14 @@ describe('access administration (e2e)', () => {
         )
           .map((user) => user.id)
           .sort((a, b) => a.localeCompare(b));
-      expect(await ids(`teamId=${parent}`)).toEqual([a.id]);
-      expect(await ids(`teamId=${child.body.id}`)).toEqual([b.id]);
-      expect(await ids(`teamId.in=${parent},${child.body.id}`)).toEqual(
+      expect(await ids(`unitId=${parent}`)).toEqual([a.id]);
+      expect(await ids(`unitId=${child.body.id}`)).toEqual([b.id]);
+      expect(await ids(`unitId.in=${parent},${child.body.id}`)).toEqual(
         [a.id, b.id].sort((a, b) => a.localeCompare(b)),
       );
-      expect(await ids(`teamId=${randomUUID()}`)).toEqual([]);
+      expect(await ids(`unitId=${randomUUID()}`)).toEqual([]);
       expect(await ids('limit=100')).toContain(c.id);
-      await node.admin().get('/v1/access/users?teamId=nope').expect(400);
+      await node.admin().get('/v1/access/users?unitId=nope').expect(400);
     });
 
     it('describes the users list at GET /v1/lists/User, to whoever may list them', async () => {
@@ -187,10 +193,10 @@ describe('access administration (e2e)', () => {
       expect(body.fields).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            name: 'teamId',
+            name: 'unitId',
             type: 'uuid',
             operators: ['eq', 'in'],
-            ref: 'team',
+            ref: 'unit',
           }),
           expect.objectContaining({ name: 'email', sortable: true }),
         ]),
@@ -200,8 +206,10 @@ describe('access administration (e2e)', () => {
       expect(body.recycleBin).toBe(false);
       expect(body.capabilities.comments).toBe(false);
 
-      const teams = await node.user([await role(['Access', 'manageTeams'])]);
-      await teams.agent.get('/v1/lists/User').expect(200);
+      const units = await node.user([
+        await role(['Access', 'manageOrganizationalUnits']),
+      ]);
+      await units.agent.get('/v1/lists/User').expect(200);
       const editor = await node.user(['editor']);
       await editor.agent.get('/v1/lists/User').expect(403);
     });
@@ -215,7 +223,7 @@ describe('access administration (e2e)', () => {
       expect(
         access.actions.find((a) => a.action === 'manageUsers')!.label,
       ).toBe(
-        'Invite users, assign their roles and teams, deactivate their memberships',
+        'Invite users, assign their roles and organizational units, deactivate their memberships',
       );
 
       const german = catalogSchema.parse(
@@ -427,7 +435,9 @@ describe('access administration (e2e)', () => {
 
     it('is deleted only by whoever manages clients', async () => {
       const client = await node.client();
-      const reader = await node.user([await role(['Access', 'manageTeams'])]);
+      const reader = await node.user([
+        await role(['Access', 'manageOrganizationalUnits']),
+      ]);
       await reader.agent.get(`/v1/access/clients/${client.id}`).expect(200);
       await reader.agent.delete(`/v1/access/clients/${client.id}`).expect(403);
     });

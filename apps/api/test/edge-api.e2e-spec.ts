@@ -500,10 +500,10 @@ describe('API conventions, edge cases (e2e)', () => {
     });
 
     it('reads isNull=false as "has a value"', async () => {
-      expect(await found({ 'teamId.isNull': 'true' })).toHaveLength(
+      expect(await found({ 'unitId.isNull': 'true' })).toHaveLength(
         titles.length,
       );
-      expect(await found({ 'teamId.isNull': 'false' })).toEqual([]);
+      expect(await found({ 'unitId.isNull': 'false' })).toEqual([]);
     });
 
     it('combines filters with and', async () => {
@@ -539,9 +539,9 @@ describe('API conventions, edge cases (e2e)', () => {
 
     it('checks filter values by type', async () => {
       for (const [key, value] of [
-        ['teamId', 'not-a-uuid'],
+        ['unitId', 'not-a-uuid'],
         ['createdAt.gte', '2026-01-01'],
-        ['teamId.isNull', 'yes'],
+        ['unitId.isNull', 'yes'],
         ['title.contains', ''],
       ]) {
         const res = await node

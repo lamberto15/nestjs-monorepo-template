@@ -14,7 +14,7 @@ import { ListsRegistry } from './lists.registry.js';
  * each route validates with, to whoever may call that route
  * (`AccessPolicy.open`, `AccessPolicy.readAudit`). Registered here because IAM can't import
  * the platform (core ← iam ← platform). Not a record: no capabilities, no
- * custom fields, no recycle bin. Roles and teams have no such list: their
+ * custom fields, no recycle bin. Roles and organizational units have no such list: their
  * routes answer every item at once, with no filter, sort or page to
  * describe.
  */

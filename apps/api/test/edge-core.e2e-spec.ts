@@ -33,12 +33,15 @@ import {
   ProblemDetailsFilter,
   validationException,
 } from '../src/core/http/problem-details.filter.js';
-import { teams, teamTree } from '../src/iam/iam.tables.js';
+import {
+  organizationalUnitClosure,
+  organizationalUnits,
+} from '../src/iam/iam.tables.js';
 
 describe('Tree: a closure table (PostgreSQL)', () => {
   let database: Awaited<ReturnType<typeof testDatabase>>;
   let db: Database;
-  const tree = new Tree(teamTree);
+  const tree = new Tree(organizationalUnitClosure);
   /** The parent of each node, as the test moved them: the truth to compare the closure with. */
   const parents = new Map<string, string | null>();
 
@@ -53,16 +56,16 @@ describe('Tree: a closure table (PostgreSQL)', () => {
   beforeEach(
     scoped(async () => {
       parents.clear();
-      await db.delete(teams);
+      await db.delete(organizationalUnits);
     }),
   );
 
   async function node(name: string, parentId: string | null = null) {
     return db.transaction(async (tx) => {
       const [row] = await tx
-        .insert(teams)
+        .insert(organizationalUnits)
         .values({ name, parentId })
-        .returning({ id: teams.id });
+        .returning({ id: organizationalUnits.id });
       await tree.add(tx, row.id, parentId);
       parents.set(row.id, parentId);
       return row.id;
@@ -77,9 +80,9 @@ describe('Tree: a closure table (PostgreSQL)', () => {
   const under = async (id: string) =>
     (
       await db
-        .select({ id: teams.id })
-        .from(teams)
-        .where(inArray(teams.id, tree.descendants(id)))
+        .select({ id: organizationalUnits.id })
+        .from(organizationalUnits)
+        .where(inArray(organizationalUnits.id, tree.descendants(id)))
     )
       .map((row) => row.id)
       .sort((a, b) => a.localeCompare(b));
@@ -87,9 +90,9 @@ describe('Tree: a closure table (PostgreSQL)', () => {
   const above = async (id: string) =>
     (
       await db
-        .select({ id: teams.id })
-        .from(teams)
-        .where(inArray(teams.id, tree.ancestors(id)))
+        .select({ id: organizationalUnits.id })
+        .from(organizationalUnits)
+        .where(inArray(organizationalUnits.id, tree.ancestors(id)))
     )
       .map((row) => row.id)
       .sort((a, b) => a.localeCompare(b));
@@ -110,7 +113,12 @@ describe('Tree: a closure table (PostgreSQL)', () => {
   }
 
   const actualClosure = async () =>
-    (await db.select().from(teamTree).orderBy(asc(teamTree.ancestorId)))
+    (
+      await db
+        .select()
+        .from(organizationalUnitClosure)
+        .orderBy(asc(organizationalUnitClosure.ancestorId))
+    )
       .map((row) => `${row.ancestorId}>${row.descendantId}@${row.depth}`)
       .sort((a, b) => a.localeCompare(b));
 
@@ -130,10 +138,10 @@ describe('Tree: a closure table (PostgreSQL)', () => {
       );
       expect(await under(chain[11])).toEqual([chain[11]]);
       const [deepest] = await db
-        .select({ depth: teamTree.depth })
-        .from(teamTree)
-        .where(eq(teamTree.descendantId, chain[11]))
-        .orderBy(asc(teamTree.depth))
+        .select({ depth: organizationalUnitClosure.depth })
+        .from(organizationalUnitClosure)
+        .where(eq(organizationalUnitClosure.descendantId, chain[11]))
+        .orderBy(asc(organizationalUnitClosure.depth))
         .offset(11);
       expect(deepest.depth).toBe(11);
       expect(await tree.isUnder(db, chain[11], chain[0])).toBe(true);
@@ -187,12 +195,12 @@ describe('Tree: a closure table (PostgreSQL)', () => {
         ),
       );
       const [path] = await db
-        .select({ depth: teamTree.depth })
-        .from(teamTree)
+        .select({ depth: organizationalUnitClosure.depth })
+        .from(organizationalUnitClosure)
         .where(
           and(
-            eq(teamTree.ancestorId, root),
-            eq(teamTree.descendantId, leftChild),
+            eq(organizationalUnitClosure.ancestorId, root),
+            eq(organizationalUnitClosure.descendantId, leftChild),
           ),
         );
       expect(path.depth).toBe(5);
@@ -277,9 +285,9 @@ describe('Tree: a closure table (PostgreSQL)', () => {
       expect(
         (
           await db
-            .select({ id: teams.id })
-            .from(teams)
-            .where(inArray(teams.id, tree.descendants(roots)))
+            .select({ id: organizationalUnits.id })
+            .from(organizationalUnits)
+            .where(inArray(organizationalUnits.id, tree.descendants(roots)))
         ).length,
       ).toBe(ids.length);
     }),
@@ -290,7 +298,9 @@ describe('Tree: a closure table (PostgreSQL)', () => {
     scoped(async () => {
       const root = await node('root');
       const leaf = await node('leaf', root);
-      await db.delete(teams).where(eq(teams.id, leaf));
+      await db
+        .delete(organizationalUnits)
+        .where(eq(organizationalUnits.id, leaf));
       parents.delete(leaf);
       expect(await actualClosure()).toEqual(expectedClosure());
       expect(await under(root)).toEqual([root]);
@@ -682,7 +692,7 @@ describe('countPage (PostgreSQL)', () => {
     await create(db);
     await scoped(() =>
       db
-        .insert(teams)
+        .insert(organizationalUnits)
         .values(['A', 'B', 'C', 'D', 'E'].map((name) => ({ name }))),
     )();
   });
@@ -692,10 +702,13 @@ describe('countPage (PostgreSQL)', () => {
     'counts only when asked',
     scoped(async () => {
       expect(
-        await countPage(db, teams, undefined, { limit: 10 }),
+        await countPage(db, organizationalUnits, undefined, { limit: 10 }),
       ).toBeUndefined();
       expect(
-        await countPage(db, teams, undefined, { limit: 10, count: false }),
+        await countPage(db, organizationalUnits, undefined, {
+          limit: 10,
+          count: false,
+        }),
       ).toBeUndefined();
     }),
   );
@@ -704,19 +717,30 @@ describe('countPage (PostgreSQL)', () => {
     'counts what matches, up to the cap',
     scoped(async () => {
       const query = { limit: 10, count: true };
-      expect(await countPage(db, teams, undefined, query)).toEqual({
+      expect(
+        await countPage(db, organizationalUnits, undefined, query),
+      ).toEqual({
         total: 5,
         totalCapped: false,
       });
       expect(
-        await countPage(db, teams, inArray(teams.name, ['A', 'B']), query),
+        await countPage(
+          db,
+          organizationalUnits,
+          inArray(organizationalUnits.name, ['A', 'B']),
+          query,
+        ),
       ).toEqual({ total: 2, totalCapped: false });
       // Exactly the cap: still exact. One more: capped.
-      expect(await countPage(db, teams, undefined, query, 5)).toEqual({
+      expect(
+        await countPage(db, organizationalUnits, undefined, query, 5),
+      ).toEqual({
         total: 5,
         totalCapped: false,
       });
-      expect(await countPage(db, teams, undefined, query, 3)).toEqual({
+      expect(
+        await countPage(db, organizationalUnits, undefined, query, 3),
+      ).toEqual({
         total: 3,
         totalCapped: true,
       });

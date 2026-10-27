@@ -240,7 +240,7 @@ export class ScimController {
   @Get('Groups')
   @Header('Content-Type', SCIM_JSON)
   @ApiOperation({
-    summary: 'The groups (teams) made over SCIM',
+    summary: 'The groups (organizational units) made over SCIM',
     description:
       'Filter: `eq` on `displayName`, `externalId` or `id`, joined with `and`. `excludedAttributes=members` leaves the members out.',
   })
@@ -258,7 +258,8 @@ export class ScimController {
   @Post('Groups')
   @Header('Content-Type', SCIM_JSON)
   @ApiOperation({
-    summary: 'Make a group: a top-level team, its members provisioned users',
+    summary:
+      'Make a group: a top-level unit of type team, its members provisioned users',
   })
   @ApiConsumes(SCIM_CONTENT_TYPE, 'application/json')
   async createGroup(
@@ -303,7 +304,7 @@ export class ScimController {
 
   @Delete('Groups/:id')
   @HttpCode(204)
-  @ApiOperation({ summary: 'Delete a group: its team goes, not its members' })
+  @ApiOperation({ summary: 'Delete a group: its unit goes, not its members' })
   async deleteGroup(
     @CurrentUser() client: ClientPrincipal,
     @Param('id') id: string,

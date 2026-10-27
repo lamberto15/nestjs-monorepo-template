@@ -16,7 +16,7 @@ const ERROR = 'urn:ietf:params:scim:api:messages:2.0:Error';
 /**
  * SCIM 2.0 provisioning (docs/auth.md, "SCIM provisioning"): the IdP's
  * SCIM token is an API client key with Access.provisionScim; users and
- * groups (teams) of its tenant only.
+ * groups (units) of its tenant only.
  */
 describe('SCIM provisioning (e2e)', () => {
   let node: TestApp;
@@ -566,7 +566,7 @@ describe('SCIM provisioning (e2e)', () => {
     });
   });
 
-  it('manages groups as teams, with provisioned users only', async () => {
+  it('manages groups as units, with provisioned users only', async () => {
     const alice = JSON.parse(
       (await as(scim).post('/Users', newUser()).expect(201)).text,
     );
@@ -586,25 +586,31 @@ describe('SCIM provisioning (e2e)', () => {
     expect(group.members.map((m: { value: string }) => m.value)).toEqual([
       alice.id,
     ]);
-    // A team of the tenant, as the access API shows it.
-    const teams = await node.admin().get('/v1/access/teams').expect(200);
+    // A unit of the tenant, as the access API shows it.
+    const units = await node
+      .admin()
+      .get('/v1/access/organizational-units')
+      .expect(200);
     expect(
-      teams.body.items.find((team: { id: string }) => team.id === group.id),
+      units.body.items.find((unit: { id: string }) => unit.id === group.id),
     ).toMatchObject({ managedByScim: true });
     // Read-only in the app: the IdP manages its name, place and members.
     const renamed = await node
       .admin()
-      .patch(`/v1/access/teams/${group.id}`)
+      .patch(`/v1/access/organizational-units/${group.id}`)
       .send({ name: 'Renamed here' })
       .expect(409);
-    expect(renamed.body.code).toBe('team_managed_by_scim');
-    await node.admin().delete(`/v1/access/teams/${group.id}`).expect(409);
+    expect(renamed.body.code).toBe('unit_managed_by_scim');
+    await node
+      .admin()
+      .delete(`/v1/access/organizational-units/${group.id}`)
+      .expect(409);
     const joined = await node
       .admin()
       .patch(`/v1/access/users/${outsider.id}`)
-      .send({ teamIds: [group.id] })
+      .send({ unitIds: [group.id] })
       .expect(409);
-    expect(joined.body.code).toBe('team_managed_by_scim');
+    expect(joined.body.code).toBe('unit_managed_by_scim');
     // PATCH: add one, remove one (by filter), rename.
     const patched = await as(scim)
       .patch(`/Groups/${group.id}`, {

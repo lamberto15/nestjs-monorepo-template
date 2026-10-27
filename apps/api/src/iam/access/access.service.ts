@@ -27,7 +27,17 @@ import {
   type MongoAbility,
 } from '@casl/ability';
 import { permittedFieldsOf } from '@casl/ability/extra';
-import { and, eq, gt, isNotNull, isNull, or, sql, type SQL } from 'drizzle-orm';
+import {
+  and,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  or,
+  sql,
+  type SQL,
+} from 'drizzle-orm';
 import {
   isSystemPrincipal,
   principalKey,
@@ -35,9 +45,9 @@ import {
 } from '../auth/principal.js';
 import {
   apiClientRoles,
-  teamTree,
+  organizationalUnitMemberships,
+  organizationalUnits,
   rolePermissions,
-  userTeams,
   userRoles,
 } from '../iam.tables.js';
 import { currentTenantId } from '../../core/tenancy/tenant-scope.js';
@@ -45,7 +55,10 @@ import { PermissionCatalog } from './permission-catalog.js';
 import {
   type AccessContext,
   isAll,
+  NO_UNITS,
   type PermissionInput,
+  unitIdsOf,
+  type UnitsOfOptions,
 } from './permissions.js';
 
 type AppAbility = MongoAbility;
@@ -83,15 +96,15 @@ const NO_FIELDS = '$none';
  * - A grant of the field without conditions: shown on every record.
  * - Otherwise every rule that lets `reach` reach records must have a
  *   rule of `action` grant the field on the same records: the same
- *   conditions. `read` own notes with every field and `read` the team's
- *   with `fields: []` leaves `body` hidden on the team's; `read` own notes
+ *   conditions. `read` own notes with every field and `read` the unit's
+ *   with `fields: []` leaves `body` hidden on the unit's; `read` own notes
  *   alone shows it on every note the read reaches.
  *
  * `reach` is the action whose rows the query matches, when it isn't
  * `action` itself: the recycle bin lists what the caller may `restore`, a
  * bulk run selects what it may `delete`, and so on, while what they see of
  * those rows is still what `read` grants. `read` own notes with every field
- * and `restore` the team's leaves `body` hidden on the team's deleted notes.
+ * and `restore` the unit's leaves `body` hidden on the unit's deleted notes.
  */
 export function hiddenOnSomeRecords(
   ability: AppAbility,
@@ -454,7 +467,7 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
       return {
         version: this.version,
         permissions: [],
-        ability: this.build(principal, [], { teamIds: [] }),
+        ability: this.build(principal, [], NO_UNITS),
       };
     }
     // Per tenant: the same person holds other roles in another tenant, and
@@ -471,10 +484,11 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
       return cached;
     }
     const version = this.version;
-    const [{ permissions, nextExpiry }, context] = await Promise.all([
-      this.loadPermissions(principal),
-      this.loadContext(principal),
-    ]);
+    const [{ permissions, nextExpiry }, { context, nextChange }] =
+      await Promise.all([
+        this.loadPermissions(principal),
+        this.loadContext(principal),
+      ]);
     const built: Cached = {
       version,
       permissions,
@@ -486,7 +500,11 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
       this.cache.set(key, built);
       this.validUntil.set(
         key,
-        Math.min(Date.now() + AccessService.MAX_AGE_MS, nextExpiry ?? Infinity),
+        Math.min(
+          Date.now() + AccessService.MAX_AGE_MS,
+          nextExpiry ?? Infinity,
+          nextChange ?? Infinity,
+        ),
       );
     }
     return built;
@@ -558,21 +576,58 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
     };
   }
 
-  /** The principal's teams and every unit below them (users only). */
-  private async loadContext(principal: Principal): Promise<AccessContext> {
+  /**
+   * The principal's organizational units (users only), as the unit
+   * conditions read them, and when one of its memberships starts or ends
+   * next: the cached ability is rebuilt then.
+   */
+  private async loadContext(
+    principal: Principal,
+  ): Promise<{ context: AccessContext; nextChange?: number }> {
     if (
       principal.kind !== 'user' ||
       !currentTenantId() ||
       principal.breakGlass
     ) {
-      return { teamIds: [] };
+      return { context: NO_UNITS };
     }
-    const rows = await this.db
-      .selectDistinct({ id: teamTree.descendantId })
-      .from(teamTree)
-      .innerJoin(userTeams, eq(userTeams.teamId, teamTree.ancestorId))
-      .where(eq(userTeams.userId, principal.id));
-    return { teamIds: rows.map((row) => row.id) };
+    const now = new Date();
+    const ids = async (options: UnitsOfOptions) =>
+      (
+        await this.db
+          .select({ id: organizationalUnits.id })
+          .from(organizationalUnits)
+          .where(
+            inArray(
+              organizationalUnits.id,
+              unitIdsOf(principal.id, options, now),
+            ),
+          )
+      ).map((row) => row.id);
+    const member = organizationalUnitMemberships;
+    const [directUnitIds, unitIdsAndBelow, ledUnitIdsAndBelow, periods] =
+      await Promise.all([
+        ids({}),
+        ids({ below: true }),
+        ids({ below: true, role: 'lead' }),
+        this.db
+          .select({ validFrom: member.validFrom, validTo: member.validTo })
+          .from(member)
+          .where(
+            and(
+              eq(member.userId, principal.id),
+              or(gt(member.validFrom, now), gt(member.validTo, now)),
+            ),
+          ),
+      ]);
+    const changes = periods
+      .flatMap((period) => [period.validFrom, period.validTo])
+      .map((date) => date?.getTime())
+      .filter((time): time is number => time !== undefined && time > +now);
+    return {
+      context: { directUnitIds, unitIdsAndBelow, ledUnitIdsAndBelow },
+      nextChange: changes.length ? Math.min(...changes) : undefined,
+    };
   }
 
   private build(

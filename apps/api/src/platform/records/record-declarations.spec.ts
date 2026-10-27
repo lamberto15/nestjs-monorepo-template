@@ -16,7 +16,7 @@ const INVOICE = defineRecord({
   noun: 'invoice line',
   table: 'invoice_lines',
   softDelete: true,
-  team: false,
+  unit: false,
   fields: { title: field.string() },
   approvals: {
     publish: { label: 'Publish an invoice line' },
@@ -66,7 +66,7 @@ describe('a record declaration', () => {
       key: 'invoiceLines.publishApproval',
       default: false,
       // Never per user: a requester could switch their own approval off.
-      scopes: ['tenant', 'team'],
+      scopes: ['tenant', 'unit'],
     });
     expect(publish!.declaration.setting).toBe(publish!.flag);
     // `flag: false`: always needs approval.
@@ -110,7 +110,7 @@ describe('a record declaration', () => {
       noun: 'bill',
       table: 'bills',
       softDelete: false,
-      team: false,
+      unit: false,
       fields: { title: field.string() },
       capabilities: [],
     } as const;

@@ -21,8 +21,8 @@ import { AccessAdminService } from './access/access-admin.service.js';
 import { AccessController } from './access/access.controller.js';
 import { AccessSeeder } from './access/access.seeder.js';
 import { AccessService } from './access/access.service.js';
-import { TeamsController } from './access/teams.controller.js';
-import { TeamsService } from './access/teams.service.js';
+import { OrganizationalUnitsController } from './access/organizational-units.controller.js';
+import { OrganizationalUnitsService } from './access/organizational-units.service.js';
 import { LegalHoldsController } from './holds/legal-holds.controller.js';
 import { LegalHoldsService } from './holds/legal-holds.service.js';
 import { ApiClientsService } from './access/api-clients.service.js';
@@ -173,7 +173,7 @@ export class IamModule {
       JwtAuth,
       AccessPolicy,
       UsersRepository,
-      TeamsService,
+      OrganizationalUnitsService,
       // Legal holds: records kept whatever a delete or a retention rule would do.
       LegalHoldsService,
       // Step-up (@RecentAuthentication()) on the routes of every group; a
@@ -330,7 +330,7 @@ export class IamModule {
         PasskeysController,
         WellKnownController,
         AccessController,
-        TeamsController,
+        OrganizationalUnitsController,
         LegalHoldsController,
         TenantSwitchController,
         TenantsController,
@@ -429,7 +429,7 @@ export class IamModule {
         PermissionCatalog,
         AccessService,
         AccessAdminService,
-        TeamsService,
+        OrganizationalUnitsService,
         LegalHoldsService,
         ApiClientsService,
         PrincipalsService,

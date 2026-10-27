@@ -5,7 +5,9 @@ import {
   createdBy,
   definePermissions,
   defineSystemJob,
-  inMyTeams,
+  inMyUnits,
+  inMyUnitsAndBelow,
+  inUnitsILeadAndBelow,
 } from '../../iam/access/permissions.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import type { Note } from './note.schemas.js';
@@ -27,6 +29,14 @@ export const NOTE_PUBLICATION_JOB = defineSystemJob({
   ],
 });
 
+/** Whose notes a reader sees, and restores: their own, or their units'. */
+const UNIT_READ = [
+  'mine',
+  'inMyUnits',
+  'inMyUnitsAndBelow',
+  'inUnitsILeadAndBelow',
+];
+
 /**
  * What can be done with notes, and the conditions an admin may attach. Passed
  * to `IamModule.forRoot()` in AppModule: the access API lists it
@@ -45,7 +55,9 @@ export const NOTE_PERMISSIONS = definePermissions({
       },
       conditions: {
         mine: createdBy('ownerId', notes.ownerId),
-        inMyTeams: inMyTeams('teamId', notes.teamId),
+        inMyUnits: inMyUnits('unitId', notes.unitId),
+        inMyUnitsAndBelow: inMyUnitsAndBelow('unitId', notes.unitId),
+        inUnitsILeadAndBelow: inUnitsILeadAndBelow('unitId', notes.unitId),
         draft: {
           label: 'Still a draft',
           description: 'Only notes not yet published.',
@@ -54,13 +66,13 @@ export const NOTE_PERMISSIONS = definePermissions({
         },
       },
       actions: {
-        read: { label: 'See notes', conditions: ['mine', 'inMyTeams'] },
+        read: { label: 'See notes', conditions: UNIT_READ },
         create: { label: 'Write notes', conditions: [] },
         update: { label: 'Change notes', conditions: ['mine', 'draft'] },
         delete: { label: 'Delete notes', conditions: ['mine', 'draft'] },
         restore: {
           label: 'See deleted notes and restore them',
-          conditions: ['mine', 'inMyTeams'],
+          conditions: UNIT_READ,
         },
       },
     },
@@ -105,12 +117,16 @@ export const NOTE_PERMISSIONS = definePermissions({
       ],
     },
     {
-      key: 'team-lead',
-      name: 'Team lead',
+      key: 'unit-lead',
+      name: 'Unit lead',
       description:
-        'Sees the notes of their teams and every team below them. (Example role: replace with your own.)',
+        'Sees the notes of the units they lead and every unit below them. (Example role: replace with your own.)',
       permissions: [
-        { subject: 'Note', action: 'read', conditions: [{ key: 'inMyTeams' }] },
+        {
+          subject: 'Note',
+          action: 'read',
+          conditions: [{ key: 'inUnitsILeadAndBelow' }],
+        },
       ],
     },
     {
@@ -127,11 +143,11 @@ export const NOTE_PERMISSIONS = definePermissions({
 });
 
 /** The fields of a note its conditions read. */
-type NoteFields = Pick<Note, 'ownerId' | 'status' | 'teamId' | 'deletedAt'>;
-const noteFields = ({ ownerId, status, teamId, deletedAt }: NoteFields) => ({
+type NoteFields = Pick<Note, 'ownerId' | 'status' | 'unitId' | 'deletedAt'>;
+const noteFields = ({ ownerId, status, unitId, deletedAt }: NoteFields) => ({
   ownerId,
   status,
-  teamId,
+  unitId,
   deletedAt, // a deleted note can only be restored (AccessService.can)
 });
 

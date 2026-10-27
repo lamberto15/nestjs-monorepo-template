@@ -21,7 +21,12 @@ import {
   tenantReference,
   tenantTable,
 } from '../../core/tenancy/tenant-scope.js';
-import { memberships, roles, teams, userRoles } from '../iam.tables.js';
+import {
+  memberships,
+  organizationalUnits,
+  roles,
+  userRoles,
+} from '../iam.tables.js';
 import type { Oauth2Mapping, Oauth2Preset } from './oauth2-mapping.js';
 
 /**
@@ -396,26 +401,27 @@ export const scimUsers = pgTable(
   ],
 ).enableRLS();
 
-/** The teams a tenant's SCIM client manages as groups, with its `externalId`. */
+/** The organizational units a tenant's SCIM client manages as groups, with its `externalId`. */
 export const scimGroups = pgTable(
   'scim_groups',
   {
     tenantId: tenantColumn(),
-    teamId: uuid('team_id').notNull(),
+    unitId: uuid('unit_id').notNull(),
     externalId: text('external_id'),
     ...timestamps(),
   },
   (table) => [
-    primaryKey({ columns: [table.tenantId, table.teamId] }),
+    primaryKey({ columns: [table.tenantId, table.unitId] }),
     uniqueIndex('scim_groups_tenant_external_id_idx').on(
       table.tenantId,
       table.externalId,
     ),
     ...tenantTable('scim_groups', table),
     tenantReference(
-      'scim_groups_team_fk',
-      [table.tenantId, table.teamId],
-      [teams.tenantId, teams.id],
+      'scim_groups_unit_fk',
+      [table.tenantId, table.unitId],
+      [organizationalUnits.tenantId, organizationalUnits.id],
+      'restrict',
     ),
   ],
 ).enableRLS();

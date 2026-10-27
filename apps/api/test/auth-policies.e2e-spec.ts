@@ -31,18 +31,18 @@ describe('auth policies (e2e)', () => {
   const longPassword = (length: number) =>
     randomBytes(length).toString('base64url').slice(0, length);
 
-  /** A team of the seeded tenant with this member. */
-  async function teamWith(userId: string) {
+  /** A unit of the seeded tenant with this member. */
+  async function unitWith(userId: string) {
     const admin = node.admin();
-    const team = await admin
-      .post('/v1/access/teams')
-      .send({ name: `team-${randomBytes(4).toString('hex')}` })
+    const unit = await admin
+      .post('/v1/access/organizational-units')
+      .send({ type: 'team', name: `unit-${randomBytes(4).toString('hex')}` })
       .expect(201);
     await admin
       .patch(`/v1/access/users/${userId}`)
-      .send({ teamIds: [team.body.id] })
+      .send({ unitIds: [unit.body.id] })
       .expect(204);
-    return team.body.id as string;
+    return unit.body.id as string;
   }
 
   /** Sets up and confirms an authenticator for the agent's user. */
@@ -56,14 +56,14 @@ describe('auth policies (e2e)', () => {
   }
 
   describe('auth.requireMfa', () => {
-    it('restricts a team member without two-factor to enrollment until enrolled, then a normal session', async () => {
+    it('restricts a unit member without two-factor to enrollment until enrolled, then a normal session', async () => {
       const member = await node.user(['editor']);
       const other = await node.user(['editor']);
-      const team = await teamWith(member.id);
+      const unit = await unitWith(member.id);
       await node
         .admin()
         .put('/v1/settings/auth.requireMfa')
-        .send({ scope: 'team', scopeId: team, value: true })
+        .send({ scope: 'unit', scopeId: unit, value: true })
         .expect(200);
 
       // The first factor signs in as usual: no code to ask for yet.
@@ -102,7 +102,7 @@ describe('auth policies (e2e)', () => {
       await agent.get('/v1/auth/reauthenticate').expect(200);
       await agent.get('/v1/auth/tenants').expect(200);
 
-      // Someone outside the team: nothing changes.
+      // Someone outside the unit: nothing changes.
       await other.agent.get('/v1/test-items').expect(200);
       expect(
         (await other.agent.get('/v1/auth/me').expect(200)).body
@@ -128,15 +128,15 @@ describe('auth policies (e2e)', () => {
 
     it('off: back to normal; not settable per user', async () => {
       const member = await node.user(['editor']);
-      const team = await teamWith(member.id);
+      const unit = await unitWith(member.id);
       const admin = node.admin();
       await admin
         .put('/v1/settings/auth.requireMfa')
-        .send({ scope: 'team', scopeId: team, value: true })
+        .send({ scope: 'unit', scopeId: unit, value: true })
         .expect(200);
       await member.agent.get('/v1/test-items').expect(403);
       await admin
-        .delete(`/v1/settings/auth.requireMfa?scope=team&scopeId=${team}`)
+        .delete(`/v1/settings/auth.requireMfa?scope=unit&scopeId=${unit}`)
         .expect(204);
       await member.agent.get('/v1/test-items').expect(200);
 
@@ -152,21 +152,21 @@ describe('auth policies (e2e)', () => {
         .expect(400);
     });
 
-    it("a tenant's requirement: its administrator too, a team's false exempts nobody, API clients are unaffected", async () => {
+    it("a tenant's requirement: its administrator too, a unit's false exempts nobody, API clients are unaffected", async () => {
       const tenant = await node.otherTenant();
       const user = await tenant.user(['editor']);
       const client = await tenant.client();
-      const team = await tenant.admin
-        .post('/v1/access/teams')
-        .send({ name: 'Exempt?' })
+      const unit = await tenant.admin
+        .post('/v1/access/organizational-units')
+        .send({ type: 'team', name: 'Exempt?' })
         .expect(201);
       await tenant.admin
         .patch(`/v1/access/users/${user.id}`)
-        .send({ teamIds: [team.body.id] })
+        .send({ unitIds: [unit.body.id] })
         .expect(204);
       await tenant.admin
         .put('/v1/settings/auth.requireMfa')
-        .send({ scope: 'team', scopeId: team.body.id, value: false })
+        .send({ scope: 'unit', scopeId: unit.body.id, value: false })
         .expect(200);
 
       // An administrator with no authenticator can't require it of all (that
@@ -180,7 +180,7 @@ describe('auth policies (e2e)', () => {
         .put('/v1/settings/auth.requireMfa')
         .send({ value: true })
         .expect(200);
-      // The team's false doesn't exempt its member…
+      // The unit's false doesn't exempt its member…
       await user.agent.get('/v1/test-items').expect(403);
       // …and API clients have no second factor to set up.
       await node
@@ -229,32 +229,32 @@ describe('auth policies (e2e)', () => {
 
     it('the shell keeps working while enrolling: GET /v1/features is open to a restricted session', async () => {
       const member = await node.user(['editor']);
-      const team = await teamWith(member.id);
+      const unit = await unitWith(member.id);
       await node
         .admin()
         .put('/v1/settings/auth.requireMfa')
-        .send({ scope: 'team', scopeId: team, value: true })
+        .send({ scope: 'unit', scopeId: unit, value: true })
         .expect(200);
       await member.agent.get('/v1/test-items').expect(403);
       const features = await member.agent.get('/v1/features').expect(200);
       expect(features.body.mfa).toBe(true);
     });
 
-    it('refuses requiring two-factor of a caller who has none: 409 mfa_enroll_first, at the tenant, platform and own-team scopes', async () => {
-      // An administrator of no authenticator, in a team of their own (an
-      // administrator can't change their own teams: the operator adds them).
+    it('refuses requiring two-factor of a caller who has none: 409 mfa_enroll_first, at the tenant, platform and own-unit scopes', async () => {
+      // An administrator of no authenticator, in a unit of their own (an
+      // administrator can't change their own units: the operator adds them).
       const caller = await node.user(['administrator']);
-      const team = await teamWith(caller.id);
+      const unit = await unitWith(caller.id);
       for (const request of [
         caller.agent.put('/v1/settings/auth.requireMfa').send({ value: true }),
         caller.agent
           .put('/v1/settings/auth.requireMfa')
-          .send({ scope: 'team', scopeId: team, value: true }),
+          .send({ scope: 'unit', scopeId: unit, value: true }),
       ]) {
         const refused = await request.expect(409);
         expect(refused.body).toMatchObject({ code: 'mfa_enroll_first' });
       }
-      // Not requiring it, or requiring it of a team they are not in, is fine.
+      // Not requiring it, or requiring it of a unit they are not in, is fine.
       await caller.agent
         .put('/v1/settings/auth.requireMfa')
         .send({ value: false })
@@ -270,11 +270,11 @@ describe('auth policies (e2e)', () => {
 
     it('AUTH_MFA=off is the ceiling: refused when set, no effect when stored', async () => {
       const member = await node.user(['editor']);
-      const team = await teamWith(member.id);
+      const unit = await unitWith(member.id);
       const admin = node.admin();
       await admin
         .put('/v1/settings/auth.requireMfa')
-        .send({ scope: 'team', scopeId: team, value: true })
+        .send({ scope: 'unit', scopeId: unit, value: true })
         .expect(200);
       await member.agent.get('/v1/test-items').expect(403);
 
@@ -291,7 +291,7 @@ describe('auth policies (e2e)', () => {
       // Turning it off is always allowed.
       await admin
         .put('/v1/settings/auth.requireMfa')
-        .send({ scope: 'team', scopeId: team, value: false })
+        .send({ scope: 'unit', scopeId: unit, value: false })
         .expect(200);
     });
   });

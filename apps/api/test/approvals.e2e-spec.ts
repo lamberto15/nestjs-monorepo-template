@@ -411,40 +411,43 @@ describe('approvals (e2e)', () => {
       });
     });
 
-    it('resolves "the lead of my team" by role in the requester’s team, or the nearest above', async () => {
+    it('resolves "the lead of my unit" by role in the requester’s unit, or the nearest above', async () => {
       const admin = node.admin();
       const sales = (
-        await admin.post('/v1/access/teams').send({ name: 'Sales' }).expect(201)
+        await admin
+          .post('/v1/access/organizational-units')
+          .send({ type: 'team', name: 'Sales' })
+          .expect(201)
       ).body;
       const north = (
         await admin
-          .post('/v1/access/teams')
-          .send({ name: 'North', parentId: sales.id })
+          .post('/v1/access/organizational-units')
+          .send({ type: 'team', name: 'North', parentId: sales.id })
           .expect(201)
       ).body;
       const support = (
         await admin
-          .post('/v1/access/teams')
-          .send({ name: 'Support' })
+          .post('/v1/access/organizational-units')
+          .send({ type: 'team', name: 'Support' })
           .expect(201)
       ).body;
       const [requester, salesLead, northLead, otherLead] = [
         await node.user([]),
-        await node.user(['team-lead']),
-        await node.user(['team-lead']),
-        await node.user(['team-lead']),
+        await node.user(['unit-lead']),
+        await node.user(['unit-lead']),
+        await node.user(['unit-lead']),
       ];
-      const teamsOf = (user: User, ids: string[]) =>
+      const unitsOf = (user: User, ids: string[]) =>
         admin
           .patch(`/v1/access/users/${user.id}`)
-          .send({ teamIds: ids })
+          .send({ unitIds: ids })
           .expect(204);
-      await teamsOf(requester, [north.id]);
-      await teamsOf(salesLead, [sales.id]);
-      await teamsOf(northLead, [north.id]);
-      await teamsOf(otherLead, [support.id]);
+      await unitsOf(requester, [north.id]);
+      await unitsOf(salesLead, [sales.id]);
+      await unitsOf(northLead, [north.id]);
+      await unitsOf(otherLead, [support.id]);
       await setPolicy({
-        stages: [stage([{ type: 'teamRole', role: 'team-lead' }])],
+        stages: [stage([{ type: 'unitRole', role: 'unit-lead' }])],
       });
 
       const id = await ask(requester);

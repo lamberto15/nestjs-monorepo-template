@@ -39,7 +39,7 @@ export interface RecordApproval {
   policy?: ApprovalPolicyInput;
   /**
    * `true` (the default): off until a flag, `<path>.<action>Approval`, is
-   * switched on for the tenant or a team (`/v1/settings`); the action then
+   * switched on for the tenant or a unit (`/v1/settings`); the action then
    * runs at once. `false`: always needs approval.
    */
   flag?: boolean;
@@ -112,7 +112,7 @@ export function recordApprovalActions(
             : flag({
                 // Never per user: a requester could switch their own approval off
                 // (ApprovalsRegistry refuses such a setting at startup).
-                scopes: ['tenant', 'team'],
+                scopes: ['tenant', 'unit'],
                 key: approvalFlagKey(declaration, action),
                 label: `${wordsOf(action)} needs approval`,
                 description: `When on, ${action} runs only once it is approved (GET /v1/approvals); the policy: GET /v1/approvals/policies/${declaration.subject}.${action}.`,

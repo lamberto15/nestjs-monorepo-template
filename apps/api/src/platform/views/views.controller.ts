@@ -43,14 +43,14 @@ import {
 import { ViewsService } from './views.service.js';
 
 const VALIDATION =
-  'An unknown list (`subject`), a query the list refuses (`query.<parameter>`: paging, `fields`, `deleted` and `lang` are not filters), a column not in its `select` (`columns`), a team that does not exist, more than 100 views (validation_failed).';
+  'An unknown list (`subject`), a query the list refuses (`query.<parameter>`: paging, `fields`, `deleted` and `lang` are not filters), a column not in its `select` (`columns`), a unit that does not exist, more than 100 views (validation_failed).';
 const FIELD_FORBIDDEN =
   'Its query filters, searches or sorts by a field your permissions hide (field_forbidden, naming it).';
 
 /**
  * Saved views: a list's filters, sort and columns under a name, for every
  * list `GET /v1/lists/{subject}` describes. Private to their owner, shared
- * with a team, or tenant-wide (`Access.manageViews`). Anyone signed in
+ * with a unit, or tenant-wide (`Access.manageViews`). Anyone signed in
  * keeps their own; what a view shows is checked against the viewer's own
  * permissions when it is applied.
  */
@@ -68,7 +68,7 @@ export class ViewsController {
   @ApiOperation({
     summary: 'The saved views you see',
     description:
-      'Yours, those shared with your teams and the tenant-wide ones, of the lists you may read. `?subject=Note`, `?visibility=team`, `?name.contains=`, `?sort=name`; newest first; cursor pages.',
+      'Yours, those shared with your units and the tenant-wide ones, of the lists you may read. `?subject=Note`, `?visibility=unit`, `?name.contains=`, `?sort=name`; newest first; cursor pages.',
   })
   @ApiOkResponse({ standardSchema: viewPageSchema })
   async list(
@@ -82,7 +82,7 @@ export class ViewsController {
   @ApiOperation({
     summary: 'Save a view of a list',
     description:
-      "The list's filters, sort and search as its route takes them (`query`) and the item fields to show (`columns`), validated against the list as it is now (custom fields included). `visibility`: `private` (default), `team` (with `teamId`: a team you belong to) or `tenant` (`Access.manageViews`). The name is unique per list and place, whatever its case. Audited (`view.created`).",
+      "The list's filters, sort and search as its route takes them (`query`) and the item fields to show (`columns`), validated against the list as it is now (custom fields included). `visibility`: `private` (default), `unit` (with `unitId`: an organizational unit you belong to) or `tenant` (`Access.manageViews`). The name is unique per list and place, whatever its case. Audited (`view.created`).",
   })
   @ApiCreatedResponse({ standardSchema: viewSchema })
   @ApiBadRequestResponse({ description: VALIDATION })

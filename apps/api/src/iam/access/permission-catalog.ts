@@ -30,15 +30,16 @@ export const ACCESS_PERMISSIONS = definePermissions({
           // Never passwords: an administrator manages the membership, not
           // the account (docs/tenancy.md).
           label:
-            'Invite users, assign their roles and teams, deactivate their memberships',
+            'Invite users, assign their roles and organizational units, deactivate their memberships',
           conditions: [],
         },
         manageClients: {
           label: 'Create API clients, rotate and revoke their keys',
           conditions: [],
         },
-        manageTeams: {
-          label: 'Create, move and delete teams (what "in my teams" covers)',
+        manageOrganizationalUnits: {
+          label:
+            'Create, retype, move and delete organizational units (what "in my units" covers)',
           conditions: [],
         },
         manageCustomFields: {
@@ -48,7 +49,7 @@ export const ACCESS_PERMISSIONS = definePermissions({
         },
         manageSettings: {
           label:
-            'Set settings and feature flags for everyone, a team or a user (platform/settings)',
+            'Set settings and feature flags for everyone, a unit or a user (platform/settings)',
           conditions: [],
         },
         manageTags: {

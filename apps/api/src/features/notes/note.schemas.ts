@@ -66,7 +66,12 @@ export const noteSchema = z.object({
     .nullable()
     .describe('The number people quote: NOTE-<year>-<n>, given on create.'),
   ownerId: z.string().describe('Who wrote it: `user:<id>` or `client:<id>`.'),
-  teamId: z.uuid().nullable().describe("The author's team."),
+  unitId: z
+    .uuid()
+    .nullable()
+    .describe(
+      "The author's organizational unit, when they were in exactly one.",
+    ),
   title: z.string(),
   body: z
     .string()

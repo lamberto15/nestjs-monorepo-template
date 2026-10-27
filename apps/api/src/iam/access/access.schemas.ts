@@ -45,7 +45,9 @@ export const userViewSchema = z.object({
         .describe('When the grant ends; null: never.'),
     }),
   ),
-  teamIds: z.array(z.uuid()),
+  unitIds: z
+    .array(z.uuid())
+    .describe('The organizational units they are a current member of.'),
 });
 
 /** A role of the tenant, with its permissions and how many users hold it. */

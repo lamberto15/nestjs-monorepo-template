@@ -52,7 +52,7 @@ const CONFLICT_LOCKOUT =
 /**
  * Settings and feature flags: what the features declared, with the value
  * each caller gets. Reading is for anyone; setting a value for everyone
- * or a team takes Access.manageSettings; a user sets their own
+ * or a unit takes Access.manageSettings; a user sets their own
  * preferences (settings scoped `user`) themselves.
  */
 @ApiTags('settings')
@@ -73,7 +73,7 @@ export class SettingsController {
   @ApiOperation({
     summary: 'Every setting and flag, with your value of each',
     description:
-      "Your value: the operators' enforced value, else your own, else your team's, else your tenant's (or a rollout), else the operators' value for every tenant, else the default. Settings not marked public show only to those who manage settings.",
+      "Your value: the operators' enforced value, else your own, else your unit's, else your tenant's (or a rollout), else the operators' value for every tenant, else the default. Settings not marked public show only to those who manage settings.",
   })
   @ApiOkResponse({ standardSchema: listSchema(settingViewSchema) })
   async list(@CurrentUser() user: Principal) {
@@ -188,7 +188,7 @@ export class SettingsController {
   @Put(':key')
   @Can(AccessPolicy, 'manageSettings')
   @ApiOperation({
-    summary: 'Set a setting for everyone, a team, or one principal',
+    summary: 'Set a setting for everyone, a unit, or one principal',
     description:
       "Replaces what that scope had, in the caller's tenant. A flag at the tenant scope may take `rollout` (a percentage) instead of a value. Applies on the next request. Audited.",
   })
@@ -199,7 +199,7 @@ export class SettingsController {
   })
   @ApiConflictResponse({ description: CONFLICT_LOCKOUT })
   @ApiNotFoundResponse({
-    description: 'No such setting, team or principal.',
+    description: 'No such setting, unit or principal.',
   })
   set(
     @CurrentUser() user: Principal,

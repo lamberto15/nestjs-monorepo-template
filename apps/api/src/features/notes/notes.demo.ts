@@ -14,7 +14,7 @@ import { NotesService } from './notes.service.js';
 
 /**
  * Notes' demo data (`pnpm db:seed:demo`, NOTES_FEATURE.demo): tags, and
- * notes owned by the demo users (their `mine` and `inMyTeams` conditions
+ * notes owned by the demo users (their `mine` and unit conditions
  * then show something), tagged, two with a comment that mentions a
  * colleague, one with a file. Written through the services, as the seed.
  */

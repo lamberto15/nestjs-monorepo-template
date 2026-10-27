@@ -35,9 +35,12 @@ export class AccessPolicy {
     return manager(user) && this.access.can(user, 'manageClients', 'Access');
   }
 
-  /** The teams and their tree: who sees what through `inMyTeams`. */
-  async manageTeams(user: Principal | null) {
-    return manager(user) && this.access.can(user, 'manageTeams', 'Access');
+  /** The organizational units and their tree: who sees what through the unit conditions. */
+  async manageOrganizationalUnits(user: Principal | null) {
+    return (
+      manager(user) &&
+      this.access.can(user, 'manageOrganizationalUnits', 'Access')
+    );
   }
 
   /** Custom field definitions (platform/custom-fields): what every record of a subject may carry. */
@@ -47,7 +50,7 @@ export class AccessPolicy {
     );
   }
 
-  /** Settings and feature flags (platform/settings): values for everyone, a team or a user. */
+  /** Settings and feature flags (platform/settings): values for everyone, a unit or a user. */
   async manageSettings(user: Principal | null) {
     return manager(user) && this.access.can(user, 'manageSettings', 'Access');
   }
@@ -132,16 +135,16 @@ export class AccessPolicy {
   }
 
   /**
-   * The access API's read routes (the catalog, roles, users, teams, API
+   * The access API's read routes (the catalog, roles, users, units, API
    * clients, principals): any permission of access administration, so
-   * whoever manages teams lists them and whoever impersonates finds whom.
+   * whoever manages units lists them and whoever impersonates finds whom.
    */
   async open(user: Principal | null) {
     return (
       (await this.manageRoles(user)) ||
       (await this.manageUsers(user)) ||
       (await this.manageClients(user)) ||
-      (await this.manageTeams(user)) ||
+      (await this.manageOrganizationalUnits(user)) ||
       (await this.impersonate(user)) ||
       (await this.readAudit(user))
     );
@@ -151,7 +154,7 @@ export class AccessPolicy {
    * The two lists the SSO page's pickers need (the roles of the role
    * mappings, the users of the exemptions): `open`, and also whoever
    * manages SSO. Narrower than adding `manageSso` to `open`, which would
-   * open the catalog, teams, API clients and principals to it too.
+   * open the catalog, units, API clients and principals to it too.
    */
   async openForSso(user: Principal | null) {
     return (await this.open(user)) || (await this.manageSso(user));

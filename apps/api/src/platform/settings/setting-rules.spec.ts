@@ -270,7 +270,7 @@ describe('rules in resolveSetting', () => {
     });
   });
 
-  it("keeps a team's or principal's own value above the rules, and an enforced platform value above all", () => {
+  it("keeps a unit's or principal's own value above the rules, and an enforced platform value above all", () => {
     const rules = [rule('principalKind', { kinds: ['user'] })];
     const own: SettingOverride = {
       key: beta.key,

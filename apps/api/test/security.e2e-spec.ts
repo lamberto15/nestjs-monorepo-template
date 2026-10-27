@@ -107,20 +107,20 @@ describe('security (e2e)', () => {
       .patch(`/v1/access/users/${viewer.id}`)
       .send({ roleIds: [viewerRole] })
       .expect(204);
-    // Own teams: never.
-    const team = await node
+    // Own units: never.
+    const unit = await node
       .admin()
-      .post('/v1/access/teams')
-      .send({ name: 'Sales' })
+      .post('/v1/access/organizational-units')
+      .send({ type: 'team', name: 'Sales' })
       .expect(201);
     await support.agent
       .patch(`/v1/access/users/${support.id}`)
-      .send({ teamIds: [team.body.id] })
+      .send({ unitIds: [unit.body.id] })
       .expect(403);
-    // Teams are their own permission.
+    // Units are their own permission.
     await support.agent
-      .post('/v1/access/teams')
-      .send({ name: 'Mine' })
+      .post('/v1/access/organizational-units')
+      .send({ type: 'team', name: 'Mine' })
       .expect(403);
   });
 
@@ -855,17 +855,17 @@ describe('security (e2e)', () => {
     await admin
       .post(`/v1/access/invitations/${theirInvitation.id}/resend`)
       .expect(404);
-    // A team id of theirs filters nothing in.
+    // A unit id of theirs filters nothing in.
     const theirTeam = await other.admin
-      .post('/v1/access/teams')
-      .send({ name: 'Theirs' })
+      .post('/v1/access/organizational-units')
+      .send({ type: 'team', name: 'Theirs' })
       .expect(201);
     await other.admin
       .patch(`/v1/access/users/${theirUser.id}`)
-      .send({ teamIds: [theirTeam.body.id] })
+      .send({ unitIds: [theirTeam.body.id] })
       .expect(204);
     const filtered = await admin
-      .get(`/v1/access/users?teamId=${theirTeam.body.id}`)
+      .get(`/v1/access/users?unitId=${theirTeam.body.id}`)
       .expect(200);
     expect(filtered.body.items).toEqual([]);
     // Their client still works.
@@ -1130,7 +1130,7 @@ describe('security (e2e)', () => {
   });
 
   it('refuses filters, search and sorts on a field shown on some records only, and seals cursors', async () => {
-    // Issue #76's role: own items with every field, the team's with none of
+    // Issue #76's role: own items with every field, the unit's with none of
     // the restrictable ones (body, custom). Test items, not notes: the notes
     // example can be removed from a project, these tests stay.
     const conditional = await node
@@ -1148,23 +1148,23 @@ describe('security (e2e)', () => {
           {
             subject: 'TestItem',
             action: 'read',
-            conditions: [{ key: 'inMyTeams' }],
+            conditions: [{ key: 'inMyUnitsAndBelow' }],
             fields: [],
           },
         ],
       })
       .expect(201);
-    const team = await node
+    const unit = await node
       .admin()
-      .post('/v1/access/teams')
-      .send({ name: `Team ${randomUUID().slice(0, 8)}` })
+      .post('/v1/access/organizational-units')
+      .send({ type: 'team', name: `Unit ${randomUUID().slice(0, 8)}` })
       .expect(201);
     const member = async () => {
       const created = await node.user([conditional.body.id]);
       await node
         .admin()
         .patch(`/v1/access/users/${created.id}`)
-        .send({ teamIds: [team.body.id] })
+        .send({ unitIds: [unit.body.id] })
         .expect(204);
       return created;
     };
@@ -1335,31 +1335,31 @@ describe('security (e2e)', () => {
       action,
       conditions: [{ key: 'mine' }],
     });
-    const team = (action: string) => ({
+    const unit = (action: string) => ({
       subject: 'TestItem',
       action,
-      conditions: [{ key: 'inMyTeams' }],
+      conditions: [{ key: 'inMyUnitsAndBelow' }],
     });
     const create = { subject: 'TestItem', action: 'create', conditions: [] };
-    // Reads its own items (every field), restores the team's, deletes any.
+    // Reads its own items (every field), restores the unit's, deletes any.
     const wider = await roleOf([
       create,
       own('read'),
-      team('restore'),
+      unit('restore'),
       { subject: 'TestItem', action: 'delete', conditions: [] },
     ]);
     const plain = await roleOf([create, own('read'), own('delete')]);
     const group = await node
       .admin()
-      .post('/v1/access/teams')
-      .send({ name: `Team ${randomUUID().slice(0, 8)}` })
+      .post('/v1/access/organizational-units')
+      .send({ type: 'team', name: `Unit ${randomUUID().slice(0, 8)}` })
       .expect(201);
     const member = async (roleId: string) => {
       const created = await node.user([roleId]);
       await node
         .admin()
         .patch(`/v1/access/users/${created.id}`)
-        .send({ teamIds: [group.body.id] })
+        .send({ unitIds: [group.body.id] })
         .expect(204);
       return created;
     };
@@ -1378,7 +1378,7 @@ describe('security (e2e)', () => {
       .writeItem(teammate.agent, { title: 'Live', body: 'salarywombat too' })
       .expect(201);
 
-    // The recycle bin reaches the team's deleted items, whose text read never shows.
+    // The recycle bin reaches the unit's deleted items, whose text read never shows.
     for (const query of [
       'deleted=true&q=salarywombat',
       'deleted=true&body.contains=wombat',

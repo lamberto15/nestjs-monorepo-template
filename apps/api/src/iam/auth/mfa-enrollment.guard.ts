@@ -26,7 +26,7 @@ export const DuringMfaEnrollment = () => SetMetadata(DURING_ENROLLMENT, true);
 
 /**
  * `auth.requireMfa` (docs/auth.md, "Policies"): a user whose tenant (or
- * team) requires two-factor and who has none signs in as usual, but the
+ * unit) requires two-factor and who has none signs in as usual, but the
  * session (or token) is restricted: every route but those marked
  * `@DuringMfaEnrollment()` answers 403 `mfa_enrollment_required`. Once the
  * authenticator is confirmed, the same session is a normal one (the check

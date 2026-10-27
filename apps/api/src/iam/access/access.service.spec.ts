@@ -12,14 +12,14 @@ import {
   ALL,
   createdBy,
   definePermissions,
-  inMyTeams,
+  inMyUnitsAndBelow,
   type PermissionInput,
 } from './permissions.js';
 
 const notes = pgTable('notes', {
   id: uuid('id').primaryKey(),
   ownerId: text('owner_id').notNull(),
-  teamId: uuid('team_id'),
+  unitId: uuid('unit_id'),
   title: text('title').notNull(),
   body: text('body'),
   status: text('status').notNull(),
@@ -38,7 +38,7 @@ const catalog = new PermissionCatalog({
           },
           conditions: {
             mine: createdBy('ownerId', notes.ownerId),
-            inMyTeams: inMyTeams('teamId', notes.teamId),
+            inMyUnitsAndBelow: inMyUnitsAndBelow('unitId', notes.unitId),
             draft: {
               label: 'Still a draft',
               description: 'Only notes not yet published.',
@@ -47,10 +47,13 @@ const catalog = new PermissionCatalog({
             },
           },
           actions: {
-            read: { label: 'See notes', conditions: ['mine', 'inMyTeams'] },
+            read: {
+              label: 'See notes',
+              conditions: ['mine', 'inMyUnitsAndBelow'],
+            },
             restore: {
               label: 'Restore notes',
-              conditions: ['mine', 'inMyTeams'],
+              conditions: ['mine', 'inMyUnitsAndBelow'],
             },
           },
         },
@@ -114,15 +117,19 @@ function accessWith(...permissions: PermissionInput[]) {
     permissions,
   } as never);
   vi.spyOn(access as never, 'loadContext').mockResolvedValue({
-    teamIds: ['team-1'],
+    context: {
+      directUnitIds: ['unit-1'],
+      unitIdsAndBelow: ['unit-1'],
+      ledUnitIdsAndBelow: [],
+    },
   } as never);
   return access;
 }
 
 describe('AccessService: fields shown on some records only', () => {
   it('finds a field one read grants with conditions beside another read without it', async () => {
-    // The issue's role: own notes with every field, the team's with none.
-    const access = accessWith(read(['mine']), read(['inMyTeams'], []));
+    // The issue's role: own notes with every field, the unit's with none.
+    const access = accessWith(read(['mine']), read(['inMyUnitsAndBelow'], []));
     expect(await access.conditionalFields(sam, 'read', 'Note')).toEqual([
       'body',
       'custom',
@@ -203,7 +210,7 @@ describe('AccessService: fields shown on some records only', () => {
   });
 
   it('refuses filters, search and sort on such a field, not selecting it', async () => {
-    const access = accessWith(read(['mine']), read(['inMyTeams'], []));
+    const access = accessWith(read(['mine']), read(['inMyUnitsAndBelow'], []));
     for (const raw of [
       { 'body.contains': 'x' },
       { sort: 'body' },
@@ -251,9 +258,9 @@ describe('AccessService: fields shown on some records only', () => {
   });
 
   it('reads the rows another action reaches against what read shows of them', async () => {
-    // Restoring the team's notes while reading only one's own: the recycle
+    // Restoring the unit's notes while reading only one's own: the recycle
     // bin reaches notes whose text read never shows.
-    const wider = accessWith(read(['mine']), restore(['inMyTeams']));
+    const wider = accessWith(read(['mine']), restore(['inMyUnitsAndBelow']));
     expect(await wider.conditionalFields(sam, 'read', 'Note')).toEqual([]);
     expect(
       await wider.conditionalFields(sam, 'read', 'Note', 'restore'),
@@ -277,12 +284,10 @@ describe('AccessService: fields shown on some records only', () => {
     await same.assertQueryFields(sam, 'Note', bin, { reach: 'restore' });
     // A read of every note with every field covers any reach.
     expect(
-      await accessWith(read([]), restore(['inMyTeams'])).conditionalFields(
-        sam,
-        'read',
-        'Note',
-        'restore',
-      ),
+      await accessWith(
+        read([]),
+        restore(['inMyUnitsAndBelow']),
+      ).conditionalFields(sam, 'read', 'Note', 'restore'),
     ).toEqual([]);
   });
 });

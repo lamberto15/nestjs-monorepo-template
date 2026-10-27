@@ -8,7 +8,7 @@ import { APP_FEATURES } from '../app.tokens.js';
 import type { FeatureDefinition } from '../features/feature.js';
 import { AccessAdminService } from '../iam/access/access-admin.service.js';
 import { AccessService } from '../iam/access/access.service.js';
-import { TeamsService } from '../iam/access/teams.service.js';
+import { OrganizationalUnitsService } from '../iam/access/organizational-units.service.js';
 import { SingleTenant } from '../iam/access/single-tenant.js';
 import { SystemContext } from '../iam/access/system-context.js';
 import { AuditService } from '../iam/audit/audit.service.js';
@@ -22,7 +22,7 @@ import {
 } from '../iam/access/tenants.service.js';
 import {
   DEMO_EMAIL_DOMAIN,
-  DEMO_TEAMS,
+  DEMO_UNITS,
   DEMO_TENANT,
   DEMO_USERS,
 } from './demo-data.js';
@@ -82,7 +82,7 @@ const demoEmail = (name: string) =>
  *   (`TenantsService.addAdministrator()`), never an operator.
  * - **Then each feature's own data** (`FeatureDefinition.demo`: its
  *   seeder, a provider of its module), in the same transaction, owned by
- *   the demo users. Without features, users and teams only.
+ *   the demo users. Without features, users and units only.
  */
 @Injectable()
 export class DemoSeeder {
@@ -91,7 +91,7 @@ export class DemoSeeder {
     private readonly access: AccessService,
     private readonly accessAdmin: AccessAdminService,
     private readonly tenants: TenantsService,
-    private readonly teams: TeamsService,
+    private readonly units: OrganizationalUnitsService,
     private readonly users: UsersRepository,
     private readonly disk: StorageDisk,
     private readonly audit: AuditService,
@@ -208,8 +208,8 @@ export class DemoSeeder {
     stored: string[],
   ): Promise<DemoSeedResult> {
     const tenantId = tenant.id;
-    const teams = await this.createTeams(system);
-    const people = await this.createUsers(system, tx, teams);
+    const units = await this.createUnits(system);
+    const people = await this.createUsers(system, tx, units);
     const data: Record<string, number> = {};
     for (const feature of this.features) {
       if (!feature.demo) {
@@ -263,16 +263,17 @@ export class DemoSeeder {
     }
   }
 
-  private async createTeams(system: SystemPrincipal) {
-    await this.assertCan(system, 'manageTeams', 'Access');
+  private async createUnits(system: SystemPrincipal) {
+    await this.assertCan(system, 'manageOrganizationalUnits', 'Access');
     const ids = new Map<string, string>();
-    // Parents come first in DEMO_TEAMS.
-    for (const team of DEMO_TEAMS) {
-      const created = await this.teams.create(system, {
-        name: team.name,
-        parentId: team.parent ? ids.get(team.parent) : null,
+    // Parents come first in DEMO_UNITS.
+    for (const unit of DEMO_UNITS) {
+      const created = await this.units.create(system, {
+        type: unit.type,
+        name: unit.name,
+        parentId: unit.parent ? ids.get(unit.parent) : null,
       });
-      ids.set(team.key, created.id);
+      ids.set(unit.key, created.id);
     }
     return ids;
   }
@@ -280,7 +281,7 @@ export class DemoSeeder {
   private async createUsers(
     system: SystemPrincipal,
     tx: Transaction,
-    teams: Map<string, string>,
+    units: Map<string, string>,
   ) {
     await this.assertCan(system, 'manageUsers', 'Access');
     // The tenant's roles, made with it in this transaction.
@@ -308,7 +309,8 @@ export class DemoSeeder {
         roleIds: user.roles
           .filter((key) => key !== ADMINISTRATOR_ROLE)
           .map((key) => role(key).id),
-        teamIds: user.teams.map((key) => teams.get(key)!),
+        unitIds: user.units.map((key) => units.get(key)!),
+        ledUnitIds: (user.leads ?? []).map((key) => units.get(key)!),
       });
       if (administrator) {
         // The tenant's first administrator, as every tenant gets one.

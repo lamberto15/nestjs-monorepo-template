@@ -780,7 +780,7 @@ describe('the advanced list query on GET /v1/test-items (e2e)', () => {
       type: 'string',
       format: 'date-time',
     });
-    expect(query('/v1/test-items', 'teamId')?.schema).toEqual({
+    expect(query('/v1/test-items', 'unitId')?.schema).toEqual({
       type: 'string',
       format: 'uuid',
     });

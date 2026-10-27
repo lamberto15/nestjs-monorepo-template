@@ -250,6 +250,6 @@ describe('the advanced list query on GET /v1/notes (e2e)', () => {
         .filter((field: { ref?: string }) => field.ref)
         .map((field: { name: string; ref: string }) => [field.name, field.ref]),
     );
-    expect(refs).toEqual({ tag: 'tag', ownerId: 'principal', teamId: 'team' });
+    expect(refs).toEqual({ tag: 'tag', ownerId: 'principal', unitId: 'unit' });
   });
 });

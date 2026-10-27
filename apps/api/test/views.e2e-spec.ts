@@ -43,18 +43,18 @@ describe('saved views (e2e)', () => {
     return created.body.id as string;
   }
 
-  /** A team made by the administrator, with these users in it. */
-  async function team(...members: { id: string }[]) {
+  /** A unit made by the administrator, with these users in it. */
+  async function unit(...members: { id: string }[]) {
     const created = await node
       .admin()
-      .post('/v1/access/teams')
-      .send({ name: `team-${randomUUID().slice(0, 6)}` })
+      .post('/v1/access/organizational-units')
+      .send({ type: 'team', name: `unit-${randomUUID().slice(0, 6)}` })
       .expect(201);
     for (const member of members) {
       await node
         .admin()
         .patch(`/v1/access/users/${member.id}`)
-        .send({ teamIds: [created.body.id] })
+        .send({ unitIds: [created.body.id] })
         .expect(204);
     }
     return created.body.id as string;
@@ -69,7 +69,7 @@ describe('saved views (e2e)', () => {
       subject: 'TestItem',
       name: 'Mine to do',
       visibility: 'private',
-      teamId: null,
+      unitId: null,
       mine: true,
       editable: true,
       query: draft.query,
@@ -159,14 +159,14 @@ describe('saved views (e2e)', () => {
     expect(
       paths(await refused({ ...draft, columns: ['title', 'nope'] })),
     ).toEqual(['columns']);
-    // A team view names its team, and only it.
+    // A unit view names its unit, and only it.
     await ann.agent
       .post('/v1/views')
-      .send({ ...draft, visibility: 'team' })
+      .send({ ...draft, visibility: 'unit' })
       .expect(400);
     await ann.agent
       .post('/v1/views')
-      .send({ ...draft, teamId: randomUUID() })
+      .send({ ...draft, unitId: randomUUID() })
       .expect(400);
     await ann.agent
       .post('/v1/views')
@@ -188,28 +188,28 @@ describe('saved views (e2e)', () => {
       .expect(201);
   });
 
-  it('shares with a team its members (not others) see, and only members may share with it', async () => {
+  it('shares with a unit its members (not others) see, and only members may share with it', async () => {
     const ann = await node.user(['editor']);
     const bob = await node.user(['editor']);
     const cat = await node.user(['editor']);
-    const teamId = await team(ann, bob);
+    const unitId = await unit(ann, bob);
 
     // Cat is no member: not hers to share with.
     await cat.agent
       .post('/v1/views')
-      .send({ ...draft, visibility: 'team', teamId })
+      .send({ ...draft, visibility: 'unit', unitId })
       .expect(403);
     const missing = await ann.agent
       .post('/v1/views')
-      .send({ ...draft, visibility: 'team', teamId: randomUUID() })
+      .send({ ...draft, visibility: 'unit', unitId: randomUUID() })
       .expect(400);
-    expect(paths(missing.body)).toEqual(['teamId']);
+    expect(paths(missing.body)).toEqual(['unitId']);
 
     const shared = await ann.agent
       .post('/v1/views')
-      .send({ ...draft, visibility: 'team', teamId })
+      .send({ ...draft, visibility: 'unit', unitId })
       .expect(201);
-    expect(shared.body).toMatchObject({ visibility: 'team', teamId });
+    expect(shared.body).toMatchObject({ visibility: 'unit', unitId });
     const id = shared.body.id as string;
 
     // A member sees it but doesn't own it.
@@ -234,19 +234,27 @@ describe('saved views (e2e)', () => {
       .send({ visibility: 'private' })
       .expect(200)
       .expect(({ body }) =>
-        expect(body).toMatchObject({ visibility: 'private', teamId: null }),
+        expect(body).toMatchObject({ visibility: 'private', unitId: null }),
       );
     await bob.agent.get(`/v1/views/${id}`).expect(404);
 
-    // Deleting the team deletes its views (an administrator shares with one nobody is in).
-    const empty = await team();
+    // A unit with views shared with it stays (an administrator shares with one nobody is in).
+    const empty = await unit();
     const again = await node
       .admin()
       .post('/v1/views')
-      .send({ ...draft, name: 'Again', visibility: 'team', teamId: empty })
+      .send({ ...draft, name: 'Again', visibility: 'unit', unitId: empty })
       .expect(201);
-    await node.admin().delete(`/v1/access/teams/${empty}`).expect(204);
-    await node.admin().get(`/v1/views/${again.body.id}`).expect(404);
+    const kept = await node
+      .admin()
+      .delete(`/v1/access/organizational-units/${empty}`)
+      .expect(409);
+    expect(kept.body.code).toBe('unit_not_empty');
+    await node.admin().delete(`/v1/views/${again.body.id}`).expect(204);
+    await node
+      .admin()
+      .delete(`/v1/access/organizational-units/${empty}`)
+      .expect(204);
   });
 
   it('shares with the tenant only through Access.manageViews, which also changes shared views', async () => {
@@ -281,14 +289,14 @@ describe('saved views (e2e)', () => {
       .send({
         ...draft,
         name: 'Ann shares',
-        visibility: 'team',
-        teamId: await team(ann),
+        visibility: 'unit',
+        unitId: await unit(ann),
       })
       .expect(201);
     await manager.agent
       .patch(`/v1/views/${shared.body.id}`)
       .send({ name: 'Renamed by a manager' })
-      .expect(404); // a team view of a team the manager isn't in is not theirs to see
+      .expect(404); // a unit view of a unit the manager isn't in is not theirs to see
     await manager.agent
       .patch(`/v1/views/${mine.body.id}`)
       .send({ name: 'x' })

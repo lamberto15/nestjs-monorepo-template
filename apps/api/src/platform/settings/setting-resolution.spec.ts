@@ -19,7 +19,7 @@ const limit = setting({
   label: 'Limit',
   schema: z.int(),
   default: 10,
-  scopes: ['tenant', 'team', 'user'],
+  scopes: ['tenant', 'unit', 'user'],
 });
 const theme = setting({
   key: 'ui.theme',
@@ -68,28 +68,28 @@ describe('resolveSetting', () => {
     ).toEqual({ value: 20, source: 'tenant' });
   });
 
-  it("prefers the principal's own value, then one of their teams', in order", () => {
+  it("prefers the principal's own value, then one of their units', in order", () => {
     const overrides = [
       override('notes.limit', 'tenant', '', 20),
-      override('notes.limit', 'team', 'team-b', 30),
-      override('notes.limit', 'team', 'team-a', 25),
+      override('notes.limit', 'unit', 'unit-b', 30),
+      override('notes.limit', 'unit', 'unit-a', 25),
       override('notes.limit', 'user', 'user:0000-u1', 5),
     ];
     expect(
-      resolveSetting(limit, overrides, user, ['team-a', 'team-b'], TENANT),
+      resolveSetting(limit, overrides, user, ['unit-a', 'unit-b'], TENANT),
     ).toEqual({ value: 5, source: 'user' });
     expect(
       resolveSetting(
         limit,
         overrides.slice(0, 3),
         user,
-        ['team-a', 'team-b'],
+        ['unit-a', 'unit-b'],
         TENANT,
       ),
-    ).toEqual({ value: 25, source: 'team' });
+    ).toEqual({ value: 25, source: 'unit' });
     expect(
-      resolveSetting(limit, overrides.slice(0, 3), user, ['team-b'], TENANT),
-    ).toEqual({ value: 30, source: 'team' });
+      resolveSetting(limit, overrides.slice(0, 3), user, ['unit-b'], TENANT),
+    ).toEqual({ value: 30, source: 'unit' });
     expect(
       resolveSetting(limit, overrides.slice(0, 3), user, [], TENANT),
     ).toEqual({
@@ -99,8 +99,8 @@ describe('resolveSetting', () => {
   });
 
   it('ignores a scope the declaration does not allow', () => {
-    const overrides = [override('ui.theme', 'team', 'team-a', 'dark')];
-    expect(resolveSetting(theme, overrides, user, ['team-a'], TENANT)).toEqual({
+    const overrides = [override('ui.theme', 'unit', 'unit-a', 'dark')];
+    expect(resolveSetting(theme, overrides, user, ['unit-a'], TENANT)).toEqual({
       value: 'light',
       source: 'default',
     });
@@ -200,7 +200,7 @@ describe('platform values (set by the operators for every tenant)', () => {
     ).toEqual({ value: true, source: 'platform' });
   });
 
-  it("gives way to a tenant's, a team's or a principal's own value, and a tenant's rollout", () => {
+  it("gives way to a tenant's, a unit's or a principal's own value, and a tenant's rollout", () => {
     const platform = { value: false, enforced: false, rollout: null };
     expect(
       resolveSetting(richText, tenantOn, user, [], TENANT, platform),

@@ -16,7 +16,7 @@ export const DISPLAY_NAME = /^[^\p{C}<>"\\@;,:]+$/u;
  * The tenant's branding (docs/branding.md): the accent colour of the web
  * app, mail and documents, and the name mail is sent under. The logo is
  * a file, kept on the private disk by BrandingService. Tenant scope only:
- * a team or a person has no brand of their own.
+ * a unit or a person has no brand of their own.
  */
 export const BRANDING_PRIMARY_COLOR = setting({
   key: 'branding.primaryColor',

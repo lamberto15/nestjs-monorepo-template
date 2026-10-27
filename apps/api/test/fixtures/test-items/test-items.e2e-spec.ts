@@ -126,6 +126,6 @@ describe('test items (e2e)', () => {
     expect(page.body.items).toHaveLength(2);
   });
 
-  // Each capability test-item.record.ts declares, its recycle bin and teams (record-capabilities.ts).
+  // Each capability test-item.record.ts declares, its recycle bin and units (record-capabilities.ts).
   describeCapabilities(() => node, TEST_ITEM);
 });

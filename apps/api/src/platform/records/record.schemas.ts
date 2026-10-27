@@ -21,7 +21,7 @@ const numberExample = (declaration: RecordDeclaration) => {
 /**
  * A record's API schemas, from its declaration (record.ts): `create` (POST's
  * body), `update` (PATCH's), `response` (a record as the API shows it: id,
- * owner, team, the fields, tags, dates, the recycle bin's, `can` with
+ * owner, unit, the fields, tags, dates, the recycle bin's, `can` with
  * `?include=can`; never its tenant, the request's own), `bulk` (POST
  * /<x>/bulk's body, when it takes bulk).
  */
@@ -47,8 +47,13 @@ export function recordSchemas<const D extends RecordDeclaration>(
     ownerId: z
       .string()
       .describe('Who created it: `user:<id>` or `client:<id>`.'),
-    ...(declaration.team && {
-      teamId: z.uuid().nullable().describe("The creator's team."),
+    ...(declaration.unit && {
+      unitId: z
+        .uuid()
+        .nullable()
+        .describe(
+          "The creator's organizational unit, when they were in exactly one.",
+        ),
     }),
     ...(takes(declaration, 'numbered') && {
       number: z

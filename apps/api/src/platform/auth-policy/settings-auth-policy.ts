@@ -10,6 +10,7 @@ import {
 } from '../../iam/auth/auth-policy.js';
 import type { IamEnv } from '../../iam/iam.env.js';
 import type { UserPrincipal } from '../../iam/auth/principal.js';
+import { OrganizationalUnitsService } from '../../iam/access/organizational-units.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import {
   AUTH_ALLOW_BREAK_GLASS,
@@ -37,6 +38,7 @@ const sessionCeiling = (config: ConfigService<IamEnv, true>) => ({
 export class SettingsAuthPolicy implements AuthPolicySource {
   constructor(
     private readonly settings: SettingsService,
+    private readonly units: OrganizationalUnitsService,
     private readonly tenancy: Tenancy,
     private readonly mfa: MfaService,
     config: ConfigService<IamEnv, true>,
@@ -89,10 +91,10 @@ export class SettingsAuthPolicy implements AuthPolicySource {
     write: { scope: string; scopeId: string | undefined },
     userId: string,
   ) {
-    if (write.scope === 'team') {
+    if (write.scope === 'unit') {
       return (
         write.scopeId !== undefined &&
-        (await this.settings.teamsOf(userId)).includes(write.scopeId)
+        (await this.units.unitsOf(userId)).includes(write.scopeId)
       );
     }
     return write.scope === 'tenant' || write.scope === 'platform';

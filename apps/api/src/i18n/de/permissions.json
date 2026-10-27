@@ -3,11 +3,11 @@
     "label": "Zugriffssteuerung",
     "actions": {
       "manageRoles": "Rollen anlegen, bearbeiten und löschen",
-      "manageUsers": "Benutzer einladen, ihre Rollen und Teams zuweisen, ihre Mitgliedschaften deaktivieren",
+      "manageUsers": "Benutzer einladen, ihre Rollen und Organisationseinheiten zuweisen, ihre Mitgliedschaften deaktivieren",
       "manageClients": "API-Clients anlegen, ihre Schlüssel rotieren und widerrufen",
-      "manageTeams": "Teams anlegen, verschieben und löschen (was „in meinen Teams“ umfasst)",
+      "manageOrganizationalUnits": "Organisationseinheiten anlegen, umtypisieren, verschieben und löschen (was „in meinen Einheiten“ umfasst)",
       "manageCustomFields": "Benutzerdefinierte Felder hinzufügen, ändern, umsortieren und deaktivieren (die Felder, die Administratoren Notizen und anderen Datensätzen hinzufügen)",
-      "manageSettings": "Einstellungen und Feature-Flags für alle, ein Team oder einen Benutzer festlegen (platform/settings)",
+      "manageSettings": "Einstellungen und Feature-Flags für alle, eine Einheit oder einen Benutzer festlegen (platform/settings)",
       "manageTags": "Die Tags der Datensätze anlegen, umbenennen, umfärben und löschen (platform/tags)",
       "manageLegalHolds": "Rechtliche Aufbewahrungspflichten (Legal Holds) setzen und aufheben: Datensätze bleiben trotz Löschen, Bereinigung oder Aufbewahrungsregel erhalten (iam/holds)",
       "manageRetention": "Festlegen, wie lange der Mandant jede Art von Datensatz behält, bevor er gelöscht oder anonymisiert wird (platform/retention)",
@@ -92,9 +92,17 @@
       "label": "Von mir erstellt",
       "description": "Nur Datensätze, die diese Person (oder dieser API-Client) erstellt hat."
     },
-    "inMyTeams": {
-      "label": "In meinen Teams",
-      "description": "Nur Datensätze der Teams, denen ich angehöre, und der Teams darunter."
+    "inMyUnits": {
+      "label": "In meinen Einheiten",
+      "description": "Nur Datensätze der Einheiten, denen ich angehöre."
+    },
+    "inMyUnitsAndBelow": {
+      "label": "In meinen Einheiten und darunter",
+      "description": "Nur Datensätze der Einheiten, denen ich angehöre, und der Einheiten darunter."
+    },
+    "inUnitsILeadAndBelow": {
+      "label": "In Einheiten, die ich leite, und darunter",
+      "description": "Nur Datensätze der Einheiten, die ich leite, und der Einheiten darunter."
     }
   },
   "systemJobs": {
@@ -208,7 +216,7 @@
     },
     "demo-seed": {
       "label": "Demodaten",
-      "description": "Legt auf einer Entwicklungsdatenbank Demo-Benutzer, Teams und die Demodaten der Features an (pnpm db:seed:demo); verweigert jede andere."
+      "description": "Legt auf einer Entwicklungsdatenbank Demo-Benutzer, Organisationseinheiten und die Demodaten der Features an (pnpm db:seed:demo); verweigert jede andere."
     },
     "ops": {
       "label": "Betreiber-CLI",

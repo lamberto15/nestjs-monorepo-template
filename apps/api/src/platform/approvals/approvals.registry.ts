@@ -95,7 +95,7 @@ export class ApprovalsRegistry implements OnApplicationBootstrap {
       ];
       if (scopes.includes('user')) {
         throw new Error(
-          `Approvals: the setting of "${key}" (${declaration.setting!.key}) can be set per user: a requester could switch approval off for themselves. Declare it with scopes ['tenant'] or ['tenant', 'team'].`,
+          `Approvals: the setting of "${key}" (${declaration.setting!.key}) can be set per user: a requester could switch approval off for themselves. Declare it with scopes ['tenant'] or ['tenant', 'unit'].`,
         );
       }
       const issues = this.policyIssues(declaration.policy);

@@ -62,7 +62,7 @@ describe('settings of notes (e2e)', () => {
     expect(settingOf(list.body, 'notes.richText')).toMatchObject({
       value: false,
       source: 'default',
-      scopes: ['tenant', 'team', 'user'],
+      scopes: ['tenant', 'unit', 'user'],
       flag: true,
     });
 

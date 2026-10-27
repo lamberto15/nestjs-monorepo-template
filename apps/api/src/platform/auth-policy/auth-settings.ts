@@ -11,8 +11,8 @@ import { defineSettings, setting } from '../settings/setting.types.js';
 
 /**
  * Two-factor sign-in required (docs/auth.md, "Policies"): for the whole
- * tenant, or for a team's members. Never per user: nobody exempts
- * themselves. `true` on any scope that applies wins (a team's `false`
+ * tenant, or for a unit's members. Never per user: nobody exempts
+ * themselves. `true` on any scope that applies wins (a unit's `false`
  * doesn't exempt its members from the tenant's `true`). Not a flag: no
  * rollout. AUTH_MFA=off: refused (setting_not_allowed), and a value stored
  * before has no effect.
@@ -24,7 +24,7 @@ export const AUTH_REQUIRE_MFA = setting({
     'Users without an authenticator app may only set one up after signing in; API clients are unaffected.',
   schema: z.boolean(),
   default: false,
-  scopes: ['tenant', 'team'],
+  scopes: ['tenant', 'unit'],
   public: false,
 });
 
@@ -66,7 +66,7 @@ export const AUTH_PASSWORD_HISTORY = setting({
  * at most, a reason its administrators are told. `false` opts the tenant
  * out (an enterprise customer's contract): new grants are refused (403
  * `break_glass_disabled`) and running ones stop on their next request.
- * The tenant's own choice only: no team or user scope.
+ * The tenant's own choice only: no unit or user scope.
  */
 export const AUTH_ALLOW_BREAK_GLASS = setting({
   key: 'auth.allowBreakGlass',

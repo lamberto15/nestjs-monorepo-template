@@ -1,6 +1,8 @@
+import type { UnitType } from '../iam/iam.tables.js';
+
 /**
  * What the demo seed creates (DemoSeeder): a tenant of its own, a small
- * company with two teams, its administrator and people in the template's
+ * company with three organizational units, its administrator and people in the template's
  * seed roles (iam/access/seed-roles.ts). The features add their own data
  * (`FeatureDefinition.demo`), owned by these people by their key; the
  * database gives the ids.
@@ -15,8 +17,9 @@ export const DEMO_TENANT = { name: 'Demo Company', slug: 'demo' };
 /** The demo users' addresses: example.com is reserved, nothing is ever delivered. */
 export const DEMO_EMAIL_DOMAIN = 'demo.example.com';
 
-export interface DemoTeam {
+export interface DemoUnit {
   key: string;
+  type: UnitType;
   name: string;
   /** The parent's key. */
   parent?: string;
@@ -30,18 +33,20 @@ export interface DemoUser {
    * tenant's administrator (of that tenant only, no operator).
    */
   roles: string[];
-  /** Teams' keys. */
-  teams: string[];
+  /** Units' keys: those they are a member of. */
+  units: string[];
+  /** Those of `units` they lead. */
+  leads?: string[];
 }
 
-export const DEMO_TEAMS: DemoTeam[] = [
-  { key: 'sales', name: 'Sales' },
-  { key: 'sales-north', name: 'Sales North', parent: 'sales' },
-  { key: 'engineering', name: 'Engineering' },
+export const DEMO_UNITS: DemoUnit[] = [
+  { key: 'sales', type: 'division', name: 'Sales' },
+  { key: 'sales-north', type: 'team', name: 'Sales North', parent: 'sales' },
+  { key: 'engineering', type: 'department', name: 'Engineering' },
 ];
 
 export const DEMO_USERS: DemoUser[] = [
-  // Runs the demo tenant: its members, roles, teams, tags, audit log. An
+  // Runs the demo tenant: its members, roles, units, tags, audit log. An
   // editor too, so an approver of the notes' publication (Note.publish
   // routes to editors): the account the demo is tried with approves what
   // the editors ask for (docs/approvals.md, "The notes example").
@@ -49,40 +54,42 @@ export const DEMO_USERS: DemoUser[] = [
     key: 'noah',
     name: 'Noah Fischer',
     roles: ['administrator', 'editor'],
-    teams: [],
+    units: [],
   },
-  // Team leads see the notes of their team and every team below it.
+  // Unit leads see the notes of the units they lead and every unit below.
   {
     key: 'maya',
     name: 'Maya Patel',
-    roles: ['editor', 'team-lead'],
-    teams: ['sales'],
+    roles: ['editor', 'unit-lead'],
+    units: ['sales'],
+    leads: ['sales'],
   },
   {
     key: 'lucas',
     name: 'Lucas Moreau',
-    roles: ['editor', 'team-lead'],
-    teams: ['engineering'],
+    roles: ['editor', 'unit-lead'],
+    units: ['engineering'],
+    leads: ['engineering'],
   },
   // Editors see their own notes.
   {
     key: 'jonas',
     name: 'Jonas Berg',
     roles: ['editor'],
-    teams: ['sales-north'],
+    units: ['sales-north'],
   },
   {
     key: 'amara',
     name: 'Amara Okafor',
     roles: ['editor'],
-    teams: ['sales-north'],
+    units: ['sales-north'],
   },
   {
     key: 'sofia',
     name: 'Sofia Rossi',
     roles: ['editor'],
-    teams: ['engineering'],
+    units: ['engineering'],
   },
   // A viewer sees every note and the operations API, and changes nothing.
-  { key: 'elena', name: 'Elena Novak', roles: ['viewer'], teams: [] },
+  { key: 'elena', name: 'Elena Novak', roles: ['viewer'], units: [] },
 ];

@@ -31,7 +31,7 @@ export interface TenantQuotaLimits {
  * table carries a `tenant_id` referencing this one. Users are global
  * (`users`) and belong to tenants through `memberships` (iam); API clients
  * and their keys belong to exactly one tenant. Groups inside a tenant
- * (teams, departments) are roadmap item 25, never tenants of their own.
+ * (organizational units) are never tenants of their own.
  *
  * Global, not a tenant table: a user lists the tenants they belong to
  * before choosing one (`GET /v1/auth/tenants`), and a sign-in resolves the

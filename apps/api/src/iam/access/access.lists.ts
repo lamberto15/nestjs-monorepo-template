@@ -14,17 +14,24 @@ import {
   apiClients,
   auditLog,
   memberships,
-  userTeams,
+  organizationalUnitMemberships,
   users,
 } from '../iam.tables.js';
+import { currentMembership, subquery } from './permissions.js';
 
-/** Members of these teams (directly, not of the teams below them). */
-const inTeams = (teamIds: string[]) =>
-  exists(
-    sql`(select 1 from ${userTeams} where ${and(
-      eq(userTeams.userId, users.id),
-      inArray(userTeams.teamId, teamIds),
-    )})`,
+/** Current members of these units (directly, not of the units below them). */
+const inUnits = (unitIds: string[]) =>
+  inArray(
+    users.id,
+    subquery
+      .select({ id: organizationalUnitMemberships.userId })
+      .from(organizationalUnitMemberships)
+      .where(
+        and(
+          inArray(organizationalUnitMemberships.unitId, unitIds),
+          currentMembership(),
+        ),
+      ),
   );
 
 /** What GET /access/users can be filtered, sorted and narrowed by. */
@@ -50,16 +57,16 @@ export const USER_LIST = listQuery(
       type: 'boolean',
       ops: ['eq'],
     },
-    // A team's members (`?teamId=`): those in it, not in the teams below
-    // it. Row-level security keeps user_teams to the tenant.
-    teamId: {
+    // A unit's current members (`?unitId=`): those in it, not in the units
+    // below it. Row-level security keeps the memberships to the tenant.
+    unitId: {
       column: users.id,
       type: 'uuid',
       ops: ['eq', 'in'],
-      ref: 'team',
+      ref: 'unit',
       conditions: {
-        eq: (value) => inTeams([value as string]),
-        in: (value) => inTeams(value as string[]),
+        eq: (value) => inUnits([value as string]),
+        in: (value) => inUnits(value as string[]),
       },
     },
     createdAt: {
@@ -90,7 +97,7 @@ export const USER_LIST = listQuery(
       'updatedAt',
       'roleIds',
       'roles',
-      'teamIds',
+      'unitIds',
     ],
   },
 );
