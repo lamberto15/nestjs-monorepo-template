@@ -11,22 +11,24 @@
   },
   {
     "name": "Application scripts (brotli; optional analytics engine separate)",
-    "path": [
-      "dist/assets/*.js",
-      "!dist/assets/*duckdb*.js",
-      "!dist/assets/*parquet*.js"
-    ],
+    "path": ["dist/assets/*.js", "!dist/assets/*duckdb*.js"],
     "limit": "1.1 MB"
   },
   {
     "name": "Optional analytics engine scripts (brotli)",
-    "path": ["dist/assets/*duckdb*.js", "dist/assets/*parquet*.js"],
-    "limit": "250 kB"
+    "path": ["dist/assets/*duckdb*.js"],
+    "limit": "360 kB"
   },
   {
     "name": "Optional analytics WebAssembly (uncompressed)",
-    "path": ["dist/assets/*duckdb*.wasm", "dist/assets/*parquet*.wasm"],
+    "path": ["dist/assets/*duckdb*.wasm"],
     "brotli": false,
-    "limit": "50 MB"
+    "limit": "80 MB"
+  },
+  {
+    "name": "Optional analytics extensions, json and parquet (uncompressed; a browser fetches one platform's two)",
+    "path": ["dist/duckdb-extensions/**/*.wasm"],
+    "brotli": false,
+    "limit": "8 MB"
   }
 ]

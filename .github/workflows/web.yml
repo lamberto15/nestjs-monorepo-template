@@ -17,12 +17,14 @@ on:
       - 'apps/web/src/features/analytics/**'
       - 'apps/web-e2e/scripts/analytics-smoke.mjs'
       - 'apps/web/package.json'
+      - 'apps/web/public/duckdb-extensions/**'
       - '.github/workflows/web.yml'
   pull_request:
     paths:
       - 'apps/web/src/features/analytics/**'
       - 'apps/web-e2e/scripts/analytics-smoke.mjs'
       - 'apps/web/package.json'
+      - 'apps/web/public/duckdb-extensions/**'
       - '.github/workflows/web.yml'
   workflow_dispatch:
   schedule:
