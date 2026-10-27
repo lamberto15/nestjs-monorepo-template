@@ -3,7 +3,7 @@
   "description": "分析本地数据文件",
   "file": "文件",
   "privacy": "文件不会离开此浏览器。分析结果仅在此页面打开期间保留。",
-  "loading": "正在读取文件… {{percent}}%",
+  "loading": "正在读取文件…大文件可能需要一些时间。",
   "error": "无法读取或查询该文件。",
   "rows": "行数：{{count}}",
   "columns": "列数：{{count}}",
@@ -24,7 +24,6 @@
   "results": "结果",
   "shown": "显示 {{shown}} / {{total}} 行（最多 {{max}} 行）。",
   "closeFile": "关闭文件",
-  "chart": "图表",
   "nav": "浏览器分析",
   "operators": {
     "contains": "包含",
@@ -42,5 +41,42 @@
   "openExport": "将已完成的导出加载到此浏览器",
   "openingExport": "正在打开导出…",
   "catalogMatch": "导入列：已找到 {{expected}} 列中的 {{matched}} 列。缺少：{{missing}}。",
-  "noneMissing": "无"
+  "noneMissing": "无",
+  "rejected": "未接受 {{name}}：{{reason}}",
+  "drop": "将数据文件拖放到此处",
+  "formats": "CSV、JSON、JSON Lines 或 Parquet",
+  "choose": "选择文件",
+  "running": "正在运行查询…",
+  "cancel": "取消",
+  "cancelled": "已取消。本地引擎已停止；请重新选择文件以继续。",
+  "explore": "探索",
+  "filterHint": "先缩小行的范围，再浏览、分组或绘制图表。筛选条件适用于每个视图。",
+  "modes": {
+    "rows": "行",
+    "group": "分组",
+    "histogram": "直方图",
+    "series": "时间序列"
+  },
+  "histogramColumn": "数值列",
+  "seriesColumn": "日期列",
+  "unit": "按以下单位汇总",
+  "units": {
+    "day": "日",
+    "week": "周",
+    "month": "月"
+  },
+  "aggregate": "计算",
+  "measure": "列",
+  "aggregates": {
+    "count": "计数",
+    "sum": "求和",
+    "avg": "平均值",
+    "min": "最小值",
+    "max": "最大值"
+  },
+  "chartKinds": {
+    "group": "分组图表",
+    "histogram": "直方图",
+    "series": "时间序列图表"
+  }
 }

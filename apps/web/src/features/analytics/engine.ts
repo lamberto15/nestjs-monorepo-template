@@ -43,6 +43,19 @@ export type DatasetQuery = {
   sort?: { column: string; direction: 'asc' | 'desc' };
   groupBy?: string;
   aggregate?: { column?: string; fn: 'count' | 'sum' | 'avg' | 'min' | 'max' };
+  /** Counts of a numeric column in equal-width bins (`bin` = a bin's start, `value` = its count). */
+  histogram?: { column: string; bins?: number };
+  /** An aggregate per day, week or month of a date or timestamp column (`bucket`, `value`). */
+  timeSeries?: { column: string; unit: 'day' | 'week' | 'month' };
+};
+
+export type QueryOptions = {
+  /**
+   * Aborting skips a query that has not started (the queue runs one statement at a
+   * time, so superseded queries never reach DuckDB). A running statement cannot be
+   * interrupted in the non-pthread build; `terminateAnalyticsEngine()` stops it.
+   */
+  signal?: AbortSignal;
 };
 
 export type QueryResult = {
@@ -305,18 +318,24 @@ export async function loadLocalFile(file: File): Promise<AnalyticsDataset> {
   });
 }
 
+const abortedError = () =>
+  new DOMException('The query was cancelled.', 'AbortError');
+
 export function queryDataset(
   dataset: AnalyticsDataset,
   query: DatasetQuery = {},
+  options: QueryOptions = {},
 ): Promise<QueryResult> {
   if (!current)
     return Promise.reject(new Error('The dataset has been closed.'));
   return run(current, async ({ conn, datasets }) => {
     const info = datasets.get(dataset.id);
     if (!info) throw new Error('The dataset has been closed.');
+    if (options.signal?.aborted) throw abortedError();
     const { arrowTableRows } = await import('./arrow-rows');
     const sql = buildDatasetSql(info.table, info.columns, query);
     const total = await conn.query(sql.total);
+    if (options.signal?.aborted) throw abortedError();
     const result = await conn.query(sql.rows);
     return {
       ...arrowTableRows(result),

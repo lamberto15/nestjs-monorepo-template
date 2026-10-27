@@ -3,7 +3,7 @@
   "description": "Analyze a local data file",
   "file": "File",
   "privacy": "No file leaves this browser. Analytics are kept only while this page is open.",
-  "loading": "Reading file… {{percent}}%",
+  "loading": "Reading the file… this can take a while for a large file.",
   "error": "The file could not be read or queried.",
   "rows": "Rows: {{count}}",
   "columns": "Columns: {{count}}",
@@ -24,7 +24,6 @@
   "results": "Results",
   "shown": "Showing {{shown}} of {{total}} rows (maximum {{max}}).",
   "closeFile": "Close file",
-  "chart": "Chart",
   "nav": "Browser analytics",
   "operators": {
     "contains": "Contains",
@@ -42,5 +41,42 @@
   "openExport": "Load completed export into this browser",
   "openingExport": "Opening the export…",
   "catalogMatch": "Import columns: {{matched}} of {{expected}} found. Missing: {{missing}}.",
-  "noneMissing": "none"
+  "noneMissing": "none",
+  "rejected": "{{name}} was not accepted: {{reason}}",
+  "drop": "Drop a data file here",
+  "formats": "CSV, JSON, JSON Lines or Parquet",
+  "choose": "Choose a file",
+  "running": "Running the query…",
+  "cancel": "Cancel",
+  "cancelled": "Cancelled. The local engine was stopped; choose the file again to continue.",
+  "explore": "Explore",
+  "filterHint": "Narrow the rows first, then browse them, group them or chart them. The filter applies to every view.",
+  "modes": {
+    "rows": "Rows",
+    "group": "Group by",
+    "histogram": "Histogram",
+    "series": "Time series"
+  },
+  "histogramColumn": "Number column",
+  "seriesColumn": "Date column",
+  "unit": "Bucket by",
+  "units": {
+    "day": "Day",
+    "week": "Week",
+    "month": "Month"
+  },
+  "aggregate": "Calculate",
+  "measure": "Of column",
+  "aggregates": {
+    "count": "Count",
+    "sum": "Sum",
+    "avg": "Average",
+    "min": "Minimum",
+    "max": "Maximum"
+  },
+  "chartKinds": {
+    "group": "Chart of the groups",
+    "histogram": "Histogram",
+    "series": "Time series chart"
+  }
 }

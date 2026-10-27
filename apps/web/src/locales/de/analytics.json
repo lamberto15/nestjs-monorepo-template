@@ -3,7 +3,7 @@
   "description": "Eine lokale Datendatei analysieren",
   "file": "Datei",
   "privacy": "Keine Datei verlässt diesen Browser. Die Analyse bleibt nur geöffnet, solange diese Seite geöffnet ist.",
-  "loading": "Datei wird gelesen… {{percent}} %",
+  "loading": "Datei wird gelesen… bei einer großen Datei kann das dauern.",
   "error": "Die Datei konnte nicht gelesen oder abgefragt werden.",
   "rows": "Zeilen: {{count}}",
   "columns": "Spalten: {{count}}",
@@ -24,7 +24,6 @@
   "results": "Ergebnisse",
   "shown": "{{shown}} von {{total}} Zeilen (höchstens {{max}}).",
   "closeFile": "Datei schließen",
-  "chart": "Diagramm",
   "nav": "Browser-Analyse",
   "operators": {
     "contains": "Enthält",
@@ -42,5 +41,42 @@
   "openExport": "Abgeschlossenen Export in diesen Browser laden",
   "openingExport": "Export wird geöffnet…",
   "catalogMatch": "Importspalten: {{matched}} von {{expected}} gefunden. Fehlend: {{missing}}.",
-  "noneMissing": "keine"
+  "noneMissing": "keine",
+  "rejected": "{{name}} wurde nicht akzeptiert: {{reason}}",
+  "drop": "Datendatei hierher ziehen",
+  "formats": "CSV, JSON, JSON Lines oder Parquet",
+  "choose": "Datei wählen",
+  "running": "Abfrage läuft…",
+  "cancel": "Abbrechen",
+  "cancelled": "Abgebrochen. Die lokale Engine wurde gestoppt; wähle die Datei erneut, um fortzufahren.",
+  "explore": "Erkunden",
+  "filterHint": "Grenze zuerst die Zeilen ein, durchsuche, gruppiere oder visualisiere sie dann. Der Filter gilt für jede Ansicht.",
+  "modes": {
+    "rows": "Zeilen",
+    "group": "Gruppieren",
+    "histogram": "Histogramm",
+    "series": "Zeitreihe"
+  },
+  "histogramColumn": "Zahlenspalte",
+  "seriesColumn": "Datumsspalte",
+  "unit": "Zusammenfassen nach",
+  "units": {
+    "day": "Tag",
+    "week": "Woche",
+    "month": "Monat"
+  },
+  "aggregate": "Berechnen",
+  "measure": "Von Spalte",
+  "aggregates": {
+    "count": "Anzahl",
+    "sum": "Summe",
+    "avg": "Durchschnitt",
+    "min": "Minimum",
+    "max": "Maximum"
+  },
+  "chartKinds": {
+    "group": "Diagramm der Gruppen",
+    "histogram": "Histogramm",
+    "series": "Zeitreihendiagramm"
+  }
 }
