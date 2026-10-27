@@ -9,6 +9,7 @@ import { FormAlert } from '@/lib/form';
 import { redirectSearchSchema, safeRedirect } from '@/lib/safe-redirect';
 
 export const Route = createFileRoute('/sign-in')({
+  staticData: { title: 'auth.signIn.title' },
   validateSearch: redirectSearchSchema.extend({
     // Where a provider's sign-in sends a refusal back (`?error=…`).
     error: z

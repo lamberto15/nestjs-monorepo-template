@@ -48,6 +48,7 @@
     "urlInvalid": "Enter a full web address, such as https://example.com/hooks.",
     "descriptionLabel": "Description (optional)",
     "descriptionPlaceholder": "Orders to the warehouse system",
+    "descriptionTooLong": "At most {{max}} characters.",
     "events": "Events",
     "allEvents": "All events",
     "eventsHint": "Everything the API sends, or only the types you tick.",
@@ -189,6 +190,7 @@
       "nameInvalid": "Use lower-case letters, digits and hyphens, at most 63 characters.",
       "descriptionLabel": "Description (optional)",
       "descriptionPlaceholder": "The billing system",
+      "descriptionTooLong": "At most {{max}} characters.",
       "create": "Create sender"
     }
   }

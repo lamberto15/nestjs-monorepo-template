@@ -94,8 +94,13 @@ export function NavUser() {
             align="end"
             sideOffset={4}
           >
+            {/*
+              The user's identity labels the account group, with its items:
+              a group of its own would hold no menu item (axe
+              "aria-required-children": a menu's groups must own items).
+            */}
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="font-normal">
+              <DropdownMenuLabel className="mb-1 border-b pb-2 font-normal">
                 <div className="grid text-start text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
                   <span className="truncate text-xs text-muted-foreground">

@@ -15,14 +15,14 @@ import {
 import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import { Input } from '@nestjs-monorepo-template/ui/components/input';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { PersonPicker } from '@/components/person-picker';
 import { useDateTimeFormat } from '@/lib/date-time';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { useMe } from '@/lib/features';
-import { FormAlert, useAppForm } from '@/lib/form';
+import { FormAlert, useAppForm, useDescribedBy } from '@/lib/form';
 import { personUserId } from '@/lib/people';
 import { z } from '@/lib/zod';
 import { delegationsQuery, useCreateDelegation, useEndDelegation } from './api';
@@ -171,27 +171,15 @@ function DelegationForm() {
             users, not yourself. The field holds the key, `user:<id>` (named
             as the API's field, so its errors land on it); the id is sent. */}
         <form.Field name="toUserId">
-          {(field) => {
-            const invalid =
-              field.state.meta.isTouched && !field.state.meta.isValid;
-            return (
-              <Field data-invalid={invalid}>
-                <FieldLabel htmlFor="delegation-person">
-                  {t('delegations.person')}
-                </FieldLabel>
-                <PersonPicker
-                  id="delegation-person"
-                  label={t('delegations.person')}
-                  placeholder={t('delegations.choose')}
-                  exclude={me ? [`user:${me.user.id}`] : []}
-                  value={field.state.value}
-                  onChange={(value) => field.handleChange(value)}
-                  invalid={invalid}
-                />
-                {invalid && <FieldError errors={field.state.meta.errors} />}
-              </Field>
-            );
-          }}
+          {(field) => (
+            <PersonField
+              value={field.state.value}
+              exclude={me ? [`user:${me.user.id}`] : []}
+              invalid={field.state.meta.isTouched && !field.state.meta.isValid}
+              errors={field.state.meta.errors}
+              onChange={(value) => field.handleChange(value)}
+            />
+          )}
         </form.Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <form.Field name="startsAt">
@@ -211,21 +199,12 @@ function DelegationForm() {
           </form.Field>
           <form.Field name="endsAt">
             {(field) => (
-              <Field data-invalid={!field.state.meta.isValid}>
-                <FieldLabel htmlFor="delegation-to">
-                  {t('delegations.to')}
-                </FieldLabel>
-                <Input
-                  id="delegation-to"
-                  type="datetime-local"
-                  value={field.state.value}
-                  aria-invalid={!field.state.meta.isValid}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                />
-                {!field.state.meta.isValid && (
-                  <FieldError errors={field.state.meta.errors} />
-                )}
-              </Field>
+              <EndsAtField
+                value={field.state.value}
+                invalid={!field.state.meta.isValid}
+                errors={field.state.meta.errors}
+                onChange={(value) => field.handleChange(value)}
+              />
             )}
           </form.Field>
         </div>
@@ -237,5 +216,66 @@ function DelegationForm() {
         </form.AppForm>
       </FieldGroup>
     </form>
+  );
+}
+
+type FieldErrors = ComponentProps<typeof FieldError>['errors'];
+
+/** The person's picker; its error describes it (as lib/form.tsx's fields). */
+function PersonField(props: {
+  value: string;
+  exclude: string[];
+  invalid: boolean;
+  errors: FieldErrors;
+  onChange: (value: string) => void;
+}) {
+  const { t } = useTranslation('approvals');
+  const { controlId, errorId, describedBy } = useDescribedBy(
+    false,
+    props.invalid,
+  );
+  return (
+    <Field data-invalid={props.invalid}>
+      <FieldLabel htmlFor={controlId}>{t('delegations.person')}</FieldLabel>
+      <PersonPicker
+        id={controlId}
+        label={t('delegations.person')}
+        placeholder={t('delegations.choose')}
+        exclude={props.exclude}
+        value={props.value}
+        onChange={props.onChange}
+        invalid={props.invalid}
+        describedBy={describedBy}
+      />
+      {props.invalid && <FieldError id={errorId} errors={props.errors} />}
+    </Field>
+  );
+}
+
+/** The end of the period; its error describes it. */
+function EndsAtField(props: {
+  value: string;
+  invalid: boolean;
+  errors: FieldErrors;
+  onChange: (value: string) => void;
+}) {
+  const { t } = useTranslation('approvals');
+  const { controlId, errorId, describedBy } = useDescribedBy(
+    false,
+    props.invalid,
+  );
+  return (
+    <Field data-invalid={props.invalid}>
+      <FieldLabel htmlFor={controlId}>{t('delegations.to')}</FieldLabel>
+      <Input
+        id={controlId}
+        type="datetime-local"
+        value={props.value}
+        aria-invalid={props.invalid}
+        aria-describedby={describedBy}
+        onChange={(event) => props.onChange(event.target.value)}
+      />
+      {props.invalid && <FieldError id={errorId} errors={props.errors} />}
+    </Field>
   );
 }

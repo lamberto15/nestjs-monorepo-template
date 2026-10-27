@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { useAppForm } from '@/lib/form';
@@ -81,6 +81,36 @@ describe.each(cases)('%s', (_name, field, control) => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Send' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Required');
     expect(control()).toHaveAccessibleDescription('Hint Required');
+  });
+});
+
+describe.each(cases)(
+  '%s, with the same field twice on the page',
+  (_name, field) => {
+    // Two forms with a field of one name (/onboarding: the email and the
+    // password sections both ask for `currentPassword`): each label names its
+    // own control, not the first one of that name.
+    it('labels each control by its own form', () => {
+      render(
+        <>
+          <Form field={field} />
+          <Form field={field} />
+        </>,
+      );
+      const controls = screen.getAllByLabelText('Name');
+      expect(controls).toHaveLength(2);
+      expect(controls[0]).not.toBe(controls[1]);
+      expect(controls[0]!.id).not.toBe(controls[1]!.id);
+    });
+  },
+);
+
+describe.each(cases)('%s, after a failed submit', (_name, field, control) => {
+  it('has the focus, so the error is where the user is', async () => {
+    render(<Form field={field} />);
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Send' }));
+    await screen.findByRole('alert');
+    await waitFor(() => expect(control()).toHaveFocus());
   });
 });
 

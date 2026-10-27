@@ -3,6 +3,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { recordKeys } from '@/lib/records';
 
+/**
+ * A tag's name and description mirror the API's `maxLength`;
+ * lib/limits.test.ts compares them with openapi.json.
+ */
+export const TAG_LIMITS = { name: 100, description: 500 } as const;
+
 /** What a PATCH changes: only what is sent; `null` clears the color or the description. */
 export type TagChanges = paths['/v1/tags/{id}']['patch'] extends {
   requestBody: { content: { 'application/json': infer B } };

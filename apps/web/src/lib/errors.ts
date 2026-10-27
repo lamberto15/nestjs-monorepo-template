@@ -3,6 +3,7 @@ import type { AnyFormApi } from '@tanstack/react-form';
 import { isApiError } from '@nestjs-monorepo-template/api-client';
 import { toast } from 'sonner';
 import { i18n } from '@/i18n';
+import { focusFirstInvalid } from '@/lib/form-focus';
 import { isModeRefusal } from '@/lib/mode';
 import { isNetworkError, reportClientError } from '@/lib/report-error';
 import { announceSessionIdentity, onSessionIdentity } from '@/lib/session-bus';
@@ -153,7 +154,9 @@ export function handleApiError(
 /** What to tell the user about an error. */
 export function errorMessage(error: unknown): string {
   if (isApiError(error)) {
-    return error.detail;
+    // The field errors no field of the form showed (applyFieldErrors): what
+    // the form-level alert says, not the problem's generic `detail`.
+    return unplaced.get(error)?.join('; ') ?? error.detail;
   }
   return isNetworkError(error)
     ? i18n.t('auth.errors.network')
@@ -302,12 +305,21 @@ function watchSession(
   });
 }
 
+/** A problem's field errors that no field took, by applyFieldErrors. */
+const unplaced = new WeakMap<object, string[]>();
+
 /**
  * A `validation_failed` (or any problem with `errors`) shown on the form's
- * fields: each `errors[].path` that names a field gets its message, as a
- * submit error (TanStack Form clears it when the field changes; `aliases`
- * maps a path to a field of another name). Returns
- * whether any field took one; the rest is the caller's (a form-level alert).
+ * fields: each `errors[].path` gets its message on a field, as a submit
+ * error (TanStack Form clears it when the field changes), and the focus goes
+ * to the first one (lib/form-focus.ts). The field is the path's alias
+ * (`aliases`: path → field of another name), the path itself, else the
+ * alias or field of its first segment: the API's paths are dotted
+ * (`recipients.1`, `permissions.0.key`).
+ *
+ * Returns whether every error took a field. Otherwise the caller's
+ * form-level alert says the rest: `errorMessage(error)` then gives the
+ * messages no field showed (with their paths), not the generic `detail`.
  */
 export function applyFieldErrors(
   form: AnyFormApi,
@@ -319,13 +331,23 @@ export function applyFieldErrors(
     return false;
   }
   const fields = new Set(Object.keys(form.state.values as object));
-  let applied = false;
+  const fieldOf = (path: string) => {
+    const first = path.split('.')[0] ?? '';
+    return [aliases[path], path, aliases[first], first].find(
+      (name) => name !== undefined && fields.has(name),
+    );
+  };
+  const rest: string[] = [];
   for (const fieldError of error.errors) {
-    const name = aliases[fieldError.path] ?? fieldError.path;
-    if (!fields.has(name)) {
+    const name = fieldOf(fieldError.path);
+    if (name === undefined) {
+      rest.push(
+        fieldError.path
+          ? `${fieldError.path}: ${fieldError.message}`
+          : fieldError.message,
+      );
       continue;
     }
-    applied = true;
     form.setFieldMeta(name, (meta) => ({
       ...meta,
       isTouched: true,
@@ -335,5 +357,11 @@ export function applyFieldErrors(
       },
     }));
   }
-  return applied;
+  if (rest.length < error.errors.length) {
+    focusFirstInvalid(form);
+  }
+  if (rest.length > 0) {
+    unplaced.set(error, rest);
+  }
+  return rest.length === 0;
 }

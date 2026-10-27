@@ -83,6 +83,25 @@ describe('the sign-up page', () => {
     expect(bodies).toEqual([]);
   });
 
+  it('refuses a name over 120 and a password over 128 characters before sending', async () => {
+    withTenantSignUp(false);
+    const bodies: unknown[] = [];
+    captureSignUps(bodies);
+    const user = userEvent.setup();
+    await renderApp('/sign-up');
+
+    await user.click(await screen.findByLabelText('Name'));
+    await user.paste('x'.repeat(121));
+    await user.type(screen.getByLabelText('Email'), 'ada@example.com');
+    await user.click(screen.getByLabelText('Password'));
+    await user.paste('x'.repeat(129));
+    await user.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByText('At most 120 characters.')).toBeVisible();
+    expect(screen.getByText('At most 128 characters.')).toBeVisible();
+    expect(bodies).toEqual([]);
+  });
+
   it.each([false, undefined])(
     'changes nothing when tenantSignUp is %s',
     async (tenantSignUp) => {

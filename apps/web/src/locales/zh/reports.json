@@ -61,6 +61,7 @@
     "name": "名称",
     "namePlaceholder": "每周草稿",
     "nameRequired": "请输入名称。",
+    "nameTooLong": "最多 {{max}} 个字符。",
     "exporter": "数据",
     "exporterPlaceholder": "选择要导出的内容",
     "exporterRequired": "请选择要导出的内容。",

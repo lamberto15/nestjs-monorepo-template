@@ -62,6 +62,7 @@
     "name": "Name",
     "namePlaceholder": "Weekly drafts",
     "nameRequired": "Enter a name.",
+    "nameTooLong": "At most {{max}} characters.",
     "exporter": "Data",
     "exporterPlaceholder": "Choose what to export",
     "exporterRequired": "Choose what to export.",

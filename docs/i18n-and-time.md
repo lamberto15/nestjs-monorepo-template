@@ -37,6 +37,12 @@ native speaker review them.
   `en` lacks fails the test that renders it instead (`saveMissing`,
   `apps/web/src/test/i18n.ts`; a lookup with a `defaultValue` is a fallback
   and passes).
+- Direction: `ar` is right to left. In the web app `<html dir>` follows
+  `i18n.dir()` and so does Base UI's `DirectionProvider` (`LanguageDirection`
+  in `apps/web/src/app.tsx`), so menus, popovers and arrow-key navigation flip
+  with the page; style with logical properties (`ms-*`, `text-start`), not
+  `left`/`right`. The browser tests scan a page in Arabic
+  ([development](development.md), "Browser tests").
 - The web app sends its language as `Accept-Language` with each request and
   switches to the user's saved one; it shows times in their time zone, else
   the browser's (`apps/web/src/lib/date-time.ts`).

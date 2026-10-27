@@ -29,6 +29,7 @@
     "name": "名称",
     "namePlaceholder": "账单导出",
     "nameRequired": "请为客户端命名。",
+    "nameTooLong": "最多 {{max}} 个字符。",
     "quota": "每日配额（可选）",
     "quotaHint": "每天（UTC）的请求数；超过后 API 返回 429。留空表示不限。",
     "quotaInvalid": "不小于 1 的整数。",

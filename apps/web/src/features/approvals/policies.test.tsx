@@ -1,4 +1,5 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
+import { focusManager } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
@@ -449,6 +450,9 @@ describe('editing a policy', () => {
     await user.click(range);
     await user.paste('[1,');
     expect(await within(condition).findByText('Not valid JSON.')).toBeVisible();
+    // The error is the input's accessible description (aria-describedby).
+    expect(range).toBeInvalid();
+    expect(range).toHaveAccessibleDescription('Not valid JSON.');
     expect(screen.getByRole('button', { name: 'Save policy' })).toBeDisabled();
 
     await user.clear(range);
@@ -460,6 +464,17 @@ describe('editing a policy', () => {
     await user.click(screen.getByRole('button', { name: 'Save policy' }));
     await findToast('Policy saved.');
     expect(api.puts[0]!.body.when).toEqual({ type: 'between', range: [1, 2] });
+  });
+
+  it('describes a JSON field by its hint', async () => {
+    const { user } = await open();
+    await user.click(
+      screen.getByRole('switch', { name: 'Only when a condition holds' }),
+    );
+    const condition = await screen.findByRole('group', { name: 'Condition' });
+    expect(
+      within(condition).getByLabelText('Value'),
+    ).toHaveAccessibleDescription(/^A number, text or true\/false/);
   });
 
   it('removes the condition when it is switched off', async () => {
@@ -536,6 +551,29 @@ describe('editing a policy', () => {
     expect(await within(stage1).findByText(/Too small/)).toBeVisible();
     expect(within(stage1).getByText('approvers.0.role')).toBeVisible();
     expect(screen.getByText(/a duration/)).toBeVisible();
+  });
+
+  it("keeps the user's edits when the tab is back and another admin saved", async () => {
+    const { api, user } = await open();
+    const name = () =>
+      within(screen.getByRole('region', { name: 'Stage 1' })).getByLabelText(
+        'Name',
+      );
+    await user.clear(name());
+    await user.type(name(), 'Mine');
+
+    // Another admin saved meanwhile (a new version, a new ETag); the user
+    // comes back to this tab. A refetch would remount the form and drop the
+    // edits silently: the save's 412 is how a conflict is said instead.
+    api.policy = view({ version: 1, source: 'override' });
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    focusManager.setFocused(undefined);
+
+    expect(name()).toHaveValue('Mine');
   });
 
   it('says so when the policy changed since it was read (412)', async () => {

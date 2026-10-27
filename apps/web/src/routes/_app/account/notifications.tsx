@@ -8,6 +8,7 @@ import { PreferencesForm } from '@/features/notifications/preferences';
 import { useMe } from '@/lib/features';
 
 export const Route = createFileRoute('/_app/account/notifications')({
+  staticData: { title: 'notifications:preferences.title' },
   component: NotificationPreferencesPage,
 });
 

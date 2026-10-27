@@ -1,4 +1,5 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
+import { focusManager } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
@@ -25,6 +26,15 @@ const row = (id: string, slug: string, extra: object = {}) => ({
 
 const etagOf = (tenant: { id: string; updatedAt: string }) =>
   `"${tenant.id}-${tenant.updatedAt}"`;
+
+/** The user leaves the tab and comes back: TanStack Query refetches. */
+function refocus() {
+  act(() => {
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+  });
+  focusManager.setFocused(undefined);
+}
 
 function api(
   options: {
@@ -378,6 +388,28 @@ describe('tenants page', () => {
     expect(state.created).toBeUndefined();
   });
 
+  it('refuses a name over 120 characters before sending', async () => {
+    const state = api();
+    await renderApp('/tenants');
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'New tenant' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByLabelText('Name'));
+    await userEvent.paste('x'.repeat(121));
+    await userEvent.type(
+      within(dialog).getByLabelText("First administrator's email"),
+      'boss@initech.example',
+    );
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Create tenant' }),
+    );
+    expect(
+      await within(dialog).findByText('At most 120 characters.'),
+    ).toBeInTheDocument();
+    expect(state.created).toBeUndefined();
+  });
+
   it('shows the API refusal of a taken slug', async () => {
     api();
     await renderApp('/tenants');
@@ -400,6 +432,16 @@ describe('tenants page', () => {
 });
 
 const GLOBEX = '0199a3f2-0000-7000-8000-0000000000b1';
+
+/** Another operator renames Globex: its name and its ETag move on. */
+function renameElsewhere(state: ReturnType<typeof api>) {
+  const index = state.tenants.findIndex((tenant) => tenant.id === GLOBEX);
+  state.tenants[index] = {
+    ...state.tenants[index]!,
+    name: 'Renamed elsewhere',
+    updatedAt: '2026-10-11T08:00:00.000Z',
+  };
+}
 
 describe('tenant detail', () => {
   it('opens from the list and shows the tenant', async () => {
@@ -458,6 +500,17 @@ describe('tenant detail', () => {
     expect(state.patched).toEqual([]);
   });
 
+  it('refuses a name over 120 characters before sending', async () => {
+    const state = api();
+    await renderApp(`/tenants/${GLOBEX}`);
+    const name = await screen.findByLabelText('Name');
+    await userEvent.clear(name);
+    await userEvent.paste('x'.repeat(121));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('At most 120 characters.')).toBeVisible();
+    expect(state.patched).toEqual([]);
+  });
+
   it('shows a taken slug (409) on the slug field', async () => {
     api();
     await renderApp(`/tenants/${GLOBEX}`);
@@ -486,6 +539,69 @@ describe('tenant detail', () => {
       expect(screen.queryByText('This tenant changed')).toBeNull(),
     );
     expect(screen.getByLabelText('Name')).toHaveValue('Renamed elsewhere');
+  });
+
+  it("keeps the user's edits when the tab is back and another operator renamed it, and the save answers 412", async () => {
+    const state = api();
+    await renderApp(`/tenants/${GLOBEX}`);
+    const user = userEvent.setup();
+    const name = await screen.findByLabelText('Name');
+    await user.clear(name);
+    await user.type(name, 'Mine');
+
+    // Renamed elsewhere (a new ETag); the user comes back to this tab.
+    renameElsewhere(state);
+    refocus();
+    // The page reads it again (the heading), the form keeps what was typed.
+    expect(
+      await screen.findByRole('heading', { name: 'Renamed elsewhere' }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toHaveValue('Mine');
+
+    // Saved over the read it started from: the API says it changed.
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('This tenant changed')).toBeInTheDocument();
+    expect(state.patched).toEqual([
+      expect.objectContaining({
+        body: { name: 'Mine' },
+        ifMatch: etagOf(row(GLOBEX, 'globex')),
+      }),
+    ]);
+    expect(screen.getByLabelText('Name')).toHaveValue('Mine');
+  });
+
+  it('shows a rename made elsewhere in a form the user has not touched', async () => {
+    const state = api();
+    await renderApp(`/tenants/${GLOBEX}`);
+    expect(await screen.findByLabelText('Name')).toHaveValue('Globex');
+
+    renameElsewhere(state);
+    refocus();
+    await waitFor(() =>
+      expect(screen.getByLabelText('Name')).toHaveValue('Renamed elsewhere'),
+    );
+    // Nothing typed: no unsaved changes, and a save sends nothing.
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(state.patched).toEqual([]);
+  });
+
+  it('shows a deactivation made elsewhere when the tab is back', async () => {
+    const state = api();
+    await renderApp(`/tenants/${GLOBEX}`);
+    expect(
+      await screen.findByRole('button', { name: 'Deactivate' }),
+    ).toBeInTheDocument();
+
+    const index = state.tenants.findIndex((tenant) => tenant.id === GLOBEX);
+    state.tenants[index] = {
+      ...state.tenants[index]!,
+      active: false,
+      updatedAt: '2026-10-11T08:00:00.000Z',
+    };
+    refocus();
+    expect(
+      await screen.findByRole('button', { name: 'Reactivate' }),
+    ).toBeInTheDocument();
   });
 
   it('tells a tenant changed meanwhile when deactivating', async () => {

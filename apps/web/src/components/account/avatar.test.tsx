@@ -137,6 +137,20 @@ describe('the account picture', () => {
     );
     await findToast(/larger than 1 MB/);
   });
+
+  it("gives the file input a visible label (axe 'label-title-only'): its clipped label alone does not count", async () => {
+    useAccount({ avatarUrl: null, puts: [] });
+    await renderApp('/account/profile');
+    await screen.findByText('Choose a picture');
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    // A <label> around the input and the button: axe takes its visible text.
+    const label = input.closest('label');
+    expect(label).not.toBeNull();
+    expect(label).toHaveTextContent('Choose a picture');
+    expect(input).toHaveAccessibleName('Picture');
+  });
 });
 
 describe('saving the profile', () => {

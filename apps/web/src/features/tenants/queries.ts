@@ -16,6 +16,12 @@ import { meQuery, tenantsQuery } from '@/lib/session';
 
 export type TenantRow = GetResponse<'/v1/tenants'>['items'][number];
 
+/**
+ * A tenant's name and slug mirror the API's `maxLength`; lib/limits.test.ts
+ * compares them with openapi.json.
+ */
+export const TENANT_LIMITS = { name: 120, slug: 48 } as const;
+
 /** What a create sends: the tenant's name and slug, and its first administrator. */
 export type CreateTenantBody = paths['/v1/tenants']['post'] extends {
   requestBody: { content: { 'application/json': infer B } };

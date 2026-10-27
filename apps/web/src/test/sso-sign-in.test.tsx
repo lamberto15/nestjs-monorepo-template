@@ -58,6 +58,18 @@ describe('Sign in with SSO', () => {
     expect(assign).not.toHaveBeenCalled();
   });
 
+  it('describes the address by why it is refused', async () => {
+    stubLocation();
+    discoverReturns(LOGIN);
+    await submit('/sign-in', 'acme');
+    const alert = await screen.findByRole('alert');
+    // The sign-in form has an email field too: the SSO form's is the last.
+    const email = screen.getAllByLabelText('Email').at(-1)!;
+    expect(email).toBeInvalid();
+    expect(email).toHaveAccessibleDescription(alert.textContent ?? '');
+    expect(email).toHaveAccessibleDescription(/valid email address/);
+  });
+
   it('goes to the discovered login route, back to where the user was headed', async () => {
     const assign = stubLocation();
     const asked = discoverReturns(LOGIN);

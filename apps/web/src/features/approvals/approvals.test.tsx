@@ -575,6 +575,27 @@ describe('the inbox', () => {
     expect(
       await within(dialog).findByText('The end must be after the start.'),
     ).toBeVisible();
+    // The error is the input's accessible description, not only text near it.
+    expect(within(dialog).getByLabelText('Until')).toHaveAccessibleDescription(
+      'The end must be after the start.',
+    );
+    expect(api.delegations).toHaveLength(0);
+  });
+
+  it('describes the person picker by why nobody was chosen', async () => {
+    const api = useApprovalsApi();
+    const user = userEvent.setup();
+    await renderApp('/approvals');
+    await user.click(await screen.findByRole('button', { name: 'Delegate' }));
+    const dialog = await screen.findByRole('dialog');
+    const person = await within(dialog).findByRole('combobox', {
+      name: 'Delegate to',
+    });
+    expect(person).toHaveAccessibleDescription('');
+    await user.click(within(dialog).getByRole('button', { name: 'Delegate' }));
+    expect(await within(dialog).findByText('Choose a person.')).toBeVisible();
+    expect(person).toBeInvalid();
+    expect(person).toHaveAccessibleDescription('Choose a person.');
     expect(api.delegations).toHaveLength(0);
   });
 });
