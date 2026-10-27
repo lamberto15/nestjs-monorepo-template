@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { I18nService } from '@nestjs/i18n';
 import { AuthorizationService } from '@nestjs/authorization';
+import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { and, desc, eq, getTableColumns, inArray, lt } from 'drizzle-orm';
 import {
   headline,
@@ -158,12 +159,14 @@ export class RecordComments {
 @Injectable()
 export class RecordAttachments {
   readonly subject: string;
+  readonly records: { table: PgTable; id: AnyPgColumn };
   constructor(
     @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
     private readonly access: AccessService,
     registry: AttachmentsRegistry,
   ) {
     this.subject = c.declaration.subject;
+    this.records = { table: c.table as unknown as PgTable, id: c.table.id! };
     registry.register(this);
   }
   async canRead(principal: Principal, id: string) {
@@ -189,16 +192,6 @@ export class RecordAttachments {
       recordView(this.c.declaration, row),
     );
     return fields.every((field) => field in shown);
-  }
-  async exists(ids: readonly string[]) {
-    const table = this.c.table;
-    const rows = (await this.c.service.query((db) =>
-      db
-        .select({ id: table.id! })
-        .from(table as never)
-        .where(inArray(table.id!, [...ids])),
-    )) as { id: string }[];
-    return rows.map((row) => row.id);
   }
 }
 

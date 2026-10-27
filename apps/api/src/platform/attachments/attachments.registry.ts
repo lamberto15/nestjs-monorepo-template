@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 import type { Principal } from '../../iam/auth/principal.js';
 
 /**
@@ -24,11 +25,11 @@ export interface AttachmentTarget {
     fields: readonly string[],
   ): Promise<boolean>;
   /**
-   * Of these ids, the records that still exist, deleted ones in a recycle
-   * bin included (they may come back). The nightly sweep removes the
-   * attachments of the others, file and row.
+   * The record's table and its id column: the nightly sweep removes the
+   * attachments whose record has no row there (deleted for good; one in a
+   * recycle bin still has its row), file and row.
    */
-  exists(recordIds: readonly string[]): Promise<string[]>;
+  readonly records: { readonly table: PgTable; readonly id: AnyPgColumn };
 }
 
 @Injectable()

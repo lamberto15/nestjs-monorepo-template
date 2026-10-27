@@ -3,7 +3,7 @@ import { TransactionHost } from '@nestjs-cls/transactional';
 import { OnOneInstance, WithoutOverlapping } from '@nestjs/locks';
 import { Cron } from '@nestjs/schedule';
 import { StorageDisk } from '@nestjs/storage';
-import { and, asc, eq, gt, inArray, lt } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, lt, notExists } from 'drizzle-orm';
 import {
   database,
   type DrizzleTransactions,
@@ -27,10 +27,10 @@ const BATCH = 1000;
  * records deleted for good (a note purged from the recycle bin by
  * SoftDeletePurgeJob, at 03:45). Every night at 04:05 in APP_TIMEZONE, on
  * one instance. Each registered target says which of its records still
- * exist (`exists()`); attachments of a subject no target registers any
+ * exist (`records`, a `NOT EXISTS` anti-join in the database); attachments of a subject no target registers any
  * more are left alone. As the system principal (`system:attachment-sweep`),
  * one tenant at a time (docs/tenancy.md: `Tenancy.forEachTenant()`, which
- * logs each): a target's `exists()` and the rows are that tenant's, and
+ * logs each): a target's record table and the rows are that tenant's, and
  * each round's rows go with an `attachments.swept` audit entry in its log.
  *
  * It also deletes the objects of direct uploads that were announced and
@@ -84,7 +84,8 @@ export class AttachmentSweepJob {
         for (const target of this.registry.all()) {
           let cursor: string | undefined;
           for (;;) {
-            const rows = await this.db
+            const { table, id } = target.records;
+            const orphans = await this.db
               .select({
                 id: attachments.id,
                 recordId: attachments.recordId,
@@ -96,19 +97,18 @@ export class AttachmentSweepJob {
                 and(
                   eq(attachments.subject, target.subject),
                   cursor ? gt(attachments.id, cursor) : undefined,
+                  notExists(
+                    this.db
+                      .select({ one: id })
+                      .from(table)
+                      .where(eq(id, attachments.recordId)),
+                  ),
                 ),
               )
               .orderBy(asc(attachments.id))
               .limit(BATCH);
-            if (rows.length === 0) break;
-            cursor = rows[rows.length - 1]!.id;
-            const existing = new Set(
-              await target.exists([
-                ...new Set(rows.map((row) => row.recordId)),
-              ]),
-            );
-            const orphans = rows.filter((row) => !existing.has(row.recordId));
-            if (orphans.length === 0) continue;
+            if (orphans.length === 0) break;
+            cursor = orphans[orphans.length - 1]!.id;
             // The files first: a failure leaves the rows, and the next night tries again.
             await this.disk.delete(
               orphans.flatMap((row) => [
