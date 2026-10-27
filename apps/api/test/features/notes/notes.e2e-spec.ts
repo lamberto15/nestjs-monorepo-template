@@ -9,7 +9,12 @@ import { notifications } from '../../../src/platform/notifications/notifications
 import { recordSubscriptions } from '../../../src/platform/subscriptions/subscriptions.tables.js';
 import { publicationId } from '../../../src/features/notes/note-publication.workflow.js';
 import { noteSchema } from '../../../src/features/notes/note.schemas.js';
-import { bootApp, webhookReceiver, type TestApp } from '../../support.js';
+import {
+  bootApp,
+  problemFor,
+  webhookReceiver,
+  type TestApp,
+} from '../../support.js';
 
 describe('the example feature: notes (e2e)', () => {
   let node: TestApp;
@@ -403,24 +408,46 @@ describe('the example feature: notes (e2e)', () => {
       expect((await viewer.get('/v1/notes')).body.items).toHaveLength(3); // all
     });
 
-    it("checks one note against its conditions: another client's is 403", async () => {
+    it("hides a note the caller may not read: another client's is the 404 of a missing one", async () => {
       const [a, b] = [await node.client(), await node.client()];
       const note = (await writeNote(node, a.auth).expect(201)).body;
-      await node
-        .http()
-        .get(`/v1/notes/${note.id}`)
-        .set('Authorization', b.auth)
-        .expect(403);
-      await node
-        .http()
-        .delete(`/v1/notes/${note.id}`)
-        .set('Authorization', b.auth)
-        .expect(403);
-      await node
+      const missing = randomUUID();
+      // Each route answers the unreadable note exactly as it answers an id that doesn't exist.
+      const routes = [
+        (id: string) => node.http().get(`/v1/notes/${id}`),
+        (id: string) =>
+          node.http().patch(`/v1/notes/${id}`).send({ title: 'Mine now' }),
+        (id: string) => node.http().delete(`/v1/notes/${id}`),
+      ];
+      for (const route of routes) {
+        const hidden = await route(note.id)
+          .set('Authorization', b.auth)
+          .expect(404);
+        const absent = await route(missing)
+          .set('Authorization', b.auth)
+          .expect(404);
+        expect(problemFor(hidden.body, note.id)).toEqual(
+          problemFor(absent.body, missing),
+        );
+      }
+      const kept = await node
         .http()
         .get(`/v1/notes/${note.id}`)
         .set('Authorization', a.auth)
         .expect(200);
+      expect(kept.body.title).toBe(note.title);
+    });
+
+    it('answers 403 to one who may read a note but not change it', async () => {
+      const client = await node.client();
+      const note = (await writeNote(node, client.auth).expect(201)).body;
+      const viewer = (await node.user(['viewer'])).agent;
+      await viewer.get(`/v1/notes/${note.id}`).expect(200);
+      await viewer
+        .patch(`/v1/notes/${note.id}`)
+        .send({ title: 'Renamed' })
+        .expect(403);
+      await viewer.delete(`/v1/notes/${note.id}`).expect(403);
     });
 
     it('lets a viewer read but not write: 403', async () => {
