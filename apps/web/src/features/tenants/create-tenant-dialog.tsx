@@ -11,7 +11,7 @@ import { FieldGroup } from '@nestjs-monorepo-template/ui/components/field';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { errorMessage, applyFieldErrors } from '@/lib/errors';
-import { FormAlert, resetOnClose, useAppForm } from '@/lib/form';
+import { FormAlert, useAppForm } from '@/lib/form';
 import { z } from '@/lib/zod';
 import {
   TENANT_LIMITS,
@@ -68,12 +68,8 @@ export function CreateTenantDialog(props: {
       }
     },
   });
-  const onOpenChange = resetOnClose(props.onOpenChange, () => {
-    form.reset();
-    setError(undefined);
-  });
   return (
-    <Dialog open={props.open} onOpenChange={onOpenChange}>
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('create.title')}</DialogTitle>
@@ -131,7 +127,7 @@ export function CreateTenantDialog(props: {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => props.onOpenChange(false)}
               >
                 {t('create.cancel')}
               </Button>

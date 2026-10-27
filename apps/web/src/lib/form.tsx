@@ -431,20 +431,6 @@ export function useStaleDraftSession() {
   };
 }
 
-/**
- * A dialog's `onOpenChange` that drops its draft on close (Cancel, the close
- * button, Escape): a dialog that stays mounted would show it again.
- */
-export function resetOnClose(
-  onOpenChange: (open: boolean) => void,
-  reset: () => void,
-) {
-  return (open: boolean) => {
-    if (!open) reset();
-    onOpenChange(open);
-  };
-}
-
 /** A form's error that belongs to no field (the problem's `detail`). */
 export function FormAlert(props: { message?: string }) {
   if (!props.message) {

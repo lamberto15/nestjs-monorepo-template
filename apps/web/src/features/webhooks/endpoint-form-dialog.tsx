@@ -11,7 +11,7 @@ import { FieldGroup } from '@nestjs-monorepo-template/ui/components/field';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
-import { FormAlert, resetOnClose, useAppForm } from '@/lib/form';
+import { FormAlert, useAppForm } from '@/lib/form';
 import { z } from '@/lib/zod';
 import { EventPicker } from './event-picker';
 import type { Endpoint } from './queries';
@@ -87,13 +87,8 @@ export function EndpointFormDialog(props: {
       }
     },
   });
-  // An edit's defaults are the saved endpoint: only a new one's draft goes.
-  const onOpenChange = resetOnClose(props.onOpenChange, () => {
-    if (!editing) form.reset();
-    setError(undefined);
-  });
   return (
-    <Dialog open={props.open} onOpenChange={onOpenChange}>
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -151,7 +146,7 @@ export function EndpointFormDialog(props: {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => props.onOpenChange(false)}
               >
                 {t('form.cancel')}
               </Button>

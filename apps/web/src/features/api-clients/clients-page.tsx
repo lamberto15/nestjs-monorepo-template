@@ -85,11 +85,14 @@ export function ClientsPage() {
       ) : (
         <EmptyState title={t('list.empty')} />
       )}
-      <CreateClientDialog
-        open={creating}
-        onOpenChange={setCreating}
-        onCreate={(input) => create.mutateAsync(input)}
-      />
+      {/* Mounted only while open: a cancelled draft doesn't come back. */}
+      {creating && (
+        <CreateClientDialog
+          open
+          onOpenChange={setCreating}
+          onCreate={(input) => create.mutateAsync(input)}
+        />
+      )}
       <SecretDialog
         secret={create.data?.key}
         title={t('secret.createdTitle', { name: create.data?.name ?? '' })}

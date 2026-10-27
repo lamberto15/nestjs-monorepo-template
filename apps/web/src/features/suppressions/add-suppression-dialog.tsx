@@ -12,7 +12,7 @@ import { FieldGroup } from '@nestjs-monorepo-template/ui/components/field';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
-import { FormAlert, resetOnClose, useAppForm } from '@/lib/form';
+import { FormAlert, useAppForm } from '@/lib/form';
 import { z } from '@/lib/zod';
 import type { AddSuppressionBody } from './queries';
 
@@ -59,12 +59,16 @@ export function AddSuppressionDialog(props: {
       }
     },
   });
-  const onOpenChange = resetOnClose(props.onOpenChange, () => {
-    form.reset();
-    setError(undefined);
-  });
   return (
-    <Dialog open={props.open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={props.open}
+      onOpenChange={(open) => {
+        if (!open) {
+          setError(undefined);
+        }
+        props.onOpenChange(open);
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('add.title')}</DialogTitle>
@@ -103,7 +107,7 @@ export function AddSuppressionDialog(props: {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => props.onOpenChange(false)}
               >
                 {t('add.cancel')}
               </Button>

@@ -131,11 +131,10 @@ export function EndpointsPage(props: { clientId: string }) {
           )}
         </>
       )}
-      <EndpointFormDialog
-        open={creating}
-        onOpenChange={setCreating}
-        onSubmit={submit}
-      />
+      {/* Mounted only while open: a cancelled draft doesn't come back. */}
+      {creating && (
+        <EndpointFormDialog open onOpenChange={setCreating} onSubmit={submit} />
+      )}
       <SecretDialog
         secret={create.data?.secret}
         title={t('secret.createdTitle')}

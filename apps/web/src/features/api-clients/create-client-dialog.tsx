@@ -20,7 +20,7 @@ import {
 } from '@/features/access/grants';
 import { RoleGrantsPicker } from '@/features/access/pickers';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
-import { FormAlert, resetOnClose, useAppForm } from '@/lib/form';
+import { FormAlert, useAppForm } from '@/lib/form';
 import { z } from '@/lib/zod';
 import { API_CLIENT_LIMITS, type CreateClientBody } from './queries';
 
@@ -82,12 +82,8 @@ export function CreateClientDialog(props: {
       }
     },
   });
-  const onOpenChange = resetOnClose(props.onOpenChange, () => {
-    form.reset();
-    setError(undefined);
-  });
   return (
-    <Dialog open={props.open} onOpenChange={onOpenChange}>
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t('create.title')}</DialogTitle>
@@ -137,7 +133,7 @@ export function CreateClientDialog(props: {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => props.onOpenChange(false)}
               >
                 {t('create.cancel')}
               </Button>
