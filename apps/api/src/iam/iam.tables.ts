@@ -384,6 +384,13 @@ export const userRoles = pgTable(
     // A role belongs to one tenant, so (user, role) names the grant.
     primaryKey({ columns: [table.userId, table.roleId] }),
     index('user_roles_role_id_idx').on(table.roleId),
+    // The roles list counts each role's live grants (access-admin.service.ts, roleViews): role, the RLS
+    // predicate's tenant and the expiry in one index, so the count is an index-only scan.
+    index('user_roles_role_live_idx').on(
+      table.roleId,
+      table.tenantId,
+      table.expiresAt,
+    ),
     ...tenantTable('user_roles', table),
     foreignKey({
       name: 'user_roles_membership_fk',
