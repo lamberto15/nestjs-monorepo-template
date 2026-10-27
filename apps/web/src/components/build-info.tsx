@@ -1,6 +1,10 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@nestjs-monorepo-template/ui/components/button';
+import {
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+} from '@nestjs-monorepo-template/ui/components/dropdown-menu';
 import { buildStatus, fetchVersion, loadedSha } from '@/lib/build-version';
 import { reloadForBuildUpdate } from '@/lib/sw-update';
 
@@ -16,6 +20,7 @@ export function BuildInfo() {
     checked: boolean;
   }>({ checked: false });
   const [busy, setBusy] = useState(false);
+  const statusId = useId();
 
   const refresh = async () => {
     setBusy(true);
@@ -42,12 +47,23 @@ export function BuildInfo() {
   };
 
   return (
-    <div className="space-y-1 px-2 py-2 text-xs text-muted-foreground" aria-label={t('build.title')}>
-      <div className="font-medium text-foreground">{t('build.title')}</div>
-      <div title={loadedSha || unknown}>{t('build.tab')}: {short(loadedSha, unknown)}</div>
-      <div title={versions.web || unknown}>{t('build.web')}: {short(versions.web, unknown)}</div>
-      <div title={versions.api || unknown}>{t('build.api')}: {short(versions.api, unknown)}</div>
-      <div role="status">
+    // A group named by its label, not a div with an aria-label: a menu may
+    // only own items and groups (axe "aria-required-children"). It lives in
+    // the user menu (the only place this is rendered).
+    <DropdownMenuGroup className="space-y-1 px-2 py-2 text-xs text-muted-foreground">
+      <DropdownMenuLabel className="p-0 font-medium text-foreground">
+        {t('build.title')}
+      </DropdownMenuLabel>
+      <div title={loadedSha || unknown}>
+        {t('build.tab')}: {short(loadedSha, unknown)}
+      </div>
+      <div title={versions.web || unknown}>
+        {t('build.web')}: {short(versions.web, unknown)}
+      </div>
+      <div title={versions.api || unknown}>
+        {t('build.api')}: {short(versions.api, unknown)}
+      </div>
+      <div id={statusId}>
         {!versions.checked
           ? t('build.notChecked')
           : status === 'current'
@@ -56,19 +72,27 @@ export function BuildInfo() {
               ? t('build.stale')
               : t('build.unknownStatus')}
       </div>
-      <div className="flex flex-wrap gap-2 pt-1">
-        <Button type="button" size="xs" variant="outline" disabled={busy} onClick={() => void refresh()}>
-          {busy ? t('build.checking') : t('build.check')}
-        </Button>
-        {status === 'stale' && (
-          <Button type="button" size="xs" onClick={reloadForBuildUpdate}>
-            {t('build.reload')}
-          </Button>
-        )}
-        <Button type="button" size="xs" variant="ghost" onClick={copyDetails} disabled={!globalThis.navigator.clipboard}>
-          {t('build.copy')}
-        </Button>
-      </div>
-    </div>
+      {/* Menu items (kept open): a menu may not own plain buttons. */}
+      {/* The status is read with the item that changes it (no live region: a menu may not own one). */}
+      <DropdownMenuItem
+        aria-describedby={statusId}
+        closeOnClick={false}
+        disabled={busy}
+        onClick={() => void refresh()}
+      >
+        {busy ? t('build.checking') : t('build.check')}
+      </DropdownMenuItem>
+      {status === 'stale' && (
+        <DropdownMenuItem onClick={reloadForBuildUpdate}>
+          {t('build.reload')}
+        </DropdownMenuItem>
+      )}
+      <DropdownMenuItem
+        disabled={!globalThis.navigator.clipboard}
+        onClick={copyDetails}
+      >
+        {t('build.copy')}
+      </DropdownMenuItem>
+    </DropdownMenuGroup>
   );
 }

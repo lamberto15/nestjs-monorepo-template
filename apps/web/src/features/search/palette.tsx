@@ -4,7 +4,6 @@ import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import {
   Command as CommandRoot,
   CommandDialog,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
@@ -106,6 +105,42 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
     commands: shownCommands.filter((command) => command.kind === kind),
   }));
 
+  const hasItems = commandMode
+    ? shownCommands.length > 0
+    : searching
+      ? groups.length > 0
+      : recent.length > 0;
+  const message = commandMode ? (
+    shownCommands.length === 0 && (
+      <div role="status" className="py-6 text-center text-sm">
+        {t('noCommands')}
+      </div>
+    )
+  ) : searching ? (
+    <>
+      {results.isPending && (
+        <div role="status" className="py-6 text-center text-sm">
+          {t('searching')}
+        </div>
+      )}
+      {results.isError && (
+        <div role="alert" className="py-6 text-center text-sm">
+          {t('error')}
+        </div>
+      )}
+      {results.isSuccess && groups.length === 0 && (
+        <div role="status" className="py-6 text-center text-sm">
+          {t('empty', { q })}
+        </div>
+      )}
+    </>
+  ) : (
+    <div className="flex items-center gap-1 px-3 py-4 text-xs text-muted-foreground">
+      <CornerDownLeftIcon className="size-3" />
+      {t('hint')}
+    </div>
+  );
+
   const go = (href: string | undefined) => {
     // A link comes from the API: only a path of this app is followed.
     const safe = normalizeRedirect(href);
@@ -131,13 +166,15 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
           onValueChange={setInput}
           placeholder={t('placeholder')}
         />
-        <CommandList>
-          {commandMode ? (
-            <>
-              {shownCommands.length === 0 && (
-                <CommandEmpty>{t('noCommands')}</CommandEmpty>
-              )}
-              {commandGroups.map((group) => (
+        {/*
+          Messages (hint, searching, no hits) sit beside the list, never in
+          it, and the list is in the DOM only with items: an empty listbox
+          fails axe's "aria-required-children".
+        */}
+        {hasItems && (
+          <CommandList>
+            {commandMode ? (
+              commandGroups.map((group) => (
                 <QuickCommandGroup
                   key={group.kind}
                   heading={group.heading}
@@ -145,26 +182,9 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
                   commands={group.commands}
                   onSelect={go}
                 />
-              ))}
-            </>
-          ) : searching ? (
-            <>
-              {results.isPending && (
-                <div role="status" className="py-6 text-center text-sm">
-                  {t('searching')}
-                </div>
-              )}
-              {results.isError && (
-                <div role="alert" className="py-6 text-center text-sm">
-                  {t('error')}
-                </div>
-              )}
-              {results.isSuccess && groups.length === 0 && (
-                <div role="status" className="py-6 text-center text-sm">
-                  {t('empty', { q })}
-                </div>
-              )}
-              {groups.map((group) => (
+              ))
+            ) : searching ? (
+              groups.map((group) => (
                 <CommandGroup key={group.subject} heading={group.label}>
                   {group.items.map((hit) => (
                     <CommandItem
@@ -186,45 +206,37 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
                     </CommandItem>
                   ))}
                 </CommandGroup>
-              ))}
-            </>
-          ) : (
-            <>
-              {recent.length > 0 && (
-                <CommandGroup heading={t('recent')}>
-                  {recent.map((value) => (
-                    <CommandItem
-                      key={value}
-                      value={`recent:${value}`}
-                      onSelect={() => setInput(value)}
-                    >
-                      <HistoryIcon />
-                      {value}
-                    </CommandItem>
-                  ))}
+              ))
+            ) : (
+              <CommandGroup heading={t('recent')}>
+                {recent.map((value) => (
                   <CommandItem
-                    value="recent-clear"
-                    onSelect={() => {
-                      clearRecent();
-                      setRecent([]);
-                    }}
+                    key={value}
+                    value={`recent:${value}`}
+                    onSelect={() => setInput(value)}
                   >
-                    {t('clearRecent')}
+                    <HistoryIcon />
+                    {value}
                   </CommandItem>
-                </CommandGroup>
-              )}
-              <div className="flex items-center gap-1 px-3 py-4 text-xs text-muted-foreground">
-                <CornerDownLeftIcon className="size-3" />
-                {t('hint')}
-              </div>
-            </>
-          )}
-        </CommandList>
+                ))}
+                <CommandItem
+                  value="recent-clear"
+                  onSelect={() => {
+                    clearRecent();
+                    setRecent([]);
+                  }}
+                >
+                  {t('clearRecent')}
+                </CommandItem>
+              </CommandGroup>
+            )}
+          </CommandList>
+        )}
+        {message}
       </CommandRoot>
     </CommandDialog>
   );
 }
-
 
 function QuickCommandGroup(props: {
   heading: string;

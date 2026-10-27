@@ -13,6 +13,7 @@ import { useDebounced } from '@/features/search/palette';
 import { dashboard } from '@/features/dashboard/registry';
 import { groupBySubject } from '@/features/search/api';
 import { parseSnippet, Snippet } from '@/features/search/snippet';
+import { axeViolations } from '@/test/axe';
 import { renderApp } from '@/test/render-app';
 import { server } from '@/test/server';
 
@@ -146,6 +147,25 @@ describe('the palette', () => {
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     await user.keyboard('{Escape}');
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('never has an empty listbox (axe "aria-required-children"): the list is there only with items', async () => {
+    signedInWith({});
+    searchApi([]);
+    await renderApp('/');
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: 'Search (Ctrl+K)' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    // Just opened: no recent searches, so the hint only.
+    expect(within(dialog).queryByRole('listbox')).toBeNull();
+    expect(await axeViolations(['aria-required-children'], dialog)).toEqual([]);
+    // No hits: the message, still no empty list.
+    await user.type(within(dialog).getByRole('combobox'), 'nothing');
+    await within(dialog).findByText(/nothing/, { selector: '[role="status"]' });
+    expect(within(dialog).queryByRole('listbox')).toBeNull();
+    expect(await axeViolations(['aria-required-children'], dialog)).toEqual([]);
   });
 
   it('opens with the header button', async () => {
