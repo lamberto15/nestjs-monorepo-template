@@ -140,20 +140,23 @@ export function TenantsPage() {
       ) : (
         <EmptyState title={t('list.empty')} />
       )}
-      <CreateTenantDialog
-        open={creating}
-        onOpenChange={setCreating}
-        onCreate={async (body) => {
-          const tenant = await create.mutateAsync(body);
-          toast.success(
-            t('create.done', {
-              name: tenant.name,
-              email: body.administratorEmail,
-            }),
-          );
-          return tenant;
-        }}
-      />
+      {/* Mounted only while open: a cancelled draft doesn't come back. */}
+      {creating && (
+        <CreateTenantDialog
+          open
+          onOpenChange={setCreating}
+          onCreate={async (body) => {
+            const tenant = await create.mutateAsync(body);
+            toast.success(
+              t('create.done', {
+                name: tenant.name,
+                email: body.administratorEmail,
+              }),
+            );
+            return tenant;
+          }}
+        />
+      )}
     </Page>
   );
 }
