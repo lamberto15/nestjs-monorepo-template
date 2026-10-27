@@ -6,6 +6,7 @@ import {
 } from '@nestjs-monorepo-template/ui/components/tabs';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Page, PageHeader } from '@/components/page-header';
 import { ConnectionsSection } from './connections-section';
 import { DomainsSection } from './domains-section';
 import { PolicySection } from './policy-section';
@@ -23,11 +24,8 @@ export function SsoPage() {
   const { t } = useTranslation('sso');
   const [tab, setTab] = useState<Tab>('connections');
   return (
-    <div className="flex max-w-5xl flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-medium">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('description')}</p>
-      </div>
+    <Page>
+      <PageHeader title={t('title')} description={t('description')} />
       <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
         <TabsList>
           {TABS.map((name) => (
@@ -49,6 +47,6 @@ export function SsoPage() {
           {tab === 'scim' && <ScimSection />}
         </TabsContent>
       </Tabs>
-    </div>
+    </Page>
   );
 }

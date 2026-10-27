@@ -16,6 +16,7 @@ import { useQuery } from '@tanstack/react-query';
 import { parseAsIsoDate, parseAsString, useQueryStates } from 'nuqs';
 import { useTranslation } from 'react-i18next';
 import { errorMessage } from '@/lib/errors';
+import { Page, PageHeader } from '@/components/page-header';
 import { ratesQuery } from './api';
 import { CurrencyConverter } from './currency-converter';
 import { currencyName, formatRate } from './format';
@@ -52,11 +53,8 @@ export function ExchangeRatesPage() {
     )
     .toSorted((a, b) => a.code.localeCompare(b.code));
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-medium">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('description')}</p>
-      </div>
+    <Page width="narrow">
+      <PageHeader title={t('title')} description={t('description')} />
       <div className="flex flex-wrap items-end gap-3">
         <Field className="w-44">
           <FieldLabel htmlFor="rates-date">{t('date')}</FieldLabel>
@@ -132,6 +130,6 @@ export function ExchangeRatesPage() {
         <h2 className="text-base font-medium">{t('converter.title')}</h2>
         <CurrencyConverter />
       </section>
-    </div>
+    </Page>
   );
 }

@@ -21,6 +21,7 @@ import { LockIcon, Trash2Icon, UploadIcon, XIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { Page, PageHeader } from '@/components/page-header';
 import { HexPicker } from '@/features/tags/tag-dialog';
 import { api } from '@/lib/api';
 import { brandingQuery, type Branding } from '@/lib/branding';
@@ -40,11 +41,8 @@ export function BrandingPage() {
   const { t } = useTranslation('branding');
   const { data, isPending, dataUpdatedAt } = useQuery(brandingQuery);
   return (
-    <div className="flex max-w-2xl flex-col gap-6 p-4">
-      <div>
-        <h1 className="text-xl font-medium">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('description')}</p>
-      </div>
+    <Page width="narrow">
+      <PageHeader title={t('title')} description={t('description')} />
       {isPending || !data ? (
         <Skeleton className="h-64 w-full" />
       ) : (
@@ -63,7 +61,7 @@ export function BrandingPage() {
           <LogoSection branding={data} version={dataUpdatedAt} />
         </>
       )}
-    </div>
+    </Page>
   );
 }
 
