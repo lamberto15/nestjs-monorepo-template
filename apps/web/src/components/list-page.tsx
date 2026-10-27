@@ -319,7 +319,7 @@ function SearchBox(props: { value: string; onSearch: (q: string) => void }) {
     props.onSearch(q);
   }, SEARCH_DEBOUNCE_MS);
   return (
-    <div className="relative">
+    <div className="relative w-full sm:w-auto">
       <SearchIcon
         aria-hidden
         className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
@@ -328,7 +328,7 @@ function SearchBox(props: { value: string; onSearch: (q: string) => void }) {
         type="search"
         aria-label={t('list.search')}
         placeholder={t('list.search')}
-        className="h-8 w-48 ps-8 lg:w-64"
+        className="h-8 w-full ps-8 sm:w-48 lg:w-64"
         value={value}
         onChange={(event) => {
           setValue(event.target.value);

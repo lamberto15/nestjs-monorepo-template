@@ -94,6 +94,7 @@ export function NotificationRow(props: {
           <Button
             variant="ghost"
             size="icon-sm"
+            className="max-sm:size-10 pointer-coarse:size-10"
             aria-label={t('item.markRead')}
             title={t('item.markRead')}
             onClick={() => onRead(item.id)}
@@ -105,6 +106,7 @@ export function NotificationRow(props: {
           <Button
             variant="ghost"
             size="icon-sm"
+            className="max-sm:size-10 pointer-coarse:size-10"
             aria-label={t('item.remove')}
             title={t('item.remove')}
             onClick={() => onRemove(item.id)}

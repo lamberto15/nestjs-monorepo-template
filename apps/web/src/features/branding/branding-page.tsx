@@ -15,13 +15,13 @@ import {
   FileUploadTrigger,
 } from '@nestjs-monorepo-template/ui/components/file-upload';
 import { Input } from '@nestjs-monorepo-template/ui/components/input';
-import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LockIcon, Trash2Icon, UploadIcon, XIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Page, PageHeader } from '@/components/page-header';
+import { RecordState } from '@/components/records/record-state';
 import { HexPicker } from '@/features/tags/tag-dialog';
 import { api } from '@/lib/api';
 import { brandingQuery, type Branding } from '@/lib/branding';
@@ -39,28 +39,41 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
 /** The tenant's colour, sender name and logo (docs/branding.md), for who manages settings. */
 export function BrandingPage() {
   const { t } = useTranslation('branding');
-  const { data, isPending, dataUpdatedAt } = useQuery(brandingQuery);
+  // The page says a failed read (below): no toast, no retries, as `useBranding`.
+  const query = useQuery({
+    ...brandingQuery,
+    retry: false,
+    meta: { errorToast: false },
+  });
   return (
     <Page width="narrow">
       <PageHeader title={t('title')} description={t('description')} />
-      {isPending || !data ? (
-        <Skeleton className="h-64 w-full" />
-      ) : (
-        <>
-          {data.locked && (
-            <Alert>
-              <LockIcon />
-              <AlertDescription>{t('locked')}</AlertDescription>
-            </Alert>
-          )}
-          {/* Remounted by what is stored: the form starts from it. */}
-          <ValuesForm
-            key={`${data.primaryColor}|${data.mailFromName}`}
-            branding={data}
-          />
-          <LogoSection branding={data} version={dataUpdatedAt} />
-        </>
-      )}
+      <RecordState
+        query={query}
+        notFound={{ title: t('error.title'), description: t('error.generic') }}
+        error={{
+          title: t('error.title'),
+          generic: t('error.generic'),
+          retry: t('error.retry'),
+        }}
+      >
+        {(data) => (
+          <>
+            {data.locked && (
+              <Alert>
+                <LockIcon />
+                <AlertDescription>{t('locked')}</AlertDescription>
+              </Alert>
+            )}
+            {/* Remounted by what is stored: the form starts from it. */}
+            <ValuesForm
+              key={`${data.primaryColor}|${data.mailFromName}`}
+              branding={data}
+            />
+            <LogoSection branding={data} version={query.dataUpdatedAt} />
+          </>
+        )}
+      </RecordState>
     </Page>
   );
 }

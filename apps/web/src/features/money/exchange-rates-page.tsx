@@ -16,7 +16,9 @@ import { useQuery } from '@tanstack/react-query';
 import { parseAsIsoDate, parseAsString, useQueryStates } from 'nuqs';
 import { useTranslation } from 'react-i18next';
 import { errorMessage } from '@/lib/errors';
+import { EmptyState } from '@/components/empty-state';
 import { Page, PageHeader } from '@/components/page-header';
+import { isNotFound } from '@/lib/records';
 import { ratesQuery } from './api';
 import { CurrencyConverter } from './currency-converter';
 import { currencyName, formatRate } from './format';
@@ -38,6 +40,8 @@ export function ExchangeRatesPage() {
     ...ratesQuery(picked),
     meta: { errorToast: false },
   });
+  // 404 `rates_unavailable`: none fetched yet, an empty state rather than an error.
+  const none = rates.isError && isNotFound(rates.error);
   const needle = (q ?? '').trim().toLowerCase();
   const rows = Object.entries(rates.data?.rates ?? {})
     .map(([code, rate]) => ({
@@ -84,11 +88,14 @@ export function ExchangeRatesPage() {
         </Field>
       </div>
       {rates.isPending && <Skeleton className="h-40 w-full" aria-busy />}
-      {rates.isError && (
-        <p role="alert" className="text-sm text-muted-foreground">
-          {t('empty')} {errorMessage(rates.error)}
-        </p>
-      )}
+      {rates.isError &&
+        (none ? (
+          <EmptyState title={t('empty')} />
+        ) : (
+          <p role="alert" className="text-sm text-destructive">
+            {errorMessage(rates.error)}
+          </p>
+        ))}
       {rates.data && (
         <>
           <p className="text-sm text-muted-foreground">
@@ -126,10 +133,12 @@ export function ExchangeRatesPage() {
           )}
         </>
       )}
-      <section className="flex flex-col gap-2">
-        <h2 className="text-base font-medium">{t('converter.title')}</h2>
-        <CurrencyConverter />
-      </section>
+      {!(none && !picked) && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-base font-medium">{t('converter.title')}</h2>
+          <CurrencyConverter />
+        </section>
+      )}
     </Page>
   );
 }

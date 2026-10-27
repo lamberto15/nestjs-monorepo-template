@@ -157,6 +157,29 @@ test.describe('signed in as the administrator', () => {
       .toBe(0);
   });
 
+  // A wide table scrolls inside its own box, never the page (the box shows
+  // edge shadows to say so: `scroll-shadow-x`).
+  test('a table scrolls sideways on a phone, not the page', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto('/notes');
+    const box = page.locator('[data-slot="table-container"]').first();
+    await expect(box).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            document.documentElement.scrollWidth -
+            document.documentElement.clientWidth,
+        ),
+      )
+      .toBe(0);
+    await expect
+      .poll(() => box.evaluate((el) => el.scrollWidth - el.clientWidth))
+      .toBeGreaterThan(0);
+  });
+
   test.describe('open overlays', () => {
     // Only what the overlay holds is scanned: the page behind it is inert
     // while a modal is open, and the page-level rules are covered above.

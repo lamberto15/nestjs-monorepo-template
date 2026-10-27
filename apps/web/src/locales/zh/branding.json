@@ -28,5 +28,10 @@
     "rejected": "{{name}}：{{reason}}",
     "tooLarge": "文件超过 {{max}} KB。",
     "typeRefused": "请使用 PNG、JPEG 或 WebP 图片。"
+  },
+  "error": {
+    "title": "无法加载品牌设置",
+    "generic": "出了点问题。请重试。",
+    "retry": "重试"
   }
 }
