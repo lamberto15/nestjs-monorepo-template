@@ -49,7 +49,7 @@ export function PasswordSection() {
             )
             .max(
               AUTH_LIMITS.passwordMax,
-              t('auth.fields.passwordTooLong', {
+              t('auth.fields.tooLong', {
                 max: AUTH_LIMITS.passwordMax,
               }),
             ),

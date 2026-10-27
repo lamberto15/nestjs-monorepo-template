@@ -144,15 +144,18 @@ describe('the subjects', () => {
   });
 });
 
+/** The custom fields page, its "Add a field" dialog open. */
+async function openNewField() {
+  const user = userEvent.setup();
+  await renderApp('/custom-fields');
+  await user.click(await screen.findByRole('button', { name: 'Add a field' }));
+  return { user, dialog: await screen.findByRole('dialog') };
+}
+
 describe('creating a field', () => {
   it('sends a text field with its limits and a pattern', async () => {
     const { calls } = useCustomFieldsApi({ can: ADMIN, fields: [] });
-    const user = userEvent.setup();
-    await renderApp('/custom-fields');
-    await user.click(
-      await screen.findByRole('button', { name: 'Add a field' }),
-    );
-    const dialog = await screen.findByRole('dialog');
+    const { user, dialog } = await openNewField();
     await user.type(within(dialog).getByLabelText('Key'), 'code');
     await user.type(within(dialog).getByLabelText('Label'), 'Code');
     await user.type(within(dialog).getByLabelText('Shortest length'), '3');
@@ -179,12 +182,7 @@ describe('creating a field', () => {
 
   it('sends a select with its choices and a default among them', async () => {
     const { calls } = useCustomFieldsApi({ can: ADMIN, fields: [] });
-    const user = userEvent.setup();
-    await renderApp('/custom-fields');
-    await user.click(
-      await screen.findByRole('button', { name: 'Add a field' }),
-    );
-    const dialog = await screen.findByRole('dialog');
+    const { user, dialog } = await openNewField();
     await user.type(within(dialog).getByLabelText('Key'), 'region');
     await user.type(within(dialog).getByLabelText('Label'), 'Region');
     await user.click(within(dialog).getByRole('combobox', { name: 'Type' }));
@@ -232,12 +230,7 @@ describe('creating a field', () => {
 
   it('refuses a bad key, and choices that are missing or repeated, before sending', async () => {
     const { calls } = useCustomFieldsApi({ can: ADMIN, fields: [] });
-    const user = userEvent.setup();
-    await renderApp('/custom-fields');
-    await user.click(
-      await screen.findByRole('button', { name: 'Add a field' }),
-    );
-    const dialog = await screen.findByRole('dialog');
+    const { user, dialog } = await openNewField();
     await user.type(within(dialog).getByLabelText('Key'), 'Bad Key');
     await user.type(within(dialog).getByLabelText('Label'), 'Pick');
     await user.click(within(dialog).getByRole('combobox', { name: 'Type' }));
@@ -254,12 +247,7 @@ describe('creating a field', () => {
 
   it('describes a limit by why it is refused', async () => {
     const { calls } = useCustomFieldsApi({ can: ADMIN, fields: [] });
-    const user = userEvent.setup();
-    await renderApp('/custom-fields');
-    await user.click(
-      await screen.findByRole('button', { name: 'Add a field' }),
-    );
-    const dialog = await screen.findByRole('dialog');
+    const { user, dialog } = await openNewField();
     await user.type(within(dialog).getByLabelText('Key'), 'code');
     await user.type(within(dialog).getByLabelText('Label'), 'Code');
     const shortest = within(dialog).getByLabelText('Shortest length');

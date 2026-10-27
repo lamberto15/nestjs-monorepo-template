@@ -1,7 +1,8 @@
 import { http, HttpResponse } from 'msw/http';
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { expectOverLimitRefused, fillOver } from '@/test/limits';
 import { renderApp } from '@/test/render-app';
 import { allFeatures, server, signedInUser } from '@/test/server';
 
@@ -172,14 +173,12 @@ describe('the onboarding forms check their input', () => {
     );
     await renderApp('/onboarding');
     const user = userEvent.setup();
-    await user.click(await screen.findByLabelText('New password'));
-    await user.paste('x'.repeat(129));
-    await user.click(screen.getByLabelText('Confirm the password'));
-    await user.paste('x'.repeat(129));
-    await user.click(
-      screen.getByRole('button', { name: 'Change the password' }),
-    );
-    expect(await screen.findByText('At most 128 characters.')).toBeVisible();
+    await fillOver(user, await screen.findByLabelText('New password'), 128);
+    await expectOverLimitRefused(user, {
+      label: 'Confirm the password',
+      max: 128,
+      submit: 'Change the password',
+    });
     expect(bodies).toEqual([]);
   });
 
@@ -211,13 +210,12 @@ describe('the onboarding forms check their input', () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Rename' }));
     const dialog = await screen.findByRole('dialog', { name: 'Rename' });
-    const name = within(dialog).getByLabelText('Name');
-    await user.clear(name);
-    await user.paste('x'.repeat(65));
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
-    expect(
-      await within(dialog).findByText('At most 64 characters.'),
-    ).toBeVisible();
+    await expectOverLimitRefused(user, {
+      scope: dialog,
+      label: 'Name',
+      max: 64,
+      submit: 'Save',
+    });
     expect(renamed).toEqual([]);
   });
 });

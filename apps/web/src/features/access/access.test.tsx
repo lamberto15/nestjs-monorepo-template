@@ -218,42 +218,45 @@ describe('users: invitations', () => {
   });
 });
 
-describe('users: the invitation form', () => {
-  it('refuses a name over 120 characters before sending', async () => {
+describe('a name over 120 characters', () => {
+  it.each([
+    {
+      form: 'the invitation form',
+      page: '/access/users',
+      post: '/v1/access/users',
+      status: 202,
+      open: 'Invite',
+      email: true,
+      field: 'Name (optional)',
+      submit: 'Send invitation',
+    },
+    {
+      form: 'the team form',
+      page: '/access/teams',
+      post: '/v1/access/teams',
+      status: 201,
+      open: 'New team',
+      email: false,
+      field: 'Name',
+      submit: 'Create team',
+    },
+  ])('is refused by $form before sending', async (form) => {
     signedInWith(everything);
-    const sent = capture('post', '/v1/access/users', 202);
-    await renderApp('/access/users');
+    const sent = capture('post', form.post, form.status);
+    await renderApp(form.page);
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'Invite' }));
+    await user.click(await screen.findByRole('button', { name: form.open }));
     const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText('Email'), 'new@example.com');
-    await user.click(within(dialog).getByLabelText('Name (optional)'));
+    if (form.email) {
+      await user.type(
+        within(dialog).getByLabelText('Email'),
+        'new@example.com',
+      );
+    }
+    await user.click(within(dialog).getByLabelText(form.field));
     await user.paste('x'.repeat(121));
-    await user.click(
-      within(dialog).getByRole('button', { name: 'Send invitation' }),
-    );
-    expect(
-      await within(dialog).findByText('At most 120 characters.'),
-    ).toBeVisible();
-    expect(sent).toEqual([]);
-  });
-});
-
-describe('teams: the team form', () => {
-  it('refuses a name over 120 characters before sending', async () => {
-    signedInWith(everything);
-    const sent = capture('post', '/v1/access/teams', 201);
-    await renderApp('/access/teams');
-    const user = userEvent.setup();
-
-    await user.click(await screen.findByRole('button', { name: 'New team' }));
-    const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByLabelText('Name'));
-    await user.paste('x'.repeat(121));
-    await user.click(
-      within(dialog).getByRole('button', { name: 'Create team' }),
-    );
+    await user.click(within(dialog).getByRole('button', { name: form.submit }));
     expect(
       await within(dialog).findByText('At most 120 characters.'),
     ).toBeVisible();

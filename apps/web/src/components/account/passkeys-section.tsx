@@ -196,7 +196,7 @@ function NameForm(props: {
           .min(1, t('auth.fields.nameRequired'))
           .max(
             AUTH_LIMITS.passkeyName,
-            t('auth.fields.nameTooLong', { max: AUTH_LIMITS.passkeyName }),
+            t('auth.fields.tooLong', { max: AUTH_LIMITS.passkeyName }),
           ),
       }),
     },

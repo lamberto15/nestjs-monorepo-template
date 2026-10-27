@@ -58,7 +58,7 @@ function SignUpPage() {
           .min(1, t('auth.fields.nameRequired'))
           .max(
             AUTH_LIMITS.name,
-            t('auth.fields.nameTooLong', { max: AUTH_LIMITS.name }),
+            t('auth.fields.tooLong', { max: AUTH_LIMITS.name }),
           ),
         email: z.email(t('auth.fields.emailInvalid')),
         password: z
@@ -69,7 +69,7 @@ function SignUpPage() {
           )
           .max(
             AUTH_LIMITS.passwordMax,
-            t('auth.fields.passwordTooLong', { max: AUTH_LIMITS.passwordMax }),
+            t('auth.fields.tooLong', { max: AUTH_LIMITS.passwordMax }),
           ),
         tenantName: z
           .string()

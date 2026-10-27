@@ -85,7 +85,7 @@ function ProfileForm({ me }: { me: Me }) {
           .min(1, t('auth.fields.nameRequired'))
           .max(
             AUTH_LIMITS.name,
-            t('auth.fields.nameTooLong', { max: AUTH_LIMITS.name }),
+            t('auth.fields.tooLong', { max: AUTH_LIMITS.name }),
           ),
         locale: z.string(),
         timezone: z.string(),

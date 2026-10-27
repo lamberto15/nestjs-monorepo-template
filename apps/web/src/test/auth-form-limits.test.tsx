@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { peopleHandler } from '@/test/people';
+import { expectOverLimitRefused, fillOver } from '@/test/limits';
 import { renderApp } from '@/test/render-app';
 import { server } from '@/test/server';
 import { useSignedIn } from '@/test/signed-in';
@@ -27,14 +28,12 @@ describe('the reset-password page', () => {
     const bodies = capture('post', '/v1/auth/password/reset');
     const user = userEvent.setup();
     await renderApp('/reset-password?token=abc');
-    await user.click(await screen.findByLabelText('New password'));
-    await user.paste('x'.repeat(129));
-    await user.click(screen.getByLabelText('Confirm the password'));
-    await user.paste('x'.repeat(129));
-    await user.click(
-      screen.getByRole('button', { name: 'Change the password' }),
-    );
-    expect(await screen.findByText('At most 128 characters.')).toBeVisible();
+    await fillOver(user, await screen.findByLabelText('New password'), 128);
+    await expectOverLimitRefused(user, {
+      label: 'Confirm the password',
+      max: 128,
+      submit: 'Change the password',
+    });
     expect(bodies).toEqual([]);
   });
 });
@@ -44,15 +43,13 @@ describe('the accept-invitation page', () => {
     const bodies = capture('post', '/v1/auth/invitations/accept');
     const user = userEvent.setup();
     await renderApp('/accept-invitation?token=abc');
-    await user.click(await screen.findByLabelText('Name'));
-    await user.paste('x'.repeat(121));
-    await user.click(screen.getByLabelText('Password'));
-    await user.paste('x'.repeat(129));
-    await user.click(
-      screen.getByRole('button', { name: 'Create the account and join' }),
-    );
-    expect(await screen.findByText('At most 120 characters.')).toBeVisible();
-    expect(screen.getByText('At most 128 characters.')).toBeVisible();
+    await fillOver(user, await screen.findByLabelText('Name'), 120);
+    await expectOverLimitRefused(user, {
+      label: 'Password',
+      max: 128,
+      submit: 'Create the account and join',
+    });
+    expect(screen.getByText('At most 120 characters.')).toBeVisible();
     expect(bodies).toEqual([]);
   });
 });
@@ -64,11 +61,12 @@ describe('the profile page', () => {
     const bodies = capture('patch', '/v1/auth/me');
     const user = userEvent.setup();
     await renderApp('/account/profile');
-    const name = await screen.findByLabelText('Name');
-    await user.clear(name);
-    await user.paste('x'.repeat(121));
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(await screen.findByText('At most 120 characters.')).toBeVisible();
+    await screen.findByLabelText('Name');
+    await expectOverLimitRefused(user, {
+      label: 'Name',
+      max: 120,
+      submit: 'Save',
+    });
     expect(bodies).toEqual([]);
   });
 });
