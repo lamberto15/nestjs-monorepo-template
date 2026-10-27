@@ -22,6 +22,7 @@ import { z } from '@/lib/zod';
 import { languages } from '@/i18n';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { api } from '@/lib/api';
+import { AUTH_LIMITS } from '@/lib/auth-limits';
 import { AvatarSection } from '@/components/account/avatar-section';
 import { useMe } from '@/lib/features';
 import { FormAlert, useAppForm } from '@/lib/form';
@@ -78,7 +79,14 @@ function ProfileForm({ me }: { me: Me }) {
     },
     validators: {
       onSubmit: z.object({
-        name: z.string().trim().min(1, t('auth.fields.nameRequired')).max(120),
+        name: z
+          .string()
+          .trim()
+          .min(1, t('auth.fields.nameRequired'))
+          .max(
+            AUTH_LIMITS.name,
+            t('auth.fields.nameTooLong', { max: AUTH_LIMITS.name }),
+          ),
         locale: z.string(),
         timezone: z.string(),
       }),

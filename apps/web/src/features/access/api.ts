@@ -114,6 +114,12 @@ export function teamMembersQuery(teamId: string) {
   });
 }
 
+/**
+ * A role's name and description mirror the API's `maxLength`;
+ * lib/limits.test.ts compares them with openapi.json.
+ */
+export const ROLE_LIMITS = { name: 80, description: 500 } as const;
+
 /** The request body of a role (create and replace). */
 export type RoleBody = JsonBody<paths['/v1/access/roles']['post']>;
 
@@ -144,6 +150,12 @@ export async function updateMember(id: string, body: MemberChanges) {
     body,
   });
 }
+
+/**
+ * An invitation's name mirrors the API's `maxLength`; lib/limits.test.ts
+ * compares it with openapi.json.
+ */
+export const INVITATION_LIMITS = { name: 120 } as const;
 
 export type InvitationBody = JsonBody<paths['/v1/access/users']['post']>;
 

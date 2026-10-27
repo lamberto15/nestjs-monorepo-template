@@ -159,6 +159,28 @@ describe('users: invitations', () => {
   });
 });
 
+describe('users: the invitation form', () => {
+  it('refuses a name over 120 characters before sending', async () => {
+    signedInWith(everything);
+    const sent = capture('post', '/v1/access/users', 202);
+    await renderApp('/access/users');
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Invite' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Email'), 'new@example.com');
+    await user.click(within(dialog).getByLabelText('Name (optional)'));
+    await user.paste('x'.repeat(121));
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Send invitation' }),
+    );
+    expect(
+      await within(dialog).findByText('At most 120 characters.'),
+    ).toBeVisible();
+    expect(sent).toEqual([]);
+  });
+});
+
 describe('users: resending an invitation', () => {
   it('resends through its own route (a recent sign-in asked first) and shows when its roles end', async () => {
     signedInWith(everything);

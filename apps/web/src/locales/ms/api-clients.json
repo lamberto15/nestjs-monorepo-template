@@ -29,6 +29,7 @@
     "name": "Nama",
     "namePlaceholder": "Pengeksport bil",
     "nameRequired": "Beri nama kepada klien.",
+    "nameTooLong": "Paling banyak {{max}} aksara.",
     "quota": "Kuota harian (pilihan)",
     "quotaHint": "Permintaan sehari (UTC); selepas itu API menjawab 429. Biarkan kosong jika tiada.",
     "quotaInvalid": "Nombor bulat 1 atau lebih.",

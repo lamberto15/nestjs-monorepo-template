@@ -69,7 +69,8 @@
       "nameHint": "Nur für ein neues Konto; dessen Inhaber kann ihn ändern."
     },
     "errors": {
-      "email": "Geben Sie eine gültige E-Mail-Adresse ein."
+      "email": "Geben Sie eine gültige E-Mail-Adresse ein.",
+      "nameTooLong": "Höchstens {{max}} Zeichen."
     },
     "send": "Einladung senden",
     "sent": "Einladung an {{email}} gesendet.",

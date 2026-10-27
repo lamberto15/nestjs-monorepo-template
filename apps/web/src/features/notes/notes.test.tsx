@@ -1,11 +1,11 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import openapi from '@nestjs-monorepo-template/api-client/openapi.json';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it, vi } from 'vitest';
 import { NOTE_LIMITS } from '@/features/notes/api';
 import { meQuery } from '@/lib/session';
 import { renderApp } from '@/test/render-app';
+import { hasRoute, requestProperties } from '@/test/request-schemas';
 import {
   NOTE_ID,
   sampleNote,
@@ -13,27 +13,6 @@ import {
 } from '@/features/notes/test/notes-api';
 import { server, signedInUser } from '@/test/server';
 import { findToast } from '@/test/toast';
-
-/** The request schemas of the API's routes, as the typed client's document has them. */
-const schemaPaths = (
-  openapi as unknown as {
-    paths: Record<
-      string,
-      Record<
-        string,
-        {
-          requestBody: {
-            content: {
-              'application/json': {
-                schema: { properties: Record<string, { maxLength?: number }> };
-              };
-            };
-          };
-        }
-      >
-    >;
-  }
-).paths;
 
 const ALL = [
   'Note.read',
@@ -279,17 +258,16 @@ describe('creating a note', () => {
     expect(api.calls.created).toHaveLength(0);
   });
 
-  // CI's template-without-notes job removes the API's notes: nothing to compare then.
-  it.skipIf(!('/v1/notes' in schemaPaths))(
+  // The other forms' limits are checked in lib/limits.test.ts; this feature
+  // can be removed (CI's template-without-notes job), so its own stay here.
+  it.skipIf(!hasRoute('/v1/notes'))(
     "keeps its limits equal to the API schema's maxLength",
     () => {
-      const schema = schemaPaths;
       for (const [path, method] of [
         ['/v1/notes', 'post'],
         ['/v1/notes/{id}', 'patch'],
       ] as const) {
-        const { properties } =
-          schema[path]![method]!.requestBody.content['application/json'].schema;
+        const properties = requestProperties(path, method);
         expect(properties.title?.maxLength).toBe(NOTE_LIMITS.title);
         expect(properties.body?.maxLength).toBe(NOTE_LIMITS.body);
       }

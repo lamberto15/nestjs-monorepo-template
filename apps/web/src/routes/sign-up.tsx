@@ -14,6 +14,7 @@ import { useCaptcha } from '@/components/auth/captcha';
 import { LinkResult } from '@/components/auth/link-result';
 import { ResendVerificationByEmail } from '@/components/auth/resend-verification';
 import { api } from '@/lib/api';
+import { AUTH_LIMITS } from '@/lib/auth-limits';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { browserTimeZone } from '@/lib/link-token';
@@ -51,16 +52,32 @@ function SignUpPage() {
     defaultValues: { name: '', email: '', password: '', tenantName: '' },
     validators: {
       onSubmit: z.object({
-        name: z.string().trim().min(1, t('auth.fields.nameRequired')).max(120),
+        name: z
+          .string()
+          .trim()
+          .min(1, t('auth.fields.nameRequired'))
+          .max(
+            AUTH_LIMITS.name,
+            t('auth.fields.nameTooLong', { max: AUTH_LIMITS.name }),
+          ),
         email: z.email(t('auth.fields.emailInvalid')),
         password: z
           .string()
-          .min(12, t('auth.fields.passwordTooShort', { min: 12 }))
-          .max(128),
+          .min(
+            AUTH_LIMITS.passwordMin,
+            t('auth.fields.passwordTooShort', { min: AUTH_LIMITS.passwordMin }),
+          )
+          .max(
+            AUTH_LIMITS.passwordMax,
+            t('auth.fields.passwordTooLong', { max: AUTH_LIMITS.passwordMax }),
+          ),
         tenantName: z
           .string()
           .trim()
-          .max(120, t('auth.fields.tenantNameTooLong', { max: 120 })),
+          .max(
+            AUTH_LIMITS.tenantName,
+            t('auth.fields.tenantNameTooLong', { max: AUTH_LIMITS.tenantName }),
+          ),
       }),
     },
     onSubmit: async ({ value }) => {

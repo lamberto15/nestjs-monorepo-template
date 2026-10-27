@@ -14,6 +14,7 @@ import { z } from '@/lib/zod';
 import { AuthLayout } from '@/components/auth/auth-layout';
 import { LinkResult, MissingToken } from '@/components/auth/link-result';
 import { api } from '@/lib/api';
+import { AUTH_LIMITS } from '@/lib/auth-limits';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { tokenSearchSchema } from '@/lib/link-token';
@@ -107,11 +108,24 @@ function AcceptNewAccount(props: { token: string }) {
     defaultValues: { name: '', password: '' },
     validators: {
       onSubmit: z.object({
-        name: z.string().trim().min(1, t('auth.fields.nameRequired')).max(120),
+        name: z
+          .string()
+          .trim()
+          .min(1, t('auth.fields.nameRequired'))
+          .max(
+            AUTH_LIMITS.name,
+            t('auth.fields.nameTooLong', { max: AUTH_LIMITS.name }),
+          ),
         password: z
           .string()
-          .min(12, t('auth.fields.passwordTooShort', { min: 12 }))
-          .max(128),
+          .min(
+            AUTH_LIMITS.passwordMin,
+            t('auth.fields.passwordTooShort', { min: AUTH_LIMITS.passwordMin }),
+          )
+          .max(
+            AUTH_LIMITS.passwordMax,
+            t('auth.fields.passwordTooLong', { max: AUTH_LIMITS.passwordMax }),
+          ),
       }),
     },
     onSubmit: async ({ value }) => {

@@ -379,6 +379,28 @@ describe('tenants page', () => {
     expect(state.created).toBeUndefined();
   });
 
+  it('refuses a name over 120 characters before sending', async () => {
+    const state = api();
+    await renderApp('/tenants');
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'New tenant' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByLabelText('Name'));
+    await userEvent.paste('x'.repeat(121));
+    await userEvent.type(
+      within(dialog).getByLabelText("First administrator's email"),
+      'boss@initech.example',
+    );
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Create tenant' }),
+    );
+    expect(
+      await within(dialog).findByText('At most 120 characters.'),
+    ).toBeInTheDocument();
+    expect(state.created).toBeUndefined();
+  });
+
   it('shows the API refusal of a taken slug', async () => {
     api();
     await renderApp('/tenants');
@@ -456,6 +478,17 @@ describe('tenant detail', () => {
     expect(
       await screen.findByText(/Use lowercase letters and digits/),
     ).toBeInTheDocument();
+    expect(state.patched).toEqual([]);
+  });
+
+  it('refuses a name over 120 characters before sending', async () => {
+    const state = api();
+    await renderApp(`/tenants/${GLOBEX}`);
+    const name = await screen.findByLabelText('Name');
+    await userEvent.clear(name);
+    await userEvent.paste('x'.repeat(121));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('At most 120 characters.')).toBeVisible();
     expect(state.patched).toEqual([]);
   });
 

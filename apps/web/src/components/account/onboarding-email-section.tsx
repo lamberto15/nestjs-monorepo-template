@@ -35,8 +35,8 @@ export function OnboardingEmailSection() {
     defaultValues: { email: '', currentPassword: '' },
     validators: {
       onSubmit: z.object({
-        email: z.email(),
-        currentPassword: z.string().min(1),
+        email: z.email(t('auth.fields.emailInvalid')),
+        currentPassword: z.string().min(1, t('auth.fields.passwordRequired')),
       }),
     },
     onSubmit: async ({ value }) => {

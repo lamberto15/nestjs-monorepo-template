@@ -201,6 +201,25 @@ describe('scheduling a report', () => {
     expect(calls.created).toHaveLength(0);
   });
 
+  it('refuses a name over 200 characters before it sends anything', async () => {
+    const calls = useReportsApi({ reports: [] });
+    await renderApp('/reports');
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: 'Schedule a report' }),
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Schedule a report',
+    });
+    await user.click(within(dialog).getByLabelText('Name'));
+    await user.paste('x'.repeat(201));
+    await user.click(within(dialog).getByRole('button', { name: 'Schedule' }));
+    expect(
+      await within(dialog).findByText('At most 200 characters.'),
+    ).toBeVisible();
+    expect(calls.created).toHaveLength(0);
+  });
+
   it("puts the server's field errors on the fields", async () => {
     useReportsApi({ reports: [] });
     await renderApp('/reports');

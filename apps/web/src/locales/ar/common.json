@@ -47,11 +47,13 @@
       "passwordRequired": "أدخل كلمة المرور.",
       "passwordHint": "12 حرفًا على الأقل. تُرفض كلمات المرور التي ظهرت في تسريبات البيانات.",
       "passwordTooShort": "{{min}} أحرف على الأقل.",
+      "passwordTooLong": "{{max}} حرفًا كحد أقصى.",
       "passwordMismatch": "كلمتا المرور غير متطابقتين.",
       "newPassword": "كلمة المرور الجديدة",
       "confirmPassword": "تأكيد كلمة المرور",
       "name": "الاسم",
       "nameRequired": "أدخل اسمًا.",
+      "nameTooLong": "{{max}} حرفًا كحد أقصى.",
       "tenantName": "اسم المؤسسة",
       "tenantNameHint": "مؤسستك الجديدة. ستكون مسؤولها. اتركه فارغًا لاستخدام اسمك.",
       "tenantNameTooLong": "{{max}} حرفًا كحد أقصى."

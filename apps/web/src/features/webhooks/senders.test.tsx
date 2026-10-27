@@ -167,6 +167,25 @@ describe('incoming webhook senders', () => {
     expect(state.created).toBeUndefined();
   });
 
+  it('refuses a description over 500 characters before asking the API', async () => {
+    const state = api();
+    const user = userEvent.setup();
+    await renderApp('/webhooks/senders');
+    await screen.findByText('billing-system');
+    await user.click(screen.getByRole('button', { name: 'New sender' }));
+    const form = await screen.findByRole('dialog', { name: 'New sender' });
+    await user.type(within(form).getByLabelText('Name'), 'crm');
+    await user.click(within(form).getByLabelText('Description (optional)'));
+    await user.paste('x'.repeat(501));
+    await user.click(
+      within(form).getByRole('button', { name: 'Create sender' }),
+    );
+    expect(
+      await within(form).findByText('At most 500 characters.'),
+    ).toBeVisible();
+    expect(state.created).toBeUndefined();
+  });
+
   it("shows the API's refusal of a taken name and keeps the dialog open", async () => {
     api();
     server.use(

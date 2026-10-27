@@ -17,6 +17,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
+  ROLE_LIMITS,
   catalogQuery,
   createRole,
   invalidateAccess,
@@ -90,8 +91,10 @@ function RoleFormLoaded(props: { catalog: Catalog; role?: Role }) {
           .string()
           .trim()
           .min(1, t('roles.errors.nameRequired'))
-          .max(80, t('roles.errors.nameTooLong')),
-        description: z.string().max(500, t('roles.errors.descriptionTooLong')),
+          .max(ROLE_LIMITS.name, t('roles.errors.nameTooLong')),
+        description: z
+          .string()
+          .max(ROLE_LIMITS.description, t('roles.errors.descriptionTooLong')),
         permissions: z
           .custom<EditorState>()
           .refine(

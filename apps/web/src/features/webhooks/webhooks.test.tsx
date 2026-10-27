@@ -409,6 +409,28 @@ describe('clients and endpoints', () => {
     expect(state.created).toBeUndefined();
   });
 
+  it('refuses a description over 500 characters before asking the API', async () => {
+    const state = api();
+    const user = userEvent.setup();
+    await renderApp(endpointsPath);
+    await screen.findByText('https://hooks.example.com/in');
+    await user.click(screen.getByRole('button', { name: 'New endpoint' }));
+    const form = await screen.findByRole('dialog', { name: 'New endpoint' });
+    await user.type(
+      within(form).getByLabelText('URL'),
+      'https://other.example.com/hook',
+    );
+    await user.click(within(form).getByLabelText('Description (optional)'));
+    await user.paste('x'.repeat(501));
+    await user.click(
+      within(form).getByRole('button', { name: 'Create endpoint' }),
+    );
+    expect(
+      await within(form).findByText('At most 500 characters.'),
+    ).toBeVisible();
+    expect(state.created).toBeUndefined();
+  });
+
   it("shows the API's refusal in the dialog and keeps it open", async () => {
     api();
     server.use(

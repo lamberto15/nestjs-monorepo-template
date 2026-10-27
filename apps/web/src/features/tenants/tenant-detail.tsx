@@ -23,6 +23,7 @@ import { BreakGlassSection } from './tenant-break-glass-section';
 import { DeletionSection } from './tenant-deletion-section';
 import { ExportSection } from './tenant-export-section';
 import {
+  TENANT_LIMITS,
   deletionPending,
   slugPattern,
   tenantQuery,
@@ -181,10 +182,17 @@ function NameSection(props: {
     defaultValues: { name: tenant.name, slug: tenant.slug },
     validators: {
       onSubmit: z.object({
-        name: z.string().trim().min(1, t('create.nameRequired')).max(120),
+        name: z
+          .string()
+          .trim()
+          .min(1, t('create.nameRequired'))
+          .max(
+            TENANT_LIMITS.name,
+            t('create.nameTooLong', { max: TENANT_LIMITS.name }),
+          ),
         slug: z
           .string()
-          .max(48, t('create.slugInvalid'))
+          .max(TENANT_LIMITS.slug, t('create.slugInvalid'))
           .regex(slugPattern, t('create.slugInvalid')),
       }),
     },

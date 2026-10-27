@@ -20,6 +20,12 @@ export type ReportChanges = NonNullable<
   paths['/v1/reports/{id}']['patch']['requestBody']
 >['content']['application/json'];
 
+/**
+ * A report's name mirrors the API's `maxLength`; lib/limits.test.ts compares
+ * it with openapi.json.
+ */
+export const REPORT_LIMITS = { name: 200 } as const;
+
 /** Every reports query starts with this key (one invalidation covers all). */
 export const reportsKey = ['reports'] as const;
 

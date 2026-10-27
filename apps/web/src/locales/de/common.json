@@ -47,11 +47,13 @@
       "passwordRequired": "Geben Sie Ihr Passwort ein.",
       "passwordHint": "Mindestens 12 Zeichen. Passwörter aus Datenlecks werden abgelehnt.",
       "passwordTooShort": "Mindestens {{min}} Zeichen.",
+      "passwordTooLong": "Höchstens {{max}} Zeichen.",
       "passwordMismatch": "Die Passwörter stimmen nicht überein.",
       "newPassword": "Neues Passwort",
       "confirmPassword": "Passwort bestätigen",
       "name": "Name",
       "nameRequired": "Geben Sie einen Namen ein.",
+      "nameTooLong": "Höchstens {{max}} Zeichen.",
       "tenantName": "Name der Organisation",
       "tenantNameHint": "Ihre neue Organisation. Sie werden ihr Administrator. Lassen Sie das Feld leer, um Ihren Namen zu verwenden.",
       "tenantNameTooLong": "Höchstens {{max}} Zeichen."

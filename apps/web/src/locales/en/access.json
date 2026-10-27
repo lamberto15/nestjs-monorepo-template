@@ -69,7 +69,8 @@
       "nameHint": "Only for a new account; its owner can change it."
     },
     "errors": {
-      "email": "Enter a valid email address."
+      "email": "Enter a valid email address.",
+      "nameTooLong": "At most {{max}} characters."
     },
     "send": "Send invitation",
     "sent": "Invitation sent to {{email}}.",

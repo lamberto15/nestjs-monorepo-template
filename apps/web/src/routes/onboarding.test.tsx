@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw/http';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/render-app';
@@ -143,5 +143,81 @@ describe('the administrator onboarding step', () => {
     useOnboardingApi({ email: false, password: false });
     await renderApp('/onboarding');
     expect(await screen.findByText('Continue to the app')).toBeVisible();
+  });
+});
+
+describe('the onboarding forms check their input', () => {
+  it('says what the email step needs, and sends nothing', async () => {
+    const changes = useOnboardingApi({ password: false });
+    await renderApp('/onboarding');
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: 'Send the confirmation link' }),
+    );
+    expect(
+      await screen.findByText('Enter a valid email address.'),
+    ).toBeVisible();
+    expect(screen.getByText('Enter your password.')).toBeVisible();
+    expect(changes).toEqual([]);
+  });
+
+  it('refuses a new password over 128 characters, as the API does', async () => {
+    useOnboardingApi({ email: false });
+    const bodies: unknown[] = [];
+    server.use(
+      http.post('/v1/auth/password/change', async ({ request }) => {
+        bodies.push(await request.json());
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    await renderApp('/onboarding');
+    const user = userEvent.setup();
+    await user.click(await screen.findByLabelText('New password'));
+    await user.paste('x'.repeat(129));
+    await user.click(screen.getByLabelText('Confirm the password'));
+    await user.paste('x'.repeat(129));
+    await user.click(
+      screen.getByRole('button', { name: 'Change the password' }),
+    );
+    expect(await screen.findByText('At most 128 characters.')).toBeVisible();
+    expect(bodies).toEqual([]);
+  });
+
+  it('refuses a passkey name over 64 characters, as the API does', async () => {
+    useOnboardingApi();
+    const renamed: unknown[] = [];
+    server.use(
+      http.get('/v1/auth/passkeys', () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: 'passkey-1',
+              name: 'Laptop',
+              deviceType: 'multiDevice',
+              backedUp: true,
+              transports: [],
+              lastUsedAt: null,
+              createdAt: '2026-10-10T08:00:00.000Z',
+            },
+          ],
+        }),
+      ),
+      http.patch('/v1/auth/passkeys/:id', async ({ request }) => {
+        renamed.push(await request.json());
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    await renderApp('/onboarding');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Rename' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Rename' });
+    const name = within(dialog).getByLabelText('Name');
+    await user.clear(name);
+    await user.paste('x'.repeat(65));
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    expect(
+      await within(dialog).findByText('At most 64 characters.'),
+    ).toBeVisible();
+    expect(renamed).toEqual([]);
   });
 });
