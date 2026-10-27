@@ -456,6 +456,13 @@
       "when": 1792996264916,
       "tag": "0064_far_shadow_king",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1793121025535,
+      "tag": "0065_strong_jack_power",
+      "breakpoints": true
     }
   ]
 }
