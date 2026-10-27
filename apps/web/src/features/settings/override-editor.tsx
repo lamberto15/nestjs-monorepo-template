@@ -18,7 +18,7 @@ import { PersonPicker } from '@/components/person-picker';
 import { api } from '@/lib/api';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { holds, useMe, type Permission } from '@/lib/features';
-import { FormAlert, useAppForm } from '@/lib/form';
+import { FormAlert, useAppForm, useDescribedBy } from '@/lib/form';
 import { teamRefsQuery } from '@/lib/list-refs';
 import { catalogQuery } from '@/features/transfer/api';
 import { usePeopleNames, useTeamNames } from '@/lib/people';
@@ -112,6 +112,10 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
     return people.get(scopeId);
   };
   const hint = boundsHint(setting, t);
+  // The hints describe their inputs (as lib/form.tsx's fields): the scope's
+  // picker and the value's.
+  const scopeInput = useDescribedBy(true, false);
+  const valueInput = useDescribedBy(Boolean(hint), false);
 
   const refresh = () =>
     Promise.all([
@@ -345,13 +349,14 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
                 <form.Field name="scopeId" key={scope}>
                   {(field) => (
                     <Field>
-                      <FieldLabel htmlFor="field-scopeId">
+                      <FieldLabel htmlFor={scopeInput.controlId}>
                         {t('scopeId.user')}
                       </FieldLabel>
                       {mayReadPrincipals ? (
                         <PrincipalPicker
-                          id="field-scopeId"
+                          id={scopeInput.controlId}
                           label={t('scopeId.user')}
+                          describedBy={scopeInput.describedBy}
                           value={field.state.value}
                           initialLabel={
                             field.state.value
@@ -362,8 +367,9 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
                         />
                       ) : (
                         <PersonPicker
-                          id="field-scopeId"
+                          id={scopeInput.controlId}
                           label={t('scopeId.user')}
+                          describedBy={scopeInput.describedBy}
                           value={field.state.value}
                           initialLabel={
                             field.state.value
@@ -373,7 +379,9 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
                           onChange={(value) => field.handleChange(value)}
                         />
                       )}
-                      <FieldDescription>{t('scopeIdHint')}</FieldDescription>
+                      <FieldDescription id={scopeInput.descriptionId}>
+                        {t('scopeIdHint')}
+                      </FieldDescription>
                     </Field>
                   )}
                 </form.Field>
@@ -436,17 +444,22 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
                     <form.Field name="draft">
                       {(field) => (
                         <Field>
-                          <FieldLabel htmlFor="field-draft">
+                          <FieldLabel htmlFor={valueInput.controlId}>
                             {t('valueLabel')}
                           </FieldLabel>
                           <ValueInput
-                            id="field-draft"
+                            id={valueInput.controlId}
                             label={t('valueLabel')}
                             spec={setting}
                             value={field.state.value}
                             onChange={field.handleChange}
+                            describedBy={valueInput.describedBy}
                           />
-                          {hint && <FieldDescription>{hint}</FieldDescription>}
+                          {hint && (
+                            <FieldDescription id={valueInput.descriptionId}>
+                              {hint}
+                            </FieldDescription>
+                          )}
                         </Field>
                       )}
                     </form.Field>

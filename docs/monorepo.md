@@ -159,6 +159,34 @@ web app needs the API, so `dev:web` alone suits an API already running.
   console and to `POST /v1/client-errors` (`platform/client-errors`), which
   logs them server-side; nothing is stored beyond the log (#751). A dropped
   connection is not one: it says so.
+- **Forms** (`lib/form.tsx`, TanStack Form's form composition): a form is
+  `useAppForm` with the `TextField`, `TextAreaField`, `MarkdownField`,
+  `CodeField` and `SelectField` of `form.AppField`, which tie a control to
+  its label, hint and error with `useId` ids (two forms of one page may
+  share field names) and `aria-describedby`; a hand-rolled field uses
+  `useDescribedBy` for the same. Every `useAppForm` form also gets:
+  - the focus on its first invalid control after a failed submit (the
+    forms are `noValidate`), and after the API's field errors
+    (`lib/form-focus.ts`);
+  - the stale-draft guard: a draft begun under another session is not sent
+    until the user says so (`useStaleDraftSession()`, before the form's own
+    `onSubmit`; only a hand-rolled submit path calls it itself).
+  `applyFieldErrors(form, error)` puts the API's `errors[].path` on the
+  fields (a dotted path on the field of its first segment, `aliases` for
+  another name) and returns whether every one found a field; the caller's
+  form-level alert then shows `errorMessage(error)`, which gives the
+  messages no field took. A record editor asks before the user leaves it
+  with unsaved input: `useUnsavedChangesGuard(form)`
+  (`lib/unsaved-changes.ts`, TanStack Router's `useBlocker`; a link, back
+  and forward, a reload or a closed tab). Its saves leave with
+  `ignoreBlocker: true` (or `form.reset(saved)` when they stay), as do the
+  session-end redirects. An editor that saves with an ETag reads its record
+  once (`refetchOnWindowFocus: false`, `refetchOnReconnect: false`, as
+  `routes/_app/notes/$id/edit.tsx`): a background refetch would remount the
+  form under the user's edits, where the save's 412 offers the reload. A
+  page that also shows live state keeps refetching and holds the form back
+  instead (`features/tenants/tenant-detail.tsx`): an untouched form follows
+  the record, a touched one keeps the edits and the ETag it started from.
 - **Cross-tab sessions** (`lib/session-bus.ts`, `lib/session.ts`): the tabs
   share the one `__Host-sid` cookie, so what one tab does to the session the
   others must follow. A tab's session watcher (`lib/errors.ts`) records the
@@ -196,9 +224,9 @@ web app needs the API, so `dev:web` alone suits an API already running.
   (the key and signing-secret dialogs, recovery codes, a TOTP secret) is
   reset there. A form's unsaved draft, though,
   is component state the reset cannot touch: a draft begun under another
-  session is not sent until the user says so — `useStaleDraftSession()`
-  (`lib/form.tsx`) at the top of a form's `onSubmit` (the note form has it;
-  other record forms should adopt it as they edit records). Tests stand a
+  session is not sent until the user says so — every `useAppForm` form
+  checks before its own `onSubmit` (`useStaleDraftSession()`, `lib/form.tsx`;
+  a hand-rolled submit path such as the comment box calls it itself). Tests stand a
   channel in per suite (`lib/session-identity.test.tsx`); the real channel
   across real tabs is shown by the browser test in `apps/web-e2e`
   (`session-identity.spec.ts`, two tabs of one browser through an
@@ -420,8 +448,48 @@ feature (`pnpm feature:add`) start as English copies in every language: translat
 them in `locales/<lng>/<feature>.json` with the other new keys, keeping the
 `{{placeholders}}` and plural suffixes (`src/locales.test.ts` checks them; `ar`
 has all six plural forms). A key the code asks for that `en` lacks fails the
-test that renders it (`test/i18n.ts`), rather than showing as the raw key. `<html lang>` and `dir` (`rtl` for `ar`) follow the language; the
+test that renders it (`test/i18n.ts`), rather than showing as the raw key. `<html lang>` and `dir` (`rtl` for `ar`) follow the language, and so does Base
+UI's `DirectionProvider` ([Accessibility](#accessibility)); the
 theme (light, dark, system) is a class on `<html>`.
+
+### Accessibility
+
+What a client-side navigation leaves to the app (TanStack Router renders the
+page and nothing more), in `src/components/route-accessibility.tsx`:
+
+- **Page titles:** `<title>` is the page, then the app (WCAG 2.4.2). A page in
+  the menu takes its entry's title; one the menu does not list names itself
+  in its route's `staticData: { title: '<ns>:<key>' }` (the i18n key). It
+  follows the language.
+- **Focus after a navigation:** to the new page's `h1`, else its content, so a
+  keyboard or screen-reader user starts there and not on the link they left.
+  Not on the first load, not for a filter or a sort (the search changes
+  only), and not when the page has put the focus somewhere itself (its first
+  field, an open dialog). `scrollRestoration` is on.
+- **Skip link:** `SkipToContent` is the first tab stop; it moves the focus to
+  `#main-content` instead of following the fragment, which would end up in
+  the router's location.
+- **Landmarks:** one `<main>` on a signed-in page; `AuthLayout` has its own
+  `<main>` and the level-1 heading for the sign-in pages. Every page has one
+  `h1`.
+- **Direction:** `<html dir>` follows the language, and `LanguageDirection`
+  (`app.tsx`) gives Base UI's `DirectionProvider` the same `i18n.dir()`, so
+  popups, menus and arrow keys follow it ([i18n and time](i18n-and-time.md)).
+- **Lint:** oxlint's `jsx-a11y` plugin runs on `apps/web/src` (`.oxlintrc.json`).
+  Five rules are off, each for a pattern the app uses on purpose:
+  `prefer-tag-over-role` (`role="status"` live regions on a `<p>` or an
+  `Alert`, Base UI parts, roving-focus lists), `no-autofocus` (the first field
+  of a dialog or a sign-in step the user just opened),
+  `control-has-associated-label` (a Base UI `render={<a href />}` link takes
+  its text from the Button's children, which the rule does not see),
+  `no-noninteractive-element-interactions` (the sort and filter menus' rows take
+  the arrow keys) and `no-noninteractive-tabindex` (a named scroll region that
+  must be focusable to scroll by keyboard). The other rules stay on: a few
+  that never fire are errors. A new finding is fixed, not switched off, unless
+  it is one of those patterns.
+- **Tests:** `src/test/navigation-a11y.test.tsx` (titles, focus, skip link,
+  landmarks); the axe scans in the browser tests:
+  [development](development.md), "Browser tests".
 
 ### Components
 
@@ -475,9 +543,12 @@ What a feature's record pages share; `features/notes` and
   `/me.can` for a record read without it. A create answers with the ETag a read
   would: `seedCreatedNote()` puts the note and that ETag in the cache, so the
   page it opens and a first edit (`If-Match`) need no second read. Text limits
-  (`NOTE_LIMITS`) mirror the schema's `maxLength`; a test compares them with
-  `packages/api-client/openapi.json` (importing that 1 MB file would bloat the
-  bundle).
+  are constants that mirror the schema's `maxLength` (`NOTE_LIMITS`, and a
+  `*_LIMITS` per feature, `AUTH_LIMITS` in `lib/auth-limits.ts` for the
+  account forms); tests compare them with `packages/api-client/openapi.json`
+  (`lib/limits.test.ts`, a row per form; the notes' own in
+  `features/notes/notes.test.tsx`), never the bundle (importing that 1 MB
+  file would bloat it).
 - **Custom fields in a record form and view** (`components/records/custom-field-inputs.tsx`,
   `custom-field-values.tsx`, `lib/custom-values.ts`): `GET /v1/custom-fields?subject=`
   (any reader of the subject) gives the active definitions. `<CustomFieldInputs

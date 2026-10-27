@@ -61,6 +61,7 @@
     "name": "Nama",
     "namePlaceholder": "Draf mingguan",
     "nameRequired": "Masukkan nama.",
+    "nameTooLong": "Paling banyak {{max}} aksara.",
     "exporter": "Data",
     "exporterPlaceholder": "Pilih apa yang hendak dieksport",
     "exporterRequired": "Pilih apa yang hendak dieksport.",

@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { z } from '@/lib/zod';
 import { Section } from '@/components/account/section';
 import { api } from '@/lib/api';
+import { AUTH_LIMITS } from '@/lib/auth-limits';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { useSettleBreachAlerts } from '@/features/notifications/breach-alert';
 import { FormAlert, useAppForm } from '@/lib/form';
@@ -40,8 +41,18 @@ export function PasswordSection() {
           currentPassword: z.string(),
           newPassword: z
             .string()
-            .min(12, t('auth.fields.passwordTooShort', { min: 12 }))
-            .max(128),
+            .min(
+              AUTH_LIMITS.passwordMin,
+              t('auth.fields.passwordTooShort', {
+                min: AUTH_LIMITS.passwordMin,
+              }),
+            )
+            .max(
+              AUTH_LIMITS.passwordMax,
+              t('auth.fields.tooLong', {
+                max: AUTH_LIMITS.passwordMax,
+              }),
+            ),
           confirm: z.string(),
         })
         .refine((value) => value.newPassword === value.confirm, {

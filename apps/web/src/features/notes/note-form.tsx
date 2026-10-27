@@ -33,6 +33,8 @@ import { isApiError } from '@nestjs-monorepo-template/api-client';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { useSubjectNamingSeries } from '@/lib/naming-series';
 import { FormAlert, useAppForm } from '@/lib/form';
+import { useUnsavedChangesGuard } from '@/lib/unsaved-changes';
+import { focusFirstInvalid } from '@/lib/form-focus';
 import {
   isPreconditionFailed,
   recordKeys,
@@ -139,7 +141,10 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
       setConflict(false);
       const found = draftErrors(fields, drafts, tRecords);
       setCustomErrors(found);
-      if (Object.keys(found).length > 0) return;
+      if (Object.keys(found).length > 0) {
+        focusFirstInvalid(form);
+        return;
+      }
       try {
         const saved = await save.mutateAsync({
           title: value.title.trim(),
@@ -154,7 +159,12 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
         // A new note is in no record query yet (it was just seeded).
         await (note ? invalidate() : invalidateLists());
         toast.success(note ? t('form.saved') : t('form.created'));
-        await navigate({ to: '/notes/$id', params: { id: saved.id } });
+        // Saved: the note's page, past the unsaved-changes guard.
+        await navigate({
+          to: '/notes/$id',
+          params: { id: saved.id },
+          ignoreBlocker: true,
+        });
       } catch (caught) {
         if (isPreconditionFailed(caught)) {
           setConflict(true);
@@ -169,6 +179,11 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
       }
     },
   });
+  // The custom fields and the series are kept outside the form.
+  useUnsavedChangesGuard(
+    form,
+    Object.keys(edits).length > 0 || pickedSeries !== undefined,
+  );
 
   // The changed note replaces this form's (the edit page keys it by ETag).
   const reload = async () => {

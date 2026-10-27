@@ -23,6 +23,7 @@ import { z } from '@/lib/zod';
 import { Section } from '@/components/account/section';
 import { ConfirmButton } from '@/components/confirm-button';
 import { api } from '@/lib/api';
+import { AUTH_LIMITS } from '@/lib/auth-limits';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { formatDateTime } from '@/lib/date-time';
 import { FormAlert, useAppForm } from '@/lib/form';
@@ -189,7 +190,14 @@ function NameForm(props: {
     defaultValues: { name: props.initial },
     validators: {
       onSubmit: z.object({
-        name: z.string().trim().min(1, t('auth.fields.nameRequired')).max(64),
+        name: z
+          .string()
+          .trim()
+          .min(1, t('auth.fields.nameRequired'))
+          .max(
+            AUTH_LIMITS.passkeyName,
+            t('auth.fields.tooLong', { max: AUTH_LIMITS.passkeyName }),
+          ),
       }),
     },
     onSubmit: async ({ value }) => {

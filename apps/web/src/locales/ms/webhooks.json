@@ -47,6 +47,7 @@
     "urlInvalid": "Masukkan alamat web penuh, seperti https://example.com/hooks.",
     "descriptionLabel": "Penerangan (pilihan)",
     "descriptionPlaceholder": "Pesanan ke sistem gudang",
+    "descriptionTooLong": "Paling banyak {{max}} aksara.",
     "events": "Peristiwa",
     "allEvents": "Semua peristiwa",
     "eventsHint": "Segala yang dihantar oleh API, atau hanya jenis yang anda tandakan.",
@@ -187,6 +188,7 @@
       "nameInvalid": "Gunakan huruf kecil, digit dan sempang, paling banyak 63 aksara.",
       "descriptionLabel": "Penerangan (pilihan)",
       "descriptionPlaceholder": "Sistem pengebilan",
+      "descriptionTooLong": "Paling banyak {{max}} aksara.",
       "create": "Cipta penghantar"
     }
   }

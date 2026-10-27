@@ -29,10 +29,7 @@ import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { TagBadge, type Tag } from '@/lib/tags';
 import { z } from '@/lib/zod';
-import { useUpdateTag, type TagChanges } from './api';
-
-/** The schema's limits (`PATCH /v1/tags/{id}`). */
-const LIMITS = { name: 100, description: 500 } as const;
+import { TAG_LIMITS, useUpdateTag, type TagChanges } from './api';
 
 /** The color the picker opens on when the tag has none yet. */
 const START_COLOR = '#3b82f6';
@@ -121,7 +118,7 @@ export function TagDialog(props: {
                   .string()
                   .trim()
                   .min(1, t('form.nameRequired'))
-                  .max(LIMITS.name, t('form.nameTooLong')),
+                  .max(TAG_LIMITS.name, t('form.nameTooLong')),
               }}
             >
               {(f) => <f.TextField label={t('form.name')} autoFocus />}
@@ -168,7 +165,7 @@ export function TagDialog(props: {
               validators={{
                 onSubmit: z
                   .string()
-                  .max(LIMITS.description, t('form.descriptionTooLong')),
+                  .max(TAG_LIMITS.description, t('form.descriptionTooLong')),
               }}
             >
               {(f) => (

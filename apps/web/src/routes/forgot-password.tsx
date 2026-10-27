@@ -17,6 +17,7 @@ import { FormAlert, useAppForm } from '@/lib/form';
 
 // The answer is the same whether or not the address has an account.
 export const Route = createFileRoute('/forgot-password')({
+  staticData: { title: 'auth.forgot.title' },
   component: ForgotPasswordPage,
 });
 

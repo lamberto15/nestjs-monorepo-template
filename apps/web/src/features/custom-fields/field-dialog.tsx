@@ -23,7 +23,7 @@ import { CustomFieldInputs } from '@/components/records/custom-field-inputs';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { hasOptions, type CustomField } from '@/lib/custom-fields';
 import { draftError } from '@/lib/custom-values';
-import { FormAlert, useAppForm } from '@/lib/form';
+import { FormAlert, useAppForm, useDescribedBy } from '@/lib/form';
 import { z } from '@/lib/zod';
 import { useCreateField, useUpdateField } from './api';
 import {
@@ -46,6 +46,36 @@ const asMessages = (errors: readonly unknown[]) =>
       ? { message: error }
       : (error as { message?: string }),
   );
+
+/**
+ * One limit of the type (a bound or a length). A component, not a render
+ * helper like the ones in the dialog, for its hook: what is wrong with the
+ * limit describes the input (as lib/form.tsx's fields). Declared here, not
+ * in the dialog, so the input stays mounted (focus) while the form changes.
+ */
+function LimitInput(props: {
+  label: string;
+  value: string;
+  errors: readonly unknown[];
+  onChange: (value: string) => void;
+}) {
+  const invalid = props.errors.length > 0;
+  const { controlId, errorId, describedBy } = useDescribedBy(false, invalid);
+  return (
+    <Field data-invalid={invalid}>
+      <FieldLabel htmlFor={controlId}>{props.label}</FieldLabel>
+      <Input
+        id={controlId}
+        inputMode="decimal"
+        value={props.value}
+        aria-invalid={invalid}
+        aria-describedby={describedBy}
+        onChange={(event) => props.onChange(event.target.value)}
+      />
+      {invalid && <FieldError id={errorId} errors={asMessages(props.errors)} />}
+    </Field>
+  );
+}
 
 /**
  * Create (no `field`) or edit one definition of a subject: key (create
@@ -148,26 +178,14 @@ export function FieldDialog(props: {
               check(value, fieldApi.form.getFieldValue(otherName), index === 0),
           }}
         >
-          {(f) => {
-            const invalid = f.state.meta.errors.length > 0;
-            return (
-              <Field data-invalid={invalid}>
-                <FieldLabel htmlFor={`field-${name}`}>
-                  {t(`form.${labels[index]}`)}
-                </FieldLabel>
-                <Input
-                  id={`field-${name}`}
-                  inputMode="decimal"
-                  value={f.state.value}
-                  aria-invalid={invalid}
-                  onChange={(event) => f.handleChange(event.target.value)}
-                />
-                {invalid && (
-                  <FieldError errors={asMessages(f.state.meta.errors)} />
-                )}
-              </Field>
-            );
-          }}
+          {(f) => (
+            <LimitInput
+              label={t(`form.${labels[index]}`)}
+              value={f.state.value}
+              errors={f.state.meta.errors}
+              onChange={(next) => f.handleChange(next)}
+            />
+          )}
         </form.Field>
       );
     };

@@ -12,6 +12,7 @@ import { Input } from '@nestjs-monorepo-template/ui/components/input';
 import { useTranslation } from 'react-i18next';
 import type { Role, Team } from '@/features/access/api';
 import { endInPast, type GrantDraft } from '@/features/access/grants';
+import { useDescribedBy } from '@/lib/form';
 
 /**
  * Roles given to someone (grants, docs/permissions.md "Roles and grants"):
@@ -60,35 +61,58 @@ export function RoleGrantsPicker(props: {
                 </FieldContent>
               </Field>
               {on && (
-                <Field data-invalid={past} className="ms-6 max-w-64">
-                  <FieldLabel htmlFor={`${id}-until`}>
-                    {t('grants.until')}
-                  </FieldLabel>
-                  <Input
-                    id={`${id}-until`}
-                    type="datetime-local"
-                    value={until}
-                    disabled={props.disabled}
-                    aria-invalid={past}
-                    onChange={(event) =>
-                      props.onChange({
-                        ...props.value,
-                        [role.id]: event.target.value,
-                      })
-                    }
-                  />
-                  {past ? (
-                    <FieldError>{t('grants.untilPast')}</FieldError>
-                  ) : (
-                    <FieldDescription>{t('grants.untilHint')}</FieldDescription>
-                  )}
-                </Field>
+                <GrantEnd
+                  id={`${id}-until`}
+                  value={until}
+                  past={past}
+                  disabled={props.disabled}
+                  onChange={(next) =>
+                    props.onChange({ ...props.value, [role.id]: next })
+                  }
+                />
               )}
             </div>
           );
         })}
       </div>
     </FieldSet>
+  );
+}
+
+/** When one role's grant ends; the hint, or why the end is refused, describes the input. */
+function GrantEnd(props: {
+  id: string;
+  value: string;
+  past: boolean;
+  disabled?: boolean;
+  onChange: (value: string) => void;
+}) {
+  const { t } = useTranslation('access');
+  // The hint and the error take turns, as the text under the input does.
+  const { descriptionId, errorId, describedBy } = useDescribedBy(
+    !props.past,
+    props.past,
+  );
+  return (
+    <Field data-invalid={props.past} className="ms-6 max-w-64">
+      <FieldLabel htmlFor={props.id}>{t('grants.until')}</FieldLabel>
+      <Input
+        id={props.id}
+        type="datetime-local"
+        value={props.value}
+        disabled={props.disabled}
+        aria-invalid={props.past}
+        aria-describedby={describedBy}
+        onChange={(event) => props.onChange(event.target.value)}
+      />
+      {props.past ? (
+        <FieldError id={errorId}>{t('grants.untilPast')}</FieldError>
+      ) : (
+        <FieldDescription id={descriptionId}>
+          {t('grants.untilHint')}
+        </FieldDescription>
+      )}
+    </Field>
   );
 }
 

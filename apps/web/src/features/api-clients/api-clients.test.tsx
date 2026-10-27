@@ -239,6 +239,19 @@ describe('creating a client: the key is shown once', () => {
     expect(queries).not.toContain(SECRET);
   });
 
+  it('refuses a name over the 80 characters the API takes, and sends nothing', async () => {
+    const state = api();
+    const user = userEvent.setup();
+    await renderApp('/api-clients');
+    await screen.findByText('Billing exporter');
+    await user.click(screen.getByRole('button', { name: 'New client' }));
+    await user.click(screen.getByLabelText('Name'));
+    await user.paste('x'.repeat(81));
+    await user.click(screen.getByRole('button', { name: 'Create client' }));
+    expect(await screen.findByText('At most 80 characters.')).toBeVisible();
+    expect(state.created).toBeUndefined();
+  });
+
   it('never shows the key to a session that changes under the dialog', async () => {
     const { queryClient } = await openNewKey();
 

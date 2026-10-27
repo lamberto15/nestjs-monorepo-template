@@ -12,6 +12,7 @@ import { tokenSearchSchema } from '@/lib/link-token';
 // The deletion mail's cancel link: no sign-in needed (docs/auth.md, "Your
 // data, your account's deletion"). A click POSTs the token.
 export const Route = createFileRoute('/cancel-deletion')({
+  staticData: { title: 'auth.cancelDeletion.title' },
   validateSearch: tokenSearchSchema,
   component: CancelDeletionPage,
 });

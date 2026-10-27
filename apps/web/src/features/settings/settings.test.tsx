@@ -59,6 +59,10 @@ const BILLING = clientPrincipal({
   name: 'Billing sync',
 });
 
+// The hint under the scope's picker.
+const SCOPE_HINT =
+  'A user or an API client: type a part of a name or an address.';
+
 const items = [
   setting({
     key: 'notes.richText',
@@ -270,6 +274,59 @@ async function open(name: string) {
   return { user, dialog: await screen.findByRole('dialog') };
 }
 
+describe('a value input is described', () => {
+  // A setting's bounds and the reason a draft is refused are the input's
+  // accessible description (aria-describedby), as for lib/form.tsx's fields.
+  const pageSize = setting({
+    key: 'ui.pageSize',
+    label: 'Page size',
+    type: 'number',
+    integer: true,
+    min: 5,
+    max: 50,
+    value: 10,
+    default: 10,
+    scopes: ['tenant', 'user'],
+    canSetMine: true,
+  });
+
+  it('by its bounds, then by why a preference is refused', async () => {
+    api(signedInUser, [pageSize]);
+    const user = userEvent.setup();
+    await renderApp('/account/preferences');
+    const input = await screen.findByRole('spinbutton', { name: 'Page size' });
+    expect(input).toHaveAccessibleDescription('From 5 to 50.');
+    await user.clear(input);
+    await user.type(input, '99');
+    expect(input).toBeInvalid();
+    expect(input).toHaveAccessibleDescription('Enter 50 or less.');
+  });
+
+  it('by the bounds an operator sets for all tenants', async () => {
+    api(admin, [{ ...pageSize, canEditPlatform: true }]);
+    const user = userEvent.setup();
+    await renderApp('/settings');
+    await user.click(
+      await screen.findByRole('button', { name: 'Edit Page size' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    const platform = within(
+      within(dialog).getByRole('region', { name: 'All tenants' }),
+    );
+    expect(
+      platform.getByRole('spinbutton', { name: /Value/ }),
+    ).toHaveAccessibleDescription('From 5 to 50.');
+  });
+
+  it('by its length limit', async () => {
+    api(admin);
+    const delay = await open('Publication delay');
+    expect(
+      within(delay.dialog).getByLabelText('Value'),
+    ).toHaveAccessibleDescription('At most 10 characters.');
+  });
+});
+
 describe('admin settings', () => {
   it('groups by prefix, searches, and offers editing only where canEdit', async () => {
     api(admin);
@@ -313,6 +370,7 @@ describe('admin settings', () => {
     expect(input).toHaveAttribute('max', '64');
     expect(input).toHaveAttribute('step', '1');
     expect(within(dialog).getByText('From 12 to 64.')).toBeVisible();
+    expect(input).toHaveAccessibleDescription('From 12 to 64.');
     await user.clear(input);
     await user.type(input, '8');
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
@@ -400,6 +458,7 @@ describe('admin settings', () => {
     const picker = await within(dialog).findByRole('combobox', {
       name: 'User',
     });
+    expect(picker).toHaveAccessibleDescription(SCOPE_HINT);
     await user.click(picker);
     expect(
       await screen.findByRole('option', { name: /Grace Hopper/ }),
@@ -507,6 +566,7 @@ describe('admin settings', () => {
     const picker = await within(dialog).findByRole('combobox', {
       name: 'User',
     });
+    expect(picker).toHaveAccessibleDescription(SCOPE_HINT);
     await user.click(picker);
     // Dice UI takes the text a frame later: typed at once, not key by key.
     fireEvent.change(picker, { target: { value: 'bill' } });

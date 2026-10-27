@@ -1,11 +1,15 @@
 {
   "app": {
     "name": "App",
-    "staleDraft": "The session changed while you were writing (in another tab or window). Nothing was sent — check what you wrote and submit again under the new session."
+    "staleDraft": "The session changed while you were writing (in another tab or window). Nothing was sent — check what you wrote and submit again under the new session.",
+    "unsavedChanges": "You have unsaved changes. Leave this page and lose them?"
   },
   "nav": {
     "platform": "Platform",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "skipToContent": "Skip to content",
+    "sidebar": "Sidebar",
+    "menu": "Main menu"
   },
   "auth": {
     "signIn": {
@@ -46,6 +50,7 @@
       "passwordRequired": "Enter your password.",
       "passwordHint": "At least 12 characters. Passwords found in data breaches are refused.",
       "passwordTooShort": "At least {{min}} characters.",
+      "tooLong": "At most {{max}} characters.",
       "passwordMismatch": "The passwords don't match.",
       "newPassword": "New password",
       "confirmPassword": "Confirm the password",

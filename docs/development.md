@@ -373,8 +373,10 @@ link, sign-out), the notes list (server paging, a filter in the URL), creating,
 viewing, editing, deleting and restoring a note, the notification bell, the
 settings page (an administrator sees it, a viewer is sent away) and an
 [axe](https://github.com/dequelabs/axe-core-npm/tree/develop/packages/playwright)
-accessibility scan of the sign-in, dashboard, notes list, note detail and
-settings pages. It is not part of `pnpm test:e2e` (the API's).
+accessibility scan of the signed-out auth pages, the dashboard, the notes
+list, a note, the settings and account pages, in the dark theme, in Arabic
+(right to left) and on a phone, and of an open dialog, popover and menu. It is
+not part of `pnpm test:e2e` (the API's).
 
 - **What it runs against:** the *built* API (`node dist/main`) and the *built*
   web app, served by `vite preview`, which proxies `/v1` to the API as Caddy
@@ -415,10 +417,24 @@ settings pages. It is not part of `pnpm test:e2e` (the API's).
   A database seeded earlier prints nothing: the file from that run stays, or
   `E2E_CREDENTIALS` names another. Lost it: drop the database's volume.
 - **Accessibility:** serious and critical axe violations (WCAG 2.0/2.1 A and
-  AA) fail the test; every finding is attached to it and listed in the job
-  summary (`node apps/web-e2e/scripts/axe-summary.mjs` prints the same after a
-  run). A real finding is fixed in the web app; one that can't be yet gets
-  an issue, and only then a `disableRules()` in `test/fixtures.ts` naming it.
+  AA) fail the test, and so do the rules in `LANDMARK_RULES`
+  (`test/fixtures.ts`): the best-practice ones for one `<main>`, a level-1
+  heading, content inside landmarks and a working skip link
+  (`landmark-one-main`, `landmark-no-duplicate-main`, `page-has-heading-one`,
+  `region`, `skip-link`, `bypass`). The other best-practice findings are only
+  listed. Every finding is attached to the test and listed in the job summary
+  (`node apps/web-e2e/scripts/axe-summary.mjs` prints the same after a run).
+  A real finding is fixed in the web app; one that can't be yet gets an issue,
+  and only then a `disableRules()` in `test/fixtures.ts` naming it. A rule is
+  added to `LANDMARK_RULES` once it passes on every scanned page.
+  `expectAccessible(page, name)` waits for the finite animations to end first;
+  `{ scope: '[role="dialog"]' }` scans only an open overlay (the page behind a
+  modal is inert, and the page-level rules are covered by the page's own
+  scan). The dark theme and Arabic are set the way the app remembers them
+  (`localStorage`), or by answering `GET /v1/auth/me` with `locale: 'ar'`, so
+  no test changes the shared account. Unit tests of the same behaviour
+  (`apps/web/src/test/navigation-a11y.test.tsx`): [monorepo](monorepo.md),
+  "Accessibility".
 - **In CI:** the `e2e-web` job of `.github/workflows/ci.yml`, on every pull
   request, beside the API's e2e shards: its own PostgreSQL and Redis service
   containers, the database marked as a development one, Turborepo's cache for

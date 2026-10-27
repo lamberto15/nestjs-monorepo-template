@@ -404,6 +404,10 @@ describe('the counter', () => {
     );
     const dialog = await screen.findByRole('dialog');
     const input = await within(dialog).findByLabelText('Continue from');
+    // The hint and the error are the input's accessible description.
+    const hint =
+      'The next record gets this value plus one. It cannot go below the last value taken.';
+    expect(input).toHaveAccessibleDescription(hint);
     await user.clear(input);
     await user.type(input, '5');
     await user.click(
@@ -414,5 +418,9 @@ describe('the counter', () => {
         'The counter cannot go below the last value taken (42).',
       ),
     ).toBeVisible();
+    expect(input).toBeInvalid();
+    expect(input).toHaveAccessibleDescription(
+      `${hint} The counter cannot go below the last value taken (42).`,
+    );
   });
 });

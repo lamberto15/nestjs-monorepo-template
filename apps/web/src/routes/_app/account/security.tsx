@@ -9,6 +9,7 @@ import { SessionsSection } from '@/components/account/sessions-section';
 import { Feature, useMe } from '@/lib/features';
 
 export const Route = createFileRoute('/_app/account/security')({
+  staticData: { title: 'account.security.title' },
   validateSearch: z.object({
     // Where connecting a provider sends a refusal back (`?error=…`): the
     // codes the API uses; anything else is shown as a generic failure.

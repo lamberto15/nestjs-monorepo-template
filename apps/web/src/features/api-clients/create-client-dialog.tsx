@@ -22,7 +22,7 @@ import { RoleGrantsPicker } from '@/features/access/pickers';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { z } from '@/lib/zod';
-import type { CreateClientBody } from './queries';
+import { API_CLIENT_LIMITS, type CreateClientBody } from './queries';
 
 /**
  * Name, an optional daily quota and roles (on top of what every client may
@@ -43,7 +43,14 @@ export function CreateClientDialog(props: {
     defaultValues: { name: '', dailyQuota: '' },
     validators: {
       onSubmit: z.object({
-        name: z.string().trim().min(1, t('create.nameRequired')).max(200),
+        name: z
+          .string()
+          .trim()
+          .min(1, t('create.nameRequired'))
+          .max(
+            API_CLIENT_LIMITS.name,
+            t('create.nameTooLong', { max: API_CLIENT_LIMITS.name }),
+          ),
         dailyQuota: z
           .string()
           .trim()

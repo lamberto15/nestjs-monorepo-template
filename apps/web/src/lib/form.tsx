@@ -28,10 +28,11 @@ import {
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import { Textarea } from '@nestjs-monorepo-template/ui/components/textarea';
 import { LazyMarkdownEditor } from '@/components/markdown/lazy';
+import { focusFirstInvalid, rememberFormElement } from '@/lib/form-focus';
 import { useWritesPaused } from '@/lib/mode';
 import { meQuery, sessionIdentity, type Me } from '@/lib/session';
 import { CircleAlertIcon } from 'lucide-react';
-import { useContext, useId, useRef, type ReactNode } from 'react';
+import { useCallback, useContext, useId, useRef, type ReactNode } from 'react';
 
 // TanStack Form's form composition (its "Form Composition" guide): the
 // shadcn Field markup of its TanStack Form docs, bound once, so a form is
@@ -47,13 +48,15 @@ function useInvalid() {
 }
 
 /**
- * The ids that tie a control to its hint and its error message. shadcn's
- * Field primitives only lay the markup out (the docs set `aria-invalid` on
- * the control and leave the rest to the form), so without `aria-describedby`
- * a screen reader announces neither. `useId` keeps the ids unique when the
- * same field name is on the page twice (a dialog over a page).
+ * The ids that tie a control to its label, its hint and its error message.
+ * shadcn's Field primitives only lay the markup out (the docs set
+ * `aria-invalid` on the control and leave the rest to the form), so without
+ * `aria-describedby` a screen reader announces neither. `useId` keeps the
+ * ids unique when the same field name is on the page twice (/onboarding's
+ * email and password sections both ask for `currentPassword`; a dialog over a
+ * page). Hand-rolled fields use it too (custom-field-inputs.tsx).
  */
-function useDescribedBy(hasDescription: boolean, invalid: boolean) {
+export function useDescribedBy(hasDescription: boolean, invalid: boolean) {
   const base = useId();
   const descriptionId = `${base}-description`;
   const errorId = `${base}-error`;
@@ -61,10 +64,20 @@ function useDescribedBy(hasDescription: boolean, invalid: boolean) {
     Boolean,
   );
   return {
+    controlId: `${base}-control`,
     descriptionId,
     errorId,
     describedBy: ids.length > 0 ? ids.join(' ') : undefined,
   };
+}
+
+/** The field's <form>, where a failed submit's focus goes (lib/form-focus.ts). */
+function useFormElementRef() {
+  const { form } = useFieldContext<unknown>();
+  return useCallback(
+    (element: HTMLDivElement | null) => rememberFormElement(form, element),
+    [form],
+  );
 }
 
 function TextField(props: {
@@ -79,13 +92,15 @@ function TextField(props: {
 }) {
   const field = useFieldContext<string>();
   const invalid = useInvalid();
-  const id = `field-${field.name}`;
-  const { descriptionId, errorId, describedBy } = useDescribedBy(
-    Boolean(props.description),
-    invalid,
-  );
+  const {
+    controlId: id,
+    descriptionId,
+    errorId,
+    describedBy,
+  } = useDescribedBy(Boolean(props.description), invalid);
+  const formRef = useFormElementRef();
   return (
-    <Field data-invalid={invalid}>
+    <Field ref={formRef} data-invalid={invalid}>
       {props.aside ? (
         <div className="flex items-center">
           <FieldLabel htmlFor={id}>{props.label}</FieldLabel>
@@ -126,13 +141,15 @@ function TextAreaField(props: {
 }) {
   const field = useFieldContext<string>();
   const invalid = useInvalid();
-  const id = `field-${field.name}`;
-  const { descriptionId, errorId, describedBy } = useDescribedBy(
-    Boolean(props.description),
-    invalid,
-  );
+  const {
+    controlId: id,
+    descriptionId,
+    errorId,
+    describedBy,
+  } = useDescribedBy(Boolean(props.description), invalid);
+  const formRef = useFormElementRef();
   return (
-    <Field data-invalid={invalid}>
+    <Field ref={formRef} data-invalid={invalid}>
       <FieldLabel htmlFor={id}>{props.label}</FieldLabel>
       <Textarea
         id={id}
@@ -162,14 +179,16 @@ function TextAreaField(props: {
 function MarkdownField(props: { label: ReactNode; description?: ReactNode }) {
   const field = useFieldContext<string>();
   const invalid = useInvalid();
-  const id = `field-${field.name}`;
+  const {
+    controlId: id,
+    descriptionId,
+    errorId,
+    describedBy,
+  } = useDescribedBy(Boolean(props.description), invalid);
   const labelId = `${id}-label`;
-  const { descriptionId, errorId, describedBy } = useDescribedBy(
-    Boolean(props.description),
-    invalid,
-  );
+  const formRef = useFormElementRef();
   return (
-    <Field data-invalid={invalid}>
+    <Field ref={formRef} data-invalid={invalid}>
       <FieldLabel id={labelId}>{props.label}</FieldLabel>
       <LazyMarkdownEditor
         id={id}
@@ -200,13 +219,15 @@ function CodeField(props: {
 }) {
   const field = useFieldContext<string>();
   const invalid = useInvalid();
-  const id = `field-${field.name}`;
-  const { descriptionId, errorId, describedBy } = useDescribedBy(
-    Boolean(props.description),
-    invalid,
-  );
+  const {
+    controlId: id,
+    descriptionId,
+    errorId,
+    describedBy,
+  } = useDescribedBy(Boolean(props.description), invalid);
+  const formRef = useFormElementRef();
   return (
-    <Field data-invalid={invalid} className="items-center">
+    <Field ref={formRef} data-invalid={invalid} className="items-center">
       <FieldLabel htmlFor={id}>{props.label}</FieldLabel>
       <InputOTP
         id={id}
@@ -249,13 +270,15 @@ function SelectField(props: {
 }) {
   const field = useFieldContext<string>();
   const invalid = useInvalid();
-  const id = `field-${field.name}`;
-  const { descriptionId, errorId, describedBy } = useDescribedBy(
-    Boolean(props.description),
-    invalid,
-  );
+  const {
+    controlId: id,
+    descriptionId,
+    errorId,
+    describedBy,
+  } = useDescribedBy(Boolean(props.description), invalid);
+  const formRef = useFormElementRef();
   return (
-    <Field data-invalid={invalid}>
+    <Field ref={formRef} data-invalid={invalid}>
       <FieldLabel htmlFor={id}>{props.label}</FieldLabel>
       <Select
         name={field.name}
@@ -343,14 +366,21 @@ function useAppFormImpl(props: unknown) {
   const staleDraftSession = useStaleDraftSession();
   const options = props as {
     onSubmit?: (args: unknown) => unknown;
+    onSubmitInvalid?: (args: unknown) => unknown;
     [key: string]: unknown;
   };
-  const onSubmit = options.onSubmit;
+  const { onSubmit, onSubmitInvalid } = options;
   return formHooks.useAppForm({
     ...options,
     onSubmit: async (args: unknown) => {
       if (staleDraftSession()) return;
       return onSubmit?.(args);
+    },
+    // The checks failed: the focus goes to the first invalid field
+    // (the forms are `noValidate`, so the browser does not).
+    onSubmitInvalid: (args: { formApi: object }) => {
+      focusFirstInvalid(args.formApi);
+      return onSubmitInvalid?.(args);
     },
   } as never);
 }

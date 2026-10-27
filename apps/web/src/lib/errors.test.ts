@@ -1,11 +1,17 @@
 import { ApiError } from '@nestjs-monorepo-template/api-client';
+import { FormApi, type AnyFormApi } from '@tanstack/react-form';
 import { QueryObserver, type QueryClient } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw/http';
 import { toast } from 'sonner';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initI18n } from '@/i18n';
 import { api, reauthenticationMiddleware } from '@/lib/api';
-import { createQueryClient, handleApiError } from '@/lib/errors';
+import {
+  applyFieldErrors,
+  createQueryClient,
+  errorMessage,
+  handleApiError,
+} from '@/lib/errors';
 import { createSession, featuresQuery, meQuery } from '@/lib/session';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
 import { createApiClient, unwrap } from '@nestjs-monorepo-template/api-client';
@@ -404,5 +410,65 @@ describe('the query retry rule', () => {
     expect(retry(0, failed(503, 'read_only'))).toBe(false);
     // Any other 503 (a proxy, a restart) is still worth asking again.
     expect(retry(0, failed(503))).toBe(true);
+  });
+});
+
+describe('applyFieldErrors', () => {
+  const invalid = (errors: { path: string; message: string }[]) =>
+    new ApiError({
+      status: 400,
+      code: 'validation_failed',
+      detail: 'The request is invalid.',
+      errors,
+    });
+  const formWith = () =>
+    new FormApi({
+      defaultValues: { name: '', recipients: [] as string[], mappingEmail: '' },
+    }) as unknown as AnyFormApi;
+  const submitError = (form: AnyFormApi, name: string) =>
+    (
+      form.getFieldMeta(name)?.errorMap as
+        { onSubmit?: { message: string } } | undefined
+    )?.onSubmit?.message;
+
+  it('places a nested path on the field it is in', () => {
+    const form = formWith();
+    const placed = applyFieldErrors(
+      form,
+      invalid([{ path: 'recipients.1', message: 'Not an email address.' }]),
+    );
+    expect(placed).toBe(true);
+    expect(submitError(form, 'recipients')).toBe('Not an email address.');
+  });
+
+  it("prefers an alias of the whole path to the path's first segment", () => {
+    const form = formWith();
+    applyFieldErrors(
+      form,
+      invalid([{ path: 'mapping.email', message: 'Required.' }]),
+      { 'mapping.email': 'mappingEmail' },
+    );
+    expect(submitError(form, 'mappingEmail')).toBe('Required.');
+  });
+
+  it('says the messages no field took, rather than losing them', () => {
+    const form = formWith();
+    const error = invalid([
+      { path: 'name', message: 'Too long.' },
+      { path: 'quota.daily', message: 'Must be at most 1000.' },
+      { path: '', message: 'The schedule is in the past.' },
+    ]);
+    // The name took its own; the caller's form-level alert says the rest.
+    expect(applyFieldErrors(form, error)).toBe(false);
+    expect(submitError(form, 'name')).toBe('Too long.');
+    expect(errorMessage(error)).toBe(
+      'quota.daily: Must be at most 1000.; The schedule is in the past.',
+    );
+  });
+
+  it('leaves the detail of a problem it never saw', () => {
+    expect(errorMessage(invalid([{ path: 'other', message: 'Wrong.' }]))).toBe(
+      'The request is invalid.',
+    );
   });
 });

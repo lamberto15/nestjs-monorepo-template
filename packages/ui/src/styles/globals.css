@@ -67,7 +67,8 @@
     --muted-foreground: oklch(0.5 0 0);
     --accent: oklch(0.97 0 0);
     --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
+    /* 0.52, not shadcn's 0.577: text-destructive on its 10% tint (bg-destructive/10) was 4.0:1, short of WCAG AA's 4.5:1 (axe, apps/web-e2e; apps/web/src/contrast.test.ts). */
+    --destructive: oklch(0.52 0.245 27.325);
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
     --ring: oklch(0.708 0 0);

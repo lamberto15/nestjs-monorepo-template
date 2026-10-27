@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { WatchingList } from '@/features/watching/watching-list';
 
 export const Route = createFileRoute('/_app/account/watching')({
+  staticData: { title: 'watching:title' },
   component: WatchingPage,
 });
 

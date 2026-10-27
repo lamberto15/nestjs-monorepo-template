@@ -20,6 +20,8 @@ export function ValueInput(props: {
   onChange: (value: Draft) => void;
   disabled?: boolean;
   invalid?: boolean;
+  /** The ids of the hint and the error shown beside it (`useDescribedBy`). */
+  describedBy?: string;
 }) {
   const { id, spec, value, onChange, disabled } = props;
   switch (spec.type) {
@@ -28,6 +30,7 @@ export function ValueInput(props: {
         <Switch
           id={id}
           aria-label={props.label}
+          aria-describedby={props.describedBy}
           checked={value === true}
           onCheckedChange={onChange}
           disabled={disabled}
@@ -49,6 +52,7 @@ export function ValueInput(props: {
             id={id}
             aria-label={props.label}
             aria-invalid={props.invalid}
+            aria-describedby={props.describedBy}
             className="w-full"
           >
             <SelectValue />
@@ -69,6 +73,7 @@ export function ValueInput(props: {
           id={id}
           aria-label={props.label}
           aria-invalid={props.invalid}
+          aria-describedby={props.describedBy}
           className="font-mono"
           rows={4}
           value={String(value)}
@@ -82,6 +87,7 @@ export function ValueInput(props: {
           id={id}
           aria-label={props.label}
           aria-invalid={props.invalid}
+          aria-describedby={props.describedBy}
           type="number"
           min={spec.min}
           max={spec.max}
@@ -97,6 +103,7 @@ export function ValueInput(props: {
           id={id}
           aria-label={props.label}
           aria-invalid={props.invalid}
+          aria-describedby={props.describedBy}
           type="text"
           maxLength={spec.maxLength}
           value={String(value)}
