@@ -74,6 +74,7 @@ export function RoleMappingsDialog(props: {
       setMappings([...mappings, { group: name, roleId }]);
     }
     setGroup('');
+    setRoleId('');
   };
 
   const save = async () => {

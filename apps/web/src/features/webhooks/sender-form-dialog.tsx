@@ -71,8 +71,17 @@ export function SenderFormDialog(props: {
       }
     },
   });
+  // Closing drops a new sender's draft: the dialog stays mounted, so it
+  // would return. An edit's defaults are the saved sender.
+  const onOpenChange = (open: boolean) => {
+    if (!open) {
+      if (!editing) form.reset();
+      setError(undefined);
+    }
+    props.onOpenChange(open);
+  };
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+    <Dialog open={props.open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
@@ -120,7 +129,7 @@ export function SenderFormDialog(props: {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => props.onOpenChange(false)}
+                onClick={() => onOpenChange(false)}
               >
                 {t('form.cancel')}
               </Button>

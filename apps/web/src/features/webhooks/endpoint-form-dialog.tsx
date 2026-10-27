@@ -87,8 +87,17 @@ export function EndpointFormDialog(props: {
       }
     },
   });
+  // Closing drops a new endpoint's draft: the dialog stays mounted, so it
+  // would return. An edit's defaults are the saved endpoint.
+  const onOpenChange = (open: boolean) => {
+    if (!open) {
+      if (!editing) form.reset();
+      setError(undefined);
+    }
+    props.onOpenChange(open);
+  };
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+    <Dialog open={props.open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -146,7 +155,7 @@ export function EndpointFormDialog(props: {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => props.onOpenChange(false)}
+                onClick={() => onOpenChange(false)}
               >
                 {t('form.cancel')}
               </Button>

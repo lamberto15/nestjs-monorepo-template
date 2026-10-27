@@ -59,16 +59,16 @@ export function AddSuppressionDialog(props: {
       }
     },
   });
+  // Closing drops the draft: the dialog stays mounted, so it would return.
+  const onOpenChange = (open: boolean) => {
+    if (!open) {
+      form.reset();
+      setError(undefined);
+    }
+    props.onOpenChange(open);
+  };
   return (
-    <Dialog
-      open={props.open}
-      onOpenChange={(open) => {
-        if (!open) {
-          setError(undefined);
-        }
-        props.onOpenChange(open);
-      }}
-    >
+    <Dialog open={props.open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('add.title')}</DialogTitle>
@@ -107,7 +107,7 @@ export function AddSuppressionDialog(props: {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => props.onOpenChange(false)}
+                onClick={() => onOpenChange(false)}
               >
                 {t('add.cancel')}
               </Button>

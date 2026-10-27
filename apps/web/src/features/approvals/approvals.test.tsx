@@ -553,6 +553,10 @@ describe('the inbox', () => {
         endsAt: new Date('2026-11-08T09:00').toISOString(),
       },
     ]);
+    // Ready for the next one: the picker doesn't keep the person's name.
+    expect(
+      within(dialog).getByRole('combobox', { name: 'Delegate to' }),
+    ).toHaveValue('');
   });
 
   it('refuses a delegation that ends before it starts', async () => {

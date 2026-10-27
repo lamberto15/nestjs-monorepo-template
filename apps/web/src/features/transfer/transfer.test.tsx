@@ -375,6 +375,8 @@ describe('importing a file', () => {
     expect(calls.imports).toEqual([
       { name: 'test-items', dryRun: 'true', file: 'test-items.csv' },
     ]);
+    // A check keeps the file, for the real import that usually follows.
+    expect(screen.getByText('test-items.csv')).toBeVisible();
   });
 
   it('writes the rows when the check is turned off', async () => {
@@ -411,6 +413,8 @@ describe('importing a file', () => {
     expect(calls.imports).toEqual([
       { name: 'test-items', dryRun: 'false', file: 'test-items.csv' },
     ]);
+    // The imported file is cleared, so it isn't imported twice by mistake.
+    expect(screen.queryByText('test-items.csv')).toBeNull();
   });
 
   it('says so when there is nothing to import', async () => {

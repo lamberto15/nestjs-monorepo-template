@@ -68,8 +68,16 @@ export function CreateTenantDialog(props: {
       }
     },
   });
+  // Closing drops the draft: the dialog stays mounted, so it would return.
+  const onOpenChange = (open: boolean) => {
+    if (!open) {
+      form.reset();
+      setError(undefined);
+    }
+    props.onOpenChange(open);
+  };
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+    <Dialog open={props.open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('create.title')}</DialogTitle>
@@ -127,7 +135,7 @@ export function CreateTenantDialog(props: {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => props.onOpenChange(false)}
+                onClick={() => onOpenChange(false)}
               >
                 {t('create.cancel')}
               </Button>

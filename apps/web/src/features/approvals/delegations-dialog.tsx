@@ -118,6 +118,8 @@ function DelegationForm() {
   const me = useMe();
   const create = useCreateDelegation();
   const [error, setError] = useState<string>();
+  // Remounts the picker after a delegation: it keeps its own search text.
+  const [picker, setPicker] = useState(0);
   // The default period, fixed when the form opens: now, for a week.
   const [period] = useState(() => {
     const now = new Date();
@@ -150,6 +152,7 @@ function DelegationForm() {
         });
         toast.success(t('delegations.created'));
         form.reset();
+        setPicker((n) => n + 1);
       } catch (caught) {
         if (!applyFieldErrors(form, caught)) {
           setError(errorMessage(caught));
@@ -173,6 +176,7 @@ function DelegationForm() {
         <form.Field name="toUserId">
           {(field) => (
             <PersonField
+              key={picker}
               value={field.state.value}
               exclude={me ? [`user:${me.user.id}`] : []}
               invalid={field.state.meta.isTouched && !field.state.meta.isValid}

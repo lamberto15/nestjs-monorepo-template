@@ -63,14 +63,16 @@ export function PlaceHoldDialog(props: {
       }
     },
   });
+  // Closing drops the draft: the dialog stays mounted, so it would return.
+  const onOpenChange = (open: boolean) => {
+    if (!open) {
+      form.reset();
+      setError(undefined);
+    }
+    props.onOpenChange(open);
+  };
   return (
-    <Dialog
-      open={props.open}
-      onOpenChange={(open) => {
-        if (!open) setError(undefined);
-        props.onOpenChange(open);
-      }}
-    >
+    <Dialog open={props.open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t('place.title')}</DialogTitle>
@@ -118,7 +120,7 @@ export function PlaceHoldDialog(props: {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => props.onOpenChange(false)}
+                onClick={() => onOpenChange(false)}
               >
                 {t('place.cancel')}
               </Button>
