@@ -21,6 +21,7 @@ import {
   catalogQuery,
   createRole,
   invalidateAccess,
+  roleQuery,
   updateRole,
   type Role,
   type RoleBody,
@@ -34,14 +35,16 @@ import {
   type EditorState,
   type Permission,
 } from '@/features/access/permissions';
+import { ConflictAlert } from '@/components/records/conflict-alert';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { useMe } from '@/lib/features';
 import { FormAlert, useAppForm } from '@/lib/form';
+import { isPreconditionFailed } from '@/lib/records';
 import { useUnsavedChangesGuard } from '@/lib/unsaved-changes';
 import { z } from '@/lib/zod';
 
 /** A new role, or an existing one (read-only when built in). */
-export function RoleForm(props: { role?: Role }) {
+export function RoleForm(props: { role?: Role; etag?: string }) {
   const { i18n } = useTranslation();
   // Labels in the UI's language; the previous ones stay while the new load.
   const catalog = useQuery({
@@ -54,15 +57,26 @@ export function RoleForm(props: { role?: Role }) {
   if (catalog.isError) {
     return <FormAlert message={errorMessage(catalog.error)} />;
   }
-  return <RoleFormLoaded catalog={catalog.data} role={props.role} />;
+  return (
+    <RoleFormLoaded
+      catalog={catalog.data}
+      role={props.role}
+      etag={props.etag}
+    />
+  );
 }
 
-function RoleFormLoaded(props: { catalog: Catalog; role?: Role }) {
+function RoleFormLoaded(props: {
+  catalog: Catalog;
+  role?: Role;
+  etag?: string;
+}) {
   const { t } = useTranslation('access');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const can = useMe()?.can;
   const [error, setError] = useState<string>();
+  const [conflict, setConflict] = useState(false);
   const readOnly = props.role?.system === true;
   const initial = useMemo(
     () => fromPermissions(props.catalog, props.role?.permissions ?? []),
@@ -71,7 +85,7 @@ function RoleFormLoaded(props: { catalog: Catalog; role?: Role }) {
   const save = useMutation({
     mutationFn: async (body: RoleBody) => {
       if (props.role) {
-        await updateRole(props.role.id, body);
+        await updateRole(props.role.id, body, props.etag);
       } else {
         await createRole(body);
       }
@@ -105,6 +119,7 @@ function RoleFormLoaded(props: { catalog: Catalog; role?: Role }) {
     },
     onSubmit: async ({ value }) => {
       setError(undefined);
+      setConflict(false);
       try {
         await save.mutateAsync({
           name: value.name.trim(),
@@ -115,7 +130,9 @@ function RoleFormLoaded(props: { catalog: Catalog; role?: Role }) {
         // Saved: the list, past the unsaved-changes guard.
         await navigate({ to: '/access/roles', ignoreBlocker: true });
       } catch (caught) {
-        if (!applyFieldErrors(form, caught)) {
+        if (isPreconditionFailed(caught)) {
+          setConflict(true);
+        } else if (!applyFieldErrors(form, caught)) {
           setError(errorMessage(caught));
         }
       }
@@ -139,6 +156,19 @@ function RoleFormLoaded(props: { catalog: Catalog; role?: Role }) {
           </Alert>
         )}
         <FormAlert message={error} />
+        {conflict && props.role && (
+          <ConflictAlert
+            title={t('roles.conflict.title')}
+            description={t('roles.conflict.description')}
+            reload={t('roles.conflict.reload')}
+            // The fresh read replaces this form (the route keys it by ETag).
+            onReload={() =>
+              void queryClient.invalidateQueries({
+                queryKey: roleQuery(props.role!.id).queryKey,
+              })
+            }
+          />
+        )}
         <form.AppField name="name">
           {(field) => <field.TextField label={t('roles.fields.name')} />}
         </form.AppField>

@@ -243,6 +243,10 @@ The built-in `Access` permissions (`ACCESS_PERMISSIONS`,
   that list ([api-conventions](api-conventions.md), "List metadata").
 - `/v1/access/roles`: roles of permissions. A permission may carry
   conditions and `fields` (absent: all; `[]`: none of the restrictable ones).
+- `GET /v1/access/roles/{id}` sends an `ETag` of the role itself (name,
+  description, permissions; not `members`, so a grant doesn't make it stale);
+  `PATCH` and `DELETE` take it as `If-Match` (412 `precondition_failed`), and
+  a `PATCH` answers with the new one (docs/api-conventions.md, "Concurrency and caching").
 - You can only grant what you hold without conditions (fields included).
   `Administrator` is built in (`all.manage`); the last active one of each tenant stays.
 - Grants to users and API clients may end: `roleExpiresAt: { roleId: date }`.

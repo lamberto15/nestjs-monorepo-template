@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   Ip,
   Param,
@@ -26,16 +27,25 @@ import {
   ApiCookieAuth,
   ApiCreatedResponse,
   ApiForbiddenResponse,
+  ApiHeader,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiPreconditionFailedResponse,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { z } from 'zod';
 import type { ListQuery } from '../../core/http/list-query.js';
 import { listSchema, pageSchema } from '../../core/http/pagination.js';
+import {
+  assertUnchanged,
+  Etag,
+  etagOf,
+  ifMatchHeader,
+  ifNoneMatchHeader,
+} from '../../core/http/etag.js';
 import {
   AUDIT_LIST,
   PRINCIPAL_LIST,
@@ -314,10 +324,14 @@ export class AccessController {
   }
 
   @Get('roles/:id')
+  @Etag()
   @Can(AccessPolicy, 'open')
   @ApiOperation({
     summary: 'One role, with its permissions and member count',
+    description:
+      'Its `ETag` covers the role itself (name, description, permissions), not `members`: send it as `If-Match` with PATCH or DELETE.',
   })
+  @ApiHeader(ifNoneMatchHeader())
   @ApiOkResponse({ standardSchema: roleViewSchema })
   @ApiNotFoundResponse()
   role(@Param('id', ParseUUIDPipe) id: string) {
@@ -346,31 +360,58 @@ export class AccessController {
   @ApiOperation({
     summary: 'Replace a role: name, description and permissions',
   })
-  @ApiNoContentResponse()
+  @ApiHeader(ifMatchHeader())
+  @ApiNoContentResponse({
+    description: 'Saved; `ETag` is the role’s new tag (the next If-Match).',
+  })
   @ApiNotFoundResponse()
   @ApiConflictResponse({ description: 'The built-in Administrator role.' })
+  @ApiPreconditionFailedResponse({
+    description: 'It changed since you read it (precondition_failed).',
+  })
   async updateRole(
     @CurrentUser() user: UserPrincipal,
     @Param('id', ParseUUIDPipe) id: string,
     @Body({ schema: roleSchema }) body: z.infer<typeof roleSchema>,
+    @Headers('if-match') ifMatch: string | undefined,
     @Ip() ip: string,
+    @Res({ passthrough: true }) response: Response,
   ) {
-    await this.admin.updateRole(user, id, body, ip);
+    // If-Match under the role's lock: two administrators can't both win.
+    await this.admin.updateRole(
+      user,
+      id,
+      body,
+      ip,
+      ifMatch ? (shown: object) => assertUnchanged(ifMatch, shown) : undefined,
+    );
+    // The tag GET would now send, so the next write needs no read first.
+    response.setHeader('ETag', etagOf(await this.admin.getRole(id)));
   }
 
   @Delete('roles/:id')
   @Can(AccessPolicy, 'manageRoles')
   @HttpCode(204)
   @ApiOperation({ summary: 'Delete a role: its members lose its permissions' })
+  @ApiHeader(ifMatchHeader())
   @ApiNoContentResponse()
   @ApiNotFoundResponse()
   @ApiConflictResponse({ description: 'The built-in Administrator role.' })
+  @ApiPreconditionFailedResponse({
+    description: 'It changed since you read it (precondition_failed).',
+  })
   async deleteRole(
     @CurrentUser() user: UserPrincipal,
     @Param('id', ParseUUIDPipe) id: string,
+    @Headers('if-match') ifMatch: string | undefined,
     @Ip() ip: string,
   ) {
-    await this.admin.deleteRole(user, id, ip);
+    await this.admin.deleteRole(
+      user,
+      id,
+      ip,
+      ifMatch ? (shown: object) => assertUnchanged(ifMatch, shown) : undefined,
+    );
   }
 
   @Get('users')

@@ -3301,7 +3301,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** One role, with its permissions and member count */
+        /**
+         * One role, with its permissions and member count
+         * @description Its `ETag` covers the role itself (name, description, permissions), not `members`: send it as `If-Match` with PATCH or DELETE.
+         */
         get: operations["AccessController_role_v1"];
         put?: never;
         post?: never;
@@ -20351,7 +20354,10 @@ export interface operations {
     AccessController_role_v1: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The ETag you have: 304 and no body when it is still current. */
+                "If-None-Match"?: string;
+            };
             path: {
                 id: string;
             };
@@ -20422,7 +20428,10 @@ export interface operations {
     AccessController_deleteRole_v1: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
+                "If-Match"?: string;
+            };
             path: {
                 id: string;
             };
@@ -20463,12 +20472,22 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description It changed since you read it (precondition_failed). */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     AccessController_updateRole_v1: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
+                "If-Match"?: string;
+            };
             path: {
                 id: string;
             };
@@ -20498,6 +20517,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Saved; `ETag` is the role’s new tag (the next If-Match). */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -20526,6 +20546,13 @@ export interface operations {
             };
             /** @description The built-in Administrator role. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description It changed since you read it (precondition_failed). */
+            412: {
                 headers: {
                     [name: string]: unknown;
                 };
