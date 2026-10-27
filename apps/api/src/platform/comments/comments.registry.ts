@@ -9,7 +9,7 @@ import type { Principal } from '../../iam/auth/principal.js';
  *
  * ```ts
  * readonly subject = 'Note';
- * async canRead(principal, id) { const note = await this.notes.findOne(id); return this.policy.read(principal, note); }
+ * async canRead(principal, id) { const note = await this.find(id, principal); return note !== null && this.policy.read(principal, note); }
  * async canModerate(principal, id) { … this.policy.update(principal, note) }
  * link(id) { return `/notes/${id}`; }
  * async title(id) { return (await this.notes.findOne(id)).title; }
@@ -24,7 +24,7 @@ export interface CommentTarget {
    * excerpt). Default: the subject in lower case, `.commented`.
    */
   readonly commentedType?: string;
-  /** Whether the principal may read the record; a 404 (thrown) when it doesn't exist. */
+  /** Whether the principal may read the record: false when it doesn't exist too (one 404 for both). */
   canRead(principal: Principal, recordId: string): Promise<boolean>;
   /** Whether the principal may remove anyone's comment on the record. */
   canModerate(principal: Principal, recordId: string): Promise<boolean>;

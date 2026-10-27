@@ -171,6 +171,7 @@
     "deleted": "团队 {{name}} 已删除。",
     "columns": {
       "name": "团队",
+      "member": "成员",
       "members": "成员"
     },
     "notFound": "此团队不存在（或已不存在）。",

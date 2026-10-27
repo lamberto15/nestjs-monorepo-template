@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { JwtClaims, SessionRecord } from '@nestjs/authentication';
 
 /**
@@ -64,17 +65,23 @@ export const signInOptions = (method: string) => ({
  * (RFC 8176 `amr`: `pwd` a password, `pop` a passkey, as proof of
  * possession of a key, since the package drops `hwk` (it means a second
  * factor there); the package adds `mfa` itself), when (OpenID Connect
- * `auth_time`, epoch seconds), and the tenant the tokens act in (`tid`,
- * docs/tenancy.md; JwtAuth checks the membership on every request).
+ * `auth_time`, epoch seconds), the tenant the tokens act in (`tid`,
+ * docs/tenancy.md; JwtAuth checks the membership on every request), and
+ * the family's own id (`sid`, the registered "session ID" claim): the
+ * package keeps its family id to itself (the access token doesn't carry
+ * it), so revoking a family finds the realtime connections its access
+ * tokens opened by this one (DrizzleAuthenticationStore, Realtime).
  */
 export const tokenClaims = (
   amr: string[],
   at = new Date(),
   tenantId: string | null = null,
+  sid: string = randomUUID(),
 ) => ({
   ...(amr.length > 0 && { amr }),
   auth_time: Math.floor(at.getTime() / 1000),
   ...(tenantId && { tid: tenantId }),
+  sid,
 });
 
 /** The metadata without its authentication keys, and those keys apart. */

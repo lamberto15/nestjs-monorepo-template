@@ -65,7 +65,8 @@ before.
 | Where | How |
 | --- | --- |
 | The route | `@Can(NotePolicy, 'create')` |
-| One record | `authorization.authorize(NotePolicy, 'read', user, note)` |
+| Finding one record | `notes.findOne(id, undefined, { visibleTo: user })`: the read filter (`sqlFilter`; in the recycle bin, `restore`) in the lookup's query, so one the caller may not read is a 404 (below) |
+| One record | `authorization.authorize(NotePolicy, 'update', user, note)` |
 | What a reader may do with records (`?include=can`) | `recordCan(authorization, NotePolicy, user, rows, actions, flags)` (`platform/records/record-can.ts`): the same policy check per record and action, `authorization.can()`, in memory; `flags` for what is not one action (`issue`) |
 | A list | `access.sqlFilter(user, 'Note', 'read')`: a SQL condition, so lists never load what they'd hide |
 | Fields read | `access.redact(user, 'read', 'Note', note)` / `redactAll()` |
@@ -93,6 +94,30 @@ bin, which the route can't find), and the source's `canIssue` (false: the
 route's 403). Generic sources and notes allow whoever may read; a feature
 whose `canIssue` queries per record pays that query per row of an
 `?include=can` page.
+
+### A record you may not read is a 404
+
+Every route on one record (`GET`, `PATCH`, `DELETE`, `POST …/restore`, an
+approvable action, and the record's tags, comments, attachments, revisions,
+watch, PDF and AI runs) answers a record the caller may not read exactly as
+it answers an id that doesn't exist: 404 `not_found`, the same body (`Note
+<id> not found.`), after the same query. A 403 would tell them the record
+exists. The lookup carries the read filter
+(`findOne(id, undefined, { visibleTo: user })`; `RecordStore.findOne` for
+generated features), so missing and unreadable are one empty result, not a
+load and then a check. In the recycle bin the filter is `restore` (what
+`?deleted=true` lists): a deleted record you may not restore is a 404 too.
+
+The action's own check comes after, on the record found: one you may read
+but not change (a viewer, someone else's published note) is a **403** on
+`PATCH`, `DELETE` or setting its tags, which tells a legitimate reader why.
+Platform targets follow the same rule: `canRead()` is `false` for a missing
+record and for an unreadable one alike (the comments', attachments' and
+revisions' routes turn it into that 404), and `canTag()` /
+`assertCanWatch()` throw the lookup's 404 before their 403.
+
+Field-level read rules are separate: a field you may not read is left out of
+the record (`redact()`), never a 404 of the whole record.
 
 ### Field-level permissions and lists
 

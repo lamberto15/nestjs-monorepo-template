@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { tracing } from '@opentelemetry/sdk-node';
+import { SimpleSpanProcessor, TracerProvider } from '@opentelemetry/sdk-trace';
 import { LogRedaction } from '../logging/redaction.js';
 import {
   errorTracker,
@@ -118,17 +118,17 @@ describe('countRefusals on a real OTLP exporter', () => {
       status = code;
       const { port } = collector.address() as AddressInfo;
       const record = vi.fn();
-      const provider = new tracing.BasicTracerProvider({
+      const provider = new TracerProvider({
         spanProcessors: [
-          new tracing.SimpleSpanProcessor(
-            countRefusals(
+          new SimpleSpanProcessor({
+            exporter: countRefusals(
               new OTLPTraceExporter({
                 url: `http://127.0.0.1:${port}/v1/traces`,
                 timeoutMillis: 5_000,
               }),
               record,
             ),
-          ),
+          }),
         ],
       });
       provider.getTracer('telemetry-spec').startSpan('refused').end();

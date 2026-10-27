@@ -13,7 +13,7 @@ import { renderApp } from '@/test/render-app';
 import { renderComponent } from '@/test/render-component';
 import { ApprovalBanner } from './record-banner';
 import { peopleHandler } from '@/test/people';
-import { findToast } from '@/test/toast';
+import { expectNoToast, findToast } from '@/test/toast';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
 
 const connections: FakeRealtime[] = [];
@@ -794,6 +794,8 @@ describe('the approval page', () => {
     server.use(http.get('/v1/approvals/:id', () => problem(404, 'not_found')));
     await renderApp(`/approvals/${REQUEST_ID}`);
     expect(await screen.findByText('Approval not found')).toBeVisible();
+    // The page says it: not a toast as well.
+    await expectNoToast();
   });
 });
 

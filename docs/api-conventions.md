@@ -72,6 +72,10 @@ Every error, whatever produced it, is `application/problem+json`:
   `errors: [{ "path": "slug", … }]`, so a form shows it under the field.
 - `detail` and `errors[].message` are in the request's language.
 - A 500 never shows internals; `requestId` finds it in the logs.
+- A record you may not read is `not_found` (404), never `forbidden`: the
+  same problem as for an id that doesn't exist, so no answer tells that it
+  exists. `forbidden` (403) is for a record you may read but not change
+  ([permissions](permissions.md), "A record you may not read is a 404").
 - In code: throw Nest's exceptions (`new ConflictException('…')`, or an object
   with `code` and extra fields). A package's own errors are mapped once:
   `ProblemDetailsFilter.map(SomeError, (e) => new HttpException(…))`.
@@ -105,7 +109,10 @@ Every resource has the same shape and the same routes:
   (restore with a recycle bin, issue where it takes PDFs: `POST
   …/{id}/pdf`, false while documents are off): what its routes would answer you now, by your
   permissions and their conditions (a published note is no longer an
-  editor's to change: `update: false`, the PATCH a 403). `restore` is true
+  editor's to change: `update: false`, the PATCH a 403). A record you may not
+  read is a 404 on every route of it, the same as one that doesn't exist (a
+  403 would say it exists); one you read but may not change is the 403.
+  `restore` is true
   only for a record in the bin you may restore. Left out by default, so lists
   stay light; `fields=` never removes it; another `include` value is a 400.
   It is about you, not the record: the ETag leaves it out (below). See

@@ -46,6 +46,19 @@ export function settleReauthentication(ok: boolean) {
   current?.resolve(ok);
 }
 
+/**
+ * The session changed under an open dialog (signed out, another tenant or
+ * account, here or in another tab): the waiting requests were built for the
+ * previous session and are never sent again under the new cookie. They fail
+ * as the user giving up does (lib/api.ts); lib/session.ts calls this from
+ * its reset and clear.
+ */
+export function cancelReauthentication() {
+  if (pending) {
+    settleReauthentication(false);
+  }
+}
+
 function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => listeners.delete(listener);

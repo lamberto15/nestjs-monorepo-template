@@ -177,7 +177,10 @@ export class NoteTransfer
     await this.notes.create(principal, row);
   }
 
-  /** Imports inserts or updates in groups; match lookups stay inside tenant RLS. */
+  /**
+   * Imports inserts or updates in groups; match lookups stay inside tenant
+   * RLS and the caller's read filter.
+   */
   async writeMany(
     principal: Principal,
     rows: readonly NoteRow[],
@@ -200,6 +203,10 @@ export class NoteTransfer
     ) {
       throw new BadRequestException('A note id must be a UUID.');
     }
+    // Only the notes the caller may read: one they may not is "not found",
+    // the same refusal as one that doesn't exist, so a file of ids or
+    // numbers can't tell which exist (and updates nothing it can't read).
+    const readable = await this.access.sqlFilter(principal, 'Note', 'read');
     const found = await this.notes.query((db) =>
       db
         .select()
@@ -210,6 +217,7 @@ export class NoteTransfer
               ? inArray(notes.id, values)
               : inArray(notes.number, values),
             isNull(notes.deletedAt),
+            readable,
           ),
         ),
     );

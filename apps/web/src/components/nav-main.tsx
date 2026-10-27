@@ -6,31 +6,24 @@ import {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from '@nestjs-monorepo-template/ui/components/sidebar';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
-import { settingsQuery } from '@/features/settings/settings';
 import { useOperator } from '@/features/tenants/queries';
 import { useFeatures, useMe } from '@/lib/features';
 import { nav, visibleGroups, type NavItem } from '@/nav';
 
 export function NavMain() {
   const { t } = useTranslation();
+  const { setOpenMobile } = useSidebar();
   // The one place the menu is filtered (UX only: the API enforces both).
   const me = useMe();
-  const settings = useQuery({ ...settingsQuery, meta: { errorToast: false } });
-  const settingFlags = Object.fromEntries(
-    (settings.data ?? [])
-      .filter((setting) => setting.type === 'boolean')
-      .map((setting) => [setting.key, setting.value === true]),
-  );
   const groups = visibleGroups(
     nav,
     useFeatures(),
     me?.can,
     useOperator(),
     me?.tenant?.operator === true,
-    settingFlags,
   );
   return groups.map((group) => (
     <SidebarGroup key={group.id}>
@@ -40,6 +33,10 @@ export function NavMain() {
           <SidebarMenuItem key={item.to}>
             <SidebarMenuButton
               tooltip={t(item.label)}
+              // On a phone the menu is a sheet over the page: close it on any
+              // tap of an entry. A click, not a change of path, so the entry
+              // of the page the user is on closes it too (desktop ignores it).
+              onClick={() => setOpenMobile(false)}
               render={
                 <Link
                   to={item.to}

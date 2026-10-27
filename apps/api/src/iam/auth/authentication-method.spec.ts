@@ -81,7 +81,12 @@ describe('authentication method', () => {
     expect(authenticationOf({ sub: 'user' })).toMatchObject({
       authenticatedAt: null,
     });
-    expect(tokenClaims([], at)).toEqual({ auth_time: at.getTime() / 1000 });
+    expect(tokenClaims([], at, null, 'family')).toEqual({
+      auth_time: at.getTime() / 1000,
+      sid: 'family',
+    });
+    // Each sign-in starts a family of its own: its own `sid`.
+    expect(tokenClaims([], at).sid).not.toBe(tokenClaims([], at).sid);
   });
 
   it('is null for an API key and for nothing', () => {

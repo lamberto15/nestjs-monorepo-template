@@ -15,7 +15,7 @@ guesses, decide the layout. The audit behind it: issue
   checks run as steps of a job that has already installed the workspace:
   `check` runs the API's and the packages' unit tests, the OpenAPI diff, the
   bundle budget, Storybook and the notes-removal guard. `e2e-web` runs the
-  Chromium analytics smoke and the instrumented e2e sixth. `image` runs the
+  Chromium browser tests and the instrumented e2e sixth. `image` runs the
   hardened stack. `stack-config` runs the Compose and Swarm renders.
 - **No artifact between jobs that could share a runner:** `image` used to
   hand its tarball to `hardened-stack`, and the download alone took up to
@@ -34,9 +34,8 @@ guesses, decide the layout. The audit behind it: issue
   waits for.
 - **Comprehensive where it costs no pull request:** the nightly run (and
   tags, manual runs and changes that classify as `full`) adds
-  `template-without-notes` (six shards) and the images. `web.yml` adds the
-  analytics smoke in Firefox and WebKit (nightly, `main`, and pull requests
-  that touch the analytics engine) and Lighthouse.
+  `template-without-notes` (six shards) and the images. `web.yml` adds
+  Lighthouse.
 - **Flaky is a bug, not a retry:** Playwright's one CI retry stays, but a
   retried attempt's trace is uploaded (`playwright-report`), so a flake
   leaves evidence (one such trace explained a flake of
@@ -147,7 +146,7 @@ download, no apt. The cost: the browser is the runner image's Chrome stable
 `@playwright/test`. Playwright's container image was the other way out,
 declined: the services would move from `localhost` to their hostnames, a pull
 of over a gigabyte each run, and a tag Dependabot doesn't keep in step with
-`@playwright/test`. `web.yml`'s Firefox and WebKit still install theirs.
+`@playwright/test`.
 
 Still to measure: these shapes on real pull requests after the merge, and
 a cold Turbo cache on the second layout. Collect them with `metrics.mjs`

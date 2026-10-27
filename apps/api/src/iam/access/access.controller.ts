@@ -18,7 +18,6 @@ import {
   type SessionRecord,
 } from '@nestjs/authentication';
 import type { Response } from 'express';
-import { and } from 'drizzle-orm';
 import { Can } from '@nestjs/authorization';
 import {
   ApiAcceptedResponse,
@@ -40,7 +39,6 @@ import { listSchema, pageSchema } from '../../core/http/pagination.js';
 import {
   AUDIT_LIST,
   PRINCIPAL_LIST,
-  SIGN_IN_ENTRIES,
   SIGN_IN_LIST,
   USER_LIST,
 } from './access.lists.js';
@@ -722,10 +720,7 @@ export class AccessController {
   })
   @ApiOkResponse({ standardSchema: signInPageSchema })
   async signIns(@Query({ schema: SIGN_IN_LIST.schema }) query: ListQuery) {
-    const page = await this.audit.page(
-      query,
-      and(SIGN_IN_ENTRIES, SIGN_IN_LIST.where(query)),
-    );
+    const page = await this.audit.signInPage(query);
     const named = await this.audit.withActorNames(page.items);
     return SIGN_IN_LIST.pick(
       {

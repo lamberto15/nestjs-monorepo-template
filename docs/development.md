@@ -377,10 +377,10 @@ settings pages. It is not part of `pnpm test:e2e` (the API's).
 - **What it runs against:** the *built* API (`node dist/main`) and the *built*
   web app, served by `vite preview`, which proxies `/v1` to the API as Caddy
   does in production (`preview.proxy` in `apps/web/vite.config.ts`). One
-  origin, so the `__Host-sid` cookie works; no CORS, no Vite dev server. The
-  Caddy image would add a build of Caddy with its plugin for nothing the tests
-  check (it serves the same `dist`); its own image is built and scanned in CI
-  (`caddy-image`).
+  origin, so the `__Host-sid` cookie works; no CORS, no Vite dev server.
+  The Caddy image would add a build of Caddy with its plugin for nothing else
+  the tests check (it serves the same `dist`); its own image is built and
+  scanned in CI (`caddy-image`).
 - **Ports:** the API on **3300** and the web app on **4173**, never 3000 and
   5173, so the suite runs beside `pnpm dev`. Nothing it uses is the default
   stack's but PostgreSQL and Redis (see below).

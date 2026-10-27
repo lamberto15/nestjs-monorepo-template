@@ -551,6 +551,9 @@ describe('teams: a team’s members', () => {
     expect(changed[0]!.url).toMatch(`/v1/access/users/${ids.carol}`);
     // Her teams as the single read had them, plus this one.
     expect(changed[0]!.body).toEqual({ teamIds: [ids.north] });
+    expect(
+      await screen.findByRole('columnheader', { name: 'Member' }),
+    ).toBeVisible();
   });
 });
 

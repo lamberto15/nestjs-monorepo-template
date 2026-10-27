@@ -37,6 +37,11 @@ export type ErrorHandlerTarget = {
   toMfaSetup(): void;
   /** The first administrator's onboarding page. */
   toOnboarding(): void;
+  /**
+   * Re-runs the current page's route guards and loaders (the router's
+   * `invalidate()`): the session changed under a page another session opened.
+   */
+  invalidate(): void;
 };
 
 /**
@@ -267,9 +272,13 @@ function watchSession(
     // Whoever switched (this tab's flow announced and is applying, or
     // another tab announced and this refetch confirms): forget the previous
     // context's data and mutations now, before anything of it is shown or
-    // submitted again.
+    // submitted again. Then the page's route guards run again for the new
+    // session (a flow of this tab navigates after its reset; nothing else
+    // would here): a page the new identity may not open, or one only for
+    // another tenancy, leaves rather than stays on screen.
     void createSession(queryClient)
       .reset()
+      .then(() => target()?.invalidate())
       .catch((error) =>
         console.warn('the session identity change could not be re-read', error),
       );
