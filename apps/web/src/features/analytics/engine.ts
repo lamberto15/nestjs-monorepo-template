@@ -1,7 +1,13 @@
+import type { AsyncDuckDB, AsyncDuckDBConnection } from '@duckdb/duckdb-wasm';
+import extensions from './duckdb-extensions.json';
+import { buildDatasetSql, quoteIdentifier, quoteLiteral } from './query';
+
 export type AnalyticsColumn = {
   name: string;
   type: string;
+  /** Exact: `count(*) - count(column)`, a separate statement because SUMMARIZE only reports a rounded percentage. */
   nullCount: number;
+  /** SUMMARIZE's `approx_unique` (HyperLogLog), not an exact count. */
   distinctCount: number;
   min: unknown;
   max: unknown;
@@ -45,90 +51,292 @@ export type QueryResult = {
   totalRows: number;
 };
 
-type WorkerReply = { id: number; result?: unknown; error?: string };
-type Pending = { resolve(value: unknown): void; reject(error: Error): void };
+const EXTENSIONS = ['csv', 'json', 'jsonl', 'ndjson', 'parquet'] as const;
+type Extension = (typeof EXTENSIONS)[number];
 
-let worker: Worker | undefined;
-let nextRequest = 0;
-let lifecycle = 0;
-const pending = new Map<number, Pending>();
+// Fixed names in DuckDB's virtual file system. `allowed_paths` is locked before any
+// file is registered, so the names must be known up front; only these are readable.
+const inputName = (extension: Extension) => `analytics-input.${extension}`;
 
-function getWorker(): Worker {
-  if (worker) return worker;
-  worker = new Worker(new URL('./duckdb.worker.ts', import.meta.url), {
-    type: 'module',
+const closedError = () => new Error('The local analytics session was closed.');
+
+type TableInfo = { table: string; columns: Set<string> };
+type Session = {
+  db: AsyncDuckDB;
+  conn: AsyncDuckDBConnection;
+  datasets: Map<string, TableInfo>;
+  queue: Promise<unknown>;
+};
+type Handle = {
+  ready: Promise<Session>;
+  /** Rejects every waiting operation once the handle is closed. */
+  aborted: Promise<never>;
+  closed: boolean;
+  close(): void;
+};
+
+let current: Handle | undefined;
+
+/**
+ * Where the page serves DuckDB's official json and parquet extensions from, on its
+ * own origin: `<repo>/v<duckdb version>/<platform>/<name>.duckdb_extension.wasm`
+ * (public/duckdb-extensions, written by `pnpm duckdb:extensions`; DuckDB-Wasm's
+ * documented `custom_extension_repository`:
+ * https://duckdb.org/docs/1.4/clients/wasm/extensions.html). The wasm bundles do
+ * not link these in (only the Node build does). DuckDB fetches the files itself
+ * and checks the signature on LOAD, so unsigned extensions stay refused.
+ */
+const extensionRepository = () =>
+  new URL(
+    `${import.meta.env.BASE_URL}duckdb-extensions`,
+    globalThis.location.href,
+  ).href;
+
+/**
+ * DuckDB-Wasm the way its README documents for Vite: the package and the `?url`
+ * wasm and worker files of the MVP and EH bundles load lazily (dynamic `import()`,
+ * so none of it is in the entry chunk), `selectBundle` picks one by browser
+ * features, and `AsyncDuckDB` drives DuckDB's own worker. No worker of our own.
+ */
+async function openSession(): Promise<Session> {
+  const [duckdb, mvpWasm, mvpWorker, ehWasm, ehWorker] = await Promise.all([
+    import('@duckdb/duckdb-wasm'),
+    import('@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url'),
+    import('@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url'),
+    import('@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url'),
+    import('@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url'),
+  ]);
+  const bundle = await duckdb.selectBundle({
+    mvp: { mainModule: mvpWasm.default, mainWorker: mvpWorker.default },
+    eh: { mainModule: ehWasm.default, mainWorker: ehWorker.default },
   });
-  worker.onmessage = ({ data }: MessageEvent<WorkerReply>) => {
-    const task = pending.get(data.id);
-    if (!task) return;
-    pending.delete(data.id);
-    if (data.error) task.reject(new Error(data.error));
-    else task.resolve(data.result);
-  };
-  worker.onerror = (event) => {
-    const error = new Error(
-      event.message || 'The local analytics worker stopped unexpectedly.',
+  const db = new duckdb.AsyncDuckDB(
+    new duckdb.VoidLogger(),
+    new Worker(bundle.mainWorker!),
+  );
+  try {
+    await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+    const conn = await db.connect();
+    // The vendored extensions are for one DuckDB version. A duckdb-wasm update that
+    // moves it must fail here, loudly, instead of requesting files that do not exist.
+    const running = String(
+      (
+        (
+          await conn.query('SELECT version() AS version')
+        ).toArray()[0] as Record<string, unknown>
+      ).version,
     );
-    for (const task of pending.values()) task.reject(error);
-    pending.clear();
-    worker?.terminate();
-    worker = undefined;
-  };
-  return worker;
+    if (running !== `v${extensions.duckdbVersion}`) {
+      throw new Error(
+        `DuckDB-Wasm runs ${running}, but the vendored extensions are for v${extensions.duckdbVersion}: update duckdbVersion in duckdb-extensions.json and run pnpm duckdb:extensions --record.`,
+      );
+    }
+    // Same-origin repository first, then LOAD (which downloads, verifies the
+    // signature and loads); autoinstall and autoload are switched off right after.
+    await conn.query(
+      `SET custom_extension_repository = ${quoteLiteral(extensionRepository())}`,
+    );
+    await conn.query('LOAD json');
+    await conn.query('LOAD parquet');
+    await conn.query('SET autoinstall_known_extensions = false');
+    await conn.query('SET autoload_known_extensions = false');
+    // With external access off DuckDB refuses every file that is not allow-listed,
+    // registered ones included (checked against 1.32.0). Allow only the fixed
+    // virtual names, so no remote URL, extension or other file is readable.
+    await conn.query(
+      `SET allowed_paths = [${EXTENSIONS.map((e) => quoteLiteral(inputName(e))).join(', ')}]`,
+    );
+    await conn.query('SET enable_external_access = false');
+    await conn.query('SET lock_configuration = true');
+    return { db, conn, datasets: new Map(), queue: Promise.resolve() };
+  } catch (error) {
+    await db.terminate();
+    throw error;
+  }
 }
 
-function request<T>(
-  type: string,
-  payload: Record<string, unknown> = {},
-  transfer: Transferable[] = [],
+function startSession(): Handle {
+  let abort!: (error: Error) => void;
+  const aborted = new Promise<never>((_, reject) => {
+    abort = reject;
+  });
+  aborted.catch(() => undefined);
+  const ready = openSession();
+  ready.catch(() => undefined);
+  const handle: Handle = {
+    ready,
+    aborted,
+    closed: false,
+    close() {
+      if (handle.closed) return;
+      handle.closed = true;
+      abort(closedError());
+      void ready
+        .then(
+          (session) => {
+            // Best effort: ask DuckDB to cancel the running query, then end its
+            // worker, which frees the engine and its memory either way.
+            void session.conn.cancelSent().catch(() => undefined);
+            return session.db.terminate();
+          },
+          () => undefined,
+        )
+        // Closing is fire and forget: a worker that fails to terminate (already
+        // gone, or the session's own failure handler ended it) leaves nothing to
+        // clean up, so the rejection is dropped instead of surfacing unhandled.
+        .catch(() => undefined);
+    },
+  };
+  return handle;
+}
+
+/** Operations on one session run one at a time, as one DuckDB connection expects. */
+function run<T>(
+  handle: Handle,
+  task: (session: Session) => Promise<T>,
 ): Promise<T> {
-  const id = ++nextRequest;
-  return new Promise((resolve, reject) => {
-    pending.set(id, { resolve: resolve as (value: unknown) => void, reject });
-    getWorker().postMessage({ id, type, ...payload }, transfer);
+  const result = handle.ready.then((session) => {
+    const next = session.queue.then(() => {
+      if (handle.closed) throw closedError();
+      return task(session);
+    });
+    session.queue = next.catch(() => undefined);
+    return next;
+  });
+  return Promise.race([result, handle.aborted]);
+}
+
+function describeFailure(extension: Extension, error: unknown): Error {
+  if (extension === 'csv') return error as Error;
+  const kind = extension === 'parquet' ? 'Parquet' : 'JSON';
+  return new Error(`The selected ${kind} file is malformed or unsupported.`, {
+    cause: error,
   });
 }
 
-/** Loads supported files entirely in a disposable browser worker. */
+/** Loads supported files in DuckDB-Wasm's own browser worker, without copying them. */
 export async function loadLocalFile(file: File): Promise<AnalyticsDataset> {
-  const currentLifecycle = lifecycle;
-  const extension = file.name.split('.').pop()?.toLowerCase();
-  if (
-    !extension ||
-    !['csv', 'json', 'jsonl', 'ndjson', 'parquet'].includes(extension)
-  ) {
+  const extension = file.name.split('.').pop()?.toLowerCase() as
+    Extension | undefined;
+  if (!extension || !EXTENSIONS.includes(extension)) {
     throw new Error('Choose a CSV, JSON, JSON Lines, or Parquet file.');
   }
   if (file.size === 0) throw new Error('The selected file is empty.');
-  if (file.size > 1024 * 1024 * 1024)
-    throw new Error('Files must be 1 GB or smaller.');
-  const buffer = await file.arrayBuffer();
-  if (currentLifecycle !== lifecycle)
-    throw new Error('The local analytics session was closed.');
-  return request<AnalyticsDataset>(
-    'load',
-    { name: file.name, extension, buffer },
-    [buffer],
-  );
+
+  // Each replacement import starts a fresh engine: wasm memory never shrinks, so
+  // dropping the table would not give a large file's memory back.
+  current?.close();
+  const handle = startSession();
+  current = handle;
+
+  return run(handle, async ({ db, conn, datasets }) => {
+    const duckdb = await import('@duckdb/duckdb-wasm');
+    const id = crypto.randomUUID();
+    const filename = inputName(extension);
+    const tableName = `dataset_${id.replaceAll('-', '')}`;
+    // DuckDB reads the File in slices (BROWSER_FILEREADER, direct I/O): its
+    // bytes are never copied into the JavaScript heap.
+    await db.registerFileHandle(
+      filename,
+      file,
+      duckdb.DuckDBDataProtocol.BROWSER_FILEREADER,
+      true,
+    );
+    const source = quoteLiteral(filename);
+    const reader =
+      extension === 'parquet'
+        ? `read_parquet(${source})`
+        : extension === 'csv'
+          ? `read_csv(${source}, sample_size = -1)`
+          : // Detects a JSON array, newline-delimited JSON and nested values.
+            `read_json(${source}, sample_size = -1)`;
+    try {
+      // Materialize once: queries are then fast and the file can be released.
+      await conn.query(
+        `CREATE TEMP TABLE ${quoteIdentifier(tableName)} AS SELECT * FROM ${reader}`,
+      );
+    } catch (error) {
+      throw describeFailure(extension, error);
+    } finally {
+      await db.dropFile(filename).catch(() => undefined);
+    }
+    // One statement profiles every column (min, max, approx_unique, null share).
+    const summary = await conn.query(
+      `SELECT column_name, column_type, min, max, approx_unique, count FROM (SUMMARIZE ${quoteIdentifier(tableName)})`,
+    );
+    const version = await conn.query('SELECT version() AS version');
+    const stats = summary.toArray() as Array<Record<string, unknown>>;
+    // SUMMARIZE only has a two-decimal null percentage (1 null in 30,000 rows reads
+    // 0), so the exact null counts come from one more statement. Aliases are
+    // positional: a column may be named like an Arrow row property.
+    const nulls = await conn.query(
+      `SELECT ${stats
+        .map(
+          (stat, index) =>
+            `count(*) - count(${quoteIdentifier(String(stat.column_name))}) AS n${index}`,
+        )
+        .join(', ')} FROM ${quoteIdentifier(tableName)}`,
+    );
+    let rowCount = 0;
+    const columns: AnalyticsColumn[] = stats.map((stat, index) => {
+      rowCount = Number(stat.count);
+      return {
+        name: String(stat.column_name),
+        type: String(stat.column_type),
+        nullCount: Number(nulls.getChildAt(index)!.get(0)),
+        distinctCount: Number(stat.approx_unique),
+        min: stat.min ?? null,
+        max: stat.max ?? null,
+      };
+    });
+    datasets.set(id, {
+      table: tableName,
+      columns: new Set(columns.map(({ name }) => name)),
+    });
+    return {
+      id,
+      name: file.name,
+      engineVersion: String(
+        (version.toArray()[0] as Record<string, unknown>).version,
+      ),
+      columns,
+      rowCount,
+    };
+  });
 }
 
 export function queryDataset(
   dataset: AnalyticsDataset,
   query: DatasetQuery = {},
 ): Promise<QueryResult> {
-  return request<QueryResult>('query', { datasetId: dataset.id, query });
+  if (!current)
+    return Promise.reject(new Error('The dataset has been closed.'));
+  return run(current, async ({ conn, datasets }) => {
+    const info = datasets.get(dataset.id);
+    if (!info) throw new Error('The dataset has been closed.');
+    const { arrowTableRows } = await import('./arrow-rows');
+    const sql = buildDatasetSql(info.table, info.columns, query);
+    const total = await conn.query(sql.total);
+    const result = await conn.query(sql.rows);
+    return {
+      ...arrowTableRows(result),
+      totalRows: Number((total.toArray()[0] as Record<string, unknown>).count),
+    };
+  });
 }
 
 export async function disposeDataset(dataset: AnalyticsDataset): Promise<void> {
-  await request<void>('dispose', { datasetId: dataset.id });
+  if (!current) return;
+  await run(current, async ({ conn, datasets }) => {
+    const info = datasets.get(dataset.id);
+    if (!info) return;
+    await conn.query(`DROP TABLE IF EXISTS ${quoteIdentifier(info.table)}`);
+    datasets.delete(dataset.id);
+  });
 }
 
 /** Cancels in-flight local queries and releases DuckDB's worker and memory. */
 export function terminateAnalyticsEngine(): void {
-  lifecycle++;
-  worker?.terminate();
-  worker = undefined;
-  const error = new Error('The local analytics session was closed.');
-  for (const task of pending.values()) task.reject(error);
-  pending.clear();
+  current?.close();
+  current = undefined;
 }

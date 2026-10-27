@@ -83,3 +83,6 @@ storybook-static
 # Generated VitePress cache and output
 /docs/.vitepress/cache/
 /docs/.vitepress/dist/
+
+# Agents' git worktrees (docs/development.md, "Git workflow")
+.claude/worktrees/
