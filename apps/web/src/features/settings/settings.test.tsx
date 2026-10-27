@@ -265,6 +265,20 @@ describe('my preferences', () => {
     );
     await waitFor(() => expect(deleted).toBe(true));
   });
+
+  it('leaves the dashboard layout to the dashboard', async () => {
+    api(signedInUser, [
+      ...items,
+      setting({
+        key: 'dashboard.layout',
+        label: 'Dashboard layout',
+        canSetMine: true,
+      }),
+    ]);
+    await renderApp('/account/preferences');
+    expect(await screen.findByText('Density')).toBeVisible();
+    expect(screen.queryByText('Dashboard layout')).not.toBeInTheDocument();
+  });
 });
 
 async function open(name: string) {
@@ -346,6 +360,26 @@ describe('admin settings', () => {
     await user.type(screen.getByRole('searchbox'), 'delay');
     expect(screen.queryByText('Rich text editor')).not.toBeInTheDocument();
     expect(screen.getByText('Publication delay')).toBeVisible();
+  });
+
+  it('shows a missing value in words, the layout as a summary and groups by name', async () => {
+    api(admin, [
+      setting({ key: 'quotas.maxMembers', label: 'Members', type: 'number' }),
+      setting({ key: 'branding.mailFromName', label: 'Mail sender' }),
+      setting({
+        key: 'dashboard.layout',
+        label: 'Dashboard layout',
+        value: { order: ['a', 'b', 'c'], hidden: ['d'] },
+      }),
+    ]);
+    await renderApp('/settings');
+    expect(await screen.findByText('Quotas')).toBeVisible();
+    expect(screen.getAllByText('No limit')).toHaveLength(2);
+    expect(screen.getAllByText('Not set')).toHaveLength(3);
+    expect(
+      screen.getByText('Custom layout: 3 cards ordered, 1 hidden'),
+    ).toBeVisible();
+    expect(screen.queryByText('null')).not.toBeInTheDocument();
   });
 
   it('renders the input of each value type', async () => {

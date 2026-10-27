@@ -16,6 +16,7 @@ import { and, eq, isNull, lt } from 'drizzle-orm';
 import type { Redis } from 'ioredis';
 import { normalizers } from '../../core/encryption/data-cipher.js';
 import { EncryptionService } from '../../core/encryption/encryption.service.js';
+import { deleteInBatches } from '../../core/database/batched-delete.js';
 import type { Transaction } from '../../core/database/drizzle.js';
 import {
   database,
@@ -515,10 +516,11 @@ export class MessagingService implements PersonalDataSource {
 
   /** Devices not seen since `before`: what the nightly job removes. */
   async removeStaleDevices(before: Date) {
-    const removed = await this.db
-      .delete(devices)
-      .where(lt(devices.lastSeenAt, before))
-      .returning({ id: devices.id });
-    return removed.length;
+    return deleteInBatches(
+      this.txHost,
+      devices,
+      devices.id,
+      lt(devices.lastSeenAt, before),
+    );
   }
 }

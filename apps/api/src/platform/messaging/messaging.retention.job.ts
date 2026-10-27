@@ -4,10 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { OnOneInstance, WithoutOverlapping } from '@nestjs/locks';
 import { Cron } from '@nestjs/schedule';
 import { and, eq, lt, ne, or } from 'drizzle-orm';
-import {
-  database,
-  type DrizzleTransactions,
-} from '../../core/database/transactions.js';
+import { deleteInBatches } from '../../core/database/batched-delete.js';
+import type { DrizzleTransactions } from '../../core/database/transactions.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { SystemContext } from '../../iam/access/system-context.js';
 import { MESSAGING_RETENTION_JOB } from '../platform.jobs.js';
@@ -26,10 +24,6 @@ import { messagingUsage } from './messaging.tables.js';
 @Injectable()
 export class MessagingRetentionJob {
   private readonly logger = new Logger('Messaging');
-
-  private get db() {
-    return database(this.txHost);
-  }
 
   constructor(
     private readonly txHost: TransactionHost<DrizzleTransactions>,
@@ -56,32 +50,32 @@ export class MessagingRetentionJob {
           const devices = await this.messaging.removeStaleDevices(
             new Date(now.getTime() - days * 86_400_000),
           );
-          const counters = await this.db
-            .delete(messagingUsage)
-            .where(
-              or(
-                // The daily counters are of yesterday and before ...
-                and(
-                  ne(messagingUsage.counter, 'spend'),
-                  lt(
-                    messagingUsage.day,
-                    utcDay(new Date(now.getTime() - 86_400_000)),
-                  ),
-                ),
-                // ... the month's spend stays through the next month (for the alert's history).
-                and(
-                  eq(messagingUsage.counter, 'spend'),
-                  lt(messagingUsage.day, previousMonthStart(now)),
+          const counters = await deleteInBatches(
+            this.txHost,
+            messagingUsage,
+            messagingUsage.id,
+            or(
+              // The daily counters are of yesterday and before ...
+              and(
+                ne(messagingUsage.counter, 'spend'),
+                lt(
+                  messagingUsage.day,
+                  utcDay(new Date(now.getTime() - 86_400_000)),
                 ),
               ),
-            )
-            .returning({ id: messagingUsage.id });
+              // ... the month's spend stays through the next month (for the alert's history).
+              and(
+                eq(messagingUsage.counter, 'spend'),
+                lt(messagingUsage.day, previousMonthStart(now)),
+              ),
+            ),
+          );
           this.logger.log('Messaging swept', {
             devices,
-            counters: counters.length,
+            counters,
             days,
           });
-          return { devices, counters: counters.length };
+          return { devices, counters };
         }),
       { transaction: false },
     );

@@ -15,6 +15,7 @@ import type { HeaderContext } from '@tanstack/react-table';
 import { parseAsBoolean, useQueryState } from 'nuqs';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { actionLabel } from './action-label';
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
 import { ListPage } from '@/components/list-page';
 import type { AuditEntry } from '@/features/audit/api';
@@ -120,7 +121,11 @@ export function AuditPage() {
         id: 'action',
         accessorKey: 'action',
         ...header('action'),
-        cell: ({ row }) => mono(row.original.action),
+        cell: ({ row }) => (
+          <span title={row.original.action}>
+            {actionLabel(t, row.original.action)}
+          </span>
+        ),
       },
       {
         id: 'targetType',
@@ -216,10 +221,13 @@ function EntryDetails(props: { entry: AuditEntry }) {
   return (
     <>
       <DialogHeader>
-        <DialogTitle className="font-mono text-base">
-          {entry.action}
+        <DialogTitle className="text-base">
+          {actionLabel(t, entry.action)}
         </DialogTitle>
-        <DialogDescription>{format(entry.at)}</DialogDescription>
+        <DialogDescription>
+          {format(entry.at)}
+          <code className="ms-2 text-xs">{entry.action}</code>
+        </DialogDescription>
       </DialogHeader>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 text-xs">
         <dt className="text-muted-foreground">{t('details.actor')}</dt>

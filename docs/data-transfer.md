@@ -165,6 +165,10 @@ processed }` (an import also `imported`, `failed`; an export's at most once
   Make `write()` idempotent (an upsert on a natural key) to allow it.
 - Excel through exceljs (4.4, last released Dec 2024): exports stream;
   imports read the workbook whole (exceljs' streaming reader fails on some
-  valid files) after a check of the zip's declared size. CSV imports stream
-  (csv-parse); a JSON import is read whole. The libraries are used only in
-  `formats.ts`.
+  valid files) after a check of the zip's declared size, then hand over one
+  row at a time. CSV imports stream (csv-parse), and so do JSON imports
+  (stream-json: one element of the top-level array at a time; a 45 MB,
+  200,000-record file peaks at about 130 MB of process memory instead of
+  400). A malformed JSON file fails with "The file is not valid JSON: …",
+  after the rows before the error were read, as a CSV file does. The
+  libraries are used only in `formats.ts`.

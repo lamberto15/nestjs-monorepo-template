@@ -39,7 +39,7 @@ import { useTranslation } from 'react-i18next';
 import { OverrideEditor } from './override-editor';
 import { SourceBadge } from './source-badge';
 import { groupOf, matches, settingsQuery, type Setting } from './settings';
-import { formatValue } from './value-input';
+import { displayValue } from './value-input';
 
 /**
  * Every setting and flag, grouped by key prefix, searchable, editable; the
@@ -132,7 +132,7 @@ export function AdminSettings() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {formatValue(setting.value, t('on'), t('off'))}
+                      {displayValue(setting.key, setting.value, t)}
                     </TableCell>
                     <TableCell>
                       <SourceBadge source={setting.source} />
@@ -143,7 +143,7 @@ export function AdminSettings() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {formatValue(setting.default, t('on'), t('off'))}
+                      {displayValue(setting.key, setting.default, t)}
                     </TableCell>
                     <TableCell>
                       {/* The API says who may set it (`canEdit`): never

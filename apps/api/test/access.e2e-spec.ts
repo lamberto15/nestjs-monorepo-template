@@ -63,6 +63,43 @@ describe('access control (e2e)', () => {
     await agent.get('/v1/ops/outbox').expect(200);
   });
 
+  it('refuses a role save or delete from a stale read: 412 with If-Match (#749)', async () => {
+    const admin = node.admin();
+    const role = {
+      name: 'Auditor',
+      permissions: [{ subject: 'Ops', action: 'view', conditions: [] }],
+    };
+    const created = await admin.post('/v1/access/roles').send(role).expect(201);
+    const url = `/v1/access/roles/${created.body.id}`;
+    const etag = (await admin.get(url).expect(200)).headers.etag as string;
+    expect(etag).toMatch(/^"/);
+    // A grant changes `members`, not the role: the tag stays.
+    await node.user([created.body.id]);
+    expect((await admin.get(url).expect(200)).headers.etag).toBe(etag);
+
+    // Two administrators read the same version: the first save wins, and
+    // answers with the role's new tag.
+    const saved = await admin
+      .patch(url)
+      .set('If-Match', etag)
+      .send({ ...role, description: 'first' })
+      .expect(204);
+    const stale = await admin
+      .patch(url)
+      .set('If-Match', etag)
+      .send({ ...role, description: 'second' })
+      .expect(412);
+    const current = (await admin.get(url).expect(200)).headers.etag as string;
+    expect(saved.headers.etag).toBe(current);
+    expect(stale.body).toMatchObject({
+      code: 'precondition_failed',
+      etag: current,
+    });
+    expect((await admin.get(url)).body.description).toBe('first');
+    await admin.delete(url).set('If-Match', etag).expect(412);
+    await admin.delete(url).set('If-Match', current).expect(204);
+  });
+
   describe('safeguards', () => {
     /** A user who may manage roles and users, and nothing else. */
     async function accessManager() {

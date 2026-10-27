@@ -62,16 +62,16 @@ before.
 
 ## Checking
 
-| Where | How |
-| --- | --- |
-| The route | `@Can(NotePolicy, 'create')` |
-| Finding one record | `notes.findOne(id, undefined, { visibleTo: user })`: the read filter (`sqlFilter`; in the recycle bin, `restore`) in the lookup's query, so one the caller may not read is a 404 (below) |
-| One record | `authorization.authorize(NotePolicy, 'update', user, note)` |
+| Where                                              | How                                                                                                                                                                                                                                |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The route                                          | `@Can(NotePolicy, 'create')`                                                                                                                                                                                                       |
+| Finding one record                                 | `notes.findOne(id, undefined, { visibleTo: user })`: the read filter (`sqlFilter`; in the recycle bin, `restore`) in the lookup's query, so one the caller may not read is a 404 (below)                                           |
+| One record                                         | `authorization.authorize(NotePolicy, 'update', user, note)`                                                                                                                                                                        |
 | What a reader may do with records (`?include=can`) | `recordCan(authorization, NotePolicy, user, rows, actions, flags)` (`platform/records/record-can.ts`): the same policy check per record and action, `authorization.can()`, in memory; `flags` for what is not one action (`issue`) |
-| A list | `access.sqlFilter(user, 'Note', 'read')`: a SQL condition, so lists never load what they'd hide |
-| Fields read | `access.redact(user, 'read', 'Note', note)` / `redactAll()` |
-| Fields written | `access.forbiddenFields(user, 'update', 'Note', changes, note)` → 403 `field_forbidden` |
-| Fields a list query uses | `access.assertQueryFields(user, 'Note', query)` after `list.parse()` → 403 `field_forbidden` (hidden, or shown on some records only and filtered, sorted or searched by) |
+| A list                                             | `access.sqlFilter(user, 'Note', 'read')`: a SQL condition, so lists never load what they'd hide                                                                                                                                    |
+| Fields read                                        | `access.redact(user, 'read', 'Note', note)` / `redactAll()`                                                                                                                                                                        |
+| Fields written                                     | `access.forbiddenFields(user, 'update', 'Note', changes, note)` → 403 `field_forbidden`                                                                                                                                            |
+| Fields a list query uses                           | `access.assertQueryFields(user, 'Note', query)` after `list.parse()` → 403 `field_forbidden` (hidden, or shown on some records only and filtered, sorted or searched by)                                                           |
 
 `GET /v1/auth/me`'s `can` says what the user may do on some records at
 least (`Note.update`: a note of theirs, say); a record's own `can`
@@ -224,10 +224,10 @@ The built-in `Access` permissions (`ACCESS_PERMISSIONS`,
 | `Access.readAudit` | the audit log and the sign-in log |
 | `Access.impersonate` | acting as another user (support), never as an administrator |
 | `Access.manageCustomFields`, `manageSettings`, `manageTags`, `manageNamingSeries`, `manageViews` | custom field definitions; settings and feature flags; tags; naming series and their counters; saved views shared with the tenant |
-| `Access.manageRetention`, `manageLegalHolds` | retention rules; legal holds ([retention](retention.md)) |
-| `Access.manageSso` | the tenant's SAML and OpenID Connect connections and verified domains ([auth](auth.md), "Enterprise SSO") |
-| `Access.provisionScim` | SCIM 2.0 provisioning: API clients only, the identity provider's token ([auth](auth.md), "Enterprise SSO") |
-| `Access.manageTenants`, `readConsolidated`; `Platform.breakGlass` | as above |
+| `Access.manageRetention`, `manageLegalHolds`                                                     | retention rules; legal holds ([retention](retention.md))                                                                         |
+| `Access.manageSso`                                                                               | the tenant's SAML and OpenID Connect connections and verified domains ([auth](auth.md), "Enterprise SSO")                        |
+| `Access.provisionScim`                                                                           | SCIM 2.0 provisioning: API clients only, the identity provider's token ([auth](auth.md), "Enterprise SSO")                       |
+| `Access.manageTenants`, `readConsolidated`; `Platform.breakGlass`                                | as above                                                                                                                         |
 
 - **Reading** the access API (`GET` of the catalog, roles, users, organizational units,
   API clients, principals; one role, user or client by id) takes any
@@ -243,6 +243,10 @@ The built-in `Access` permissions (`ACCESS_PERMISSIONS`,
   that list ([api-conventions](api-conventions.md), "List metadata").
 - `/v1/access/roles`: roles of permissions. A permission may carry
   conditions and `fields` (absent: all; `[]`: none of the restrictable ones).
+- `GET /v1/access/roles/{id}` sends an `ETag` of the role itself (name,
+  description, permissions; not `members`, so a grant doesn't make it stale);
+  `PATCH` and `DELETE` take it as `If-Match` (412 `precondition_failed`), and
+  a `PATCH` answers with the new one (docs/api-conventions.md, "Concurrency and caching").
 - You can only grant what you hold without conditions (fields included).
   `Administrator` is built in (`all.manage`); the last active one of each tenant stays.
 - Grants to users and API clients may end: `roleExpiresAt: { roleId: date }`.
@@ -328,6 +332,7 @@ GET /v1/people?q=may&limit=10
   `user:<uuid>` or `client:<uuid>` (else 400, `validation_failed`); `q`
   and `key` together are a 400 (one searches, the other names); `limit`
   doesn't apply.
+
 - **Names on records:** comments carry `authorName` and `mentionNames`,
   revisions `changedByName` (`PeopleService.names()`, one query a page): the name of
   a user who is or was a member of the tenant, or of the tenant's API
@@ -404,12 +409,12 @@ outbox relay's notification delivery, workflow steps (approvals, the
 notes' publication) and the demo seed. SCIM is an API client's
 work (`Access.provisionScim`) and an AI run acts as the principal who asked. It is a third principal kind next to `user` and `client`:
 
-| | user | client | system |
-| --- | --- | --- | --- |
-| `principalKey()` | `user:<id>` | `client:<id>` | `system:<job>` (`system:account-deletion`) |
-| Permissions | its roles | `clientPermissions` + its roles | what its job declares, nothing more |
-| Audit label | the email | the client's name | `System: <job's label>` |
-| Authenticates over HTTP or a socket | yes | yes | **never** |
+|                                     | user        | client                          | system                                     |
+| ----------------------------------- | ----------- | ------------------------------- | ------------------------------------------ |
+| `principalKey()`                    | `user:<id>` | `client:<id>`                   | `system:<job>` (`system:account-deletion`) |
+| Permissions                         | its roles   | `clientPermissions` + its roles | what its job declares, nothing more        |
+| Audit label                         | the email   | the client's name               | `System: <job's label>`                    |
+| Authenticates over HTTP or a socket | yes         | yes                             | **never**                                  |
 
 **Declare the job** in its group's or feature's `definePermissions()`,
 with what it may do, as for an API client (conditions read with the job
@@ -420,7 +425,9 @@ export const NOTE_PUBLICATION_JOB = defineSystemJob({
   key: 'note-publication',
   label: 'Note publication',
   description: 'Publishes draft notes when their delay passes.',
-  permissions: [{ subject: 'Note', action: 'update', conditions: [{ key: 'draft' }] }],
+  permissions: [
+    { subject: 'Note', action: 'update', conditions: [{ key: 'draft' }] },
+  ],
 });
 // definePermissions({ subjects, …, systemJobs: [NOTE_PUBLICATION_JOB] })
 ```

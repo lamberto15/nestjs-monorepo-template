@@ -19,7 +19,7 @@ import { peopleHandler } from '@/test/people';
 import { principalsHandler, userPrincipal } from '@/test/principals';
 import { renderApp } from '@/test/render-app';
 import { renderComponent } from '@/test/render-component';
-import { allFeatures, server, signedInUser } from '@/test/server';
+import { allFeatures, problem, server, signedInUser } from '@/test/server';
 import { findToast } from '@/test/toast';
 
 // Tests that watch which requests go out listen to msw's events.
@@ -406,6 +406,43 @@ describe('roles: one role', () => {
     ).toBeVisible();
     expect(await screen.findByLabelText('Name')).toHaveValue('Editor');
     expect(listed).toBe(0);
+  });
+
+  it('saves with the ETag it read; a role saved meanwhile is a 412 that keeps the edits until Reload (#749)', async () => {
+    signedInWith(everything);
+    const editor = roles.find((role) => role.id === ids.editor)!;
+    let version = 1;
+    const ifMatch: (string | null)[] = [];
+    server.use(
+      http.get('/v1/access/roles/:id', () =>
+        HttpResponse.json(
+          { ...editor, description: `v${version}` },
+          { headers: { ETag: `"v${version}"` } },
+        ),
+      ),
+      http.patch('/v1/access/roles/:id', ({ request }) => {
+        ifMatch.push(request.headers.get('If-Match'));
+        return problem(412, 'precondition_failed');
+      }),
+    );
+    await renderApp(`/access/roles/${ids.editor}`);
+    const user = userEvent.setup();
+    const name = await screen.findByLabelText('Name');
+    await user.clear(name);
+    await user.type(name, 'Editors');
+    // Another administrator saves meanwhile.
+    version = 2;
+    await user.click(screen.getByRole('button', { name: 'Save role' }));
+
+    expect(await screen.findByText('This role changed')).toBeVisible();
+    expect(ifMatch).toEqual(['"v1"']);
+    expect(screen.getByLabelText('Name')).toHaveValue('Editors');
+    await user.click(screen.getByRole('button', { name: 'Reload' }));
+    await waitFor(() =>
+      expect(screen.getByLabelText('Description')).toHaveValue('v2'),
+    );
+    expect(screen.getByLabelText('Name')).toHaveValue('Editor');
+    expect(screen.queryByText('This role changed')).not.toBeInTheDocument();
   });
 
   it('says so when there is no such role (404)', async () => {

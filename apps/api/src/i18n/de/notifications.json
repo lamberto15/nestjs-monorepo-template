@@ -8,6 +8,14 @@
         "other": "{count} Ihrer Notizen wurden veröffentlicht; die neueste ist „{title}“."
       }
     },
+    "publishedMany": {
+      "label": "Notizen in großer Zahl veröffentlicht",
+      "title": "Notizen veröffentlicht",
+      "body": {
+        "one": "{notes} Notizen wurden veröffentlicht, darunter „{title}“.",
+        "other": "{count} Stapel von Notizen wurden veröffentlicht; der letzte mit {notes}, darunter „{title}“."
+      }
+    },
     "deleted": {
       "label": "Notiz von jemand anderem gelöscht",
       "title": "Notiz gelöscht",
@@ -40,6 +48,7 @@
       "body": "{by} hat Sie bei „{title}“ erwähnt: {excerpt}"
     }
   },
+  "from": " (von {ip})",
   "security": {
     "newSignIn": {
       "label": "Neue Anmeldung",
@@ -49,27 +58,27 @@
     "passwordChanged": {
       "label": "Passwort geändert",
       "title": "Ihr Passwort wurde geändert",
-      "body": "Das Passwort Ihres Kontos wurde geändert (von {ip}). Waren Sie das nicht, setzen Sie es sofort zurück."
+      "body": "Das Passwort Ihres Kontos wurde geändert{from}. Waren Sie das nicht, setzen Sie es sofort zurück."
     },
     "passwordBreached": {
       "label": "Passwort in einem Datenleck gefunden",
       "title": "Ihr Passwort ist in einem Datenleck aufgetaucht",
-      "body": "Das Passwort, mit dem Sie sich angemeldet haben (von {ip}), ist in einem bekannten Datenleck aufgetaucht, andere könnten es also ausprobieren. Ändern Sie es jetzt in eines, das Sie nirgends sonst verwenden."
+      "body": "Das Passwort, mit dem Sie sich angemeldet haben{from}, ist in einem bekannten Datenleck aufgetaucht, andere könnten es also ausprobieren. Ändern Sie es jetzt in eines, das Sie nirgends sonst verwenden."
     },
     "mfaChanged": {
       "label": "Zwei-Faktor-Anmeldung geändert",
       "title": "Zwei-Faktor-Anmeldung geändert",
-      "body": "Die Zwei-Faktor-Anmeldung Ihres Kontos wurde ein- oder ausgeschaltet (von {ip}). Waren Sie das nicht, ändern Sie sofort Ihr Passwort."
+      "body": "Die Zwei-Faktor-Anmeldung Ihres Kontos wurde ein- oder ausgeschaltet{from}. Waren Sie das nicht, ändern Sie sofort Ihr Passwort."
     },
     "passkeyAdded": {
       "label": "Passkey hinzugefügt",
       "title": "Ihrem Konto wurde ein Passkey hinzugefügt",
-      "body": "Ihrem Konto wurde ein Passkey namens „{name}“ hinzugefügt (von {ip}). Waren Sie das nicht, entfernen Sie ihn und ändern Sie sofort Ihr Passwort."
+      "body": "Ihrem Konto wurde ein Passkey namens „{name}“ hinzugefügt{from}. Waren Sie das nicht, entfernen Sie ihn und ändern Sie sofort Ihr Passwort."
     },
     "passkeyRemoved": {
       "label": "Passkey entfernt",
       "title": "Ein Passkey wurde aus Ihrem Konto entfernt",
-      "body": "Der Passkey „{name}“ wurde aus Ihrem Konto entfernt (von {ip}). Waren Sie das nicht, ändern Sie sofort Ihr Passwort."
+      "body": "Der Passkey „{name}“ wurde aus Ihrem Konto entfernt{from}. Waren Sie das nicht, ändern Sie sofort Ihr Passwort."
     },
     "apiKeyRotated": {
       "label": "API-Schlüssel erneuert",
@@ -79,7 +88,7 @@
     "breakGlassStarted": {
       "label": "Break-Glass-Zugriff auf Ihren Mandanten",
       "title": "Ein Betreiber hat Ihren Mandanten geöffnet (Break-Glass)",
-      "body": "{operator} hat diesen Mandanten ohne Einladung geöffnet, nur lesend, bis {expiresAt} (von {ip}). Begründung: „{reason}“. Es steht im Audit-Log und im Anmeldeprotokoll; ein Administrator kann es abschalten (Einstellung auth.allowBreakGlass)."
+      "body": "{operator} hat diesen Mandanten ohne Einladung geöffnet, nur lesend, bis {expiresAt}{from}. Begründung: „{reason}“. Es steht im Audit-Log und im Anmeldeprotokoll; ein Administrator kann es abschalten (Einstellung auth.allowBreakGlass)."
     }
   },
   "approval": {

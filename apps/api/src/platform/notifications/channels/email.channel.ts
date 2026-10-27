@@ -71,7 +71,14 @@ export class EmailChannel implements NotificationChannel<EmailMode | false> {
         },
         locale: rendered.locale,
       },
-      { jobId: `notification-${notification.id}`, signal },
+      {
+        jobId: `notification-${notification.id}`,
+        signal,
+        // A mandatory type (a security notice) still goes while the
+        // operators allow essential mail only (mail.delivery).
+        essential:
+          this.catalog.declaration(notification.type)?.mandatory === true,
+      },
     );
   }
 

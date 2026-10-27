@@ -682,6 +682,45 @@ describe('step-up: session auth method and re-authentication (e2e)', () => {
     });
   });
 
+  it('drops a recent sign-in on a switch to another tenant: the new tenant asks again (#738)', async () => {
+    const me = await person();
+    const other = await node.otherTenant();
+    const editor = (
+      (await other.admin.get('/v1/access/roles').expect(200)).body.items as {
+        id: string;
+        key: string | null;
+      }[]
+    ).find((role) => role.key === 'editor')!;
+    const token = await node.invite(other.admin, {
+      email: me.email,
+      roleIds: [editor.id],
+    });
+    await me.agent
+      .post('/v1/auth/invitations/accept')
+      .send({ token })
+      .expect(200);
+    const authentication = async () =>
+      (await me.agent.get('/v1/auth/me').expect(200)).body.authentication;
+    expect((await authentication()).recentUntil).not.toBeNull();
+
+    await me.agent
+      .post('/v1/auth/tenant')
+      .send({ tenantId: other.id })
+      .expect(204);
+    // Still signed in with a password, but not recently in this tenant.
+    expect(await authentication()).toMatchObject({
+      method: 'password',
+      authenticatedAt: null,
+      recentUntil: null,
+    });
+
+    await me.agent
+      .post('/v1/auth/reauthenticate')
+      .send({ password: me.password })
+      .expect(200);
+    expect((await authentication()).recentUntil).not.toBeNull();
+  });
+
   describe('POST /auth/reauthenticate', () => {
     it('checks the password, audits both outcomes, and rotates the session', async () => {
       const me = await person();

@@ -5,6 +5,7 @@ import { OnOneInstance, WithoutOverlapping } from '@nestjs/locks';
 import { Cron } from '@nestjs/schedule';
 import { WebhookDeliveries } from '@nestjs/webhooks';
 import { eq, notExists } from 'drizzle-orm';
+import { deleteInBatches } from '../../core/database/batched-delete.js';
 import {
   database,
   type DrizzleTransactions,
@@ -62,25 +63,25 @@ export class WebhookDeliveryRetentionJob {
         });
         const deliveries = await this.deliveries.prune(`${days}d`);
         // After the package: a request row outlives its delivery by no more than a night.
-        const requests = await this.db
-          .delete(webhookDeliveryRequests)
-          .where(
-            notExists(
-              this.db
-                .select({ one: storeDeliveries.id })
-                .from(storeDeliveries)
-                .where(
-                  eq(storeDeliveries.id, webhookDeliveryRequests.deliveryId),
-                ),
-            ),
-          )
-          .returning({ deliveryId: webhookDeliveryRequests.deliveryId });
+        const requests = await deleteInBatches(
+          this.txHost,
+          webhookDeliveryRequests,
+          webhookDeliveryRequests.deliveryId,
+          notExists(
+            this.db
+              .select({ one: storeDeliveries.id })
+              .from(storeDeliveries)
+              .where(
+                eq(storeDeliveries.id, webhookDeliveryRequests.deliveryId),
+              ),
+          ),
+        );
         this.logger.log('Old webhook deliveries deleted', {
           deliveries,
-          requests: requests.length,
+          requests,
           days,
         });
-        return { deliveries, requests: requests.length };
+        return { deliveries, requests };
       },
       // Global tables (every tenant's deliveries together): no tenant.
       { transaction: false, tenantId: null },

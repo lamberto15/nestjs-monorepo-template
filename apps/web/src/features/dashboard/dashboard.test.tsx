@@ -109,6 +109,10 @@ describe('the dashboard', () => {
     expect(await screen.findByText('Welcome aboard')).toBeVisible();
     expect(await screen.findByText('Unread: 7')).toBeVisible();
     expect(await screen.findByText('Noah Kim')).toBeVisible();
+    // The event as people read it, with its key on hover.
+    expect(await screen.findByTitle('note.created')).toHaveTextContent(
+      'Note created',
+    );
     expect(seen.some((entry) => entry.includes('assignedToMe=true'))).toBe(
       true,
     );

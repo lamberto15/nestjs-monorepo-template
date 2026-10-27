@@ -33165,6 +33165,7 @@
     },
     "/v1/access/roles/{id}": {
       "get": {
+        "description": "Its `ETag` covers the role itself (name, description, permissions), not `members`: send it as `If-Match` with PATCH or DELETE.",
         "operationId": "AccessController_role_v1",
         "parameters": [
           {
@@ -33173,6 +33174,16 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "description": "The ETag you have: 304 and no body when it is still current.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "\"mZ1k…\""
             }
           }
         ],
@@ -33323,6 +33334,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "\"mZ1k…\""
+            }
           }
         ],
         "requestBody": {
@@ -33406,7 +33427,7 @@
         },
         "responses": {
           "204": {
-            "description": ""
+            "description": "Saved; `ETag` is the role’s new tag (the next If-Match)."
           },
           "401": {
             "description": "No session."
@@ -33419,6 +33440,9 @@
           },
           "409": {
             "description": "The built-in Administrator role."
+          },
+          "412": {
+            "description": "It changed since you read it (precondition_failed)."
           }
         },
         "security": [
@@ -33444,6 +33468,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "\"mZ1k…\""
+            }
           }
         ],
         "responses": {
@@ -33461,6 +33495,9 @@
           },
           "409": {
             "description": "The built-in Administrator role."
+          },
+          "412": {
+            "description": "It changed since you read it (precondition_failed)."
           }
         },
         "security": [

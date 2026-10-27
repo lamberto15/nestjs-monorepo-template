@@ -120,6 +120,23 @@ describe('placing a hold', () => {
     expect(await screen.findByText('Case 7')).toBeVisible();
   });
 
+  it('drops a cancelled draft, so the dialog opens empty again', async () => {
+    useLegalHoldsApi({ can: ADMIN, holds: [] });
+    const user = userEvent.setup();
+    await renderApp('/legal-holds');
+    const place = await screen.findByRole('button', {
+      name: 'Place a legal hold',
+    });
+    await user.click(place);
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Reason'), 'Case 7');
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await user.click(place);
+    expect(
+      within(await screen.findByRole('dialog')).getByLabelText('Reason'),
+    ).toHaveValue('');
+  });
+
   it('holds every record when none is named, and checks the fields', async () => {
     const { calls } = useLegalHoldsApi({ can: ADMIN, holds: [] });
     const user = userEvent.setup();

@@ -27,5 +27,25 @@
   "dashboard": {
     "title": "Aktiviti terkini",
     "empty": "Belum ada aktiviti."
+  },
+  "actions": {
+    "member": {
+      "signed-in": "Ahli log masuk"
+    },
+    "user": {
+      "impersonation-started": "Penyamaran bermula",
+      "impersonation-stopped": "Penyamaran tamat"
+    },
+    "note": {
+      "created": "Nota dicipta",
+      "updated": "Nota dikemas kini",
+      "deleted": "Nota dipadam",
+      "restored": "Nota dipulihkan"
+    },
+    "auth": {
+      "signed-in": "Log masuk",
+      "password-changed": "Kata laluan ditukar",
+      "sign-in-failed": "Log masuk gagal"
+    }
   }
 }

@@ -6,6 +6,7 @@ import { Cron } from '@nestjs/schedule';
 import { inArray, lt, sql } from 'drizzle-orm';
 import type { Redis } from 'ioredis';
 import type { CoreEnv } from '../../core/config/core.env.js';
+import { deleteInBatches } from '../../core/database/batched-delete.js';
 import {
   database,
   type DrizzleTransactions,
@@ -96,15 +97,17 @@ export class UsageRollupJob {
           infer: true,
         });
         const deleted = await this.tenancy.bypass(USAGE_ROLLUP_JOB.key, () =>
-          this.db
-            .delete(apiUsage)
-            .where(lt(apiUsage.day, addDays(today, -retentionDays)))
-            .returning({ id: apiUsage.id }),
+          deleteInBatches(
+            this.txHost,
+            apiUsage,
+            apiUsage.id,
+            lt(apiUsage.day, addDays(today, -retentionDays)),
+          ),
         );
         this.logger.log('Usage rolled up', {
           days,
           written,
-          deleted: deleted.length,
+          deleted,
           retentionDays,
         });
         if (failed.length > 0) {

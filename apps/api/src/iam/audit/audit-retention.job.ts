@@ -4,10 +4,8 @@ import { OnOneInstance, WithoutOverlapping } from '@nestjs/locks';
 import { Cron } from '@nestjs/schedule';
 import { lt } from 'drizzle-orm';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import {
-  type DrizzleTransactions,
-  inTransaction,
-} from '../../core/database/transactions.js';
+import { deleteInBatches } from '../../core/database/batched-delete.js';
+import type { DrizzleTransactions } from '../../core/database/transactions.js';
 import {
   Tenancy,
   TenantRunsFailed,
@@ -25,7 +23,7 @@ import { AuditService } from './audit.service.js';
  * principal (`system:audit-retention`). Per tenant (docs/tenancy.md): each
  * tenant's log is pruned in that tenant's scope, and its own `audit.pruned`
  * entry (what was deleted) lands in that tenant's log, in the same
- * transaction; then once outside any tenant for the account-level entries
+ * transaction as each batch of up to 5,000 deletions; then once outside any tenant for the account-level entries
  * (sign-ins, sign-ups: no tenant), whose `audit.pruned` has none either.
  * Not the row-level security bypass: a whole-table delete would leave the
  * record of it in no tenant's log. The example of a scheduled job: copy
@@ -94,29 +92,25 @@ export class AuditRetentionJob {
     return deleted;
   }
 
-  /** One transaction in the current scope: the old entries, and the record of their deletion. */
+  /** Batches in the current scope, each with the record of its deletion in its transaction. */
   private prune(system: SystemPrincipal, before: Date, days: number) {
-    return inTransaction(this.txHost, async (tx) => {
-      const rows = await tx
-        .delete(auditLog)
-        .where(lt(auditLog.at, before))
-        .returning({ id: auditLog.id });
-      if (rows.length > 0) {
+    return deleteInBatches(
+      this.txHost,
+      auditLog,
+      auditLog.id,
+      lt(auditLog.at, before),
+      {
         // Who removed history, and how much: an entry of its own, never itself pruned this run.
-        await this.audit.record(
-          system,
-          {
-            action: 'audit.pruned',
-            details: {
-              deleted: rows.length,
-              days,
-              before: before.toISOString(),
+        afterBatch: (tx, deleted) =>
+          this.audit.record(
+            system,
+            {
+              action: 'audit.pruned',
+              details: { deleted, days, before: before.toISOString() },
             },
-          },
-          tx,
-        );
-      }
-      return rows.length;
-    });
+            tx,
+          ),
+      },
+    );
   }
 }

@@ -47,6 +47,7 @@ import { DrizzleLockStore } from './locks/drizzle-lock.store.js';
 import { RequestLogMiddleware } from './logging/logging.js';
 import { mail } from './mail/mail.js';
 import { MAIL_QUEUE, MailProcessor, MailQueue } from './mail/mail-queue.js';
+import { MailDeliveryGate } from './mail/mail-delivery.js';
 import { MAIL_JOB_OPTIONS, QueueWorkers, queueRoot } from './queues/queues.js';
 import { BullModule } from '@nestjs/bullmq';
 import { ErrorTracker, errorTracker } from './observability/error-tracker.js';
@@ -193,6 +194,7 @@ const CURSOR_KEYS = Symbol('CURSOR_KEYS');
     DatabasePoolMonitor,
     QueueWorkers,
     MailQueue,
+    MailDeliveryGate,
     MailProcessor,
     // Global, and registered before IamModule's authentication guard: guessed credentials count too.
     { provide: APP_GUARD, useClass: AppThrottlerGuard },

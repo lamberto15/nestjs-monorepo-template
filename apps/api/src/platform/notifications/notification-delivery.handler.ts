@@ -34,7 +34,7 @@ import { NOTIFICATION_DELIVERY_JOB } from '../platform.jobs.js';
 import { notifications } from './notifications.tables.js';
 import { NotificationsService } from './notifications.service.js';
 import { SettingsService } from '../settings/settings.service.js';
-import { NOTIFICATION_EMAIL_POLICY } from './notification-email-policy.setting.js';
+import { MAIL_DELIVERY_SETTING } from '../deliverability/mail-delivery.settings.js';
 
 /**
  * Delivers a stored notification through its channels, on a worker, once
@@ -114,9 +114,9 @@ export class NotificationDeliveryHandler {
           overrides[row.type],
           recipient,
         );
-        const emailPolicy = await this.settingsService.get(
-          NOTIFICATION_EMAIL_POLICY,
-        );
+        // Which mail leaves (mail.delivery): checked here too, so a held-back
+        // notification mail is never queued nor flagged as sent.
+        const mailMode = await this.settingsService.get(MAIL_DELIVERY_SETTING);
         const locale =
           recipient.kind === 'user' && recipient.locale
             ? recipient.locale
@@ -143,8 +143,8 @@ export class NotificationDeliveryHandler {
           if (!channel.supports(recipient)) continue;
           if (
             channel.name === 'email' &&
-            emailPolicy === 'essential' &&
-            !declaration.mandatory
+            (mailMode === 'off' ||
+              (mailMode === 'essential' && !declaration.mandatory))
           ) {
             continue;
           }

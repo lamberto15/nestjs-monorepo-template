@@ -97,6 +97,11 @@
     "newTitle": "Peranan baharu",
     "editTitle": "Peranan",
     "notFound": "Peranan ini tidak wujud (lagi).",
+    "conflict": {
+      "title": "Peranan ini telah berubah",
+      "description": "Seseorang telah menyimpannya sejak anda membukanya.",
+      "reload": "Muat semula"
+    },
     "columns": {
       "name": "Peranan",
       "permissions": "Kebenaran",

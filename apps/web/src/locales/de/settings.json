@@ -72,7 +72,19 @@
   "groups": {
     "auth": "Anmelderichtlinie",
     "notes": "Notizen",
-    "numbering": "Nummerierung"
+    "numbering": "Nummerierung",
+    "ai": "KI",
+    "approvals": "Freigaben",
+    "branding": "Branding",
+    "dashboard": "Dashboard",
+    "dataTransfer": "Datenübertragung",
+    "expenses": "Ausgaben",
+    "invoiceLines": "Rechnungspositionen",
+    "messaging": "Nachrichten",
+    "notifications": "Benachrichtigungen",
+    "platform": "Plattform",
+    "quotas": "Kontingente",
+    "ui": "Darstellung"
   },
   "preferences": {
     "title": "Präferenzen",
@@ -165,5 +177,9 @@
       "locale": "de, pt-BR",
       "tenantSlug": "Mandanten-Slug"
     }
-  }
+  },
+  "noLimit": "Kein Limit",
+  "notSet": "Nicht festgelegt",
+  "layoutSummary": "Eigene Anordnung: {{ordered}} Karten sortiert, {{hidden}} ausgeblendet",
+  "layoutDefault": "Standardanordnung"
 }

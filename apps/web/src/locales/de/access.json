@@ -97,6 +97,11 @@
     "newTitle": "Neue Rolle",
     "editTitle": "Rolle",
     "notFound": "Diese Rolle gibt es (nicht mehr).",
+    "conflict": {
+      "title": "Diese Rolle wurde geändert",
+      "description": "Jemand hat sie gespeichert, seit Sie sie geöffnet haben.",
+      "reload": "Neu laden"
+    },
     "columns": {
       "name": "Rolle",
       "permissions": "Berechtigungen",
