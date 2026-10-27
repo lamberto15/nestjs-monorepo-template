@@ -243,7 +243,7 @@ services:
   # TLS server name and Host header, so Caddy serves the real site and its
   # certificate. probe_success and the certificate's expiry, for the alerts.
   blackbox-exporter:
-    image: prom/blackbox-exporter:v0.29.0
+    image: prom/blackbox-exporter:v0.29.1
     restart: unless-stopped
     # An HTTP probe needs no root (ICMP would).
     user: '65534:65534'
