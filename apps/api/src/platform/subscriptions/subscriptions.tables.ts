@@ -26,9 +26,10 @@ export const recordSubscriptions = pgTable(
       table.recordId,
       table.subscriber,
     ),
-    index('record_subscriptions_subscriber_idx').on(
+    // One subscriber's watch list in id order (GET /subscriptions), and erase().
+    index('record_subscriptions_subscriber_id_idx').on(
       table.subscriber,
-      table.createdAt,
+      table.id,
     ),
     ...tenantTable('record_subscriptions', table),
   ],

@@ -10384,11 +10384,16 @@
                     "unread": {
                       "type": "integer",
                       "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
+                      "maximum": 9007199254740991,
+                      "description": "`unread` stops at 1,000; `unreadCapped` is then true (show 1,000+)."
+                    },
+                    "unreadCapped": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
-                    "unread"
+                    "unread",
+                    "unreadCapped"
                   ],
                   "additionalProperties": false
                 }
@@ -50205,11 +50210,16 @@
           "unread": {
             "type": "integer",
             "minimum": -9007199254740991,
-            "maximum": 9007199254740991
+            "maximum": 9007199254740991,
+            "description": "`unread` stops at 1,000; `unreadCapped` is then true (show 1,000+)."
+          },
+          "unreadCapped": {
+            "type": "boolean"
           }
         },
         "required": [
-          "unread"
+          "unread",
+          "unreadCapped"
         ],
         "additionalProperties": false
       },
@@ -50719,7 +50729,7 @@
       }
     },
     "notifications.unread-count": {
-      "description": "After each of the above and each delivery: the badge's number.",
+      "description": "After each of the above, and at most once a second after deliveries: the badge's number.",
       "payload": {
         "$ref": "#/components/schemas/RealtimeNotificationsUnreadCountEvent"
       }
