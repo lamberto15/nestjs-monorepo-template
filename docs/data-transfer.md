@@ -157,6 +157,8 @@ processed }` (an import also `imported`, `failed`; an export's at most once
   (`custom.<key>`).
 - Imports aren't retried automatically: a retry could write rows twice.
   Make `write()` idempotent (an upsert on a natural key) to allow it.
-- CSV and JSON imports stream; Excel imports use disk-backed ZIP/XML parsing
-  and a SQLite shared-string index. A complete validation/count pass precedes
-  writes. Exports continue through the existing streaming writers.
+- Excel through exceljs (4.4, last released Dec 2024): exports stream;
+  imports read the workbook whole (exceljs' streaming reader fails on some
+  valid files) after a check of the zip's declared size. CSV imports stream
+  (csv-parse); a JSON import is read whole. The libraries are used only in
+  `formats.ts`.

@@ -102,8 +102,6 @@ api:
 worker:
   replicas: 1
   extraEnv:
-    # A process-owned child of the disk-backed scratch volume.
-    IMPORT_TEMP_DIR: /app/.data/import-scratch/jobs
     APP_ROLE: worker
     DATABASE_POOL_MAX: "20"
     NODE_OPTIONS: --max-old-space-size=768
