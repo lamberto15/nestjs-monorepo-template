@@ -100,7 +100,7 @@ jobs:
           runtime: node@24
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
-        uses: rharkor/caching-for-turbo@69aec4f8e0792a339e9181bc38e07f4990ded015 # v2.3.12
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
       - name: Lighthouse CI on the built app
         run: pnpm turbo run lighthouse --filter=@nestjs-monorepo-template/web
       - name: Scores in the job summary
