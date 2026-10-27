@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
+import { inTenantOf } from '../../../core/tenancy/tenant-job.js';
+import { principalKey } from '../../../iam/auth/principal.js';
+import { SystemContext } from '../../../iam/access/system-context.js';
+import { NOTIFICATION_DELIVERY_JOB } from '../../platform.jobs.js';
 import { Realtime } from '../../realtime/realtime.service.js';
 import { NotificationChannelRegistry } from '../notification-channel.registry.js';
 import {
@@ -8,20 +12,29 @@ import {
 } from '../notification.types.js';
 import { NotificationsService } from '../notifications.service.js';
 
+/** Deliveries to one recipient announce their unread count at most this often. */
+export const UNREAD_ANNOUNCE_WINDOW_MS = 1_000;
+
 /**
  * The recipient's open connections hear of the notification at once: the
  * `notification` event, with the item as GET /notifications shows it, in
- * the recipient's language, then the new unread count. Always on (not a
- * preference); best-effort, as realtime is: a retried delivery may emit
- * it again.
+ * the recipient's language. The new unread count follows, at most once a
+ * second per recipient (a backlog would otherwise count and push for every
+ * delivery); per process, which is fine for a best-effort badge. Always on
+ * (not a preference); best-effort, as realtime is: a retried delivery may
+ * emit it again.
  */
 @Injectable()
-export class RealtimeChannel implements NotificationChannel {
+export class RealtimeChannel implements NotificationChannel, OnModuleDestroy {
   readonly name = 'realtime';
+  private readonly logger = new Logger(RealtimeChannel.name);
+  // Custom: no NestJS or outbox feature coalesces socket emits.
+  private readonly announcing = new Map<string, NodeJS.Timeout>();
 
   constructor(
     private readonly realtime: Realtime,
     private readonly notifications: NotificationsService,
+    private readonly system: SystemContext,
     registry: NotificationChannelRegistry,
   ) {
     registry.register(this);
@@ -41,6 +54,27 @@ export class RealtimeChannel implements NotificationChannel {
       NOTIFICATION_EVENTS.created,
       this.notifications.view(notification, rendered.locale),
     );
-    await this.notifications.announceUnread(recipient);
+    const key = `${notification.tenantId ?? ''}|${principalKey(recipient)}`;
+    if (this.announcing.has(key)) return; // the timer reads the count when it fires
+    const timer = setTimeout(() => {
+      this.announcing.delete(key);
+      // The delivery's transaction and context are gone: enter the tenant's again.
+      inTenantOf({ tenantId: notification.tenantId }, () =>
+        this.system.run(
+          NOTIFICATION_DELIVERY_JOB,
+          () => this.notifications.announceUnread(recipient),
+          { transaction: false },
+        ),
+      ).catch((error: unknown) =>
+        this.logger.warn(`Unread count not announced: ${String(error)}`),
+      );
+    }, UNREAD_ANNOUNCE_WINDOW_MS);
+    timer.unref();
+    this.announcing.set(key, timer);
+  }
+
+  onModuleDestroy() {
+    for (const timer of this.announcing.values()) clearTimeout(timer);
+    this.announcing.clear();
   }
 }

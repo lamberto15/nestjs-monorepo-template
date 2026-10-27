@@ -73,6 +73,7 @@ removes the webhook endpoint API and the delivery worker; the outbox relay stays
    tenant), their preferences, the texts in their language, then each channel.
    Effects that must commit with the delivery (the webhook through the
    outbox, a digest flag) run in its transaction; a socket emit after it.
+   Deliveries of one recipient run in parallel, in no set order.
    Exactly once per notification; a failure retries, then dead-letters
    (`GET /v1/ops/outbox`, which also counts `notifications.undelivered`:
    older than ten minutes and not delivered, the number to alert on).
@@ -94,7 +95,7 @@ same tenant only (or among the account's own).
 | Route | Does |
 | --- | --- |
 | `GET /v1/notifications` | newest first, texts in the request's language; `?read=false`, `?type=`, `?key=`, `?createdAt.gte=`, `?sort=`, cursor pages |
-| `GET /v1/notifications/unread-count` | `{ unread }` |
+| `GET /v1/notifications/unread-count` | `{ unread, unreadCapped }` (capped at 1,000) |
 | `POST /v1/notifications/{id}/read` | marks one read (again: no change) |
 | `POST /v1/notifications/read-all { before? }` | marks all read, or those created before `before` (what the client has shown) |
 | `DELETE /v1/notifications/{id}` | removes one |
@@ -125,8 +126,9 @@ same tenant only (or among the account's own).
   with the item (in the recipient's language) as soon as it is delivered,
   and keeps up with changes made elsewhere (another tab, another device):
   `notification.read { id, readAt }`, `notifications.read-all { before,
-  updated }`, `notification.removed { id }`, and after each of these and
-  each delivery `notifications.unread-count { unread }` for the badge.
+  updated }`, `notification.removed { id }`, and `notifications.unread-count
+  { unread, unreadCapped }` for the badge: after each of these, and after
+  deliveries at most once a second per recipient.
 - **Webhook** (API clients): the event `notification.created`, with the
   item as `data`. Subscribe at `POST /v1/webhook-endpoints`. A client that
   also subscribes to a feature's own event (`note.published`) gets both.

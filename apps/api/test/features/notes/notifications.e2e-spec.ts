@@ -73,7 +73,7 @@ describe('notifications of notes (e2e)', () => {
     expect(
       (await editor.agent.get('/v1/notifications/unread-count').expect(200))
         .body,
-    ).toEqual({ unread: 1 });
+    ).toEqual({ unread: 1, unreadCapped: false });
 
     // The mail, in German, with the link into the web app.
     const mail = await node.waitForMail({
