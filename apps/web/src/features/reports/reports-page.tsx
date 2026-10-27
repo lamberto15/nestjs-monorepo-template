@@ -31,6 +31,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { TransferStatus } from '@/features/transfer/transfer-status';
 import { useDateTimeFormat } from '@/lib/date-time';
 import {
@@ -69,17 +71,17 @@ export function ReportsPage() {
     });
 
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="flex-1">
-          <h1 className="text-xl font-medium">{t('title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('description')}</p>
-        </div>
-        <Button onClick={() => setEditing('new')}>
-          <PlusIcon />
-          {t('create')}
-        </Button>
-      </div>
+    <Page>
+      <PageHeader
+        title={t('title')}
+        description={t('description')}
+        actions={
+          <Button onClick={() => setEditing('new')}>
+            <PlusIcon />
+            {t('create')}
+          </Button>
+        }
+      />
       {list.isPending ? (
         <Skeleton className="h-32 w-full" aria-busy />
       ) : list.isError ? (
@@ -90,12 +92,7 @@ export function ReportsPage() {
           </Button>
         </div>
       ) : list.data.items.length === 0 ? (
-        <p
-          role="status"
-          className="rounded-md border p-8 text-center text-sm text-muted-foreground"
-        >
-          {t('empty')}
-        </p>
+        <EmptyState title={t('empty')} />
       ) : (
         <div className="overflow-x-auto rounded-md border">
           <Table aria-label={t('title')}>
@@ -261,6 +258,6 @@ export function ReportsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </Page>
   );
 }
