@@ -27,5 +27,25 @@
   "dashboard": {
     "title": "Recent activity",
     "empty": "No activity yet."
+  },
+  "actions": {
+    "member": {
+      "signed-in": "Member signed in"
+    },
+    "user": {
+      "impersonation-started": "Impersonation started",
+      "impersonation-stopped": "Impersonation ended"
+    },
+    "note": {
+      "created": "Note created",
+      "updated": "Note updated",
+      "deleted": "Note deleted",
+      "restored": "Note restored"
+    },
+    "auth": {
+      "signed-in": "Signed in",
+      "password-changed": "Password changed",
+      "sign-in-failed": "Sign-in failed"
+    }
   }
 }

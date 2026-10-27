@@ -1,6 +1,6 @@
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { MetricsService } from '../../core/metrics/metrics.service.js';
 import {
   database,
@@ -38,7 +38,7 @@ export class QuotaMetrics implements OnModuleInit {
             bytes: sql<number>`coalesce(sum(${attachments.size}), 0)::float8`,
           })
           .from(tenants)
-          .leftJoin(attachments, sql`${attachments.tenantId} = ${tenants.id}`)
+          .leftJoin(attachments, eq(attachments.tenantId, tenants.id))
           .groupBy(tenants.slug);
         return rows.map((row) => ({
           labels: { tenant: row.slug },

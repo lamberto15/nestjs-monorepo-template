@@ -8,6 +8,7 @@ import {
   or,
   sql,
 } from 'drizzle-orm';
+import { QueryBuilder } from 'drizzle-orm/pg-core';
 import { SIGN_IN_ACTIONS } from '../audit/sign-in-actions.js';
 import { escapeLike, listQuery } from '../../core/http/list-query.js';
 import {
@@ -111,20 +112,34 @@ const actorMatches = (pattern: string) =>
   or(
     ilike(auditLog.actorLabel, pattern),
     exists(
-      sql`(select 1 from ${users} inner join ${memberships} on ${and(
-        eq(memberships.userId, users.id),
-        eq(memberships.tenantId, auditLog.tenantId),
-      )} where ${and(
-        sql`${auditLog.actor} = 'user:' || ${users.id}::text`,
-        or(ilike(users.name, pattern), ilike(users.email, pattern)),
-      )})`,
+      new QueryBuilder()
+        .select({ one: sql`1` })
+        .from(users)
+        .innerJoin(
+          memberships,
+          and(
+            eq(memberships.userId, users.id),
+            eq(memberships.tenantId, auditLog.tenantId),
+          ),
+        )
+        .where(
+          and(
+            eq(auditLog.actor, sql`'user:' || ${users.id}::text`),
+            or(ilike(users.name, pattern), ilike(users.email, pattern)),
+          ),
+        ),
     ),
     exists(
-      sql`(select 1 from ${apiClients} where ${and(
-        eq(apiClients.tenantId, auditLog.tenantId),
-        sql`${auditLog.actor} = 'client:' || ${apiClients.id}::text`,
-        ilike(apiClients.name, pattern),
-      )})`,
+      new QueryBuilder()
+        .select({ one: sql`1` })
+        .from(apiClients)
+        .where(
+          and(
+            eq(apiClients.tenantId, auditLog.tenantId),
+            eq(auditLog.actor, sql`'client:' || ${apiClients.id}::text`),
+            ilike(apiClients.name, pattern),
+          ),
+        ),
     ),
   )!;
 

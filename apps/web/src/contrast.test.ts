@@ -33,8 +33,8 @@ function linear(value: string): number[] {
 const luminance = ([r, g, b]: number[]) =>
   0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
 
-/** The contrast of `--destructive` on `--background` with `alpha` of it mixed in. */
-function contrastOf(block: string, alpha: number) {
+/** The contrast of `--destructive` on `--background` (or another surface token) with `alpha` of it mixed in. */
+function contrastOf(block: string, alpha: number, surface = 'background') {
   const token = (name: string) =>
     new RegExp(`--${name}: (oklch\\([^)]*\\))`).exec(block)![1]!;
   // sRGB gamma is applied to the mixed colour, as a browser blends in sRGB.
@@ -43,7 +43,7 @@ function contrastOf(block: string, alpha: number) {
   const decode = (c: number) =>
     c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
   const fg = linear(token('destructive'));
-  const background = linear(token('background'));
+  const background = linear(token(surface));
   const tint = fg.map((c, i) =>
     decode((1 - alpha) * encode(background[i]!) + alpha * encode(c)),
   );
@@ -63,5 +63,32 @@ describe('the destructive colour', () => {
 
   it('reads at 4.5:1 on its own 20% tint in the dark theme', () => {
     expect(contrastOf(dark, 0.2)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // Cards and dialogs are lighter than the page: the dark button on them
+  // (measured 4.63:1; "Sign out everywhere" on /account/security).
+  it('reads at 4.5:1 on its 20% tint over a dark card', () => {
+    expect(contrastOf(dark, 0.2, 'card')).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe('the chart colour of a single series', () => {
+  const light = css.slice(css.indexOf(':root'), css.indexOf('\n.dark {'));
+  const dark = css.slice(css.indexOf('\n.dark {'));
+  const chart2 = (block: string, surface: string) => {
+    const token = (name: string) =>
+      new RegExp(`--${name}: (oklch\\([^)]*\\))`).exec(block)![1]!;
+    const [a, b] = [
+      luminance(linear(token('chart-2'))),
+      luminance(linear(token(surface))),
+    ].toSorted((x, y) => y - x) as [number, number];
+    return (a + 0.05) / (b + 0.05);
+  };
+
+  // The bars use --chart-2, not --primary (near-white in the dark theme): WCAG
+  // 1.4.11 asks 3:1 of a graphic against what it sits on.
+  it('has 3:1 against the page and a card in both themes', () => {
+    expect(chart2(light, 'background')).toBeGreaterThanOrEqual(3);
+    expect(chart2(dark, 'card')).toBeGreaterThanOrEqual(3);
   });
 });

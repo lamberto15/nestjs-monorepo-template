@@ -7,6 +7,13 @@
         "other": "{count} nota anda telah diterbitkan; yang terbaru ialah \"{title}\"."
       }
     },
+    "publishedMany": {
+      "label": "Nota diterbitkan secara pukal",
+      "title": "Nota diterbitkan",
+      "body": {
+        "other": "{count} kelompok nota telah diterbitkan; yang terakhir ada {notes}, termasuk \"{title}\"."
+      }
+    },
     "deleted": {
       "label": "Nota dipadam oleh orang lain",
       "title": "Nota dipadam",
@@ -36,6 +43,7 @@
       "body": "{by} menyebut anda pada \"{title}\": {excerpt}"
     }
   },
+  "from": " (dari {ip})",
   "security": {
     "newSignIn": {
       "label": "Log masuk baharu",
@@ -45,27 +53,27 @@
     "passwordChanged": {
       "label": "Kata laluan ditukar",
       "title": "Kata laluan anda telah ditukar",
-      "body": "Kata laluan akaun anda telah ditukar (dari {ip}). Jika ini bukan anda, tetapkan semula dengan segera."
+      "body": "Kata laluan akaun anda telah ditukar{from}. Jika ini bukan anda, tetapkan semula dengan segera."
     },
     "passwordBreached": {
       "label": "Kata laluan ditemui dalam kebocoran data",
       "title": "Kata laluan anda muncul dalam kebocoran data",
-      "body": "Kata laluan yang anda gunakan untuk log masuk (dari {ip}) muncul dalam kebocoran data yang diketahui, jadi orang lain mungkin mencubanya. Tukarkannya sekarang kepada kata laluan yang tidak anda gunakan di tempat lain."
+      "body": "Kata laluan yang anda gunakan untuk log masuk{from} muncul dalam kebocoran data yang diketahui, jadi orang lain mungkin mencubanya. Tukarkannya sekarang kepada kata laluan yang tidak anda gunakan di tempat lain."
     },
     "mfaChanged": {
       "label": "Log masuk dua faktor diubah",
       "title": "Log masuk dua faktor diubah",
-      "body": "Log masuk dua faktor untuk akaun anda telah dihidupkan atau dimatikan (dari {ip}). Jika ini bukan anda, tukar kata laluan anda dengan segera."
+      "body": "Log masuk dua faktor untuk akaun anda telah dihidupkan atau dimatikan{from}. Jika ini bukan anda, tukar kata laluan anda dengan segera."
     },
     "passkeyAdded": {
       "label": "Kunci laluan ditambah",
       "title": "Kunci laluan telah ditambah pada akaun anda",
-      "body": "Kunci laluan bernama “{name}” telah ditambah pada akaun anda (dari {ip}). Jika ini bukan anda, buang kunci itu dan tukar kata laluan anda dengan segera."
+      "body": "Kunci laluan bernama “{name}” telah ditambah pada akaun anda{from}. Jika ini bukan anda, buang kunci itu dan tukar kata laluan anda dengan segera."
     },
     "passkeyRemoved": {
       "label": "Kunci laluan dibuang",
       "title": "Kunci laluan telah dibuang daripada akaun anda",
-      "body": "Kunci laluan “{name}” telah dibuang daripada akaun anda (dari {ip}). Jika ini bukan anda, tukar kata laluan anda dengan segera."
+      "body": "Kunci laluan “{name}” telah dibuang daripada akaun anda{from}. Jika ini bukan anda, tukar kata laluan anda dengan segera."
     },
     "apiKeyRotated": {
       "label": "Kunci API diputar",
@@ -75,7 +83,7 @@
     "breakGlassStarted": {
       "label": "Akses pecah kaca ke penyewa anda",
       "title": "Seorang pengendali membuka penyewa anda (pecah kaca)",
-      "body": "{operator} membuka penyewa ini tanpa jemputan, baca sahaja, sehingga {expiresAt} (dari {ip}). Sebabnya: “{reason}”. Ia ada dalam log audit dan log log masuk; pentadbir boleh menolaknya (tetapan auth.allowBreakGlass)."
+      "body": "{operator} membuka penyewa ini tanpa jemputan, baca sahaja, sehingga {expiresAt}{from}. Sebabnya: “{reason}”. Ia ada dalam log audit dan log log masuk; pentadbir boleh menolaknya (tetapan auth.allowBreakGlass)."
     }
   },
   "approval": {

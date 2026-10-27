@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Page, PageHeader } from '@/components/page-header';
 import { visible, useFeatures, useMe } from '@/lib/features';
 import { settingsQuery } from '@/features/settings/settings';
 import { api } from '@/lib/api';
@@ -128,27 +129,30 @@ export function Dashboard() {
       queryClient.invalidateQueries({ queryKey: settingsQuery.queryKey }),
   });
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-medium">{t('title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('description')}</p>
-        </div>
-        {available.length > 0 && (
-          <DashboardCustomizer
-            cards={arranged(available, layout)}
-            layout={layout}
-            pending={save.isPending || reset.isPending}
-            onChange={(value) => save.mutate(value)}
-            onReset={() => reset.mutate()}
-          />
-        )}
-      </div>
+    <Page>
+      <PageHeader
+        title={t('title')}
+        description={t('description')}
+        actions={
+          available.length > 0 && (
+            <DashboardCustomizer
+              cards={arranged(available, layout)}
+              layout={layout}
+              pending={save.isPending || reset.isPending}
+              onChange={(value) => save.mutate(value)}
+              onReset={() => reset.mutate()}
+            />
+          )
+        }
+      />
       <div className="grid gap-4 lg:grid-cols-2">
         {cards.map((card) => (
+          // min-w-0: a grid item is at least as wide as its content, so when
+          // the window narrows (or zooms in) a chart's last width would hold
+          // its column, and the page, wide instead of shrinking to fit.
           <div
             key={card.id}
-            className={card.wide ? 'lg:col-span-2' : undefined}
+            className={card.wide ? 'min-w-0 lg:col-span-2' : 'min-w-0'}
           >
             <Suspense fallback={<Spinner />}>
               <card.component />
@@ -157,7 +161,7 @@ export function Dashboard() {
         ))}
         <QuickActions />
       </div>
-    </div>
+    </Page>
   );
 }
 

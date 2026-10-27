@@ -16,6 +16,9 @@ import { useQuery } from '@tanstack/react-query';
 import { parseAsIsoDate, parseAsString, useQueryStates } from 'nuqs';
 import { useTranslation } from 'react-i18next';
 import { errorMessage } from '@/lib/errors';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
+import { isNotFound } from '@/lib/records';
 import { ratesQuery } from './api';
 import { CurrencyConverter } from './currency-converter';
 import { currencyName, formatRate } from './format';
@@ -37,6 +40,8 @@ export function ExchangeRatesPage() {
     ...ratesQuery(picked),
     meta: { errorToast: false },
   });
+  // 404 `rates_unavailable`: none fetched yet, an empty state rather than an error.
+  const none = rates.isError && isNotFound(rates.error);
   const needle = (q ?? '').trim().toLowerCase();
   const rows = Object.entries(rates.data?.rates ?? {})
     .map(([code, rate]) => ({
@@ -52,11 +57,8 @@ export function ExchangeRatesPage() {
     )
     .toSorted((a, b) => a.code.localeCompare(b.code));
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-medium">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('description')}</p>
-      </div>
+    <Page width="narrow">
+      <PageHeader title={t('title')} description={t('description')} />
       <div className="flex flex-wrap items-end gap-3">
         <Field className="w-44">
           <FieldLabel htmlFor="rates-date">{t('date')}</FieldLabel>
@@ -86,11 +88,14 @@ export function ExchangeRatesPage() {
         </Field>
       </div>
       {rates.isPending && <Skeleton className="h-40 w-full" aria-busy />}
-      {rates.isError && (
-        <p role="alert" className="text-sm text-muted-foreground">
-          {t('empty')} {errorMessage(rates.error)}
-        </p>
-      )}
+      {rates.isError &&
+        (none ? (
+          <EmptyState title={t('empty')} />
+        ) : (
+          <p role="alert" className="text-sm text-destructive">
+            {errorMessage(rates.error)}
+          </p>
+        ))}
       {rates.data && (
         <>
           <p className="text-sm text-muted-foreground">
@@ -128,10 +133,12 @@ export function ExchangeRatesPage() {
           )}
         </>
       )}
-      <section className="flex flex-col gap-2">
-        <h2 className="text-base font-medium">{t('converter.title')}</h2>
-        <CurrencyConverter />
-      </section>
-    </div>
+      {!(none && !picked) && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-base font-medium">{t('converter.title')}</h2>
+          <CurrencyConverter />
+        </section>
+      )}
+    </Page>
   );
 }

@@ -18,6 +18,7 @@ import { type Job, type Queue, UnrecoverableError } from 'bullmq';
 import { Counter } from 'prom-client';
 import { abortable } from '../queues/abortable.js';
 import { MetricsService } from '../metrics/metrics.service.js';
+import { MailDeliveryGate } from './mail-delivery.js';
 import {
   DEFAULT_MAIL_BRAND,
   MAIL_BRANDING,
@@ -76,6 +77,7 @@ export class MailQueue {
   constructor(
     @InjectQueue(MAIL_QUEUE) private readonly queue: Queue<QueuedMail>,
     private readonly mailer: Mailer,
+    private readonly gate: MailDeliveryGate,
     @Optional()
     @Inject(MAIL_BRANDING)
     private readonly branding?: MailBranding,
@@ -87,14 +89,24 @@ export class MailQueue {
     {
       jobId = randomUUID(),
       signal,
+      essential = false,
     }: {
       /** Your own job id when the call may repeat (a retried handler): the mail goes once. */
       jobId?: string;
       /** Stops waiting for Redis (the add may still land: the job id makes that harmless). */
       signal?: AbortSignal;
+      /**
+       * Essential although its class isn't `@EssentialMail()`: it still goes
+       * in `essential` mode and past the daily budget (a mandatory
+       * notification). The suppression list is not affected.
+       */
+      essential?: boolean;
     } = {},
   ) {
     signal?.throwIfAborted();
+    // The mode and the daily budget (MailDeliveryGate), before rendering: a
+    // mail storm costs neither renders nor Redis memory.
+    if (!(await this.gate.admit(mail, { essential }))) return;
     // The tenant's logo and colour in the templates, its name on the sender
     // (unless the mail class sets its own `from`: options.from).
     // Cosmetic: a failed lookup (the settings, the object store) never keeps

@@ -83,8 +83,13 @@ export class TenantSwitchService {
       }),
     );
     // A new session id for the new tenant, as for any change of privilege.
+    // Without `authenticatedAt`: a step-up proven in one tenant doesn't
+    // authorize sensitive actions in another (#738); the new tenant asks
+    // again. The sign-in method and its factors stay.
+    const { authenticatedAt: _stepUp, ...metadata } = (session.metadata ??
+      {}) as Record<string, unknown>;
     return this.sessions.rotate(session, {
-      metadata: { ...session.metadata, tenantId },
+      metadata: { ...metadata, tenantId },
     });
   }
 }

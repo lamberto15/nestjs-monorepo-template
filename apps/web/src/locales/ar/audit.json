@@ -27,5 +27,25 @@
   "dashboard": {
     "title": "النشاط الأخير",
     "empty": "لا يوجد نشاط بعد."
+  },
+  "actions": {
+    "member": {
+      "signed-in": "سجّل عضو الدخول"
+    },
+    "user": {
+      "impersonation-started": "بدأ انتحال الهوية",
+      "impersonation-stopped": "انتهى انتحال الهوية"
+    },
+    "note": {
+      "created": "أُنشئت ملاحظة",
+      "updated": "حُدّثت ملاحظة",
+      "deleted": "حُذفت ملاحظة",
+      "restored": "استُعيدت ملاحظة"
+    },
+    "auth": {
+      "signed-in": "تسجيل الدخول",
+      "password-changed": "تغيير كلمة المرور",
+      "sign-in-failed": "فشل تسجيل الدخول"
+    }
   }
 }

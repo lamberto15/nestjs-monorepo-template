@@ -59,6 +59,7 @@ import { RecordingWebhookTransport } from './webhooks/recording.transport.js';
 import './webhooks/webhooks-error.filter.js';
 import { webhooksOptions } from './webhooks/webhooks.config.js';
 import { HttpClientModule } from '@nestjs/http-client';
+import { MAIL_DELIVERY } from '../core/mail/mail-delivery.js';
 import { MAIL_SUPPRESSION } from '../core/mail/mail-suppression.js';
 import { ClientErrorsController } from './client-errors/client-errors.controller.js';
 import { ClientErrorsService } from './client-errors/client-errors.service.js';
@@ -126,7 +127,6 @@ import {
 import { NotificationTestController } from './notifications/notification-test.controller.js';
 import { NotificationsService } from './notifications/notifications.service.js';
 import { NotificationDeliveryHandler } from './notifications/notification-delivery.handler.js';
-import { NOTIFICATION_SETTINGS } from './notifications/notification-email-policy.setting.js';
 import { NotificationDigestJob } from './notifications/notification-digest.job.js';
 import { NotificationRetentionJob } from './notifications/notification-retention.job.js';
 import { NotificationTransfer } from './notifications/notification.transfer.js';
@@ -156,6 +156,10 @@ import {
 import { BrandingService } from './branding/branding.service.js';
 import { BrandingLogoUpload } from './branding/branding-logo-upload.interceptor.js';
 import { BRANDING_SETTINGS } from './branding/branding.settings.js';
+import {
+  DELIVERABILITY_SETTINGS,
+  MailDeliverySettings,
+} from './deliverability/mail-delivery.settings.js';
 import { MAIL_BRANDING } from '../core/mail/mail-branding.js';
 import { QuotaMetrics } from './quotas/quota.metrics.js';
 import { QUOTA_SETTINGS } from './quotas/quota.settings.js';
@@ -512,9 +516,9 @@ export class PlatformModule {
               ...MESSAGING_SETTINGS,
               ...QUOTA_SETTINGS,
               ...BRANDING_SETTINGS,
+              ...DELIVERABILITY_SETTINGS,
               ...DASHBOARD_SETTINGS,
               ...AI_SETTINGS,
-              ...NOTIFICATION_SETTINGS,
               ...DATA_TRANSFER_SETTINGS,
               ...(options.settings ?? []),
             ],
@@ -775,6 +779,9 @@ export class PlatformModule {
         SendGridIntake,
         SuppressionsService,
         { provide: MAIL_SUPPRESSION, useExisting: SuppressionsService },
+        // Which mail leaves (mail.delivery), asked by the core's mail queue.
+        MailDeliverySettings,
+        { provide: MAIL_DELIVERY, useExisting: MailDeliverySettings },
         // The tenant's name and logo in its mail, asked by the core's mail queue.
         BrandingService,
         BrandingLogoUpload,
@@ -832,6 +839,7 @@ export class PlatformModule {
         // ExchangeRatesService, to the features.
         MoneyModule,
         MAIL_SUPPRESSION,
+        MAIL_DELIVERY,
         MAIL_BRANDING,
         BrandingService,
         MailEventIntakeRegistry,

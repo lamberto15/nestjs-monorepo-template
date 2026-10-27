@@ -1,4 +1,16 @@
-import { and, eq, exists, or, sql, type SQL } from 'drizzle-orm';
+import {
+  and,
+  eq,
+  exists,
+  gt,
+  inArray,
+  isNull,
+  lte,
+  or,
+  sql,
+  type SQL,
+} from 'drizzle-orm';
+import { QueryBuilder } from 'drizzle-orm/pg-core';
 import { listQuery } from '../../core/http/list-query.js';
 import { principalKey, type Principal } from '../../iam/auth/principal.js';
 import { approvalSchema } from './approval.schemas.js';
@@ -11,23 +23,45 @@ import {
 
 const r = approvalRequests;
 const a = approvalAssignments;
+const qb = new QueryBuilder();
+
+/** An assignment row of the request being filtered on, where `condition` holds. */
+const anAssignment = (condition: SQL | undefined) =>
+  exists(
+    qb
+      .select({ one: sql`1` })
+      .from(a)
+      .where(and(eq(a.requestId, r.id), condition)),
+  );
 
 /**
  * Pending on this user now: an assignment of the current stage, theirs or
  * of someone they stand in for (an active delegation).
  */
 export function assignedTo(userId: string): SQL {
+  const d = approvalDelegations;
+  // Whose assignments this user decides now: their own, and those of
+  // whoever delegated to them (an active delegation, for this subject or all).
+  const standsInFor = qb
+    .select({ id: d.fromUserId })
+    .from(d)
+    .where(
+      and(
+        eq(d.toUserId, userId),
+        lte(d.startsAt, sql`now()`),
+        gt(d.endsAt, sql`now()`),
+        or(isNull(d.subject), eq(d.subject, r.subject)),
+      ),
+    );
   return and(
     eq(r.status, 'pending'),
-    exists(
-      sql`(select 1 from ${a} where ${a.requestId} = ${r.id}
-        and ${a.round} = ${r.round} and ${a.stage} = ${r.currentStage}
-        and ${a.status} = 'pending'
-        and (${a.approverId} = ${userId} or ${a.approverId} in (
-          select ${approvalDelegations.fromUserId} from ${approvalDelegations}
-          where ${approvalDelegations.toUserId} = ${userId}
-            and ${approvalDelegations.startsAt} <= now() and ${approvalDelegations.endsAt} > now()
-            and (${approvalDelegations.subject} is null or ${approvalDelegations.subject} = ${r.subject}))))`,
+    anAssignment(
+      and(
+        eq(a.round, r.round),
+        eq(a.stage, r.currentStage),
+        eq(a.status, 'pending'),
+        or(eq(a.approverId, userId), inArray(a.approverId, standsInFor)),
+      ),
     ),
   )!;
 }
@@ -38,10 +72,7 @@ export function assignedTo(userId: string): SQL {
  * inbox's history.
  */
 export function decidedBy(userId: string): SQL {
-  return exists(
-    sql`(select 1 from ${a} where ${a.requestId} = ${r.id}
-      and ${a.decidedBy} = ${userId})`,
-  );
+  return anAssignment(eq(a.decidedBy, userId));
 }
 
 /** Requests the principal takes part in: made them, was assigned, decided one, or may decide one now. */
@@ -51,9 +82,8 @@ export function participates(principal: Principal): SQL {
   }
   return or(
     eq(r.requester, principalKey(principal)),
-    exists(
-      sql`(select 1 from ${a} where ${a.requestId} = ${r.id}
-        and (${a.approverId} = ${principal.id} or ${a.decidedBy} = ${principal.id}))`,
+    anAssignment(
+      or(eq(a.approverId, principal.id), eq(a.decidedBy, principal.id)),
     ),
     assignedTo(principal.id),
   )!;

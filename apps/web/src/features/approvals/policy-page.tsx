@@ -15,6 +15,7 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ConfirmButton } from '@/components/confirm-button';
+import { Page, PageHeader } from '@/components/page-header';
 import { ConflictAlert } from '@/components/records/conflict-alert';
 import { RecordState } from '@/components/records/record-state';
 import { errorMessage } from '@/lib/errors';
@@ -57,7 +58,7 @@ export function PolicyPage(props: { policyKey: string }) {
     refetchOnReconnect: false,
   });
   return (
-    <section className="flex max-w-3xl flex-col gap-4">
+    <Page width="narrow">
       <Link
         to="/approval-policies"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:underline"
@@ -79,7 +80,7 @@ export function PolicyPage(props: { policyKey: string }) {
       >
         {({ policy, etag }) => <PolicyEditor policy={policy} etag={etag} />}
       </RecordState>
-    </section>
+    </Page>
   );
 }
 
@@ -176,21 +177,21 @@ function PolicyForm(props: {
 
   return (
     <>
-      <header className="flex flex-col gap-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-medium break-words">{policy.label}</h1>
-          <SourceBadge policy={policy} />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          <code>{policy.key}</code>
-          {policy.description && ` · ${policy.description}`}
-        </p>
-        {policy.setting && (
-          <p className="text-sm text-muted-foreground">
-            {t('policies.setting')} <code>{policy.setting}</code>
-          </p>
-        )}
-      </header>
+      <PageHeader
+        title={policy.label}
+        badges={<SourceBadge policy={policy} />}
+        description={
+          <>
+            <code>{policy.key}</code>
+            {policy.description && ` · ${policy.description}`}
+            {policy.setting && (
+              <span className="block">
+                {t('policies.setting')} <code>{policy.setting}</code>
+              </span>
+            )}
+          </>
+        }
+      />
       <InvalidFieldsContext.Provider value={reportInvalid}>
         <form
           noValidate

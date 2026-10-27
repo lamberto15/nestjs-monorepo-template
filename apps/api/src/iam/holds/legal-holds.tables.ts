@@ -1,5 +1,14 @@
-import { type AnyColumn, sql, type SQL } from 'drizzle-orm';
-import { index, pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import {
+  and,
+  type AnyColumn,
+  eq,
+  isNull,
+  notExists,
+  or,
+  sql,
+  type SQL,
+} from 'drizzle-orm';
+import { index, pgTable, QueryBuilder, text, uuid } from 'drizzle-orm/pg-core';
 import { at, timestamps, uuidPk } from '../../core/database/columns.js';
 import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
 
@@ -47,4 +56,15 @@ export type LegalHoldRow = typeof legalHolds.$inferSelect;
  * is never selected.
  */
 export const notHeld = (subject: string, id: AnyColumn): SQL =>
-  sql`not exists (select 1 from ${legalHolds} where ${legalHolds.subject} = ${subject} and ${legalHolds.releasedAt} is null and (${legalHolds.recordId} is null or ${legalHolds.recordId} = ${id}))`;
+  notExists(
+    new QueryBuilder()
+      .select({ one: sql`1` })
+      .from(legalHolds)
+      .where(
+        and(
+          eq(legalHolds.subject, subject),
+          isNull(legalHolds.releasedAt),
+          or(isNull(legalHolds.recordId), eq(legalHolds.recordId, id)),
+        ),
+      ),
+  );

@@ -21,6 +21,7 @@ import {
   isNull,
   inArray,
   sql,
+  type SQL,
 } from 'drizzle-orm';
 import { TenantQuotas } from '../../core/tenancy/tenant-quotas.js';
 import {
@@ -568,24 +569,29 @@ export class NotesService {
         'Note',
         changes.map((item) => item.id),
       );
-      const values = sql.join(
-        changes.map(
-          (item) => sql`(
-        ${item.id}::uuid, ${item.title}::text, ${item.setTitle}::boolean,
-        ${item.body}::text, ${item.setBody}::boolean,
-        ${JSON.stringify(item.custom)}::jsonb, ${item.setCustom}::boolean
-      )`,
-        ),
-        sql`, `,
-      );
-      // PostgreSQL's single set-based UPDATE avoids one UPDATE and commit path per imported note.
-      await tx.execute(sql`update notes set
-        title = case when batch.set_title then batch.title else notes.title end,
-        body = case when batch.set_body then batch.body else notes.body end,
-        custom = case when batch.set_custom then batch.custom else notes.custom end,
-        updated_at = now()
-      from (values ${values}) as batch(id, title, set_title, body, set_body, custom, set_custom)
-      where notes.id = batch.id`);
+      // One set-based UPDATE for the batch, not one per imported note: each
+      // column takes its note's value by id. The rows are locked above and
+      // every value was worked out from them, so an unchanged field is
+      // written back as it is.
+      const byId = (value: (item: (typeof changes)[number]) => SQL) =>
+        sql`case ${notes.id} ${sql.join(
+          changes.map((item) => sql`when ${item.id} then ${value(item)}`),
+          sql` `,
+        )} end`;
+      await tx
+        .update(notes)
+        .set({
+          title: byId((item) => sql`${item.title}::text`),
+          body: byId((item) => sql`${item.body}::text`),
+          custom: byId((item) => sql`${JSON.stringify(item.custom)}::jsonb`),
+          updatedAt: sql`now()`,
+        })
+        .where(
+          inArray(
+            notes.id,
+            changes.map((item) => item.id),
+          ),
+        );
       const after = await tx
         .select()
         .from(notes)

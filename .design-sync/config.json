@@ -1,0 +1,17 @@
+{
+  "projectId": "3fe9ce9c-5dee-41b5-9918-94849299b0b1",
+  "shape": "storybook",
+  "storybookConfigDir": "packages/ui/.storybook",
+  "storybookStatic": ".design-sync/sb-reference",
+  "pkg": "@nestjs-monorepo-template/ui",
+  "globalName": "NestUI",
+  "buildCmd": "sh .design-sync/build-ui-pkg.sh",
+  "entry": ".design-sync/.cache/ui-pkg/index.ts",
+  "srcDir": "../../../packages/ui/src",
+  "tsconfig": "../../../packages/ui/tsconfig.json",
+  "readmeHeader": ".design-sync/conventions.md",
+  "provider": {
+    "component": "DirectionProvider",
+    "props": { "direction": "ltr" }
+  }
+}

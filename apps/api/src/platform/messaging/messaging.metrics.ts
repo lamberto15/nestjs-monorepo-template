@@ -1,7 +1,7 @@
 import { Injectable, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { eq, like, sql } from 'drizzle-orm';
+import { and, eq, like, sql } from 'drizzle-orm';
 import { MetricsService } from '../../core/metrics/metrics.service.js';
 import {
   database,
@@ -41,7 +41,10 @@ export class MessagingMetrics implements OnModuleInit {
           })
           .from(messagingUsage)
           .where(
-            sql`${messagingUsage.day} = ${utcDay(new Date())} and ${eq(messagingUsage.counter, 'tenant')}`,
+            and(
+              eq(messagingUsage.day, utcDay(new Date())),
+              eq(messagingUsage.counter, 'tenant'),
+            ),
           );
         return [{ labels: {}, value: row?.total ?? 0 }];
       },
@@ -59,7 +62,10 @@ export class MessagingMetrics implements OnModuleInit {
           })
           .from(messagingUsage)
           .where(
-            sql`${messagingUsage.day} = ${utcDay(new Date())} and ${like(messagingUsage.counter, 'blocked:%')}`,
+            and(
+              eq(messagingUsage.day, utcDay(new Date())),
+              like(messagingUsage.counter, 'blocked:%'),
+            ),
           )
           .groupBy(messagingUsage.counter);
         return rows.map((row) => ({
@@ -80,7 +86,10 @@ export class MessagingMetrics implements OnModuleInit {
           })
           .from(messagingUsage)
           .where(
-            sql`${messagingUsage.day} = ${utcMonthStart(new Date())} and ${eq(messagingUsage.counter, 'spend')}`,
+            and(
+              eq(messagingUsage.day, utcMonthStart(new Date())),
+              eq(messagingUsage.counter, 'spend'),
+            ),
           );
         return [{ labels: {}, value: row?.total ?? 0 }];
       },
@@ -101,7 +110,10 @@ export class MessagingMetrics implements OnModuleInit {
           })
           .from(messagingUsage)
           .where(
-            sql`${messagingUsage.day} = ${utcMonthStart(new Date())} and ${eq(messagingUsage.counter, 'spend')}`,
+            and(
+              eq(messagingUsage.day, utcMonthStart(new Date())),
+              eq(messagingUsage.counter, 'spend'),
+            ),
           );
         return [{ labels: {}, value: (row?.highest ?? 0) / budget }];
       },

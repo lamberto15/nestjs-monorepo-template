@@ -3,6 +3,7 @@ import { PassThrough, pipeline, type Readable } from 'node:stream';
 import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify';
 import ExcelJS from 'exceljs';
+import { streamArray } from 'stream-json/streamers/stream-array.js';
 import { isTimeZone } from '../../core/config/env.helpers.js';
 import type {
   ImportColumn,
@@ -524,16 +525,22 @@ async function* records(
     return;
   }
   if (format === 'json') {
-    const chunks: Buffer[] = [];
-    for await (const chunk of input) {
-      chunks.push(chunk as Buffer);
-    }
-    const data: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-    if (!Array.isArray(data)) {
-      throw new FormatError('A JSON import is an array of objects.');
-    }
-    for (const record of data) {
-      yield { row: ++row, record: record as Record<string, unknown> };
+    // One element of the top-level array at a time (stream-json), as the CSV
+    // parser reads rows: the file is never held whole, and the row and byte
+    // limits stop it as it is read (#618).
+    const elements = pipeline(
+      input,
+      streamArray.withParserAsStream(),
+      () => undefined,
+    );
+    try {
+      for await (const { value } of elements as AsyncIterable<
+        streamArray.StreamArrayItem<Record<string, unknown>>
+      >) {
+        yield { row: ++row, record: value };
+      }
+    } catch (error) {
+      throw jsonFormatError(error);
     }
     return;
   }
@@ -554,11 +561,12 @@ async function* records(
     return;
   }
   let headers: string[] | undefined;
-  const lines: unknown[][] = [];
-  sheet.eachRow((line) => {
-    lines.push((line.values as unknown[]).slice(1));
-  });
-  for (const cells of lines) {
+  // Row by row, as eachRow() (the rows with values), without a second copy
+  // of every row next to the workbook (#618).
+  for (let number = 1; number <= sheet.rowCount; number++) {
+    const line = sheet.findRow(number);
+    if (!line?.hasValues) continue;
+    const cells = (line.values as unknown[]).slice(1);
     if (!headers) {
       headers = cells.map((header) =>
         header === null || header === undefined ? '' : cellText(header).trim(),
@@ -634,6 +642,25 @@ function cellText(value: unknown): string {
 
 /** A file that isn't the format it claims. */
 export class FormatError extends Error {}
+
+/**
+ * stream-json's errors, as the person reads them: not an array, or the
+ * place it stops parsing (data-transfer.service.ts shows "… is not valid
+ * JSON" to them). Anything else (the source failing) is left as it is.
+ */
+function jsonFormatError(error: unknown) {
+  if (!(error instanceof Error)) return error;
+  if (error.message === 'Top-level object should be an array.') {
+    return new FormatError('A JSON import is an array of objects.');
+  }
+  if (error.message.startsWith('Parser cannot parse input')) {
+    const detail = error.message.replace(/^Parser cannot parse input:?\s*/, '');
+    return new FormatError(
+      `The file is not valid JSON${detail ? `: ${detail}` : '.'}`,
+    );
+  }
+  return error;
+}
 
 /**
  * Recognizes an upload by its first bytes: Excel by the zip signature (an

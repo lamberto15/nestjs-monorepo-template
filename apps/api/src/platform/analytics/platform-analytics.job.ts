@@ -159,14 +159,12 @@ export class PlatformAnalyticsJob {
       const [label] = MEMBER_BUCKETS.find(([, max]) => n <= max)!;
       byMembers.set(label, (byMembers.get(label) ?? 0) + 1);
     }
+    const locale = sql<string>`coalesce(${users.locale}, 'unset')`;
     const byLocale = await this.db
-      .select({
-        locale: sql<string>`coalesce(${users.locale}, 'unset')`,
-        n: count(),
-      })
+      .select({ locale, n: count() })
       .from(users)
       .where(eq(users.active, true))
-      .groupBy(sql`1`);
+      .groupBy(locale);
     return [
       total('tenants.active', activeTenants?.n ?? 0),
       total('users.active', activeUsers?.n ?? 0),

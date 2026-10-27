@@ -12,6 +12,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Section } from '@/components/account/section';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { ConfirmButton } from '@/components/confirm-button';
 import { ConflictAlert } from '@/components/records/conflict-alert';
 import { formatDateTime } from '@/lib/date-time';
@@ -56,7 +58,7 @@ export function TenantDetail(props: { id: string }) {
   }
   const loaded = read.data;
   return (
-    <div className="flex max-w-3xl flex-col gap-4">
+    <Page width="narrow">
       <Link
         to="/tenants"
         className={cn(
@@ -69,27 +71,31 @@ export function TenantDetail(props: { id: string }) {
       </Link>
       {loaded ? (
         <>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-xl font-medium">{loaded.tenant.name}</h1>
-            <Badge variant={loaded.tenant.active ? 'default' : 'outline'}>
-              {t(`status.${loaded.tenant.active ? 'active' : 'inactive'}`)}
-            </Badge>
-            {loaded.tenant.operator && (
-              <Badge variant="secondary">{t('list.operator')}</Badge>
-            )}
-            {deletionPending(loaded.tenant) ? (
-              <Badge variant="destructive">{t('status.deletionPending')}</Badge>
-            ) : (
-              loaded.tenant.deletionStartedAt && (
-                <Badge variant="destructive">{t('status.erasing')}</Badge>
-              )
-            )}
-            <span className="text-sm text-muted-foreground">
-              {t('detail.created', {
-                date: formatDateTime(loaded.tenant.createdAt),
-              })}
-            </span>
-          </div>
+          <PageHeader
+            title={loaded.tenant.name}
+            description={t('detail.created', {
+              date: formatDateTime(loaded.tenant.createdAt),
+            })}
+            badges={
+              <>
+                <Badge variant={loaded.tenant.active ? 'default' : 'outline'}>
+                  {t(`status.${loaded.tenant.active ? 'active' : 'inactive'}`)}
+                </Badge>
+                {loaded.tenant.operator && (
+                  <Badge variant="secondary">{t('list.operator')}</Badge>
+                )}
+                {deletionPending(loaded.tenant) ? (
+                  <Badge variant="destructive">
+                    {t('status.deletionPending')}
+                  </Badge>
+                ) : (
+                  loaded.tenant.deletionStartedAt && (
+                    <Badge variant="destructive">{t('status.erasing')}</Badge>
+                  )
+                )}
+              </>
+            }
+          />
           <ConflictNotice conflict={conflict} />
           <NameSection
             // A fresh form after the reload of a conflict; otherwise the
@@ -112,11 +118,11 @@ export function TenantDetail(props: { id: string }) {
           )}
         </>
       ) : isNotFound(read.error) ? (
-        <p className="text-sm text-muted-foreground">{t('detail.notFound')}</p>
+        <EmptyState title={t('detail.notFound')} />
       ) : (
         <FormAlert message={errorMessage(read.error)} />
       )}
-    </div>
+    </Page>
   );
 }
 

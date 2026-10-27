@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { Page, PageHeader } from '@/components/page-header';
 import { Preferences } from '@/features/settings/preferences';
 
 export const Route = createFileRoute('/_app/account/preferences')({
@@ -10,9 +11,9 @@ export const Route = createFileRoute('/_app/account/preferences')({
 function PreferencesPage() {
   const { t } = useTranslation('settings');
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
-      <h1 className="text-xl font-medium">{t('preferences.title')}</h1>
+    <Page width="narrow">
+      <PageHeader title={t('preferences.title')} />
       <Preferences />
-    </div>
+    </Page>
   );
 }

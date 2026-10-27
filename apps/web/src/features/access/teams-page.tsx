@@ -10,11 +10,12 @@ import {
   TableHeader,
   TableRow,
 } from '@nestjs-monorepo-template/ui/components/table';
-import { PlusIcon } from 'lucide-react';
+import { PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ConfirmButton } from '@/components/confirm-button';
+import { Page, PageHeader } from '@/components/page-header';
 import {
   deleteTeam,
   invalidateAccess,
@@ -39,16 +40,18 @@ export function TeamsPage() {
   const mayChange = useCan('Access.manageTeams');
   const [editing, setEditing] = useState<Team | 'new'>();
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <h1 className="text-xl font-medium">{t('teams.title')}</h1>
-        {mayChange && (
-          <Button className="ms-auto" onClick={() => setEditing('new')}>
-            <PlusIcon />
-            {t('teams.new')}
-          </Button>
-        )}
-      </div>
+    <Page>
+      <PageHeader
+        title={t('teams.title')}
+        actions={
+          mayChange && (
+            <Button onClick={() => setEditing('new')}>
+              <PlusIcon />
+              {t('teams.new')}
+            </Button>
+          )
+        }
+      />
       {teams.isPending ? (
         <Spinner />
       ) : teams.isError ? (
@@ -91,7 +94,7 @@ export function TeamsPage() {
           />
         </>
       )}
-    </section>
+    </Page>
   );
 }
 
@@ -127,17 +130,25 @@ function TeamRow(props: {
       <TableCell>
         {props.mayChange && (
           <div className="flex justify-end gap-2">
-            <Button size="sm" variant="ghost" onClick={props.onEdit}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="pointer-coarse:h-10"
+              onClick={props.onEdit}
+            >
+              <PencilIcon />
               {t('teams.edit')}
             </Button>
             <ConfirmButton
               size="sm"
-              variant="ghost"
+              variant="outline"
+              className="pointer-coarse:h-10"
               title={t('teams.deleteTitle', { name: team.name })}
               description={t('teams.deleteDescription')}
               confirm={t('teams.delete')}
               onConfirm={() => remove.mutateAsync()}
             >
+              <Trash2Icon />
               {t('teams.delete')}
             </ConfirmButton>
           </div>

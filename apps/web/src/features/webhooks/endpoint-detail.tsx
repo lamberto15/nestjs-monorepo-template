@@ -28,6 +28,8 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Section } from '@/components/account/section';
 import { ConfirmButton } from '@/components/confirm-button';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
 import { ListPage } from '@/components/list-page';
 import type { DataTableFeatures } from '@/lib/data-table-features';
@@ -72,7 +74,7 @@ export function EndpointDetail(props: { clientId: string; id: string }) {
   }
   const missing = isApiError(read.error) && read.error.status === 404;
   return (
-    <div className="flex max-w-4xl flex-col gap-4">
+    <Page>
       <Link
         to="/webhooks/$clientId"
         params={{ clientId: props.clientId }}
@@ -86,15 +88,19 @@ export function EndpointDetail(props: { clientId: string; id: string }) {
       </Link>
       {endpoint ? (
         <>
+          <PageHeader
+            title={<span className="break-all">{endpoint.url}</span>}
+            badges={<EndpointBadge endpoint={endpoint} />}
+          />
           <SettingsSection clientId={props.clientId} endpoint={endpoint} />
           <DeliveriesSection clientId={props.clientId} endpoint={endpoint} />
         </>
       ) : missing ? (
-        <p className="text-sm text-muted-foreground">{t('detail.notFound')}</p>
+        <EmptyState title={t('detail.notFound')} />
       ) : (
         <FormAlert message={errorMessage(read.error)} />
       )}
-    </div>
+    </Page>
   );
 }
 
@@ -111,10 +117,6 @@ function SettingsSection(props: { clientId: string; endpoint: Endpoint }) {
   const [error, setError] = useState<string>();
   return (
     <Section title={t('detail.title')} description={endpoint.description ?? ''}>
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-medium break-all">{endpoint.url}</h1>
-        <EndpointBadge endpoint={endpoint} />
-      </div>
       <FormAlert message={error} />
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
         <dt className="text-muted-foreground">{t('detail.events')}</dt>

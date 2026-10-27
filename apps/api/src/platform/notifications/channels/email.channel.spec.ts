@@ -50,7 +50,8 @@ describe('EmailChannel', () => {
     expect(send).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ locale: 'en' }),
-      { jobId: 'notification-n1', signal },
+      // The test catalog declares the type mandatory: essential for mail.delivery.
+      { jobId: 'notification-n1', signal, essential: true },
     );
     expect(tx.update).not.toHaveBeenCalled();
   });

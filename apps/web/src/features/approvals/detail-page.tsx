@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { DetailItem, DetailList } from '@/components/records/detail-list';
 import { RecordState } from '@/components/records/record-state';
 import { useDateTimeFormat } from '@/lib/date-time';
+import { Page, PageHeader } from '@/components/page-header';
 import { ApprovalActions } from './actions';
 import { approvalQuery, type Approval } from './api';
 import { useActionLabel } from './inbox-page';
@@ -32,7 +33,7 @@ export function DetailPage(props: { id: string }) {
     meta: { errorToast: false },
   });
   return (
-    <section className="flex max-w-3xl flex-col gap-4">
+    <Page width="narrow">
       <Link
         to="/approvals"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:underline"
@@ -56,7 +57,7 @@ export function DetailPage(props: { id: string }) {
           <ApprovalView approval={approval} etag={etag} />
         )}
       </RecordState>
-    </section>
+    </Page>
   );
 }
 
@@ -67,15 +68,11 @@ function ApprovalView(props: { approval: Approval; etag?: string }) {
   const { approval } = props;
   return (
     <>
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-xl font-medium break-words">{approval.title}</h1>
-          <p className="text-sm text-muted-foreground">
-            {actionLabel(approval)}
-          </p>
-        </div>
-        <ApprovalActions approval={approval} etag={props.etag} />
-      </header>
+      <PageHeader
+        title={approval.title}
+        description={actionLabel(approval)}
+        actions={<ApprovalActions approval={approval} etag={props.etag} />}
+      />
       <DetailList>
         <DetailItem
           label={t('detail.status')}

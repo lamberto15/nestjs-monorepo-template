@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { useFeature } from '@/lib/features';
 import { errorMessage } from '@/lib/errors';
 import { useDescribedBy } from '@/lib/form';
+import { isNotFound } from '@/lib/records';
 import { convertQuery, ratesQuery } from './api';
 import { currencyName, formatAmount, formatRate } from './format';
 
@@ -51,9 +52,11 @@ export function CurrencyConverter(props: {
   const amountInput = useDescribedBy(false, !valid);
   const conversion = useQuery({
     ...convertQuery({ amount: amount.trim(), from, to }),
-    enabled: enabled && valid && Boolean(from) && Boolean(to),
+    // After the rates: with none fetched there is nothing to convert at.
+    enabled:
+      enabled && rates.isSuccess && valid && Boolean(from) && Boolean(to),
   });
-  if (!enabled) {
+  if (!enabled || (rates.isError && isNotFound(rates.error))) {
     return null;
   }
   const currencies = rates.data

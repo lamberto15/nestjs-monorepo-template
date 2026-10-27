@@ -33,6 +33,16 @@ NestJS's own building blocks, one job each, and no extra layers:
   edit its `<item>.record.ts`, then `pnpm feature:sync`.
 - Never hand-write migrations or DDL: change a `*.tables.ts`, run
   `pnpm db:generate`, commit `apps/api/drizzle/`.
+- **No raw SQL.** Query with Drizzle's builder and the tables' columns:
+  `select`/`insert`/`update`/`delete`, `insert().select()`,
+  `update().set().from()`, `onConflictDoUpdate`, and the operators (`eq`,
+  `inArray`, `isNull`, `exists`, `between`, `count()`…). `sql` only for an
+  expression the builder lacks, inside a builder query (`lower(x)`,
+  `excluded.x`, `x + 1`, JSONB operators), with columns as `${table.column}`,
+  never a literal name. No `db.execute(sql`…`)`, `sql.raw()` or
+  `client.query()` unless Drizzle has no API for it (advisory locks,
+  `set_config`, catalogs, roles): then add the file to
+  `tools/ci/raw-sql.allow.json` with the reason. `pnpm lint` fails otherwise.
 - Services read through the transaction host (`database(this.txHost)`) and
   write with `inTransaction()`: every query joins the current transaction.
 - After route changes, `pnpm client:generate`.

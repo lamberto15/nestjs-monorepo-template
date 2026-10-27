@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { Page, PageHeader } from '@/components/page-header';
 import { ConsentsSection } from '@/components/account/consents-section';
 import { DeletionSection } from '@/components/account/deletion-section';
 import { ExportSection } from '@/components/account/export-section';
@@ -15,11 +16,8 @@ function PrivacyPage() {
   const { t } = useTranslation('privacy');
   const me = useMe();
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-medium">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('description')}</p>
-      </div>
+    <Page width="narrow">
+      <PageHeader title={t('title')} description={t('description')} />
       {/* The person's own, across their tenants: the API refuses every
           /v1/account route while impersonating (403), so none is offered. */}
       {me?.user.impersonator ? (
@@ -33,6 +31,6 @@ function PrivacyPage() {
           </>
         )
       )}
-    </div>
+    </Page>
   );
 }
