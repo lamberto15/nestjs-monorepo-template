@@ -63,7 +63,7 @@ describe('RealtimeChannel', () => {
     const { channel, notifications } = setup();
     notifications.announceUnread.mockRejectedValueOnce(new Error('down'));
     await channel.afterCommit(delivery('a', T1));
-    await expect(vi.advanceTimersByTimeAsync(1000)).resolves.toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1000); // an unhandled rejection would fail the run
     expect(notifications.announceUnread).toHaveBeenCalledTimes(1);
   });
 });
