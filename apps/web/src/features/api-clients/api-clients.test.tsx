@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createSession } from '@/lib/session';
 import { renderApp } from '@/test/render-app';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
 import { findToast } from '@/test/toast';
@@ -230,6 +231,25 @@ describe('creating a client: the key is shown once', () => {
         .map((query) => query.state.data),
     );
     expect(queries).not.toContain(SECRET);
+  });
+
+  it('never shows the key to a session that changes under the dialog', async () => {
+    api();
+    const user = userEvent.setup();
+    const { queryClient } = await renderApp('/api-clients');
+    await screen.findByText('Billing exporter');
+    await user.click(screen.getByRole('button', { name: 'New client' }));
+    await user.type(screen.getByLabelText('Name'), 'Mail relay');
+    await user.click(screen.getByRole('button', { name: 'Create client' }));
+    await screen.findByRole('dialog', { name: 'Copy the key of Mail relay' });
+
+    // Another tenant or account now (a switch here, or in another tab: the
+    // session watcher runs the same reset): the dialog goes, and its key
+    // is in no observer's result any more.
+    await createSession(queryClient).reset();
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.body).not.toHaveTextContent(SECRET);
   });
 
   it('sends the quota and the roles with the create, in one request', async () => {
