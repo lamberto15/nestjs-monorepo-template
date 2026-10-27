@@ -29,6 +29,7 @@
     "name": "Nama",
     "namePlaceholder": "Acme Sdn Bhd",
     "nameRequired": "Masukkan nama.",
+    "nameTooLong": "Paling banyak {{max}} aksara.",
     "slug": "Slug",
     "slugHint": "Pengecam pendek: huruf kecil, digit dan sempang tunggal.",
     "slugInvalid": "Gunakan huruf kecil dan digit, dengan sempang tunggal di antaranya (paling banyak 48 aksara).",

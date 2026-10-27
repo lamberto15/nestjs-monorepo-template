@@ -2,16 +2,21 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { afterEach, describe, expect, it } from 'vitest';
+import { RoleGrantsPicker } from '@/features/access/pickers';
 import {
   bob,
   everything,
   ids,
   invitation,
+  roles,
   signedInWith,
 } from '@/features/access/test/fixtures';
+import { teamRefsQuery } from '@/lib/list-refs';
+import { peopleQuery, teamNameQuery } from '@/lib/people';
 import { nav, visibleGroups } from '@/nav';
 import { principalsHandler, userPrincipal } from '@/test/principals';
 import { renderApp } from '@/test/render-app';
+import { renderComponent } from '@/test/render-component';
 import { allFeatures, server, signedInUser } from '@/test/server';
 import { findToast } from '@/test/toast';
 
@@ -91,6 +96,35 @@ describe('roles: the permission editor', () => {
     );
   });
 
+  it('describes a condition’s parameter by its hint and its problem', async () => {
+    signedInWith({ ...everything, 'Expense.approve': true });
+    const user = userEvent.setup();
+    await renderApp('/access/roles/new');
+    await user.click(
+      await screen.findByRole('checkbox', { name: /Approve expenses/ }),
+    );
+    const rule = screen.getByRole('group', { name: 'Rule 1' });
+    await user.click(
+      within(rule).getByRole('checkbox', { name: /Up to an amount/ }),
+    );
+    // An empty parameter is refused at once; the hint stays beside the reason.
+    const amount = within(rule).getByLabelText('Amount');
+    expect(amount).toBeInvalid();
+    expect(amount).toHaveAccessibleDescription(
+      'An amount in cents (minor units). Enter a value.',
+    );
+    await user.type(amount, 'ten');
+    expect(amount).toHaveAccessibleDescription(
+      'An amount in cents (minor units). A whole number of cents.',
+    );
+    await user.clear(amount);
+    await user.type(amount, '1000');
+    expect(amount).toBeValid();
+    expect(amount).toHaveAccessibleDescription(
+      'An amount in cents (minor units).',
+    );
+  });
+
   it('does not offer to grant what the user doesn’t hold', async () => {
     signedInWith({ 'Access.manageRoles': true, 'Note.read': true });
     await renderApp('/access/roles/new');
@@ -114,6 +148,33 @@ describe('roles: the permission editor', () => {
     expect(
       screen.getByText('Everything, including access control'),
     ).toBeVisible();
+  });
+});
+
+describe('grants: the role picker', () => {
+  const editor = roles.find((role) => role.id === ids.editor)!;
+  const render = (until: string) =>
+    renderComponent(
+      <RoleGrantsPicker
+        roles={[editor]}
+        value={{ [editor.id]: until }}
+        onChange={() => undefined}
+        idPrefix="test"
+      />,
+    );
+
+  it('describes the end of a grant by its hint', async () => {
+    await render('2999-01-01T09:00');
+    const until = screen.getByLabelText('Until (optional)');
+    expect(until).toBeValid();
+    expect(until).toHaveAccessibleDescription('Your local time.');
+  });
+
+  it('describes an end in the past by why it is refused', async () => {
+    await render('2020-01-01T09:00');
+    const until = screen.getByLabelText('Until (optional)');
+    expect(until).toBeInvalid();
+    expect(until).toHaveAccessibleDescription('Pick a time in the future.');
   });
 });
 
@@ -156,6 +217,52 @@ describe('users: invitations', () => {
     );
     await waitFor(() => expect(revoked).toHaveLength(1));
     expect(revoked[0]!.url).toMatch(`/v1/access/invitations/${ids.invitation}`);
+  });
+});
+
+describe('a name over 120 characters', () => {
+  it.each([
+    {
+      form: 'the invitation form',
+      page: '/access/users',
+      post: '/v1/access/users',
+      status: 202,
+      open: 'Invite',
+      email: true,
+      field: 'Name (optional)',
+      submit: 'Send invitation',
+    },
+    {
+      form: 'the team form',
+      page: '/access/teams',
+      post: '/v1/access/teams',
+      status: 201,
+      open: 'New team',
+      email: false,
+      field: 'Name',
+      submit: 'Create team',
+    },
+  ])('is refused by $form before sending', async (form) => {
+    signedInWith(everything);
+    const sent = capture('post', form.post, form.status);
+    await renderApp(form.page);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: form.open }));
+    const dialog = await screen.findByRole('dialog');
+    if (form.email) {
+      await user.type(
+        within(dialog).getByLabelText('Email'),
+        'new@example.com',
+      );
+    }
+    await user.click(within(dialog).getByLabelText(form.field));
+    await user.paste('x'.repeat(121));
+    await user.click(within(dialog).getByRole('button', { name: form.submit }));
+    expect(
+      await within(dialog).findByText('At most 120 characters.'),
+    ).toBeVisible();
+    expect(sent).toEqual([]);
   });
 });
 
@@ -446,6 +553,53 @@ describe('teams: a team’s members', () => {
     expect(changed[0]!.url).toMatch(`/v1/access/users/${ids.carol}`);
     // Her teams as the single read had them, plus this one.
     expect(changed[0]!.body).toEqual({ teamIds: [ids.north] });
+    expect(
+      await screen.findByRole('columnheader', { name: 'Member' }),
+    ).toBeVisible();
+  });
+});
+
+describe('after an access change', () => {
+  it('reads again what shows teams and people, and what the user may do', async () => {
+    signedInWith(everything);
+    const reads: string[] = [];
+    server.events.on('request:start', ({ request }) => {
+      reads.push(new URL(request.url).pathname);
+    });
+    server.use(
+      principalsHandler([
+        userPrincipal({
+          id: ids.carol,
+          email: 'carol@example.com',
+          name: 'Carol Admin',
+        }),
+      ]),
+    );
+    capture('patch', '/v1/access/users/:id');
+    const { queryClient } = await renderApp(`/access/teams/${ids.north}`);
+    const user = userEvent.setup();
+    await screen.findByText('Nobody is in this team directly.');
+    // What other pages cached: a team's name (30 minutes), the filters'
+    // team options, the people a picker found.
+    const cached = [
+      teamNameQuery(ids.north).queryKey,
+      teamRefsQuery.queryKey,
+      peopleQuery('carol').queryKey,
+    ];
+    for (const queryKey of cached) queryClient.setQueryData(queryKey, []);
+    const meReads = () => reads.filter((p) => p === '/v1/auth/me').length;
+    const before = meReads();
+
+    await user.type(screen.getByLabelText('Add a member'), 'carol');
+    await user.click(await screen.findByRole('option', { name: /Carol/ }));
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await findToast('carol@example.com added.');
+
+    for (const queryKey of cached) {
+      expect(queryClient.getQueryState(queryKey)?.isInvalidated).toBe(true);
+    }
+    // A role or a team may have changed what the user is allowed (`can`).
+    await waitFor(() => expect(meReads()).toBeGreaterThan(before));
   });
 });
 

@@ -9,6 +9,7 @@ import {
   type paths,
 } from '@nestjs-monorepo-template/api-client';
 import { api } from '@/lib/api';
+import { recordKeys } from '@/lib/records';
 
 const endpoints = '/v1/access/clients/{clientId}/webhook-endpoints';
 const endpoint = '/v1/access/clients/{clientId}/webhook-endpoints/{id}';
@@ -71,8 +72,10 @@ function useRefresh(clientId: string) {
   return () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: webhooksKey(clientId) }),
-      // The deliveries are a ListPage: its pages are under ['list', path].
-      queryClient.invalidateQueries({ queryKey: ['list', deliveriesPath] }),
+      // The deliveries are a ListPage: its pages are under the list's path.
+      queryClient.invalidateQueries({
+        queryKey: recordKeys.lists(deliveriesPath),
+      }),
     ]);
 }
 

@@ -18,6 +18,7 @@ import { CircleAlertIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLivePoll, useRealtimeEvent, withProgress } from '@/lib/realtime';
+import { recordKeys } from '@/lib/records';
 import {
   bulkJobQuery,
   runBulk,
@@ -65,7 +66,7 @@ export function useBulkRun(path: BulkPath) {
   };
 
   const finished = () => {
-    void queryClient.invalidateQueries({ queryKey: ['list'] });
+    void queryClient.invalidateQueries({ queryKey: recordKeys.allLists });
     finishedRef.current?.();
     finishedRef.current = undefined;
   };

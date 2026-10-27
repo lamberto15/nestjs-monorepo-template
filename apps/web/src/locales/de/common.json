@@ -1,11 +1,15 @@
 {
   "app": {
     "name": "App",
-    "staleDraft": "Die Sitzung hat sich geändert, während Sie geschrieben haben (in einem anderen Tab oder Fenster). Es wurde nichts gesendet — prüfen Sie, was Sie geschrieben haben, und senden Sie es unter der neuen Sitzung erneut ab."
+    "staleDraft": "Die Sitzung hat sich geändert, während Sie geschrieben haben (in einem anderen Tab oder Fenster). Es wurde nichts gesendet — prüfen Sie, was Sie geschrieben haben, und senden Sie es unter der neuen Sitzung erneut ab.",
+    "unsavedChanges": "Sie haben ungespeicherte Änderungen. Diese Seite verlassen und die Änderungen verwerfen?"
   },
   "nav": {
     "platform": "Plattform",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "skipToContent": "Zum Inhalt springen",
+    "sidebar": "Seitenleiste",
+    "menu": "Hauptmenü"
   },
   "auth": {
     "signIn": {
@@ -46,6 +50,7 @@
       "passwordRequired": "Geben Sie Ihr Passwort ein.",
       "passwordHint": "Mindestens 12 Zeichen. Passwörter aus Datenlecks werden abgelehnt.",
       "passwordTooShort": "Mindestens {{min}} Zeichen.",
+      "tooLong": "Höchstens {{max}} Zeichen.",
       "passwordMismatch": "Die Passwörter stimmen nicht überein.",
       "newPassword": "Neues Passwort",
       "confirmPassword": "Passwort bestätigen",
@@ -289,10 +294,16 @@
     "description": "Die gesuchte Seite existiert nicht.",
     "back": "Zurück zum Dashboard"
   },
+  "errors": {
+    "unexpected": "Etwas ist schiefgelaufen.",
+    "reportId": "Meldungs-ID: {{id}}",
+    "requestId": "Anfrage-ID: {{id}}"
+  },
   "routeError": {
     "title": "Etwas ist schiefgelaufen",
     "description": "Diese Seite konnte nicht geladen werden. Der Rest der App funktioniert weiterhin.",
     "reportId": "Meldungs-ID: {{id}}",
+    "build": "Build: {{sha}}",
     "retry": "Erneut versuchen"
   },
   "preferences": {
@@ -325,7 +336,9 @@
     "fields": {
       "tag": "Tag",
       "ownerId": "Eigentümer",
-      "teamId": "Team"
+      "teamId": "Team",
+      "actor": "Akteur",
+      "user": "Benutzer"
     },
     "refs": {
       "searching": "Wird gesucht…",

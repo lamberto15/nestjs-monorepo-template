@@ -29,6 +29,7 @@
     "name": "Name",
     "namePlaceholder": "Rechnungsexport",
     "nameRequired": "Gib dem Client einen Namen.",
+    "nameTooLong": "Höchstens {{max}} Zeichen.",
     "quota": "Tageskontingent (optional)",
     "quotaHint": "Anfragen pro Tag (UTC); darüber antwortet die API mit 429. Leer lassen für keines.",
     "quotaInvalid": "Eine ganze Zahl ab 1.",

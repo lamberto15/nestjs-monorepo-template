@@ -23,7 +23,9 @@ export function ImpersonationBanner() {
     },
     onSuccess: async () => {
       await createSession(queryClient).reset();
-      await router.navigate({ to: '/' });
+      // The session changed already: a form's unsaved-changes guard would
+      // hold a page of the previous one (lib/unsaved-changes.ts).
+      await router.navigate({ to: '/', ignoreBlocker: true });
       await router.invalidate();
     },
   });

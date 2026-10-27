@@ -150,7 +150,43 @@ web app needs the API, so `dev:web` alone suits an API already running.
   Errors go through `lib/errors.ts` (TanStack Query's cache `onError`): a 401
   while signed in ends the session (to sign-in, back to the page after),
   anything else is a toast with the problem's `detail` unless the query sets
-  `meta: { errorToast: false }`.
+  `meta: { errorToast: false }` (a 5xx's toast gives the request id the API
+  logged it under). An error that is not the API's answer is a fault of the
+  app's: it is reported with a short report id, which the toast and the
+  route's error page show (`reportClientError`, `lib/report-error.ts`, also
+  fed by createRoot's error callbacks and the window's uncaught errors and
+  rejections; one report per error, at most 20 a minute). Reports go to the
+  console and to `POST /v1/client-errors` (`platform/client-errors`), which
+  logs them server-side; nothing is stored beyond the log (#751). A dropped
+  connection is not one: it says so.
+- **Forms** (`lib/form.tsx`, TanStack Form's form composition): a form is
+  `useAppForm` with the `TextField`, `TextAreaField`, `MarkdownField`,
+  `CodeField` and `SelectField` of `form.AppField`, which tie a control to
+  its label, hint and error with `useId` ids (two forms of one page may
+  share field names) and `aria-describedby`; a hand-rolled field uses
+  `useDescribedBy` for the same. Every `useAppForm` form also gets:
+  - the focus on its first invalid control after a failed submit (the
+    forms are `noValidate`), and after the API's field errors
+    (`lib/form-focus.ts`);
+  - the stale-draft guard: a draft begun under another session is not sent
+    until the user says so (`useStaleDraftSession()`, before the form's own
+    `onSubmit`; only a hand-rolled submit path calls it itself).
+  `applyFieldErrors(form, error)` puts the API's `errors[].path` on the
+  fields (a dotted path on the field of its first segment, `aliases` for
+  another name) and returns whether every one found a field; the caller's
+  form-level alert then shows `errorMessage(error)`, which gives the
+  messages no field took. A record editor asks before the user leaves it
+  with unsaved input: `useUnsavedChangesGuard(form)`
+  (`lib/unsaved-changes.ts`, TanStack Router's `useBlocker`; a link, back
+  and forward, a reload or a closed tab). Its saves leave with
+  `ignoreBlocker: true` (or `form.reset(saved)` when they stay), as do the
+  session-end redirects. An editor that saves with an ETag reads its record
+  once (`refetchOnWindowFocus: false`, `refetchOnReconnect: false`, as
+  `routes/_app/notes/$id/edit.tsx`): a background refetch would remount the
+  form under the user's edits, where the save's 412 offers the reload. A
+  page that also shows live state keeps refetching and holds the form back
+  instead (`features/tenants/tenant-detail.tsx`): an untouched form follows
+  the record, a touched one keeps the edits and the ETag it started from.
 - **Cross-tab sessions** (`lib/session-bus.ts`, `lib/session.ts`): the tabs
   share the one `__Host-sid` cookie, so what one tab does to the session the
   others must follow. A tab's session watcher (`lib/errors.ts`) records the
@@ -170,19 +206,37 @@ web app needs the API, so `dev:web` alone suits an API already running.
   (an old browser, or tests without the fake) still discovers every change
   on its own refetches — correct, just slower. A client thrown away ends its
   bus listener with it (`sessionWatch().offBus()`; the tests' teardown does
-  it), so the registry holds nothing of it. A form's unsaved draft, though,
+  it), so the registry holds nothing of it. After that reset the page's
+  route guards run again (`router.invalidate()`, the error handler's
+  `invalidate`): a page the new identity may not open is left. What the
+  query cache does not hold but the session owns forgets itself through
+  `registerSessionReset(fn)` (`lib/session.ts`): `fn` runs inside `reset()`
+  (`'reset'`) and `clear()` (`'clear'`), so in the tab that switched and in
+  the others. It settles a step-up dialog still open (`cancelReauthentication`,
+  `lib/reauth.ts`: the request it holds was built for the previous session and
+  is refused, never sent again under the new cookie) and, on `clear`, removes
+  the recent searches (kept per `sessionIdentity` in localStorage,
+  `features/search/recent.ts`; registered in `app.tsx`, as the palette's
+  chunk loads lazily). A component registers with `useOnSessionChange(fn)`
+  (`hooks/use-on-session-change.ts`) for what it shows of the session: a
+  mounted `useMutation` keeps its last result after the mutation cache is
+  cleared (TanStack Query's observer is not told), so a secret shown once
+  (the key and signing-secret dialogs, recovery codes, a TOTP secret) is
+  reset there. A form's unsaved draft, though,
   is component state the reset cannot touch: a draft begun under another
-  session is not sent until the user says so — `useStaleDraftSession()`
-  (`lib/form.tsx`) at the top of a form's `onSubmit` (the note form has it;
-  other record forms should adopt it as they edit records). Tests stand a
+  session is not sent until the user says so — every `useAppForm` form
+  checks before its own `onSubmit` (`useStaleDraftSession()`, `lib/form.tsx`;
+  a hand-rolled submit path such as the comment box calls it itself). Tests stand a
   channel in per suite (`lib/session-identity.test.tsx`); the real channel
   across real tabs is shown by the browser test in `apps/web-e2e`
   (`session-identity.spec.ts`, two tabs of one browser through an
   impersonation).
 - **Routes:** `__root.tsx` (router context `{ queryClient, session }`),
   `_app.tsx` (the signed-in layout and its guard, shadcn's `sidebar-07`
-  block), `_app/index.tsx` (dashboard), the signed-out pages beside them. A
-  new page is a file there.
+  block; the sidebar starts as the user left it, from its `sidebar_state`
+  cookie, and on a phone a tap on a menu entry closes its sheet),
+  `_app/index.tsx` (dashboard), the signed-out pages beside them. A new page
+  is a file there.
 - **Menu:** a feature's entries are `features/<feature>/nav.ts` (default
   export: one entry or an array; `group`, `order`, `to`, an i18n `label`,
   `icon`, optional `feature`, `permission` (one, or a list: any of them),
@@ -226,7 +280,10 @@ web app needs the API, so `dev:web` alone suits an API already running.
   it), a red banner in the signed-in layout links to `/account/security`.
   It reads `GET /v1/notifications?read=false&type=…` under the notifications
   `list` key, so the realtime event and every mark-read refresh it (without
-  realtime it polls like the inbox). Reading the notification, or changing the password in
+  realtime it is asked again when the window regains focus and when the user does
+  something a minute after the last answer, never on a timer: the layout stays
+  mounted on an unattended tab, see "Maintenance and read-only mode" below).
+  Reading the notification, or changing the password in
   `PasswordSection` (which fetches and marks every unread alert read, with a
   toast if that fails), hides it; none while impersonating.
   In the list the row gets a shield icon, a tint and a "Change your password"
@@ -237,7 +294,9 @@ web app needs the API, so `dev:web` alone suits an API already running.
   knows it before its first paint (`_app`'s `beforeLoad` fetches the switches; a
   failure holds nothing back) and keeps it fresh with `useModeWatch()`: when the
   user does something (pointer, keys, scrolling) at least a minute after the last
-  answer, when the tab returns after 30 s, and at once when any request is refused
+  answer (`useRefreshOnInput`, `lib/refresh-on-input.ts`: one set of listeners for
+  every query that asks, the throttle is `fetchQuery`'s `staleTime`), when the tab
+  returns after 30 s, and at once when any request is refused
   with 503 `read_only` or `maintenance` (`lib/errors.ts` asks again, and toasts once,
   however many requests were refused). While it is `normal` there is **no timer**: the
   API counts every request as activity, so a poll would keep an unattended tab signed
@@ -288,7 +347,12 @@ web app needs the API, so `dev:web` alone suits an API already running.
   running on its first one. With a connected socket nothing is polled;
   `useLivePoll()` makes the poll a fallback: 1 s (2 s in lists) without one
   (`useRealtimeConnected()`), and fast again for a job whose end event came
-  but which the queue still reports running. Tests play it with `fake.emit('connect')` / `emit('disconnect')`.
+  but which the queue still reports running. Without realtime the signed-in
+  layout's own queries (the approvals count in the menu, the breached-password
+  alert) are not polled: they are asked again on the window's focus and on the
+  user's input (`useRefreshOnInput`), since a timer would keep an idle session
+  alive; the open, watched inbox pages do poll, every 60 s (`pollInterval`).
+  Tests play it with `fake.emit('connect')` / `emit('disconnect')`.
 - **The dashboard** (`features/dashboard`, the home page `/`): cards for the
   approvals assigned to the user, their unread notifications, the latest audit
   entries (`Access.readAudit`), the notes changed last and a bar chart of notes
@@ -393,8 +457,49 @@ product terms, codes and brand names stay as in `en`. The texts of a new
 feature (`pnpm feature:add`) start as English copies in every language: translate
 them in `locales/<lng>/<feature>.json` with the other new keys, keeping the
 `{{placeholders}}` and plural suffixes (`src/locales.test.ts` checks them; `ar`
-has all six plural forms). `<html lang>` and `dir` (`rtl` for `ar`) follow the language; the
+has all six plural forms). A key the code asks for that `en` lacks fails the
+test that renders it (`test/i18n.ts`), rather than showing as the raw key. `<html lang>` and `dir` (`rtl` for `ar`) follow the language, and so does Base
+UI's `DirectionProvider` ([Accessibility](#accessibility)); the
 theme (light, dark, system) is a class on `<html>`.
+
+### Accessibility
+
+What a client-side navigation leaves to the app (TanStack Router renders the
+page and nothing more), in `src/components/route-accessibility.tsx`:
+
+- **Page titles:** `<title>` is the page, then the app (WCAG 2.4.2). A page in
+  the menu takes its entry's title; one the menu does not list names itself
+  in its route's `staticData: { title: '<ns>:<key>' }` (the i18n key). It
+  follows the language.
+- **Focus after a navigation:** to the new page's `h1`, else its content, so a
+  keyboard or screen-reader user starts there and not on the link they left.
+  Not on the first load, not for a filter or a sort (the search changes
+  only), and not when the page has put the focus somewhere itself (its first
+  field, an open dialog). `scrollRestoration` is on.
+- **Skip link:** `SkipToContent` is the first tab stop; it moves the focus to
+  `#main-content` instead of following the fragment, which would end up in
+  the router's location.
+- **Landmarks:** one `<main>` on a signed-in page; `AuthLayout` has its own
+  `<main>` and the level-1 heading for the sign-in pages. Every page has one
+  `h1`.
+- **Direction:** `<html dir>` follows the language, and `LanguageDirection`
+  (`app.tsx`) gives Base UI's `DirectionProvider` the same `i18n.dir()`, so
+  popups, menus and arrow keys follow it ([i18n and time](i18n-and-time.md)).
+- **Lint:** oxlint's `jsx-a11y` plugin runs on `apps/web/src` (`.oxlintrc.json`).
+  Five rules are off, each for a pattern the app uses on purpose:
+  `prefer-tag-over-role` (`role="status"` live regions on a `<p>` or an
+  `Alert`, Base UI parts, roving-focus lists), `no-autofocus` (the first field
+  of a dialog or a sign-in step the user just opened),
+  `control-has-associated-label` (a Base UI `render={<a href />}` link takes
+  its text from the Button's children, which the rule does not see),
+  `no-noninteractive-element-interactions` (the sort and filter menus' rows take
+  the arrow keys) and `no-noninteractive-tabindex` (a named scroll region that
+  must be focusable to scroll by keyboard). The other rules stay on: a few
+  that never fire are errors. A new finding is fixed, not switched off, unless
+  it is one of those patterns.
+- **Tests:** `src/test/navigation-a11y.test.tsx` (titles, focus, skip link,
+  landmarks); the axe scans in the browser tests:
+  [development](development.md), "Browser tests".
 
 ### Components
 
@@ -410,7 +515,10 @@ pnpm dlx shadcn@4.22.0 add @diceui/<name>  # Dice UI (https://diceui.com): look 
 
 Both packages have a `components.json` with the same style, icon library
 and base colour. Prettier skips `packages/ui` and the lint rules are
-relaxed there, so a CLI update stays a clean diff.
+relaxed there, so a CLI update stays a clean diff. A change made by hand to
+a generated file carries a `Local change to the generated file` comment that
+says why, so an update shows what to keep
+(`grep -rn "Local change to the generated file" packages/ui/src`).
 
 **Rich text** (`components/markdown/`): neither Dice UI nor shadcn's registry
 has a Markdown editor, so the web app uses [Tiptap](https://tiptap.dev) (with
@@ -445,9 +553,12 @@ What a feature's record pages share; `features/notes` and
   `/me.can` for a record read without it. A create answers with the ETag a read
   would: `seedCreatedNote()` puts the note and that ETag in the cache, so the
   page it opens and a first edit (`If-Match`) need no second read. Text limits
-  (`NOTE_LIMITS`) mirror the schema's `maxLength`; a test compares them with
-  `packages/api-client/openapi.json` (importing that 1 MB file would bloat the
-  bundle).
+  are constants that mirror the schema's `maxLength` (`NOTE_LIMITS`, and a
+  `*_LIMITS` per feature, `AUTH_LIMITS` in `lib/auth-limits.ts` for the
+  account forms); tests compare them with `packages/api-client/openapi.json`
+  (`lib/limits.test.ts`, a row per form; the notes' own in
+  `features/notes/notes.test.tsx`), never the bundle (importing that 1 MB
+  file would bloat it).
 - **Custom fields in a record form and view** (`components/records/custom-field-inputs.tsx`,
   `custom-field-values.tsx`, `lib/custom-values.ts`): `GET /v1/custom-fields?subject=`
   (any reader of the subject) gives the active definitions. `<CustomFieldInputs
@@ -707,8 +818,9 @@ the server). It is not active under `pnpm dev`.
 hand, after `pnpm client:generate` (the client then types the new routes):
 
 1. `features/<feature>/`: its queries (`api.ts`, as `features/notes/api.ts`:
-   `?include=can`, the keys of `lib/records.ts`), its forms and its
-   `nav.ts`.
+   `?include=can`, the keys of `lib/records.ts`; a detail query that a
+   `RecordState` page renders sets `meta: { errorToast: false }`, as its
+   404 and failures are said on the page), its forms and its `nav.ts`.
 2. `routes/_app/<plural>/`: `index.tsx` (a `ListPage`), `$id/index.tsx`
    (the detail with `RecordPanels`), `new.tsx`, `$id/edit.tsx`. The router's
    plugin rewrites `routeTree.gen.ts` while `pnpm dev:web` or the build runs;

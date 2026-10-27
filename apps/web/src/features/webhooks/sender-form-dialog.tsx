@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { z } from '@/lib/zod';
-import type { Sender } from './sender-queries';
+import { SENDER_LIMITS, type Sender } from './sender-queries';
 
 export type SenderValues = { name: string; description: string };
 
@@ -44,7 +44,15 @@ export function SenderFormDialog(props: {
           .trim()
           .min(1, t('senders.form.nameRequired'))
           .regex(/^[a-z0-9][a-z0-9-]{0,62}$/, t('senders.form.nameInvalid')),
-        description: z.string().trim().max(500),
+        description: z
+          .string()
+          .trim()
+          .max(
+            SENDER_LIMITS.description,
+            t('senders.form.descriptionTooLong', {
+              max: SENDER_LIMITS.description,
+            }),
+          ),
       }),
     },
     onSubmit: async ({ value }) => {

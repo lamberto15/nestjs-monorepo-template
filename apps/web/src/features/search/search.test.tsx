@@ -12,9 +12,16 @@ import { signedInWith } from '@/features/access/test/fixtures';
 import { useDebounced } from '@/features/search/palette';
 import { dashboard } from '@/features/dashboard/registry';
 import { groupBySubject } from '@/features/search/api';
+import {
+  addRecent,
+  clearAllRecent,
+  readRecent,
+} from '@/features/search/recent';
 import { parseSnippet, Snippet } from '@/features/search/snippet';
+import { createSession, sessionIdentity, type Me } from '@/lib/session';
+import { axeViolations } from '@/test/axe';
 import { renderApp } from '@/test/render-app';
-import { server } from '@/test/server';
+import { server, signedInUser } from '@/test/server';
 
 /** How the API names a subject in the request's language (`subjectLabel`). */
 const labels: Record<string, { singular: string; plural: string }> = {
@@ -148,6 +155,34 @@ describe('the palette', () => {
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
+  it('keeps the listbox valid with nothing to show (axe "aria-required-children", "aria-valid-attr-value"): a disabled option stands in for the hint or a message', async () => {
+    signedInWith({});
+    searchApi([]);
+    await renderApp('/');
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: 'Search (Ctrl+K)' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    const rules = ['aria-required-children', 'aria-valid-attr-value'];
+    // Just opened: no recent searches, so the hint only, as a disabled option.
+    expect(within(dialog).getByRole('listbox')).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('option', { name: /Type to search/ }),
+    ).toHaveAttribute('aria-disabled', 'true');
+    expect(await axeViolations(rules, dialog)).toEqual([]);
+    // No hits: the message is a disabled option too, still no empty list.
+    await user.type(within(dialog).getByRole('combobox'), 'nothing');
+    const message = await within(dialog).findByText(/nothing/, {
+      selector: '[role="status"]',
+    });
+    expect(message.closest('[role="option"]')).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    expect(await axeViolations(rules, dialog)).toEqual([]);
+  });
+
   it('opens with the header button', async () => {
     signedInWith({});
     await renderApp('/');
@@ -219,13 +254,71 @@ describe('the palette', () => {
     await user.type(await screen.findByRole('combobox'), 'note');
     await user.click(await screen.findByText('Title 1'));
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(JSON.parse(localStorage.getItem('recent-searches')!)).toEqual([
-      'note',
-    ]);
+    // Under this session's identity (the user, the tenant, the impersonator).
+    expect(
+      JSON.parse(
+        localStorage.getItem(
+          `recent-searches:${sessionIdentity(signedInUser)}`,
+        )!,
+      ),
+    ).toEqual(['note']);
 
     await user.keyboard('{Control>}k{/Control}');
     expect(await screen.findByText('Recent searches')).toBeInTheDocument();
     expect(screen.getByText('note')).toBeInTheDocument();
+  });
+
+  it('forgets them on sign-out: the next account on this browser sees none', async () => {
+    signedInWith({});
+    searchApi([hit('1')]);
+    const { queryClient, router } = await renderApp('/');
+    const user = userEvent.setup();
+    await user.keyboard('{Control>}k{/Control}');
+    await user.type(await screen.findByRole('combobox'), 'note');
+    await user.click(await screen.findByText('Title 1'));
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    // A list kept before the lists were per session goes as well.
+    localStorage.setItem('recent-searches', JSON.stringify(['salaries']));
+
+    // Signed out (what the user menu's sign-out runs, lib/sign-out.ts)...
+    createSession(queryClient).clear();
+    expect(
+      Object.keys(localStorage).filter((name) =>
+        name.startsWith('recent-searches'),
+      ),
+    ).toEqual([]);
+
+    // ...and another account signs in on the same browser.
+    const grace: Me = {
+      ...signedInUser,
+      user: { ...signedInUser.user, id: 'grace', name: 'Grace Hopper' },
+      can: {},
+    };
+    server.use(http.get('/v1/auth/me', () => HttpResponse.json(grace)));
+    await createSession(queryClient).reset();
+    await router.navigate({ to: '/' });
+    await user.keyboard('{Control>}k{/Control}');
+    await screen.findByRole('combobox');
+    expect(screen.queryByText('Recent searches')).toBeNull();
+    expect(screen.queryByText('note')).toBeNull();
+  });
+
+  it('keeps one list per session: another tenant or account sees its own', () => {
+    const tenantA = sessionIdentity(signedInUser);
+    const tenantB = sessionIdentity({
+      ...signedInUser,
+      tenant: { ...signedInUser.tenant!, id: 'tenant-b' },
+    });
+    addRecent(tenantA, 'invoices');
+    addRecent(tenantB, 'payroll');
+    expect(readRecent(tenantA)).toEqual(['invoices']);
+    expect(readRecent(tenantB)).toEqual(['payroll']);
+    // Nobody signed in keeps and reads nothing.
+    expect(addRecent(null, 'salaries')).toEqual([]);
+    expect(readRecent(null)).toEqual([]);
+    clearAllRecent();
+    expect(readRecent(tenantA)).toEqual([]);
+    expect(readRecent(tenantB)).toEqual([]);
   });
 
   it('lists the commands the user may see after ">" and goes there', async () => {

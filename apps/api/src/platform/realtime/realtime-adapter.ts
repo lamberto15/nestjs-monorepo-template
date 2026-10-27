@@ -37,9 +37,17 @@ class RedisIoAdapter extends IoAdapter {
   }
 }
 
+/** The namespace of the Realtime gateway (`/realtime`). */
+export const REALTIME_NAMESPACE = 'realtime';
+
+/** The Redis channels' prefix, shared by the adapter and the emitter (realtime-emitter.ts). */
+export const realtimeChannelKey = (config: Config<CoreEnv>) =>
+  `${config.get('REDIS_PREFIX', { infer: true })}:socket.io`;
+
 /** Gateways (RealtimeGateway, yours) run on socket.io, fanned out through Redis. */
 export async function setupRealtime(app: INestApplication) {
   const config = app.get<Config<CoreEnv>>(ConfigService);
-  const key = `${config.get('REDIS_PREFIX', { infer: true })}:socket.io`;
-  app.useWebSocketAdapter(new RedisIoAdapter(app, app.get<Redis>(REDIS), key));
+  app.useWebSocketAdapter(
+    new RedisIoAdapter(app, app.get<Redis>(REDIS), realtimeChannelKey(config)),
+  );
 }

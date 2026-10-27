@@ -6,12 +6,56 @@ import { stateFile, type Role } from './accounts';
 export const asRole = (role: Role) => ({ storageState: stateFile(role) });
 
 /**
- * An axe scan of the page as it is: serious and critical violations fail the
- * test; every violation, minor ones included, is attached to the test, which
- * the report and the job summary (scripts/axe-summary.mjs) list.
+ * The best-practice rules that fail a scan whatever their impact: landmarks,
+ * the page heading and the way past the navigation (docs/development.md,
+ * "Browser accessibility tests"). Each passes on every page the suite scans;
+ * the other best-practice rules are only listed in the report. A scan limited
+ * to an open overlay (`scope`) leaves them out: they judge a whole page.
+ */
+export const LANDMARK_RULES = [
+  'landmark-one-main',
+  'landmark-no-duplicate-main',
+  'page-has-heading-one',
+  'region',
+  'skip-link',
+  'bypass',
+];
+
+export interface ScanOptions {
+  /** A CSS selector: scan only what is inside it (an open dialog or menu). */
+  scope?: string;
+}
+
+/**
+ * Waits until the finite animations (an opening dialog, a fading menu) have
+ * ended, so axe never measures a colour halfway through a transition. The
+ * endless ones (a spinner) are not waited for.
+ */
+async function settle(page: Page) {
+  await page.waitForFunction(() =>
+    document
+      .getAnimations()
+      .every(
+        (animation) =>
+          animation.effect?.getComputedTiming().iterations === Infinity ||
+          animation.playState !== 'running',
+      ),
+  );
+}
+
+/**
+ * An axe scan of the page as it is (WCAG 2.0 to 2.1 A and AA, and the
+ * best-practice rules): serious and critical violations fail the test, and so
+ * do the LANDMARK_RULES; every violation, minor ones included, is attached to
+ * the test, which the report and the job summary (scripts/axe-summary.mjs)
+ * list.
  */
 export const test = base.extend<{
-  expectAccessible: (page: Page, name: string) => Promise<void>;
+  expectAccessible: (
+    page: Page,
+    name: string,
+    options?: ScanOptions,
+  ) => Promise<void>;
 }>({
   // Every page of the test's context runs under production's policy (`vite
   // preview` sends caddy/Caddyfile's headers, apps/web/preview-headers.ts):
@@ -48,10 +92,18 @@ export const test = base.extend<{
   // destructuring: it must be a pattern, here an empty one.
   // oxlint-disable-next-line no-empty-pattern
   expectAccessible: async ({}, use, testInfo) => {
-    await use(async (page, name) => {
-      const results = await new AxeBuilder({ page })
-        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-        .analyze();
+    await use(async (page, name, options = {}) => {
+      await settle(page);
+      const builder = new AxeBuilder({ page }).withTags([
+        'wcag2a',
+        'wcag2aa',
+        'wcag21a',
+        'wcag21aa',
+        'best-practice',
+      ]);
+      const results = await (
+        options.scope ? builder.include(options.scope) : builder
+      ).analyze();
       const violations = results.violations.map((violation) => ({
         page: name,
         id: violation.id,
@@ -68,9 +120,11 @@ export const test = base.extend<{
       });
       const blocking = violations.filter(
         (violation) =>
-          violation.impact === 'serious' || violation.impact === 'critical',
+          violation.impact === 'serious' ||
+          violation.impact === 'critical' ||
+          (!options.scope && LANDMARK_RULES.includes(violation.id)),
       );
-      expect(blocking, `serious or critical violations on ${name}`).toEqual([]);
+      expect(blocking, `blocking violations on ${name}`).toEqual([]);
     });
   },
 });

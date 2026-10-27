@@ -53,5 +53,6 @@ color picker, `#rrggbb`; "Remove the color" sends `null`) and describes
 field); Delete asks first and says every record of the subject loses the tag.
 The tag routes take no ETag, so there is no `If-Match` and no 412: the last
 write wins. Tags are still created in a record's tag editor. A change refreshes
-the tag lists (`['tags', …]`) and the record lists and details (`['list', …]`,
-`['record', …]`), which embed tags by name.
+the tag lists (`['tags', …]`) and the record lists and details
+(`recordKeys.allLists`, `recordKeys.allDetails` in `lib/records.ts`), which embed
+tags by name.

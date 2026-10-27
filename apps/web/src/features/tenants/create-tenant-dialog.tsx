@@ -13,7 +13,12 @@ import { useTranslation } from 'react-i18next';
 import { errorMessage, applyFieldErrors } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { z } from '@/lib/zod';
-import { slugify, slugPattern, type CreateTenantBody } from './queries';
+import {
+  TENANT_LIMITS,
+  slugify,
+  slugPattern,
+  type CreateTenantBody,
+} from './queries';
 
 /**
  * Name, slug and the first administrator's address: the account there is
@@ -31,10 +36,17 @@ export function CreateTenantDialog(props: {
     defaultValues: { name: '', slug: '', administratorEmail: '' },
     validators: {
       onSubmit: z.object({
-        name: z.string().trim().min(1, t('create.nameRequired')).max(120),
+        name: z
+          .string()
+          .trim()
+          .min(1, t('create.nameRequired'))
+          .max(
+            TENANT_LIMITS.name,
+            t('create.nameTooLong', { max: TENANT_LIMITS.name }),
+          ),
         slug: z
           .string()
-          .max(48, t('create.slugInvalid'))
+          .max(TENANT_LIMITS.slug, t('create.slugInvalid'))
           .regex(slugPattern, t('create.slugInvalid')),
         administratorEmail: z.string().trim().email(t('create.emailInvalid')),
       }),

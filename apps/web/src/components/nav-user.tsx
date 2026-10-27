@@ -49,7 +49,7 @@ const themes = ['light', 'dark', 'system'] as const;
 
 /** The signed-in user: their account, the preferences, signing out. */
 export function NavUser() {
-  const { isMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
   const { t, i18n } = useTranslation();
   const { t: tn } = useTranslation('notifications');
   const { t: tw } = useTranslation('watching');
@@ -94,8 +94,13 @@ export function NavUser() {
             align="end"
             sideOffset={4}
           >
+            {/*
+              The user's identity labels the account group, with its items:
+              a group of its own would hold no menu item (axe
+              "aria-required-children": a menu's groups must own items).
+            */}
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="font-normal">
+              <DropdownMenuLabel className="mb-1 border-b pb-2 font-normal">
                 <div className="grid text-start text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
                   <span className="truncate text-xs text-muted-foreground">
@@ -105,7 +110,9 @@ export function NavUser() {
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuGroup>
+            {/* On a phone the menu is in the sidebar's sheet: a page of the
+                account closes it, as the menu entries do (nav-main.tsx). */}
+            <DropdownMenuGroup onClick={() => setOpenMobile(false)}>
               <DropdownMenuItem render={<Link to="/account/profile" />}>
                 <UserIcon />
                 {t('account.profile.title')}

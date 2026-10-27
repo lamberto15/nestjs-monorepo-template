@@ -10,6 +10,14 @@ import { api } from '@/lib/api';
  */
 export type Person = GetResponse<'/v1/people'>['items'][number];
 
+/**
+ * The roots of the people and team caches (searches, names, pictures): what
+ * changes who they are or what they are called invalidates the root, from
+ * wherever that happens.
+ */
+export const peopleKey = ['people'] as const;
+export const teamsKey = ['teams'] as const;
+
 /** The longest `q` the route takes (a longer one is a 400). */
 const MAX_TERM = 100;
 
@@ -25,7 +33,7 @@ export function personUserId(key: string): string {
 export function peopleQuery(term: string) {
   const q = term.trim().slice(0, MAX_TERM);
   return queryOptions({
-    queryKey: ['people', q],
+    queryKey: [...peopleKey, q],
     queryFn: async () =>
       (
         await unwrap(
@@ -132,7 +140,7 @@ const NAME_STALE_MS = 30 * 60_000;
 /** One person's name by key (null: nobody of this tenant has it). */
 export const personNameQuery = (key: string) =>
   queryOptions({
-    queryKey: ['people', 'name', key],
+    queryKey: [...peopleKey, 'name', key],
     queryFn: async () => (await askPerson(key))?.name ?? null,
     staleTime: NAME_STALE_MS,
     gcTime: 2 * NAME_STALE_MS,
@@ -143,7 +151,7 @@ export const personNameQuery = (key: string) =>
 /** One team's name by id (null: this tenant has no such team). */
 export const teamNameQuery = (id: string) =>
   queryOptions({
-    queryKey: ['teams', 'name', id],
+    queryKey: [...teamsKey, 'name', id],
     queryFn: () => askTeam(id),
     staleTime: NAME_STALE_MS,
     gcTime: 2 * NAME_STALE_MS,
@@ -205,7 +213,7 @@ export function useTeamNames(
 /** One person's picture address by key (null: none, or nobody of this tenant has the key). */
 export const personAvatarQuery = (key: string) =>
   queryOptions({
-    queryKey: ['people', 'avatar', key],
+    queryKey: [...peopleKey, 'avatar', key],
     queryFn: async () => (await askPerson(key))?.avatarUrl ?? null,
     // A picture changes more often than a name: the same window is long enough for a page, short for a session.
     staleTime: 5 * 60_000,

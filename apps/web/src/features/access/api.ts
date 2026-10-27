@@ -5,6 +5,9 @@ import {
 } from '@nestjs-monorepo-template/api-client';
 import { queryOptions, type QueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { refsKey } from '@/lib/list-refs';
+import { peopleKey, teamsKey } from '@/lib/people';
+import { meQuery } from '@/lib/session';
 
 /**
  * The access API (docs/permissions.md, docs/tenancy.md "Accounts and
@@ -114,6 +117,12 @@ export function teamMembersQuery(teamId: string) {
   });
 }
 
+/**
+ * A role's name and description mirror the API's `maxLength`;
+ * lib/limits.test.ts compares them with openapi.json.
+ */
+export const ROLE_LIMITS = { name: 80, description: 500 } as const;
+
 /** The request body of a role (create and replace). */
 export type RoleBody = JsonBody<paths['/v1/access/roles']['post']>;
 
@@ -144,6 +153,18 @@ export async function updateMember(id: string, body: MemberChanges) {
     body,
   });
 }
+
+/**
+ * An invitation's name mirrors the API's `maxLength`; lib/limits.test.ts
+ * compares it with openapi.json.
+ */
+export const INVITATION_LIMITS = { name: 120 } as const;
+
+/**
+ * A team's name mirrors the API's `maxLength`; lib/limits.test.ts compares
+ * it with openapi.json.
+ */
+export const TEAM_LIMITS = { name: 120 } as const;
 
 export type InvitationBody = JsonBody<paths['/v1/access/users']['post']>;
 
@@ -191,7 +212,16 @@ export async function deleteTeam(id: string) {
   await api.DELETE('/v1/access/teams/{id}', { params: { path: { id } } });
 }
 
-/** Everything the access pages show, after a change. */
+/**
+ * Everything the access pages show, after a change, and what other pages
+ * took from it: the team names and the filters' team and people options, the
+ * people directory (a deactivated member leaves it), and the signed-in user's
+ * own `can` (a role's permissions or a grant may be theirs).
+ */
 export function invalidateAccess(queryClient: QueryClient) {
-  return queryClient.invalidateQueries({ queryKey: accessKeys.all });
+  return Promise.all(
+    [accessKeys.all, teamsKey, refsKey, peopleKey, meQuery.queryKey].map(
+      (queryKey) => queryClient.invalidateQueries({ queryKey }),
+    ),
+  );
 }

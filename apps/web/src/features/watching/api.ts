@@ -8,6 +8,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { recordKeys } from '@/lib/records';
 
 /**
  * What the caller watches (docs/notifications.md, "Watching records"):
@@ -54,7 +55,7 @@ export function useStopWatching() {
     onSuccess: () => {
       // An open record page holds `watching: true`: read it again (the
       // subject's route is not known here, so every record read is stale).
-      void queryClient.invalidateQueries({ queryKey: ['record'] });
+      void queryClient.invalidateQueries({ queryKey: recordKeys.allDetails });
       toast.success(t('stopped'));
     },
     // Also after a failure (a 404: it was not watched after all): the list

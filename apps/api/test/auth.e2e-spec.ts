@@ -23,6 +23,20 @@ describe('authentication (e2e)', () => {
     await node.http().get('/health/live').expect(200);
   });
 
+  it("tells the build's commit to the signed in only", async () => {
+    // Anyone would learn which revision of the public template runs here.
+    await node.http().get('/health/version').expect(401);
+    const answer = await node.admin().get('/health/version').expect(200);
+    expect(answer.headers['cache-control']).toBe('no-store');
+    expect(answer.body).toEqual({ sha: process.env.GIT_SHA ?? '' });
+    const client = await node.client();
+    await node
+      .http()
+      .get('/health/version')
+      .set('Authorization', client.auth)
+      .expect(200);
+  });
+
   it('sends security headers and a request id on every response', async () => {
     const res = await node.http().get('/health');
     expect(res.headers['strict-transport-security']).toContain('max-age=');

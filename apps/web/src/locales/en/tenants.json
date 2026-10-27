@@ -29,6 +29,7 @@
     "name": "Name",
     "namePlaceholder": "Acme Ltd",
     "nameRequired": "Enter a name.",
+    "nameTooLong": "At most {{max}} characters.",
     "slug": "Slug",
     "slugHint": "A short handle: lowercase letters, digits and single dashes.",
     "slugInvalid": "Use lowercase letters and digits, with single dashes between (at most 48 characters).",

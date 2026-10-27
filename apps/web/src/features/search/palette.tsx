@@ -4,7 +4,6 @@ import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import {
   Command as CommandRoot,
   CommandDialog,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
@@ -21,7 +20,9 @@ import {
   type QuickCommand,
   type QuickCommandKind,
 } from './commands';
+import { useOnSessionChange } from '@/hooks/use-on-session-change';
 import { normalizeRedirect } from '@/lib/safe-redirect';
+import { meQuery, sessionIdentity } from '@/lib/session';
 
 export const DEBOUNCE_MS = 250;
 
@@ -82,7 +83,11 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
   const { t } = useTranslation('search');
   const router = useRouter();
   const [input, setInput] = useState('');
-  const [recent, setRecent] = useState(readRecent);
+  // The searches of this session only (recent.ts): read once on opening.
+  const identity = sessionIdentity(useQuery(meQuery).data);
+  const [recent, setRecent] = useState(() => readRecent(identity));
+  // What was typed and listed belongs to the session that opened it.
+  useOnSessionChange(props.onClose);
   const commandMode = input.startsWith('>');
   const q = useDebounced(input.trim(), props.debounceMs);
   const searching = !commandMode && q.length > 0;
@@ -131,13 +136,26 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
           onValueChange={setInput}
           placeholder={t('placeholder')}
         />
+        {/*
+          Always mounted: cmdk's combobox input names this list in
+          `aria-controls` whether or not it has real options, and a missing
+          target fails axe's "aria-valid-attr-value". A message (hint,
+          searching, no hits) is a disabled option of its own, which also
+          keeps the listbox's "aria-required-children" (an option or a
+          group) satisfied when there is nothing else to show.
+        */}
         <CommandList>
           {commandMode ? (
-            <>
-              {shownCommands.length === 0 && (
-                <CommandEmpty>{t('noCommands')}</CommandEmpty>
-              )}
-              {commandGroups.map((group) => (
+            shownCommands.length === 0 ? (
+              <CommandItem
+                disabled
+                value="no-commands"
+                className="py-6 text-center text-sm"
+              >
+                {t('noCommands')}
+              </CommandItem>
+            ) : (
+              commandGroups.map((group) => (
                 <QuickCommandGroup
                   key={group.kind}
                   heading={group.heading}
@@ -145,24 +163,36 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
                   commands={group.commands}
                   onSelect={go}
                 />
-              ))}
-            </>
+              ))
+            )
           ) : searching ? (
             <>
               {results.isPending && (
-                <div role="status" className="py-6 text-center text-sm">
-                  {t('searching')}
-                </div>
+                <CommandItem
+                  disabled
+                  value="searching"
+                  className="py-6 text-center text-sm"
+                >
+                  <span role="status">{t('searching')}</span>
+                </CommandItem>
               )}
               {results.isError && (
-                <div role="alert" className="py-6 text-center text-sm">
-                  {t('error')}
-                </div>
+                <CommandItem
+                  disabled
+                  value="error"
+                  className="py-6 text-center text-sm"
+                >
+                  <span role="alert">{t('error')}</span>
+                </CommandItem>
               )}
               {results.isSuccess && groups.length === 0 && (
-                <div role="status" className="py-6 text-center text-sm">
-                  {t('empty', { q })}
-                </div>
+                <CommandItem
+                  disabled
+                  value="empty"
+                  className="py-6 text-center text-sm"
+                >
+                  <span role="status">{t('empty', { q })}</span>
+                </CommandItem>
               )}
               {groups.map((group) => (
                 <CommandGroup key={group.subject} heading={group.label}>
@@ -172,7 +202,7 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
                       value={`${hit.subject}:${hit.id}`}
                       disabled={normalizeRedirect(hit.link) === undefined}
                       onSelect={() => {
-                        setRecent(addRecent(q));
+                        setRecent(addRecent(identity, q));
                         go(hit.link ?? undefined);
                       }}
                       className="flex-col items-start gap-0.5"
@@ -205,7 +235,7 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
                   <CommandItem
                     value="recent-clear"
                     onSelect={() => {
-                      clearRecent();
+                      clearRecent(identity);
                       setRecent([]);
                     }}
                   >
@@ -213,10 +243,16 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
                   </CommandItem>
                 </CommandGroup>
               )}
-              <div className="flex items-center gap-1 px-3 py-4 text-xs text-muted-foreground">
+              {/* Below the recent searches, or alone: cmdk's Enter runs the
+                  selected (non-disabled) option, so this never intercepts it. */}
+              <CommandItem
+                disabled
+                value="hint"
+                className="flex items-center gap-1 px-3 py-4 text-xs text-muted-foreground"
+              >
                 <CornerDownLeftIcon className="size-3" />
                 {t('hint')}
-              </div>
+              </CommandItem>
             </>
           )}
         </CommandList>
@@ -224,7 +260,6 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
     </CommandDialog>
   );
 }
-
 
 function QuickCommandGroup(props: {
   heading: string;

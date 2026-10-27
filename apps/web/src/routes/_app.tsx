@@ -9,6 +9,10 @@ import { Separator } from '@nestjs-monorepo-template/ui/components/separator';
 import { TooltipProvider } from '@nestjs-monorepo-template/ui/components/tooltip';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  MAIN_CONTENT_ID,
+  SkipToContent,
+} from '@/components/route-accessibility';
 import { AppSidebar } from '@/components/app-sidebar';
 import { BreachedPasswordBanner } from '@/components/breached-password-banner';
 import { OfflineBanner } from '@/components/offline-banner';
@@ -63,6 +67,21 @@ export const Route = createFileRoute('/_app')({
   component: AppLayout,
 });
 
+/**
+ * Whether the sidebar starts expanded: the choice it kept in its cookie
+ * (`SIDEBAR_COOKIE_NAME` in the generated sidebar, written when the user
+ * collapses or expands it). Next.js apps read it on the server; this app has
+ * none, so the browser does. Expanded when there is none or it can't be read.
+ */
+function savedSidebarOpen() {
+  try {
+    return !document.cookie.split('; ').includes('sidebar_state=false');
+  } catch {
+    // cookies refused (a sandboxed frame): no saved choice
+    return true;
+  }
+}
+
 function AppLayout() {
   useSavedLanguage();
   const mode = useModeWatch();
@@ -73,10 +92,13 @@ function AppLayout() {
   }
   return (
     <TooltipProvider>
+      {/* Before the menu: the keyboard's way straight to the page. */}
+      <SkipToContent />
       {/* The tenant's colour on the theme; read again after a tenant switch. */}
       <BrandTheme />
       <RealtimeProvider>
-        <SidebarProvider>
+        {/* Only its starting state: the provider keeps its own after that. */}
+        <SidebarProvider defaultOpen={savedSidebarOpen()}>
           <AppSidebar />
           <SidebarInset>
             <OfflineBanner />
@@ -96,9 +118,14 @@ function AppLayout() {
                 <NotificationsBell />
               </div>
             </header>
-            <main className="flex flex-1 flex-col gap-4 p-4">
+            {/* SidebarInset is the page's <main> already: one landmark. */}
+            <div
+              id={MAIN_CONTENT_ID}
+              tabIndex={-1}
+              className="flex flex-1 flex-col gap-4 p-4 outline-none"
+            >
               <Outlet />
-            </main>
+            </div>
           </SidebarInset>
         </SidebarProvider>
       </RealtimeProvider>

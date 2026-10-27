@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
+import { expectOverLimitRefused } from '@/test/limits';
 import { renderApp } from '@/test/render-app';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
 import { findToast } from '@/test/toast';
@@ -164,6 +165,23 @@ describe('incoming webhook senders', () => {
     expect(
       await within(form).findByText(/Use lower-case letters/),
     ).toBeVisible();
+    expect(state.created).toBeUndefined();
+  });
+
+  it('refuses a description over 500 characters before asking the API', async () => {
+    const state = api();
+    const user = userEvent.setup();
+    await renderApp('/webhooks/senders');
+    await screen.findByText('billing-system');
+    await user.click(screen.getByRole('button', { name: 'New sender' }));
+    const form = await screen.findByRole('dialog', { name: 'New sender' });
+    await user.type(within(form).getByLabelText('Name'), 'crm');
+    await expectOverLimitRefused(user, {
+      scope: form,
+      label: 'Description (optional)',
+      max: 500,
+      submit: 'Create sender',
+    });
     expect(state.created).toBeUndefined();
   });
 

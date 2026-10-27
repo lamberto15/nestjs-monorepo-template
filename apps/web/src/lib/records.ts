@@ -3,6 +3,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { useMe } from '@/lib/features';
 
+const listRoot = ['list'] as const;
+const recordRoot = ['record'] as const;
+
 /**
  * What every feature's record pages share (the pattern docs/monorepo.md,
  * "Record pages", describes): the query keys, so a write invalidates the lists
@@ -11,12 +14,25 @@ import { useMe } from '@/lib/features';
  * `path` is the feature's list route (`/v1/<plural>`), as in ListPage.
  */
 export const recordKeys = {
-  /** Every page of the feature's list (ListPage's key is `['list', path, params]`). */
-  lists: (path: string) => ['list', path] as const,
+  /** Every list of every feature: the prefix of `list`'s key, for what reaches records of any feature. */
+  allLists: listRoot,
+  /** Every record of every feature: the prefix of `detail`'s key. */
+  allDetails: recordRoot,
+  /** One page of the feature's list: ListPage's key (`pathParams` for a nested route). */
+  list: (
+    path: string,
+    params: unknown,
+    pathParams?: Readonly<Record<string, string>>,
+  ) =>
+    pathParams
+      ? ([...listRoot, path, params, pathParams] as const)
+      : ([...listRoot, path, params] as const),
+  /** Every page of the feature's list. */
+  lists: (path: string) => [...listRoot, path] as const,
   /** One record, with its ETag. */
-  detail: (path: string, id: string) => ['record', path, id] as const,
+  detail: (path: string, id: string) => [...recordRoot, path, id] as const,
   /** Every record of the feature. */
-  details: (path: string) => ['record', path] as const,
+  details: (path: string) => [...recordRoot, path] as const,
 };
 
 /** 412 `precondition_failed`: the record changed since its ETag was read. */

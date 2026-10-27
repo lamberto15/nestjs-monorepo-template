@@ -11,7 +11,7 @@ import {
 import { peopleHandler, teamsHandler } from '@/test/people';
 import { renderComponent } from '@/test/render-component';
 import { renderApp } from '@/test/render-app';
-import { server, signedInUser } from '@/test/server';
+import { allFeatures, server, signedInUser } from '@/test/server';
 import { findToast } from '@/test/toast';
 import {
   fromDraft,
@@ -58,6 +58,10 @@ const BILLING = clientPrincipal({
   id: '0199a3f2-0000-7000-8000-000000000102',
   name: 'Billing sync',
 });
+
+// The hint under the scope's picker.
+const SCOPE_HINT =
+  'A user or an API client: type a part of a name or an address.';
 
 const items = [
   setting({
@@ -270,6 +274,59 @@ async function open(name: string) {
   return { user, dialog: await screen.findByRole('dialog') };
 }
 
+describe('a value input is described', () => {
+  // A setting's bounds and the reason a draft is refused are the input's
+  // accessible description (aria-describedby), as for lib/form.tsx's fields.
+  const pageSize = setting({
+    key: 'ui.pageSize',
+    label: 'Page size',
+    type: 'number',
+    integer: true,
+    min: 5,
+    max: 50,
+    value: 10,
+    default: 10,
+    scopes: ['tenant', 'user'],
+    canSetMine: true,
+  });
+
+  it('by its bounds, then by why a preference is refused', async () => {
+    api(signedInUser, [pageSize]);
+    const user = userEvent.setup();
+    await renderApp('/account/preferences');
+    const input = await screen.findByRole('spinbutton', { name: 'Page size' });
+    expect(input).toHaveAccessibleDescription('From 5 to 50.');
+    await user.clear(input);
+    await user.type(input, '99');
+    expect(input).toBeInvalid();
+    expect(input).toHaveAccessibleDescription('Enter 50 or less.');
+  });
+
+  it('by the bounds an operator sets for all tenants', async () => {
+    api(admin, [{ ...pageSize, canEditPlatform: true }]);
+    const user = userEvent.setup();
+    await renderApp('/settings');
+    await user.click(
+      await screen.findByRole('button', { name: 'Edit Page size' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    const platform = within(
+      within(dialog).getByRole('region', { name: 'All tenants' }),
+    );
+    expect(
+      platform.getByRole('spinbutton', { name: /Value/ }),
+    ).toHaveAccessibleDescription('From 5 to 50.');
+  });
+
+  it('by its length limit', async () => {
+    api(admin);
+    const delay = await open('Publication delay');
+    expect(
+      within(delay.dialog).getByLabelText('Value'),
+    ).toHaveAccessibleDescription('At most 10 characters.');
+  });
+});
+
 describe('admin settings', () => {
   it('groups by prefix, searches, and offers editing only where canEdit', async () => {
     api(admin);
@@ -313,6 +370,7 @@ describe('admin settings', () => {
     expect(input).toHaveAttribute('max', '64');
     expect(input).toHaveAttribute('step', '1');
     expect(within(dialog).getByText('From 12 to 64.')).toBeVisible();
+    expect(input).toHaveAccessibleDescription('From 12 to 64.');
     await user.clear(input);
     await user.type(input, '8');
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
@@ -400,6 +458,7 @@ describe('admin settings', () => {
     const picker = await within(dialog).findByRole('combobox', {
       name: 'User',
     });
+    expect(picker).toHaveAccessibleDescription(SCOPE_HINT);
     await user.click(picker);
     expect(
       await screen.findByRole('option', { name: /Grace Hopper/ }),
@@ -507,6 +566,7 @@ describe('admin settings', () => {
     const picker = await within(dialog).findByRole('combobox', {
       name: 'User',
     });
+    expect(picker).toHaveAccessibleDescription(SCOPE_HINT);
     await user.click(picker);
     // Dice UI takes the text a frame later: typed at once, not key by key.
     fireEvent.change(picker, { target: { value: 'bill' } });
@@ -684,17 +744,33 @@ describe('platform values', () => {
       }),
     );
     const { user, dialog } = await open('Deployment mode');
-    const platform = within(dialog).getByRole('region', { name: 'All tenants' });
+    const platform = within(dialog).getByRole('region', {
+      name: 'All tenants',
+    });
     await user.click(within(platform).getByRole('combobox', { name: /Value/ }));
-    await user.click(await screen.findByRole('option', { name: 'maintenance' }));
-    await user.click(within(platform).getByRole('button', { name: 'Save for all tenants' }));
+    await user.click(
+      await screen.findByRole('option', { name: 'maintenance' }),
+    );
+    await user.click(
+      within(platform).getByRole('button', { name: 'Save for all tenants' }),
+    );
     const confirmation = await screen.findByRole('alertdialog');
-    expect(within(confirmation).getByText(/every tenant, including your session/)).toBeVisible();
+    expect(
+      within(confirmation).getByText(/every tenant, including your session/),
+    ).toBeVisible();
     expect(saves).toBe(0);
-    await user.click(within(confirmation).getByRole('button', { name: 'Cancel' }));
+    await user.click(
+      within(confirmation).getByRole('button', { name: 'Cancel' }),
+    );
     expect(saves).toBe(0);
-    await user.click(within(platform).getByRole('button', { name: 'Save for all tenants' }));
-    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Apply to all tenants' }));
+    await user.click(
+      within(platform).getByRole('button', { name: 'Save for all tenants' }),
+    );
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Apply to all tenants',
+      }),
+    );
     await waitFor(() => expect(saves).toBe(1));
   });
 
@@ -718,15 +794,151 @@ describe('platform values', () => {
       }),
     );
     const { user, dialog } = await open('Deployment mode');
-    const platform = within(dialog).getByRole('region', { name: 'All tenants' });
+    const platform = within(dialog).getByRole('region', {
+      name: 'All tenants',
+    });
     await user.click(within(platform).getByRole('combobox', { name: /Value/ }));
     await user.click(await screen.findByRole('option', { name: 'read-only' }));
-    await user.click(within(platform).getByRole('button', { name: 'Save for all tenants' }));
+    await user.click(
+      within(platform).getByRole('button', { name: 'Save for all tenants' }),
+    );
     expect(writes).toHaveLength(0);
     const confirmation = await screen.findByRole('alertdialog');
-    expect(within(confirmation).getByText(/blocks writes in every tenant/)).toBeVisible();
-    await user.click(within(confirmation).getByRole('button', { name: 'Apply to all tenants' }));
-    await waitFor(() => expect(writes).toEqual([{ value: 'read-only', enforced: false }]));
+    expect(
+      within(confirmation).getByText(/blocks writes in every tenant/),
+    ).toBeVisible();
+    await user.click(
+      within(confirmation).getByRole('button', {
+        name: 'Apply to all tenants',
+      }),
+    );
+    await waitFor(() =>
+      expect(writes).toEqual([{ value: 'read-only', enforced: false }]),
+    );
+  });
+
+  describe('the deployment mode', () => {
+    const mode = (extra: object = {}) =>
+      setting({
+        key: 'platform.mode',
+        label: 'Deployment mode',
+        type: 'enum',
+        options: ['normal', 'read-only', 'maintenance'],
+        value: 'normal',
+        default: 'normal',
+        canEditPlatform: true,
+        ...extra,
+      });
+    // Only GET /v1/features serves the mode: the tab that changed it must
+    // read it again, or it keeps writes enabled (or the banner) until an
+    // input at least a minute after the last answer.
+    const countFeatureReads = () => {
+      const reads = { count: 0 };
+      server.use(
+        http.get('/v1/features', () => {
+          reads.count += 1;
+          return HttpResponse.json(allFeatures);
+        }),
+        http.put('/v1/settings/:key/platform', () => HttpResponse.json({})),
+        http.delete(
+          '/v1/settings/:key/platform',
+          () => new HttpResponse(null, { status: 204 }),
+        ),
+      );
+      return reads;
+    };
+
+    // The mode set for all tenants to read-only, to change or to remove.
+    const readOnly = () =>
+      mode({
+        value: 'read-only',
+        source: 'platform',
+        platform: {
+          value: 'read-only',
+          enforced: false,
+          rollout: null,
+          rules: [],
+        },
+      });
+    // Serves `item`, counts the reads of the mode and opens the dialog on its
+    // "All tenants" section. `pick` chooses a value, `save` is the button,
+    // `confirm` answers the alert dialog by the button's name.
+    const openAllTenants = async (label: string, item: object) => {
+      api(admin, [item]);
+      const reads = countFeatureReads();
+      const { user, dialog } = await open(label);
+      const platform = within(
+        within(dialog).getByRole('region', { name: 'All tenants' }),
+      );
+      return {
+        reads,
+        user,
+        platform,
+        pick: async (option: string) => {
+          await user.click(platform.getByRole('combobox', { name: /Value/ }));
+          await user.click(await screen.findByRole('option', { name: option }));
+        },
+        save: () =>
+          user.click(
+            platform.getByRole('button', { name: 'Save for all tenants' }),
+          ),
+        confirm: async (name: string) =>
+          user.click(
+            within(await screen.findByRole('alertdialog')).getByRole('button', {
+              name,
+            }),
+          ),
+      };
+    };
+
+    it('is read again after a confirmed change', async () => {
+      const { reads, pick, save, confirm } = await openAllTenants(
+        'Deployment mode',
+        mode(),
+      );
+      await pick('read-only');
+      await save();
+      const before = reads.count;
+      await confirm('Apply to all tenants');
+      await findToast('Saved for all tenants.');
+      expect(reads.count).toBeGreaterThan(before);
+    });
+
+    it('is read again after a change that needs no confirmation', async () => {
+      const { reads, pick, save } = await openAllTenants(
+        'Deployment mode',
+        readOnly(),
+      );
+      await pick('normal');
+      const before = reads.count;
+      await save();
+      await findToast('Saved for all tenants.');
+      expect(reads.count).toBeGreaterThan(before);
+    });
+
+    it('is read again after the value is removed', async () => {
+      const { reads, user, platform, confirm } = await openAllTenants(
+        'Deployment mode',
+        readOnly(),
+      );
+      await user.click(platform.getByRole('button', { name: 'Remove' }));
+      const before = reads.count;
+      await confirm('Remove');
+      await findToast('Removed for all tenants.');
+      expect(reads.count).toBeGreaterThan(before);
+    });
+
+    it('is not asked for by any other platform setting', async () => {
+      const { reads, user, platform, save } = await openAllTenants(
+        'Platform flag',
+        platformFlag({ canEditPlatform: true }),
+      );
+      await user.click(platform.getByRole('switch', { name: /Value/ }));
+      const before = reads.count;
+      await save();
+      await findToast('Saved for all tenants.');
+      expect(reads.count).toBe(before);
+    });
   });
 
   it('lets an operator roll a flag out to a share of principals', async () => {

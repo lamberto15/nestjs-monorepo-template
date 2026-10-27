@@ -16,6 +16,7 @@ import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFeature } from '@/lib/features';
 import { errorMessage } from '@/lib/errors';
+import { useDescribedBy } from '@/lib/form';
 import { convertQuery, ratesQuery } from './api';
 import { currencyName, formatAmount, formatRate } from './format';
 
@@ -46,6 +47,8 @@ export function CurrencyConverter(props: {
   const [to, setTo] = useState(props.defaultTo ?? 'USD');
   const rates = useQuery({ ...ratesQuery(), enabled });
   const valid = AMOUNT.test(amount.trim());
+  // What is wrong with the amount describes its input (as lib/form.tsx's fields).
+  const amountInput = useDescribedBy(false, !valid);
   const conversion = useQuery({
     ...convertQuery({ amount: amount.trim(), from, to }),
     enabled: enabled && valid && Boolean(from) && Boolean(to),
@@ -87,18 +90,22 @@ export function CurrencyConverter(props: {
     <section aria-label={t('converter.title')} className="flex flex-col gap-3">
       <div className="flex flex-wrap items-start gap-3">
         <Field className="w-40">
-          <FieldLabel htmlFor={`${id}-amount`}>
+          <FieldLabel htmlFor={amountInput.controlId}>
             {t('converter.amount')}
           </FieldLabel>
           <Input
-            id={`${id}-amount`}
+            id={amountInput.controlId}
             inputMode="decimal"
             value={amount}
             aria-invalid={!valid}
+            aria-describedby={amountInput.describedBy}
             onChange={(event) => setAmount(event.target.value)}
           />
           {!valid && (
-            <FieldDescription className="text-destructive">
+            <FieldDescription
+              id={amountInput.errorId}
+              className="text-destructive"
+            >
               {t('converter.badAmount')}
             </FieldDescription>
           )}

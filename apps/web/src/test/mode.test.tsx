@@ -169,6 +169,66 @@ describe('the mode, kept fresh', () => {
   });
 });
 
+describe('the rest of the layout, without realtime', () => {
+  afterEach(() => vi.useRealTimers());
+
+  const input = () =>
+    act(async () => {
+      window.dispatchEvent(new Event('pointerdown'));
+    });
+
+  /** The page, with the approvals count and the breached-password alert asked once. */
+  async function open(asked: { approvals: number; notifications: number }) {
+    await renderApp('/account/profile');
+    await screen.findByRole('button', { name: 'Save' });
+    // Not Testing Library's waitFor: it polls on setInterval, which a test
+    // may have faked.
+    await vi.waitFor(() => {
+      expect(asked.approvals).toBeGreaterThan(0);
+      expect(asked.notifications).toBeGreaterThan(0);
+    });
+    return { approvals: asked.approvals, notifications: asked.notifications };
+  }
+
+  it('asks for the approvals count and the alerts on no timer: an unattended tab must time out', async () => {
+    // Both are authenticated requests, so activity to the API (docs/auth.md,
+    // "Session lifetime"): polled, they would keep an idle session alive.
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const { asked } = useDeployment('normal');
+    const before = await open(asked);
+
+    await act(async () => {
+      vi.advanceTimersByTime(60 * MODE_POLL.normal);
+    });
+    expect(asked.approvals).toBe(before.approvals);
+    expect(asked.notifications).toBe(before.notifications);
+  });
+
+  it('asks for them again when the user does something, at most once a minute', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const { asked } = useDeployment('normal');
+    const before = await open(asked);
+
+    // Just asked: the input costs no request.
+    await input();
+    expect(asked.approvals).toBe(before.approvals);
+    expect(asked.notifications).toBe(before.notifications);
+
+    await act(async () => {
+      vi.advanceTimersByTime(MODE_POLL.normal);
+    });
+    await input();
+    await waitFor(() => {
+      expect(asked.approvals).toBe(before.approvals + 1);
+      expect(asked.notifications).toBe(before.notifications + 1);
+    });
+    // Once for the burst of input, not once per event.
+    await input();
+    expect(asked.approvals).toBe(before.approvals + 1);
+    expect(asked.notifications).toBe(before.notifications + 1);
+  });
+});
+
 describe('a deployment in maintenance', () => {
   it('shows one notice instead of the app, which asks for nothing', async () => {
     const { asked } = useDeployment('maintenance');

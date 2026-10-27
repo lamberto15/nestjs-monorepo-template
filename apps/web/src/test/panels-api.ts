@@ -199,6 +199,8 @@ export function panelHandlers(
     described: 0,
     /** How often the attachments were listed. */
     attachmentListings: 0,
+    /** How often the comments were listed. */
+    commentListings: 0,
     /** The scan of a pending file ends clean (the next listing shows it). */
     scanClean(id: string) {
       attachments.find((a) => a.id === id)!.scanStatus = 'clean';
@@ -290,7 +292,10 @@ export function panelHandlers(
         { status: 201 },
       );
     }),
-    http.get(`${route}/comments`, () => page(comments)),
+    http.get(`${route}/comments`, () => {
+      calls.commentListings += 1;
+      return page(comments);
+    }),
     http.post(`${route}/comments`, async ({ params, request }) => {
       const body = (await request.json()) as { body: string };
       calls.commented.push({ id: params.id as string, body });

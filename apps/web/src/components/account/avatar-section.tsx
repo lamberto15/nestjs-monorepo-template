@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { UserAvatar } from '@/components/user-avatar';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
+import { peopleKey } from '@/lib/people';
 import { meQuery, type Me } from '@/lib/session';
 import { postMultipart } from '@/lib/upload';
 import { unwrap } from '@nestjs-monorepo-template/api-client';
@@ -34,7 +35,7 @@ export function AvatarSection({ me }: { me: Me }) {
   const refresh = () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: meQuery.queryKey }),
-      queryClient.invalidateQueries({ queryKey: ['people'] }),
+      queryClient.invalidateQueries({ queryKey: peopleKey }),
     ]);
   const remove = useMutation({
     mutationFn: () => unwrap(api.DELETE('/v1/account/avatar')),
@@ -43,6 +44,9 @@ export function AvatarSection({ me }: { me: Me }) {
       toast.success(t('account.avatar.removed'));
     },
   });
+  const avatarLabel = user.avatarUrl
+    ? t('account.avatar.change')
+    : t('account.avatar.choose');
   return (
     <div className="flex items-center gap-4">
       <UserAvatar
@@ -53,7 +57,16 @@ export function AvatarSection({ me }: { me: Me }) {
       />
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap gap-2">
+          {/*
+            axe "label-title-only": the upload's hidden input is named only by
+            its clipped, screen-reader-only label, which axe does not count as
+            visible. FileUpload's root takes `render`: as a <label> it is the
+            input's visible label (with the button's text), and `label` names it.
+          */}
           <FileUpload
+            // oxlint-disable-next-line jsx-a11y/label-has-associated-control -- FileUpload fills it with the input and the trigger's text
+            render={<label />} // NOSONAR S6853: FileUpload fills it with the input and the trigger's text
+            label={t('account.avatar.title')}
             accept={TYPES.join(',')}
             maxFiles={1}
             disabled={impersonating || busy}
@@ -92,9 +105,7 @@ export function AvatarSection({ me }: { me: Me }) {
             <FileUploadTrigger
               render={<Button variant="outline" size="sm" type="button" />}
             >
-              {user.avatarUrl
-                ? t('account.avatar.change')
-                : t('account.avatar.choose')}
+              {avatarLabel}
             </FileUploadTrigger>
           </FileUpload>
           {user.avatarUrl && (

@@ -1,11 +1,15 @@
 {
   "app": {
     "name": "App",
-    "staleDraft": "撰写期间会话已变更（在另一个标签页或窗口中）。尚未发送任何内容——请检查您所写的内容，然后在新会话下重新提交。"
+    "staleDraft": "撰写期间会话已变更（在另一个标签页或窗口中）。尚未发送任何内容——请检查您所写的内容，然后在新会话下重新提交。",
+    "unsavedChanges": "您有未保存的更改。要离开此页面并放弃这些更改吗？"
   },
   "nav": {
     "platform": "平台",
-    "dashboard": "仪表盘"
+    "dashboard": "仪表盘",
+    "skipToContent": "跳到内容",
+    "sidebar": "侧边栏",
+    "menu": "主菜单"
   },
   "auth": {
     "signIn": {
@@ -46,6 +50,7 @@
       "passwordRequired": "请输入您的密码。",
       "passwordHint": "至少 12 个字符。在数据泄露中出现过的密码会被拒绝。",
       "passwordTooShort": "至少 {{min}} 个字符。",
+      "tooLong": "最多 {{max}} 个字符。",
       "passwordMismatch": "两次输入的密码不一致。",
       "newPassword": "新密码",
       "confirmPassword": "确认密码",
@@ -288,10 +293,16 @@
     "description": "您要查找的页面不存在。",
     "back": "返回仪表盘"
   },
+  "errors": {
+    "unexpected": "出了点问题。",
+    "reportId": "报告编号：{{id}}",
+    "requestId": "请求编号：{{id}}"
+  },
   "routeError": {
     "title": "出错了",
     "description": "此页面加载失败，应用的其余部分仍可使用。",
     "reportId": "报告编号：{{id}}",
+    "build": "构建：{{sha}}",
     "retry": "重试"
   },
   "preferences": {
@@ -324,7 +335,9 @@
     "fields": {
       "tag": "标签",
       "ownerId": "所有者",
-      "teamId": "团队"
+      "teamId": "团队",
+      "actor": "操作者",
+      "user": "用户"
     },
     "refs": {
       "searching": "正在搜索…",

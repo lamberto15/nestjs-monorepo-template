@@ -27,6 +27,7 @@ import { AuditService } from '../../audit/audit.service.js';
 import type { ClientPrincipal } from '../../auth/principal.js';
 import { UserLifecycleRegistry } from '../../auth/user-lifecycle.registry.js';
 import {
+  type EndedCredentials,
   normalizeEmail,
   UsersRepository,
 } from '../../auth/users.repository.js';
@@ -176,6 +177,7 @@ export class ScimUsersService {
     const tenantId = this.tenancy.tenantId();
     const email = await this.verifiedEmailOf(input);
     let deactivated = false;
+    let ended: EndedCredentials | null = null;
     const userId = await this.unique(() =>
       inTransaction(this.txHost, async (tx) => {
         if (input.externalId) {
@@ -241,7 +243,7 @@ export class ScimUsersService {
           await this.setActive(tx, actor, tenantId, account.id, active);
           deactivated = !active;
         }
-        await this.settleAccount(tx, actor, account.id, active, ip);
+        ended = await this.settleAccount(tx, actor, account.id, active, ip);
         await this.audit.record(
           actor,
           {
@@ -262,7 +264,7 @@ export class ScimUsersService {
         return account.id;
       }),
     );
-    await this.afterChange(userId, tenantId, deactivated);
+    await this.afterChange(userId, tenantId, deactivated, ended);
     return this.get(userId);
   }
 
@@ -275,6 +277,7 @@ export class ScimUsersService {
   ) {
     const tenantId = this.tenancy.tenantId();
     let deactivated = false;
+    let ended: EndedCredentials | null = null;
     await this.unique(() =>
       inTransaction(this.txHost, async (tx) => {
         // The account's lock first, as a creation takes it: never the
@@ -297,7 +300,7 @@ export class ScimUsersService {
         if (active !== before.active) {
           await this.setActive(tx, actor, tenantId, id, active);
           deactivated = !active;
-          await this.settleAccount(tx, actor, id, active, ip);
+          ended = await this.settleAccount(tx, actor, id, active, ip);
         }
         await this.audit.record(
           actor,
@@ -323,7 +326,7 @@ export class ScimUsersService {
         );
       }),
     );
-    await this.afterChange(id, tenantId, deactivated);
+    await this.afterChange(id, tenantId, deactivated, ended);
     return this.get(id);
   }
 
@@ -376,6 +379,7 @@ export class ScimUsersService {
   async remove(actor: ClientPrincipal, id: string, ip?: string) {
     const tenantId = this.tenancy.tenantId();
     let deactivated = false;
+    let ended: EndedCredentials | null = null;
     await inTransaction(this.txHost, async (tx) => {
       await this.users.lockAccount(tx, id);
       await this.users.lockMembership(tx, tenantId, id);
@@ -384,7 +388,7 @@ export class ScimUsersService {
         await this.setActive(tx, actor, tenantId, id, false);
         deactivated = true;
       }
-      await this.settleAccount(tx, actor, id, false, ip);
+      ended = await this.settleAccount(tx, actor, id, false, ip);
       await tx.delete(scimUsers).where(eq(scimUsers.userId, id));
       await this.audit.record(
         actor,
@@ -398,7 +402,7 @@ export class ScimUsersService {
         tx,
       );
     });
-    await this.afterChange(id, tenantId, deactivated);
+    await this.afterChange(id, tenantId, deactivated, ended);
   }
 
   /** Those of `ids` the SCIM client provisioned: a group's members can only be these. */
@@ -447,7 +451,8 @@ export class ScimUsersService {
    * "SCIM provisioning"): deactivated, never deleted, when deprovisioning
    * leaves it no active membership in any tenant (every session and token
    * family ends); reactivated, the same account with its data, when one is
-   * active again. Audited in the change's transaction.
+   * active again. Audited in the change's transaction. What a deactivation
+   * ended, for afterChange() once the transaction committed.
    */
   private async settleAccount(
     tx: Transaction,
@@ -455,10 +460,13 @@ export class ScimUsersService {
     userId: string,
     active: boolean,
     ip?: string,
-  ) {
+  ): Promise<EndedCredentials | null> {
+    const ended = active
+      ? null
+      : await this.users.deactivateIfNoMembership(tx, userId);
     const changed = active
       ? await this.users.reactivateDeprovisioned(tx, userId)
-      : await this.users.deactivateIfNoMembership(tx, userId);
+      : ended !== null;
     if (changed) {
       await this.audit.record(
         actor,
@@ -474,14 +482,21 @@ export class ScimUsersService {
         tx,
       );
     }
+    return ended;
   }
 
-  /** After the commit: a deactivation's sessions and tokens in this tenant end. */
+  /**
+   * After the commit: a deactivation's sessions and tokens in this tenant
+   * end, and those of an account it deactivated (`ended`) have their
+   * sockets ended (a socket in no tenant is in no tenant's room).
+   */
   private async afterChange(
     userId: string,
     tenantId: string,
     deactivated: boolean,
+    ended: EndedCredentials | null = null,
   ) {
+    await this.users.afterCredentialsEnded(ended);
     if (deactivated) {
       await this.users.endTenantSessions(userId, tenantId);
       for (const listener of this.lifecycle.all()) {

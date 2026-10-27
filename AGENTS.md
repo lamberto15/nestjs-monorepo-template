@@ -5,16 +5,46 @@ A pnpm + Turborepo monorepo: the API in `apps/api`, the typed client in
 `packages/api-client`, the web app in `apps/web` (components in
 `packages/ui`). Commands run from the root; `pnpm dev` runs the API and the
 web app (<http://localhost:5173>).
-Details live in `docs/`: read the file a task needs, not all of them.
 
-## Shared agent instructions
+<!--
+Maintainers: this file is the source of truth for every coding agent.
+CLAUDE.md imports it and holds only Claude-specific settings; agents that
+don't discover AGENTS.md must be configured to read it (CONTRIBUTING.md).
+Folder rules live in apps/api/AGENTS.md and apps/web/AGENTS.md, each with a
+CLAUDE.md that imports it, so they load only when an agent works there.
+Keep this file short: every line here is paid for in every session.
+Test counts are not kept here: every pull request changed them.
+-->
 
-This file is the source of truth for all coding agents working in this repository.
-Keep shared rules here; `CLAUDE.md` imports this file and holds only Claude-specific
-settings. Agents that do not discover `AGENTS.md` automatically must be configured
-to read it. Tool-specific hooks and skills under `.claude/` are Claude integrations;
-other agents must follow the same rules using their own tools and the documented
-CLI commands.
+**Before changing code in a folder, read its rules:** `apps/api` (and its
+migrations): [apps/api/AGENTS.md](apps/api/AGENTS.md); `apps/web` and
+`packages/ui`: [apps/web/AGENTS.md](apps/web/AGENTS.md).
+
+## How to work
+
+- **Follow the code that's there.** Find the closest existing example (a
+  feature, a test, a component) and match its shape. Look up a library's
+  docs only for an API this repo doesn't use yet, or when unsure; then use
+  the documented way rather than rebuilding what the library offers.
+  Sources: Context7 (`resolve-library-id`, then `query-docs`) when available,
+  else the official docs; for NestJS, docs.nestjs.com and the installed
+  `@nestjs/*` packages. Custom code only when nothing fits, with a comment
+  saying why.
+- **Smallest change that does the task.** No new layer, base class,
+  interface, generic helper, option or flag until a second real caller needs
+  it; a few similar lines beat a premature abstraction. Leave code the task
+  doesn't touch as it is; file an issue for what you notice there.
+- **NestJS layering, nothing more:** a controller does HTTP only, a service
+  owns the logic and its queries, a module wires them
+  ([apps/api/AGENTS.md](apps/api/AGENTS.md), "Layers").
+- **Tests prove the change, nothing else.** Add or update tests for the
+  behavior you changed, in the existing test file for it; a fix gets one test
+  that fails without it. No tests for code you didn't touch, for the
+  framework or for generated code, and no "just in case" suites.
+- **Spend tokens like money.** Search before reading; read the section you
+  need, not the whole file; open only the doc the task needs (Map below).
+  Don't run the full suite locally: CI runs it. Keep replies, commit messages
+  and PR descriptions short.
 
 ## Owner's rules (always apply)
 
@@ -24,12 +54,10 @@ CLI commands.
   the PR squash-merged with its branch deleted. Never rebase or force-push:
   update a branch with `git merge origin/main`. See docs/development.md, "Git workflow".
 - **Open a draft PR early and use CI for validation.** Push the first
-  reviewable implementation commit and open its draft PR while work is still
-  ongoing. Push incremental commits so CI runs during implementation. Do not
-  run the full build/test suite locally before pushing and then repeat it in
-  CI; use focused local checks only when needed to investigate a CI failure
-  or when the owner explicitly requests them. Keep the PR draft until ready
-  for review, and require green CI before merging.
+  reviewable commit and open its draft PR while work continues; push
+  incremental commits so CI runs during implementation. Run focused local
+  checks only to investigate a CI failure or when the owner asks. Keep the PR
+  draft until ready for review; merge only on green CI.
 - **Verify every PR check before reporting success.** Inspect the complete
   check-run list and review comments, including external quality gates such
   as SonarQube Cloud; passing GitHub Actions workflows alone is not enough.
@@ -40,40 +68,18 @@ CLI commands.
   `gh label list` and add a missing label with `gh label create`. To work an
   issue, skip it if it's already `in progress`; otherwise claim it first:
   `gh issue edit <n> --add-assignee @me --add-label "in progress"`, and comment
-  the branch (sessions share one account). Open the PR early as a draft, and
-  put `Closes #<n>` in its description. Found a problem on the other side
-  while focused on one? File it as an issue with that side's label rather
-  than fixing it there. See docs/development.md, "Issues and labels".
-- **Docs first, every time: backend, frontend, CI, infra.** Before starting
-  anything, even adding one component, a dependency or a CI step, look up the
-  tool's documented way. Use Context7 (`resolve-library-id`, then `query-docs`) when available,
-  then the official docs; use the official docs directly if Context7 is unavailable.
-  For NestJS that is docs.nestjs.com, or the markdown in
-  github.com/nestjs/docs.nestjs.com, plus the installed `@nestjs/*` packages.
-  Then follow that way, so nothing a library already offers gets rebuilt by hand.
-  Write custom code only when nothing fits, and say why in a comment.
-- **Generate, never hand-write what a command produces.** Use the official CLI or
-  generator, then edit only what the task needs. Examples: `pnpm create vite`,
-  `shadcn init`/`shadcn add` (components, blocks, `@diceui/*`), `pnpm add`,
-  `pnpm feature:add`/`feature:sync`, `pnpm db:generate`, `pnpm client:generate`,
-  and the router's generated route tree. In the frontend, check Dice UI first,
-  then shadcn, before writing any component.
-- **REST only, no HTML** from the API: its only page is Swagger UI at `/api`.
-- **Never hand-write migrations or DDL.** Change a `*.tables.ts`, run
-  `pnpm db:generate`, commit `apps/api/drizzle/`.
-- **Generic naming:** `user` (people), `client` (systems); "staff" and the
-  like are roles.
-- **Keep the grouping:** core ← iam ← platform ← features; groups never import features.
-- **Separation of concerns:** controllers do HTTP only; services own the
-  logic and the queries (one transaction with the audit entry); repositories
-  only for data many services share. See docs/architecture.md, "Code style".
-- **Heavy or slow work goes to a queue worker**, never in the request.
-- **Every feature follows docs/adding-a-feature.md** (tables with `uuidPk()`
-  and `timestamps()`, the list declaration, routes, audit, tests), so the API
-  stays uniform.
-- **New features start from `pnpm feature:add`** (the `/add-feature` skill in
-  `.claude/skills/` asks what to add and runs it); never copy `notes` by hand.
-  Then write only the business logic, where the generated service says so.
+  the branch (sessions share one account). Put `Closes #<n>` in the PR
+  description. Found a problem on the other side while focused on one? File
+  it as an issue with that side's label rather than fixing it there. See
+  docs/development.md, "Issues and labels".
+- **Generate, never hand-write what a command produces.** Use the official
+  CLI or generator, then edit only what the task needs: `pnpm add`,
+  `pnpm feature:add`/`feature:sync`, `pnpm db:generate`,
+  `pnpm client:generate`, and the folders' own generators (their AGENTS.md).
+- **Features come from the generator.** A new one starts from
+  `pnpm feature:add` (the `/add-feature` skill in `.claude/skills/`), never
+  from copying `notes`; then write only the business logic, where the
+  generated service says so.
 - **Newest versions, pinned** (never `:latest`); Dependabot proposes updates.
 - `.env*` files must not be written directly by agents: the owner copies the template
   (`pnpm setup` writes them, or `cp env.example .env` at the root and fills it, or `cp
@@ -82,96 +88,55 @@ CLI commands.
 
 ## Map
 
-| Need | Read |
-| --- | --- |
-| Where things are, the processes, how features plug in | [docs/architecture.md](docs/architecture.md) |
-| The monorepo: root scripts (`pnpm dev`: API and web; `dev:api`, `dev:web`), Turborepo, adding a frontend app | [docs/monorepo.md](docs/monorepo.md) |
-| The web app (apps/web, packages/ui): running it and signing in locally, its pages, nav, i18n, components (shadcn + Dice UI), record pages, tests (`renderApp`, msw, `findToast`), adding a page | [docs/monorepo.md](docs/monorepo.md), "The web app" |
-| Setup (`pnpm setup`, the first-run wizard), commands, tests, migrations, the demo seed (`pnpm db:seed:demo`), the devcontainer (API and web), the git workflow, git hooks and commit-message checks, browser tests (`apps/web-e2e`) | [docs/development.md](docs/development.md) |
-| A new feature: `pnpm feature:add` (`tools/feature`, the `/add-feature` skill); changing one: edit its `<item>.record.ts` (fields, capabilities), then `pnpm feature:sync` (`platform/fields`, `platform/records`) | [docs/adding-a-feature.md](docs/adding-a-feature.md), "Changing a feature" |
-| Load tests: k6 on the production stack, the baseline (manual runs), a 2× regression, accepting a change (`loadtest/run.sh`) | [docs/development.md](docs/development.md), "Load tests" |
-| Outgoing and incoming webhooks, the ops API, realtime (socket.io), health | [docs/webhooks-and-realtime.md](docs/webhooks-and-realtime.md) |
-| Routes' rules: versions, errors, pagination, filters, credentials | [docs/api-conventions.md](docs/api-conventions.md) |
-| The typed client for frontends (`packages/api-client`, `pnpm client:generate` after route changes) | [docs/development.md](docs/development.md), "Typed client" |
-| Tenants: the RLS wall, the tenant of the work (requests, jobs, workflows, cron), global tables, operators, break-glass (an operator reading a tenant read only), single-tenant deployments (`TENANCY=single`), adding a tenant table | [docs/tenancy.md](docs/tenancy.md) |
-| Sign-in, accounts, tokens, passkeys (WebAuthn), enterprise SSO (SAML 2.0, OIDC) and SCIM, API clients, impersonation, bot protection (Turnstile); data export, account deletion, consents | [docs/auth.md](docs/auth.md) |
-| Locked out (#393): the operator CLI, `pnpm ops` / `docker compose run --rm api node dist/cli`: one-time password, remove two-factor, unlock, delete a setting, create an administrator | [docs/deployment.md](docs/deployment.md), "Operator CLI"; [docs/auth.md](docs/auth.md), "Locked out" |
-| Roles, conditions, field-level, grants, teams, audit | [docs/permissions.md](docs/permissions.md) |
-| Queues, mail, outbox, workflows, cron, realtime | [docs/background-work.md](docs/background-work.md) |
-| Exports and imports | [docs/data-transfer.md](docs/data-transfer.md) |
-| Import size and row limits (`dataTransfer.importMaxMiB`/`importMaxRows` settings, `IMPORT_MAX_*`) | [docs/import-limits.md](docs/import-limits.md) |
-| Bulk operations (delete, restore, change many records; 202 jobs) | [docs/bulk-operations.md](docs/bulk-operations.md) |
-| Custom fields (runtime fields, JSONB values) | [docs/custom-fields.md](docs/custom-fields.md) |
-| Notifications (in-app, realtime, mail, webhook, push, SMS; preferences, digests, devices, toll-fraud caps, STOP) | [docs/notifications.md](docs/notifications.md) |
-| Settings and feature flags (runtime values, scopes, rollouts) | [docs/settings.md](docs/settings.md) |
-| Tenant branding: colour, logo, mail sender name (web theme, mail, PDFs; the operators' lock) | [docs/branding.md](docs/branding.md) |
-| Human-readable numbers (gapless sequences); naming series: the number formats administrators define (`INV-.YYYY.-.{region}.-.#####`: dates, the record's fields, variables like `FY`, `ABBR`; rules with conditions and priority) | [docs/sequences.md](docs/sequences.md) |
-| Money: minor-unit amounts, rounding, allocation, formatting; ECB exchange rates and conversion | [docs/money.md](docs/money.md) |
-| Comments and @mentions on records | [docs/comments.md](docs/comments.md) |
-| Files attached to records (uploads, downloads, the orphan sweep); users' pictures (avatars) | [docs/attachments.md](docs/attachments.md) |
-| AI helper: summarize or classify a record on a queue worker (`POST /v1/ai/runs`), sources, provider, quota, cache, prompt injection | [docs/ai.md](docs/ai.md) |
-| PDF documents of records (templates, RTL, Gotenberg, the queue job, issued attachments) | [docs/documents.md](docs/documents.md) |
-| Saved views of lists (a list's filters, sort and columns by name; private, team, tenant) | [docs/saved-views.md](docs/saved-views.md) |
-| Tags (labels) on records: managing them, filtering lists by them | [docs/tags.md](docs/tags.md) |
-| Scheduled reports (an export run on a schedule, mailed with a link) | [docs/reports.md](docs/reports.md) |
-| Email deliverability (SPF, DKIM, DMARC for SES; bounces and complaints through SNS, Postmark and SendGrid; the suppression list the sender respects) | [docs/deliverability.md](docs/deliverability.md) |
-| Encrypted columns (personal data at rest): `encrypted()`, `EncryptionService`, blind indexes, key rotation and the re-encryption job, `DATA_ENCRYPTION_KEYS` | [docs/encryption.md](docs/encryption.md) |
-| Record revisions: history, diff between two, restore one (retention) | [docs/revisions.md](docs/revisions.md) |
-| Approvals: declared policies, stages, approver rules, delegation, escalation, extending | [docs/approvals.md](docs/approvals.md) |
-| API clients' usage per day and route, daily quotas (429 `quota_exceeded`) | [docs/usage.md](docs/usage.md) |
-| Retention rules (purge or anonymise after N days, per tenant, on a queue) and legal holds (block deletes, purges, account deletion) | [docs/retention.md](docs/retention.md) |
-| Languages, time zones | [docs/i18n-and-time.md](docs/i18n-and-time.md) |
-| Environment variables | [docs/configuration.md](docs/configuration.md) |
-| Compose, staging, scaling, CI and its scans, published images (GHCR, `APP_IMAGE`, `CADDY_IMAGE`, rollback) | [docs/deployment.md](docs/deployment.md) |
-| CI's runner budget: which jobs a pull request runs, where a check belongs, measuring a run (`tools/ci/metrics.mjs`) | [docs/ci-runtime.md](docs/ci-runtime.md) |
-| Zero-downtime deploys: `pnpm deploy:rolling`, `deploy:blue-green`, `deploy:swarm` | [docs/deployment.md](docs/deployment.md), "Zero-downtime deploys: three ways"; [rolling](docs/deploy-rolling.md), [blue-green](docs/deploy-blue-green.md), [Swarm](docs/deploy-swarm.md) |
-| Zero-downtime deploys: which of the three, and what each needs | [docs/deployment.md](docs/deployment.md), "Zero-downtime deploys" |
-| Rolling deploys with Compose (`pnpm deploy:rolling`), graceful shutdown | [docs/deploy-rolling.md](docs/deploy-rolling.md) |
-| Blue-green deploys: two api colours, switching the traffic, instant rollback (`pnpm deploy:blue-green`, `compose.blue-green.yaml`) | [docs/deploy-blue-green.md](docs/deploy-blue-green.md) |
-| Docker Swarm: the stack, rolling updates, automatic rollback, nodes and secrets (`pnpm deploy:swarm`, `compose.swarm.yaml`) | [docs/deploy-swarm.md](docs/deploy-swarm.md) |
-| Single-node K3s: the manifests, Tailscale, Cloudflare Tunnel, manual verified-release deploys (the `deploy-k3s` job) | [docs/deploy-k3s.md](docs/deploy-k3s.md) |
-| Kubernetes: the Helm chart (`deploy/helm/app`): api, worker, migrate hook, HPA, Ingress, secret files, PrometheusRule; the kind smoke test | [docs/deploy-kubernetes.md](docs/deploy-kubernetes.md) |
-| Template releases (`v*` tags, generated notes, migrations section), the typed client's changesets (`pnpm changeset`, the version PR, npm publishing off) | [docs/releases.md](docs/releases.md) |
-| Projects built on the template pulling its updates (upstream remote, merging a tag, conflicts, the migrations caveat) | [docs/upgrading.md](docs/upgrading.md) |
-| Log redaction (secret headers and fields, text patterns; `logRedaction.declare*()` at import time, the registry item 5 extends) | [docs/deployment.md](docs/deployment.md), "Log redaction" |
-| Prometheus metrics (`GET /metrics`, METRICS_TOKEN; platform gauges via `MetricsService.collect()`) | [docs/deployment.md](docs/deployment.md), "Metrics" |
-| Alerts (`monitoring/`: rules, their promtool tests; optional `compose.monitoring.yaml` with Prometheus + Alertmanager) | [docs/deployment.md](docs/deployment.md), "Alerting" |
-| The deployed build's commit (`/version.json`, `/health/version`, the stale-tab notice) | [docs/build-version.md](docs/build-version.md) |
-| This documentation site (VitePress, `pnpm docs:check`/`docs:dev`/`docs:build`) and how docs are kept current | [docs/documentation-tooling.md](docs/documentation-tooling.md), [docs/documentation-maintenance.md](docs/documentation-maintenance.md) |
-| Mistakes already made | [docs/pitfalls.md](docs/pitfalls.md) |
-| What gets built next, in order (items 0–24, open decisions, status) | [docs/roadmap.md](docs/roadmap.md) |
+Everything is in `docs/`; a name below is its file (`tags` is
+`docs/tags.md`). Read the one the task needs.
+
+- **Start here:** `architecture` (where things are, layers, processes),
+  `monorepo` (root scripts, Turborepo, the web app), `development` (setup,
+  commands, tests, migrations, demo seed, devcontainer, git workflow and
+  hooks, browser and load tests, typed client), `pitfalls` (mistakes already
+  made), `roadmap`.
+- **Features:** `adding-a-feature` (`pnpm feature:add`; changing one: edit
+  its `<item>.record.ts`, then `pnpm feature:sync`), `api-conventions`
+  (versions, errors, pagination, filters, credentials).
+- **Access:** `auth` (sign-in, tokens, passkeys, SSO, SCIM, API clients,
+  impersonation, Turnstile, data export, account deletion, "Locked out"),
+  `permissions` (roles, grants, teams, audit), `tenancy` (RLS, operators,
+  break-glass, `TENANCY=single`), `encryption`, `retention` (and legal holds).
+- **Background and integrations:** `background-work` (queues, mail, outbox,
+  workflows, cron), `webhooks-and-realtime`, `notifications`,
+  `deliverability`, `ai`, `documents` (PDFs).
+- **Record add-ons:** `tags`, `comments`, `attachments` (and avatars),
+  `revisions`, `approvals`, `saved-views`, `custom-fields`,
+  `bulk-operations`, `sequences` (numbers, naming series), `data-transfer`
+  (exports, imports), `import-limits`, `reports`.
+- **Configuration:** `configuration` (environment variables), `settings`
+  (and feature flags), `branding`, `i18n-and-time`, `money`, `usage`
+  (quotas), `build-version`.
+- **Deploy and operate:** `deployment` (Compose, CI and its scans, images,
+  the operator CLI `pnpm ops`, log redaction, metrics, alerts,
+  zero-downtime overview), `deploy-rolling`, `deploy-blue-green`,
+  `deploy-swarm`, `deploy-k3s`, `deploy-kubernetes`, `ci-runtime`,
+  `releases`, `upgrading`.
+- **This docs site:** `documentation-tooling`, `documentation-maintenance`.
 
 ## Validation in CI
 
-These are the required CI checks, not a mandatory local gate before every
-commit. Open the draft PR and push changes early; inspect CI results and fix
-failures with further commits. Do not duplicate the full suite locally.
+These are the required CI checks, not a local gate before every commit.
 
 ```bash
 pnpm build && pnpm lint && pnpm test && pnpm test:e2e   # e2e starts redis-server and PostgreSQL (Docker)
 pnpm db:check                                           # after table changes
-pnpm test:e2e:web                                    # after web changes: Playwright (CI's e2e-web)
+pnpm test:e2e:web                                       # after web changes: Playwright (CI's e2e-web)
 pnpm client:check                                       # after route changes (pnpm client:generate fixes it)
 ```
 
 `pnpm lint` ends with knip (unused files, exports, dependencies; `knip.jsonc`),
 and CI enforces coverage thresholds per package (`vitest.config.ts`; ratchet
-them up, never down): [docs/development.md](docs/development.md), "Coverage"
-and "Dead code (knip)".
+them up, never down): docs/development.md, "Coverage" and "Dead code (knip)".
 
-Current state: CI on `main` is green (unit, web and e2e tests, lint, the image,
-the scans). Edge cases live in `apps/api/test/edge-*.e2e-spec.ts`, security
-regressions in `apps/api/test/security.e2e-spec.ts`. Test counts are not kept
-here: every pull request changed them, so every pair of open pull requests
-conflicted on this line.
+## Pitfalls
 
-## The pitfalls that bite most
-
-- Services read the database through the transaction host (`database(this.txHost)`)
-  and write with `inTransaction()`: every query joins the current transaction.
-- Module order in `app.module.ts`: Platform, then Core, then Iam.
-- Abstract base classes of injectables need `@Injectable()`; inject
-  `ConfigService<Env, true>` with a value import.
 - Python/sed edits must fail loudly when a match misses (Prettier reformats code).
 - Shell: do not assume aliases such as `grep` → ripgrep or `ls` → eza exist.
   Claude hooks refuse `/dev/null` redirects and recursive deletes of system paths,

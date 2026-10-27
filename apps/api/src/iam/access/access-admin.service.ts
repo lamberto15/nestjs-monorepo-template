@@ -997,7 +997,15 @@ export class AccessAdminService {
       await this.permissionsOfHolder('client', id),
       client.name,
     );
-    return this.clients.rotate(actor, id, options, ip);
+    const tenantId = this.tenancy.tenantId();
+    const { client: rotated, revokedKeyIds } = await this.clients.rotate(
+      actor,
+      id,
+      options,
+      ip,
+    );
+    await this.afterKeyRevocation(id, revokedKeyIds, tenantId);
+    return rotated;
   }
 
   async revokeClientKey(
@@ -1012,7 +1020,33 @@ export class AccessAdminService {
       await this.permissionsOfHolder('client', id),
       client.name,
     );
-    await this.clients.revokeKey(actor, id, keyId, ip);
+    const tenantId = this.tenancy.tenantId();
+    const revoked = await this.clients.revokeKey(actor, id, keyId, ip);
+    await this.afterKeyRevocation(id, [revoked], tenantId);
+  }
+
+  /**
+   * After the commit, what ends with these keys (their live connections:
+   * ApiClientLifecycleRegistry). Each listener on its own, as for a
+   * deletion: the keys already stop on their next request.
+   */
+  private async afterKeyRevocation(
+    clientId: string,
+    keyIds: string[],
+    tenantId: string,
+  ) {
+    if (keyIds.length === 0) {
+      return;
+    }
+    for (const listener of this.clientLifecycle.all()) {
+      try {
+        await listener.afterKeyRevocation?.(keyIds, tenantId);
+      } catch (error) {
+        this.logger.error(
+          `Keys of API client ${clientId} revoked, but "${listener.name}" failed to follow: ${(error as Error).message}`,
+        );
+      }
+    }
   }
 
   /** Activates or revokes a client, and replaces its roles. */

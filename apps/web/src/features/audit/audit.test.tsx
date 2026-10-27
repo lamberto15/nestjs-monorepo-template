@@ -205,6 +205,8 @@ describe('the audit log page', () => {
     // Shown as the JSON text it is: the markup is characters.
     expect(row).toHaveTextContent('<img src=x onerror=\\"alert(1)\\">');
     expect(within(row).queryByRole('img')).toBeNull();
+    // Its address, under the list's own label for it.
+    expect(within(dialog).getByText('IP address')).toBeVisible();
   });
 
   it('is gated: no nav entry and a redirect without the permission', async () => {

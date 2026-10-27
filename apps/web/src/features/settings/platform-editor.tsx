@@ -26,7 +26,8 @@ import { RulesEditor } from './rules-editor';
 import { api } from '@/lib/api';
 import { catalogQuery } from '@/features/transfer/api';
 import { errorMessage } from '@/lib/errors';
-import { FormAlert } from '@/lib/form';
+import { FormAlert, useDescribedBy } from '@/lib/form';
+import { featuresQuery } from '@/lib/session';
 import { useStaleDraftSession } from '@/lib/form';
 import {
   fromDraft,
@@ -72,10 +73,17 @@ export function PlatformEditor({ setting }: { setting: Setting }) {
   const [rollout, setRollout] = useState(String(stored?.rollout ?? 10));
   const rolling = setting.flag && mode === 'rollout';
   const hint = boundsHint(setting, t);
+  // The bounds describe the value's input (as lib/form.tsx's fields).
+  const valueInput = useDescribedBy(Boolean(hint), false);
   const refresh = () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: settingsQuery.queryKey }),
       queryClient.invalidateQueries({ queryKey: catalogQuery.queryKey }),
+      // Only GET /v1/features serves the mode, and a read-only tab gets no 503
+      // for a read: without this it keeps the old mode until the next input.
+      ...(setting.key === 'platform.mode'
+        ? [queryClient.invalidateQueries({ queryKey: featuresQuery.queryKey })]
+        : []),
     ]);
   const save = useMutation({
     mutationFn: (body: {
@@ -272,17 +280,22 @@ export function PlatformEditor({ setting }: { setting: Setting }) {
           ) : (
             <>
               <Field>
-                <FieldLabel htmlFor="field-platform-draft">
+                <FieldLabel htmlFor={valueInput.controlId}>
                   {t('valueLabel')}
                 </FieldLabel>
                 <ValueInput
-                  id="field-platform-draft"
+                  id={valueInput.controlId}
                   label={`${t('platform.title')}: ${t('valueLabel')}`}
                   spec={setting}
                   value={draft}
                   onChange={setDraft}
+                  describedBy={valueInput.describedBy}
                 />
-                {hint && <FieldDescription>{hint}</FieldDescription>}
+                {hint && (
+                  <FieldDescription id={valueInput.descriptionId}>
+                    {hint}
+                  </FieldDescription>
+                )}
               </Field>
               <Field orientation="horizontal">
                 <Switch

@@ -1,11 +1,15 @@
 {
   "app": {
     "name": "App",
-    "staleDraft": "Sesi berubah semasa anda menulis (dalam tab atau tetingkap lain). Tiada apa-apa dihantar — semak apa yang anda tulis dan hantar semula di bawah sesi baharu."
+    "staleDraft": "Sesi berubah semasa anda menulis (dalam tab atau tetingkap lain). Tiada apa-apa dihantar — semak apa yang anda tulis dan hantar semula di bawah sesi baharu.",
+    "unsavedChanges": "Anda mempunyai perubahan yang belum disimpan. Tinggalkan halaman ini dan hilangkan perubahan tersebut?"
   },
   "nav": {
     "platform": "Platform",
-    "dashboard": "Papan pemuka"
+    "dashboard": "Papan pemuka",
+    "skipToContent": "Langkau ke kandungan",
+    "sidebar": "Bar sisi",
+    "menu": "Menu utama"
   },
   "auth": {
     "signIn": {
@@ -46,6 +50,7 @@
       "passwordRequired": "Masukkan kata laluan anda.",
       "passwordHint": "Sekurang-kurangnya 12 aksara. Kata laluan yang ditemui dalam kebocoran data ditolak.",
       "passwordTooShort": "Sekurang-kurangnya {{min}} aksara.",
+      "tooLong": "Paling banyak {{max}} aksara.",
       "passwordMismatch": "Kata laluan tidak sepadan.",
       "newPassword": "Kata laluan baharu",
       "confirmPassword": "Sahkan kata laluan",
@@ -288,10 +293,16 @@
     "description": "Halaman yang anda cari tidak wujud.",
     "back": "Kembali ke papan pemuka"
   },
+  "errors": {
+    "unexpected": "Ada sesuatu yang tidak kena.",
+    "reportId": "ID laporan: {{id}}",
+    "requestId": "ID permintaan: {{id}}"
+  },
   "routeError": {
     "title": "Sesuatu telah berlaku",
     "description": "Halaman ini gagal dimuatkan. Bahagian lain aplikasi masih berfungsi.",
     "reportId": "ID laporan: {{id}}",
+    "build": "Binaan: {{sha}}",
     "retry": "Cuba lagi"
   },
   "preferences": {
@@ -324,7 +335,9 @@
     "fields": {
       "tag": "Tag",
       "ownerId": "Pemilik",
-      "teamId": "Pasukan"
+      "teamId": "Pasukan",
+      "actor": "Pelaku",
+      "user": "Pengguna"
     },
     "refs": {
       "searching": "Mencari…",
