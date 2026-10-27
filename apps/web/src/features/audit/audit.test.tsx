@@ -136,6 +136,7 @@ describe('the audit log page', () => {
   });
 
   it('names the action for people and keeps its key as the title', async () => {
+    signedInWith({ 'Access.readAudit': true });
     auditApi([
       entry('1'),
       entry('2', { action: 'member.signed-in' }),
