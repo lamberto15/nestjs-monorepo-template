@@ -103,16 +103,21 @@ jobs:
         run: pnpm turbo run lighthouse --filter=@nestjs-monorepo-template/web
       - name: Scores in the job summary
         if: ${{ !cancelled() }}
+        # manifest.json names which of the numberOfRuns is the representative
+        # (median) one per URL; summarize that one, not every run's report.
         working-directory: apps/web/.lighthouseci
         run: |
           {
             echo '### Lighthouse (non-blocking)'
             echo
-            echo '| Performance | Accessibility | Best practices |'
-            echo '| --- | --- | --- |'
-            for f in lhr-*.json; do
-              jq -r '[.categories.performance.score, .categories.accessibility.score, .categories["best-practices"].score] | map(. * 100 | round) | "| \(.[0]) | \(.[1]) | \(.[2]) |"' "$f"
-            done
+            echo '| URL | Performance | Accessibility | Best practices |'
+            echo '| --- | --- | --- | --- |'
+            jq -r '.[] | select(.isRepresentativeRun) | .url + " " + .jsonPath' manifest.json |
+              while read -r url path; do
+                jq -r --arg url "$url" \
+                  '[.categories.performance.score, .categories.accessibility.score, .categories["best-practices"].score] | map(. * 100 | round) | "| \($url) | \(.[0]) | \(.[1]) | \(.[2]) |"' \
+                  "$path"
+              done
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Lighthouse reports
         if: ${{ !cancelled() }}
@@ -121,3 +126,4 @@ jobs:
           name: lighthouse
           path: apps/web/.lighthouseci/
           retention-days: 14
+          include-hidden-files: true

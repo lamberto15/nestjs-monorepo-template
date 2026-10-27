@@ -647,11 +647,15 @@ CI runs the bundle budget and the Storybook build in `check`
   get past a check.
 - **Lighthouse CI** (`apps/web/lighthouserc.json`, `@lhci/cli`):
   `pnpm --filter @nestjs-monorepo-template/web lighthouse` audits the built
-  app (performance, accessibility, best practices). Non-blocking: assertions
-  are warnings and the job has `continue-on-error`; the scores are in the job
-  summary and the reports in the `lighthouse` artifact. It audits the signed-out
-  shell of the static build (no API behind it). Make it blocking by changing
-  `warn` to `error` once the scores are stable.
+  app (performance, accessibility, best practices), 3 runs, on `/sign-in`.
+  `startServerCommand` runs `scripts/lighthouse-server.mjs`: a tiny server
+  that answers only `GET /v1/auth/me` (401) and `/v1/auth/methods`, enough
+  for the signed-out page to render with no API behind it, then starts
+  `vite preview` in front of it. Non-blocking: assertions are warnings and
+  the job has `continue-on-error`; the job summary reads `manifest.json`'s
+  representative (median) run and links the `lighthouse` artifact, which
+  holds every run's report. Make it blocking by changing `warn` to `error`
+  once the scores are stable.
 
 ### Installable and offline (PWA)
 

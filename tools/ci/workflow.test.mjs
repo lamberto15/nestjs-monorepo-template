@@ -6,6 +6,10 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 const WORKFLOW = new URL('../../.github/workflows/ci.yml', import.meta.url);
+const WEB_WORKFLOW = new URL(
+  '../../.github/workflows/web.yml',
+  import.meta.url,
+);
 
 /** The steps of the workflow as arrays of lines. */
 function steps(text) {
@@ -81,6 +85,10 @@ function problems(text) {
 
 test('the workflow uploads its hidden blob reports, and fails when there are none', () => {
   assert.deepEqual(problems(readFileSync(WORKFLOW, 'utf8')), []);
+});
+
+test('web.yml uploads the Lighthouse reports (hidden under .lighthouseci), and fails when there are none', () => {
+  assert.deepEqual(problems(readFileSync(WEB_WORKFLOW, 'utf8')), []);
 });
 
 test('a hidden path without include-hidden-files, and a glob, are reported', () => {

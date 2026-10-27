@@ -381,6 +381,12 @@ settings pages. It is not part of `pnpm test:e2e` (the API's).
   Caddy image would add a build of Caddy with its plugin for nothing the tests
   check (it serves the same `dist`); its own image is built and scanned in CI
   (`caddy-image`).
+- **Under production's policy:** `vite preview` also sends
+  `caddy/Caddyfile`'s web headers, its Content-Security-Policy included
+  (`apps/web/production-headers.ts`, `preview`-only: the dev server's React
+  refresh needs an inline script the policy refuses). Every test's context
+  listens for a `securitypolicyviolation` and fails the test with what was
+  refused (`test/fixtures.ts`); a worker's own violations don't reach it.
 - **Ports:** the API on **3300** and the web app on **4173**, never 3000 and
   5173, so the suite runs beside `pnpm dev`. Nothing it uses is the default
   stack's but PostgreSQL and Redis (see below).

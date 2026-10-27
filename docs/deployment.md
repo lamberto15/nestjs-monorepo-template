@@ -65,12 +65,30 @@ Filling `.env` (each step is commented in `env.example`):
   provider inject `<style>` elements; no `'unsafe-eval'`, so `apps/web` imports `z` from `@/lib/zod`, which sets zod to
   `jitless`; `frame-ancestors 'none'`), `X-Frame-Options: DENY`, `X-Content-Type-Options`,
   `Referrer-Policy: strict-origin-when-cross-origin` and a `Permissions-Policy` that turns
-  off everything but WebAuthn. **A new third-party script, frame, API or font host** needs
-  its origin in the matching directive of that one line (`script-src`, `frame-src`,
-  `connect-src`, `font-src`, `img-src`), taken from the provider's CSP page; no inline
-  `<script>`, no `eval`. Check a change by loading the built app through Caddy (`docker
-build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviolation`
-  events: there must be none.
+  off everything but WebAuthn, `Strict-Transport-Security` (`max-age=63072000`, this
+  host only: no `includeSubDomains`, since the template does not own a whole domain)
+  and `Cross-Origin-Opener-Policy: same-origin`. **A new third-party script, frame, API or
+  font host** needs its origin in the matching directive of that one line (`script-src`,
+  `frame-src`, `connect-src`, `font-src`, `img-src`), taken from the provider's CSP page; no
+  inline `<script>`, no `eval`. The e2e suite (`apps/web-e2e`) already checks a change: it
+  runs the built app under this exact header set (`vite preview`,
+  `apps/web/production-headers.ts`) and fails on any `securitypolicyviolation`
+  ([browser tests](development.md#browser-tests)); `caddy/caddyfile.test.mjs` pins the
+  full header set against a real Caddy binary, on the app shell, an asset and the
+  maintenance page, and that the Helm chart's web ConfigMap matches the Caddyfile line
+  for line.
+- **Compression.** Caddy's image build writes a `.br` and a `.gz` beside each built
+  asset (`apps/web/scripts/precompress.mjs`, Node's `zlib`), served with
+  `file_server { precompressed br gzip }`; the app shell and the rest of the response
+  (`index.html`, `version.json`, the service worker, the manifest, the maintenance page)
+  are encoded per request (`encode zstd gzip`). The `/v1/*` proxy stays unencoded: Caddy's
+  `encode` would suffix the API's strong ETags (`"<hash>-gzip"`) and strip that suffix
+  only from a read's `If-None-Match`, not from a write's `If-Match`, which would then
+  succeed only because `etag.ts` happens to trim long tags to their hash. Compressing the
+  API, if wanted, is a separate decision (in Nest, or at the edge) for each deployment.
+  The ops event stream (`GET /v1/ops/events`) is never buffered or encoded, so it still
+  flushes each event as it is written. A single-node K3s deployment behind a Cloudflare
+  Tunnel also gets compression at the edge, on top of this.
 - **The origins of files** (`STORAGE_DRIVER=s3`). The browser reaches the bucket itself
   twice: it PUTs a direct upload straight to it
   ([attachments](attachments.md#direct-uploads-s3)), and the attachments panel's `<img>`
