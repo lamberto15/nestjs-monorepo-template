@@ -200,23 +200,74 @@ export const MAX_DUPLICATE_SAMPLES = 5;
 export const MAX_PARSE_CHECKS = 100;
 
 /**
- * What a text column must read as for an import: the target of `try_cast`.
- * A datetime is cast to TIMESTAMPTZ because it accepts both local times and
- * ISO 8601 with an offset (`2026-10-15T18:30:00+04:00`); a plain TIMESTAMP
- * refuses the offset form.
+ * How the import check reads a file, so it sees what the server's parsers see
+ * (apps/api platform/data-transfer/formats.ts):
+ * - CSV: every value as text (`all_varchar`). The server's CSV parser also
+ *   yields text, and DuckDB's own typing would hide what matters: it reads
+ *   `31/01/2024` as a DATE, which the server refuses.
+ * - JSON: only an array of objects (`format = 'array'`), the one shape the
+ *   server accepts; `read_json` by default also reads JSON Lines.
  */
-export const PARSE_TARGETS = {
-  number: 'DOUBLE',
-  boolean: 'BOOLEAN',
-  date: 'DATE',
-  datetime: 'TIMESTAMPTZ',
-} as const;
-export type ParseTarget = keyof typeof PARSE_TARGETS;
+export function buildImportReaderSql(
+  extension: 'csv' | 'json',
+  source: string,
+): string {
+  return extension === 'csv'
+    ? `read_csv(${source}, sample_size = -1, all_varchar = true)`
+    : `read_json(${source}, format = 'array', sample_size = -1)`;
+}
+
+/**
+ * The header row exactly as the file spells it: DuckDB renames repeated
+ * headers (`a,a` reads as `a,a_1`; `Name,name` as `Name,name_1`).
+ */
+export const buildRawHeaderSql = (source: string): string =>
+  `SELECT * FROM read_csv(${source}, header = false, all_varchar = true) LIMIT 1`;
+
+/**
+ * A value as the server reads it: text, trimmed, and a blank one as NULL
+ * (csv-parse `trim: true`; `String(value ?? '').trim()` for a match key).
+ * `json`: the column is JSON-typed (a mix of `"12"` and `5`): its text is the
+ * string itself, not its quoted JSON form.
+ */
+export function importValueSql(identifier: string, json = false): string {
+  const text = json ? `${identifier}->>'$'` : `CAST(${identifier} AS VARCHAR)`;
+  return `nullif(trim(${text}), '')`;
+}
+
+const ISO_DATE = `[0-9]{4}-[0-9]{2}-[0-9]{2}`;
+const ISO_CLOCK = `[0-9]{2}:[0-9]{2}(:[0-9]{2}([.][0-9]+)?)?`;
+
+/**
+ * What a text value must be for the server to take it as the type; SQL for
+ * "this non-blank value is NOT acceptable".
+ * - number: `Number(text)` is finite (coerceImported, custom-field.values.ts).
+ * - boolean: true/false, 1/0, yes/no, whatever the case (same function).
+ * - date: `YYYY-MM-DD`, real calendar day, optionally followed by a `T` suffix
+ *   that is cut off (`z.iso.date()`; coerceImported keeps the first 10 chars).
+ * - datetime: ISO 8601 date, `T` or space, a clock and an optional zone: the
+ *   wall-clock form of a zoned column (`instantOf`) or an instant. A date
+ *   alone, or `31/01/2024 10:00`, is refused (`z.iso.datetime()`).
+ */
+const NOT_ACCEPTED: Record<
+  'number' | 'boolean' | 'date' | 'datetime',
+  (value: string) => string
+> = {
+  number: (v) => `NOT coalesce(isfinite(try_cast(${v} AS DOUBLE)), false)`,
+  boolean: (v) => `lower(${v}) NOT IN ('true', 'false', '1', '0', 'yes', 'no')`,
+  date: (v) =>
+    `NOT (regexp_full_match(${v}, '${ISO_DATE}(T.*)?') AND try_cast(left(${v}, 10) AS DATE) IS NOT NULL)`,
+  datetime: (v) =>
+    `NOT (regexp_full_match(${v}, '${ISO_DATE}[ T]${ISO_CLOCK}(Z|[+-][0-9]{2}(:?[0-9]{2})?)?') AND try_cast(${v} AS TIMESTAMPTZ) IS NOT NULL)`,
+};
+export type ParseTarget = keyof typeof NOT_ACCEPTED;
 
 /**
  * Duplicates of a match key: `extra` is the number of rows whose key was
- * already seen (empty keys are not counted), `samples` the most repeated
- * values (at most MAX_DUPLICATE_SAMPLES, each with its row count).
+ * already seen (blank keys are not counted: the server refuses those on
+ * their own), `samples` the most repeated values (at most
+ * MAX_DUPLICATE_SAMPLES, each with its row count). The key is compared
+ * trimmed, as the server does.
  */
 export function buildDuplicateKeySql(
   tableName: string,
@@ -225,32 +276,32 @@ export function buildDuplicateKeySql(
 ): { count: string; samples: string } {
   if (!allowed.has(key)) throw new Error('Choose a valid match key column.');
   const table = quoteIdentifier(tableName);
-  const column = quoteIdentifier(key);
+  const value = importValueSql(quoteIdentifier(key));
   return {
-    count: `SELECT count(${column}) - count(DISTINCT ${column}) AS extra FROM ${table}`,
-    samples: `SELECT CAST(${column} AS VARCHAR) AS key, count(*) AS rows FROM ${table} WHERE ${column} IS NOT NULL GROUP BY ${column} HAVING count(*) > 1 ORDER BY 2 DESC, 1 LIMIT ${MAX_DUPLICATE_SAMPLES}`,
+    count: `SELECT count(${value}) - count(DISTINCT ${value}) AS extra FROM ${table}`,
+    samples: `SELECT ${value} AS key, count(*) AS rows FROM ${table} WHERE ${value} IS NOT NULL GROUP BY ${value} HAVING count(*) > 1 ORDER BY 2 DESC, 1 LIMIT ${MAX_DUPLICATE_SAMPLES}`,
   };
 }
 
 /**
- * One statement counting, per checked column, the non-empty values that do not
- * read as the target type (`try_cast` yields NULL). Result aliases are
+ * One statement counting, per checked column, the non-blank values the server
+ * would not take as the target type (see NOT_ACCEPTED). Result aliases are
  * positional (`n0`, `n1`, ...): a column may be named like an alias.
  */
 export function buildParseFailureSql(
   tableName: string,
   allowed: Set<string>,
-  checks: { column: string; as: ParseTarget }[],
+  checks: { column: string; as: ParseTarget; json?: boolean }[],
 ): string {
   if (checks.length === 0 || checks.length > MAX_PARSE_CHECKS)
     throw new Error(`Check between 1 and ${MAX_PARSE_CHECKS} columns.`);
-  const counts = checks.map(({ column, as }, index) => {
+  const counts = checks.map(({ column, as, json }, index) => {
     if (!allowed.has(column))
       throw new Error('A check refers to an unknown column.');
-    const target = PARSE_TARGETS[as];
-    if (!target) throw new Error('Unsupported check type.');
-    const identifier = quoteIdentifier(column);
-    return `count(*) FILTER (WHERE ${identifier} IS NOT NULL AND try_cast(CAST(${identifier} AS VARCHAR) AS ${target}) IS NULL) AS n${index}`;
+    const notAccepted = NOT_ACCEPTED[as];
+    if (!notAccepted) throw new Error('Unsupported check type.');
+    const value = importValueSql(quoteIdentifier(column), json);
+    return `count(*) FILTER (WHERE ${value} IS NOT NULL AND ${notAccepted(value)}) AS n${index}`;
   });
   return `SELECT ${counts.join(', ')} FROM ${quoteIdentifier(tableName)}`;
 }

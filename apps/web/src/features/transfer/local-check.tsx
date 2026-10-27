@@ -41,6 +41,7 @@ type Phase =
   | { kind: 'loading' }
   | { kind: 'ready'; dataset: AnalyticsDataset }
   | { kind: 'error' }
+  | { kind: 'notArray' }
   | { kind: 'cancelled' };
 
 /**
@@ -59,8 +60,10 @@ export function LocalCheck(props: {
   file: File;
   columns: CatalogColumn[];
   matchOn: string;
+  /** The importer's match keys: columns of the file the catalog does not list. */
+  matchKeys?: readonly string[];
 }) {
-  const { file, columns, matchOn } = props;
+  const { file, columns, matchOn, matchKeys } = props;
   const { t, i18n } = useTranslation('transfer');
   const supported = LOCALLY_CHECKABLE.test(file.name);
   const engine = useRef<Engine>(undefined);
@@ -92,16 +95,25 @@ export function LocalCheck(props: {
         const loadedEngine = await import('@/features/analytics/engine');
         engine.current = loadedEngine;
         if (!current.live) return;
-        const dataset = await loadedEngine.loadLocalFile(file);
+        const dataset = await loadedEngine.loadLocalFile(file, {
+          forImport: true,
+        });
         if (!current.live) {
           void loadedEngine.disposeDataset(dataset).catch(() => undefined);
           return;
         }
         loaded = dataset;
         setPhase({ kind: 'ready', dataset });
-      } catch {
-        // Informational: a file the engine cannot read is still importable.
-        if (current.live) setPhase({ kind: 'error' });
+      } catch (error) {
+        // The server refuses JSON that is not an array (also JSON Lines).
+        if (current.live)
+          setPhase({
+            kind:
+              error instanceof Error && error.name === 'NotJsonArrayError'
+                ? 'notArray'
+                : // Informational: a file the engine cannot read may still import.
+                  'error',
+          });
       }
     })();
     return () => {
@@ -120,8 +132,9 @@ export function LocalCheck(props: {
         columns: dataset.columns,
         rowCount: dataset.rowCount,
         matchOn,
+        matchKeys,
       }),
-    [dataset, columns, matchOn],
+    [dataset, columns, matchOn, matchKeys],
   );
   const requestKey = JSON.stringify(request ?? null);
   const checking = !!request && checks?.key !== requestKey && !!dataset;
@@ -162,10 +175,11 @@ export function LocalCheck(props: {
             columns: dataset.columns,
             rowCount: dataset.rowCount,
             matchOn,
+            matchKeys,
             checks: checks.value,
           })
         : undefined,
-    [dataset, columns, matchOn, checks, requestKey],
+    [dataset, columns, matchOn, matchKeys, checks, requestKey],
   );
   const percent = (share: number) =>
     new Intl.NumberFormat(i18n.language, {
@@ -179,6 +193,12 @@ export function LocalCheck(props: {
       <p role="status" className="text-sm text-muted-foreground">
         {t('import.local.unsupported')}
       </p>
+    );
+  } else if (phase.kind === 'notArray') {
+    body = (
+      <Alert variant="destructive">
+        <AlertDescription>{t('import.local.notArray')}</AlertDescription>
+      </Alert>
     );
   } else if (phase.kind === 'error' || phase.kind === 'cancelled') {
     body = (
@@ -214,8 +234,10 @@ export function LocalCheck(props: {
       <div className="flex flex-col gap-3">
         <p role="status" className="text-sm text-muted-foreground">
           {t('import.local.summary', {
-            rows: dataset.rowCount,
-            columns: dataset.columns.length,
+            count: dataset.rowCount,
+            columns: t('import.local.columnCount', {
+              count: dataset.columns.length,
+            }),
           })}{' '}
           {hasFindings(findings) ? '' : t('import.local.clean')}
         </p>
@@ -235,6 +257,14 @@ export function LocalCheck(props: {
         {findings.matchKeyMissing !== undefined && (
           <Group title={t('import.local.matchKeyMissing')} count={1}>
             {findings.matchKeyMissing}
+          </Group>
+        )}
+        {findings.repeatedHeaders.length > 0 && (
+          <Group
+            title={t('import.local.repeatedHeaders')}
+            count={findings.repeatedHeaders.length}
+          >
+            {findings.repeatedHeaders.join(', ')}
           </Group>
         )}
         {findings.unknown.length > 0 && (
@@ -259,7 +289,7 @@ export function LocalCheck(props: {
                 item.expected,
                 item.badValues
                   ? t('import.local.badValues', {
-                      amount: item.badValues,
+                      count: item.badValues,
                       type: item.expected,
                     })
                   : item.detected,
@@ -275,7 +305,7 @@ export function LocalCheck(props: {
             count={findings.duplicates.extraRows}
           >
             {t('import.local.duplicatesDetail', {
-              amount: findings.duplicates.extraRows,
+              count: findings.duplicates.extraRows,
               samples: findings.duplicates.samples.join(', '),
             })}
           </Group>
@@ -292,8 +322,8 @@ export function LocalCheck(props: {
                 item.column,
                 t('import.local.emptyShare', {
                   percent: percent(item.share),
-                  amount: item.nullCount,
-                  rows: dataset.rowCount,
+                  empty: item.nullCount,
+                  count: dataset.rowCount,
                 }),
               ])}
             />

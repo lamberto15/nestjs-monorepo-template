@@ -240,8 +240,9 @@ describe('local analytics query helpers', () => {
 describe('import profiling SQL', () => {
   it('counts duplicates of a quoted key column with a bounded sample', () => {
     const sql = buildDuplicateKeySql('t', new Set(['sku"1']), 'sku"1');
+    const key = `nullif(trim(CAST("sku""1" AS VARCHAR)), '')`;
     expect(sql.count).toBe(
-      'SELECT count("sku""1") - count(DISTINCT "sku""1") AS extra FROM "t"',
+      `SELECT count(${key}) - count(DISTINCT ${key}) AS extra FROM "t"`,
     );
     expect(sql.samples).toContain('HAVING count(*) > 1');
     expect(sql.samples).toMatch(/LIMIT 5$/);
@@ -262,6 +263,14 @@ describe('import profiling SQL', () => {
     expect(sql).toContain('AS n1');
     expect(sql).toContain('AS DOUBLE)');
     expect(sql).toContain('AS TIMESTAMPTZ)');
+  });
+
+  it('reads a JSON-typed column as its string, not its quoted JSON form', () => {
+    const sql = buildParseFailureSql('t', new Set(['n']), [
+      { column: 'n', as: 'number', json: true },
+    ]);
+    expect(sql).toContain(`"n"->>'$'`);
+    expect(sql).not.toContain('CAST("n"');
   });
 
   it('refuses unknown columns, no checks and too many checks', () => {

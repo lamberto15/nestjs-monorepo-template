@@ -42,6 +42,38 @@ describe('matching file columns to the catalog', () => {
     expect(unknown).toEqual(['qty (UTC)', 'colour']);
   });
 
+  it('reads a parenthesis as a zone only when it is a time zone, as the server does', () => {
+    const { matches, unknown } = matchColumns(catalog, [
+      column('seenAt (Europe/Berlin)', 'TIMESTAMP'),
+      column('seenAt (Mars/Olympus)', 'TIMESTAMP'),
+      column('seenAt (local time)', 'TIMESTAMP'),
+    ]);
+    expect(matches.map((m) => m.file.name)).toEqual(['seenAt (Europe/Berlin)']);
+    expect(unknown).toEqual(['seenAt (Mars/Olympus)', 'seenAt (local time)']);
+  });
+
+  it('does not call a match key unknown, though the catalog has no such column', () => {
+    expect(
+      matchColumns(
+        catalog,
+        [column('id', 'VARCHAR'), column('x', 'VARCHAR')],
+        ['id', 'number'],
+      ).unknown,
+    ).toEqual(['x']);
+  });
+
+  it('matches by the header the file spells, and reports a repeated one once', () => {
+    const { matches, unknown, repeated } = matchColumns(catalog, [
+      column('sku', 'VARCHAR'),
+      { ...column('sku_1', 'VARCHAR'), header: 'sku' },
+      { ...column('sku_2', 'VARCHAR'), header: 'sku' },
+      { ...column('Qty_1', 'VARCHAR'), header: 'qty' },
+    ]);
+    expect(matches.map((m) => m.file.name)).toEqual(['sku', 'Qty_1']);
+    expect(unknown).toEqual([]);
+    expect(repeated).toEqual(['sku']);
+  });
+
   it('matches a name exactly, with its case', () => {
     expect(matchColumns(catalog, [column('SKU', 'VARCHAR')]).unknown).toEqual([
       'SKU',
@@ -169,6 +201,76 @@ describe('comparing a file with the catalog', () => {
         rowCount: 0,
       }).nullHeavy,
     ).toEqual([]);
+  });
+});
+
+describe('a match key that is not a catalog column (notes: id, number)', () => {
+  const notes: CatalogColumn[] = [
+    { name: 'title', type: 'text', required: true },
+    { name: 'body', type: 'text', required: false },
+  ];
+  const file = [column('id', 'VARCHAR'), column('title', 'VARCHAR')];
+  const input = {
+    catalog: notes,
+    columns: file,
+    rowCount: 4,
+    matchOn: 'id',
+    matchKeys: ['id', 'number'],
+  };
+
+  it('is found in the file, not reported missing or unknown', () => {
+    const findings = compareImport(input);
+    expect(findings.matchKeyMissing).toBeUndefined();
+    expect(findings.unknown).toEqual([]);
+    expect(hasFindings(findings)).toBe(false);
+  });
+
+  it('still reports a key the file lacks, by its header', () => {
+    expect(compareImport({ ...input, matchOn: 'number' }).matchKeyMissing).toBe(
+      'number',
+    );
+    expect(
+      compareImport({
+        ...input,
+        columns: [{ ...file[0]!, name: 'id_1', header: 'id' }, file[1]!],
+      }).matchKeyMissing,
+    ).toBeUndefined();
+  });
+
+  it('plans the duplicate count on the key column, by the name DuckDB gave it', () => {
+    expect(planChecks(input)).toEqual({ duplicateKey: 'id' });
+    expect(
+      planChecks({
+        ...input,
+        columns: [{ ...file[0]!, name: 'id_1', header: 'id' }, file[1]!],
+      }),
+    ).toEqual({ duplicateKey: 'id_1' });
+  });
+});
+
+describe('a JSON column of mixed strings and numbers', () => {
+  const quantities: CatalogColumn[] = [
+    { name: 'qty', type: 'number', required: false },
+  ];
+
+  it('is judged by its values, never by the type JSON', () => {
+    const columns = [column('qty', 'JSON')];
+    expect(
+      compareImport({ catalog: quantities, columns, rowCount: 3 }).types,
+    ).toEqual([]);
+    expect(planChecks({ catalog: quantities, columns, rowCount: 3 })).toEqual({
+      parse: [{ column: 'qty', as: 'number', json: true }],
+    });
+    expect(
+      compareImport({
+        catalog: quantities,
+        columns,
+        rowCount: 3,
+        checks: { unparseable: { qty: 1 } },
+      }).types,
+    ).toEqual([
+      { column: 'qty', expected: 'number', detected: 'JSON', badValues: 1 },
+    ]);
   });
 });
 

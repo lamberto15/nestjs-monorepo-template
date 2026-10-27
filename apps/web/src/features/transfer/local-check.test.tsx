@@ -30,6 +30,17 @@ const catalog = {
       ],
       template: '/v1/data/imports/stock/template',
     },
+    // Shaped like the server's notes: the match keys are not catalog columns.
+    {
+      name: 'notes',
+      formats: ['csv', 'json', 'xlsx'],
+      matchKeys: ['id', 'number'],
+      columns: [
+        { name: 'title', type: 'text', required: true },
+        { name: 'body', type: 'text', required: false },
+      ],
+      template: '/v1/data/imports/notes/template',
+    },
   ],
 };
 
@@ -120,7 +131,9 @@ describe('the local check on the import page', () => {
     expect(
       await within(card).findByText('Read 10 rows and 4 columns.'),
     ).toBeVisible();
-    expect(engine.loadLocalFile).toHaveBeenCalledWith(expect.any(File));
+    expect(engine.loadLocalFile).toHaveBeenCalledWith(expect.any(File), {
+      forImport: true,
+    });
     expect(engine.checkDataset).toHaveBeenCalledWith(dataset(), {
       duplicateKey: 'sku',
       parse: [{ column: 'qty', as: 'number' }],
@@ -146,7 +159,7 @@ describe('the local check on the import page', () => {
     ).toBeVisible();
     expect(
       within(card).getByText(
-        'Rows repeating an earlier key: 2. Most repeated: A-1.',
+        '2 rows repeat an earlier key. Most repeated: A-1.',
       ),
     ).toBeVisible();
     // Null share of a required column.
@@ -178,6 +191,79 @@ describe('the local check on the import page', () => {
     expect(
       await screen.findByText(
         /No problems found\. The server may still refuse rows\./,
+      ),
+    ).toBeVisible();
+  });
+
+  it('takes a match key that is not a catalog column, and checks its duplicates', async () => {
+    engine.loadLocalFile.mockResolvedValue({
+      ...dataset(),
+      name: 'notes.csv',
+      columns: [column('id', 'VARCHAR'), column('title', 'VARCHAR')],
+    });
+    engine.checkDataset.mockResolvedValue({
+      duplicates: {
+        column: 'id',
+        extraRows: 1,
+        samples: [{ value: '7', rows: 2 }],
+      },
+      unparseable: {},
+    });
+    useImportApi();
+    await renderApp('/transfers/import?name=notes');
+    await screen.findByRole('table', { name: 'Columns it takes' });
+    await chooseFile(
+      new File(['id,title\n7,a\n7,b\n'], 'notes.csv', { type: 'text/csv' }),
+    );
+    const card = await screen.findByLabelText(
+      'Local check (not authoritative)',
+    );
+    expect(
+      await within(card).findByText(
+        '1 row repeats an earlier key. Most repeated: 7.',
+      ),
+    ).toBeVisible();
+    expect(engine.checkDataset).toHaveBeenCalledWith(expect.anything(), {
+      duplicateKey: 'id',
+    });
+    expect(
+      within(card).queryByText('The match key is not a column of the file'),
+    ).toBeNull();
+    expect(
+      within(card).queryByText('Columns the import does not take'),
+    ).toBeNull();
+  });
+
+  it('says a JSON file that is not an array is refused by the server', async () => {
+    engine.loadLocalFile.mockRejectedValue(
+      Object.assign(new Error('x'), { name: 'NotJsonArrayError' }),
+    );
+    useImportApi();
+    await openPage();
+    await chooseFile(new File(['{"a":1}\n'], 'stock.json'));
+    expect(
+      await screen.findByText(/only as an array of objects/),
+    ).toBeVisible();
+  });
+
+  it('names headers the file repeats, and reads one row and one column', async () => {
+    engine.loadLocalFile.mockResolvedValue({
+      ...dataset(),
+      rowCount: 1,
+      columns: [column('sku', 'VARCHAR'), column('sku_1', 'VARCHAR')].map(
+        (c, i) => (i ? { ...c, header: 'sku' } : c),
+      ),
+    });
+    engine.checkDataset.mockResolvedValue({ unparseable: {} });
+    useImportApi();
+    await openPage();
+    await chooseFile(csv());
+    expect(
+      await screen.findByText(/^Read 1 row and 2 columns\./),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        'Columns named more than once (the import keeps the last)',
       ),
     ).toBeVisible();
   });

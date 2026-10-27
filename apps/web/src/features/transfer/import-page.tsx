@@ -317,6 +317,7 @@ export function ImportPage(props: { name?: string }) {
               file={file}
               columns={importer.columns}
               matchOn={matchOn}
+              matchKeys={matchKeys}
             />
           )}
           {maxRows !== undefined && (

@@ -29,6 +29,7 @@ const fakes = vi.hoisted(() => ({
   failInstantiate: undefined as Error | undefined,
   failures: new Map<string, Error>(),
   version: 'v1.4.3',
+  headerRow: undefined as Row | undefined,
 }));
 
 type Row = Record<string, unknown>;
@@ -78,6 +79,8 @@ class FakeConnection {
       return tableFromJSON([{ n0: 1, n1: 0 }]);
     if (sql.startsWith('SELECT count(*) AS count'))
       return tableFromJSON([{ count: 7 }]);
+    if (sql.includes('header = false'))
+      return tableFromJSON([fakes.headerRow ?? { column0: 'amount' }]);
     if (sql.startsWith('SELECT *'))
       return tableFromJSON([{ amount: 12 }, { amount: 24 }]);
     return new Table();
@@ -144,6 +147,7 @@ beforeEach(() => {
   fakes.failInstantiate = undefined;
   fakes.failures.clear();
   fakes.version = 'v1.4.3';
+  fakes.headerRow = undefined;
   vi.stubGlobal(
     'Worker',
     class {
@@ -515,6 +519,65 @@ describe('querying', () => {
   });
 });
 
+describe('loading an import file', () => {
+  it('reads a CSV as text, with the header row as the file spells it', async () => {
+    fakes.headerRow = { column0: ' amount ', column1: 'Details' };
+    const dataset = await loadLocalFile(localFile('sales.csv').file, {
+      forImport: true,
+    });
+
+    const sent = latest().connection.queries;
+    expect(sent.find((sql) => sql.startsWith('CREATE TEMP TABLE'))).toContain(
+      "read_csv('analytics-input.csv', sample_size = -1, all_varchar = true)",
+    );
+    expect(
+      sent.find((sql) => sql.startsWith('SELECT count(*) - count(')),
+    ).toContain(`nullif(trim(CAST("amount" AS VARCHAR)), '')`);
+    // Only a header that differs from DuckDB's name is carried.
+    expect(dataset.columns.map((column) => column.header)).toEqual([
+      undefined,
+      'Details',
+    ]);
+  });
+
+  it('ignores a header row of another width', async () => {
+    fakes.headerRow = { column0: 'a,b' };
+    const dataset = await loadLocalFile(localFile('sales.csv').file, {
+      forImport: true,
+    });
+    expect(dataset.columns.map((column) => column.header)).toEqual([
+      undefined,
+      undefined,
+    ]);
+  });
+
+  it('reads JSON only as an array, and refuses JSON Lines the way the server does', async () => {
+    await expect(
+      loadLocalFile(localFile('rows.json', '{"a":1}\n{"a":2}\n').file, {
+        forImport: true,
+      }),
+    ).rejects.toMatchObject({ name: 'NotJsonArrayError' });
+
+    await loadLocalFile(localFile('rows.json', '\uFEFF \n[{"a":1}]').file, {
+      forImport: true,
+    });
+    expect(
+      latest().connection.queries.find((sql) =>
+        sql.startsWith('CREATE TEMP TABLE'),
+      ),
+    ).toContain("read_json('analytics-input.json', format = 'array'");
+  });
+
+  it('keeps reading JSON Lines for the explorer', async () => {
+    await loadLocalFile(localFile('rows.json', '{"a":1}\n{"a":2}\n').file);
+    expect(
+      latest().connection.queries.find((sql) =>
+        sql.startsWith('CREATE TEMP TABLE'),
+      ),
+    ).toContain("read_json('analytics-input.json', sample_size = -1)");
+  });
+});
+
 describe('checking an import file', () => {
   it('counts duplicate keys and unparseable values with the generated SQL', async () => {
     const dataset = await loadLocalFile(localFile('sales.csv').file);
@@ -534,9 +597,11 @@ describe('checking an import file', () => {
     });
     const sent = latest().connection.queries.slice(-3);
     expect(sent[0]).toMatch(
-      /^SELECT count\("amount"\) - count\(DISTINCT "amount"\) AS extra FROM "dataset_[0-9a-f]+"$/,
+      /^SELECT count\(nullif\(trim\(CAST\("amount" AS VARCHAR\)\), ''\)\) - count\(DISTINCT nullif\(trim\(CAST\("amount" AS VARCHAR\)\), ''\)\) AS extra FROM "dataset_[0-9a-f]+"$/,
     );
-    expect(sent[2]).toContain('try_cast(CAST("amount" AS VARCHAR) AS DOUBLE)');
+    expect(sent[2]).toContain(
+      `try_cast(nullif(trim(CAST("amount" AS VARCHAR)), '') AS DOUBLE)`,
+    );
   });
 
   it('rejects a column the file does not have without sending SQL', async () => {
