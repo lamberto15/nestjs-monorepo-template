@@ -4,9 +4,8 @@
 # the release before them (drops, renames, retypes, SET NOT NULL, a NOT NULL
 # column without a default, dropped defaults and constraints, TRUNCATE,
 # DELETE and UPDATE without WHERE) goes to the job summary, with file and
-# line. Report-only while the template has no adopters: set
-# MIGRATION_LINT_FAIL to on to fail the pull request on them; a reviewed
-# contract step then takes the destructive-migration label. A change to a
+# line, and fail the pull request (MIGRATION_LINT_FAIL: on); a reviewed
+# contract step takes the destructive-migration label. A change to a
 # migration that was already merged (edited, deleted, its journal entry
 # changed or out of order) and a squawk-ignore comment fail either way,
 # unless the label accepts them. The label is read when the job runs (a
@@ -50,8 +49,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
-      # '' reports only; on fails on destructive statements.
-      MIGRATION_LINT_FAIL: ''
+      # on fails on destructive statements (a reviewed contract step takes
+      # the destructive-migration label); '' would report only.
+      MIGRATION_LINT_FAIL: 'on'
     steps:
       # A pull request checks out its merge commit: HEAD^1 is the base
       # branch it was merged onto, so the comparison is this pull request's alone.
