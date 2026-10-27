@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
-import { Button } from '@nestjs-monorepo-template/ui/components/button';
+import { buttonVariants } from '@nestjs-monorepo-template/ui/components/button';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import {
   Table,
@@ -35,10 +35,10 @@ export function RolesPage() {
         title={t('roles.title')}
         actions={
           // A link that looks like a button: it goes to a page.
-          <Button nativeButton={false} render={<Link to="/access/roles/new" />}>
+          <Link to="/access/roles/new" className={buttonVariants()}>
             <PlusIcon />
             {t('roles.new')}
-          </Button>
+          </Link>
         }
       />
       {roles.isPending ? (

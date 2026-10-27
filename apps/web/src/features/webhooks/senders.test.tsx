@@ -101,7 +101,7 @@ describe('incoming webhook senders', () => {
     const user = userEvent.setup();
     await renderApp('/webhooks');
     await user.click(
-      await screen.findByRole('button', { name: 'Incoming senders' }),
+      await screen.findByRole('link', { name: 'Incoming senders' }),
     );
     expect(await screen.findByText('billing-system')).toBeVisible();
     expect(screen.getByText('Invoices')).toBeVisible();

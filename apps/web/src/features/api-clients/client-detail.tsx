@@ -103,18 +103,13 @@ export function ClientDetail(props: { id: string }) {
             }
             actions={
               hasUsage && (
-                <Button
-                  variant="outline"
-                  nativeButton={false}
-                  render={
-                    <Link
-                      to="/api-clients/usage"
-                      search={{ client: client.id, days: '30' }}
-                    />
-                  }
+                <Link
+                  to="/api-clients/usage"
+                  search={{ client: client.id, days: '30' }}
+                  className={buttonVariants({ variant: 'outline' })}
                 >
                   {t('detail.viewUsage')}
-                </Button>
+                </Link>
               )
             }
           />

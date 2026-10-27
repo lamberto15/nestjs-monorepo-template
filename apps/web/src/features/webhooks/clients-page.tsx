@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Button } from '@nestjs-monorepo-template/ui/components/button';
+import { buttonVariants } from '@nestjs-monorepo-template/ui/components/button';
 import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import {
@@ -29,13 +29,12 @@ export function WebhookClientsPage() {
         title={t('clients.title')}
         description={t('clients.description')}
         actions={
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link to="/webhooks/senders" />}
+          <Link
+            to="/webhooks/senders"
+            className={buttonVariants({ variant: 'outline' })}
           >
             {t('clients.senders')}
-          </Button>
+          </Link>
         }
       />
       {list.isPending ? (
@@ -75,13 +74,12 @@ export function WebhookClientsPage() {
         <EmptyState
           title={t('clients.empty')}
           action={
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link to="/api-clients" />}
+            <Link
+              to="/api-clients"
+              className={buttonVariants({ variant: 'outline' })}
             >
               {t('clients.createClient')}
-            </Button>
+            </Link>
           }
         />
       )}

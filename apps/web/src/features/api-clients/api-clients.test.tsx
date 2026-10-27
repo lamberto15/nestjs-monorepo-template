@@ -580,7 +580,7 @@ describe('gating', () => {
       await screen.findByRole('link', { name: 'Billing exporter' }),
     );
     await screen.findByRole('heading', { name: 'Billing exporter' });
-    expect(screen.queryByRole('button', { name: 'View usage' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'View usage' })).toBeNull();
   });
 
   it('hides the entries from a user without the permission', async () => {
