@@ -1,4 +1,5 @@
 import { ApiError } from '@nestjs-monorepo-template/api-client';
+import { http, HttpResponse } from 'msw/http';
 import {
   afterEach,
   beforeEach,
@@ -16,6 +17,7 @@ import {
   resetErrorReports,
   rootErrorHandlers,
 } from '@/lib/report-error';
+import { server } from '@/test/server';
 
 let logged: MockInstance<typeof console.error>;
 beforeEach(() => {
@@ -43,6 +45,31 @@ describe('reportClientError', () => {
       reportClientError(new Error(`boom ${n}`), 'window');
     }
     expect(sent()).toHaveLength(20);
+  });
+
+  it("posts the report to the API (POST /v1/client-errors), with the route's path", async () => {
+    let body: unknown;
+    server.use(
+      http.post('/v1/client-errors', async ({ request }) => {
+        body = await request.json();
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const error = new Error('boom');
+    const id = reportClientError(error, 'window');
+    await vi.waitFor(() => expect(body).toBeDefined());
+    expect(body).toMatchObject({
+      id,
+      source: 'window',
+      message: 'boom',
+      path: window.location.pathname,
+    });
+    expect((body as { stack?: string }).stack).toContain('boom');
+  });
+
+  it('never throws when the report fails to send', async () => {
+    server.use(http.post('/v1/client-errors', () => HttpResponse.error()));
+    expect(() => reportClientError(new Error('boom'), 'window')).not.toThrow();
   });
 
   it('gives React root callbacks a report each', () => {

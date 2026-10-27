@@ -2160,6 +2160,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/client-errors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Report a web app error it did not expect
+         * @description The report id shown to the user, where it was heard, its message and stack, and the route. Logged, never stored.
+         */
+        post: operations["ClientErrorsController_report_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/webhooks/mail/{provider}": {
         parameters: {
             query?: never;
@@ -15173,6 +15193,35 @@ export interface operations {
             };
             /** @description Only API clients have usage: a user gets a 403. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ClientErrorsController_report_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    id: string;
+                    /** @enum {string} */
+                    source: "uncaught" | "caught" | "recoverable" | "window" | "rejection" | "request" | "route";
+                    message: string;
+                    stack?: string;
+                    path: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Logged. */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -60,6 +60,8 @@ import './webhooks/webhooks-error.filter.js';
 import { webhooksOptions } from './webhooks/webhooks.config.js';
 import { HttpClientModule } from '@nestjs/http-client';
 import { MAIL_SUPPRESSION } from '../core/mail/mail-suppression.js';
+import { ClientErrorsController } from './client-errors/client-errors.controller.js';
+import { ClientErrorsService } from './client-errors/client-errors.service.js';
 import { MailEventsController } from './deliverability/mail-events.controller.js';
 import { MailEventsProcessor } from './deliverability/mail-events.processor.js';
 import { MailEventsRetentionJob } from './deliverability/mail-events-retention.job.js';
@@ -479,6 +481,8 @@ export class PlatformModule {
         RetentionController,
         ...whenOn('REPORTS', ReportsController),
         ...whenOn('USAGE', UsageController),
+        // The web app's own unexpected errors (apps/web/src/lib/report-error.ts).
+        ClientErrorsController,
         // Email deliverability: the providers' bounces and complaints, the suppression list.
         MailEventsController,
         SuppressionsController,
@@ -756,6 +760,7 @@ export class PlatformModule {
         ApprovalAccessPolicy,
         // Open and overdue requests on /metrics.
         ApprovalMetrics,
+        ClientErrorsService,
         // Email deliverability (docs/deliverability.md): intakes register
         // themselves (SES through SNS); the queue applies their events to
         // the suppression list, which the core's mail queue asks through

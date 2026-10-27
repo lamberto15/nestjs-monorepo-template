@@ -156,8 +156,9 @@ web app needs the API, so `dev:web` alone suits an API already running.
   route's error page show (`reportClientError`, `lib/report-error.ts`, also
   fed by createRoot's error callbacks and the window's uncaught errors and
   rejections; one report per error, at most 20 a minute). Reports go to the
-  console until a destination is chosen (#751). A dropped connection is not
-  one: it says so.
+  console and to `POST /v1/client-errors` (`platform/client-errors`), which
+  logs them server-side; nothing is stored beyond the log (#751). A dropped
+  connection is not one: it says so.
 - **Cross-tab sessions** (`lib/session-bus.ts`, `lib/session.ts`): the tabs
   share the one `__Host-sid` cookie, so what one tab does to the session the
   others must follow. A tab's session watcher (`lib/errors.ts`) records the

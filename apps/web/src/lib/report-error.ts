@@ -6,14 +6,16 @@ import { isApiError } from '@nestjs-monorepo-template/api-client';
  * callbacks, the window's uncaught errors and rejections, a query or mutation
  * failing with something that is not the API's answer, a route's error page.
  * Each gets a short report id, which the error page and the toast show so a
- * user can quote it. Where reports go beyond this tab's console is the
- * owner's decision (#751: an endpoint of the API's, or a vendor's SDK), and
- * plugs in at `send`.
+ * user can quote it. Logged to the console, and sent to the API
+ * (`POST /v1/client-errors`, `core/http/http-setup.ts`'s same-origin check
+ * lets it through with no sign-in needed), which logs it server-side; #751.
  *
  * Custom code: React, TanStack Router and the browser each offer a hook, not
  * a sink, and one error can reach several of them (an error a route's
  * boundary caught is React's `onCaughtError` and the error page's), so it is
- * reported once, under one id.
+ * reported once, under one id. A plain `fetch`, not the typed client
+ * (`@/lib/api`): this is the path an error in the app's own request
+ * machinery still has to go through, so it stays free of that machinery.
  */
 
 /** Where an error was heard. */
@@ -35,8 +37,28 @@ const LIMIT = 20;
 const WINDOW_MS = 60_000;
 let sent: number[] = [];
 
+/** Field limits of apps/api/src/platform/client-errors/client-errors.schemas.ts. */
+const truncate = (text: string, max: number) =>
+  text.length > max ? text.slice(0, max) : text;
+
 function send(id: string, source: ErrorSource, error: unknown) {
   console.error(`[${id}] ${source} error`, error);
+  const message = error instanceof Error ? error.message : String(error);
+  void fetch('/v1/client-errors', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      id,
+      source,
+      message: truncate(message, 2000),
+      stack:
+        error instanceof Error && error.stack
+          ? truncate(error.stack, 8000)
+          : undefined,
+      path: location.pathname,
+    }),
+    // Best effort: a failed report must never become one of its own.
+  }).catch(() => {});
 }
 
 const newId = () => crypto.randomUUID().slice(0, 8);
