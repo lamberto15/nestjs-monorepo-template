@@ -171,6 +171,10 @@ test('the check job typechecks packages/ui, checks formatting and the committed 
   }
   assert.ok(typecheck < build, 'typecheck runs before the build');
   assert.ok(tree > build, 'the route tree is compared after the web build');
+  assert.ok(
+    index('m.regenerateRouteTree(process.cwd())') < tree,
+    'the route tree is regenerated before the comparison, not read off a cached build',
+  );
   const treeStep = steps(text).find((s) =>
     s.some((l) => l.includes('routeTree.gen.ts')),
   );

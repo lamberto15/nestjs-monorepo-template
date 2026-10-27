@@ -708,8 +708,9 @@ the API's part (docs/adding-a-feature.md).
   `preview`, `lint` (type-aware oxlint), `test` (`vitest run`). Turborepo
   builds the client first. `packages/ui` has `lint` and `typecheck` (a Turborepo
   task, `pnpm turbo run typecheck`, that CI runs in `check`). CI also fails when
-  the build rewrites the committed `routeTree.gen.ts`, so commit it with the
-  route change. A test file must not sit in `src/routes`: the router
+  the router's generator rewrites the committed `routeTree.gen.ts` (it runs
+  the generator itself, not off a cached build), so commit it with the route
+  change. A test file must not sit in `src/routes`: the router
   generator would read it as a route (it ignores files that start with `-`),
   so page tests live in `src/test/` or beside their feature.
 - **Production:** `caddy/Dockerfile` builds the app into the Caddy image,

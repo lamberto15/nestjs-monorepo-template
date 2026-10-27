@@ -477,12 +477,15 @@ jobs:
       - name: Types of packages/ui, and formatting
         run: pnpm turbo run typecheck ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }} && pnpm format:check
       - run: pnpm turbo run build ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }}
-      # The router's plugin rewrites src/routeTree.gen.ts during the web
-      # build (Turborepo replays it from its cache): the committed file must
-      # be what the build writes. Before the notes feature is removed, below.
-      - name: The committed route tree is what the web build generates
+      # The committed src/routeTree.gen.ts must be what the router's generator
+      # writes. Run here rather than read off the build, which Turborepo may
+      # replay from its cache without running the plugin. Before the notes
+      # feature is removed, below.
+      - name: The committed route tree is what the router generates
         if: needs.changes.outputs.web == 'true'
-        run: git diff --exit-code -- apps/web/src/routeTree.gen.ts
+        run: |
+          node -e "import('./tools/feature/remove.mjs').then((m) => m.regenerateRouteTree(process.cwd()))"
+          git diff --exit-code -- apps/web/src/routeTree.gen.ts
       # The typed client's OpenAPI document and types must match the routes.
       - run: pnpm client:check
         if: needs.changes.outputs.api == 'true'
