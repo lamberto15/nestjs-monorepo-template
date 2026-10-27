@@ -163,7 +163,7 @@ declares its fields, capabilities, recycle bin (`softDelete`) and teams
 
 ## 5. Check and hand back
 
-Run the check before every commit (AGENTS.md: build, lint, test, test:e2e,
-db:check, client:check), commit, push, open the pull request. Tell the user
+Commit, push and open the draft pull request; CI runs the checks (AGENTS.md,
+"Validation in CI"): fix what it reports. Tell the user
 what was generated, what you wrote by hand, and which texts await
 translation.
