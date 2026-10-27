@@ -292,10 +292,16 @@
     "description": "The page you are looking for does not exist.",
     "back": "Back to the dashboard"
   },
+  "errors": {
+    "unexpected": "Something went wrong.",
+    "reportId": "Report ID: {{id}}",
+    "requestId": "Request ID: {{id}}"
+  },
   "routeError": {
     "title": "Something went wrong",
     "description": "This page failed to load. The rest of the app still works.",
     "reportId": "Report ID: {{id}}",
+    "build": "Build: {{sha}}",
     "retry": "Try again"
   },
   "preferences": {
