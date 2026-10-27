@@ -8,8 +8,6 @@ import {
   SidebarMenuItem,
 } from '@nestjs-monorepo-template/ui/components/sidebar';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
-import { settingsQuery } from '@/features/settings/settings';
 import { useOperator } from '@/features/tenants/queries';
 import { useFeatures, useMe } from '@/lib/features';
 import { nav, visibleGroups, type NavItem } from '@/nav';
@@ -18,19 +16,12 @@ export function NavMain() {
   const { t } = useTranslation();
   // The one place the menu is filtered (UX only: the API enforces both).
   const me = useMe();
-  const settings = useQuery({ ...settingsQuery, meta: { errorToast: false } });
-  const settingFlags = Object.fromEntries(
-    (settings.data ?? [])
-      .filter((setting) => setting.type === 'boolean')
-      .map((setting) => [setting.key, setting.value === true]),
-  );
   const groups = visibleGroups(
     nav,
     useFeatures(),
     me?.can,
     useOperator(),
     me?.tenant?.operator === true,
-    settingFlags,
   );
   return groups.map((group) => (
     <SidebarGroup key={group.id}>
