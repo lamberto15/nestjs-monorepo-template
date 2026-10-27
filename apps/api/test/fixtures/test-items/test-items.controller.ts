@@ -37,7 +37,6 @@ import {
   ApiUnauthorizedResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
-import { and } from 'drizzle-orm';
 import {
   assertUnchanged,
   Etag,
@@ -156,20 +155,8 @@ export class TestItemsController {
       TEST_ITEM_LIST,
       raw,
     );
-    const page = await this.testItems.findPage(
-      and(
-        // The recycle bin (?deleted=true, with softDelete) is for those who may restore.
-        await this.access.sqlFilter(
-          user,
-          'TestItem',
-          query.deleted ? 'restore' : 'read',
-          { deleted: query.deleted === true },
-        ),
-        list.where(query),
-      ),
-      query,
-      list.sortSelect(query),
-    );
+    // The service composes the read filter (the recycle bin is for those who may restore) and the query's filters.
+    const page = await this.testItems.findPage(user, list, query);
     return this.presenter.page(user, page, { list, query, include });
   }
 
