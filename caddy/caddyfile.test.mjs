@@ -255,6 +255,10 @@ function raw(caddy, path, { method = 'GET', headers = {} } = {}) {
 const vary = (headers) =>
   (headers.vary ?? '').split(',').map((token) => token.trim().toLowerCase());
 
+/** A header by name, from either a Fetch `Headers` (get) or raw()'s plain, lower-case object. */
+const header = (headers, name) =>
+  typeof headers.get === 'function' ? headers.get(name) : headers[name] ?? null;
+
 /** The web app's headers besides the policy, as the `header` block sets them. */
 const WEB_HEADERS = {
   'x-frame-options': 'DENY',
@@ -268,12 +272,12 @@ const WEB_HEADERS = {
 
 /** What the web app's every response carries (the web app's `header` block). */
 function assertSecurityHeaders(response) {
-  const policy = response.headers.get('content-security-policy') ?? '';
+  const policy = header(response.headers, 'content-security-policy') ?? '';
   assert.match(policy, /default-src 'self'/);
   assert.match(policy, /frame-ancestors 'none'/);
   assert.doesNotMatch(policy, /'unsafe-eval'/);
   for (const [name, value] of Object.entries(WEB_HEADERS)) {
-    assert.equal(response.headers.get(name), value, name);
+    assert.equal(header(response.headers, name), value, name);
   }
 }
 
