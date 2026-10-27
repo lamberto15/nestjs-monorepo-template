@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash } from 'node:crypto';
 import { errorMonitor } from 'node:events';
+import { monitorEventLoopDelay } from 'node:perf_hooks';
 import { trace } from '@opentelemetry/api';
 import type pg from 'pg';
 import {
@@ -99,6 +100,41 @@ const textOf = (query: unknown) =>
       ? (query as { text: string }).text
       : '';
 
+// Drizzle reuses query texts, so hash each distinct text once (insertion-ordered LRU).
+const FINGERPRINTS_MAX = 1000;
+const fingerprints = new Map<string, string>();
+const fingerprintOf = (sql: string) => {
+  const known = fingerprints.get(sql);
+  if (known !== undefined) {
+    fingerprints.delete(sql);
+    fingerprints.set(sql, known);
+    return known;
+  }
+  const hash = createHash('sha256').update(sql).digest('hex');
+  if (fingerprints.size >= FINGERPRINTS_MAX)
+    fingerprints.delete(fingerprints.keys().next().value as string);
+  fingerprints.set(sql, hash);
+  return hash;
+};
+
+const SLOW_QUERY_MS = 1000;
+// The client-side duration includes event-loop lag. Subtract the recent p99 lag
+// (histogram reset every 10 s) so a saturated loop does not turn queries into incidents.
+const LOOP_RESOLUTION_MS = 20;
+let loopDelay: ReturnType<typeof monitorEventLoopDelay> | undefined;
+const eventLoopLagMs = () => {
+  if (!loopDelay) {
+    loopDelay = monitorEventLoopDelay({ resolution: LOOP_RESOLUTION_MS });
+    loopDelay.enable();
+    setInterval(() => loopDelay?.reset(), 10_000).unref();
+  }
+  // Node records each full timer interval (resolution + lag), so an idle loop
+  // reads ~20 ms; only the excess is lag. No samples yet means no measured lag.
+  if (loopDelay.count === 0) return 0;
+  const lag = loopDelay.percentile(99) / 1e6 - LOOP_RESOLUTION_MS;
+  return Number.isFinite(lag) && lag > 0 ? lag : 0;
+};
+
 /**
  * Uses pg's documented promise/callback APIs. OpenTelemetry is optional and
  * samples traces; local incident capture must also work without a collector.
@@ -107,7 +143,11 @@ export class DatabaseObserver {
   readonly incidents: DatabaseIncidents;
   private readonly listeners = new Set<(sample: DatabaseMeasurement) => void>();
 
-  constructor(stats: () => PoolStats, monitorUrl?: string) {
+  constructor(
+    stats: () => PoolStats,
+    monitorUrl?: string,
+    private readonly loopLagMs: () => number = eventLoopLagMs,
+  ) {
     this.incidents = new DatabaseIncidents(stats, monitorUrl);
   }
 
@@ -209,7 +249,7 @@ export class DatabaseObserver {
       const evidence = {
         ...this.evidence(),
         operation,
-        fingerprint: createHash('sha256').update(sql).digest('hex'),
+        fingerprint: fingerprintOf(sql),
         backendPid: (client as unknown as { processID: number }).processID,
       };
       const started = performance.now();
@@ -218,14 +258,18 @@ export class DatabaseObserver {
       // Capture while the query is still running so blockers have not disappeared.
       const slow = () => {
         if (slowRecorded) return;
+        const durationMs = performance.now() - started;
+        const lag = this.loopLagMs();
+        if (durationMs - (Number.isFinite(lag) ? lag : 0) < SLOW_QUERY_MS)
+          return;
         slowRecorded = true;
         this.incidents.record({
           ...evidence,
           trigger: 'slow_query',
-          durationMs: performance.now() - started,
+          durationMs,
         });
       };
-      const timer = setTimeout(slow, 1000);
+      const timer = setTimeout(slow, SLOW_QUERY_MS);
       timer.unref();
       const done = (error?: unknown) => {
         if (finished) return;
@@ -233,7 +277,7 @@ export class DatabaseObserver {
         clearTimeout(timer);
         const durationMs = performance.now() - started;
         // I/O completion can beat a delayed watchdog when the event loop is busy.
-        if (durationMs >= 1000) slow();
+        if (durationMs >= SLOW_QUERY_MS) slow();
         this.measure({
           phase: 'query',
           operation,
