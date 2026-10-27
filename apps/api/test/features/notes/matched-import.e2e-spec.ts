@@ -158,7 +158,8 @@ describe('notes matched imports (e2e)', () => {
         body: 'private',
       }).expect(201)
     ).body;
-    await importer.agent.get(`/v1/notes/${hidden.id}`).expect(403);
+    // Unreadable reads as missing on the record route too (#773).
+    await importer.agent.get(`/v1/notes/${hidden.id}`).expect(404);
 
     const started = await importer.agent
       .post('/v1/data/imports')
