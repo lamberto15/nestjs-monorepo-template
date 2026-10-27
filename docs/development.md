@@ -825,7 +825,7 @@ They look at the staged files only, so a commit waits a second or two:
 
 | Hook | Runs |
 | --- | --- |
-| `pre-commit` | Prettier on the staged TypeScript (`pnpm format`'s globs, never `docs/` or other Markdown), restaging what it fixes; then type-aware oxlint on the apps' staged files (`apps/*/{src,test}`) |
+| `pre-commit` | Prettier on the staged TypeScript (`pnpm format`'s globs, never `docs/` or other Markdown), restaging what it fixes; then type-aware oxlint on the apps' staged files (`apps/*/{src,test}`), after building the workspace packages (Turbo's cache: near-instant), whose types it needs |
 | `commit-msg` | commitlint (`commitlint.config.js`): `type(scope)!: subject`, types `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `style`, `revert`; any scope, several with commas. Merge commits (`git merge origin/main`) and git's `Revert "…"` pass |
 
 - **Not in the hooks:** the build, the tests, `db:check`, `client:check`. The
