@@ -8,6 +8,14 @@
         "other": "{count} Ihrer Notizen wurden veröffentlicht; die neueste ist „{title}“."
       }
     },
+    "publishedMany": {
+      "label": "Notizen in großer Zahl veröffentlicht",
+      "title": "Notizen veröffentlicht",
+      "body": {
+        "one": "{notes} Notizen wurden veröffentlicht, darunter „{title}“.",
+        "other": "{count} Stapel von Notizen wurden veröffentlicht; der letzte mit {notes}, darunter „{title}“."
+      }
+    },
     "deleted": {
       "label": "Notiz von jemand anderem gelöscht",
       "title": "Notiz gelöscht",

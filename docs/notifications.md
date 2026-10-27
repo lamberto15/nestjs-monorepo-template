@@ -405,6 +405,12 @@ themselves; declarations set its default under `channels.chat`.
   are deleted nightly; `NOTIFICATIONS_MAX_AGE_DAYS` (365): any. Both jobs
   run on one instance (`@OnOneInstance`); the retention is one sweep by age
   of every tenant's rows under the worker's row-level security bypass.
+- **Bulk publications** (#618): an import group publishing more than
+  `BULK_PUBLICATION` (20) notes at once sends each person one
+  `note.publishedMany` ("N notes were published", collapsed and counted
+  up, by email `daily` by default) instead of one `note.published` per
+  note, whatever their preference for `note.published`; 20 or fewer, one
+  per note as before. The `note.published` webhook still fires per note.
 - **Digests** are one mail per person whatever the tenants: the hourly job
   reads every tenant's due rows under the bypass, lists only the account's
   own and those of tenants the person is still an active member of (the

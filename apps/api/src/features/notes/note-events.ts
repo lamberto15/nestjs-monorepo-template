@@ -21,6 +21,17 @@ export const NOTE_EVENTS = defineDomainEvents([
     },
   },
   {
+    // A bulk publication (an import group's, past BULK_PUBLICATION notes):
+    // one notification per person instead of one per note, counted up, in
+    // the daily mail by default (#618). `notes`: how many of theirs.
+    type: 'note.publishedMany',
+    notification: {
+      channels: { email: 'daily', webhook: true },
+      collapse: true,
+      data: z.object({ notes: z.number().int().positive(), title: z.string() }),
+    },
+  },
+  {
     // A watched note was changed (by someone else): bundled in a daily mail by default.
     type: 'note.changed',
     notification: {
