@@ -653,7 +653,10 @@ describe('units: a unit’s members', () => {
   it('changes a member’s role and ends a membership', async () => {
     signedInWith(everything);
     server.use(
-      peopleHandler([{ id: ids.carol, name: 'Carol Admin' }]),
+      peopleHandler([
+        { id: ids.carol, name: 'Carol Admin' },
+        { id: ids.bob, name: 'Bob Former' },
+      ]),
       principalsHandler([]),
       http.get('/v1/access/organizational-units/:id/members', () =>
         HttpResponse.json({
@@ -665,6 +668,16 @@ describe('units: a unit’s members', () => {
               role: 'member',
               validFrom: at,
               validTo: null,
+              createdAt: at,
+              updatedAt: at,
+            },
+            {
+              id: 'm0',
+              unitId: ids.north,
+              userId: ids.bob,
+              role: 'lead',
+              validFrom: '2026-09-01T10:00:00.000Z',
+              validTo: at,
               createdAt: at,
               updatedAt: at,
             },
@@ -684,6 +697,8 @@ describe('units: a unit’s members', () => {
     await renderApp(`/access/organization/${ids.north}`);
     const user = userEvent.setup();
     expect(await screen.findByText('Carol Admin')).toBeVisible();
+    // An ended membership is history: not listed, so not changed or removed.
+    expect(screen.queryByText('Bob Former')).toBeNull();
 
     // The first is the one that picks the role of a new member.
     await user.click(screen.getAllByRole('combobox', { name: 'Role' })[1]!);

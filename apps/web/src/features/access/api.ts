@@ -117,6 +117,7 @@ export type UnitType = Unit['type'];
 export function unitMembersQuery(unitId: string) {
   return queryOptions({
     queryKey: [...accessKeys.members, 'unit', unitId],
+    // The API lists ended memberships too (history); those can't be changed.
     queryFn: async () =>
       (
         await unwrap(
@@ -124,7 +125,10 @@ export function unitMembersQuery(unitId: string) {
             params: { path: { id: unitId } },
           }),
         )
-      ).items,
+      ).items.filter(
+        (member) =>
+          member.validTo === null || new Date(member.validTo) > new Date(),
+      ),
   });
 }
 
