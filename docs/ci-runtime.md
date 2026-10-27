@@ -14,7 +14,9 @@ guesses, decide the layout. The audit behind it: issue
   a browser, Docker, or minutes that would lengthen the critical path. Quick
   checks run as steps of a job that has already installed the workspace:
   `check` runs the API's and the packages' unit tests, the OpenAPI diff, the
-  bundle budget, Storybook and the notes-removal guard. `e2e-web` runs the
+  bundle budget, Storybook, `packages/ui`'s typecheck, the Prettier check
+  (`pnpm format:check`), the check that the web build left the committed
+  `routeTree.gen.ts` unchanged, and the notes-removal guard. `e2e-web` runs the
   Chromium analytics smoke and the instrumented e2e sixth. `image` runs the
   hardened stack. `stack-config` runs the Compose and Swarm renders.
 - **No artifact between jobs that could share a runner:** `image` used to

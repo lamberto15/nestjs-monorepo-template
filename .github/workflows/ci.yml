@@ -471,7 +471,18 @@ jobs:
       # Oxlint in every package, the translation parity check, then knip:
       # unused files, exports and dependencies (knip.jsonc).
       - run: pnpm turbo run lint ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }} && pnpm i18n:check && pnpm knip
+      # packages/ui has no build of its own to typecheck it (Storybook is
+      # built later); its `typecheck` script is a Turborepo task. Prettier
+      # over the same files as `pnpm format`.
+      - name: Types of packages/ui, and formatting
+        run: pnpm turbo run typecheck ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }} && pnpm format:check
       - run: pnpm turbo run build ${{ needs.changes.outputs.affected == 'true' && '--filter=...[origin/main]' || '' }}
+      # The router's plugin rewrites src/routeTree.gen.ts during the web
+      # build (Turborepo replays it from its cache): the committed file must
+      # be what the build writes. Before the notes feature is removed, below.
+      - name: The committed route tree is what the web build generates
+        if: needs.changes.outputs.web == 'true'
+        run: git diff --exit-code -- apps/web/src/routeTree.gen.ts
       # The typed client's OpenAPI document and types must match the routes.
       - run: pnpm client:check
         if: needs.changes.outputs.api == 'true'
