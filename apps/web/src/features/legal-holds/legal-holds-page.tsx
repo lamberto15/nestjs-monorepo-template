@@ -197,7 +197,8 @@ export function LegalHoldsPage() {
         </Button>
       )}
 
-      <PlaceHoldDialog open={placing} onOpenChange={setPlacing} />
+      {/* Mounted only while open: a cancelled draft doesn't come back. */}
+      {placing && <PlaceHoldDialog open onOpenChange={setPlacing} />}
       {shown && (
         <HoldDialog
           key={shown}

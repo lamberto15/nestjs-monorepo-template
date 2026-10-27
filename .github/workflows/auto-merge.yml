@@ -1,0 +1,46 @@
+# The owner's finished pull requests merge themselves (the owner's choice,
+# 2026-10-28): a pull request of the repository's owner that is not a draft
+# gets squash auto-merge, which waits for the required `CI gate` (the main
+# ruleset). A draft (an integration branch still in progress) never merges;
+# marking it ready runs this again. Others' pull requests (Dependabot,
+# contributors) still wait for the owner.
+#
+# Custom: GitHub has no setting that turns auto-merge on by itself.
+#
+# AUTO_MERGE_TOKEN, not GITHUB_TOKEN: a merge made with GITHUB_TOKEN doesn't
+# start workflows on the push to main, so main's CI and image publishing
+# would stop. A fine-grained token of the owner for this repository, with
+# Contents and Pull requests read and write. Without it this does nothing.
+name: Auto-merge
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+permissions: {}
+
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  enable:
+    if: >-
+      !github.event.pull_request.draft &&
+      github.event.pull_request.user.login == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Squash once CI gate passes (at once if it already has)
+        env:
+          GH_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN }}
+          PR: ${{ github.event.pull_request.html_url }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::notice::AUTO_MERGE_TOKEN is not set: auto-merge skipped."
+            exit 0
+          fi
+          # GitHub refuses auto-merge on a pull request that can merge now
+          # (its checks already passed): merge it then; the ruleset still
+          # refuses a merge before CI gate passes.
+          gh pr merge "$PR" --auto --squash || gh pr merge "$PR" --squash

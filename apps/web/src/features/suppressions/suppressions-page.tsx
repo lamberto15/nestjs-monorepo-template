@@ -360,15 +360,18 @@ export function SuppressionsPage() {
           title={q || reason || status ? t('emptyFiltered') : t('empty')}
         />
       )}
-      <AddSuppressionDialog
-        open={adding}
-        onOpenChange={setAdding}
-        onAdd={async (body) => {
-          const entry = await add.mutateAsync(body);
-          toast.success(t('add.done', { address: entry.address }));
-          return entry;
-        }}
-      />
+      {/* Mounted only while open: a cancelled draft doesn't come back. */}
+      {adding && (
+        <AddSuppressionDialog
+          open
+          onOpenChange={setAdding}
+          onAdd={async (body) => {
+            const entry = await add.mutateAsync(body);
+            toast.success(t('add.done', { address: entry.address }));
+            return entry;
+          }}
+        />
+      )}
       <SuppressionDialog id={shown} onClose={() => setShown(undefined)} />
       <ConfirmDialog
         open={removing !== undefined}
