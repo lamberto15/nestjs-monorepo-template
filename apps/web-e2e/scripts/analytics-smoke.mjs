@@ -104,18 +104,22 @@ try {
       result = await page.evaluate(() => window.runAnalyticsSmoke());
       break;
     } catch (error) {
-      // Vite can reload once when the lazy DuckDB-Wasm chunk is first optimized
-      // in a clean checkout. Run the entire test in the replacement context.
+      // Vite reloads the page once it sees the harness file written above (and
+      // when it first optimizes the lazy engine in a clean checkout). The reload
+      // can land mid-import, which each browser reports in its own words. Wait for the
+      // reloaded harness and run the whole test there; a real error fails 3 times.
       if (
         attempt === 2 ||
-        !/Execution context was destroyed|because of a navigation/.test(
+        !/Execution context was destroyed|because of a navigation|Importing a module script failed|error loading dynamically imported module|Failed to fetch dynamically imported module/.test(
           error.message,
         )
       ) {
         throw error;
       }
       developmentReloads++;
-      await page.reload();
+      // Vite's reload is already navigating: wait for it rather than starting
+      // another navigation (page.reload() or goto() would interrupt it).
+      await page.waitForLoadState('load');
     }
   }
   assert.equal(result.csv.engineVersion, 'v1.4.3');
