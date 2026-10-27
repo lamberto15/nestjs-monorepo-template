@@ -28,6 +28,8 @@ import { ArrowLeftIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { Section } from '@/components/account/section';
 import { ConfirmButton } from '@/components/confirm-button';
 import { rolesQuery } from '@/features/access/api';
@@ -76,7 +78,7 @@ export function ClientDetail(props: { id: string }) {
   }
   const missing = isApiError(read.error) && read.error.status === 404;
   return (
-    <div className="flex max-w-3xl flex-col gap-4">
+    <Page width="narrow">
       <Link
         to="/api-clients"
         className={cn(
@@ -89,27 +91,28 @@ export function ClientDetail(props: { id: string }) {
       </Link>
       {client ? (
         <>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-xl font-medium">{client.name}</h1>
-            <Badge variant={client.active ? 'default' : 'outline'}>
-              {t(`status.${client.active ? 'active' : 'revoked'}`)}
-            </Badge>
-            <span className="text-sm text-muted-foreground">
-              {t('detail.created', { date: formatDateTime(client.createdAt) })}
-            </span>
-            {hasUsage && (
-              <Link
-                to="/api-clients/usage"
-                search={{ client: client.id, days: '30' }}
-                className={cn(
-                  buttonVariants({ variant: 'outline', size: 'sm' }),
-                  'ms-auto',
-                )}
-              >
-                {t('detail.viewUsage')}
-              </Link>
-            )}
-          </div>
+          <PageHeader
+            title={client.name}
+            description={t('detail.created', {
+              date: formatDateTime(client.createdAt),
+            })}
+            badges={
+              <Badge variant={client.active ? 'default' : 'outline'}>
+                {t(`status.${client.active ? 'active' : 'revoked'}`)}
+              </Badge>
+            }
+            actions={
+              hasUsage && (
+                <Link
+                  to="/api-clients/usage"
+                  search={{ client: client.id, days: '30' }}
+                  className={buttonVariants({ variant: 'outline' })}
+                >
+                  {t('detail.viewUsage')}
+                </Link>
+              )
+            }
+          />
           <KeysSection client={client} />
           <RolesSection
             // Refetched after a change: a fresh draft.
@@ -125,11 +128,11 @@ export function ClientDetail(props: { id: string }) {
           <StateSection client={client} />
         </>
       ) : missing ? (
-        <p className="text-sm text-muted-foreground">{t('detail.notFound')}</p>
+        <EmptyState title={t('detail.notFound')} />
       ) : (
         <FormAlert message={errorMessage(read.error)} />
       )}
-    </div>
+    </Page>
   );
 }
 

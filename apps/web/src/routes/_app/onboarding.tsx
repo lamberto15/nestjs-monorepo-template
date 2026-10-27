@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import { useTranslation } from 'react-i18next';
+import { Page, PageHeader } from '@/components/page-header';
 import { MfaSection } from '@/components/account/mfa-section';
 import { OnboardingEmailSection } from '@/components/account/onboarding-email-section';
 import { PasskeysSection } from '@/components/account/passkeys-section';
@@ -22,11 +23,13 @@ function OnboardingPage() {
   const me = useMe();
   const pending = me?.onboardingRequired;
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
-      <h1 className="text-xl font-medium">{t('onboarding.title')}</h1>
-      <p className="text-sm text-muted-foreground">
-        {pending ? t('onboarding.description') : t('onboarding.doneHint')}
-      </p>
+    <Page width="narrow">
+      <PageHeader
+        title={t('onboarding.title')}
+        description={
+          pending ? t('onboarding.description') : t('onboarding.doneHint')
+        }
+      />
       {pending?.email && <OnboardingEmailSection />}
       {pending?.password && <PasswordSection />}
       {(pending || me?.mfaEnrollmentRequired) && (
@@ -58,6 +61,6 @@ function OnboardingPage() {
           {t('onboarding.done')}
         </Button>
       )}
-    </div>
+    </Page>
   );
 }

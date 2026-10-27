@@ -5,9 +5,11 @@ import {
   eq,
   getTableName,
   inArray,
+  notInArray,
   sql,
 } from 'drizzle-orm';
 import {
+  alias,
   type AnyPgColumn,
   index,
   integer,
@@ -82,10 +84,19 @@ export class Tree {
       .insert(this.closure)
       .values({ ancestorId: id, descendantId: id, depth: 0 });
     if (parentId) {
-      await tx.execute(sql`
-        insert into ${this.closure} (tenant_id, ancestor_id, descendant_id, depth)
-        select tenant_id, ancestor_id, ${id}, depth + 1 from ${this.closure}
-        where descendant_id = ${parentId}`);
+      // Every ancestor of the parent is one level further from the node.
+      const { closure } = this;
+      await tx.insert(closure).select(
+        tx
+          .select({
+            tenantId: closure.tenantId,
+            ancestorId: closure.ancestorId,
+            descendantId: sql<string>`${id}::uuid`.as('descendant_id'),
+            depth: sql<number>`${closure.depth} + 1`.as('depth'),
+          })
+          .from(closure)
+          .where(eq(closure.descendantId, parentId)),
+      );
     }
   }
 
@@ -99,18 +110,38 @@ export class Tree {
     if (parentId && (await this.isUnder(tx, parentId, id))) {
       throw new TreeCycleError(id, parentId);
     }
+    const { closure } = this;
+    const subtree = tx
+      .select({ id: closure.descendantId })
+      .from(closure)
+      .where(eq(closure.ancestorId, id));
     // Detach the subtree from its old ancestors (it keeps its own inner paths)…
-    await tx.execute(sql`
-      delete from ${this.closure}
-      where descendant_id in (select descendant_id from ${this.closure} where ancestor_id = ${id})
-        and ancestor_id not in (select descendant_id from ${this.closure} where ancestor_id = ${id})`);
+    await tx
+      .delete(closure)
+      .where(
+        and(
+          inArray(closure.descendantId, subtree),
+          notInArray(closure.ancestorId, subtree),
+        ),
+      );
     // …then attach it under every ancestor of the new parent.
     if (parentId) {
-      await tx.execute(sql`
-        insert into ${this.closure} (tenant_id, ancestor_id, descendant_id, depth)
-        select above.tenant_id, above.ancestor_id, below.descendant_id, above.depth + below.depth + 1
-        from ${this.closure} above cross join ${this.closure} below
-        where above.descendant_id = ${parentId} and below.ancestor_id = ${id}`);
+      const above = alias(closure, 'above');
+      const below = alias(closure, 'below');
+      await tx.insert(closure).select(
+        tx
+          .select({
+            tenantId: above.tenantId,
+            ancestorId: above.ancestorId,
+            descendantId: below.descendantId,
+            depth: sql<number>`${above.depth} + ${below.depth} + 1`.as('depth'),
+          })
+          .from(above)
+          .crossJoin(below)
+          .where(
+            and(eq(above.descendantId, parentId), eq(below.ancestorId, id)),
+          ),
+      );
     }
   }
 

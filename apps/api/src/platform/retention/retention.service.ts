@@ -7,7 +7,7 @@ import {
 import { InjectQueue } from '@nestjs/bullmq';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import type { Queue } from 'bullmq';
-import { and, asc, eq, inArray, lt, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, lt, not, sql } from 'drizzle-orm';
 import type { PgTable } from 'drizzle-orm/pg-core';
 import {
   database,
@@ -237,9 +237,9 @@ export class RetentionService {
     // Counted before the first batch only: how many due rows a hold keeps.
     const held = first
       ? await this.db
-          .select({ count: sql<number>`count(*)::int` })
+          .select({ count: count() })
           .from(table)
-          .where(and(due, sql`not ${notHeld(rule.subject, id)}`))
+          .where(and(due, not(notHeld(rule.subject, id))))
           .then((rows) => rows[0]?.count ?? 0)
       : undefined;
     const counted = await inTransaction(this.txHost, async (tx) => {

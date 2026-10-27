@@ -240,7 +240,7 @@ and `node tools/ci/pinned-deps.mjs` (part of `pnpm lint`) fails on a range in
 | `pnpm dev:web` | the web app's dev server alone, http://localhost:5173; it proxies `/v1`, `/health`, `/files` and `/socket.io` to the API on :3000 (`apps/web/dev-proxy.ts`), so the session cookie is same-origin and a signed file link is too |
 | `pnpm build && pnpm lint && pnpm test && pnpm test:e2e` | the checks CI runs on every pull request; run them locally only to investigate a CI failure (Turborepo: a task whose inputs didn't change is replayed from `.turbo/cache`) |
 | `pnpm i18n:check` | the translation parity check (also run by `pnpm lint`): every locale's keys, placeholders and plural forms against `en`, web and API ([i18n](i18n-and-time.md)) |
-| `pnpm lint` | oxlint in every package (Turborepo), the translation parity check, then knip: unused files, exports and dependencies across the workspaces ([Dead code](#dead-code-knip)); `pnpm lint:code` is the first two, `pnpm knip` knip alone |
+| `pnpm lint` | oxlint in every package (Turborepo), the translation parity check, the pinned-versions and raw-SQL checks (`tools/ci/raw-sql.mjs`: the API's raw SQL against `tools/ci/raw-sql.allow.json`), then knip: unused files, exports and dependencies across the workspaces ([Dead code](#dead-code-knip)); `pnpm lint:code` is all but knip, `pnpm knip` knip alone |
 | `pnpm format` | Prettier on the TypeScript of every package (not on Markdown, nor `packages/ui`: the shadcn CLI writes it) |
 | `pnpm format:check` | the same files, `prettier --check`: what CI runs in `check`; `pnpm format` fixes it |
 | `pnpm turbo run typecheck` | `tsc --noEmit` of `packages/ui` (it has no build); run by CI in `check` |
@@ -825,7 +825,7 @@ They look at the staged files only, so a commit waits a second or two:
 
 | Hook | Runs |
 | --- | --- |
-| `pre-commit` | Prettier on the staged TypeScript (`pnpm format`'s globs, never `docs/` or other Markdown), restaging what it fixes; then type-aware oxlint on the apps' staged files (`apps/*/{src,test}`) |
+| `pre-commit` | Prettier on the staged TypeScript (`pnpm format`'s globs, never `docs/` or other Markdown), restaging what it fixes; then type-aware oxlint on the apps' staged files (`apps/*/{src,test}`), after building the workspace packages (Turbo's cache: near-instant), whose types it needs |
 | `commit-msg` | commitlint (`commitlint.config.js`): `type(scope)!: subject`, types `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `style`, `revert`; any scope, several with commas. Merge commits (`git merge origin/main`) and git's `Revert "…"` pass |
 
 - **Not in the hooks:** the build, the tests, `db:check`, `client:check`. The

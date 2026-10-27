@@ -7,6 +7,7 @@ import {
   type AnyColumn,
   and,
   eq,
+  exists,
   gt,
   inArray,
   ne,
@@ -16,6 +17,7 @@ import {
   or,
   sql,
 } from 'drizzle-orm';
+import { QueryBuilder } from 'drizzle-orm/pg-core';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import {
   database,
@@ -1381,4 +1383,15 @@ export class ApprovalEngine {
  * memberships a global table (docs/tenancy.md), so the tenant is named.
  */
 export const activeMember = (userId: AnyColumn) =>
-  sql`exists (select 1 from ${memberships} where ${memberships.userId} = ${userId} and ${memberships.tenantId} = ${requireTenantId('An approver')} and ${memberships.active})`;
+  exists(
+    new QueryBuilder()
+      .select({ one: sql`1` })
+      .from(memberships)
+      .where(
+        and(
+          eq(memberships.userId, userId),
+          eq(memberships.tenantId, requireTenantId('An approver')),
+          eq(memberships.active, true),
+        ),
+      ),
+  );

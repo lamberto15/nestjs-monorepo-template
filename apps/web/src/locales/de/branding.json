@@ -28,5 +28,10 @@
     "rejected": "{{name}}: {{reason}}",
     "tooLarge": "Die Datei ist größer als {{max}} KB.",
     "typeRefused": "Verwenden Sie ein PNG-, JPEG- oder WebP-Bild."
+  },
+  "error": {
+    "title": "Das Branding konnte nicht geladen werden",
+    "generic": "Etwas ist schiefgelaufen. Versuchen Sie es erneut.",
+    "retry": "Erneut versuchen"
   }
 }

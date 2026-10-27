@@ -28,6 +28,7 @@ export function ConfirmButton(props: {
   onConfirm: () => Promise<unknown>;
   variant?: 'outline' | 'destructive' | 'ghost';
   size?: 'default' | 'sm';
+  className?: string;
   disabled?: boolean;
   /** The trigger's accessible name, when its text alone is ambiguous (one per row). */
   label?: string;
@@ -46,6 +47,7 @@ export function ConfirmButton(props: {
         type="button"
         variant={props.variant ?? 'outline'}
         size={props.size}
+        className={props.className}
         disabled={props.disabled || paused}
         aria-label={props.label}
         onClick={() => {

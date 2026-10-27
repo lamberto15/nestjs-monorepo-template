@@ -23,6 +23,7 @@ import { languages } from '@/i18n';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { api } from '@/lib/api';
 import { AUTH_LIMITS } from '@/lib/auth-limits';
+import { Page, PageHeader } from '@/components/page-header';
 import { AvatarSection } from '@/components/account/avatar-section';
 import { useMe } from '@/lib/features';
 import { FormAlert, useAppForm } from '@/lib/form';
@@ -40,10 +41,10 @@ function ProfilePage() {
   const { t } = useTranslation();
   const me = useMe();
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
-      <h1 className="text-xl font-medium">{t('account.profile.title')}</h1>
+    <Page width="narrow">
+      <PageHeader title={t('account.profile.title')} />
       {me && <ProfileForm me={me} />}
-    </div>
+    </Page>
   );
 }
 

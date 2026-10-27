@@ -41,6 +41,8 @@ import { DownloadIcon, UploadIcon, XIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { formatSize } from '@/components/records/panels/attachments-panel';
 import {
   catalogQuery,
@@ -109,17 +111,15 @@ export function ImportPage(props: { name?: string }) {
   };
 
   return (
-    <section className="flex max-w-3xl flex-col gap-4">
-      <h1 className="text-xl font-medium">{t('import.title')}</h1>
+    <Page width="narrow">
+      <PageHeader
+        title={t('import.title')}
+        description={importer ? t('import.description') : undefined}
+      />
       {!importer ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          {t('import.nothing')}
-        </p>
+        <EmptyState title={t('import.nothing')} />
       ) : (
         <>
-          <p className="text-sm text-muted-foreground">
-            {t('import.description')}
-          </p>
           <Field>
             <FieldLabel htmlFor="import-subject">
               {t('import.subject')}
@@ -348,7 +348,7 @@ export function ImportPage(props: { name?: string }) {
           {jobId && <TransferStatus id={jobId} />}
         </>
       )}
-    </section>
+    </Page>
   );
 }
 

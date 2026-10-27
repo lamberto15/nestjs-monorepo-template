@@ -16,6 +16,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useSwitchTenant } from '@/components/tenant-switcher';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { formatDateTime } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
 import { useMe } from '@/lib/features';
@@ -40,19 +42,17 @@ export function TenantsPage() {
   const switchTenant = useSwitchTenant();
   const memberOf = new Set(mine.data?.items.map((tenant) => tenant.id));
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="flex-1">
-          <h1 className="text-xl font-medium">{t('list.title')}</h1>
-          <p className="text-sm text-muted-foreground">
-            {t('list.description')}
-          </p>
-        </div>
-        <Button onClick={() => setCreating(true)}>
-          <PlusIcon />
-          {t('list.create')}
-        </Button>
-      </div>
+    <Page>
+      <PageHeader
+        title={t('list.title')}
+        description={t('list.description')}
+        actions={
+          <Button onClick={() => setCreating(true)}>
+            <PlusIcon />
+            {t('list.create')}
+          </Button>
+        }
+      />
       {list.isPending ? (
         <Spinner />
       ) : list.isError ? (
@@ -138,7 +138,7 @@ export function TenantsPage() {
           </Table>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">{t('list.empty')}</p>
+        <EmptyState title={t('list.empty')} />
       )}
       <CreateTenantDialog
         open={creating}
@@ -154,6 +154,6 @@ export function TenantsPage() {
           return tenant;
         }}
       />
-    </div>
+    </Page>
   );
 }

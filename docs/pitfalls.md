@@ -8,6 +8,12 @@
   every service joins it. Never call `db.transaction()` on an injected
   database in a service; only stores that must stay outside transactions
   (locks, sessions, idempotency) inject it with `@InjectDrizzle()`.
+- **Raw SQL crept in** (#779): whole statements through
+  `db.execute(sql`…`)` with literal table and column names (`update notes
+  set …`, `team_tree`, `deleted_at is null`), which no type check sees and
+  a column rename breaks only at runtime. Use the query builder
+  (apps/api/AGENTS.md, "No raw SQL"); `tools/ci/raw-sql.mjs` counts what
+  is left against `tools/ci/raw-sql.allow.json`.
 - **nestjs-cls hands Drizzle `{}` as transaction options**, which Drizzle
   turns into `set transaction ` (a syntax error): `DrizzleTransactionAdapter`
   drops empty options. Keep using it, not the plain adapter.

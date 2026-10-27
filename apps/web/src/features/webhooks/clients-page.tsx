@@ -12,6 +12,8 @@ import {
 } from '@nestjs-monorepo-template/ui/components/table';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '@/components/empty-state';
+import { Page, PageHeader } from '@/components/page-header';
 import { clientsQuery } from '@/features/api-clients/queries';
 
 /**
@@ -22,21 +24,19 @@ export function WebhookClientsPage() {
   const { t } = useTranslation('webhooks');
   const list = useQuery(clientsQuery);
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="flex-1">
-          <h1 className="text-xl font-medium">{t('clients.title')}</h1>
-          <p className="text-sm text-muted-foreground">
-            {t('clients.description')}
-          </p>
-        </div>
-        <Link
-          to="/webhooks/senders"
-          className={buttonVariants({ variant: 'outline' })}
-        >
-          {t('clients.senders')}
-        </Link>
-      </div>
+    <Page>
+      <PageHeader
+        title={t('clients.title')}
+        description={t('clients.description')}
+        actions={
+          <Link
+            to="/webhooks/senders"
+            className={buttonVariants({ variant: 'outline' })}
+          >
+            {t('clients.senders')}
+          </Link>
+        }
+      />
       {list.isPending ? (
         <Spinner />
       ) : list.data?.items.length ? (
@@ -71,16 +71,18 @@ export function WebhookClientsPage() {
           </Table>
         </div>
       ) : (
-        <div className="flex flex-col items-start gap-3 rounded-md border p-4">
-          <p className="text-sm text-muted-foreground">{t('clients.empty')}</p>
-          <Link
-            to="/api-clients"
-            className={buttonVariants({ variant: 'outline' })}
-          >
-            {t('clients.createClient')}
-          </Link>
-        </div>
+        <EmptyState
+          title={t('clients.empty')}
+          action={
+            <Link
+              to="/api-clients"
+              className={buttonVariants({ variant: 'outline' })}
+            >
+              {t('clients.createClient')}
+            </Link>
+          }
+        />
       )}
-    </div>
+    </Page>
   );
 }

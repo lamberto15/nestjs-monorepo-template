@@ -33,10 +33,13 @@ pre-commit:
       skip:
         - run: test ! -x node_modules/.bin/prettier
     # The API's `lint` (type-aware oxlint, the root .oxlintrc.json), on the
-    # staged files alone.
+    # staged files alone. Like `turbo run lint` (dependsOn ^build), it builds
+    # the workspace packages first: api-client's types come from its dist/,
+    # and without them a fresh worktree reports false no-floating-promises
+    # errors (#778). Turbo's cache makes a repeat build near-instant.
     - name: oxlint
       glob: 'apps/*/{src,test}/**/*.{ts,tsx}'
-      run: pnpm exec oxlint --type-aware {staged_files}
+      run: pnpm exec turbo run build --filter='./packages/*' --output-logs=errors-only && pnpm exec oxlint --type-aware {staged_files}
       skip:
         - run: test ! -x node_modules/.bin/oxlint
 

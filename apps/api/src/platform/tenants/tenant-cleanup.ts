@@ -3,13 +3,14 @@ import { OutboxDeadLetters } from '@nestjs/outbox';
 import { StorageDisk } from '@nestjs/storage';
 import { WorkflowClient, WorkflowNotFoundError } from '@nestjs/workflows';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { sql } from 'drizzle-orm';
+import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import {
   database,
   type DrizzleTransactions,
 } from '../../core/database/transactions.js';
 import { TenantLifecycleRegistry } from '../../iam/access/tenant-lifecycle.registry.js';
 import { OpsQueues } from '../ops/ops-queues.service.js';
+import { outboxMessages } from '../ops/outbox-store.view.js';
 import { tenantFileKey } from '../storage/storage.config.js';
 
 /** Instances, dead letters and files read per page while looking for a tenant's. */
@@ -112,11 +113,17 @@ export class TenantCleanup {
    * (being delivered now; the next run takes what remains).
    */
   async removeMessages(tenantId: string) {
-    const result = await database(this.txHost).execute(
-      sql`delete from nest_outbox.messages
-          where payload->>'tenantId' = ${tenantId}
-            and (lease_until is null or lease_until < ${Date.now()})`,
-    );
+    const result = await database(this.txHost)
+      .delete(outboxMessages)
+      .where(
+        and(
+          eq(sql`${outboxMessages.payload}->>'tenantId'`, tenantId),
+          or(
+            isNull(outboxMessages.leaseUntil),
+            lt(outboxMessages.leaseUntil, Date.now()),
+          ),
+        ),
+      );
     const ids: string[] = [];
     for (let offset = 0; ; offset += PAGE) {
       const page = await this.deadLetters.list({ limit: PAGE, offset });
@@ -134,6 +141,7 @@ export class TenantCleanup {
     }
     this.logger.log('A tenant’s outbox messages removed', {
       tenantId,
+      // Database's portable result type is unknown; node-postgres reports rowCount.
       pending: (result as { rowCount?: number | null }).rowCount ?? 0,
       deadLetters: ids.length,
     });

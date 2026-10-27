@@ -72,6 +72,10 @@ migrations): [apps/api/AGENTS.md](apps/api/AGENTS.md); `apps/web` and
   description. Found a problem on the other side while focused on one? File
   it as an issue with that side's label rather than fixing it there. See
   docs/development.md, "Issues and labels".
+- **No raw SQL in the API.** Drizzle's query builder for every query; `sql`
+  only for an expression it lacks. The owner's rule, enforced by
+  `tools/ci/raw-sql.mjs` ([apps/api/AGENTS.md](apps/api/AGENTS.md),
+  "Features and the database").
 - **Generate, never hand-write what a command produces.** Use the official
   CLI or generator, then edit only what the task needs: `pnpm add`,
   `pnpm feature:add`/`feature:sync`, `pnpm db:generate`,

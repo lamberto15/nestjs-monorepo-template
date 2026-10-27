@@ -1,4 +1,5 @@
-import { type AnyColumn, and, eq, inArray, sql } from 'drizzle-orm';
+import { type AnyColumn, and, eq, exists, inArray, sql } from 'drizzle-orm';
+import { QueryBuilder } from 'drizzle-orm/pg-core';
 import type { FilterField } from '../../core/http/list-query.js';
 import { listQuery } from '../../core/http/list-query.js';
 import { tagSchema } from './tag.schemas.js';
@@ -37,11 +38,18 @@ export const TAG_LIST = listQuery(
 
 /** The records of `subject` (by their id column) carrying any of `tagIds`. */
 const tagged = (subject: string, id: AnyColumn, tagIds: string[]) =>
-  sql`exists (${sql`select 1 from ${recordTags} where ${and(
-    eq(recordTags.subject, subject),
-    eq(recordTags.recordId, id),
-    inArray(recordTags.tagId, tagIds),
-  )}`})`;
+  exists(
+    new QueryBuilder()
+      .select({ one: sql`1` })
+      .from(recordTags)
+      .where(
+        and(
+          eq(recordTags.subject, subject),
+          eq(recordTags.recordId, id),
+          inArray(recordTags.tagId, tagIds),
+        ),
+      ),
+  );
 
 /**
  * The list field of a feature whose records carry tags: `?tag=<id>` (the
