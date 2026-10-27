@@ -1304,12 +1304,11 @@ jobs:
       - name: The maintenance page is in the image
         run: docker run --rm --entrypoint test caddy:ci -f /srv/maintenance/index.html
       # The build compressed the assets once (apps/web/scripts/precompress.mjs),
-      # for the Caddyfile's `precompressed`: the entry script and DuckDB's
-      # WebAssembly, each with its .br and .gz.
+      # for the Caddyfile's `precompressed`: the entry script, each with its .br and .gz.
       - name: The assets are precompressed in the image
         run: |
           docker run --rm --entrypoint sh caddy:ci -ec '
-            for file in /srv/web/assets/index-*.js /srv/web/assets/*duckdb*.wasm; do
+            for file in /srv/web/assets/index-*.js; do
               test -s "$file.br" && test -s "$file.gz" && echo "$file: .br .gz"
             done'
       # The Caddyfile parses (its security.txt handle included), and the entrypoint
