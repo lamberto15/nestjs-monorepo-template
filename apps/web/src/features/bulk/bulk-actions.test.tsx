@@ -1,7 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { ArchiveRestoreIcon, Trash2Icon } from 'lucide-react';
-import { http, HttpResponse } from 'msw/http';
 import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { useMemo, type ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
@@ -10,8 +8,28 @@ import { useRecycleBin } from '@/components/records/recycle-bin';
 import { useCan } from '@/lib/features';
 import type { Features } from '@/lib/session';
 import type { ListColumn, ListPath } from '@/lib/list-query';
+import {
+  bodiesOf,
+  bulkHandlers,
+  bulkResult,
+  deleteJob,
+  queuedRun,
+  type BulkAnswer,
+} from '@/test/bulk-api';
+import {
+  askDelete,
+  bar,
+  choose,
+  confirmDelete,
+  expectNoBar,
+  expectOneNotDone,
+  expectRunDone,
+  expectRunText,
+  runDialog,
+  selectPage,
+} from '@/test/bulk-steps';
 import { renderComponent } from '@/test/render-component';
-import { problem, server } from '@/test/server';
+import { server } from '@/test/server';
 import { findToast } from '@/test/toast';
 import type { BulkPath } from './api';
 import { useBulkActions, type BulkActionSpec } from './use-bulk-actions';
@@ -106,16 +124,13 @@ function ItemsList(props: { withUpdate?: boolean }) {
   );
 }
 
-type Answer = { status?: number; body: Record<string, unknown> };
-
 /**
- * `POST /v1/test-items/bulk` answers `answer`; `GET /v1/bulk/{id}` walks
- * through `job` (one entry per poll, the last repeated). The list says how
- * many records match (`total`) and searches, so "all matching" has a filter.
+ * `POST /v1/test-items/bulk` and the list's other routes (test/bulk-api):
+ * `deleted` puts the records in the recycle bin.
  */
 function useBulkApi(
   options: {
-    answer?: Answer;
+    answer?: BulkAnswer;
     job?: unknown[];
     total?: number;
     deleted?: boolean;
@@ -123,65 +138,14 @@ function useBulkApi(
     refuse?: boolean;
   } = {},
 ) {
-  const calls = {
-    bulk: [] as { body: unknown; key: string | null }[],
-    lists: [] as string[],
-    polls: 0,
-  };
-  server.use(
-    http.get('/v1/lists/:subject', () =>
-      HttpResponse.json({
-        subject: 'TestItem',
-        fields: [
-          {
-            name: 'title',
-            type: 'string',
-            operators: ['contains'],
-            sortable: true,
-            custom: false,
-          },
-        ],
-        select: ['id', 'title', 'createdAt'],
-        search: true,
-        recycleBin: true,
-        defaultSort: '-createdAt',
-        limits: { defaultLimit: 50, maxLimit: 100 },
-      }),
-    ),
-    http.get(PATH, ({ request }) => {
-      const url = new URL(request.url);
-      calls.lists.push(url.search);
-      const bin = url.searchParams.get('deleted') === 'true';
-      const rows = items(options.deleted ? DELETED_AT : null).filter(
-        (item) => !!item.deletedAt === bin,
-      );
-      return HttpResponse.json({
-        items: rows,
-        page: 1,
-        pageCount: 1,
-        total: options.total ?? rows.length,
-      });
-    }),
-    http.post(`${PATH}/bulk`, async ({ request }) => {
-      calls.bulk.push({
-        body: await request.json(),
-        key: request.headers.get('idempotency-key'),
-      });
-      if (options.refuse) {
-        return problem(503, 'service_unavailable');
-      }
-      const answer = options.answer ?? {
-        body: { done: 2, failed: 0, skipped: 0, results: [] },
-      };
-      return HttpResponse.json(answer.body, { status: answer.status ?? 200 });
-    }),
-    http.get('/v1/bulk/:id', () => {
-      const steps = options.job ?? [];
-      const step = steps[Math.min(calls.polls, steps.length - 1)];
-      calls.polls += 1;
-      return step ? HttpResponse.json(step) : problem(404, 'not_found');
-    }),
-  );
+  const { deleted, ...run } = options;
+  const { calls, handlers } = bulkHandlers({
+    path: PATH,
+    subject: 'TestItem',
+    records: () => items(deleted ? DELETED_AT : null),
+    ...run,
+  });
+  server.use(...handlers);
   return calls;
 }
 
@@ -198,17 +162,6 @@ function renderList(
   );
 }
 
-async function choose(...titles: string[]) {
-  const user = userEvent.setup();
-  for (const title of titles) {
-    const row = (await screen.findByText(title)).closest('tr')!;
-    await user.click(within(row).getByRole('checkbox', { name: 'Select row' }));
-  }
-  return user;
-}
-
-const bar = () => screen.findByRole('toolbar', { name: 'Selection actions' });
-
 describe('selecting rows', () => {
   it('shows the action bar with the count, and clears it', async () => {
     useBulkApi();
@@ -219,11 +172,7 @@ describe('selecting rows', () => {
     await user.click(
       within(toolbar).getByRole('button', { name: 'Clear the selection' }),
     );
-    await waitFor(() =>
-      expect(
-        screen.queryByRole('toolbar', { name: 'Selection actions' }),
-      ).not.toBeInTheDocument(),
-    );
+    await expectNoBar();
     expect(
       screen.queryAllByRole('checkbox', { name: 'Select row', checked: true }),
     ).toHaveLength(0);
@@ -256,53 +205,31 @@ describe('bulk delete', () => {
   it('asks first, then deletes the chosen records in one request', async () => {
     const calls = useBulkApi({
       answer: {
-        body: {
-          done: 2,
-          failed: 0,
-          skipped: 0,
-          results: [
-            { id: A, status: 'done' },
-            { id: B, status: 'done' },
-          ],
-        },
+        body: bulkResult(2, 0, [
+          { id: A, status: 'done' },
+          { id: B, status: 'done' },
+        ]),
       },
     });
     await renderList();
     const user = await choose('Old plan', 'Older plan');
-    await user.click(
-      within(await bar()).getByRole('button', { name: 'Delete' }),
-    );
-    const confirm = await screen.findByRole('alertdialog', {
-      name: 'Delete 2 records?',
-    });
+    const confirm = await askDelete(user, 'Delete 2 records?');
     expect(calls.bulk).toHaveLength(0);
     await user.click(within(confirm).getByRole('button', { name: 'Delete' }));
 
-    const run = await screen.findByRole('dialog', { name: 'Deleting' });
-    expect(
-      await within(run).findByText('2 done, 0 failed, 0 skipped.'),
-    ).toBeVisible();
+    await expectRunDone('Deleting');
     expect(calls.bulk).toEqual([
       { body: { action: 'delete', ids: [A, B] }, key: expect.any(String) },
     ]);
     // The run ended: the selection is gone.
-    await waitFor(() =>
-      expect(
-        screen.queryByRole('toolbar', { name: 'Selection actions' }),
-      ).not.toBeInTheDocument(),
-    );
+    await expectNoBar();
   });
 
   it('sends nothing when the question is answered with Cancel', async () => {
     const calls = useBulkApi();
     await renderList();
     const user = await choose('Old plan');
-    await user.click(
-      within(await bar()).getByRole('button', { name: 'Delete' }),
-    );
-    const confirm = await screen.findByRole('alertdialog', {
-      name: 'Delete 1 record?',
-    });
+    const confirm = await askDelete(user, 'Delete 1 record?');
     await user.click(within(confirm).getByRole('button', { name: 'Cancel' }));
 
     await waitFor(() =>
@@ -316,120 +243,58 @@ describe('bulk delete', () => {
   it('lists the records it could not do, with the reason', async () => {
     useBulkApi({
       answer: {
-        body: {
-          done: 1,
-          failed: 1,
-          skipped: 0,
-          results: [
-            { id: A, status: 'done' },
-            {
-              id: B,
-              status: 'failed',
-              error: { code: 'forbidden', message: 'It is locked.' },
-            },
-          ],
-        },
+        body: bulkResult(1, 1, [
+          { id: A, status: 'done' },
+          {
+            id: B,
+            status: 'failed',
+            error: { code: 'forbidden', message: 'It is locked.' },
+          },
+        ]),
       },
     });
     await renderList();
     const user = await choose('Old plan', 'Older plan');
-    await user.click(
-      within(await bar()).getByRole('button', { name: 'Delete' }),
-    );
-    await user.click(
-      within(
-        await screen.findByRole('alertdialog', { name: 'Delete 2 records?' }),
-      ).getByRole('button', { name: 'Delete' }),
-    );
-    const problems = await screen.findByRole('list', {
-      name: 'Records not done',
-    });
-    expect(within(problems).getAllByRole('listitem')).toHaveLength(1);
-    expect(within(problems).getByText(/It is locked\./)).toBeVisible();
+    await confirmDelete(user, 'Delete 2 records?');
+    await expectOneNotDone(/It is locked\./);
   });
 
   it('follows a run the API queued, until it ends', async () => {
     useBulkApi({
-      answer: { status: 202, body: { id: 'job-1', status: 'queued' } },
+      answer: queuedRun('job-1'),
       job: [
-        {
-          id: 'job-1',
-          name: 'test-items',
-          action: 'delete',
-          status: 'running',
-          progress: { processed: 100, done: 99, failed: 1 },
-        },
-        {
-          id: 'job-1',
-          name: 'test-items',
-          action: 'delete',
-          status: 'completed',
-          progress: { processed: 150, done: 149, failed: 1 },
-          result: { done: 149, failed: 1, skipped: 0, results: [] },
-        },
+        deleteJob('job-1', 'test-items', 'running', 99, 1),
+        deleteJob('job-1', 'test-items', 'completed', 149, 1),
       ],
     });
     await renderList();
     const user = await choose('Old plan');
-    await user.click(
-      within(await bar()).getByRole('button', { name: 'Delete' }),
-    );
-    await user.click(
-      within(
-        await screen.findByRole('alertdialog', { name: 'Delete 1 record?' }),
-      ).getByRole('button', { name: 'Delete' }),
-    );
-    const run = await screen.findByRole('dialog', { name: 'Deleting' });
-    expect(
-      await within(run).findByText('100 processed: 99 done, 1 failed.'),
-    ).toBeVisible();
+    await confirmDelete(user, 'Delete 1 record?');
+    const run = await runDialog('Deleting');
+    await expectRunText(run, '100 processed: 99 done, 1 failed.');
     // Polled every second.
-    expect(
-      await within(run).findByText(
-        '149 done, 1 failed, 0 skipped.',
-        {},
-        { timeout: 4000 },
-      ),
-    ).toBeVisible();
+    await expectRunText(run, '149 done, 1 failed, 0 skipped.', 4000);
   });
 
   it("acts on every match of the list's search, as a filter", async () => {
     const calls = useBulkApi({
       total: 120,
-      answer: { status: 202, body: { id: 'job-2', status: 'queued' } },
-      job: [
-        {
-          id: 'job-2',
-          name: 'test-items',
-          action: 'delete',
-          status: 'completed',
-          progress: { processed: 120, done: 120, failed: 0 },
-          result: { done: 120, failed: 0, skipped: 0, results: [] },
-        },
-      ],
+      answer: queuedRun('job-2'),
+      job: [deleteJob('job-2', 'test-items', 'completed', 120, 0)],
     });
     await renderList('q=plan');
-    const user = userEvent.setup();
-    await screen.findByText('Old plan');
-    await user.click(screen.getByRole('checkbox', { name: 'Select all' }));
-    const toolbar = await bar();
-    expect(within(toolbar).getByText('2 selected')).toBeVisible();
+    const { user, toolbar } = await selectPage('Old plan', 2);
     await user.click(
       within(toolbar).getByRole('button', {
         name: 'Select all 120 matching',
       }),
     );
     expect(within(toolbar).getByText('120 selected')).toBeVisible();
-    await user.click(within(toolbar).getByRole('button', { name: 'Delete' }));
-    await user.click(
-      within(
-        await screen.findByRole('alertdialog', { name: 'Delete 120 records?' }),
-      ).getByRole('button', { name: 'Delete' }),
-    );
+    await confirmDelete(user, 'Delete 120 records?');
     expect(
       await screen.findByText('120 done, 0 failed, 0 skipped.'),
     ).toBeVisible();
-    expect(calls.bulk.map((call) => call.body)).toEqual([
+    expect(bodiesOf(calls)).toEqual([
       { action: 'delete', filter: { q: 'plan' } },
     ]);
   });
@@ -437,11 +302,7 @@ describe('bulk delete', () => {
   it('offers no "all matching" without a filter (a run needs one)', async () => {
     useBulkApi({ total: 120 });
     await renderList();
-    const user = userEvent.setup();
-    await screen.findByText('Old plan');
-    await user.click(screen.getByRole('checkbox', { name: 'Select all' }));
-    const toolbar = await bar();
-    expect(within(toolbar).getByText('2 selected')).toBeVisible();
+    const { toolbar } = await selectPage('Old plan', 2);
     expect(
       within(toolbar).queryByRole('button', { name: /Select all 120/ }),
     ).not.toBeInTheDocument();
@@ -451,14 +312,7 @@ describe('bulk delete', () => {
     const calls = useBulkApi({ refuse: true });
     await renderList();
     const user = await choose('Old plan');
-    await user.click(
-      within(await bar()).getByRole('button', { name: 'Delete' }),
-    );
-    await user.click(
-      within(
-        await screen.findByRole('alertdialog', { name: 'Delete 1 record?' }),
-      ).getByRole('button', { name: 'Delete' }),
-    );
+    await confirmDelete(user, 'Delete 1 record?');
 
     await findToast('service_unavailable (test)');
     await waitFor(() =>
@@ -479,11 +333,8 @@ describe('bulk update', () => {
       within(await bar()).getByRole('button', { name: 'Publish' }),
     );
 
-    const run = await screen.findByRole('dialog', { name: 'Changing' });
-    expect(
-      await within(run).findByText('2 done, 0 failed, 0 skipped.'),
-    ).toBeVisible();
-    expect(calls.bulk.map((call) => call.body)).toEqual([
+    await expectRunDone('Changing');
+    expect(bodiesOf(calls)).toEqual([
       { action: 'update', ids: [A, B], input: { status: 'published' } },
     ]);
   });
@@ -499,13 +350,8 @@ describe('bulk restore', () => {
       within(toolbar).queryByRole('button', { name: 'Delete' }),
     ).not.toBeInTheDocument();
     await user.click(within(toolbar).getByRole('button', { name: 'Restore' }));
-    const run = await screen.findByRole('dialog', { name: 'Restoring' });
-    expect(
-      await within(run).findByText('2 done, 0 failed, 0 skipped.'),
-    ).toBeVisible();
-    expect(calls.bulk.map((call) => call.body)).toEqual([
-      { action: 'restore', ids: [A, B] },
-    ]);
+    await expectRunDone('Restoring');
+    expect(bodiesOf(calls)).toEqual([{ action: 'restore', ids: [A, B] }]);
     // The bin was asked for, not the live list.
     expect(
       calls.lists.every((search) =>
