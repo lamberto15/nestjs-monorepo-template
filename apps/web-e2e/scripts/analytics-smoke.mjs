@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { chromium, firefox, webkit } from '@playwright/test';
 
 const repoRoot = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
