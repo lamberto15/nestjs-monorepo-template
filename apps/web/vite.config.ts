@@ -29,7 +29,7 @@ export default defineConfig({
   // Discover worker-only dependencies before serving a fresh dev session.
   // Late optimization otherwise reloads the page during the first file import.
   optimizeDeps: {
-    include: ['@duckdb/duckdb-wasm', 'apache-arrow', 'parquet-wasm/esm'],
+    include: ['@duckdb/duckdb-wasm', 'apache-arrow'],
   },
   define: { __APP_GIT_SHA__: JSON.stringify(gitSha) },
   plugins: [
@@ -65,8 +65,7 @@ export default defineConfig({
               .filter((module) => module.renderedBytes > 0)
               .toSorted(
                 (a, b) =>
-                  b.renderedBytes - a.renderedBytes ||
-                  a.id.localeCompare(b.id),
+                  b.renderedBytes - a.renderedBytes || a.id.localeCompare(b.id),
               ),
           }))
           .toSorted(
@@ -117,8 +116,10 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
-        // The optional local explorer loads its engine only when used.
-        globIgnores: ['**/*duckdb*', '**/*parquet*'],
+        // The optional local explorer loads its engine only when used, and so
+        // its self-hosted extensions (public/duckdb-extensions; `.wasm` is not
+        // in globPatterns either: this is the explicit guard).
+        globIgnores: ['**/*duckdb*', '**/duckdb-extensions/**'],
         cleanupOutdatedCaches: true,
         navigateFallback: 'index.html',
         // What Caddy sends to the API (routes, Swagger UI and its documents,

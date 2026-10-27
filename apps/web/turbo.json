@@ -1,0 +1,14 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "outputs": [
+        "dist/**",
+        ".bundle-analysis/**",
+        "*.tsbuildinfo",
+        "src/routeTree.gen.ts"
+      ]
+    }
+  }
+}

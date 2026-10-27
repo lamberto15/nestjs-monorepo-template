@@ -58,7 +58,7 @@ export const startExport = (body: {
 }) => unwrap(api.POST('/v1/data/exports', { body }));
 
 /** Re-read an authorized completed export to obtain a fresh short-lived URL. */
-export async function freshExportUrl(
+async function freshExportUrl(
   id: string,
   account = false,
 ): Promise<string | undefined> {
