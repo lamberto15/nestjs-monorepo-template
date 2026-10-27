@@ -1,2 +1,0 @@
-ALTER POLICY "test_items_tenant_select" ON "test_items" TO public USING (("test_items"."tenant_id" = (select nullif(current_setting('app.tenant_id', true), '')::uuid)));--> statement-breakpoint
-ALTER POLICY "test_encrypted_records_tenant_select" ON "test_encrypted_records" TO public USING (("test_encrypted_records"."tenant_id" = (select nullif(current_setting('app.tenant_id', true), '')::uuid)));
