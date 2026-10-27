@@ -383,7 +383,33 @@ socket server (the operator CLI, `pnpm ops`) ends them through
 `@socket.io/redis-emitter` (`RealtimeEmitter`), on the channels the API
 replicas' Redis adapter listens to. A failure of the server's own during
 the handshake is `connect_error` `unavailable` (logged; the client never
-sees its text). Revoked API keys stop working on their next message.
+sees its text). An API client's socket joins a private room for its key
+(`key:<id>`, the key's public id, `sk_<id>_…`): revoking the key (`DELETE
+/v1/access/clients/{id}/keys/{keyId}`, a rotation with `graceSeconds: 0`)
+disconnects it the same way, after the commit, and the client's other keys'
+sockets stay.
+
+**A socket ends when its credential does.** socket.io has no expiry for a
+connection's credential (its documented way is a timer per connection,
+"Handling session expiration" in socket.io's how-to on sessions), so the
+gateway keeps one per socket (`Realtime.schedule()`), cleared when the socket
+disconnects (`handleDisconnect`):
+
+- an access token's socket ends at the token's `exp`; the app refreshes its
+  tokens and connects again with the new access token;
+- an API key's socket asks for its key again once it is in its rooms (a
+  revocation in between is not missed), then every 10 minutes
+  (`KEY_RECHECK_MS`), and ends at the key's `expiresAt` when it has one, or
+  once a check finds the key revoked, expired or its client or tenant
+  deactivated. A key without an expiry stays connected while it works:
+  what is reported (a revocation, the client's deletion, the tenant's
+  deactivation) ends it at once; what is not (a rotation's grace period
+  running out, `PATCH { active: false }`) at the next check.
+
+The server ends these sockets itself (`io server disconnect`), which
+socket.io's client does not retry: connect again (`socket.connect()`) with a
+credential that works. A browser socket follows its session (sign-out,
+revocation), not a timer.
 
 ### The event manifest
 

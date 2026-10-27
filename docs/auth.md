@@ -374,8 +374,8 @@ Token clients (`POST /v1/auth/token`) carry it in the access token: `amr`
 Connect, epoch seconds), fixed for the refresh family's life
 (`RefreshTokenRecord.claims`), with `sid`, the family's own id (random, per
 sign-in): revoking the family disconnects the realtime sockets its access
-tokens opened, and they open no new one
-([realtime](webhooks-and-realtime.md#realtime)). The package has no listing of refresh
+tokens opened, and they open no new one; a socket also ends at its access
+token's `exp` ([realtime](webhooks-and-realtime.md#realtime)). The package has no listing of refresh
 families, so they aren't in the sessions list.
 
 **Families from before `sid`.** A refresh copies the family's stored
@@ -1521,7 +1521,10 @@ stored). `POST /v1/access/clients` (the key is shown once),
 `POST /v1/access/clients/{id}/rotate { graceSeconds }` (the old key keeps
 working for the grace period; both want a recent sign-in), `DELETE /v1/access/clients/{id}/keys/{keyId}`,
 `PATCH /v1/access/clients/{id} { active, roleIds }`. Keys may expire and
-record their last use. A client may do what every client may
+record their last use. A revoked key's realtime sockets are disconnected at
+once, an expired key's at its expiry, and a socket of a key that stopped
+otherwise (a rotation's grace period, a revoked client) within 10 minutes
+([realtime](webhooks-and-realtime.md#realtime)). A client may do what every client may
 (`clientPermissions`) and what its roles grant. `POST` takes its
 `roleIds` (with `roleExpiresAt`) and `dailyQuota` too, all in the client's
 transaction; `GET /v1/access/clients/{id}` reads one (never a key).

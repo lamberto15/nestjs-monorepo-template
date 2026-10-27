@@ -16,6 +16,7 @@ import {
   Realtime,
 } from '../src/platform/realtime/realtime.service.js';
 import { RealtimeEmitter } from '../src/platform/realtime/realtime-emitter.js';
+import { apiKeyId } from '../src/iam/auth/api-keys.js';
 import { bootApp, connect, type TestApp } from './support.js';
 
 /** The path and query of a signed URL: the tests reach the app on its own port. */
@@ -45,7 +46,10 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       kind: 'client',
       id: client.id,
       tenantId: node.tenantId,
-      rooms: [`tenant:${node.tenantId}:principal:client:${client.id}`],
+      rooms: [
+        `tenant:${node.tenantId}:principal:client:${client.id}`,
+        `key:${apiKeyId(client.key)}`,
+      ],
     });
 
     const { port } = node.app.getHttpServer().address() as AddressInfo;
@@ -163,6 +167,36 @@ describe('platform: queues, storage and realtime (e2e)', () => {
     expect(again.connected).toBe(false);
   });
 
+  it("disconnects an API key's sockets when the key is revoked, and leaves its client's other keys'", async () => {
+    const client = await node.client();
+    const rotated = await node
+      .admin()
+      .post(`/v1/access/clients/${client.id}/rotate`)
+      .send({ graceSeconds: 3600 })
+      .expect(200);
+    const fresh = rotated.body.key as string;
+    const old = await connect(node, client.key);
+    const current = await connect(node, fresh);
+    sockets.push(old, current);
+    const oldKey = (rotated.body.keys as { id: string; keyId: string }[]).find(
+      (key) => key.keyId === apiKeyId(client.key),
+    )!;
+
+    const disconnected = new Promise<string>((resolve) =>
+      old.once('disconnect', resolve),
+    );
+    await node
+      .admin()
+      .delete(`/v1/access/clients/${client.id}/keys/${oldKey.id}`)
+      .expect(204);
+    // Ended by the server, at once: no message of its own was needed.
+    expect(await disconnected).toBe('io server disconnect');
+    expect(current.connected).toBe(true);
+    expect((await current.emitWithAck('whoami')).rooms).toContain(
+      `key:${apiKeyId(fresh)}`,
+    );
+  });
+
   it('ends sockets from a process without a socket server, through the Redis emitter (the operator CLI)', async () => {
     const user = await node.user(['editor']);
     const { accessToken } = (
@@ -224,6 +258,7 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       const me = await socket.emitWithAck('whoami');
       expect(me.rooms).toEqual([
         `tenant:${node.tenantId}:principal:client:${client.id}`,
+        `key:${apiKeyId(client.key)}`,
       ]);
     }
   });
