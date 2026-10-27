@@ -26,6 +26,7 @@ import { AvatarSection } from '@/components/account/avatar-section';
 import { useMe } from '@/lib/features';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { browserTimeZone } from '@/lib/link-token';
+import { peopleKey } from '@/lib/people';
 import { meQuery, type Me } from '@/lib/session';
 
 export const Route = createFileRoute('/_app/account/profile')({
@@ -92,6 +93,9 @@ function ProfileForm({ me }: { me: Me }) {
         queryClient.setQueryData(meQuery.queryKey, (old) =>
           old ? { ...old, user } : old,
         );
+        // The name is cached for others to see: audit actors, owner cells,
+        // mention pickers.
+        void queryClient.invalidateQueries({ queryKey: peopleKey });
         const language = languages.find((x) => x === user.locale);
         if (language && language !== i18n.language) {
           await i18n.changeLanguage(language);

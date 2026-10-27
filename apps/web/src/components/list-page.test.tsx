@@ -9,6 +9,7 @@ import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import de from '@/locales/de/common.json';
 import en from '@/locales/en/common.json';
+import { recordKeys } from '@/lib/records';
 import { ListPage, type ListPageProps } from './list-page';
 import type { ListColumn, ListPath } from '@/lib/list-query';
 
@@ -106,7 +107,7 @@ async function renderList(
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
+  const rendered = render(
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={client}>
         <NuqsTestingAdapter searchParams={searchParams} hasMemory>
@@ -121,6 +122,7 @@ async function renderList(
       </QueryClientProvider>
     </I18nextProvider>,
   );
+  return Object.assign(rendered, { client });
 }
 
 const urls = () =>
@@ -151,6 +153,33 @@ describe('ListPage', () => {
     expect(list?.searchParams.get('count')).toBe('true');
     expect(list?.searchParams.get('sort')).toBe('-createdAt');
     expect(list?.searchParams.get('fields')).toBe('title,status');
+  });
+
+  it("keeps its pages under the feature's list key, where a write refreshes them", async () => {
+    mocks.fetch.mockImplementation(async (request?: Request) =>
+      request?.url.includes('/v1/lists/')
+        ? json(description)
+        : json({
+            items: [{ id: '1', title: 'First item', status: 'draft' }],
+            nextCursor: null,
+            page: 1,
+            nextPage: null,
+            pageCount: 1,
+            total: 1,
+          }),
+    );
+    const { client } = await renderList();
+    await screen.findByText('First item');
+    const pages = client
+      .getQueryCache()
+      .findAll({ queryKey: recordKeys.lists(PATH) });
+    expect(pages).toHaveLength(1);
+    // The list route, then the page's params (no placeholders on this route).
+    expect(pages[0]!.queryKey).toHaveLength(3);
+    await client.invalidateQueries({ queryKey: recordKeys.lists(PATH) });
+    expect(
+      urls().filter((url) => url.pathname === PATH).length,
+    ).toBeGreaterThan(1);
   });
 
   it("fills the route's placeholders, and heads and describes the list as asked", async () => {

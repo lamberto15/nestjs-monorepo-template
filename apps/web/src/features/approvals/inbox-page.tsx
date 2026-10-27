@@ -11,10 +11,10 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDateTimeFormat } from '@/lib/date-time';
 import { useFeature } from '@/lib/features';
+import { pollInterval } from '@/lib/realtime';
 import { inboxQuery, tabs, type ApprovalItem, type Tab } from './api';
 import { ApprovalActions } from './actions';
 import { DelegationsDialog } from './delegations-dialog';
-import { pollInterval } from './use-approval-count';
 import { StatusBadge } from './status';
 
 /** `/approvals`: what waits for the user, what they asked for, and what ended. */

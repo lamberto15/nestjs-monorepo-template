@@ -11,7 +11,7 @@ import {
 import { peopleHandler, teamsHandler } from '@/test/people';
 import { renderComponent } from '@/test/render-component';
 import { renderApp } from '@/test/render-app';
-import { server, signedInUser } from '@/test/server';
+import { allFeatures, server, signedInUser } from '@/test/server';
 import { findToast } from '@/test/toast';
 import {
   fromDraft,
@@ -684,17 +684,33 @@ describe('platform values', () => {
       }),
     );
     const { user, dialog } = await open('Deployment mode');
-    const platform = within(dialog).getByRole('region', { name: 'All tenants' });
+    const platform = within(dialog).getByRole('region', {
+      name: 'All tenants',
+    });
     await user.click(within(platform).getByRole('combobox', { name: /Value/ }));
-    await user.click(await screen.findByRole('option', { name: 'maintenance' }));
-    await user.click(within(platform).getByRole('button', { name: 'Save for all tenants' }));
+    await user.click(
+      await screen.findByRole('option', { name: 'maintenance' }),
+    );
+    await user.click(
+      within(platform).getByRole('button', { name: 'Save for all tenants' }),
+    );
     const confirmation = await screen.findByRole('alertdialog');
-    expect(within(confirmation).getByText(/every tenant, including your session/)).toBeVisible();
+    expect(
+      within(confirmation).getByText(/every tenant, including your session/),
+    ).toBeVisible();
     expect(saves).toBe(0);
-    await user.click(within(confirmation).getByRole('button', { name: 'Cancel' }));
+    await user.click(
+      within(confirmation).getByRole('button', { name: 'Cancel' }),
+    );
     expect(saves).toBe(0);
-    await user.click(within(platform).getByRole('button', { name: 'Save for all tenants' }));
-    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Apply to all tenants' }));
+    await user.click(
+      within(platform).getByRole('button', { name: 'Save for all tenants' }),
+    );
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Apply to all tenants',
+      }),
+    );
     await waitFor(() => expect(saves).toBe(1));
   });
 
@@ -718,15 +734,162 @@ describe('platform values', () => {
       }),
     );
     const { user, dialog } = await open('Deployment mode');
-    const platform = within(dialog).getByRole('region', { name: 'All tenants' });
+    const platform = within(dialog).getByRole('region', {
+      name: 'All tenants',
+    });
     await user.click(within(platform).getByRole('combobox', { name: /Value/ }));
     await user.click(await screen.findByRole('option', { name: 'read-only' }));
-    await user.click(within(platform).getByRole('button', { name: 'Save for all tenants' }));
+    await user.click(
+      within(platform).getByRole('button', { name: 'Save for all tenants' }),
+    );
     expect(writes).toHaveLength(0);
     const confirmation = await screen.findByRole('alertdialog');
-    expect(within(confirmation).getByText(/blocks writes in every tenant/)).toBeVisible();
-    await user.click(within(confirmation).getByRole('button', { name: 'Apply to all tenants' }));
-    await waitFor(() => expect(writes).toEqual([{ value: 'read-only', enforced: false }]));
+    expect(
+      within(confirmation).getByText(/blocks writes in every tenant/),
+    ).toBeVisible();
+    await user.click(
+      within(confirmation).getByRole('button', {
+        name: 'Apply to all tenants',
+      }),
+    );
+    await waitFor(() =>
+      expect(writes).toEqual([{ value: 'read-only', enforced: false }]),
+    );
+  });
+
+  describe('the deployment mode', () => {
+    const mode = (extra: object = {}) =>
+      setting({
+        key: 'platform.mode',
+        label: 'Deployment mode',
+        type: 'enum',
+        options: ['normal', 'read-only', 'maintenance'],
+        value: 'normal',
+        default: 'normal',
+        canEditPlatform: true,
+        ...extra,
+      });
+    // Only GET /v1/features serves the mode: the tab that changed it must
+    // read it again, or it keeps writes enabled (or the banner) until an
+    // input at least a minute after the last answer.
+    const countFeatureReads = () => {
+      const reads = { count: 0 };
+      server.use(
+        http.get('/v1/features', () => {
+          reads.count += 1;
+          return HttpResponse.json(allFeatures);
+        }),
+        http.put('/v1/settings/:key/platform', () => HttpResponse.json({})),
+        http.delete(
+          '/v1/settings/:key/platform',
+          () => new HttpResponse(null, { status: 204 }),
+        ),
+      );
+      return reads;
+    };
+
+    it('is read again after a confirmed change', async () => {
+      api(admin, [mode()]);
+      const reads = countFeatureReads();
+      const { user, dialog } = await open('Deployment mode');
+      const platform = within(dialog).getByRole('region', {
+        name: 'All tenants',
+      });
+      await user.click(
+        within(platform).getByRole('combobox', { name: /Value/ }),
+      );
+      await user.click(
+        await screen.findByRole('option', { name: 'read-only' }),
+      );
+      await user.click(
+        within(platform).getByRole('button', { name: 'Save for all tenants' }),
+      );
+      const before = reads.count;
+      await user.click(
+        within(await screen.findByRole('alertdialog')).getByRole('button', {
+          name: 'Apply to all tenants',
+        }),
+      );
+      await findToast('Saved for all tenants.');
+      expect(reads.count).toBeGreaterThan(before);
+    });
+
+    it('is read again after a change that needs no confirmation', async () => {
+      api(admin, [
+        mode({
+          value: 'read-only',
+          source: 'platform',
+          platform: {
+            value: 'read-only',
+            enforced: false,
+            rollout: null,
+            rules: [],
+          },
+        }),
+      ]);
+      const reads = countFeatureReads();
+      const { user, dialog } = await open('Deployment mode');
+      const platform = within(dialog).getByRole('region', {
+        name: 'All tenants',
+      });
+      await user.click(
+        within(platform).getByRole('combobox', { name: /Value/ }),
+      );
+      await user.click(await screen.findByRole('option', { name: 'normal' }));
+      const before = reads.count;
+      await user.click(
+        within(platform).getByRole('button', { name: 'Save for all tenants' }),
+      );
+      await findToast('Saved for all tenants.');
+      expect(reads.count).toBeGreaterThan(before);
+    });
+
+    it('is read again after the value is removed', async () => {
+      api(admin, [
+        mode({
+          value: 'read-only',
+          source: 'platform',
+          platform: {
+            value: 'read-only',
+            enforced: false,
+            rollout: null,
+            rules: [],
+          },
+        }),
+      ]);
+      const reads = countFeatureReads();
+      const { user, dialog } = await open('Deployment mode');
+      const platform = within(dialog).getByRole('region', {
+        name: 'All tenants',
+      });
+      await user.click(
+        within(platform).getByRole('button', { name: 'Remove' }),
+      );
+      const before = reads.count;
+      await user.click(
+        within(await screen.findByRole('alertdialog')).getByRole('button', {
+          name: 'Remove',
+        }),
+      );
+      await findToast('Removed for all tenants.');
+      expect(reads.count).toBeGreaterThan(before);
+    });
+
+    it('is not asked for by any other platform setting', async () => {
+      api(admin, [platformFlag({ canEditPlatform: true })]);
+      const reads = countFeatureReads();
+      const { user, dialog } = await open('Platform flag');
+      const section = within(
+        within(dialog).getByRole('region', { name: 'All tenants' }),
+      );
+      await user.click(section.getByRole('switch', { name: /Value/ }));
+      const before = reads.count;
+      await user.click(
+        section.getByRole('button', { name: 'Save for all tenants' }),
+      );
+      await findToast('Saved for all tenants.');
+      expect(reads.count).toBe(before);
+    });
   });
 
   it('lets an operator roll a flag out to a share of principals', async () => {

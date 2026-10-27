@@ -38,6 +38,7 @@ import type {
 } from '@/lib/data-table-types';
 import { getActiveFilters, parseFilterDate } from '@/lib/data-table-utils';
 import type { RefSources } from '@/lib/list-refs';
+import { recordKeys } from '@/lib/records';
 
 /**
  * GET /v1/lists/{subject} turned into what a data table needs, and the
@@ -560,9 +561,7 @@ export function useListQuery<P extends ListPath>(
   );
 
   const result: UseQueryResult<ListPageData<ListRow<P>>> = useQuery({
-    queryKey: pathParams
-      ? ['list', path, params, pathParams]
-      : ['list', path, params],
+    queryKey: recordKeys.list(path, params, pathParams),
     queryFn: () => fetchPage(path, params, pathParams),
     placeholderData: keepPreviousData,
     refetchInterval: refetchInterval

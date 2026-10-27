@@ -9,6 +9,8 @@ import {
   invitation,
   signedInWith,
 } from '@/features/access/test/fixtures';
+import { teamRefsQuery } from '@/lib/list-refs';
+import { peopleQuery, teamNameQuery } from '@/lib/people';
 import { nav, visibleGroups } from '@/nav';
 import { principalsHandler, userPrincipal } from '@/test/principals';
 import { renderApp } from '@/test/render-app';
@@ -446,6 +448,50 @@ describe('teams: a team’s members', () => {
     expect(changed[0]!.url).toMatch(`/v1/access/users/${ids.carol}`);
     // Her teams as the single read had them, plus this one.
     expect(changed[0]!.body).toEqual({ teamIds: [ids.north] });
+  });
+});
+
+describe('after an access change', () => {
+  it('reads again what shows teams and people, and what the user may do', async () => {
+    signedInWith(everything);
+    const reads: string[] = [];
+    server.events.on('request:start', ({ request }) => {
+      reads.push(new URL(request.url).pathname);
+    });
+    server.use(
+      principalsHandler([
+        userPrincipal({
+          id: ids.carol,
+          email: 'carol@example.com',
+          name: 'Carol Admin',
+        }),
+      ]),
+    );
+    capture('patch', '/v1/access/users/:id');
+    const { queryClient } = await renderApp(`/access/teams/${ids.north}`);
+    const user = userEvent.setup();
+    await screen.findByText('Nobody is in this team directly.');
+    // What other pages cached: a team's name (30 minutes), the filters'
+    // team options, the people a picker found.
+    const cached = [
+      teamNameQuery(ids.north).queryKey,
+      teamRefsQuery.queryKey,
+      peopleQuery('carol').queryKey,
+    ];
+    for (const queryKey of cached) queryClient.setQueryData(queryKey, []);
+    const meReads = () => reads.filter((p) => p === '/v1/auth/me').length;
+    const before = meReads();
+
+    await user.type(screen.getByLabelText('Add a member'), 'carol');
+    await user.click(await screen.findByRole('option', { name: /Carol/ }));
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await findToast('carol@example.com added.');
+
+    for (const queryKey of cached) {
+      expect(queryClient.getQueryState(queryKey)?.isInvalidated).toBe(true);
+    }
+    // A role or a team may have changed what the user is allowed (`can`).
+    await waitFor(() => expect(meReads()).toBeGreaterThan(before));
   });
 });
 

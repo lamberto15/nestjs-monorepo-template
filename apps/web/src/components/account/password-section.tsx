@@ -31,6 +31,8 @@ export function PasswordSection() {
       await api.POST('/v1/auth/password/change', { body });
     },
     meta: { errorToast: false },
+    // Its variables hold the passwords: dropped from the cache once reset.
+    gcTime: 0,
   });
   const form = useAppForm({
     defaultValues: { currentPassword: '', newPassword: '', confirm: '' },
@@ -59,6 +61,8 @@ export function PasswordSection() {
           }),
           newPassword: value.newPassword,
         });
+        // The passwords must not outlive the request in the mutation cache.
+        change.reset();
         form.reset();
         toast.success(t('account.password.changed'));
         // A new password answers the breached-password alert (and its banner).
@@ -66,6 +70,7 @@ export function PasswordSection() {
         // Last: the onboarding page leaves this section once `me` says so.
         await queryClient.invalidateQueries({ queryKey: meQuery.queryKey });
       } catch (caught) {
+        change.reset();
         if (!applyFieldErrors(form, caught)) {
           setError(errorMessage(caught));
         }
