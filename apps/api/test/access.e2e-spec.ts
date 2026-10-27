@@ -367,7 +367,7 @@ describe('access control (e2e)', () => {
         history
           .filter((row) => row.userId === promoted.id)
           .map((row) => row.role)
-          .sort(),
+          .sort((a, b) => a.localeCompare(b)),
       ).toEqual(['lead', 'member']);
       expect(
         history.find((row) => row.userId === northLead.id)?.validTo,
