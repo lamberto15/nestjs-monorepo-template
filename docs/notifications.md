@@ -134,13 +134,14 @@ same tenant only (or among the account's own).
   and `daily` bundle them (one mail listing them, times in the user's
   zone), the daily one at `NOTIFICATIONS_DIGEST_HOUR` in the user's time
   zone. After downtime, everything due goes in the next run.
-- **Email policy** (`notifications.emailPolicy`, [settings](settings.md)):
-  `all` (the default) follows each person’s per-type email preference, including
-  disabled and digest choices. `essential` sends notification email only for
-  types declared `mandatory`; in-app, realtime and webhook delivery are
-  unchanged. The operator’s platform value is the default for every tenant,
-  and a tenant setting overrides it. This applies only to notification email,
-  not account or other mail.
+- **Which mail leaves** (`mail.delivery`, [settings](settings.md); below,
+  "Stopping a mail storm"): `all` (the default) follows each person’s
+  per-type email preference, including disabled and digest choices.
+  `essential` sends notification email only for types declared `mandatory`;
+  `off` sends none. In-app, realtime and webhook delivery are unchanged. The
+  operator’s platform value is the default for every tenant, and a tenant
+  setting overrides it (or the operator enforces it). It covers every mail
+  the app sends, not only notifications.
 - **Unsubscribe** (RFC 8058, which Gmail and Yahoo require of bulk senders):
   every notification and digest mail carries `List-Unsubscribe: <https://…/v1/notifications/unsubscribe/{token}>`
   (and a `mailto:` when `MAIL_UNSUBSCRIBE_MAILTO` is set), `List-Unsubscribe-Post: List-Unsubscribe=One-Click`,
@@ -398,6 +399,39 @@ effects that must commit with the delivery (an outbox message, a flag);
 `afterCommit(delivery)` for what can't roll back. The recipient's
 preferences and `GET /notifications/types` take the new channel up by
 themselves; declarations set its default under `channels.chat`.
+
+## Stopping a mail storm
+
+A bulk change notifies everyone who watches the records, and an `immediate`
+type is a mail each: 100,000 notes published at once once queued 78,000
+mails, filled Redis (OOM) and used a provider's daily quota many times over
+(#618). Two limits apply before a mail is queued (`MailDeliveryGate`, in
+`MailQueue.send()`); a mail they keep back is neither rendered nor queued,
+is logged, and counts in `mail_withheld_total{reason}` (`policy` or
+`budget`). The notification itself, in-app and realtime, is unaffected,
+and its delivery completes: the outbox does not retry the mail later.
+
+- **The `mail.delivery` setting**: `all` (default), `essential` (only
+  essential mail: the classes marked `@EssentialMail()`, password reset,
+  email verification, magic links, account deletion, and the mail of a
+  `mandatory` notification type, a security notice; not other
+  notifications, digests, reports or invitations) or `off`. It covers
+  every mail the app queues (it replaced `notifications.emailPolicy`); the
+  notification delivery checks it too, so a held-back notification mail is
+  never flagged as sent. In an incident an operator sets it for every
+  tenant at once, no deploy:
+  `PUT /v1/settings/mail.delivery/platform { "value": "essential", "enforced": true }`.
+  A tenant administrator may restrict their own tenant's. A settings read
+  that fails lets the mail through: sign-in mail is never kept back by an
+  outage.
+- **The daily budget**: with `MAIL_DAILY_LIMIT` set (the provider's quota),
+  the mails queued each UTC day are counted in Redis across every replica;
+  past `MAIL_DAILY_LIMIT` − `MAIL_DAILY_ESSENTIAL_RESERVE` (10) only
+  essential mail is queued. Essential mail is counted but never kept back by
+  the budget (the provider's quota decides). A withheld mail uses none of it.
+
+Both act when a mail is queued: mail already waiting in the `mail` queue
+still goes. Failed jobs are kept 7 days and at most 5,000 per queue.
 
 ## Housekeeping
 

@@ -186,6 +186,14 @@ export const coreEnv = z.object({
     .default('file'),
   /** The sender of every mail. */
   MAIL_FROM: withDefault('My API <no-reply@example.com>'),
+  /**
+   * Mails queued per UTC day, every replica together (the provider's daily
+   * quota, e.g. 100 on a free plan): past it, only essential mail is queued.
+   * 0: no limit.
+   */
+  MAIL_DAILY_LIMIT: z.coerce.number().int().min(0).default(0),
+  /** The part of MAIL_DAILY_LIMIT only essential mail may use (sign-in, reset, verification). */
+  MAIL_DAILY_ESSENTIAL_RESERVE: z.coerce.number().int().min(0).default(10),
   MAIL_DIRECTORY: pathWithDefault('.data/mail'),
   /** smtp://user:password@smtp.example.com:587 (STARTTLS) or smtps://…:465. */
   SMTP_URL: secret(optional()),

@@ -88,7 +88,9 @@ export const DEFAULT_JOB_OPTIONS: DefaultJobOptions = {
   backoff: { type: 'exponential', delay: 1000 },
   // Finished jobs stay a while, for the ops view and debugging.
   removeOnComplete: { age: 24 * 3600, count: 1000 },
-  removeOnFail: { age: 7 * 24 * 3600 },
+  // A failed job keeps its whole payload (a mail job: the rendered mail), so
+  // a storm of failures is capped by count too, not only by age (#618).
+  removeOnFail: { age: 7 * 24 * 3600, count: 5000 },
 };
 
 /**

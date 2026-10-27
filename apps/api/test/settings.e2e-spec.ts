@@ -12,7 +12,7 @@ import { bootApp, type TestApp } from './support.js';
 const KEY = 'approvals.maxDelegationDays';
 const FLAG = 'testItems.richPreview';
 const VIEW = 'testItems.view';
-const EMAIL_POLICY = 'notifications.emailPolicy';
+const EMAIL_POLICY = 'mail.delivery';
 
 describe('settings (e2e)', () => {
   let node: TestApp;
