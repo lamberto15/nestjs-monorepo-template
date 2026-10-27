@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { and, desc, eq, inArray, lte, max, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, lte, max, sql } from 'drizzle-orm';
 import {
   database,
   inTransaction,
@@ -222,7 +222,7 @@ export class ExchangeRatesService {
         ),
       )
       .groupBy(exchangeRates.day)
-      .having(sql`count(*) = ${needed.length}`)
+      .having(eq(count(), needed.length))
       .orderBy(desc(exchangeRates.day))
       .limit(1);
     if (!found) {

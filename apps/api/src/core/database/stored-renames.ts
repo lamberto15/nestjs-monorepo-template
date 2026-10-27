@@ -1,5 +1,5 @@
-import { getTableName, sql } from 'drizzle-orm';
-import type { PgColumn } from 'drizzle-orm/pg-core';
+import { eq, getTableColumns, getTableName, like, sql } from 'drizzle-orm';
+import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { tenants } from '../tenancy/tenancy.tables.js';
 
@@ -45,15 +45,21 @@ export async function applyStoredRenames(
           sql`select set_config('app.tenant_id', ${id}, true), set_config('app.read_tenants', ${id}, true)`,
         );
         for (const rename of renames) {
-          const table = sql.identifier(getTableName(rename.column.table));
-          const column = sql.identifier(rename.column.name);
+          const { column } = rename;
+          const table = column.table as PgTable;
+          const key = keyOf(table, column);
+          // A JSON column: the quoted name, wherever it sits in the document.
           const result = rename.json
-            ? await tx.execute(
-                sql`update ${table} set ${column} = replace(${column}::text, ${`"${rename.from}"`}, ${`"${rename.to}"`})::jsonb where ${column}::text like ${`%"${rename.from}"%`}`,
-              )
-            : await tx.execute(
-                sql`update ${table} set ${column} = ${rename.to} where ${column} = ${rename.from}`,
-              );
+            ? await tx
+                .update(table)
+                .set({
+                  [key]: sql`replace(${column}::text, ${`"${rename.from}"`}, ${`"${rename.to}"`})::jsonb`,
+                })
+                .where(like(sql`${column}::text`, `%"${rename.from}"%`))
+            : await tx
+                .update(table)
+                .set({ [key]: rename.to })
+                .where(eq(column, rename.from));
           counts.set(
             rename,
             (counts.get(rename) ?? 0) + (result.rowCount ?? 0),
@@ -72,4 +78,17 @@ export async function applyStoredRenames(
   } finally {
     await db.$client.end();
   }
+}
+
+/** The property a column has in its table (`set()` takes properties, not column names). */
+function keyOf(table: PgTable, column: PgColumn) {
+  const entry = Object.entries(getTableColumns(table)).find(
+    ([, candidate]) => candidate === column,
+  );
+  if (!entry) {
+    throw new Error(
+      `Stored rename: ${column.name} is not a column of ${getTableName(table)}.`,
+    );
+  }
+  return entry[0];
 }

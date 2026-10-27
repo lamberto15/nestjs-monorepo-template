@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { between, gt, gte, lt, lte } from 'drizzle-orm';
 import { bigint, integer, pgSchema, text } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import { listQuery } from '../../core/http/list-query.js';
@@ -103,13 +103,13 @@ export const DELIVERY_LIST = listQuery(
       ops: ['gt', 'gte', 'lt', 'lte', 'between'],
       // The column is epoch ms: each operator compares it with the time's ms.
       conditions: {
-        gt: (value) => sql`${createdAtColumn} > ${epochMsOf(value)}`,
-        gte: (value) => sql`${createdAtColumn} >= ${epochMsOf(value)}`,
-        lt: (value) => sql`${createdAtColumn} < ${epochMsOf(value)}`,
-        lte: (value) => sql`${createdAtColumn} <= ${epochMsOf(value)}`,
+        gt: (value) => gt(createdAtColumn, epochMsOf(value)),
+        gte: (value) => gte(createdAtColumn, epochMsOf(value)),
+        lt: (value) => lt(createdAtColumn, epochMsOf(value)),
+        lte: (value) => lte(createdAtColumn, epochMsOf(value)),
         between: (value) => {
           const [from, to] = value as [Date, Date];
-          return sql`${createdAtColumn} between ${from.getTime()} and ${to.getTime()}`;
+          return between(createdAtColumn, from.getTime(), to.getTime());
         },
       },
     },
