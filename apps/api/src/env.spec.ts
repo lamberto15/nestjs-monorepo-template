@@ -124,3 +124,12 @@ describe('worker concurrency variables', () => {
     ).toMatchObject({ QUEUE_CONCURRENCY_BULK: 1 });
   });
 });
+
+describe('OUTBOX_INBOX_RETENTION_DAYS', () => {
+  it('must be more than the dead letters (a requeued one is recognized by the inbox)', () => {
+    expect(issues({ OUTBOX_INBOX_RETENTION_DAYS: '14' })).toEqual([
+      'OUTBOX_INBOX_RETENTION_DAYS',
+    ]);
+    expect(issues({})).toEqual([]);
+  });
+});

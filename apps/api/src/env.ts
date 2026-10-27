@@ -21,6 +21,17 @@ const variables = coreEnv
   .extend(featuresEnv.shape)
   // Rules across variables, once every group is in.
   .refine(rateLimitMultiplierAllowed, RATE_LIMIT_MULTIPLIER_REFUSED)
+  // A requeued dead letter keeps its id, and the inbox is what recognizes it
+  // as a redelivery: the inbox must outlive the dead letters.
+  .refine(
+    (env) =>
+      env.OUTBOX_INBOX_RETENTION_DAYS > env.OUTBOX_DEAD_LETTER_RETENTION_DAYS,
+    {
+      path: ['OUTBOX_INBOX_RETENTION_DAYS'],
+      message:
+        'must be more than OUTBOX_DEAD_LETTER_RETENTION_DAYS: a requeued dead letter keeps its id, and the inbox recognizes it',
+    },
+  )
   // The passkey relying party must be consistent before a credential is
   // bound to it (docs/auth.md, "Passkeys"): each problem names its variable.
   .superRefine((env, ctx) => {

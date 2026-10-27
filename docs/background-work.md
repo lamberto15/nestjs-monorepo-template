@@ -161,6 +161,20 @@ outbox relay stays: notification delivery uses it), `REPORTS=off` the report
 runner, `USAGE=off` the usage roll-up, `REALTIME=off` the gateway. A Redis lock store (in
 the NestJS locks docs) is one provider away, for locks on hot request paths.
 
+## Outbox retention
+
+The package keeps two tables it never ages out: the consumers' inbox
+(`nest_outbox.inbox`, a row per message each consumer processed) and the dead
+letters (messages given up on). `OutboxRetentionJob` deletes, every night at
+04:20 (`APP_TIMEZONE`), dead letters older than
+`OUTBOX_DEAD_LETTER_RETENTION_DAYS` (14) and inbox records older than
+`OUTBOX_INBOX_RETENTION_DAYS` (30), with the package's own `purge()` and
+`prune()`. Requeue a dead letter in `/v1/ops` before its time is up. The inbox
+must outlive the dead letters (startup refuses otherwise): a requeued message
+keeps its id, and the inbox is what recognizes it as a redelivery. A purge that
+deleted anything is audited as `outbox.dead-letters-purged` by
+`system:outbox-retention`.
+
 ## Calling other services
 
 `HttpClientModule.register({ name, baseUrl })` in a feature (defaults: a

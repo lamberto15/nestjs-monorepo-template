@@ -182,6 +182,10 @@
       "label": "Aufbewahrung der Webhook-Zustellungen",
       "description": "Löscht jede Nacht ausgehende Webhook-Zustellungen, die vor mehr als WEBHOOKS_DELIVERY_RETENTION_DAYS abgeschlossen wurden, samt Versuchsprotokoll und aufgezeichneten Anfragen (nie eine, die noch wiederholt wird)."
     },
+    "outbox-retention": {
+      "label": "Aufbewahrung des Outbox",
+      "description": "Löscht jede Nacht Dead Letters der Outbox, die älter als OUTBOX_DEAD_LETTER_RETENTION_DAYS sind, und Inbox-Einträge der Verbraucher, die älter als OUTBOX_INBOX_RETENTION_DAYS sind."
+    },
     "platform-analytics": {
       "label": "Plattformanalyse",
       "description": "Zählt jede Nacht Mandanten, Benutzer, Mitgliedschaften und API-Nutzung über alle Mandanten, unterdrückt kleine Gruppen und speichert nur die Aggregate, die die Reporting-Rolle liest."
