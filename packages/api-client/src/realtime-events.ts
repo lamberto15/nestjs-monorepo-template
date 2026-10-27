@@ -15,7 +15,7 @@ export interface RealtimeEventPayloads {
   'notifications.read-all': components['schemas']['RealtimeNotificationsReadAllEvent'];
   /** A notification was removed. */
   'notification.removed': components['schemas']['RealtimeNotificationRemovedEvent'];
-  /** After each of the above and each delivery: the badge's number. */
+  /** After each of the above, and at most once a second after deliveries: the badge's number. */
   'notifications.unread-count': components['schemas']['RealtimeNotificationsUnreadCountEvent'];
   /** An export is ready: `url` is a signed link to the file. */
   'data.export-ready': components['schemas']['RealtimeDataExportReadyEvent'];

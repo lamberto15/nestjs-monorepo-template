@@ -23,7 +23,13 @@ export const notificationSchema = z.object({
 });
 export type NotificationView = z.infer<typeof notificationSchema>;
 
-export const unreadCountSchema = z.object({ unread: z.int() });
+export const unreadCountSchema = z.object({
+  unread: z.int().meta({
+    description:
+      '`unread` stops at 1,000; `unreadCapped` is then true (show 1,000+).',
+  }),
+  unreadCapped: z.boolean(),
+});
 
 export const readAllSchema = z
   .object({
