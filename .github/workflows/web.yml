@@ -89,7 +89,13 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ matrix.browser }}-${{ steps.playwright.outputs.version }}
       - name: Install the browser
+        # Its system libraries come from the runner's Ubuntu mirror, which has
+        # stalled mid-download (a hung apt held the job to its timeout before any
+        # test ran). apt's own network timeout and retries recover a stalled
+        # connection; the step limit turns a mirror outage into a clear failure.
+        timeout-minutes: 10
         run: |
+          printf 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' | sudo tee /etc/apt/apt.conf.d/80-ci-network
           if [ "${{ steps.browsers.outputs.cache-hit }}" = true ]; then
             pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright install-deps ${{ matrix.browser }}
           else
