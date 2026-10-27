@@ -4,18 +4,18 @@ Anything slow or heavy leaves the request: the request answers at once (202
 when the client should wait for a result), a **worker** does the work
 (`APP_ROLE=worker`, or `all` in development). Pick the tool by what the work is:
 
-| Work | Tool | Why |
-| --- | --- | --- |
-| A change must trigger something reliably (a webhook, an event) | **outbox** (`@nestjs/outbox`) | written in the change's transaction: it happens if and only if the change commits |
-| A process over days (wait, then publish) | **workflow** (`@nestjs/workflows`) | durable steps, timers and signals that survive restarts and deploys |
-| "This action needs approval": stages, approvers, reminders, escalation | **approvals** (`approvals.request()`, [approvals.md](approvals.md)) | declared once; one durable workflow per request, decisions under a row lock |
-| Heavy or slow work on demand (exports, imports, images, reports) | **queue** (`@nestjs/bullmq`) | retries with backoff, on any worker, never in the request; images: the thumbnails and previews of attachments ([attachments.md](attachments.md#image-renditions)) |
-| A PDF of a record (an invoice, a note) | **documents** (`DocumentsService.request()`, [documents.md](documents.md)) | a queue job renders it in Gotenberg; issued as a locked attachment of the record |
-| Email | **mail queue** (`MailQueue.send()`) | rendered in the request, sent by a worker, retried for hours |
-| Every night at 03:00 | **cron** (`@Cron` + `@OnOneInstance`) | runs on one instance, never overlapping (`@WithoutOverlapping`) |
-| An export every Monday at 08:00, mailed to a team | **scheduled reports** ([reports.md](reports.md)) | the hourly `ReportRunnerJob` starts it as its owner; the mail follows the file |
-| Tell a connected client | **realtime** (`Realtime.toPrincipal()`) | socket.io, fanned out through Redis to every instance |
-| Tell a person (or a client system) something they can read later | **notifications** (`NotificationsService.notify()`, [notifications.md](notifications.md)) | stored, then realtime, mail or webhook as they prefer, through the outbox |
+| Work                                                                   | Tool                                                                                      | Why                                                                                                                                                               |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A change must trigger something reliably (a webhook, an event)         | **outbox** (`@nestjs/outbox`)                                                             | written in the change's transaction: it happens if and only if the change commits                                                                                 |
+| A process over days (wait, then publish)                               | **workflow** (`@nestjs/workflows`)                                                        | durable steps, timers and signals that survive restarts and deploys                                                                                               |
+| "This action needs approval": stages, approvers, reminders, escalation | **approvals** (`approvals.request()`, [approvals.md](approvals.md))                       | declared once; one durable workflow per request, decisions under a row lock                                                                                       |
+| Heavy or slow work on demand (exports, imports, images, reports)       | **queue** (`@nestjs/bullmq`)                                                              | retries with backoff, on any worker, never in the request; images: the thumbnails and previews of attachments ([attachments.md](attachments.md#image-renditions)) |
+| A PDF of a record (an invoice, a note)                                 | **documents** (`DocumentsService.request()`, [documents.md](documents.md))                | a queue job renders it in Gotenberg; issued as a locked attachment of the record                                                                                  |
+| Email                                                                  | **mail queue** (`MailQueue.send()`)                                                       | rendered in the request, sent by a worker, retried for hours                                                                                                      |
+| Every night at 03:00                                                   | **cron** (`@Cron` + `@OnOneInstance`)                                                     | runs on one instance, never overlapping (`@WithoutOverlapping`)                                                                                                   |
+| An export every Monday at 08:00, mailed to a team                      | **scheduled reports** ([reports.md](reports.md))                                          | the hourly `ReportRunnerJob` starts it as its owner; the mail follows the file                                                                                    |
+| Tell a connected client                                                | **realtime** (`Realtime.toPrincipal()`)                                                   | socket.io, fanned out through Redis to every instance                                                                                                             |
+| Tell a person (or a client system) something they can read later       | **notifications** (`NotificationsService.notify()`, [notifications.md](notifications.md)) | stored, then realtime, mail or webhook as they prefer, through the outbox                                                                                         |
 
 ## Queues
 
@@ -135,6 +135,13 @@ sweeps every tenant at once, as the maintenance role (`BYPASSRLS`,
 bypass"), for a whole-table delete by age that records nothing per tenant;
 it runs only in a worker and never inside a request. A job on global tables only (the mail events'
 retention, the exchange rates) says so: `system.run(job, work, { tenantId: null })`.
+
+A job that deletes aged rows calls `deleteInBatches()`
+(`core/database/batched-delete.ts`) outside any transaction, so each batch of
+5,000 is its own short transaction (no long lock, no WAL burst, no id list in
+memory). The audit, notification, revision, mail-event, messaging, usage
+roll-up and webhook-request retention jobs use it; the audit job writes its
+`audit.pruned` entry in each batch's transaction.
 
 **Workflows carry their tenant by type**: an instance's input and every
 signal sent to it have `tenantId` (`TenantEnvelope`,

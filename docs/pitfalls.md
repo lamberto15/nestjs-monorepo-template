@@ -10,7 +10,7 @@
   (locks, sessions, idempotency) inject it with `@InjectDrizzle()`.
 - **Raw SQL crept in** (#779): whole statements through
   `db.execute(sql`…`)` with literal table and column names (`update notes
-  set …`, `team_tree`, `deleted_at is null`), which no type check sees and
+set …`, `team_tree`, `deleted_at is null`), which no type check sees and
   a column rename breaks only at runtime. Use the query builder
   (apps/api/AGENTS.md, "No raw SQL"); `tools/ci/raw-sql.mjs` counts what
   is left against `tools/ci/raw-sql.allow.json`.
@@ -209,7 +209,7 @@
   Standard Schema body over an explicit `@ApiBody`, so an upload's file
   field vanished from Swagger UI (no file picker on `POST /v1/data/imports`).
   Declare the file in the Zod body schema instead: `z.unknown().optional()
-  .meta({ type: 'string', format: 'binary' })` (optional: Multer has taken
+.meta({ type: 'string', format: 'binary' })` (optional: Multer has taken
   it out of the body before validation; the route checks it).
 
 - **`docker compose run -v vol:/path` can't make a read-only mount
@@ -217,11 +217,11 @@
   path (`-v app_storage:/restore`, as the file restore does).
 
 - **A `read_only: true` service takes only file secrets and configs.**
-  Compose mounts a secret or config that is a `file:` and *copies* one that
+  Compose mounts a secret or config that is a `file:` and _copies_ one that
   comes from a variable (`environment:`) or inline text (`content:`) into the
   container, which Compose refuses for a read-only service (Docker would
   too: `docker cp` into a read-only root filesystem fails): `docker compose
-  up` stops with "cannot create secret … in read-only service …: `file` is
+up` stops with "cannot create secret … in read-only service …: `file` is
   the sole supported option", and `docker compose config` doesn't show it.
   That is why Prometheus (its token comes from `METRICS_TOKEN`) is the one
   hardened service that is not read-only
@@ -329,15 +329,15 @@ populated table, in the release that stops using it.** Expand first; contract
 in a later release, once every release that may still run (the one being
 replaced, the one a rollback returns to) no longer needs the old shape:
 
-| Change | Expand | Contract (a release later) |
-| --- | --- | --- |
-| Drop a column or table | Stop reading and writing it. A NOT NULL column without a default becomes nullable (or gets a default) in the same release, or its inserts fail | Drop it |
-| Rename or retype a column | Release 1: add the new column, write both (still reading the old one), backfill the rows (a queue job for a big table). Release 2: read and write the new one only, and make the old one nullable (or give it a default), or release 2's inserts fail; the lint reports that `DROP NOT NULL` (`ban-drop-not-null`), as expected | Drop the old one |
-| Rename a table | As a column: create the new table, write both, backfill, then move to it | Drop the old one |
-| A required column | Add it nullable or with a default; write it everywhere; backfill | `SET NOT NULL`; drop the default if it was only for the old code |
-| Drop a default | Write the column on every insert | Drop the default |
-| Drop an index, constraint, type or enum value | Stop relying on it (an enum value: stop writing it, update the rows that have it) | Drop it |
-| Add a constraint (`UNIQUE`, a unique index, `CHECK`, a foreign key) | Make every release write rows that satisfy it, and fix the rows that don't: the previous release's writes that break it fail (the lint doesn't check this) | Add it |
+| Change                                                              | Expand                                                                                                                                                                                                                                                                                                                          | Contract (a release later)                                       |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Drop a column or table                                              | Stop reading and writing it. A NOT NULL column without a default becomes nullable (or gets a default) in the same release, or its inserts fail                                                                                                                                                                                  | Drop it                                                          |
+| Rename or retype a column                                           | Release 1: add the new column, write both (still reading the old one), backfill the rows (a queue job for a big table). Release 2: read and write the new one only, and make the old one nullable (or give it a default), or release 2's inserts fail; the lint reports that `DROP NOT NULL` (`ban-drop-not-null`), as expected | Drop the old one                                                 |
+| Rename a table                                                      | As a column: create the new table, write both, backfill, then move to it                                                                                                                                                                                                                                                        | Drop the old one                                                 |
+| A required column                                                   | Add it nullable or with a default; write it everywhere; backfill                                                                                                                                                                                                                                                                | `SET NOT NULL`; drop the default if it was only for the old code |
+| Drop a default                                                      | Write the column on every insert                                                                                                                                                                                                                                                                                                | Drop the default                                                 |
+| Drop an index, constraint, type or enum value                       | Stop relying on it (an enum value: stop writing it, update the rows that have it)                                                                                                                                                                                                                                               | Drop it                                                          |
+| Add a constraint (`UNIQUE`, a unique index, `CHECK`, a foreign key) | Make every release write rows that satisfy it, and fix the rows that don't: the previous release's writes that break it fail (the lint doesn't check this)                                                                                                                                                                      | Add it                                                           |
 
 With drizzle-kit, the contract is deleting the column (or table) from its
 `*.tables.ts`: `pnpm db:generate` then writes the drop. So the expand release
@@ -356,7 +356,7 @@ matters.)
   indexes, constraints, defaults, NOT NULL...), renames, `SET DATA TYPE`,
   `SET NOT NULL`, `ADD COLUMN ... NOT NULL` without a default, `TRUNCATE`,
   `DELETE` and `UPDATE` without `WHERE`, `MERGE`'s `THEN DELETE` and `THEN
-  UPDATE` (not those kept for later: a rule's action, a `BEGIN ATOMIC`
+UPDATE` (not those kept for later: a rule's action, a `BEGIN ATOMIC`
   function's body). A contract step trips it by design: say in the pull
   request which release expanded it. Report-only while the template has no
   adopters; `MIGRATION_LINT_FAIL: on` in the workflow makes it blocking, and
@@ -406,7 +406,7 @@ Learned renaming org units to teams (#23, 2026-10-17):
 
 - **`pnpm db:generate` asks** "created or renamed?" for every table and
   column that disappears, and has no flag to answer it: it needs a terminal.
-  Answer *rename* for the renamed ones; a policy, index or constraint whose
+  Answer _rename_ for the renamed ones; a policy, index or constraint whose
   name follows the table is dropped and created, which is right.
 - **It orders a referenced key's rename wrongly.** Renaming a table renames
   its `(tenant_id, id)` unique key (`tenantTable(…, { referenced: true })`),
@@ -420,6 +420,7 @@ Learned renaming org units to teams (#23, 2026-10-17):
 
   The e2e setup applies every migration to a real PostgreSQL: run one spec
   before committing a generated migration.
+
 - **Names stored in rows** (a role's condition key, a settings scope, an
   approval rule's type) are data, not schema: list them in
   `apps/api/src/stored-renames.ts`, which every migrate rewrites
@@ -428,3 +429,9 @@ Learned renaming org units to teams (#23, 2026-10-17):
   changes until the template has adopters, and the release is a major one.
   With adopters, a rename takes the three releases above.
 
+## Retention deletes
+
+- Never delete an unbounded set in one statement in a job (one long
+  transaction, a WAL burst, every id in Node). Use `deleteInBatches()`
+  (`core/database/batched-delete.ts`), and never call it inside
+  `inTransaction()`: it throws, as the batches would join it.

@@ -4,10 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { OnOneInstance, WithoutOverlapping } from '@nestjs/locks';
 import { Cron } from '@nestjs/schedule';
 import { lt } from 'drizzle-orm';
-import {
-  database,
-  type DrizzleTransactions,
-} from '../../core/database/transactions.js';
+import { deleteInBatches } from '../../core/database/batched-delete.js';
+import type { DrizzleTransactions } from '../../core/database/transactions.js';
 import { SystemContext } from '../../iam/access/system-context.js';
 import { MAIL_EVENTS_RETENTION_JOB } from '../platform.jobs.js';
 import type { PlatformEnv } from '../platform.env.js';
@@ -22,11 +20,6 @@ import { mailEvents } from './deliverability.tables.js';
 @Injectable()
 export class MailEventsRetentionJob {
   private readonly logger = new Logger('MailEvents');
-
-  /** The current transaction, or the database outside one (core/database/transactions.ts). */
-  private get db() {
-    return database(this.txHost);
-  }
 
   constructor(
     private readonly txHost: TransactionHost<DrizzleTransactions>,
@@ -47,20 +40,17 @@ export class MailEventsRetentionJob {
         const days = this.config.get('MAIL_EVENTS_RETENTION_DAYS', {
           infer: true,
         });
-        const deleted = await this.db
-          .delete(mailEvents)
-          .where(
-            lt(
-              mailEvents.createdAt,
-              new Date(now.getTime() - days * 86_400_000),
-            ),
-          )
-          .returning({ id: mailEvents.id });
+        const deleted = await deleteInBatches(
+          this.txHost,
+          mailEvents,
+          mailEvents.id,
+          lt(mailEvents.createdAt, new Date(now.getTime() - days * 86_400_000)),
+        );
         this.logger.log('Old mail events deleted', {
-          deleted: deleted.length,
+          deleted,
           days,
         });
-        return deleted.length;
+        return deleted;
       },
       // A global table (every tenant's mail together): no tenant.
       { transaction: false, tenantId: null },

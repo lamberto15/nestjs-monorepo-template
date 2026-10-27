@@ -4,10 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { OnOneInstance, WithoutOverlapping } from '@nestjs/locks';
 import { Cron } from '@nestjs/schedule';
 import { and, isNotNull, lt, or } from 'drizzle-orm';
-import {
-  database,
-  type DrizzleTransactions,
-} from '../../core/database/transactions.js';
+import { deleteInBatches } from '../../core/database/batched-delete.js';
+import type { DrizzleTransactions } from '../../core/database/transactions.js';
 import type { PlatformEnv } from '../platform.env.js';
 import { notifications } from './notifications.tables.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
@@ -25,11 +23,6 @@ import { NOTIFICATION_RETENTION_JOB } from '../platform.jobs.js';
 @Injectable()
 export class NotificationRetentionJob {
   private readonly logger = new Logger('Notifications');
-
-  /** The current transaction, or the database outside one (core/database/transactions.ts). */
-  private get db() {
-    return database(this.txHost);
-  }
 
   constructor(
     private readonly txHost: TransactionHost<DrizzleTransactions>,
@@ -57,24 +50,24 @@ export class NotificationRetentionJob {
           });
           const before = (days: number) =>
             new Date(now.getTime() - days * 86_400_000);
-          const deleted = await this.db
-            .delete(notifications)
-            .where(
-              or(
-                and(
-                  isNotNull(notifications.readAt),
-                  lt(notifications.readAt, before(readDays)),
-                ),
-                lt(notifications.createdAt, before(maxDays)),
+          const deleted = await deleteInBatches(
+            this.txHost,
+            notifications,
+            notifications.id,
+            or(
+              and(
+                isNotNull(notifications.readAt),
+                lt(notifications.readAt, before(readDays)),
               ),
-            )
-            .returning({ id: notifications.id });
+              lt(notifications.createdAt, before(maxDays)),
+            ),
+          );
           this.logger.log('Old notifications deleted', {
-            deleted: deleted.length,
+            deleted,
             readDays,
             maxDays,
           });
-          return deleted.length;
+          return deleted;
         }),
       { transaction: false },
     );
