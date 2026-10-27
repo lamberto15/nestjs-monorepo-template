@@ -46,9 +46,16 @@ OpenAPI test's path list.
 ```ts
 // features/invoices/invoice.record.ts
 export const INVOICE = defineRecord({
-  subject: 'Invoice', path: 'invoices', apiTag: 'invoices', className: 'Invoice',
-  noun: 'invoice', table: 'invoices', softDelete: true, team: false,
-  clientAccess: false, grants: 'standard',   // idempotency: unset, the deployment's
+  subject: 'Invoice',
+  path: 'invoices',
+  apiTag: 'invoices',
+  className: 'Invoice',
+  noun: 'invoice',
+  table: 'invoices',
+  softDelete: true,
+  team: false,
+  clientAccess: false,
+  grants: 'standard', // idempotency: unset, the deployment's
   fields: {
     title: field.string().searchable(),
     total: field.money(),
@@ -74,41 +81,42 @@ export const INVOICE = defineRecord({
   line of the declaration, derived by the platform (nothing of them in the
   feature's code), changeable later:
 
-  | Flag | Declaration | Default |
-  | --- | --- | --- |
-  | `--client-access own` | `clientAccess: 'own'`: every API client creates, reads, changes and deletes the records it created | `clientAccess: false`: **denied**; a client reaches the feature only through a role an administrator grants it |
-  | `--grants none` | `grants: 'none'`: the seed roles (editor, team lead, viewer) get nothing; only administrators until someone grants it | `grants: 'standard'`: editors their own, team leads their teams' (with `team`), viewers read all |
-  | `--idempotency required\|optional\|off` | `idempotency: '…'`: the create route and the record's platform write routes (bulk, PDF) | unset (no line): follow the deployment's `IDEMPOTENCY` |
+  | Flag                                    | Declaration                                                                                                           | Default                                                                                                        |
+  | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+  | `--client-access own`                   | `clientAccess: 'own'`: every API client creates, reads, changes and deletes the records it created                    | `clientAccess: false`: **denied**; a client reaches the feature only through a role an administrator grants it |
+  | `--grants none`                         | `grants: 'none'`: the seed roles (editor, team lead, viewer) get nothing; only administrators until someone grants it | `grants: 'standard'`: editors their own, team leads their teams' (with `team`), viewers read all               |
+  | `--idempotency required\|optional\|off` | `idempotency: '…'`: the create route and the record's platform write routes (bulk, PDF)                               | unset (no line): follow the deployment's `IDEMPOTENCY`                                                         |
 
   `clientAccess` and `grants` are always written (`false`, `'standard'`);
   `idempotency` only when chosen. The notes example is hand-written and
   keeps granting its clients.
+
 - **Capabilities (`--with a,b,…`, or `capabilities` in the declaration):** each
   is a platform module, wired by `recordParts` with a generic target;
   `recordParts(…, { override: { revisions: MyRevisions } })` replaces one
   (notes does, for its hand-written custom fields).
 
-  | Capability | Routes and more |
-  | --- | --- |
-  | `tags` | `PUT /<x>/{id}/tags`, `?tag=` on the list, `tags` in responses |
-  | `comments` | `/<x>/{id}/comments`, the `<item>.commented` notification (texts in every locale) |
-  | `attachments` | `/<x>/{id}/attachments`, download and remove at `/v1/attachments/{id}` |
-  | `revisions` | `/<x>/{id}/revisions` (list, one, diff, restore); a revision per create and update |
-  | `pdf` | `POST /<x>/{id}/pdf` on the shared page (`documents/templates/record.html`), labels in `documents.json`; needs `attachments` |
-  | `bulk` | `POST /<x>/bulk` (delete, update, restore) |
-  | `watch` | `POST`/`DELETE /<x>/{id}/watch`; the owner watches from the start |
-  | `search` | a search vector over the `.searchable()` fields: `?q=` on the list, GET /v1/search |
-  | `transfer` | exports (CSV, JSON, Excel), imports (when no required money or JSON field), the owner's data export |
-  | `custom` | administrators' runtime fields ([custom fields](custom-fields.md)): `custom` in bodies and responses, `custom.<key>` in lists, exports and imports, snapshots and the audit; the `custom` column and its GIN index (run `pnpm db:generate`), the field-level `custom` permission |
-  | `events` | webhooks `<item>.created`, `.updated`, `.deleted` (and `.restored` with a recycle bin), declared as event types and sent in the write's transaction through the outbox |
-  | `numbered` | a gapless `number` per tenant (`INV-2026-00042`), set on create: in responses, filterable and sortable (`?number=`, `?sort=number`), in the PDF and exports; read-only; administrators' naming series replace the declared format ([sequences](sequences.md), "Naming series") |
+  | Capability    | Routes and more                                                                                                                                                                                                                                                                  |
+  | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `tags`        | `PUT /<x>/{id}/tags`, `?tag=` on the list, `tags` in responses                                                                                                                                                                                                                   |
+  | `comments`    | `/<x>/{id}/comments`, the `<item>.commented` notification (texts in every locale)                                                                                                                                                                                                |
+  | `attachments` | `/<x>/{id}/attachments`, download and remove at `/v1/attachments/{id}`                                                                                                                                                                                                           |
+  | `revisions`   | `/<x>/{id}/revisions` (list, one, diff, restore); a revision per create and update                                                                                                                                                                                               |
+  | `pdf`         | `POST /<x>/{id}/pdf` on the shared page (`documents/templates/record.html`), labels in `documents.json`; needs `attachments`                                                                                                                                                     |
+  | `bulk`        | `POST /<x>/bulk` (delete, update, restore)                                                                                                                                                                                                                                       |
+  | `watch`       | `POST`/`DELETE /<x>/{id}/watch`; the owner watches from the start                                                                                                                                                                                                                |
+  | `search`      | a search vector over the `.searchable()` fields: `?q=` on the list, GET /v1/search                                                                                                                                                                                               |
+  | `transfer`    | exports (CSV, JSON, Excel), imports (when no required money or JSON field), the owner's data export                                                                                                                                                                              |
+  | `custom`      | administrators' runtime fields ([custom fields](custom-fields.md)): `custom` in bodies and responses, `custom.<key>` in lists, exports and imports, snapshots and the audit; the `custom` column and its GIN index (run `pnpm db:generate`), the field-level `custom` permission |
+  | `events`      | webhooks `<item>.created`, `.updated`, `.deleted` (and `.restored` with a recycle bin), declared as event types and sent in the write's transaction through the outbox                                                                                                           |
+  | `numbered`    | a gapless `number` per tenant (`INV-2026-00042`), set on create: in responses, filterable and sortable (`?number=`, `?sort=number`), in the PDF and exports; read-only; administrators' naming series replace the declared format ([sequences](sequences.md), "Naming series")   |
 
   `events`: the data of each webhook is the record as the API shows it
   (less the fields its receiver may not read), sent to the API client that
   owns the record (endpoints belong to clients, so a user's records send
   none: [webhooks](webhooks-and-realtime.md)); it needs no endpoint to
   exist. `numbered`: the format is the declaration's `number: { prefix: 'INV',
-  perYear: true, width: 5 }` (default: the subject's initials, per year, 5
+perYear: true, width: 5 }` (default: the subject's initials, per year, 5
   digits; one counter per tenant, [sequences](sequences.md)); the column is
   nullable, so the capability can be added to a table with rows (those
   records stay without a number). Both are done by `RecordLifecycle`, so the
@@ -140,10 +148,10 @@ export const INVOICE = defineRecord({
   },
   ```
 
-  | Declared | The platform derives | The feature writes |
-  | --- | --- | --- |
+  | Declared             | The platform derives                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | The feature writes                                                                                                                                                      |
+  | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
   | `approvals.<action>` | the approvable action `Invoice.publish` (default policy: one stage, decided by any user who may update the record, never the requester; an option `policy` replaces it, administrators store their own at runtime), its handler, the flag `invoices.publishApproval` (off by default, tenant and team scopes; `flag: false` makes approval always required), `POST /v1/invoices/{id}/publish` (200 `applied` at once, 202 `pending` with the approval's id; whoever may update the record asks), and the wait: while a request is open the record can't be changed or deleted (409 `approval_pending`; a delete withdraws a request sent back for changes) | what happens once approved (and at once when no approval is needed): an entry in `<item>.approvals.ts`, `apply({ id, actor, service })`, idempotent, as a workflow step |
-  | `settings.<name>` | the setting or flag `invoices.paymentDays` (kinds `flag`, `int`, `string`, `enum`; `.min() .max() .label() .describe() .scopes([…]) .hidden()`), registered with the platform | reading it: `settings.get(recordSettings(INVOICE).paymentDays)` |
+  | `settings.<name>`    | the setting or flag `invoices.paymentDays` (kinds `flag`, `int`, `string`, `enum`; `.min() .max() .label() .describe() .scopes([…]) .hidden()`), registered with the platform                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | reading it: `settings.get(recordSettings(INVOICE).paymentDays)`                                                                                                         |
 
   `pnpm feature:add` writes the effects file and passes it to `recordParts()`
   in the module (`approvals: INVOICE_APPROVALS`); a missing entry for a
@@ -258,19 +266,26 @@ the controller (`notes.*`); singular for what describes one record
    create, [sequences.md](sequences.md)), with the column helpers of
    `core/database/columns.ts`:
    ```ts
-   export const invoices = pgTable('invoices', {
-     id: uuidPk(),                     // UUIDv7, time-ordered: also the default sort and cursor
-     tenantId: tenantColumn(),         // the tenant (docs/tenancy.md): filled from the scope
-     ownerId: text('owner_id').notNull(),
-     ...moneyColumns('total'),         // money: total_minor (bigint) + total_currency (ISO 4217), money.md
-     unitPrice: numeric('unit_price').notNull(), // unit prices and rates: numeric, read as strings
-     dueOn: date('due_on'),            // a calendar date: date(); a moment: at('…')
-     custom: jsonb('custom').$type<Record<string, unknown>>().notNull().default({}), // only with custom fields
-     ...timestamps(),                  // created_at, updated_at (set on every update)
-   }, (t) => [
-     ...tenantTable('invoices', t),    // row-level security policies, unique (tenant_id, id)
-     index('invoices_owner_id_idx').on(t.ownerId),
-   ]).enableRLS();
+   export const invoices = pgTable(
+     'invoices',
+     {
+       id: uuidPk(), // UUIDv7, time-ordered: also the default sort and cursor
+       tenantId: tenantColumn(), // the tenant (docs/tenancy.md): filled from the scope
+       ownerId: text('owner_id').notNull(),
+       ...moneyColumns('total'), // money: total_minor (bigint) + total_currency (ISO 4217), money.md
+       unitPrice: numeric('unit_price').notNull(), // unit prices and rates: numeric, read as strings
+       dueOn: date('due_on'), // a calendar date: date(); a moment: at('…')
+       custom: jsonb('custom')
+         .$type<Record<string, unknown>>()
+         .notNull()
+         .default({}), // only with custom fields
+       ...timestamps(), // created_at, updated_at (set on every update)
+     },
+     (t) => [
+       ...tenantTable('invoices', t), // row-level security policies, unique (tenant_id, id)
+       index('invoices_owner_id_idx').on(t.ownerId),
+     ],
+   ).enableRLS();
    ```
    - **Every feature table is a tenant table** ([tenancy](tenancy.md)):
      `tenantId: tenantColumn()`, `...tenantTable('<x>', t)` and `.enableRLS()`;
@@ -279,7 +294,7 @@ the controller (`notes.*`); singular for what describes one record
      queries need nothing: row-level security keeps them in the tenant.
    - Uniques are per tenant (`uniqueIndex(…).on(t.tenantId, t.number)`), and a
      key to another tenant table is composite: `tenantReference('<x>_<y>_fk',
-     [t.tenantId, t.yId], [y.tenantId, y.id])`, never a plain `references()`.
+[t.tenantId, t.yId], [y.tenantId, y.id])`, never a plain `references()`.
    - Work that leaves the request carries the tenant by type: queue jobs
      (`withTenant()`, a `TenantWorkerHost` processor), workflow inputs and
      signals (`tenantId`), cron jobs (`Tenancy.forEachTenant()`).
@@ -288,6 +303,13 @@ the controller (`notes.*`); singular for what describes one record
    - Snake_case column names, camelCase properties; moments are `at()`
      (timestamptz, UTC), never `timestamp()` without a zone.
    - An index for every foreign key and for what lists filter or sort by.
+   - Sort index: it repeats the list's ORDER BY exactly, `id desc nulls first`
+     included. A datetime sort:
+     `index('<t>_tenant_<col>_ms_idx').on(t.tenantId, sql\`${utcMilliseconds(t.<col>)} desc nulls first\`, t.id.desc().nullsFirst())`;
+another column: `.on(t.tenantId, t.<col>.desc().nullsFirst(), t.id.desc().nullsFirst())`.
+One index serves `-<col>`(forward) and`<col>`(backward scan plus a
+short sort on ties); a partial`.where(...)`must match what the list
+always filters (e.g.`deleted_at is null`).
    - Export it from `apps/api/src/features/tables.ts`, run `pnpm db:generate`, commit
      `apps/api/drizzle/`. Never write a migration by hand.
 2. **Schemas** (`<item>.schemas.ts`): Zod for bodies and responses, which
@@ -328,8 +350,8 @@ the controller (`notes.*`); singular for what describes one record
      value is a 409 `<item>_taken`); a hand-written unique column of such a table needs a
      partial index (``.where(sql`deleted_at is null`)``), or a deleted record
      keeps its value taken.
-   Not for link tables, logs, or records with a real "inactive" state (users
-   and API clients deactivate). Notes is the example.
+     Not for link tables, logs, or records with a real "inactive" state (users
+     and API clients deactivate). Notes is the example.
 6. **Custom fields** (optional; a generated record takes them with the
    `custom` capability and none of this is written: the table, schemas,
    service step, presenter and the platform's declaration come from the
@@ -343,20 +365,48 @@ the controller (`notes.*`); singular for what describes one record
    (searchable text: a `searchVector()` column and `...searchFields()`,
    [api-conventions.md](api-conventions.md), "Search"):
    ```ts
-   export const INVOICE_LIST = listQuery({
-     status: { column: invoices.status, type: 'enum', values: STATUSES, ops: ['eq', 'in', 'notIn'] },
-     unitPrice: { column: invoices.unitPrice, type: 'number', ops: ['gte', 'lte', 'between'], sortable: true },
-     dueOn: { column: invoices.dueOn, type: 'date', ops: ['lt', 'gte', 'between', 'isNull'], sortable: true },
-     createdAt: { column: invoices.createdAt, type: 'datetime', ops: ['gte', 'lt', 'between'], sortable: true },
-     updatedAt: { column: invoices.updatedAt, type: 'datetime', ops: ['gte', 'lt', 'between'], sortable: true },
-   }, { select: Object.keys(invoiceSchema.shape) });
+   export const INVOICE_LIST = listQuery(
+     {
+       status: {
+         column: invoices.status,
+         type: 'enum',
+         values: STATUSES,
+         ops: ['eq', 'in', 'notIn'],
+       },
+       unitPrice: {
+         column: invoices.unitPrice,
+         type: 'number',
+         ops: ['gte', 'lte', 'between'],
+         sortable: true,
+       },
+       dueOn: {
+         column: invoices.dueOn,
+         type: 'date',
+         ops: ['lt', 'gte', 'between', 'isNull'],
+         sortable: true,
+       },
+       createdAt: {
+         column: invoices.createdAt,
+         type: 'datetime',
+         ops: ['gte', 'lt', 'between'],
+         sortable: true,
+       },
+       updatedAt: {
+         column: invoices.updatedAt,
+         type: 'datetime',
+         ops: ['gte', 'lt', 'between'],
+         sortable: true,
+       },
+     },
+     { select: Object.keys(invoiceSchema.shape) },
+   );
    ```
    - Always `createdAt` and `updatedAt` (filterable, sortable): clients sync
      with `updatedAt.gte`.
    - Declare only what's indexed on a large table; nothing undeclared can be
      filtered, sorted or selected (400).
    - A field may sort by another expression than its column, ``sort:
-     sql`lower(${t.name})` `` (an order that ignores case; index that
+sql`lower(${t.name})` `` (an order that ignores case; index that
      expression). The page then selects `list.sortSelect(query)` next to the
      row for the cursor, and `list.pick()` drops it (as `NotesService.findPage`).
    - The page (as `NotesService.findPage(user, list, query)`: the service
@@ -386,7 +436,7 @@ the controller (`notes.*`); singular for what describes one record
      `access.assertQueryFields()`). By hand, call
      `await access.assertQueryFields(user, '<Subject>', query)` right after
      the query validates (as `NotesController.list`). `searchFields(t.search,
-     ['title', 'body'])` names the fields the vector is made of.
+['title', 'body'])` names the fields the vector is made of.
    - **A controller generated before this** calls `presenter.list(LIST)`
      and `list.parse(raw)`, which no longer compile (`presenter.list` is
      gone): replace those two lines with the `presenter.query()` call
@@ -404,16 +454,16 @@ the controller (`notes.*`); singular for what describes one record
 9. **Controller** (`<x>.controller.ts`): HTTP only, never the database.
    - `/v1/<x>`: `GET` list, `GET /:id`, `POST` (201, `@Idempotent()`),
      `PATCH /:id`, `DELETE /:id` (204); actions as `POST /:id/<verb>`.
-    `@Etag()` on the routes that return the record (the create and the
-    restore too), `assertUnchanged(ifMatch, shown)` before an update or
-    delete ([api-conventions.md](api-conventions.md), "Concurrency and
-    caching"); `?include=can` on the read and the list
-    (`@Query('include', IncludePipe)`, `RecordPresenter.one(user, row,
-    include)` and `.page()`; a hand-written feature calls `recordCan()` and
-    `withIncluded()`, as notes does); with `watch`, `?include=watching`
-    adds `watching` the same way (one query per page). A text field's `max` stays under
-    `MAX_TEXT_LENGTH` (the body limit); the response never carries
-    `tenantId`.
+     `@Etag()` on the routes that return the record (the create and the
+     restore too), `assertUnchanged(ifMatch, shown)` before an update or
+     delete ([api-conventions.md](api-conventions.md), "Concurrency and
+     caching"); `?include=can` on the read and the list
+     (`@Query('include', IncludePipe)`, `RecordPresenter.one(user, row,
+ include)` and `.page()`; a hand-written feature calls `recordCan()` and
+     `withIncluded()`, as notes does); with `watch`, `?include=watching`
+     adds `watching` the same way (one query per page). A text field's `max` stays under
+     `MAX_TEXT_LENGTH` (the body limit); the response never carries
+     `tenantId`.
    - `@Can()` on the route, or a check on the loaded record; field-level
      checks on writes (`field_forbidden`). A route on one record finds it
      with `findOne(id, undefined, { visibleTo: user })`, so one the caller
@@ -483,11 +533,11 @@ the controller (`notes.*`); singular for what describes one record
     `flag()`, passed to `PlatformModule.forRoot({ settings })`); read with
     `settings.get(DECLARATION, principal)` ([settings.md](settings.md)).
 12. **Background**: anything slow goes to a queue worker, never in the
-   request: queues in `PlatformModule.forRoot({ queues })`, webhook events
-   in `eventTypes`, a `DataExporter`/`DataImporter` for bulk moves (its
-   timestamp columns `type: 'datetime'`: exported in the reader's zone; the
-   importer's schema and `write()` reuse the create route's schema and
-   service call, so an imported row is checked as a `POST` is).
+    request: queues in `PlatformModule.forRoot({ queues })`, webhook events
+    in `eventTypes`, a `DataExporter`/`DataImporter` for bulk moves (its
+    timestamp columns `type: 'datetime'`: exported in the reader's zone; the
+    importer's schema and `write()` reuse the create route's schema and
+    service call, so an imported row is checked as a `POST` is).
 13. **Environment** (`<x>.env.ts`): a Zod schema merged in `apps/api/src/features/env.ts`, a
     line in `env.example` and in docs/configuration.md.
 14. **Texts**: messages in `apps/api/src/i18n/<locale>/<x>.json` for every locale,
@@ -495,7 +545,7 @@ the controller (`notes.*`); singular for what describes one record
 15. **Tests** (`apps/api/test/<x>.e2e-spec.ts`, see `apps/api/test/support.ts`): the routes,
     permissions (403s, what lists hide), validation (400s), the list's
     filters and sorts; then `pnpm build && pnpm lint && pnpm test &&
-    pnpm test:e2e`, and `pnpm db:check` after table changes.
+pnpm test:e2e`, and `pnpm db:check` after table changes.
 16. **Docs**: a row in the README's table when it's a tool of the template;
     docs/api-conventions.md only if it adds a convention.
 

@@ -457,7 +457,7 @@ export const auditLog = pgTable(
     index('audit_log_tenant_at_ms_id_idx').on(
       table.tenantId,
       sql`${utcMilliseconds(table.at)} desc nulls first`,
-      table.id.desc(),
+      table.id.desc().nullsFirst(),
     ),
     index('audit_log_tenant_id_id_idx').on(table.tenantId, table.id),
     // One actor's entries of one kind, recent first: a sign-in looks up the account's known devices.
