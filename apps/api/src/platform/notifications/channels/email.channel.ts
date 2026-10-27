@@ -21,8 +21,10 @@ import { notifications } from '../notifications.tables.js';
 /**
  * Mail, for users: at once (`immediate`), or bundled by the digest job
  * (`hourly`, `daily`: the notification is flagged with when its digest is
- * due). The mail's job id is the notification's, so a retried delivery
- * queues it once.
+ * due). The mail is queued before the delivery's transaction opens (the
+ * queue is Redis: while it is down the add waits, and must not hold a
+ * connection); its job id is the notification's, so a delivery retried
+ * after the transaction failed queues it once.
  */
 @Injectable()
 export class EmailChannel implements NotificationChannel<EmailMode | false> {
@@ -46,8 +48,35 @@ export class EmailChannel implements NotificationChannel<EmailMode | false> {
     return recipient.kind === 'user';
   }
 
-  async inTransaction(
+  async beforeTransaction(
     { notification, recipient, setting, rendered }: NotificationDelivery,
+    signal: AbortSignal,
+  ) {
+    if (recipient.kind !== 'user' || setting !== 'immediate') {
+      return;
+    }
+    await this.mailQueue.send(
+      NotificationMail,
+      {
+        to: { name: recipient.name, address: recipient.email },
+        data: {
+          name: recipient.name,
+          title: rendered.title,
+          body: rendered.body,
+          link: notification.link,
+          // A mandatory type can't be switched off: no unsubscribe offered.
+          unsubscribe: this.catalog.declaration(notification.type)?.mandatory
+            ? null
+            : this.unsubscribeLinks.signType(recipient.id, notification.type),
+        },
+        locale: rendered.locale,
+      },
+      { jobId: `notification-${notification.id}`, signal },
+    );
+  }
+
+  async inTransaction(
+    { notification, recipient, setting }: NotificationDelivery,
     tx: Transaction,
   ) {
     const mode = setting as EmailMode | false;
@@ -55,24 +84,7 @@ export class EmailChannel implements NotificationChannel<EmailMode | false> {
       return;
     }
     if (mode === 'immediate') {
-      await this.mailQueue.send(
-        NotificationMail,
-        {
-          to: { name: recipient.name, address: recipient.email },
-          data: {
-            name: recipient.name,
-            title: rendered.title,
-            body: rendered.body,
-            link: notification.link,
-            // A mandatory type can't be switched off: no unsubscribe offered.
-            unsubscribe: this.catalog.declaration(notification.type)?.mandatory
-              ? null
-              : this.unsubscribeLinks.signType(recipient.id, notification.type),
-          },
-          locale: rendered.locale,
-        },
-        { jobId: `notification-${notification.id}` },
-      );
+      // Queued by beforeTransaction.
       await tx
         .update(notifications)
         .set({ emailedAt: new Date() })

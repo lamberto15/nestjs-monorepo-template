@@ -51,7 +51,8 @@ spec:
           livenessProbe:
             httpGet: { path: /health/live, port: http }
             periodSeconds: 10
-            failureThreshold: 3
+            timeoutSeconds: 5
+            failureThreshold: 6
           readinessProbe:
             httpGet: { path: /health, port: http }
             periodSeconds: 5
@@ -63,16 +64,12 @@ spec:
             allowPrivilegeEscalation: false
             capabilities: { drop: [ALL] }
           volumeMounts:
-            - name: import-scratch
-              mountPath: /app/.data/import-scratch
             {{- include "app.secretMount" . | nindent 12 }}
             {{- if .Values.persistence.enabled }}
             - name: storage
               mountPath: /app/.data/storage
             {{- end }}
       volumes:
-        - name: import-scratch
-          emptyDir: {}
         {{- include "app.secretVolume" (dict "ctx" . "files" (merge (deepCopy .Values.secretFiles.worker) (deepCopy .Values.secretFiles.common))) | nindent 8 }}
         {{- if .Values.persistence.enabled }}
         - name: storage

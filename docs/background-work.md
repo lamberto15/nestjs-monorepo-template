@@ -39,7 +39,10 @@ tenant must still be active ([tenancy](tenancy.md), "Async carries the tenant by
 
 Producers work in every process; processors only run on workers (BullMQ's
 manual registration). Defaults: 3 attempts with exponential backoff; finished
-jobs kept a day, failed ones a week. `GET /v1/ops/queues` shows counts and
+jobs kept a day, failed ones a week. Each queue's concurrency (jobs at once per worker) is
+`QUEUE_CONCURRENCY_<QUEUE>`, set on the running worker by `QueueWorkers`
+(BullMQ's settable `worker.concurrency`; the `@Processor` value is the
+fallback): [configuration](configuration.md). `GET /v1/ops/queues` shows counts and
 failures; `POST /v1/ops/queues/{name}/retry-failed` runs them again. The
 ops API (`/v1/ops`) sees every tenant's work: it answers only the
 deployment's operators (the operator tenant, `@OperatorOnly()`,
