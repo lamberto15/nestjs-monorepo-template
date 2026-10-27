@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import type { Mailer } from '@nestjs/mail';
 import { DEFAULT_MAIL_BRAND, type MailBranding } from './mail-branding.js';
+import type { MailDeliveryGate } from './mail-delivery.js';
 import { MailQueue } from './mail-queue.js';
 
 class Hello {}
@@ -23,12 +24,14 @@ describe('MailQueue', () => {
   function queueWith(branding?: MailBranding) {
     const add = vi.fn(async () => undefined);
     const render = vi.fn(async () => rendered);
+    const admit = vi.fn(async () => true);
     const queue = new MailQueue(
       { add } as unknown as Queue,
       { render } as unknown as Mailer,
+      { admit } as unknown as MailDeliveryGate,
       branding,
     );
-    return { queue, add, render };
+    return { queue, add, render, admit };
   }
 
   afterEach(() => vi.restoreAllMocks());
@@ -68,6 +71,15 @@ describe('MailQueue', () => {
       expect.stringContaining('unbranded'),
       expect.objectContaining({ error: 'object store down' }),
     );
+  });
+
+  it('neither renders nor queues a mail the gate withholds', async () => {
+    const { queue, add, render, admit } = queueWith();
+    admit.mockResolvedValue(false);
+    await queue.send(Hello, { to: 'a@example.com' } as never);
+    expect(admit).toHaveBeenCalledWith(Hello);
+    expect(render).not.toHaveBeenCalled();
+    expect(add).not.toHaveBeenCalled();
   });
 
   it('stops waiting for Redis when the signal aborts', async () => {

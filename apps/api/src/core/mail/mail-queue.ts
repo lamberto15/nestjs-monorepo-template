@@ -18,6 +18,7 @@ import { type Job, type Queue, UnrecoverableError } from 'bullmq';
 import { Counter } from 'prom-client';
 import { abortable } from '../queues/abortable.js';
 import { MetricsService } from '../metrics/metrics.service.js';
+import { MailDeliveryGate } from './mail-delivery.js';
 import {
   DEFAULT_MAIL_BRAND,
   MAIL_BRANDING,
@@ -76,6 +77,7 @@ export class MailQueue {
   constructor(
     @InjectQueue(MAIL_QUEUE) private readonly queue: Queue<QueuedMail>,
     private readonly mailer: Mailer,
+    private readonly gate: MailDeliveryGate,
     @Optional()
     @Inject(MAIL_BRANDING)
     private readonly branding?: MailBranding,
@@ -95,6 +97,9 @@ export class MailQueue {
     } = {},
   ) {
     signal?.throwIfAborted();
+    // The mode and the daily budget (MailDeliveryGate), before rendering: a
+    // mail storm costs neither renders nor Redis memory.
+    if (!(await this.gate.admit(mail))) return;
     // The tenant's logo and colour in the templates, its name on the sender
     // (unless the mail class sets its own `from`: options.from).
     // Cosmetic: a failed lookup (the settings, the object store) never keeps
