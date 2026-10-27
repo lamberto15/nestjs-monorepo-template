@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { z } from 'zod';
+import { abortable } from '../../../core/queues/abortable.js';
 import { NotificationChannelRegistry } from '../../notifications/notification-channel.registry.js';
 import type {
   NotificationChannel,
@@ -45,13 +46,17 @@ export class PushChannel implements NotificationChannel<boolean> {
     return this.provider !== null && recipient.kind === 'user';
   }
 
-  async inTransaction({
-    notification,
-    recipient,
-    setting,
-    rendered,
-    quietUntil,
-  }: NotificationDelivery) {
+  // Before the transaction: the adds wait on Redis, and must not hold a connection.
+  async beforeTransaction(
+    {
+      notification,
+      recipient,
+      setting,
+      rendered,
+      quietUntil,
+    }: NotificationDelivery,
+    signal: AbortSignal,
+  ) {
     if (recipient.kind !== 'user' || setting !== true) return;
     const tenantId = notification.tenantId ?? recipient.tenantId;
     if (!tenantId) return;
@@ -65,13 +70,16 @@ export class PushChannel implements NotificationChannel<boolean> {
         body: rendered.body,
         link: notification.link,
       };
-      await this.queue.add('push', job, {
-        jobId: `push-${notification.id}-${deviceId}`,
-        // Quiet hours: pushed when they end.
-        ...(quietUntil
-          ? { delay: Math.max(0, quietUntil.getTime() - Date.now()) }
-          : {}),
-      });
+      await abortable(
+        signal,
+        this.queue.add('push', job, {
+          jobId: `push-${notification.id}-${deviceId}`,
+          // Quiet hours: pushed when they end.
+          ...(quietUntil
+            ? { delay: Math.max(0, quietUntil.getTime() - Date.now()) }
+            : {}),
+        }),
+      );
     }
   }
 }
