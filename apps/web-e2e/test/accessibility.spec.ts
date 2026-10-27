@@ -136,19 +136,25 @@ test.describe('signed in as the administrator', () => {
         await expectAccessible(page, nameOf(path, 'phone'));
       });
     }
+  });
 
-    // Reflow (WCAG 1.4.10): the dashboard's chart fits the screen rather
-    // than widening the page into a sideways scroll.
-    test('the dashboard fits the screen', async ({ page }) => {
-      await page.goto('/');
-      await expect(page.locator('[data-slot="chart"]')).toBeVisible();
-      const overflow = await page.evaluate(
-        () =>
-          document.documentElement.scrollWidth -
-          document.documentElement.clientWidth,
-      );
-      expect(overflow).toBe(0);
-    });
+  // Reflow (WCAG 1.4.10): narrowing the window (or zooming in) under the
+  // two-column breakpoint, the dashboard's chart shrinks with it rather than
+  // keeping its width and scrolling the page sideways.
+  test('the dashboard reflows when the window narrows', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    await expect(page.locator('[data-slot="chart"] svg')).toBeVisible();
+    await page.setViewportSize({ width: 375, height: 812 });
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            document.documentElement.scrollWidth -
+            document.documentElement.clientWidth,
+        ),
+      )
+      .toBe(0);
   });
 
   test.describe('open overlays', () => {
