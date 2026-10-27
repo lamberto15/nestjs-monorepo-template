@@ -14,14 +14,20 @@
   "overrides": [
     {
       "files": ["apps/web/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"],
-      "plugins": ["react", "typescript", "oxc", "jsx-a11y"],
+      "plugins": ["react", "typescript", "oxc"],
       "env": {
         "browser": true,
         "node": false
       },
       "rules": {
         "react/rules-of-hooks": "error",
-        "react/only-export-components": "off",
+        "react/only-export-components": "off"
+      }
+    },
+    {
+      "files": ["apps/web/src/**/*.{ts,tsx}"],
+      "plugins": ["react", "typescript", "oxc", "jsx-a11y"],
+      "rules": {
         // jsx-a11y (apps/web only; the rest of its rules stay on as warnings,
         // the ones that never fire are errors). Each rule below is off for a
         // deliberate pattern, not a finding:

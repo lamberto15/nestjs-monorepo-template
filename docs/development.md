@@ -192,7 +192,7 @@ workspace with Node.js 24 and pnpm 12.15.0 (the versions of `package.json`'s
   volume for its own `node_modules` too, and its line in `post-create.sh`'s
   `chown`.
 - **PostgreSQL checks passwords on loopback too** (`POSTGRES_INITDB_ARGS:
---auth-host=scram-sha-256`): the image trusts 127.0.0.1 by default, which
+  --auth-host=scram-sha-256`): the image trusts 127.0.0.1 by default, which
   is the workspace's way in; `database-roles.e2e-spec.ts` proves a rotated
   password is refused.
 - **`pnpm migrate`** (what a deploy runs, also making the maintenance role
@@ -230,33 +230,33 @@ and `node tools/ci/pinned-deps.mjs` (part of `pnpm lint`) fails on a range in
 
 ## Commands
 
-| Command                                                      | Does                                                                                                                                                                                                                                                                                                   |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm setup`                                                 | the first-run wizard: asks the deployment shape and the few choices, writes the env file with generated secrets (`--dry-run`, `--yes`, `--rotate`; [configuration](configuration.md), "First setup")                                                                                                   |
-| `pnpm env:check`                                             | an env file against its template, by name: the variables it lacks, the ones the template does not name, the REQUIRED ones that are empty (exit 1); `--strict`, `--target`, `--file`, `--templates` ([configuration](configuration.md), "First setup"; its tests: `node --test tools/setup/*.test.mjs`) |
-| `pnpm dev`                                                   | the API and its workers, and the web app, with reload (Turborepo's `dev` task in both, the client built first)                                                                                                                                                                                         |
-| `pnpm dev:api` / `pnpm start:dev`                            | the API and its workers alone, with reload (through Turborepo / straight through pnpm)                                                                                                                                                                                                                 |
-| `pnpm start:debug`                                           | the same with the Node.js inspector (`nest start --debug --watch`)                                                                                                                                                                                                                                     |
-| `pnpm dev:web`                                               | the web app's dev server alone, http://localhost:5173; it proxies `/v1`, `/health`, `/files` and `/socket.io` to the API on :3000 (`apps/web/dev-proxy.ts`), so the session cookie is same-origin and a signed file link is too                                                                        |
-| `pnpm build && pnpm lint && pnpm test && pnpm test:e2e`      | the checks CI runs on every pull request; run them locally only to investigate a CI failure (Turborepo: a task whose inputs didn't change is replayed from `.turbo/cache`)                                                                                                                             |
-| `pnpm i18n:check`                                            | the translation parity check (also run by `pnpm lint`): every locale's keys, placeholders and plural forms against `en`, web and API ([i18n](i18n-and-time.md))                                                                                                                                        |
-| `pnpm lint`                                                  | oxlint in every package (Turborepo), the translation parity check, then knip: unused files, exports and dependencies across the workspaces ([Dead code](#dead-code-knip)); `pnpm lint:code` is the first two, `pnpm knip` knip alone                                                                   |
-| `pnpm format`                                                | Prettier on the TypeScript of every package (not on Markdown, nor `packages/ui`: the shadcn CLI writes it)                                                                                                                                                                                             |
-| `pnpm db:generate`                                           | a migration from the tables (after any `*.tables.ts` change)                                                                                                                                                                                                                                           |
-| `pnpm db:generate:fixtures`                                  | the test-only record's migrations (`apps/api/test/fixtures/drizzle`), after changing `test/fixtures/test-items`                                                                                                                                                                                        |
-| `pnpm db:check`                                              | the migrations match the schema                                                                                                                                                                                                                                                                        |
-| `pnpm db:studio`                                             | Drizzle Studio on the development database                                                                                                                                                                                                                                                             |
-| `pnpm migrate`                                               | apply migrations as `DATABASE_OWNER_URL`, then make or check the app role of `DATABASE_URL` (what a deploy runs)                                                                                                                                                                                       |
-| `pnpm db:seed:demo`                                          | demo users, teams and each feature's demo data on a development database ("Demo data")                                                                                                                                                                                                                 |
-| `pnpm ops <command>`                                         | the operator CLI: a one-time password, remove two-factor, unlock, delete a setting, create an administrator ([deployment](deployment.md), "Operator CLI"); on a deployment: `docker compose run --rm api node dist/cli <command>`                                                                      |
-| `pnpm feature:add <plural> --fields "…" [--with …]`          | a new feature from its declaration ([adding a feature](adding-a-feature.md))                                                                                                                                                                                                                           |
-| `pnpm feature:sync [<plural>]`                               | after editing a feature's `<item>.record.ts` (fields, capabilities, options): updates what the platform derives from it                                                                                                                                                                                |
-| `pnpm feature:remove <plural>`                               | a feature, its tests and texts, e.g. the example `notes`                                                                                                                                                                                                                                               |
-| `pnpm deploy:rolling` / `deploy:blue-green` / `deploy:swarm` | zero-downtime deploys ([deployment](deployment.md), "Zero-downtime deploys: three ways")                                                                                                                                                                                                               |
-| `pnpm db:mark-dev`                                           | mark the development services' database as a development one, once, for a volume made before the marker                                                                                                                                                                                                |
-| `pnpm services:up` / `services:down`                         | the development services                                                                                                                                                                                                                                                                               |
-| `pnpm client:generate`                                       | the typed client's `openapi.json` and `schema.ts` (after any route change)                                                                                                                                                                                                                             |
-| `pnpm client:check`                                          | they match the API (CI)                                                                                                                                                                                                                                                                                |
+| Command | Does |
+| --- | --- |
+| `pnpm setup` | the first-run wizard: asks the deployment shape and the few choices, writes the env file with generated secrets (`--dry-run`, `--yes`, `--rotate`; [configuration](configuration.md), "First setup") |
+| `pnpm env:check` | an env file against its template, by name: the variables it lacks, the ones the template does not name, the REQUIRED ones that are empty (exit 1); `--strict`, `--target`, `--file`, `--templates` ([configuration](configuration.md), "First setup"; its tests: `node --test tools/setup/*.test.mjs`) |
+| `pnpm dev` | the API and its workers, and the web app, with reload (Turborepo's `dev` task in both, the client built first) |
+| `pnpm dev:api` / `pnpm start:dev` | the API and its workers alone, with reload (through Turborepo / straight through pnpm) |
+| `pnpm start:debug` | the same with the Node.js inspector (`nest start --debug --watch`) |
+| `pnpm dev:web` | the web app's dev server alone, http://localhost:5173; it proxies `/v1`, `/health`, `/files` and `/socket.io` to the API on :3000 (`apps/web/dev-proxy.ts`), so the session cookie is same-origin and a signed file link is too |
+| `pnpm build && pnpm lint && pnpm test && pnpm test:e2e` | the checks CI runs on every pull request; run them locally only to investigate a CI failure (Turborepo: a task whose inputs didn't change is replayed from `.turbo/cache`) |
+| `pnpm i18n:check` | the translation parity check (also run by `pnpm lint`): every locale's keys, placeholders and plural forms against `en`, web and API ([i18n](i18n-and-time.md)) |
+| `pnpm lint` | oxlint in every package (Turborepo), the translation parity check, then knip: unused files, exports and dependencies across the workspaces ([Dead code](#dead-code-knip)); `pnpm lint:code` is the first two, `pnpm knip` knip alone |
+| `pnpm format` | Prettier on the TypeScript of every package (not on Markdown, nor `packages/ui`: the shadcn CLI writes it) |
+| `pnpm db:generate` | a migration from the tables (after any `*.tables.ts` change) |
+| `pnpm db:generate:fixtures` | the test-only record's migrations (`apps/api/test/fixtures/drizzle`), after changing `test/fixtures/test-items` |
+| `pnpm db:check` | the migrations match the schema |
+| `pnpm db:studio` | Drizzle Studio on the development database |
+| `pnpm migrate` | apply migrations as `DATABASE_OWNER_URL`, then make or check the app role of `DATABASE_URL` (what a deploy runs) |
+| `pnpm db:seed:demo` | demo users, teams and each feature's demo data on a development database ("Demo data") |
+| `pnpm ops <command>` | the operator CLI: a one-time password, remove two-factor, unlock, delete a setting, create an administrator ([deployment](deployment.md), "Operator CLI"); on a deployment: `docker compose run --rm api node dist/cli <command>` |
+| `pnpm feature:add <plural> --fields "…" [--with …]` | a new feature from its declaration ([adding a feature](adding-a-feature.md)) |
+| `pnpm feature:sync [<plural>]` | after editing a feature's `<item>.record.ts` (fields, capabilities, options): updates what the platform derives from it |
+| `pnpm feature:remove <plural>` | a feature, its tests and texts, e.g. the example `notes` |
+| `pnpm deploy:rolling` / `deploy:blue-green` / `deploy:swarm` | zero-downtime deploys ([deployment](deployment.md), "Zero-downtime deploys: three ways") |
+| `pnpm db:mark-dev` | mark the development services' database as a development one, once, for a volume made before the marker |
+| `pnpm services:up` / `services:down` | the development services |
+| `pnpm client:generate` | the typed client's `openapi.json` and `schema.ts` (after any route change) |
+| `pnpm client:check` | they match the API (CI) |
 
 ## Tests
 
@@ -302,7 +302,7 @@ and `node tools/ci/pinned-deps.mjs` (part of `pnpm lint`) fails on a range in
   - One file: `pnpm test:e2e test/tags.e2e-spec.ts` (the path inside
     `apps/api`). One shard, as CI runs it: `pnpm test:e2e --shard=1/2`.
     One unit test file: `pnpm --filter @nestjs-monorepo-template/api test
-src/core/http/route-key.spec.ts`.
+    src/core/http/route-key.spec.ts`.
 - **The platform's record is test-only** (`apps/api/test/fixtures`): the
   test app is `createAppModule([...FEATURES, TEST_ITEMS_FEATURE])`
   (`TestAppModule`), so tags, comments, attachments, revisions, search,
@@ -376,7 +376,7 @@ list, a note, the settings and account pages, in the dark theme, in Arabic
 (right to left) and on a phone, and of an open dialog, popover and menu. It is
 not part of `pnpm test:e2e` (the API's).
 
-- **What it runs against:** the _built_ API (`node dist/main`) and the _built_
+- **What it runs against:** the *built* API (`node dist/main`) and the *built*
   web app, served by `vite preview`, which proxies `/v1` to the API as Caddy
   does in production (`preview.proxy` in `apps/web/vite.config.ts`). One
   origin, so the `__Host-sid` cookie works; no CORS, no Vite dev server. The
@@ -397,10 +397,9 @@ not part of `pnpm test:e2e` (the API's).
   `playwright test` starts both servers itself (`webServer` in
   `playwright.config.ts`; one already on those ports is reused outside CI).
   Its report is `apps/web-e2e/playwright-report/` (`pnpm exec playwright
-show-report` there). One file: `pnpm test:e2e:web test/notes.spec.ts`; the
+  show-report` there). One file: `pnpm test:e2e:web test/notes.spec.ts`; the
   UI mode: `pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright
-test --ui`.
-
+  test --ui`.
 - **Another database:** the environment is the development services' (the
   defaults of `apps/web-e2e/scripts/api.mjs`, from `env.development.example`);
   set `DATABASE_URL`, `DATABASE_OWNER_URL`, `DATABASE_MAINTENANCE_URL` and
@@ -455,13 +454,13 @@ and **PgBouncer** (`LOADTEST_PGBOUNCER=on` adds `compose.pgbouncer.yaml`,
 "PgBouncer"). `loadtest/run.sh compose <args>` runs any `docker compose`
 command on it.
 
-| Scenario | Request                                                                                                                                           | Load (one minute each, one after the other) |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| `signIn` | `POST /v1/auth/sign-in`, 20 seeded users                                                                                                          | 2/s (below)                                 |
-| `list`   | `GET /v1/notes` with filters and a sort (status, `title.contains`, `createdAt.gte`…), the load-test client's key                                  | 50/s                                        |
-| `create` | `POST /v1/notes` with an `Idempotency-Key`, the same key                                                                                          | 20/s                                        |
-| `export` | `POST /v1/data/exports` (notes, CSV, the load-test client's key), then `GET /v1/data/transfers/{id}` every 500 ms until `completed` with its link | 1/s                                         |
-| realtime | socket.io, `/realtime` (Artillery, below)                                                                                                         | 10 new connections/s                        |
+| Scenario | Request | Load (one minute each, one after the other) |
+| --- | --- | --- |
+| `signIn` | `POST /v1/auth/sign-in`, 20 seeded users | 2/s (below) |
+| `list` | `GET /v1/notes` with filters and a sort (status, `title.contains`, `createdAt.gte`…), the load-test client's key | 50/s |
+| `create` | `POST /v1/notes` with an `Idempotency-Key`, the same key | 20/s |
+| `export` | `POST /v1/data/exports` (notes, CSV, the load-test client's key), then `GET /v1/data/transfers/{id}` every 500 ms until `completed` with its link | 1/s |
+| realtime | socket.io, `/realtime` (Artillery, below) | 10 new connections/s |
 
 - **What runs:** `loadtest/run.sh` starts `compose.yaml` + `compose.prod.yaml`
   (api ×2, worker, migrate, PostgreSQL, Redis: the image and limits a
@@ -659,7 +658,6 @@ pages, ETags. Usage, the bell-icon recipe included:
   git show origin/main:packages/api-client/openapi.json > old.json
   docker run --rm --network none -v "$PWD:/specs:ro" -w /specs tufin/oasdiff:v1.33.0 breaking old.json packages/api-client/openapi.json
   ```
-
 - **Its version:** a change to the client (a route change too: it changes
   `openapi.json`) comes with a changeset, `pnpm changeset`; a version pull
   request on `main` turns them into its version and `CHANGELOG.md`. CI
@@ -690,7 +688,6 @@ pages, ETags. Usage, the bell-icon recipe included:
   them. A component no route uses is left out of the document: list it in
   `PANEL_COMPONENT_SCHEMAS` (`platform/records/panel-components.ts`) to have it
   always, and add it to `PANEL_COMPONENTS` in `test/openapi.e2e-spec.ts`.
-
 - A new realtime event (`Realtime.toPrincipal()`) is declared in the manifest
   (`platform/realtime/realtime-events.ts`: name, description, payload schema);
   `pnpm client:generate` then writes `src/realtime-events.ts` (generated, with
@@ -714,7 +711,7 @@ pages, ETags. Usage, the bell-icon recipe included:
   destructive statements of the new migrations in its summary (report-only
   for now) and fails when a merged migration or journal entry is edited or
   deleted. Locally, with Docker: `node tools/migration-lint/lint.mjs --base
-origin/main` (after `git fetch`; a branch behind `main` is compared with
+  origin/main` (after `git fetch`; a branch behind `main` is compared with
   their merge base, and its new journal entries must still come after
   `main`'s), or `node tools/migration-lint/lint.mjs apps/api/drizzle/*.sql` for
   given files; its tests: `node --test tools/migration-lint/lint.test.mjs`.
@@ -776,14 +773,14 @@ ones that fall behind.
 Several sessions (people or coding agents) work at once, often from the same GitHub
 account, so the labels say what each issue and PR is about and who has it.
 
-| Label                 | Meaning                                                             |
-| --------------------- | ------------------------------------------------------------------- |
-| `backend`             | `apps/api`, the typed client's generation, migrations, backend docs |
-| `frontend`            | `apps/web`, `packages/ui`                                           |
-| `ci`                  | workflows, images, Compose and deploys                              |
-| `documentation`       | docs only                                                           |
-| `enhancement` / `bug` | new work or a fix: one of the two on every issue and PR             |
-| `in progress`         | someone is working on it (the comments say who and where)           |
+| Label | Meaning |
+| --- | --- |
+| `backend` | `apps/api`, the typed client's generation, migrations, backend docs |
+| `frontend` | `apps/web`, `packages/ui` |
+| `ci` | workflows, images, Compose and deploys |
+| `documentation` | docs only |
+| `enhancement` / `bug` | new work or a fix: one of the two on every issue and PR |
+| `in progress` | someone is working on it (the comments say who and where) |
 
 A change that touches several areas gets each label
 (`gh pr create --label backend,enhancement`). Work found outside your area
@@ -816,22 +813,22 @@ Picking up an issue:
 `pnpm install` sets them up ([lefthook](https://lefthook.dev), `lefthook.yml`).
 They look at the staged files only, so a commit waits a second or two:
 
-| Hook         | Runs                                                                                                                                                                                                                                                                  |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pre-commit` | Prettier on the staged TypeScript (`pnpm format`'s globs, never `docs/` or other Markdown), restaging what it fixes; then type-aware oxlint on the apps' staged files (`apps/*/{src,test}`)                                                                           |
+| Hook | Runs |
+| --- | --- |
+| `pre-commit` | Prettier on the staged TypeScript (`pnpm format`'s globs, never `docs/` or other Markdown), restaging what it fixes; then type-aware oxlint on the apps' staged files (`apps/*/{src,test}`) |
 | `commit-msg` | commitlint (`commitlint.config.js`): `type(scope)!: subject`, types `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `style`, `revert`; any scope, several with commas. Merge commits (`git merge origin/main`) and git's `Revert "…"` pass |
 
 - **Not in the hooks:** the build, the tests, `db:check`, `client:check`. The
   check before every commit and CI run them.
 - **Skipping:** `git commit --no-verify` skips both hooks, `LEFTHOOK=0 git
-commit …` too; `LEFTHOOK_EXCLUDE=oxlint` skips one job.
+  commit …` too; `LEFTHOOK_EXCLUDE=oxlint` skips one job.
 - **CI** (`.github/workflows/commit-messages.yml`) checks what the squash
   merge can put on main, with the same rules except that merge commits,
   `fixup!` and version numbers fail there: the pull request's title, again whenever
   it's edited, and the subject of its commit while it has only one. A wrong
   title: edit it. A wrong single commit's subject changes only with a
   force-push: push a second commit instead (`git commit --allow-empty -m
-"chore: …"`), and the squash takes the title.
+  "chore: …"`), and the squash takes the title.
 - **Worktrees share the hooks** (`.git/hooks`); `pnpm install` in any
   checkout (or `pnpm exec lefthook install`) writes them, pointing at that
   checkout's lefthook. Commits never rewrite them (`no_auto_install`). Where
