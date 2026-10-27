@@ -481,8 +481,22 @@
     {
       "idx": 68,
       "version": "7",
-      "when": 1793123476647,
-      "tag": "0068_omniscient_clea",
+      "when": 1793123562574,
+      "tag": "0068_ancient_proemial_gods",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1793124559404,
+      "tag": "0069_confused_leper_queen",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1793125940800,
+      "tag": "0070_brief_menace",
       "breakpoints": true
     }
   ]

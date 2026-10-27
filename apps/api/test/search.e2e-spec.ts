@@ -62,6 +62,14 @@ describe('full-text search (e2e)', () => {
     ]);
     expect(second.body.nextCursor).toBeNull();
 
+    // Without a q every rank is 0: the newest first, and the cursor still pages.
+    const unranked = await list('sort=-rank&limit=2');
+    expect(unranked.body.items.map((n: { id: string }) => n.id)).toEqual([
+      light.id,
+      legacy.id,
+    ]);
+    expect(unranked.body.nextCursor).toBeTruthy();
+
     // Across kinds, with snippets of the text; only what the caller may read.
     const found = await editor.agent
       .get('/v1/search?q=dark%20theme')

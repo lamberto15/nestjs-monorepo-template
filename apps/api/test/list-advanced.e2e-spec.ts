@@ -15,6 +15,8 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { BadRequestException } from '@nestjs/common';
+import { matches, refuseBroadRank } from '../src/core/database/search.js';
 import { type ListQuery, listQuery } from '../src/core/http/list-query.js';
 import {
   countPage,
@@ -431,6 +433,29 @@ describe('the advanced list query (PostgreSQL)', () => {
     expect(
       await countPage(db as never, things, LIST.where(parsed), parsed),
     ).toEqual({ total: rows.filter(match).length, totalCapped: false });
+  });
+
+  it('refuses a rank sort of a q that matches more than the cap, and counts nothing otherwise', async () => {
+    const where = matches(sql`to_tsvector('simple', ${things.name})`, 'alpha');
+    const found = rows.filter((row) => row.name === 'alpha').length;
+    const ranked = { sort: [{ name: 'rank' }], q: 'alpha' } as never;
+    const refused = refuseBroadRank(db, things, where, ranked, found - 1);
+    await expect(refused).rejects.toBeInstanceOf(BadRequestException);
+    await expect(refused).rejects.toMatchObject({
+      response: { code: 'search_too_broad' },
+    });
+    await expect(
+      refuseBroadRank(db, things, where, ranked, found),
+    ).resolves.toBeUndefined();
+    // No rank in the sort, or no q: no count at all (cap 0 would refuse any).
+    const other = { sort: [{ name: 'size' }], q: 'alpha' } as never;
+    await expect(
+      refuseBroadRank(db, things, where, other, 0),
+    ).resolves.toBeUndefined();
+    const noQ = { sort: [{ name: 'rank' }] } as never;
+    await expect(
+      refuseBroadRank(db, things, where, noQ, 0),
+    ).resolves.toBeUndefined();
   });
 
   it('pages by number, sorted or not', async () => {

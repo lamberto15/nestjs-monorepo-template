@@ -1,5 +1,5 @@
 {
-  "id": "896de3f2-93cf-47bd-9061-63ca5f4b67b1",
+  "id": "bdc1d03d-2aa3-4271-93a7-f4a46b3b3738",
   "prevId": "d70f28a0-bd34-462e-a639-055931599cf3",
   "version": "7",
   "dialect": "postgresql",
@@ -820,7 +820,7 @@
               "expression": "id",
               "isExpression": false,
               "asc": false,
-              "nulls": "first"
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -10630,6 +10630,22 @@
           "method": "btree",
           "with": {}
         },
+        "approval_requests_unapplied_idx": {
+          "name": "approval_requests_unapplied_idx",
+          "columns": [
+            {
+              "expression": "ended_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "status = 'approved' and outcome_applied_at is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "approval_requests_created_at_idx": {
           "name": "approval_requests_created_at_idx",
           "columns": [
@@ -11595,13 +11611,13 @@
               "expression": "created_at",
               "isExpression": false,
               "asc": false,
-              "nulls": "first"
+              "nulls": "last"
             },
             {
               "expression": "id",
               "isExpression": false,
               "asc": false,
-              "nulls": "first"
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -11623,13 +11639,13 @@
               "expression": "updated_at",
               "isExpression": false,
               "asc": false,
-              "nulls": "first"
+              "nulls": "last"
             },
             {
               "expression": "id",
               "isExpression": false,
               "asc": false,
-              "nulls": "first"
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -11657,7 +11673,7 @@
               "expression": "id",
               "isExpression": false,
               "asc": false,
-              "nulls": "first"
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -11685,7 +11701,7 @@
               "expression": "id",
               "isExpression": false,
               "asc": false,
-              "nulls": "first"
+              "nulls": "last"
             }
           ],
           "isUnique": false,

@@ -21,4 +21,22 @@ describe('the notes table', () => {
       runtime,
     );
   });
+
+  it('indexes the published timestamp expression the list sorts by', () => {
+    const [sort] = sortSchema({
+      publishedAt: {
+        column: notes.publishedAt,
+        type: 'datetime',
+        sortable: true,
+      },
+    }).parse('-publishedAt');
+    const runtime = dialect.sqlToQuery(sort!.expression as SQL).sql;
+    const index = getTableConfig(notes).indexes.find(
+      (item) => item.config.name === 'notes_tenant_published_ms_idx',
+    );
+    expect(index).toBeDefined();
+    expect(dialect.sqlToQuery(index!.config.columns[1] as SQL).sql).toContain(
+      runtime,
+    );
+  });
 });
