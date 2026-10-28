@@ -181,5 +181,24 @@
   "noLimit": "无限制",
   "notSet": "未设置",
   "layoutSummary": "自定义布局：已排序 {{ordered}} 张卡片，隐藏 {{hidden}} 张",
-  "layoutDefault": "标准布局"
+  "layoutDefault": "标准布局",
+  "bundle": {
+    "title": "迁移配置",
+    "description": "将此租户的设置和自定义角色带到另一个环境：在此导出配置包，在目标环境加载，检查变更后应用。其中不含任何密钥、用户或记录。",
+    "export": "导出配置包",
+    "load": "加载配置包",
+    "notJson": "此文件不是配置包（JSON）。",
+    "nothing": "无需更改：目标已一致。",
+    "apply": "应用",
+    "applied": "已应用：新建 {{created}}，更新 {{updated}}，未变 {{unchanged}}。",
+    "actions": {
+      "create": "新建",
+      "update": "更改",
+      "unchanged": "未变"
+    },
+    "types": {
+      "setting": "设置",
+      "role": "角色"
+    }
+  }
 }

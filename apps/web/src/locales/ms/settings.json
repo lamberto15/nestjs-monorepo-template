@@ -181,5 +181,24 @@
   "noLimit": "Tiada had",
   "notSet": "Tidak ditetapkan",
   "layoutSummary": "Susun atur tersuai: {{ordered}} kad disusun, {{hidden}} disembunyikan",
-  "layoutDefault": "Susun atur standard"
+  "layoutDefault": "Susun atur standard",
+  "bundle": {
+    "title": "Pindahkan konfigurasi",
+    "description": "Bawa tetapan dan peranan tersuai penyewa ini ke persekitaran lain: eksport satu berkas di sini, muatkan di sana, semak perubahannya, kemudian gunakan. Tiada rahsia, pengguna atau rekod di dalamnya.",
+    "export": "Eksport berkas",
+    "load": "Muatkan berkas",
+    "notJson": "Fail ini bukan berkas konfigurasi (JSON).",
+    "nothing": "Tiada apa untuk diubah: sasaran sudah sepadan.",
+    "apply": "Gunakan",
+    "applied": "Digunakan: {{created}} baharu, {{updated}} diubah, {{unchanged}} tidak berubah.",
+    "actions": {
+      "create": "Baharu",
+      "update": "Diubah",
+      "unchanged": "Tidak berubah"
+    },
+    "types": {
+      "setting": "Tetapan",
+      "role": "Peranan"
+    }
+  }
 }

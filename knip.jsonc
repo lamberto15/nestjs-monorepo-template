@@ -31,8 +31,6 @@
         "src/demo/run-demo-seed.ts",
         "drizzle*.config.ts",
       ],
-      // The global `Express.Multer.File` type of the upload interceptor.
-      "ignoreDependencies": ["@types/multer"],
       // Started by test/global-setup.ts; CI and the devcontainer install it.
       "ignoreBinaries": ["redis-server"],
     },

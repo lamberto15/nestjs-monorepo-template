@@ -1,10 +1,11 @@
 import { RequestMethod, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { NestExpressApplication } from '@nestjs/platform-express';
+import { NodeAdapter, type NestNodeApplication } from '@nestjs/platform-node';
 import compression from 'compression';
 import type { Config, CoreEnv } from '../config/core.env.js';
 import { assignRequestId } from '../logging/logging.js';
 import { JSON_BODY_LIMIT } from './body-limit.js';
+import { recordMatchedRoutes } from './route-key.js';
 
 /** The response headers a browser app on CORS_ORIGINS may read (`Access-Control-Expose-Headers`). */
 export const CORS_EXPOSED_HEADERS = [
@@ -16,18 +17,47 @@ export const CORS_EXPOSED_HEADERS = [
   'Idempotent-Replayed',
 ] as const;
 
+/** The longest path parameter a route matches, in characters (decoded). */
+export const MAX_PARAM_LENGTH = 2048;
+
+/**
+ * The HTTP server: Nest's native `node:http` adapter (@nestjs/platform-node),
+ * which main.ts and the tests both create the app with.
+ *
+ * Behind Caddy: the client's address (for rate limits and the audit log)
+ * comes from X-Forwarded-For, trusted from loopback and private networks
+ * only. Addresses, never a hop count: the adapter trusts no proxy for a
+ * number (it can't tell a proxy from a client sending its own header).
+ */
+export function createHttpAdapter() {
+  const adapter = new NodeAdapter({
+    trustProxy: 'loopback, linklocal, uniquelocal',
+    // A path parameter longer than this is a 414 (the adapter's default is
+    // 100): the one-click unsubscribe link carries a signed JWT in its path
+    // (`/v1/notifications/unsubscribe/:token`, a few hundred characters).
+    maxParamLength: MAX_PARAM_LENGTH,
+  });
+  recordMatchedRoutes(adapter.getInstance());
+  // The JSON parser's SyntaxError (an http-error, 400) reaches the filters
+  // as it is: the adapter would make it a BadRequestException carrying the
+  // parser's message, which quotes the body. ProblemDetailsFilter answers
+  // it with the status's own words, as every other parser error.
+  const mapException = adapter.mapException.bind(adapter);
+  adapter.mapException = (error: unknown) =>
+    error instanceof SyntaxError && 'statusCode' in error
+      ? error
+      : mapException(error);
+  return adapter;
+}
+
 /**
  * The HTTP layer every project keeps: proxy trust, security headers, CORS,
  * CSRF and versioning. Validation is the global pipe I18nModule's
  * catalogs translate (core.module.ts).
  */
-export function setupHttp(app: NestExpressApplication) {
+export function setupHttp(app: NestNodeApplication) {
   const config = app.get<Config<CoreEnv>>(ConfigService);
   const origins = config.get('CORS_ORIGINS', { infer: true });
-
-  // Behind Caddy: the client's address (for rate limits and the audit log)
-  // comes from X-Forwarded-For, trusted from loopback and private networks only.
-  app.set('trust proxy', 'loopback, linklocal, uniquelocal');
 
   // First of all: every response, an error of the body parser included, carries its id.
   app.use(assignRequestId);
@@ -66,8 +96,9 @@ export function setupHttp(app: NestExpressApplication) {
 
   // gzip responses the web app's `encode` never reaches: Caddy skips `/v1/*`
   // because its `encode` would suffix the strong ETags etag.ts sends
-  // (docs/deployment.md, "Compression"). Express's `compression` leaves ETag
-  // and every other header untouched, so no suffix, no mismatch to work
+  // (docs/deployment.md, "Compression"). `compression` (a connect middleware,
+  // on the adapter's plain node:http response) leaves ETag and every other
+  // header untouched, so no suffix, no mismatch to work
   // around. `text/event-stream` isn't in the compressible media types (no
   // `compressible` entry for it), so the ops event stream (GET
   // /v1/ops/events) still flushes each event unbuffered, uncompressed.

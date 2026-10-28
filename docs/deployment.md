@@ -1546,8 +1546,8 @@ is not tied to one hosted vendor:
 - **`OTEL_EXPORTER_OTLP_ENDPOINT`** (and `OTEL_EXPORTER_OTLP_HEADERS` for the
   collector's credential, e.g. `x-honeycomb-team=KEY`): OpenTelemetry through
   `@opentelemetry/sdk-node`. Traces and metrics go over OTLP/HTTP to any
-  collector (Grafana Tempo, Jaeger, Honeycomb, Datadog): spans for HTTP,
-  Express, PostgreSQL and Redis (the commands of a request), and runtime
+  collector (Grafana Tempo, Jaeger, Honeycomb, Datadog): spans for HTTP
+  (named after the matched route), PostgreSQL and Redis (the commands of a request), and runtime
   metrics. The SDK reads the standard `OTEL_*` variables too
   (`OTEL_SERVICE_NAME`, defaulting to `SERVICE_NAME`; `OTEL_TRACES_SAMPLER`,
   …).
@@ -1557,16 +1557,19 @@ is not tied to one hosted vendor:
   is set.
 
 `main.ts` awaits `core/observability/instrument.ts` (after the development
-settings) before it loads anything else: the SDKs patch `http`, Express and
+settings) before it loads anything else: the SDKs patch `http` and
 the database and Redis clients as they load, so they start first. The app's
 modules are imported with `await import()` after it, not as static imports
 below it: a module's top-level `await` holds back only the modules that
-import it, so static imports would load Nest, Express and `pg` while the SDKs
+import it, so static imports would load Nest and `pg` while the SDKs
 were still starting, and nothing would be traced. The packages are imported
 only when their variable is set. Libraries loaded through `require` or a CJS
-`import` (Express, `pg`, `ioredis`) are instrumented. NestJS's own
+`import` (`pg`, `ioredis`) are instrumented. NestJS's own
 instrumentation (`@opentelemetry/instrumentation-nestjs-core`) does not
-support Nest 12 yet, so there are no spans of controllers and providers.
+support Nest 12 yet, so there are no spans of controllers and providers;
+Nest's native HTTP adapter has no instrumentation either, so
+`core/http/route-key.ts` names each server span after the matched route
+(`GET /v1/notes/:id`, `http.route`).
 
 The SDKs start before the environment is validated, so they read their `_FILE`
 secrets themselves (`SENTRY_DSN_FILE`, `OTEL_EXPORTER_OTLP_HEADERS_FILE`,
@@ -1626,7 +1629,8 @@ by the validation, which stops the app.
   own (`node apps/api/test/telemetry-stub.mjs boot`, with `DATABASE_URL`,
   `DATABASE_OWNER_URL`, `DATABASE_MAINTENANCE_URL` and `REDIS_URL` set, as for
   the browser tests): the credentials are `_FILE` secrets, and it fails unless
-  the request it sent was traced (HTTP, Express and `pg` spans) with the
+  the request it sent was traced (HTTP spans named after their route, and
+  `pg` spans) with the
   secrets of its query string masked. Locally, run the stub
   (`node apps/api/test/telemetry-stub.mjs serve`) or Jaeger
   (`jaegertracing/all-in-one`, OTLP on 4318) and point the variables at it.
@@ -1654,6 +1658,7 @@ environment (the database URL, the keys). Nothing in the API calls it.
 | `user:unlock <email>` | clears the failed second-factor attempts (the 15-minute lockout) and takes the address off the mail suppression list. Per-address rate limits (Redis) lapse by themselves within minutes |
 | `notifications:settle <email> [--before <date>]` | drops a user's undelivered `notifications.deliver` outbox messages (all, or created before the date) and marks their notifications delivered and read; `mandatory` types are left alone. Shows the counts first; works tenant by tenant in chunks of 5,000, so a backlog of hundreds of thousands never meets the statement timeout (docs/notifications.md, "Stopping a mail storm") |
 | `setting:delete <key> (--tenant <id\|slug> \| --platform)` | removes a stored value; the next scope's, or the default, holds again |
+| `diagnostics [--test]` | the integrations' states (see [Diagnostics](#diagnostics)); `--test` runs their safe tests too, each audited as `ops.diagnostic-tested`. Exits 1 when one is unconfigured, unavailable or fails its test. Asks nothing: it changes nothing |
 
 - **Each command shows what it will do and asks** (`Proceed? (y/N)`).
   `--yes` skips the question, for scripts; without it a terminal is needed
@@ -1706,6 +1711,36 @@ administrator left at all: `admin:create <email> --tenant <slug>`. A
 second-factor device lost: `user:remove-mfa <email>`. An administrator's
 account locked by failed codes: `user:unlock <email>`. More:
 [auth](auth.md), "Locked out".
+
+## Diagnostics
+
+One view of the integrations a deployment needs, for setting it up and
+for an outage: `GET /v1/ops/diagnostics` (the operations page's
+"Diagnostics" tab, and `pnpm ops diagnostics` on a server). Operators only
+(`@OperatorOnly()`, docs/tenancy.md) with `Ops.view`.
+
+| Check | `ok` / `configured` | `disabled` | `unconfigured` | `unavailable` |
+| --- | --- | --- | --- | --- |
+| `database` | answered a ping | | | no answer within 5 s |
+| `redis` | answered PING | | | no answer |
+| `workers` | a worker is connected to a queue | | | none (start `APP_ROLE=worker` or `all`) |
+| `mail` | `MAIL_TRANSPORT` set (configured) | | `file`, `log` or `memory` in production | its test failed |
+| `storage` | `STORAGE_DRIVER` set (configured) | | `memory` in production | its test failed |
+| `realtime` | Redis answers | `REALTIME=off` | | Redis does not answer |
+
+Each item carries the driver's name (`smtp`, `s3`), a masked error and a
+hint at the fix. It is built from switches and driver names: no URL,
+host credential, key or token is ever read back, and an error's text goes
+through the log-redaction registry and is cut, as in the logs.
+
+**Safe tests** (`POST /v1/ops/diagnostics/{check}/test`, `Ops.manage`):
+nothing a user sees and nothing kept. SMTP connects, authenticates and
+says QUIT (no mail; the HTTP providers have no such call, so `mail` is
+testable with `smtp` only); storage writes, reads back and deletes a
+probe file under `ops/diagnostics/`; the others ping. A failure answers
+200 with `ok: false`, the masked reason and the hint. Ten per minute per
+user (429 `rate_limited` past it), each audited as `ops.diagnostic-tested`
+(`details.ok`, `durationMs`).
 
 ## Migrations
 

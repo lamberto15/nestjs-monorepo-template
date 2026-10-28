@@ -5,7 +5,8 @@
   "tabs": {
     "queues": "Queues",
     "outbox": "Outbox",
-    "events": "Live events"
+    "events": "Live events",
+    "diagnostics": "Diagnostics"
   },
   "queues": {
     "empty": "No queues.",
@@ -83,5 +84,30 @@
       "closed": "Disconnected"
     },
     "reconnect": "Reconnect"
+  },
+  "diagnostics": {
+    "check": "Integration",
+    "state": "State",
+    "driver": "Driver",
+    "details": "Details",
+    "actions": "Actions",
+    "test": "Test",
+    "passed": "{{check}}: test passed ({{ms}} ms).",
+    "failed": "{{check}}: test failed.",
+    "checks": {
+      "database": "Database",
+      "redis": "Redis",
+      "workers": "Workers",
+      "mail": "Mail",
+      "storage": "File storage",
+      "realtime": "Realtime"
+    },
+    "states": {
+      "ok": "OK",
+      "configured": "Configured",
+      "disabled": "Disabled",
+      "unconfigured": "Not configured",
+      "unavailable": "Unavailable"
+    }
   }
 }

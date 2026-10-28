@@ -4,9 +4,9 @@ import {
   Injectable,
   type NestInterceptor,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor } from '@nestjs/platform-node';
 import { randomUUID } from 'node:crypto';
-import { uploadToDisk } from '@nestjs/storage';
+import { StorageDisk, uploadToDisk } from '@nestjs/storage';
 import type { Principal } from '../../iam/auth/principal.js';
 import {
   BrandingService,
@@ -29,9 +29,15 @@ const Upload = FileInterceptor('file');
 export class BrandingLogoUpload implements NestInterceptor {
   private readonly multer: NestInterceptor;
 
-  constructor(private readonly branding: BrandingService) {
+  constructor(
+    private readonly branding: BrandingService,
+    disk: StorageDisk,
+  ) {
     this.multer = new Upload({
       storage: uploadToDisk({
+        // The disk itself, not its name: uploadToDisk() finds a disk by name
+        // through Express's or Fastify's request only, not the native adapter's.
+        disk,
         // The request's tenant (the principal's, authenticated before any
         // interceptor runs), never the client's.
         key: (_file, req) => {

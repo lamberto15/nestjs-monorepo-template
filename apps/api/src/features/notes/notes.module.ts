@@ -38,7 +38,7 @@ import { NoteAi } from './note-ai.js';
 import { NoteDocuments } from './note-documents.js';
 import { documentRoutes } from '../../platform/documents/document.routes.js';
 import { listSource } from '../../platform/lists/lists.registry.js';
-import { NOTE_LIST } from './note.list.js';
+import { NOTE_LIST, NOTE_VIEWS } from './note.list.js';
 
 /**
  * The example feature, showing every tool in use: a policy with conditions
@@ -91,7 +91,7 @@ import { NOTE_LIST } from './note.list.js';
     NoteAi,
     NoteDocuments,
     // GET /v1/lists/Note: the list described, and what notes take (a generated record's comes from recordParts).
-    listSource('Note', NOTE_LIST, NOTE_CAPABILITIES),
+    listSource('Note', NOTE_LIST, NOTE_CAPABILITIES, NOTE_VIEWS),
   ],
   // The demo seed (src/demo) writes notes through it.
   exports: [NotesService, NotesDemo],

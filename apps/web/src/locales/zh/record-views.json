@@ -1,0 +1,67 @@
+{
+  "switch": "显示为",
+  "kinds": {
+    "table": "表格",
+    "board": "看板",
+    "calendar": "日历",
+    "timeline": "时间线"
+  },
+  "open": "打开 {{title}}",
+  "openShort": "打开",
+  "board": {
+    "notApplied": "卡片未移动：更新没有改变它。",
+    "failed": "无法加载此列。",
+    "empty": "此列没有内容。",
+    "moveCard": "移动 {{title}}",
+    "moveTo": "移到 {{column}}",
+    "more": "加载更多（{{shown}} / {{total}}）"
+  },
+  "calendar": {
+    "notApplied": "日期未更改：更新没有应用它。",
+    "allDay": "全天",
+    "reschedule": "重新安排 {{title}}",
+    "previous": "上一个",
+    "next": "下一个",
+    "today": "今天",
+    "field": "日期字段",
+    "mode": "日历视图",
+    "modes": {
+      "month": "月",
+      "week": "周",
+      "agenda": "日程"
+    },
+    "failed": "无法加载日历。",
+    "empty": "此时间段没有内容。",
+    "truncated": "此时间段共 {{total}} 条，显示 {{shown}} 条。缩小筛选范围可查看其余内容。",
+    "rescheduleTitle": "重新安排 {{title}}",
+    "rescheduleDescription": "时间保持不变。",
+    "invalidDay": "请输入有效日期。",
+    "sameDay": "请选择其他日期。",
+    "newDay": "新日期",
+    "cancel": "取消",
+    "save": "重新安排"
+  },
+  "timeline": {
+    "open": "尚无结束",
+    "previous": "更早",
+    "next": "更晚",
+    "today": "今天",
+    "zoom": "缩放",
+    "zooms": {
+      "day": "天",
+      "week": "周",
+      "month": "月"
+    },
+    "showList": "显示为列表",
+    "showChart": "显示图表",
+    "failed": "无法加载时间线。",
+    "bar": "{{title}}，从 {{start}} 到 {{end}}",
+    "caption": "带开始和结束的记录",
+    "record": "记录",
+    "start": "开始",
+    "end": "结束",
+    "empty": "此时间段没有内容。",
+    "invalid": "未绘制，因为结束早于开始：",
+    "truncated": "此时间段共 {{total}} 条，显示 {{shown}} 条。缩小筛选范围可查看其余内容。"
+  }
+}

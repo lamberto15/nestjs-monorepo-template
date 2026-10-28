@@ -156,7 +156,12 @@ export function recordParts(
     // GET /v1/access/users/{id}/explanation finds its records.
     RecordAccessFinder,
     // GET /v1/lists/{subject}: its list described, and its capabilities.
-    listSource(declaration.subject, options.list, declaration.capabilities),
+    listSource(
+      declaration.subject,
+      options.list,
+      declaration.capabilities,
+      declaration.views,
+    ),
     ...declaration.capabilities.flatMap((capability) => {
       const target = options.override?.[capability] ?? TARGETS[capability];
       return target ? [target] : [];
