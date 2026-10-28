@@ -241,7 +241,7 @@ export function releasePlan(
     bootstrap ||
     (env.GITHUB_EVENT_NAME === 'push' &&
       env.GITHUB_REF === 'refs/heads/main' &&
-      outputs.code);
+      (outputs.code || outputs.chart));
   const plan = { publish, bootstrap, previous: null };
   if (publish && !tag && !bootstrap) {
     try {
