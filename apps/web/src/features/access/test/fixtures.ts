@@ -196,6 +196,7 @@ export const bob: Member = {
     { roleId: ids.viewer, expiresAt: '2026-01-01T00:00:00.000Z' },
   ],
   unitIds: [ids.sales],
+  managedByScim: false,
 };
 
 export const carol: Member = {
