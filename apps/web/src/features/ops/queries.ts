@@ -7,6 +7,7 @@ import {
   unwrap,
   type GetResponse,
   type operations,
+  type paths,
 } from '@nestjs-monorepo-template/api-client';
 import { api } from '@/lib/api';
 import type { Me } from '@/lib/session';
@@ -60,6 +61,67 @@ export function useRetryFailed() {
       ),
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: opsQueuesQuery.queryKey }),
+  });
+}
+
+/** One queue paused (every worker stops taking its jobs) or resumed. */
+export function usePauseQueue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, paused }: { name: string; paused: boolean }) =>
+      unwrap(
+        paused
+          ? api.POST('/v1/ops/queues/{name}/pause', {
+              params: { path: { name } },
+            })
+          : api.POST('/v1/ops/queues/{name}/resume', {
+              params: { path: { name } },
+            }),
+      ),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: opsQueuesQuery.queryKey }),
+  });
+}
+
+/** Which backlog: one tenant's, or every tenant's (global), narrowed by type, mail class, age. */
+export type BacklogScope =
+  paths['/v1/ops/backlog/preview']['post']['requestBody']['content']['application/json'];
+export type BacklogTarget = 'outbox' | 'mail';
+
+/** The dry run: the backlog in scope, counted (changes nothing). */
+export function useBacklogPreview() {
+  return useMutation({
+    mutationFn: (scope: BacklogScope) =>
+      unwrap(api.POST('/v1/ops/backlog/preview', { body: scope })),
+    // The panel shows the error itself.
+    meta: { errorToast: false },
+  });
+}
+
+/**
+ * Discards or retries the backlog in scope: the API does at most 10,000 a
+ * call and says `more`, so this calls again until it is done. Returns the
+ * total.
+ */
+export function useBacklogAction(action: 'discard' | 'retry') {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      target: BacklogTarget;
+      scope: BacklogScope;
+    }) => {
+      let total = 0;
+      for (;;) {
+        const { count, more } = await unwrap(
+          action === 'discard'
+            ? api.POST('/v1/ops/backlog/discard', { body: input })
+            : api.POST('/v1/ops/backlog/retry', { body: input }),
+        );
+        total += count;
+        if (!more || count === 0) return total;
+      }
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['ops'] }),
   });
 }
 

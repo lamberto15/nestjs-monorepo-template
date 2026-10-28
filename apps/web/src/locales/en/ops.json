@@ -5,6 +5,7 @@
   "tabs": {
     "queues": "Queues",
     "outbox": "Outbox",
+    "backlog": "Backlog",
     "events": "Live events",
     "diagnostics": "Diagnostics"
   },
@@ -29,7 +30,15 @@
     "job": "Job",
     "attempts": "Attempts",
     "reason": "Reason",
-    "failedAt": "Failed"
+    "failedAt": "Failed",
+    "pause": "Pause",
+    "resume": "Resume",
+    "pauseLabel": "Pause {{name}}",
+    "resumeLabel": "Resume {{name}}",
+    "pauseTitle": "Pause the queue {{name}}?",
+    "resumeTitle": "Resume the queue {{name}}?",
+    "pauseDescription": "No worker takes its jobs until it is resumed. Nothing is lost; running jobs finish. The outbox keeps adding jobs: see Backlog.",
+    "resumeDescription": "The workers take its jobs again."
   },
   "outbox": {
     "stats": {
@@ -109,5 +118,48 @@
       "unconfigured": "Not configured",
       "unavailable": "Unavailable"
     }
+  },
+  "backlog": {
+    "intro": "Count and recover the outbox and mail backlog of one tenant, or of every tenant when you say so. A mandatory notification, essential mail and running work are never discarded. Every change is audited.",
+    "tenant": "Tenant ID",
+    "type": "Notification type",
+    "template": "Mail class",
+    "count": "Count",
+    "scopeHint": "Count first: the actions apply to the scope counted. Leave a filter empty to include everything.",
+    "outbox": "Outbox: {{pending}} pending, {{dead}} dead letters, {{leased}} being delivered",
+    "mail": "Mail queue",
+    "kind": "Kind",
+    "number": "Count",
+    "state": "State",
+    "essential": "Essential (kept)",
+    "kept": "Kept",
+    "capped": "More jobs than counted: the numbers are a floor.",
+    "kinds": {
+      "pending": "Pending",
+      "deadLetters": "Dead letter"
+    },
+    "discard": {
+      "outbox": "Discard outbox backlog",
+      "mail": "Discard queued mail"
+    },
+    "discardTitle": {
+      "outbox": "Discard the outbox backlog counted?",
+      "mail": "Discard the mail counted?"
+    },
+    "discardDescription": "Deleted for good. Discarded notifications stay in each person's list, marked delivered, with no push, mail or webhook.",
+    "retry": {
+      "outbox": "Retry dead letters",
+      "mail": "Retry failed mail"
+    },
+    "retryTitle": {
+      "outbox": "Retry the dead letters counted?",
+      "mail": "Retry the failed mail counted?"
+    },
+    "retryDescription": "They run again. The mail mode and the daily budgets still apply.",
+    "done": {
+      "discard": "Discarded: {{total}}.",
+      "retry": "Retried: {{total}}."
+    },
+    "global": "Every tenant"
   }
 }
