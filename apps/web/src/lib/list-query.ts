@@ -448,7 +448,7 @@ function withinLimits(
   return { page: Math.min(Math.max(1, page), last), perPage: size };
 }
 
-async function fetchPage<P extends ListPath>(
+export async function fetchPage<P extends ListPath>(
   path: P,
   query: Record<string, string>,
   pathParams?: Record<string, string>,

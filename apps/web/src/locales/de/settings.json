@@ -181,5 +181,24 @@
   "noLimit": "Kein Limit",
   "notSet": "Nicht festgelegt",
   "layoutSummary": "Eigene Anordnung: {{ordered}} Karten sortiert, {{hidden}} ausgeblendet",
-  "layoutDefault": "Standardanordnung"
+  "layoutDefault": "Standardanordnung",
+  "bundle": {
+    "title": "Konfiguration übertragen",
+    "description": "Die Einstellungen und eigenen Rollen dieses Mandanten in eine andere Umgebung übertragen: hier ein Paket exportieren, dort laden, die Änderungen prüfen und anwenden. Es enthält keine Geheimnisse, Benutzer oder Datensätze.",
+    "export": "Paket exportieren",
+    "load": "Paket laden",
+    "notJson": "Diese Datei ist kein Konfigurationspaket (JSON).",
+    "nothing": "Nichts zu ändern: das Ziel stimmt bereits überein.",
+    "apply": "Anwenden",
+    "applied": "Angewendet: {{created}} neu, {{updated}} geändert, {{unchanged}} unverändert.",
+    "actions": {
+      "create": "Neu",
+      "update": "Geändert",
+      "unchanged": "Unverändert"
+    },
+    "types": {
+      "setting": "Einstellung",
+      "role": "Rolle"
+    }
+  }
 }

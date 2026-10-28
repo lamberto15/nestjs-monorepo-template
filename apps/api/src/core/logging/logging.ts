@@ -191,6 +191,8 @@ export class RequestLogMiddleware implements NestMiddleware {
     res.setHeader('X-Request-Id', requestId);
 
     const started = process.hrtime.bigint();
+    // Read now: by `finish` a closed connection has no socket left to read it from.
+    const ip = req.ip;
     res.on('finish', () => {
       const path = req.originalUrl.split('?')[0];
       if (path.startsWith('/health')) {
@@ -203,7 +205,7 @@ export class RequestLogMiddleware implements NestMiddleware {
         path,
         status: res.statusCode,
         durationMs: Number(process.hrtime.bigint() - started) / 1e6,
-        ip: req.ip,
+        ip,
         principal: user ? `${user.kind}:${user.id}` : undefined,
       };
       const message = `${req.method} ${path} ${res.statusCode}`;

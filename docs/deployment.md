@@ -1658,6 +1658,7 @@ environment (the database URL, the keys). Nothing in the API calls it.
 | `user:unlock <email>` | clears the failed second-factor attempts (the 15-minute lockout) and takes the address off the mail suppression list. Per-address rate limits (Redis) lapse by themselves within minutes |
 | `notifications:settle <email> [--before <date>]` | drops a user's undelivered `notifications.deliver` outbox messages (all, or created before the date) and marks their notifications delivered and read; `mandatory` types are left alone. Shows the counts first; works tenant by tenant in chunks of 5,000, so a backlog of hundreds of thousands never meets the statement timeout (docs/notifications.md, "Stopping a mail storm") |
 | `setting:delete <key> (--tenant <id\|slug> \| --platform)` | removes a stored value; the next scope's, or the default, holds again |
+| `diagnostics [--test]` | the integrations' states (see [Diagnostics](#diagnostics)); `--test` runs their safe tests too, each audited as `ops.diagnostic-tested`. Exits 1 when one is unconfigured, unavailable or fails its test. Asks nothing: it changes nothing |
 
 - **Each command shows what it will do and asks** (`Proceed? (y/N)`).
   `--yes` skips the question, for scripts; without it a terminal is needed
@@ -1710,6 +1711,36 @@ administrator left at all: `admin:create <email> --tenant <slug>`. A
 second-factor device lost: `user:remove-mfa <email>`. An administrator's
 account locked by failed codes: `user:unlock <email>`. More:
 [auth](auth.md), "Locked out".
+
+## Diagnostics
+
+One view of the integrations a deployment needs, for setting it up and
+for an outage: `GET /v1/ops/diagnostics` (the operations page's
+"Diagnostics" tab, and `pnpm ops diagnostics` on a server). Operators only
+(`@OperatorOnly()`, docs/tenancy.md) with `Ops.view`.
+
+| Check | `ok` / `configured` | `disabled` | `unconfigured` | `unavailable` |
+| --- | --- | --- | --- | --- |
+| `database` | answered a ping | | | no answer within 5 s |
+| `redis` | answered PING | | | no answer |
+| `workers` | a worker is connected to a queue | | | none (start `APP_ROLE=worker` or `all`) |
+| `mail` | `MAIL_TRANSPORT` set (configured) | | `file`, `log` or `memory` in production | its test failed |
+| `storage` | `STORAGE_DRIVER` set (configured) | | `memory` in production | its test failed |
+| `realtime` | Redis answers | `REALTIME=off` | | Redis does not answer |
+
+Each item carries the driver's name (`smtp`, `s3`), a masked error and a
+hint at the fix. It is built from switches and driver names: no URL,
+host credential, key or token is ever read back, and an error's text goes
+through the log-redaction registry and is cut, as in the logs.
+
+**Safe tests** (`POST /v1/ops/diagnostics/{check}/test`, `Ops.manage`):
+nothing a user sees and nothing kept. SMTP connects, authenticates and
+says QUIT (no mail; the HTTP providers have no such call, so `mail` is
+testable with `smtp` only); storage writes, reads back and deletes a
+probe file under `ops/diagnostics/`; the others ping. A failure answers
+200 with `ok: false`, the masked reason and the hint. Ten per minute per
+user (429 `rate_limited` past it), each audited as `ops.diagnostic-tested`
+(`details.ok`, `durationMs`).
 
 ## Migrations
 

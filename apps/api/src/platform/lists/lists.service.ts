@@ -11,7 +11,7 @@ import { PdfRenderer } from '../documents/pdf-renderer.js';
 import type { PlatformEnv } from '../platform.env.js';
 import { switchedOn } from '../switches.js';
 import { listCapabilities } from './list-capabilities.js';
-import { listMetadata } from './list-metadata.js';
+import { listMetadata, listViews } from './list-metadata.js';
 import type { ListMetadata } from './list-metadata.schemas.js';
 import { ListsRegistry, type ListSource } from './lists.registry.js';
 
@@ -94,14 +94,16 @@ export class ListsService {
       fieldsRead(list.fields, name).some((field) =>
         conditionalFields.has(field),
       );
+    const metadata = listMetadata(subject, list, {
+      hidden,
+      unmatchable,
+      labels: new Map(definitions.map((field) => [field.key, field.label])),
+      recycleBin: restore,
+    });
     return {
-      ...listMetadata(subject, list, {
-        hidden,
-        unmatchable,
-        labels: new Map(definitions.map((field) => [field.key, field.label])),
-        recycleBin: restore,
-      }),
+      ...metadata,
       capabilities,
+      views: listViews(source.views, metadata.fields),
       // What the upload route enforces (AttachmentUpload reads the same).
       attachmentLimits: source.capabilities.includes('attachments')
         ? attachmentLimits(this.config)

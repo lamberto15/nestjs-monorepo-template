@@ -75,6 +75,19 @@ export class OpsQueues {
     );
   }
 
+  /**
+   * The workers connected to each queue (BullMQ `getWorkersCount()`, Redis
+   * `CLIENT LIST`): 0 everywhere means no worker process runs.
+   */
+  async workers() {
+    return Promise.all(
+      this.names.map(async (name) => ({
+        name,
+        workers: await this.queue(name).getWorkersCount(),
+      })),
+    );
+  }
+
   /** Job counts by state, and the latest failures, per queue. */
   async overview() {
     return Promise.all(
