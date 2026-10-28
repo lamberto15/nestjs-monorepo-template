@@ -584,6 +584,34 @@ describe('notifications (e2e)', () => {
     expect((await row(second)).deliveredAt).toBeTruthy();
   });
 
+  it('lists notifyMany ones newest first, after older ones (#849)', async () => {
+    const editor = await node.user(['editor']);
+    const older = await notify(`user:${editor.id}`);
+    const service = node.app.get(NotificationsService);
+    const txHost = node.app.get(TransactionHost);
+    const ids = await node.inTenant(() =>
+      inTransaction(txHost, (tx) =>
+        service.notifyMany(
+          tx,
+          ['One', 'Two'].map((title) => ({
+            type: 'testItem.commented' as NotificationType,
+            to: `user:${editor.id}`,
+            data: commentData(title),
+          })),
+        ),
+      ),
+    );
+    const [one, two] = ids.flat();
+    // Time-ordered ids (UUIDv7, as every row's), not random ones.
+    expect(one).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7/);
+    const listed = await editor.agent.get('/v1/notifications').expect(200);
+    expect(listed.body.items.map((item: { id: string }) => item.id)).toEqual([
+      two,
+      one,
+      older,
+    ]);
+  });
+
   it('lists with filters, marks all read up to a moment', async () => {
     const editor = await node.user(['editor']);
     const to = `user:${editor.id}`;
