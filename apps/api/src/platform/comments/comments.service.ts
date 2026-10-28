@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -11,6 +13,7 @@ import {
   desc,
   eq,
   gt,
+  count,
   inArray,
   lt,
   or,
@@ -64,6 +67,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** At most this many people are mentioned in one comment (the rest are ignored). */
 const MAX_MENTIONS = 20;
+/** A thread (a top-level comment) takes this many replies; threads are one level deep. */
+export const MAX_REPLIES = 200;
 /** Notifications quote this much of the comment. */
 const EXCERPT = 140;
 
@@ -152,11 +157,39 @@ export class CommentsService implements PersonalDataSource {
     record: RecordRef,
     body: string,
     ip?: string,
+    parentId?: string,
   ) {
     const target = await this.readable(principal, record);
+    const parent = parentId ? await this.findOne(record, parentId) : null;
+    if (parent) {
+      if (parent.parentId) {
+        throw new BadRequestException({
+          code: 'comment_reply_too_deep',
+          message: 'Threads are one level deep: answer the top-level comment.',
+        });
+      }
+      if (parent.resolvedAt) {
+        throw new ConflictException({
+          code: 'comment_thread_resolved',
+          message: 'The thread is resolved: reopen it to answer.',
+        });
+      }
+    }
     const mentions = await this.mentions(target, record, body, principal);
     const author = principalKey(principal);
     const row = await inTransaction(this.txHost, async (tx) => {
+      if (parent) {
+        const [counted] = await tx
+          .select({ replies: count() })
+          .from(comments)
+          .where(eq(comments.parentId, parent.id));
+        if ((counted?.replies ?? 0) >= MAX_REPLIES) {
+          throw new ConflictException({
+            code: 'comment_thread_full',
+            message: `A thread takes at most ${MAX_REPLIES} replies: start a new one.`,
+          });
+        }
+      }
       const [earlier] = await tx
         .select({ id: comments.id })
         .from(comments)
@@ -164,7 +197,13 @@ export class CommentsService implements PersonalDataSource {
         .limit(1);
       const [created] = await tx
         .insert(comments)
-        .values({ ...record, author, body, mentions })
+        .values({
+          ...record,
+          author,
+          body,
+          mentions,
+          parentId: parent?.id ?? null,
+        })
         .returning();
       await this.audit.record(
         principal,
@@ -172,12 +211,22 @@ export class CommentsService implements PersonalDataSource {
           action: 'comment.added',
           targetType: 'comment',
           targetId: created!.id,
-          details: { ...record, mentions },
+          details: { ...record, mentions, parentId: parent?.id ?? null },
           ip,
         },
         tx,
       );
       await this.notify(tx, target, created!, principal, mentions, true);
+      if (parent) {
+        await this.notifyReply(
+          tx,
+          target,
+          created!,
+          parent,
+          principal,
+          mentions,
+        );
+      }
       if (!earlier) {
         // Their first comment here: they hear of the answers.
         await this.subscriptions.subscribe(principal, record);
@@ -251,6 +300,14 @@ export class CommentsService implements PersonalDataSource {
       );
     }
     await inTransaction(this.txHost, async (tx) => {
+      // A thread's replies go with its top-level comment (the foreign key cascades).
+      const [counted] = comment.parentId
+        ? []
+        : await tx
+            .select({ replies: count() })
+            .from(comments)
+            .where(eq(comments.parentId, id));
+      const replies = counted?.replies ?? 0;
       await tx.delete(comments).where(eq(comments.id, id));
       await this.audit.record(
         principal,
@@ -258,13 +315,93 @@ export class CommentsService implements PersonalDataSource {
           action: 'comment.removed',
           targetType: 'comment',
           targetId: id,
-          details: { ...record, author: comment.author },
+          details: {
+            ...record,
+            author: comment.author,
+            parentId: comment.parentId,
+            replies,
+          },
           ip,
         },
         tx,
       );
     });
     this.pushed(target, principal, comment, 'removed');
+  }
+
+  /** Resolves a thread: its author, or a moderator of the record. Idempotent. */
+  async resolve(
+    principal: Principal,
+    record: RecordRef,
+    id: string,
+    ip?: string,
+  ) {
+    return this.setResolved(principal, record, id, true, ip);
+  }
+
+  /** Reopens a resolved thread: its author, or a moderator of the record. Idempotent. */
+  async reopen(
+    principal: Principal,
+    record: RecordRef,
+    id: string,
+    ip?: string,
+  ) {
+    return this.setResolved(principal, record, id, false, ip);
+  }
+
+  private async setResolved(
+    principal: Principal,
+    record: RecordRef,
+    id: string,
+    resolved: boolean,
+    ip?: string,
+  ) {
+    const target = await this.readable(principal, record);
+    const comment = await this.findOne(record, id);
+    if (comment.parentId) {
+      throw new BadRequestException({
+        code: 'comment_not_thread',
+        message: 'Only a top-level comment (a thread) can be resolved.',
+      });
+    }
+    if (
+      comment.author !== principalKey(principal) &&
+      !(await target.canModerate(principal, record.recordId))
+    ) {
+      throw new ForbiddenException(
+        'Only the thread’s author or a moderator may resolve or reopen it.',
+      );
+    }
+    const show = async (row: Comment) => {
+      const known = await this.nameMap([row], true);
+      return view(row, known.names.get(row.author) ?? null, known);
+    };
+    if (!!comment.resolvedAt === resolved) return show(comment);
+    const row = await inTransaction(this.txHost, async (tx) => {
+      const [updated] = await tx
+        .update(comments)
+        .set(
+          resolved
+            ? { resolvedAt: new Date(), resolvedBy: principalKey(principal) }
+            : { resolvedAt: null, resolvedBy: null },
+        )
+        .where(eq(comments.id, id))
+        .returning();
+      await this.audit.record(
+        principal,
+        {
+          action: resolved ? 'comment.resolved' : 'comment.reopened',
+          targetType: 'comment',
+          targetId: id,
+          details: { ...record },
+          ip,
+        },
+        tx,
+      );
+      return updated!;
+    });
+    this.pushed(target, principal, row, resolved ? 'resolved' : 'reopened');
+    return show(row);
   }
 
   /** A user's own comments, newest first, in batches (their data export: `POST /account/export`). */
@@ -305,6 +442,10 @@ export class CommentsService implements PersonalDataSource {
       .update(comments)
       .set({ body: DELETED_BODY, author: ANONYMIZED_AUTHOR, mentions: [] })
       .where(eq(comments.author, key));
+    await tx
+      .update(comments)
+      .set({ resolvedBy: ANONYMIZED_AUTHOR })
+      .where(eq(comments.resolvedBy, key));
     const pattern = `@(${escapeRegExp(user.email)}|${escapeRegExp(key)})`;
     // The text too where the mention was dropped (they couldn't read the
     // record, or came after the twentieth): a scan, but the job is nightly.
@@ -455,6 +596,14 @@ export class CommentsService implements PersonalDataSource {
     });
     if (!watchers) return;
     const skip = new Set([principalKey(by), ...comment.mentions]);
+    // A reply tells the thread's author itself (`comment.replied`): not twice.
+    if (comment.parentId) {
+      const [parent] = await tx
+        .select({ author: comments.author })
+        .from(comments)
+        .where(eq(comments.id, comment.parentId));
+      if (parent) skip.add(parent.author);
+    }
     const type = (target.commentedType ??
       `${target.subject.toLowerCase()}.commented`) as NotificationType;
     await this.notifications.notify(tx, {
@@ -470,6 +619,45 @@ export class CommentsService implements PersonalDataSource {
   }
 
   /**
+   * A reply: the thread's author hears of it (`comment.replied`) unless it
+   * is them, they were mentioned (already told), or they may no longer read
+   * the record. The watchers' notice skips them (see `notify`).
+   */
+  private async notifyReply(
+    tx: Transaction,
+    target: CommentTarget,
+    reply: Comment,
+    parent: Comment,
+    by: Principal,
+    mentioned: string[],
+  ) {
+    const key = parent.author;
+    if (
+      !key.startsWith('user:') ||
+      key === principalKey(by) ||
+      mentioned.includes(key)
+    ) {
+      return;
+    }
+    const tenantId = requireTenantId('A reply');
+    const user = await this.users.inTenant(key.slice('user:'.length), tenantId);
+    if (!user || !(await target.canRead(user, reply.recordId))) return;
+    await this.notifications.notify(tx, {
+      type: 'comment.replied',
+      to: [key],
+      data: {
+        subject: reply.subject,
+        recordId: reply.recordId,
+        commentId: reply.id,
+        title: await target.title(reply.recordId),
+        by: by.name,
+        excerpt: excerpt(reply.body),
+      },
+      link: target.link(reply.recordId),
+    });
+  }
+
+  /**
    * After the commit: `record.commented` to the record's watchers and the
    * author's other tabs who may read it (RecordActivity). Not awaited: the
    * answer doesn't wait for the permission checks, and a failure is logged.
@@ -478,7 +666,7 @@ export class CommentsService implements PersonalDataSource {
     target: CommentTarget,
     by: Principal,
     comment: Comment,
-    action: 'added' | 'edited' | 'removed',
+    action: 'added' | 'edited' | 'removed' | 'resolved' | 'reopened',
   ) {
     const record = { subject: comment.subject, recordId: comment.recordId };
     void this.activity.push(
@@ -563,6 +751,9 @@ const view = (
     }),
   ]),
   editedAt: row.editedAt?.toISOString() ?? null,
+  parentId: row.parentId,
+  resolvedAt: row.resolvedAt?.toISOString() ?? null,
+  resolvedBy: row.resolvedBy,
   createdAt: row.createdAt.toISOString(),
   updatedAt: row.updatedAt.toISOString(),
 });
