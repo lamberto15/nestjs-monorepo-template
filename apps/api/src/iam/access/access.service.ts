@@ -69,6 +69,40 @@ interface Cached {
   ability: AppAbility;
 }
 
+/** A permission a principal holds, and the grant it holds it by (`explain()`). */
+export interface HeldPermission {
+  permission: PermissionInput;
+  /** The role granted, or null: an API client's `clientPermissions`, a system job's, a break-glass read. */
+  roleId: string | null;
+  /** When the grant ends, or null for never. */
+  expiresAt: Date | null;
+}
+
+/**
+ * Why a principal may or may not act on a subject, or on one of its
+ * records (`explain()`). A `null` is withheld: the answer depends on a
+ * field the asker may not read on the record.
+ */
+export interface Explanation {
+  /** What the principal holds now (unexpired grants only), as `load()` reads it. */
+  held: HeldPermission[];
+  /** Its organizational units, as the unit conditions read them. */
+  context: AccessContext;
+  actions: {
+    action: string;
+    /** `can()`'s answer (with a record: on it; without: on some records at least). */
+    allowed: boolean | null;
+    /** The declared fields the action may touch (with a record: on it; without: on some records); null when withheld. */
+    fields: string[] | null;
+    /** The held permissions of this action (`held[index]`), each with whether it reaches the record. */
+    grants: {
+      index: number;
+      matches: boolean | null;
+      conditions: { key: string; matches: boolean | null }[];
+    }[];
+  }[];
+}
+
 /**
  * Answers "may this principal do this?" with CASL. A user's
  * permissions come from their roles in the database; an API client's are
@@ -216,7 +250,17 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
     if (!principal) {
       return false;
     }
-    // A deleted record (soft delete) can only be restored.
+    const { ability } = await this.load(principal);
+    return this.decide(ability, action, subject, record);
+  }
+
+  /** `can()`'s answer from an ability: a deleted record (soft delete) can only be restored. */
+  private decide(
+    ability: AppAbility,
+    action: string,
+    subject: string,
+    record?: Record<string, unknown>,
+  ) {
     if (
       record &&
       action !== 'restore' &&
@@ -225,10 +269,28 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
     ) {
       return false;
     }
-    const { ability } = await this.load(principal);
     return record
       ? ability.can(action, asSubject(subject, { ...record }))
       : ability.can(action, subject);
+  }
+
+  /** The declared fields `action` may touch on this record (`redact()`'s), or on some record without one. */
+  private permittedFields(
+    ability: AppAbility,
+    action: string,
+    subject: string,
+    record?: Record<string, unknown>,
+  ) {
+    const declared = this.catalog.declaredFields(subject);
+    if (!record) {
+      return declared.filter((field) => ability.can(action, subject, field));
+    }
+    const allowed = new Set(
+      permittedFieldsOf(ability, action, asSubject(subject, { ...record }), {
+        fieldsFrom: (rule) => rule.fields ?? declared,
+      }),
+    );
+    return declared.filter((field) => allowed.has(field));
   }
 
   /**
@@ -248,9 +310,7 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
     }
     const { ability } = await this.load(principal);
     const allowed = new Set(
-      permittedFieldsOf(ability, action, asSubject(subject, { ...record }), {
-        fieldsFrom: (rule) => rule.fields ?? declared,
-      }),
+      this.permittedFields(ability, action, subject, record),
     );
     return Object.fromEntries(
       Object.entries(record).filter(
@@ -311,7 +371,8 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
       return [];
     }
     const { ability } = await this.load(principal);
-    return declared.filter((field) => !ability.can(action, subject, field));
+    const permitted = this.permittedFields(ability, action, subject);
+    return declared.filter((field) => !permitted.includes(field));
   }
 
   /**
@@ -411,6 +472,112 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
     }
   }
 
+  /**
+   * Why `principal` may or may not do each of `actions` on `subject` (on
+   * `record` when given): its permissions, units and ability read and built
+   * as `load()` does, every answer from the same checks `can()` and
+   * `redact()` make, and each permission (and each of its conditions)
+   * checked alone the same way, to say which ones reach the record. Never
+   * cached: a fresh read. `hidden`: the declared fields the asker may not
+   * read on the record; an answer a condition on one of them decides is
+   * withheld (null), so the explanation tells nothing a read wouldn't.
+   */
+  async explain(
+    principal: Principal,
+    subject: string,
+    actions: string[],
+    record?: Record<string, unknown>,
+    hidden: string[] = [],
+  ): Promise<Explanation> {
+    const [{ held }, { context }] = await Promise.all([
+      this.loadPermissions(principal),
+      this.loadContext(principal),
+    ]);
+    const ability = this.build(
+      principal,
+      held.map((grant) => grant.permission),
+      context,
+    );
+    // Whether `permission` alone reaches the record; null when a condition reads a hidden field.
+    const reaches = (permission: PermissionInput, action: string) => {
+      if (!record) return true;
+      const query =
+        this.catalog.caslConditions(principal, permission, context) ?? {};
+      if (
+        Object.keys(query).some(
+          (field) => field.startsWith('$') || hidden.includes(field),
+        )
+      ) {
+        return null;
+      }
+      return this.decide(
+        this.build(principal, [permission], context),
+        action,
+        subject,
+        record,
+      );
+    };
+    return {
+      held,
+      context,
+      actions: actions.map((action) => {
+        const grants = held.flatMap(({ permission }, index) =>
+          isAll(permission) ||
+          (permission.subject === subject && permission.action === action)
+            ? [
+                {
+                  index,
+                  matches: reaches(permission, action),
+                  conditions: permission.conditions.map((condition) => ({
+                    key: condition.key,
+                    matches: reaches(
+                      { ...permission, conditions: [condition] },
+                      action,
+                    ),
+                  })),
+                },
+              ]
+            : [],
+        );
+        const withheld = grants.some((grant) => grant.matches === null);
+        return {
+          action,
+          allowed: withheld
+            ? null
+            : this.decide(ability, action, subject, record),
+          fields: withheld
+            ? null
+            : this.permittedFields(ability, action, subject, record),
+          grants,
+        };
+      }),
+    };
+  }
+
+  /**
+   * The units `userId` is a current member of, those and every unit below
+   * them, and those they lead and below: what the unit conditions read
+   * (`loadContext()`), in the current transaction.
+   */
+  async unitContext(userId: string, now = new Date()): Promise<AccessContext> {
+    const ids = async (options: UnitsOfOptions) =>
+      (
+        await this.db
+          .select({ id: organizationalUnits.id })
+          .from(organizationalUnits)
+          .where(
+            inArray(organizationalUnits.id, unitIdsOf(userId, options, now)),
+          )
+      ).map((row) => row.id);
+    const [directUnitIds, unitIdsAndBelow, ledUnitIdsAndBelow] =
+      await Promise.all([
+        ids({}),
+        ids({ below: true }),
+        ids({ below: true, role: 'lead' }),
+      ]);
+    return { directUnitIds, unitIdsAndBelow, ledUnitIdsAndBelow };
+  }
+
   /** The principal's permissions, as stored (an administrator's is ALL). */
   async permissions(principal: Principal): Promise<PermissionInput[]> {
     return (await this.load(principal)).permissions;
@@ -484,11 +651,11 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
       return cached;
     }
     const version = this.version;
-    const [{ permissions, nextExpiry }, { context, nextChange }] =
-      await Promise.all([
-        this.loadPermissions(principal),
-        this.loadContext(principal),
-      ]);
+    const [{ held, nextExpiry }, { context, nextChange }] = await Promise.all([
+      this.loadPermissions(principal),
+      this.loadContext(principal),
+    ]);
+    const permissions = held.map((grant) => grant.permission);
     const built: Cached = {
       version,
       permissions,
@@ -517,24 +684,30 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
    * what its job declares.
    */
   private async loadPermissions(principal: Principal): Promise<{
-    permissions: PermissionInput[];
+    held: HeldPermission[];
     nextExpiry?: number;
   }> {
+    const builtIn = (permissions: PermissionInput[]) =>
+      permissions.map((permission) => ({
+        permission,
+        roleId: null,
+        expiresAt: null,
+      }));
     if (principal.kind === 'system') {
       // Made in code (load() turned away any other), for a declared job.
       return {
-        permissions: this.catalog.systemJob(principal.id)?.permissions ?? [],
+        held: builtIn(this.catalog.systemJob(principal.id)?.permissions ?? []),
       };
     }
     if (!currentTenantId()) {
       // Roles are per tenant: without one (a user who has none), none.
-      return { permissions: [] };
+      return { held: [] };
     }
     if (principal.kind === 'user' && principal.breakGlass) {
       // An operator reading a tenant through a break-glass grant: every
       // read action of the catalog, no condition, and nothing else (no
       // role of theirs there counts). The transactions are read only too.
-      return { permissions: this.catalog.readPermissions() };
+      return { held: builtIn(this.catalog.readPermissions()) };
     }
     const now = new Date();
     const grants = principal.kind === 'user' ? userRoles : apiClientRoles;
@@ -546,6 +719,7 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
         action: rolePermissions.action,
         conditions: rolePermissions.conditions,
         fields: rolePermissions.fields,
+        roleId: rolePermissions.roleId,
         expiresAt: grants.expiresAt,
       })
       .from(rolePermissions)
@@ -559,19 +733,18 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
     const expiries = rows
       .map((row) => row.expiresAt?.getTime())
       .filter((time): time is number => time !== undefined);
-    const permissions: PermissionInput[] = rows.map(
-      ({ subject, action, conditions, fields }) => ({
-        subject,
-        action,
-        conditions,
-        fields,
+    const held: HeldPermission[] = rows.map(
+      ({ subject, action, conditions, fields, roleId, expiresAt }) => ({
+        permission: { subject, action, conditions, fields },
+        roleId,
+        expiresAt,
       }),
     );
     return {
-      permissions:
+      held:
         principal.kind === 'client'
-          ? [...this.catalog.clientPermissions, ...permissions]
-          : permissions,
+          ? [...builtIn(this.catalog.clientPermissions), ...held]
+          : held,
       nextExpiry: expiries.length ? Math.min(...expiries) : undefined,
     };
   }
@@ -592,40 +765,25 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
       return { context: NO_UNITS };
     }
     const now = new Date();
-    const ids = async (options: UnitsOfOptions) =>
-      (
-        await this.db
-          .select({ id: organizationalUnits.id })
-          .from(organizationalUnits)
-          .where(
-            inArray(
-              organizationalUnits.id,
-              unitIdsOf(principal.id, options, now),
-            ),
-          )
-      ).map((row) => row.id);
     const member = organizationalUnitMemberships;
-    const [directUnitIds, unitIdsAndBelow, ledUnitIdsAndBelow, periods] =
-      await Promise.all([
-        ids({}),
-        ids({ below: true }),
-        ids({ below: true, role: 'lead' }),
-        this.db
-          .select({ validFrom: member.validFrom, validTo: member.validTo })
-          .from(member)
-          .where(
-            and(
-              eq(member.userId, principal.id),
-              or(gt(member.validFrom, now), gt(member.validTo, now)),
-            ),
+    const [context, periods] = await Promise.all([
+      this.unitContext(principal.id, now),
+      this.db
+        .select({ validFrom: member.validFrom, validTo: member.validTo })
+        .from(member)
+        .where(
+          and(
+            eq(member.userId, principal.id),
+            or(gt(member.validFrom, now), gt(member.validTo, now)),
           ),
-      ]);
+        ),
+    ]);
     const changes = periods
       .flatMap((period) => [period.validFrom, period.validTo])
       .map((date) => date?.getTime())
       .filter((time): time is number => time !== undefined && time > +now);
     return {
-      context: { directUnitIds, unitIdsAndBelow, ledUnitIdsAndBelow },
+      context,
       nextChange: changes.length ? Math.min(...changes) : undefined,
     };
   }

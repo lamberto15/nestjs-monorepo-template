@@ -46,7 +46,33 @@
       "confirm": "Identität übernehmen"
     },
     "readOnly": "Sie können dieses Mitglied sehen. Um dessen Rollen, Einheiten oder Zugriff zu ändern, brauchen Sie die Berechtigung, Mitglieder zu verwalten.",
-    "open": "Öffnen"
+    "open": "Öffnen",
+    "explain": {
+      "title": "Zugriff erklären",
+      "description": "Warum dieses Mitglied jede Aktion ausführen darf oder nicht, so wie die Berechtigungsprüfung entscheidet: Wählen Sie, worum es geht, und auf Wunsch einen Datensatz. Ein Datensatz, den Sie nicht lesen dürfen, wird nicht gefunden; was ein vor Ihnen verborgenes Feld entscheidet, bleibt verborgen.",
+      "subject": "Was",
+      "record": "Datensatz-ID (optional)",
+      "run": "Erklären",
+      "allowed": "Erlaubt",
+      "denied": "Nicht erlaubt",
+      "withheld": "Für Sie verborgen",
+      "fields": "Felder: {{fields}}",
+      "noFields": "Keines der eingeschränkten Felder",
+      "noGrant": "Keine der Rollen erlaubt das.",
+      "builtIn": "Eingebaut",
+      "all": "alles (Administrator)",
+      "everyRecord": "jeder Datensatz",
+      "condition": {
+        "allowed": "trifft zu",
+        "denied": "trifft nicht zu",
+        "withheld": "verborgen"
+      },
+      "reaches": {
+        "allowed": "erfasst diesen Datensatz",
+        "denied": "erfasst diesen Datensatz nicht",
+        "withheld": "für Sie verborgen"
+      }
+    }
   },
   "grants": {
     "roles": "Rollen",
@@ -211,6 +237,23 @@
     "removeTitle": "Dieses Mitglied aus {{unit}} entfernen?",
     "removeDescription": "Die Person verliert, was diese Einheit ihr gibt. Die Mitgliedschaft endet und bleibt als Verlauf erhalten.",
     "memberRemoved": "Mitglied entfernt.",
-    "roleChanged": "Rolle geändert."
+    "roleChanged": "Rolle geändert.",
+    "impact": {
+      "moveTitle": "{{unit}} verschieben?",
+      "moveConfirm": "Verschieben",
+      "roleTitle": "{{name}} zu {{role}} machen?",
+      "roleConfirm": "Rolle ändern",
+      "none": "Niemand gewinnt oder verliert Zugriff über seine Einheiten.",
+      "some": "Wer Zugriff über seine Einheiten gewinnt oder verliert:",
+      "truncated": "Es könnten mehr Personen betroffen sein: nur die ersten 500 wurden verglichen.",
+      "andBelow": {
+        "gains": "gewinnt {{units}} (meine Einheiten und darunter)",
+        "loses": "verliert {{units}} (meine Einheiten und darunter)"
+      },
+      "ledAndBelow": {
+        "gains": "gewinnt {{units}} (von mir geleitete Einheiten und darunter)",
+        "loses": "verliert {{units}} (von mir geleitete Einheiten und darunter)"
+      }
+    }
   }
 }

@@ -46,7 +46,33 @@
       "confirm": "Impersonate"
     },
     "readOnly": "You can see this member. Changing their roles, units or access needs the permission to manage members.",
-    "open": "Open"
+    "open": "Open",
+    "explain": {
+      "title": "Explain access",
+      "description": "Why this member may or may not do each action, as the permission checks decide it: pick what, and a record if you like. A record you can't read is not found; what a field hidden from you decides stays hidden.",
+      "subject": "What",
+      "record": "Record ID (optional)",
+      "run": "Explain",
+      "allowed": "Allowed",
+      "denied": "Not allowed",
+      "withheld": "Hidden from you",
+      "fields": "Fields: {{fields}}",
+      "noFields": "None of its restricted fields",
+      "noGrant": "No role of theirs grants this.",
+      "builtIn": "Built in",
+      "all": "everything (administrator)",
+      "everyRecord": "every record",
+      "condition": {
+        "allowed": "holds",
+        "denied": "doesn't hold",
+        "withheld": "hidden"
+      },
+      "reaches": {
+        "allowed": "reaches this record",
+        "denied": "doesn't reach this record",
+        "withheld": "hidden from you"
+      }
+    }
   },
   "grants": {
     "roles": "Roles",
@@ -211,6 +237,23 @@
     "removeTitle": "Remove this member from {{unit}}?",
     "removeDescription": "They lose what this unit gives them. The membership ends and is kept as history.",
     "memberRemoved": "Member removed.",
-    "roleChanged": "Role changed."
+    "roleChanged": "Role changed.",
+    "impact": {
+      "moveTitle": "Move {{unit}}?",
+      "moveConfirm": "Move",
+      "roleTitle": "Make {{name}} {{role}}?",
+      "roleConfirm": "Change role",
+      "none": "No one would gain or lose access through their units.",
+      "some": "Who would gain or lose access through their units:",
+      "truncated": "More people could be affected: only the first 500 were compared.",
+      "andBelow": {
+        "gains": "gains {{units}} (my units and below)",
+        "loses": "loses {{units}} (my units and below)"
+      },
+      "ledAndBelow": {
+        "gains": "gains {{units}} (units I lead and below)",
+        "loses": "loses {{units}} (units I lead and below)"
+      }
+    }
   }
 }
