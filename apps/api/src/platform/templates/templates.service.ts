@@ -392,16 +392,7 @@ export class TemplatesService implements PersonalDataSource {
     subject: string,
     input: Record<string, unknown>,
   ) {
-    const source = this.registry.get(subject);
-    if (!source) {
-      throw invalid([
-        {
-          path: 'subject',
-          message: `"${subject}" takes no templates: one of ${this.registry.subjects().join(', ')}`,
-        },
-      ]);
-    }
-    const shape = source.create.shape;
+    const shape = this.sourceOf(subject).create.shape;
     const values: Record<string, unknown> = {};
     const dropped: DroppedValue[] = [];
     const drop = (
@@ -459,6 +450,20 @@ export class TemplatesService implements PersonalDataSource {
   }
 
   /** A 403 unless the principal may create the subject's records: a template is only worth what a create is. */
+  /** The subject's template source, or a 400 naming those that take templates. */
+  private sourceOf(subject: string) {
+    const source = this.registry.get(subject);
+    if (!source) {
+      throw invalid([
+        {
+          path: 'subject',
+          message: `"${subject}" takes no templates: one of ${this.registry.subjects().join(', ')}`,
+        },
+      ]);
+    }
+    return source;
+  }
+
   private async assertMayCreate(principal: RequestPrincipal, subject: string) {
     if (!(await this.access.can(principal, 'create', subject))) {
       throw new ForbiddenException({
@@ -478,6 +483,8 @@ export class TemplatesService implements PersonalDataSource {
     subject: string,
     input: Record<string, unknown>,
   ) {
+    // A subject without templates is a bad request, before who may create it.
+    this.sourceOf(subject);
     await this.assertMayCreate(principal, subject);
     const { dropped } = await this.inspect(principal, subject, input);
     const refused = dropped.filter((item) => item.reason !== 'forbidden');

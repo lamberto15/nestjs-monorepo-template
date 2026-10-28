@@ -114,7 +114,7 @@ describe('record templates (e2e)', () => {
     const limited = await node.user([
       await role(
         node.admin(),
-        ['TestItem', 'create', ['title']],
+        ['TestItem', 'create', []],
         ['Access', 'manageTemplates'],
       ),
     ]);

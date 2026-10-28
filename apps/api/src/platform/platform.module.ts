@@ -867,6 +867,8 @@ export class PlatformModule {
         AttachmentsService,
         AttachmentUploadsService,
         AcknowledgmentsService,
+        // A record's templates register here (record-parts.ts).
+        TemplatesRegistry,
         DocumentsRegistry,
         DocumentsService,
         AiRegistry,
