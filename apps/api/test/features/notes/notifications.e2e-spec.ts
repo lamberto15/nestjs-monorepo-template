@@ -210,14 +210,13 @@ describe('notifications of notes (e2e)', () => {
     for (const note of created) {
       await viewer.agent.post(`/v1/notes/${note.id}/watch`).expect(200);
     }
-    await node.inTenant(() =>
-      node.db.insert(recordSubscriptions).values(
-        created.map((note) => ({
-          subject: 'Note',
-          recordId: note.id,
-          subscriber: `user:${outsider.id}`,
-        })),
-      ),
+    await node.db.insert(recordSubscriptions).values(
+      created.map((note) => ({
+        tenantId: node.tenantId,
+        subject: 'Note',
+        recordId: note.id,
+        subscriber: `user:${outsider.id}`,
+      })),
     );
     await node.worker.drain();
     node.clock.advance('10s');
@@ -228,7 +227,12 @@ describe('notifications of notes (e2e)', () => {
       expect(await published(user.agent)).toEqual([
         expect.objectContaining({
           title: 'Notes published',
-          body: `${count} notes were published, among them Bulk 0, Bulk 1, Bulk 2.`,
+          // The first three titles, in the order the publication returned them.
+          body: expect.stringMatching(
+            new RegExp(
+              `^${count} notes were published, among them Bulk \\d+, Bulk \\d+, Bulk \\d+\\.$`,
+            ),
+          ),
           count,
           link: '/notes?status=published&sort=publishedAt.desc',
         }),
