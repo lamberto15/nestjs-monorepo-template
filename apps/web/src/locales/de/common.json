@@ -329,6 +329,7 @@
     "loading": "Wird geladen",
     "search": "Suchen",
     "tools": "Filtern & sortieren",
+    "loadMore": "Mehr laden",
     "empty": {
       "title": "Noch nichts vorhanden",
       "description": "Einträge erscheinen hier, sobald es welche gibt."

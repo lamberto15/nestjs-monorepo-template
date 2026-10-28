@@ -6,6 +6,7 @@ import {
   type RowData,
 } from '@tanstack/react-table';
 import { cn } from 'cn';
+import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
@@ -32,6 +33,12 @@ interface DataTableCardsProps<TData extends RowData> {
   onRowClick?: (row: TData) => void;
   className?: string;
   'aria-busy'?: boolean;
+  /**
+   * A "Load more" button in place of the pager while on the first page: each
+   * tap grows the page by `step` rows, up to the API's `max` (`limits.maxLimit`);
+   * past that the pager takes over.
+   */
+  loadMore?: { step: number; max: number };
 }
 
 export function DataTableCards<TData extends RowData>({
@@ -40,6 +47,7 @@ export function DataTableCards<TData extends RowData>({
   onRowClick,
   className,
   'aria-busy': busy,
+  loadMore,
 }: DataTableCardsProps<TData>) {
   const { t } = useTranslation();
   return (
@@ -48,10 +56,16 @@ export function DataTableCards<TData extends RowData>({
         columnOrder: state.columnOrder,
         columnVisibility: state.columnVisibility,
         rowSelection: state.rowSelection,
+        pagination: state.pagination,
       })}
     >
-      {({ rowSelection }) => {
+      {({ rowSelection, pagination }) => {
         const rows = table.getRowModel().rows;
+        const more =
+          loadMore &&
+          pagination.pageIndex === 0 &&
+          pagination.pageSize < loadMore.max &&
+          table.getCanNextPage();
         return (
           <div
             data-slot="data-table-cards"
@@ -74,7 +88,22 @@ export function DataTableCards<TData extends RowData>({
                 {t('list.table.noResults')}
               </p>
             )}
-            <DataTablePagination table={table} />
+            {more ? (
+              <Button
+                variant="outline"
+                className="h-11 w-full"
+                disabled={busy}
+                onClick={() =>
+                  table.setPageSize(
+                    Math.min(pagination.pageSize + loadMore.step, loadMore.max),
+                  )
+                }
+              >
+                {t('list.loadMore')}
+              </Button>
+            ) : (
+              <DataTablePagination table={table} />
+            )}
             {actionBar && getVisibleSelectedRows(table).length > 0
               ? actionBar
               : null}
