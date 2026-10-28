@@ -2,6 +2,8 @@ import { Logger } from '@nestjs/common';
 import type { Confirmer } from './confirm.js';
 import {
   AdminCreateCommand,
+  BacklogCountCommand,
+  BacklogDiscardCommand,
   SettingDeleteCommand,
   TenantListCommand,
   UserListCommand,
@@ -171,5 +173,71 @@ describe('the operator commands', () => {
     expect(everything()).toContain('acme');
     expect(everything()).toContain('a@example.com');
     expect(confirm).not.toHaveBeenCalled();
+  });
+  it('backlog:count prints the outbox and mail groups, kept ones marked, and asks nothing', async () => {
+    const ops = {
+      backlogPreview: vi.fn(async () => ({
+        outbox: {
+          pending: {
+            total: 3,
+            groups: [
+              {
+                topic: 'notifications.deliver',
+                type: 'note.published',
+                count: 2,
+                mandatory: false,
+              },
+              {
+                topic: 'notifications.deliver',
+                type: 'security.passwordChanged',
+                count: 1,
+                mandatory: true,
+              },
+            ],
+          },
+          deadLetters: { total: 0, groups: [] },
+          leased: 1,
+        },
+        mail: {
+          groups: [
+            {
+              state: 'waiting',
+              template: 'NotificationMail',
+              count: 5,
+              essential: 1,
+            },
+          ],
+          capped: false,
+        },
+      })),
+    };
+    await new BacklogCountCommand(ops as unknown as OpsService, confirmer).run(
+      [],
+      { tenant: 'acme' },
+    );
+    expect(ops.backlogPreview).toHaveBeenCalledWith({ tenant: 'acme' });
+    expect(everything()).toContain(
+      '3 pending, 0 dead letter(s), 1 being delivered',
+    );
+    expect(everything()).toMatch(
+      /security\.passwordChanged {2}\(mandatory: kept\)/,
+    );
+    expect(everything()).toMatch(/NotificationMail {2}\(1 essential: kept\)/);
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('backlog:discard confirms the plan, then prints the count', async () => {
+    const discard = plan({ count: 7 });
+    const ops = { backlogAction: vi.fn(async () => discard) };
+    await new BacklogDiscardCommand(
+      ops as unknown as OpsService,
+      confirmer,
+    ).run(['mail'], { global: true, yes: true });
+    expect(ops.backlogAction).toHaveBeenCalledWith('discard', 'mail', {
+      global: true,
+      yes: true,
+    });
+    expect(confirm).toHaveBeenCalledWith(discard, true);
+    expect(everything()).toContain('Discarded 7.');
   });
 });
