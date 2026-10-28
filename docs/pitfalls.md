@@ -73,7 +73,8 @@ set …`, `organizational_unit_closure`, `deleted_at is null`), which no type ch
   (development only; [webhooks-and-realtime.md](webhooks-and-realtime.md), "A receiver on your machine").
 - **The access cache** is per process; `access.invalidate()` publishes to
   every instance. Call it after any change to roles, grants or organizational units.
-- **Express 5 leaves `req.body` undefined** without a body: a schema whose
+- **`req.body` is undefined without a body** (the adapter's parsers, as
+  Express 5's): a schema whose
   fields are all optional goes through `z.preprocess((b) => b ?? {}, …)`.
 - **Local hooks:** `.env*` files can't be written by Claude; `secrets/`
   folders are blocked; a name ending in SECRET, TOKEN or PASSWORD followed by
@@ -112,7 +113,7 @@ set …`, `organizational_unit_closure`, `deleted_at is null`), which no type ch
   top-level `await` in the first import does not make that so.** The SDKs
   (`core/observability/instrument.ts`) `await` their dynamic imports, but a
   module's top-level `await` holds back only the modules that import it: the
-  other imports of `main.ts` (Nest, Express, `pg`, the whole app) were
+  other imports of `main.ts` (Nest, `pg`, the whole app) were
   evaluated while it waited, so `node dist/main` was traced by nothing while
   the e2e suite, which starts the SDKs before it loads the app, looked fine.
   `main.ts` loads the app with `await import()` after the SDKs; a static

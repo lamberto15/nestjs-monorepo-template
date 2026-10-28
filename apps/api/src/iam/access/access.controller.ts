@@ -18,7 +18,7 @@ import {
   CurrentUser,
   type SessionRecord,
 } from '@nestjs/authentication';
-import type { Response } from 'express';
+import type { NodeResponse as Response } from '@nestjs/platform-node';
 import { Can } from '@nestjs/authorization';
 import {
   ApiAcceptedResponse,

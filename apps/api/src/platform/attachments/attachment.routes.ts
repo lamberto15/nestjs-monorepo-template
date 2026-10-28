@@ -20,7 +20,7 @@ import {
 import { CurrentUser } from '@nestjs/authentication';
 import { Can } from '@nestjs/authorization';
 import type { StoredUpload } from '@nestjs/storage';
-import type { Request } from 'express';
+import type { IncomingMessage } from 'node:http';
 import {
   ApiBadRequestResponse,
   ApiBody,
@@ -316,7 +316,7 @@ export function attachmentRoutes(spec: RecordRouteSpec): Type {
       @Param('id', ParseUUIDPipe) id: string,
       @Param('uploadId', ParseUUIDPipe) uploadId: string,
       @Query({ schema: uploadChunkQuerySchema }) query: { offset: number },
-      @Req() request: Request,
+      @Req() request: IncomingMessage,
     ) {
       return this.uploads.append(
         user,

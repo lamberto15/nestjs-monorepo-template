@@ -1554,9 +1554,9 @@ verified (a wrong key is a plain 401), and audited as `client.ip-denied`
 once per client and address an hour (Redis `NX`). A malformed CIDR is a 400
 `invalid_cidr`; a change is audited as `client.allowlist-changed`. Matching
 is Node's `net.BlockList` (an IPv4-mapped IPv6 address, `::ffff:203.0.113.9`,
-matches IPv4 rules). The address is Express's `req.ip`: the app trusts
-`X-Forwarded-For` only from loopback and private networks (`trust proxy`,
-`core/http/http-setup.ts`), so it must run behind a proxy that sets the
+matches IPv4 rules). The address is the request's `req.ip`: the app trusts
+`X-Forwarded-For` only from loopback and private networks (the adapter's
+`trustProxy`, `core/http/http-setup.ts`), so it must run behind a proxy that sets the
 header, as the bundled Caddy does, and that proxy must be the only way in. A
 header the caller adds is ignored: the address is the last one a trusted
 hop did not vouch for. Direct to the app, without a proxy, the peer's own
