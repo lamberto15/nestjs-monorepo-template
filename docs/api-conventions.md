@@ -448,6 +448,13 @@ repeating the declaration:
 - **Document templates:** `documentTemplates` lists the templates a record's
   PDF is issued from, one item per template and language (`?lang=` of
   `POST …/{id}/pdf`), for a picker; null when `capabilities.pdf` is false.
+- **Record views:** `views` is `{ board?, calendar?, timeline? }` for the
+  views besides the table a subject declares (null: none), each naming list
+  fields: `board.field` (an enum), `calendar.fields` (`date` or `datetime`),
+  `timeline.start` and `.end`; `readOnly` says the board's or calendar's
+  field is not changed through `PATCH`. A view is left out when its fields
+  are hidden from the caller or lack the operators its bounded query needs
+  ([saved-views](saved-views.md), "Record views").
 
 ## Using it from a data table
 

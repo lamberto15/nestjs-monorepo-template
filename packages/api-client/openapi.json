@@ -3644,6 +3644,44 @@
         ]
       }
     },
+    "/v1/webhook-incoming-event-types": {
+      "get": {
+        "description": "Incoming events only; the events an endpoint receives are `GET /v1/webhook-event-types`. Generated from the registered handlers, so it matches what the receiver validates. A listed type is not a permission. A type not listed is acknowledged and ignored (`handled: false`).",
+        "operationId": "IncomingEventTypesController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncomingWebhookEventTypes"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (an API key is none)."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "The event types a sender may send in, with their data schemas",
+        "tags": [
+          "incoming webhooks",
+          "access"
+        ]
+      }
+    },
     "/v1/webhooks/tenants/{tenantId}/senders/{name}": {
       "post": {
         "description": "Signed with Standard Webhooks (webhook-id, webhook-timestamp, webhook-signature) using the secret of the sender registered at POST /v1/webhook-senders. The body is `{ type, data }`. A redelivered webhook-id is answered 200 and not processed again.",
@@ -7061,6 +7099,189 @@
         ]
       }
     },
+    "/v1/ops/diagnostics": {
+      "get": {
+        "description": "Each one ok, configured (set up, not probed: run its test), disabled, unconfigured or unavailable, with a hint. Built from switches and driver names: no URL, host credential or key is ever in it; errors are masked as in the logs and cut.",
+        "operationId": "OpsController_diagnosticsOverview_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "check": {
+                            "type": "string",
+                            "enum": [
+                              "database",
+                              "redis",
+                              "workers",
+                              "mail",
+                              "storage",
+                              "realtime"
+                            ]
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "ok",
+                              "configured",
+                              "disabled",
+                              "unconfigured",
+                              "unavailable"
+                            ]
+                          },
+                          "driver": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "detail": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "hint": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "testable": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "check",
+                          "state",
+                          "driver",
+                          "detail",
+                          "hint",
+                          "testable"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "canTest": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "canTest"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "operator_required: the caller does not act in the operator tenant.\n\nNot allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Integration diagnostics: database, Redis, workers, mail, storage, realtime",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/v1/ops/diagnostics/{check}/test": {
+      "post": {
+        "description": "SMTP: connects, authenticates and says QUIT. Storage: writes, reads and deletes a probe file. Database, Redis, realtime: a ping; workers: at least one connected. A failure answers 200 with ok false and the masked reason. 400 not_testable when the configuration has nothing to probe. 10 per minute per user. Audited.",
+        "operationId": "OpsController_testDiagnostic_v1",
+        "parameters": [
+          {
+            "name": "check",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "check": {
+                      "type": "string",
+                      "enum": [
+                        "database",
+                        "redis",
+                        "workers",
+                        "mail",
+                        "storage",
+                        "realtime"
+                      ]
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "durationMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "hint": {
+                      "nullable": true,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "check",
+                    "ok",
+                    "durationMs",
+                    "detail",
+                    "hint"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "operator_required: the caller does not act in the operator tenant.\n\nNot allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Test one integration now (safe: sends nothing, keeps nothing)",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
     "/v1/ops/queues/{name}/retry-failed": {
       "post": {
         "operationId": "OpsController_retryFailed_v1",
@@ -7246,6 +7467,719 @@
         "summary": "Delete dead letters (these ids, or all)",
         "tags": [
           "ops"
+        ]
+      }
+    },
+    "/v1/config-bundles/export": {
+      "get": {
+        "description": "Tenant-scope setting values (flag rollouts and rules, a role condition by role name) and the custom roles with their permissions, with a SHA-256 checksum. No secrets, users, grants, API clients or records.",
+        "operationId": "ConfigBundlesController_export_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "format": {
+                      "type": "string",
+                      "enum": [
+                        "config-bundle"
+                      ]
+                    },
+                    "version": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "exportedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "checksum": {
+                      "type": "string",
+                      "pattern": "^sha256:[0-9a-f]{64}$"
+                    },
+                    "contents": {
+                      "type": "object",
+                      "properties": {
+                        "settings": {
+                          "maxItems": 1000,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              "value": {},
+                              "rollout": {
+                                "nullable": true,
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 100
+                              },
+                              "rules": {
+                                "maxItems": 50,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": {}
+                                }
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "value",
+                              "rollout",
+                              "rules"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "roles": {
+                          "maxItems": 200,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 80
+                              },
+                              "description": {
+                                "type": "string",
+                                "maxLength": 500
+                              },
+                              "permissions": {
+                                "maxItems": 100,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "subject": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "action": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "conditions": {
+                                      "maxItems": 10,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "key": {
+                                            "type": "string",
+                                            "minLength": 1
+                                          },
+                                          "params": {
+                                            "type": "object",
+                                            "additionalProperties": {}
+                                          }
+                                        },
+                                        "required": [
+                                          "key"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "fields": {
+                                      "maxItems": 50,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "subject",
+                                    "action",
+                                    "conditions"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "description",
+                              "permissions"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "settings",
+                        "roles"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "format",
+                    "version",
+                    "exportedAt",
+                    "checksum",
+                    "contents"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "This tenant's settings and custom roles as a bundle",
+        "tags": [
+          "config-bundles"
+        ]
+      }
+    },
+    "/v1/config-bundles/preview": {
+      "post": {
+        "description": "Validates the bundle against this deployment (format, checksum, declared settings, their values, the permission catalog) and diffs it against this tenant. Changes nothing. Hand `targetVersion` to apply.",
+        "operationId": "ConfigBundlesController_preview_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bundle": {
+                    "type": "object",
+                    "properties": {
+                      "format": {
+                        "type": "string",
+                        "enum": [
+                          "config-bundle"
+                        ]
+                      },
+                      "version": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "exportedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      },
+                      "checksum": {
+                        "type": "string",
+                        "pattern": "^sha256:[0-9a-f]{64}$"
+                      },
+                      "contents": {
+                        "type": "object",
+                        "properties": {
+                          "settings": {
+                            "maxItems": 1000,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "value": {},
+                                "rollout": {
+                                  "nullable": true,
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                "rules": {
+                                  "maxItems": 50,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                  }
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "value",
+                                "rollout",
+                                "rules"
+                              ]
+                            }
+                          },
+                          "roles": {
+                            "maxItems": 200,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 80
+                                },
+                                "description": {
+                                  "type": "string",
+                                  "maxLength": 500
+                                },
+                                "permissions": {
+                                  "maxItems": 100,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "subject": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "action": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "conditions": {
+                                        "maxItems": 10,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "key": {
+                                              "type": "string",
+                                              "minLength": 1
+                                            },
+                                            "params": {
+                                              "type": "object",
+                                              "additionalProperties": {}
+                                            }
+                                          },
+                                          "required": [
+                                            "key"
+                                          ]
+                                        }
+                                      },
+                                      "fields": {
+                                        "maxItems": 50,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "subject",
+                                      "action",
+                                      "conditions"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "description",
+                                "permissions"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "settings",
+                          "roles"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "format",
+                      "version",
+                      "exportedAt",
+                      "checksum",
+                      "contents"
+                    ]
+                  }
+                },
+                "required": [
+                  "bundle"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "valid": {
+                      "type": "boolean"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ref": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "ref",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ref": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "ref",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "changes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "setting",
+                              "role"
+                            ]
+                          },
+                          "ref": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "create",
+                              "update",
+                              "unchanged"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "ref",
+                          "action"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "targetVersion": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "valid",
+                    "errors",
+                    "warnings",
+                    "changes",
+                    "targetVersion"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "What applying a bundle here would change (a dry run)",
+        "tags": [
+          "config-bundles"
+        ]
+      }
+    },
+    "/v1/config-bundles/apply": {
+      "post": {
+        "description": "Roles first, then settings, in one transaction, each through its own checks and audit entry, plus one config-bundle.applied entry. Additive: nothing the bundle lacks is removed.",
+        "operationId": "ConfigBundlesController_apply_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bundle": {
+                    "type": "object",
+                    "properties": {
+                      "format": {
+                        "type": "string",
+                        "enum": [
+                          "config-bundle"
+                        ]
+                      },
+                      "version": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "exportedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      },
+                      "checksum": {
+                        "type": "string",
+                        "pattern": "^sha256:[0-9a-f]{64}$"
+                      },
+                      "contents": {
+                        "type": "object",
+                        "properties": {
+                          "settings": {
+                            "maxItems": 1000,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "value": {},
+                                "rollout": {
+                                  "nullable": true,
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                "rules": {
+                                  "maxItems": 50,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                  }
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "value",
+                                "rollout",
+                                "rules"
+                              ]
+                            }
+                          },
+                          "roles": {
+                            "maxItems": 200,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 80
+                                },
+                                "description": {
+                                  "type": "string",
+                                  "maxLength": 500
+                                },
+                                "permissions": {
+                                  "maxItems": 100,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "subject": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "action": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "conditions": {
+                                        "maxItems": 10,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "key": {
+                                              "type": "string",
+                                              "minLength": 1
+                                            },
+                                            "params": {
+                                              "type": "object",
+                                              "additionalProperties": {}
+                                            }
+                                          },
+                                          "required": [
+                                            "key"
+                                          ]
+                                        }
+                                      },
+                                      "fields": {
+                                        "maxItems": 50,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "subject",
+                                      "action",
+                                      "conditions"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "description",
+                                "permissions"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "settings",
+                          "roles"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "format",
+                      "version",
+                      "exportedAt",
+                      "checksum",
+                      "contents"
+                    ]
+                  },
+                  "targetVersion": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                },
+                "required": [
+                  "bundle",
+                  "targetVersion"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "created": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "updated": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "unchanged": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "created",
+                    "updated",
+                    "unchanged"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "validation_failed: the bundle is invalid here (the preview lists why)."
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "409": {
+            "description": "config_changed: the tenant changed since the preview."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Apply a previewed bundle to this tenant, all or nothing",
+        "tags": [
+          "config-bundles"
         ]
       }
     },
@@ -7706,6 +8640,10 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 80
+                  },
+                  "mapping": {
+                    "description": "A JSON object: the file's headers to the template's columns (`{\"Surname\": \"lastName\", \"Notes\": null}`; null ignores a column). Checked as a saved mapping is; the import then runs as usual (`dryRun` included). A date-time target takes the file's zone: `\"dueAt (Asia/Dubai)\"`.",
+                    "type": "string"
                   },
                   "dryRun": {
                     "description": "true: check every row, write nothing.",
@@ -16747,6 +17685,75 @@
                       "additionalProperties": false,
                       "description": "What the subject's records take, from their declaration (`<item>.record.ts`): a client shows a record's panels (comments, attachments, tags, revisions, PDF, approvals…) only where they are true. Whether the caller may use one on a record is the record's `can` (`?include=can`) and the routes' answers."
                     },
+                    "views": {
+                      "nullable": true,
+                      "description": "The views besides the table that this subject declares and this caller can use: a field they may not filter by leaves its view out. Null when none. Fetch their records with the list route, bounded by `filter` on the fields named here.",
+                      "type": "object",
+                      "properties": {
+                        "board": {
+                          "type": "object",
+                          "properties": {
+                            "field": {
+                              "type": "string",
+                              "description": "The enum field whose values are the board's columns.",
+                              "example": "status"
+                            },
+                            "readOnly": {
+                              "type": "boolean",
+                              "description": "The cards are not moved: the field is not changed through `PATCH`."
+                            }
+                          },
+                          "required": [
+                            "field",
+                            "readOnly"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "calendar": {
+                          "type": "object",
+                          "properties": {
+                            "fields": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "The `date` (all-day) and `datetime` fields to plan by, one at a time.",
+                              "example": [
+                                "dueAt"
+                              ]
+                            },
+                            "readOnly": {
+                              "type": "boolean",
+                              "description": "The dates are not changed through `PATCH`."
+                            }
+                          },
+                          "required": [
+                            "fields",
+                            "readOnly"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "timeline": {
+                          "type": "object",
+                          "properties": {
+                            "start": {
+                              "type": "string",
+                              "description": "The field a bar starts at."
+                            },
+                            "end": {
+                              "type": "string",
+                              "description": "The field a bar ends at; empty: the bar is still open."
+                            }
+                          },
+                          "required": [
+                            "start",
+                            "end"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    },
                     "attachmentLimits": {
                       "nullable": true,
                       "description": "What a record's attachment may be, as the upload route enforces it; null when the subject takes no attachments.",
@@ -16821,6 +17828,7 @@
                     "defaultSort",
                     "limits",
                     "capabilities",
+                    "views",
                     "attachmentLimits",
                     "documentTemplates"
                   ],
@@ -17330,6 +18338,385 @@
         "summary": "Remove an attachment",
         "tags": [
           "attachments"
+        ]
+      }
+    },
+    "/v1/attachments/{id}/acknowledgment-requests": {
+      "post": {
+        "description": "Whoever may change the document's record. Each person is asked about its current version (`version`; 1 while attachments are unversioned); those already asked keep their answer. They must be members who may read the record. They are told (`acknowledgment.requested`). Audited. An acknowledgment records that the person confirmed reading that version, and when; it is not a signature.",
+        "operationId": "AttachmentAcknowledgmentsController_request_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "recipients": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^user:[0-9a-f-]{36}$"
+                    },
+                    "description": "The people asked, as `user:<id>` (GET /v1/people)."
+                  },
+                  "dueAt": {
+                    "description": "The deadline; in the future. Asking again replaces it.",
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  }
+                },
+                "required": [
+                  "recipients"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentAcknowledgment"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A recipient is not a member who may read it (acknowledgment_recipient_invalid), or the deadline is past (acknowledgment_due_in_past)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not change its record."
+          },
+          "404": {
+            "description": "No such document, or its record may not be read."
+          },
+          "409": {
+            "description": "More than 500 people for one version (acknowledgment_limit)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Ask people to acknowledge a document",
+        "tags": [
+          "acknowledgments"
+        ]
+      }
+    },
+    "/v1/attachments/{id}/acknowledgments": {
+      "get": {
+        "description": "Whoever may change the document's record: counts and each person's state for a version (`?version=`, default the current).",
+        "operationId": "AttachmentAcknowledgmentsController_status_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentAcknowledgmentStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not change its record."
+          },
+          "404": {
+            "description": "No such document, or its record may not be read."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "A document's acknowledgments (completion dashboard)",
+        "tags": [
+          "acknowledgments"
+        ]
+      }
+    },
+    "/v1/attachments/{id}/acknowledgments/remind": {
+      "post": {
+        "description": "Whoever may change the record. Everyone still waiting, or the named `recipients`; nobody twice within 24 hours (`skipped`). Told with `acknowledgment.reminder`. Audited.",
+        "operationId": "AttachmentAcknowledgmentsController_remind_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "recipients": {
+                    "description": "Only these; default: everyone who has not acknowledged.",
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentAcknowledgmentReminders"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not change its record."
+          },
+          "404": {
+            "description": "No such document, or its record may not be read."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Remind those who have not acknowledged",
+        "tags": [
+          "acknowledgments"
+        ]
+      }
+    },
+    "/v1/attachments/{id}/acknowledgments/{acknowledgmentId}": {
+      "delete": {
+        "description": "Whoever may change the record. Only one nobody has answered; an answer stays. Audited.",
+        "operationId": "AttachmentAcknowledgmentsController_withdraw_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "acknowledgmentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such document, or its record may not be read."
+          },
+          "409": {
+            "description": "Already acknowledged (acknowledgment_answered)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Withdraw a request",
+        "tags": [
+          "acknowledgments"
+        ]
+      }
+    },
+    "/v1/attachments/{id}/acknowledge": {
+      "post": {
+        "description": "The person asked, for the document's current version; acknowledging again changes nothing. A 404 for anyone nobody asked. Audited (`acknowledgment.acknowledged`).",
+        "operationId": "AttachmentAcknowledgmentsController_acknowledge_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentAcknowledgment"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such document, or its record may not be read."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Acknowledge a document",
+        "tags": [
+          "acknowledgments"
+        ]
+      }
+    },
+    "/v1/acknowledgments": {
+      "get": {
+        "description": "Newest first, at most 100, for documents whose record you may read: `?status=pending` (default) or `acknowledged`.",
+        "operationId": "MyAcknowledgmentsController_mine_v1",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "pending",
+              "type": "string",
+              "enum": [
+                "pending",
+                "acknowledged"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyDocumentAcknowledgmentList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Acknowledgments asked of me",
+        "tags": [
+          "acknowledgments"
         ]
       }
     },
@@ -20185,6 +21572,197 @@
         "summary": "Unpin a favorite",
         "tags": [
           "favorites"
+        ]
+      }
+    },
+    "/v1/data/imports/{name}/mappings": {
+      "get": {
+        "description": "The tenant’s, by name. `stale` lists the targets you may no longer import (the schema or your permissions changed since): use the mapping only after changing them.",
+        "operationId": "ImportMappingsController_list_v1",
+        "parameters": [
+          {
+            "name": "name",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ImportMapping"
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Nothing to import by that name."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The saved column mappings of an import",
+        "tags": [
+          "data"
+        ]
+      },
+      "post": {
+        "description": "Checked as an import would be: every target a column you may fill, none twice. At most 50 per import. Audited (`importMapping.created`).",
+        "operationId": "ImportMappingsController_create_v1",
+        "parameters": [
+          {
+            "name": "name",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "example": "CRM export"
+                  },
+                  "mapping": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "description": "The file's headers to the template's columns: `{ \"Surname\": \"lastName\", \"Notes\": null }` (null: ignore the column). A header not named keeps its own name. A date-time column takes the zone of the file's times as the template's header does: `{ \"When\": \"dueAt (Asia/Dubai)\" }`.",
+                    "example": {
+                      "Title": "title",
+                      "Internal": null
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "mapping"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportMapping"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A target you cannot import, a target twice, or too many saved."
+          },
+          "404": {
+            "description": "Nothing to import by that name."
+          },
+          "409": {
+            "description": "The name is taken (conflict)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Save a column mapping",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/v1/data/imports/{name}/mappings/{id}": {
+      "delete": {
+        "description": "Audited (`importMapping.deleted`).",
+        "operationId": "ImportMappingsController_remove_v1",
+        "parameters": [
+          {
+            "name": "name",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Delete a saved column mapping",
+        "tags": [
+          "data"
         ]
       }
     },
@@ -46279,7 +47857,7 @@
     },
     "/v1/notes/{id}/comments": {
       "get": {
-        "description": "Cursor pages; `?sort=-createdAt` for newest first, `?author=user:<id>`, `?createdAt.gte=`.",
+        "description": "Cursor pages, replies included (each has `parentId`); `?sort=-createdAt` for newest first, `?author=user:<id>`, `?createdAt.gte=`, `?parentId=<comment id>` (one thread's replies) or `?parentId.isNull=true` (the threads), `?resolvedAt.isNull=true` (open) or `=false` (resolved).",
         "operationId": "NoteCommentsController_list_v1",
         "parameters": [
           {
@@ -46364,6 +47942,62 @@
             "description": "Filter: author in",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "parentId",
+            "required": false,
+            "in": "query",
+            "description": "Filter: parentId =",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "parentId.isNull",
+            "required": false,
+            "in": "query",
+            "description": "Filter: parentId isNull",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "resolvedAt.isNull",
+            "required": false,
+            "in": "query",
+            "description": "Filter: resolvedAt isNull",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "resolvedAt.gte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: resolvedAt gte",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "resolvedAt.lte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: resolvedAt lte",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -46468,7 +48102,7 @@
             "name": "filter",
             "required": false,
             "in": "query",
-            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"author\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: author (eq, in); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"author\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: author (eq, in); parentId (eq, isNull); resolvedAt (isNull, gte, lte); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
             "schema": {
               "type": "string",
               "maxLength": 20000
@@ -46488,7 +48122,7 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, authorName, body, mentions, mentionNames, editedAt, createdAt, updatedAt.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, authorName, body, mentions, mentionNames, editedAt, parentId, resolvedAt, resolvedBy, createdAt, updatedAt.",
             "schema": {
               "type": "string"
             }
@@ -46529,7 +48163,7 @@
         ]
       },
       "post": {
-        "description": "Mention people with `@<email>` or `@user:<id>`: those who may read the note are told (`comment.mentioned`); the note's watchers hear `note.commented`. Your first comment on a note makes you watch it. Audited.",
+        "description": "Mention people with `@<email>` or `@user:<id>`: those who may read the note are told (`comment.mentioned`); the note's watchers hear `note.commented`. Your first comment on a note makes you watch it. `parentId` answers a top-level comment (one level of replies; its author is told, `comment.replied`). Audited.",
         "operationId": "NoteCommentsController_add_v1",
         "parameters": [
           {
@@ -46553,6 +48187,12 @@
                     "minLength": 1,
                     "maxLength": 10000,
                     "example": "Looks good to me, @ada@example.com: can you check the numbers?"
+                  },
+                  "parentId": {
+                    "description": "Answer this top-level comment of the same record (a reply to a reply is refused: threads are one level deep).",
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                   }
                 },
                 "required": [
@@ -46574,7 +48214,70 @@
             }
           },
           "400": {
-            "description": "An empty body, or longer than 10 000 characters."
+            "description": "An empty body, or longer than 10 000 characters; or `parentId` is itself a reply (comment_reply_too_deep)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not read the note."
+          },
+          "404": {
+            "description": "No such note (or comment)."
+          },
+          "409": {
+            "description": "The thread is resolved (comment_thread_resolved) or holds 200 replies (comment_thread_full)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Comment on a note",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/v1/notes/{id}/comments/{commentId}/resolve": {
+      "post": {
+        "description": "The thread's author, or whoever may change the note (`Note.update`). Sets `resolvedAt`/`resolvedBy` on the top-level comment; repeating it changes nothing. Audited (`comment.resolved`).",
+        "operationId": "NoteCommentsController_resolve_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "commentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A reply, not a thread (comment_not_thread)."
           },
           "401": {
             "description": "No valid API key or session."
@@ -46594,7 +48297,67 @@
             "api-key": []
           }
         ],
-        "summary": "Comment on a note",
+        "summary": "Resolve a thread",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/v1/notes/{id}/comments/{commentId}/reopen": {
+      "post": {
+        "description": "As resolving it. Audited (`comment.reopened`).",
+        "operationId": "NoteCommentsController_reopen_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "commentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A reply, not a thread (comment_not_thread)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not read the note."
+          },
+          "404": {
+            "description": "No such note (or comment)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Reopen a resolved thread",
         "tags": [
           "notes"
         ]
@@ -46681,7 +48444,7 @@
         ]
       },
       "delete": {
-        "description": "Its author, or whoever may change the note (`Note.update`). For good; audited.",
+        "description": "Its author, or whoever may change the note (`Note.update`). For good; audited. Removing a thread's top-level comment removes its replies too.",
         "operationId": "NoteCommentsController_remove_v1",
         "parameters": [
           {
@@ -48756,6 +50519,62 @@
         ],
         "additionalProperties": false
       },
+      "IncomingWebhookEventTypes": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "example": "note.publish-requested"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "dataSchema": {
+                  "type": "object",
+                  "additionalProperties": {},
+                  "description": "JSON Schema of the envelope's `data`."
+                },
+                "example": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "data": {}
+                  },
+                  "required": [
+                    "type",
+                    "data"
+                  ],
+                  "additionalProperties": false,
+                  "description": "A complete, safe request body."
+                },
+                "delivery": {
+                  "type": "string",
+                  "description": "Deduplication and acknowledgement semantics."
+                }
+              },
+              "required": [
+                "type",
+                "description",
+                "dataSchema",
+                "example",
+                "delivery"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
       "IncomingWebhookResult": {
         "type": "object",
         "properties": {
@@ -48777,6 +50596,258 @@
           "received",
           "duplicate",
           "handled"
+        ],
+        "additionalProperties": false
+      },
+      "DocumentAcknowledgment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "attachmentId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "recipient": {
+            "type": "string"
+          },
+          "recipientName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "requestedBy": {
+            "type": "string"
+          },
+          "dueAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "overdue": {
+            "type": "boolean",
+            "description": "Not acknowledged, and past `dueAt`."
+          },
+          "reminders": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "lastRemindedAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "acknowledgedAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "attachmentId",
+          "version",
+          "recipient",
+          "recipientName",
+          "requestedBy",
+          "dueAt",
+          "overdue",
+          "reminders",
+          "lastRemindedAt",
+          "acknowledgedAt",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "DocumentAcknowledgmentStatus": {
+        "type": "object",
+        "properties": {
+          "attachmentId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "acknowledged": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pending": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "overdue": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DocumentAcknowledgment"
+            }
+          }
+        },
+        "required": [
+          "attachmentId",
+          "version",
+          "total",
+          "acknowledged",
+          "pending",
+          "overdue",
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "DocumentAcknowledgmentReminders": {
+        "type": "object",
+        "properties": {
+          "reminded": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "skipped": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Reminded in the last 24 hours already."
+          }
+        },
+        "required": [
+          "reminded",
+          "skipped"
+        ],
+        "additionalProperties": false
+      },
+      "MyDocumentAcknowledgmentList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MyDocumentAcknowledgment"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "MyDocumentAcknowledgment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "attachmentId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "recipient": {
+            "type": "string"
+          },
+          "recipientName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "requestedBy": {
+            "type": "string"
+          },
+          "dueAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "overdue": {
+            "type": "boolean",
+            "description": "Not acknowledged, and past `dueAt`."
+          },
+          "reminders": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "lastRemindedAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "acknowledgedAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "document": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "recordId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "subject",
+              "recordId"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "attachmentId",
+          "version",
+          "recipient",
+          "recipientName",
+          "requestedBy",
+          "dueAt",
+          "overdue",
+          "reminders",
+          "lastRemindedAt",
+          "acknowledgedAt",
+          "createdAt",
+          "document"
         ],
         "additionalProperties": false
       },
@@ -49360,6 +51431,56 @@
         ],
         "additionalProperties": false
       },
+      "ImportMapping": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "importer": {
+            "type": "string",
+            "example": "notes"
+          },
+          "name": {
+            "type": "string"
+          },
+          "mapping": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true,
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "description": "The file's headers to the template's columns: `{ \"Surname\": \"lastName\", \"Notes\": null }` (null: ignore the column). A header not named keeps its own name. A date-time column takes the zone of the file's times as the template's header does: `{ \"When\": \"dueAt (Asia/Dubai)\" }`.",
+            "example": {
+              "Title": "title",
+              "Internal": null
+            }
+          },
+          "stale": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Targets that are no longer columns you may import (the schema changed, or your permissions did): saving or using the mapping as it is would be refused; change them first."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "importer",
+          "name",
+          "mapping",
+          "stale",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
       "RetentionRuleList": {
         "type": "object",
         "properties": {
@@ -49932,6 +52053,23 @@
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
           },
+          "parentId": {
+            "nullable": true,
+            "description": "The top-level comment this one answers; null for a top-level comment.",
+            "type": "string"
+          },
+          "resolvedAt": {
+            "nullable": true,
+            "description": "When its thread was resolved; null if open (always null on a reply).",
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "resolvedBy": {
+            "nullable": true,
+            "description": "Who resolved the thread: `user:<id>` or `client:<id>`.",
+            "type": "string"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -49953,6 +52091,9 @@
           "mentions",
           "mentionNames",
           "editedAt",
+          "parentId",
+          "resolvedAt",
+          "resolvedBy",
           "createdAt",
           "updatedAt"
         ],

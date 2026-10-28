@@ -7,17 +7,18 @@ import {
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Page, PageHeader } from '@/components/page-header';
+import { DiagnosticsPanel } from './diagnostics-panel';
 import { EventsPanel } from './events-panel';
 import { OutboxPanel } from './outbox-panel';
 import { QueuesPanel } from './queues-panel';
 
-const tabs = ['queues', 'outbox', 'events'] as const;
+const tabs = ['queues', 'outbox', 'events', 'diagnostics'] as const;
 type Tab = (typeof tabs)[number];
 
 /**
  * What runs in the background, for the deployment's operators: the job
  * queues, the outbox with its dead letters, and a live log of every
- * engine's events. Only the open tab is mounted, so the live stream (and
+ * engine's events, and the integrations' diagnostics. Only the open tab is mounted, so the live stream (and
  * the polling of the other two) runs only while it is looked at.
  */
 export function OpsPage() {
@@ -44,6 +45,9 @@ export function OpsPage() {
         </TabsContent>
         <TabsContent value="events">
           <EventsPanel />
+        </TabsContent>
+        <TabsContent value="diagnostics">
+          <DiagnosticsPanel />
         </TabsContent>
       </Tabs>
     </Page>

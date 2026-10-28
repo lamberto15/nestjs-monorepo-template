@@ -1,0 +1,14 @@
+{
+  "title": "设置你的组织",
+  "progress": "已完成 {{done}} / {{total}} 步",
+  "done": "已完成",
+  "todo": "待办",
+  "steps": {
+    "invite": "邀请你的团队",
+    "roles": "创建自定义角色",
+    "units": "设置组织单元",
+    "branding": "添加品牌",
+    "tags": "创建标签",
+    "customFields": "定义自定义字段"
+  }
+}
