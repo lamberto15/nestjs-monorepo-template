@@ -10,7 +10,12 @@ const slug = z
     message: 'Lowercase letters, digits and single dashes.',
   })
   .meta({ example: 'incident-report' });
-const name = z.string().trim().min(1).max(200).meta({ example: 'Incident report' });
+const name = z
+  .string()
+  .trim()
+  .min(1)
+  .max(200)
+  .meta({ example: 'Incident report' });
 const description = z.string().trim().max(2_000);
 const revision = z
   .int()
@@ -122,7 +127,9 @@ export const formSubmissionSchema = z.object({
   id: z.uuid(),
   formId: z.uuid(),
   versionId: z.uuid(),
-  version: z.int().describe('Read its definition at GET /forms/{id}/versions/{version}.'),
+  version: z
+    .int()
+    .describe('Read its definition at GET /forms/{id}/versions/{version}.'),
   submittedBy: z.string().describe('`user:<id>` or `client:<id>`.'),
   status: z.enum(['submitted']),
   answers: z.record(z.string(), z.unknown()),

@@ -81,8 +81,10 @@ export const versionView = (row: FormVersionRow) => ({
 });
 
 /** What a draft or a published definition must pass beyond its shape. */
-const issuesOf = (definition: FormDefinition, keyTypes: Record<string, string>) =>
-  definitionIssues(definition, keyTypes, defaultIssue);
+const issuesOf = (
+  definition: FormDefinition,
+  keyTypes: Record<string, string>,
+) => definitionIssues(definition, keyTypes, defaultIssue);
 
 /** Who may do what, once per request: the four rights are independent (form.policy.ts). */
 export interface FormRights {
@@ -270,7 +272,10 @@ export class FormsService {
           details: Object.fromEntries(
             Object.keys(changes).map((key) => [
               key,
-              { from: current[key as keyof FormRow], to: changes[key as keyof UpdateFormDto] },
+              {
+                from: current[key as keyof FormRow],
+                to: changes[key as keyof UpdateFormDto],
+              },
             ]),
           ),
           ip,
@@ -372,7 +377,10 @@ export class FormsService {
       }
       const issues = issuesOf(form.draft, form.keyTypes);
       if (fieldsOf(form.draft).length === 0) {
-        issues.push({ path: 'sections', message: 'A form needs a field to be published.' });
+        issues.push({
+          path: 'sections',
+          message: 'A form needs a field to be published.',
+        });
       }
       if (issues.length) {
         throw invalid(issues, 'definition');
@@ -492,9 +500,13 @@ export class FormsService {
     const [row] = await this.db
       .select()
       .from(formVersions)
-      .where(and(eq(formVersions.formId, id), eq(formVersions.version, version)));
+      .where(
+        and(eq(formVersions.formId, id), eq(formVersions.version, version)),
+      );
     if (!row) {
-      throw new NotFoundException(`Version ${version} of form ${id} not found.`);
+      throw new NotFoundException(
+        `Version ${version} of form ${id} not found.`,
+      );
     }
     return versionView(row);
   }

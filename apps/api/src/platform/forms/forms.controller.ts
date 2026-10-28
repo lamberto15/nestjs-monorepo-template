@@ -60,7 +60,7 @@ import { FormsService } from './forms.service.js';
 const INVALID =
   'The definition breaks a rule, each at its path (`definition.sections.0.fields.2.options`): duplicate keys, a choice without options, a default of the wrong type, a pattern RE2 refuses, HTML in a label, a published key with another type, a limit (validation_failed).';
 const CONFLICT =
-  'The revision you edited is not the form\'s any more (form_conflict, with the current `revision`): read it again.';
+  "The revision you edited is not the form's any more (form_conflict, with the current `revision`): read it again.";
 
 /**
  * Runtime forms: drafts, immutable published versions, archive. Off until

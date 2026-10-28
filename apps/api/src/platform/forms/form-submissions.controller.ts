@@ -103,7 +103,7 @@ export class FormSubmissionsController {
   @ApiOperation({
     summary: "A form's submissions",
     description:
-      'Everyone\'s with `Form.readResponses`, else your own (`Form.submit`). `?versionId=`, `?submittedBy=`, `?createdAt.gte=`; newest first, cursor pages. Never filtered by answers.',
+      "Everyone's with `Form.readResponses`, else your own (`Form.submit`). `?versionId=`, `?submittedBy=`, `?createdAt.gte=`; newest first, cursor pages. Never filtered by answers.",
   })
   @ApiOkResponse({ standardSchema: pageSchema(formSubmissionSchema) })
   @ApiNotFoundResponse()

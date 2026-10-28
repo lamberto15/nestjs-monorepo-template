@@ -65,8 +65,12 @@ export const FORM_KEY_PATTERN = /^[a-z][a-z0-9_]{0,49}$/;
 
 /** Something a browser could read as markup: labels are plain text, never HTML. */
 const MARKUP = /<\s*[a-zA-Z!/?]/;
-/** Control characters but tab and line breaks. */
-const CONTROL = new RegExp('[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f]');
+/** Whether the text has a control character but tab and line breaks (by code, not a regex of them). */
+const hasControl = (value: string) =>
+  [...value].some((char) => {
+    const code = char.codePointAt(0)!;
+    return (code < 0x20 && ![0x09, 0x0a, 0x0d].includes(code)) || code === 0x7f;
+  });
 
 /** Plain text of at most `max` characters: no markup, no control characters. */
 const plainText = (max: number) =>
@@ -77,7 +81,7 @@ const plainText = (max: number) =>
     .refine((value) => !MARKUP.test(value), {
       message: 'Plain text only: no HTML tags.',
     })
-    .refine((value) => !CONTROL.test(value), {
+    .refine((value) => !hasControl(value), {
       message: 'No control characters.',
     });
 
@@ -136,20 +140,19 @@ const validationSchema = z
 export type FormFieldValidation = z.infer<typeof validationSchema>;
 
 /** Which `validation` keys each type takes. */
-const VALIDATION_KEYS: Record<FormFieldType, (keyof FormFieldValidation)[]> =
-  {
-    text: ['minLength', 'maxLength', 'pattern'],
-    textarea: ['minLength', 'maxLength', 'pattern'],
-    email: ['minLength', 'maxLength', 'pattern'],
-    url: ['minLength', 'maxLength', 'pattern'],
-    integer: ['min', 'max'],
-    decimal: ['min', 'max', 'decimals'],
-    date: ['minDate', 'maxDate'],
-    checkbox: [],
-    select: [],
-    radio: [],
-    multiSelect: ['minItems', 'maxItems'],
-  };
+const VALIDATION_KEYS: Record<FormFieldType, (keyof FormFieldValidation)[]> = {
+  text: ['minLength', 'maxLength', 'pattern'],
+  textarea: ['minLength', 'maxLength', 'pattern'],
+  email: ['minLength', 'maxLength', 'pattern'],
+  url: ['minLength', 'maxLength', 'pattern'],
+  integer: ['min', 'max'],
+  decimal: ['min', 'max', 'decimals'],
+  date: ['minDate', 'maxDate'],
+  checkbox: [],
+  select: [],
+  radio: [],
+  multiSelect: ['minItems', 'maxItems'],
+};
 
 export const formFieldSchema = z
   .object({
@@ -195,7 +198,6 @@ export const formSectionSchema = z
     }),
   })
   .strict();
-export type FormSection = z.infer<typeof formSectionSchema>;
 
 /** A form's definition (a draft, or a published version's snapshot). */
 export const formDefinitionSchema = z
@@ -264,8 +266,7 @@ export interface SchemaIssue {
 export function definitionIssues(
   definition: FormDefinition,
   keyTypes: Record<string, string> = {},
-  valueIssues: (field: FormField, value: unknown) => string | null = () =>
-    null,
+  valueIssues: (field: FormField, value: unknown) => string | null = () => null,
 ): SchemaIssue[] {
   const issues: SchemaIssue[] = [];
   const bytes = Buffer.byteLength(JSON.stringify(definition));
@@ -355,7 +356,10 @@ function fieldIssues(
   const below = (low?: number | string, high?: number | string) =>
     low !== undefined && high !== undefined && low > high;
   if (below(rules.min, rules.max)) {
-    issues.push({ path: `${path}.validation.min`, message: 'min is above max.' });
+    issues.push({
+      path: `${path}.validation.min`,
+      message: 'min is above max.',
+    });
   }
   if (below(rules.minLength, rules.maxLength)) {
     issues.push({
@@ -375,10 +379,7 @@ function fieldIssues(
       message: 'minItems is above maxItems.',
     });
   }
-  if (
-    options.length > 0 &&
-    (rules.minItems ?? 0) > options.length
-  ) {
+  if (options.length > 0 && (rules.minItems ?? 0) > options.length) {
     issues.push({
       path: `${path}.validation.minItems`,
       message: 'minItems is above the number of options.',

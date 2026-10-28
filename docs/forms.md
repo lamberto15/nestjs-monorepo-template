@@ -11,19 +11,18 @@ code is in `apps/api/src/platform/forms/`; the epic is #542.
 
 The setting `forms.enabled` (default off, [settings](settings.md)): until a
 tenant's administrator turns it on, or the operators do for every tenant
-(`PUT /v1/settings/forms.enabled/platform`), every `/v1/forms` route answers
-404. It is public, so the web app can hide forms.
+(`PUT /v1/settings/forms.enabled/platform`), every `/v1/forms` route answers 404. It is public, so the web app can hide forms.
 
 ## Permissions
 
 The subject `Form` has four rights, none implying another
 ([permissions](permissions.md)):
 
-| Action | Allows |
-| --- | --- |
-| `read` | the published forms and their versions |
-| `submit` | filling in a published form, and reading one's own submissions |
-| `edit` | creating forms, editing drafts, publishing, archiving |
+| Action          | Allows                                                               |
+| --------------- | -------------------------------------------------------------------- |
+| `read`          | the published forms and their versions                               |
+| `submit`        | filling in a published form, and reading one's own submissions       |
+| `edit`          | creating forms, editing drafts, publishing, archiving                |
 | `readResponses` | everyone's submissions and their answers (never through break-glass) |
 
 `edit` is not `manage`: CASL reads `manage` as every action, answers
@@ -55,7 +54,7 @@ DELETE /v1/forms/{id}                     only a form never published
 - **Concurrency**: every draft save and publish sends the `revision` it
   edited; a stale one is 409 `form_conflict`, never an overwrite.
 - **Versions are immutable.** Publishing snapshots the draft as version
-  *n + 1*; editing the draft never changes a published version. Once
+  _n + 1_; editing the draft never changes a published version. Once
   published, a key keeps its type forever (the form's `keyTypes`): a draft
   that retypes it is refused, so old answers stay readable. A new meaning
   takes a new key.

@@ -52,8 +52,7 @@ const isEmpty = (value: unknown) =>
   (Array.isArray(value) && value.length === 0);
 
 type Checked =
-  | { ok: true; value: unknown }
-  | { ok: false; message: string; index?: number };
+  { ok: true; value: unknown } | { ok: false; message: string; index?: number };
 
 const refuse = (message: string, index?: number): Checked => ({
   ok: false,
@@ -145,7 +144,10 @@ export function checkValue(field: FormField, value: unknown): Checked {
       if (rules.minLength !== undefined && text.length < rules.minLength) {
         return refuse(`At least ${rules.minLength} characters.`);
       }
-      if (rules.pattern !== undefined && pattern(rules.pattern)?.test(text) !== true) {
+      if (
+        rules.pattern !== undefined &&
+        pattern(rules.pattern)?.test(text) !== true
+      ) {
         return refuse('Does not match the expected format.');
       }
       if (field.type === 'email' && !email.safeParse(text).success) {
@@ -196,7 +198,9 @@ export function checkAnswers(
   }
   const answers: Record<string, unknown> = {};
   for (const field of fields) {
-    const value = Object.hasOwn(given, field.key) ? given[field.key] : undefined;
+    const value = Object.hasOwn(given, field.key)
+      ? given[field.key]
+      : undefined;
     if (isEmpty(value) && field.default === undefined) {
       if (field.required) {
         issues.push({
@@ -207,10 +211,7 @@ export function checkAnswers(
       continue;
     }
     // A default is checked as an answer (a required checkbox's `false` is refused).
-    const checked = checkValue(
-      field,
-      isEmpty(value) ? field.default : value,
-    );
+    const checked = checkValue(field, isEmpty(value) ? field.default : value);
     if (checked.ok) {
       answers[field.key] = checked.value;
     } else {
