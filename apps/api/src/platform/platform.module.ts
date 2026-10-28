@@ -217,6 +217,8 @@ import { CommentsService } from './comments/comments.service.js';
 import { TagsController } from './tags/tags.controller.js';
 import { TagsRegistry } from './tags/tags.registry.js';
 import { TagsService } from './tags/tags.service.js';
+import { ImportMappingsController } from './data-transfer/import-mappings.controller.js';
+import { ImportMappingsService } from './data-transfer/import-mappings.service.js';
 import { FavoritesController } from './favorites/favorites.controller.js';
 import { FavoritesService } from './favorites/favorites.service.js';
 import { ViewsController } from './views/views.controller.js';
@@ -484,6 +486,7 @@ export class PlatformModule {
         NamingSeriesController,
         ViewsController,
         FavoritesController,
+        ImportMappingsController,
         RetentionController,
         ...whenOn('REPORTS', ReportsController),
         ...whenOn('USAGE', UsageController),
@@ -735,6 +738,8 @@ export class PlatformModule {
         ViewsService,
         // Favorites: a person's pinned records, pages and saved views, in their order.
         FavoritesService,
+        // Saved column mappings of an import (docs/data-transfer.md).
+        ImportMappingsService,
         // Scheduled reports: exports run on a schedule, mailed to their recipients.
         ...whenOn<Provider>(
           'REPORTS',

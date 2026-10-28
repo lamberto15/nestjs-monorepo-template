@@ -73,7 +73,19 @@ export const setupSteps: SetupStep[] = [
     id: 'customFields',
     to: '/custom-fields',
     permission: 'Access.manageCustomFields',
-    done: () =>
-      nonEmpty(unwrap(api.GET('/v1/custom-fields', { params: { query: {} } }))),
+    // The fields are listed per subject: any subject having one counts.
+    done: async () => {
+      const { items } = await unwrap(api.GET('/v1/custom-fields/subjects'));
+      const found = await Promise.all(
+        items.map(({ subject }) =>
+          nonEmpty(
+            unwrap(
+              api.GET('/v1/custom-fields', { params: { query: { subject } } }),
+            ),
+          ),
+        ),
+      );
+      return found.some(Boolean);
+    },
   },
 ];
