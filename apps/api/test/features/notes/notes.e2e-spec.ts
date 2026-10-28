@@ -671,6 +671,48 @@ describe('the example feature: notes (e2e)', () => {
     });
   });
 
+  describe('duplicates and merging (NoteMerge)', () => {
+    it('finds notes with the same title and merges one, with its comments', async () => {
+      const editor = (await node.user(['editor'])).agent;
+      const survivor = (
+        await writeNote(node, editor, { title: 'Weekly sync', body: 'Old' })
+      ).body as { id: string };
+      const duplicate = (
+        await writeNote(node, editor, { title: ' weekly SYNC', body: 'New' })
+      ).body as { id: string };
+      await editor
+        .post(`/v1/notes/${duplicate.id}/comments`)
+        .send({ body: 'Agenda attached' })
+        .expect(201);
+
+      const found = await editor
+        .post('/v1/notes/duplicates')
+        .send({ values: { title: 'Weekly Sync' } })
+        .expect(200);
+      expect(found.body.items.map((d: { id: string }) => d.id)).toEqual([
+        duplicate.id,
+        survivor.id,
+      ]);
+
+      const merged = await editor
+        .post(`/v1/notes/${survivor.id}/merge`)
+        .send({ duplicateId: duplicate.id, fields: { body: 'duplicate' } })
+        .expect(200);
+      expect(noteSchema.strict().safeParse(merged.body).success).toBe(true);
+      expect(merged.body).toMatchObject({ title: 'Weekly sync', body: 'New' });
+      await editor.get(`/v1/notes/${duplicate.id}`).expect(404);
+      const moved = await editor
+        .get(`/v1/notes/${survivor.id}/comments`)
+        .expect(200);
+      expect(moved.body.items).toHaveLength(1);
+      const [entry] = await node.auditEntries({ action: 'note.merged' });
+      expect(entry).toMatchObject({
+        targetId: survivor.id,
+        details: { duplicateId: duplicate.id, fields: ['body'] },
+      });
+    });
+  });
+
   describe('the durable workflow', () => {
     it('publishes a draft when its delay is over', async () => {
       const client = await node.client();

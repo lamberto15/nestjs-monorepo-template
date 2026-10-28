@@ -114,8 +114,12 @@ Everything is in `docs/`; a name below is its file (`tags` is
 - **Record add-ons:** `tags`, `comments`, `attachments` (and avatars),
   `revisions`, `acknowledgments`, `approvals`, `saved-views`, `templates`
   (prefill a create), `choices` (dependent dropdowns), `favorites`, `custom-fields`,
+<<<<<<< HEAD
   `bulk-operations`, `merging` (duplicates, merge), `sequences` (numbers,
   naming series), `data-transfer`
+=======
+  `forms` (runtime forms and submissions), `bulk-operations`, `sequences` (numbers, naming series), `data-transfer`
+>>>>>>> origin/main
   (exports, imports), `import-limits`, `reports`.
 - **Configuration:** `configuration` (environment variables), `settings`
   (and feature flags), `branding`, `i18n-and-time`, `money`, `usage`

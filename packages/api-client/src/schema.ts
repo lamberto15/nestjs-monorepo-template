@@ -2740,6 +2740,237 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/forms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Forms
+         * @description Editors (and those who read responses) see every form; whoever may read or submit, the published, active ones. `?status=`, `?slug=`, `?name.contains=`; cursor pages.
+         */
+        get: operations["FormsController_list_v1"];
+        put?: never;
+        /**
+         * Create a form
+         * @description A draft (revision 1), with no sections unless `definition` is sent. Audited (`form.created`).
+         */
+        post: operations["FormsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/forms/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One form (without its definition) */
+        get: operations["FormsController_get_v1"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a form never published
+         * @description Audited (`form.deleted`). A published form is archived.
+         */
+        delete: operations["FormsController_remove_v1"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a form's name, slug or description
+         * @description Not versioned: they apply at once. Audited (`form.updated`, from and to).
+         */
+        patch: operations["FormsController_update_v1"];
+        trace?: never;
+    };
+    "/v1/forms/{id}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A form's draft and its revision */
+        get: operations["FormsController_draft_v1"];
+        /**
+         * Replace a form's draft
+         * @description With the `revision` you edited; the answer carries the next one. Checked as a publication is. Published versions never change. Audited (`form.draft-saved`, without the definition).
+         */
+        put: operations["FormsController_saveDraft_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/forms/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish the draft as the next version
+         * @description The draft of `revision` becomes version 1, 2, 3…, an immutable snapshot that new submissions answer; earlier submissions keep theirs. Audited (`form.published`).
+         */
+        post: operations["FormsController_publish_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/forms/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive a form
+         * @description It takes no more submissions and submitters no longer see it; its versions and submissions stay. Audited (`form.archived`).
+         */
+        post: operations["FormsController_archive_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/forms/{id}/unarchive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unarchive a form
+         * @description Audited (`form.unarchived`).
+         */
+        post: operations["FormsController_unarchive_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/forms/{id}/published": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The version to fill in now
+         * @description Its definition and `versionId`, which a submission sends back. 404 while the form is unpublished or archived.
+         */
+        get: operations["FormsController_published_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/forms/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A form's published versions, newest first */
+        get: operations["FormsController_versions_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/forms/{id}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One published version, with its definition
+         * @description What the submissions of that version answered.
+         */
+        get: operations["FormsController_version_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/forms/{formId}/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A form's submissions
+         * @description Everyone's with `Form.readResponses`, else your own (`Form.submit`). `?versionId=`, `?submittedBy=`, `?createdAt.gte=`; newest first, cursor pages. Never filtered by answers.
+         */
+        get: operations["FormSubmissionsController_list_v1"];
+        put?: never;
+        /**
+         * Submit answers
+         * @description Checked on the server against the published version `versionId` names, never against what the client shows: only that version's keys, each of its type and limits, required ones present; text trimmed, defaults filled in. Stored with that version for good. Audited (`form.submitted`, never the answers). 30 a minute per user.
+         */
+        post: operations["FormSubmissionsController_submit_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/forms/{formId}/submissions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One submission, with its answers
+         * @description Its `version`: read that definition at GET /forms/{formId}/versions/{version}.
+         */
+        get: operations["FormSubmissionsController_get_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/shared/open": {
         parameters: {
             query?: never;
@@ -5766,6 +5997,86 @@ export interface paths {
          * @description It stops opening at once; a file link it gave ends within 5 minutes. Its maker, or whoever may share the note. Audited `share.revoked`.
          */
         delete: operations["NoteSharesController_revoke_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/duplicates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Find notes like these values
+         * @description Before creating or changing a note: the notes you may read that its values would duplicate, by the feature's rules (each rule's fields all equal; text without case or surrounding spaces), newest first, at most 20. A match by a field you may not read on a record is no match.
+         */
+        post: operations["NoteMergeController_find_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/duplicates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The likely duplicates of a note
+         * @description The other notes you may read matching it by the feature's rules, by its values you may read.
+         */
+        get: operations["NoteMergeController_duplicates_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/merge/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview merging a duplicate into a note
+         * @description What the merge would do, checked as it checks: the fields you may choose (read on both, change on the survivor), each with both values and whose is kept, the survivor as it would be, and what moves to it. Changes nothing.
+         */
+        post: operations["NoteMergeController_preview_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge a duplicate into a note
+         * @description In one transaction, or not at all: the survivor takes the values `fields` chooses from the duplicate (audited `note.updated`, a revision), gains its tags, comments, attachments and watchers, the records referring to it point at the survivor, and the duplicate goes to the recycle bin (restorable: POST /v1/notes/{id}/restore). Audited `.merged` with what moved. The checks are the preview's. Answers the survivor.
+         */
+        post: operations["NoteMergeController_merge_v1"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -18376,6 +18687,1820 @@ export interface operations {
                 content?: never;
             };
             /** @description Not one of your favorites. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormsController_list_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: slug = */
+                slug?: string;
+                /** @description Filter: slug in */
+                "slug.in"?: string;
+                /** @description Filter: status = */
+                status?: "active" | "archived";
+                /** @description Filter: status in */
+                "status.in"?: string;
+                /** @description Filter: name = */
+                name?: string;
+                /** @description Filter: name contains */
+                "name.contains"?: string;
+                /** @description Filter: createdAt gt */
+                "createdAt.gt"?: string;
+                /** @description Filter: createdAt gte */
+                "createdAt.gte"?: string;
+                /** @description Filter: createdAt lt */
+                "createdAt.lt"?: string;
+                /** @description Filter: createdAt lte */
+                "createdAt.lte"?: string;
+                /** @description Filter: createdAt between */
+                "createdAt.between"?: string;
+                /** @description Filter: updatedAt gt */
+                "updatedAt.gt"?: string;
+                /** @description Filter: updatedAt gte */
+                "updatedAt.gte"?: string;
+                /** @description Filter: updatedAt lt */
+                "updatedAt.lt"?: string;
+                /** @description Filter: updatedAt lte */
+                "updatedAt.lte"?: string;
+                /** @description Filter: updatedAt between */
+                "updatedAt.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"slug","op":"eq","value":…},{…}]}. Fields and operators: slug (eq, in); status (eq, in); name (eq, contains); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, createdAt, updatedAt. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: slug,name. Fields: id, slug, name, description, status, revision, publishedVersion, hasDraftChanges, createdAt, updatedAt. */
+                fields?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            slug: string;
+                            name: string;
+                            description: string | null;
+                            /** @enum {string} */
+                            status: "active" | "archived";
+                            revision: number;
+                            /** @description The version submitters fill in; null until published. */
+                            publishedVersion: number | null;
+                            /** @description Editors only: the draft differs from the published version. */
+                            hasDraftChanges?: boolean;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Also while the `forms.enabled` flag is off for you. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormsController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description A unique key per operation (a UUID), 1 to 255 printable ASCII characters. Send the same key on every retry of the same request: it runs once, and retries get its response (with Idempotent-Replayed: true). Kept for 24 hours.
+                 *
+                 *     In Swagger UI, leave `generate` to send a new key on every Execute, or type your own key and Execute twice to see a retry replayed.
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example incident-report */
+                    slug: string;
+                    /** @example Incident report */
+                    name: string;
+                    description?: string;
+                    /**
+                     * @description The first draft; default: no sections.
+                     * @example {
+                     *       "format": 1,
+                     *       "sections": [
+                     *         {
+                     *           "key": "contact",
+                     *           "title": "Contact",
+                     *           "fields": [
+                     *             {
+                     *               "key": "full_name",
+                     *               "type": "text",
+                     *               "label": "Name",
+                     *               "required": true
+                     *             },
+                     *             {
+                     *               "key": "topic",
+                     *               "type": "select",
+                     *               "label": "Topic",
+                     *               "options": [
+                     *                 {
+                     *                   "value": "billing",
+                     *                   "label": "Billing"
+                     *                 },
+                     *                 {
+                     *                   "value": "other",
+                     *                   "label": "Something else"
+                     *                 }
+                     *               ]
+                     *             }
+                     *           ]
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    definition?: {
+                        /**
+                         * @description The descriptor format: 1.
+                         * @default 1
+                         * @enum {number}
+                         */
+                        format?: 1;
+                        sections: {
+                            key: string;
+                            title?: string;
+                            description?: string;
+                            fields: {
+                                /** @description The answer's key: unique in the form, and once published its type never changes. */
+                                key: string;
+                                /** @enum {string} */
+                                type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                label: string;
+                                help?: string;
+                                placeholder?: string;
+                                /** @description A checkbox that is required must be checked (a consent). */
+                                required?: boolean;
+                                /** @description Used when the answer is left out: of the field's type. */
+                                default?: unknown;
+                                /** @description The choices of select, multiSelect and radio. */
+                                options?: {
+                                    /** @description Stored in the answer. */
+                                    value: string;
+                                    label: string;
+                                    translations?: {
+                                        [key: string]: {
+                                            label?: string;
+                                        };
+                                    };
+                                }[];
+                                validation?: {
+                                    minLength?: number;
+                                    maxLength?: number;
+                                    /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
+                                    pattern?: string;
+                                    min?: number;
+                                    max?: number;
+                                    decimals?: number;
+                                    /** Format: date */
+                                    minDate?: string;
+                                    /** Format: date */
+                                    maxDate?: string;
+                                    minItems?: number;
+                                    maxItems?: number;
+                                };
+                                translations?: {
+                                    [key: string]: {
+                                        label?: string;
+                                        help?: string;
+                                        placeholder?: string;
+                                    };
+                                };
+                            }[];
+                            translations?: {
+                                [key: string]: {
+                                    title?: string;
+                                    description?: string;
+                                };
+                            };
+                        }[];
+                    };
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        slug: string;
+                        name: string;
+                        description: string | null;
+                        /** @enum {string} */
+                        status: "active" | "archived";
+                        revision: number;
+                        /** @description The version submitters fill in; null until published. */
+                        publishedVersion: number | null;
+                        /** @description Editors only: the draft differs from the published version. */
+                        hasDraftChanges?: boolean;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description The definition breaks a rule, each at its path (`definition.sections.0.fields.2.options`): duplicate keys, a choice without options, a default of the wrong type, a pattern RE2 refuses, HTML in a label, a published key with another type, a limit (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Also while the `forms.enabled` flag is off for you. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The slug is taken (form_slug_taken). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormsController_get_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        slug: string;
+                        name: string;
+                        description: string | null;
+                        /** @enum {string} */
+                        status: "active" | "archived";
+                        revision: number;
+                        /** @description The version submitters fill in; null until published. */
+                        publishedVersion: number | null;
+                        /** @description Editors only: the draft differs from the published version. */
+                        hasDraftChanges?: boolean;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description It was published (form_published). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormsController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example incident-report */
+                    slug?: string;
+                    /** @example Incident report */
+                    name?: string;
+                    description?: string | null;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        slug: string;
+                        name: string;
+                        description: string | null;
+                        /** @enum {string} */
+                        status: "active" | "archived";
+                        revision: number;
+                        /** @description The version submitters fill in; null until published. */
+                        publishedVersion: number | null;
+                        /** @description Editors only: the draft differs from the published version. */
+                        hasDraftChanges?: boolean;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The slug is taken (form_slug_taken). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormsController_draft_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        formId: string;
+                        revision: number;
+                        /**
+                         * @example {
+                         *       "format": 1,
+                         *       "sections": [
+                         *         {
+                         *           "key": "contact",
+                         *           "title": "Contact",
+                         *           "fields": [
+                         *             {
+                         *               "key": "full_name",
+                         *               "type": "text",
+                         *               "label": "Name",
+                         *               "required": true
+                         *             },
+                         *             {
+                         *               "key": "topic",
+                         *               "type": "select",
+                         *               "label": "Topic",
+                         *               "options": [
+                         *                 {
+                         *                   "value": "billing",
+                         *                   "label": "Billing"
+                         *                 },
+                         *                 {
+                         *                   "value": "other",
+                         *                   "label": "Something else"
+                         *                 }
+                         *               ]
+                         *             }
+                         *           ]
+                         *         }
+                         *       ]
+                         *     }
+                         */
+                        definition: {
+                            /**
+                             * @description The descriptor format: 1.
+                             * @default 1
+                             * @enum {number}
+                             */
+                            format: 1;
+                            sections: {
+                                key: string;
+                                title?: string;
+                                description?: string;
+                                fields: {
+                                    /** @description The answer's key: unique in the form, and once published its type never changes. */
+                                    key: string;
+                                    /** @enum {string} */
+                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                    label: string;
+                                    help?: string;
+                                    placeholder?: string;
+                                    /** @description A checkbox that is required must be checked (a consent). */
+                                    required?: boolean;
+                                    /** @description Used when the answer is left out: of the field's type. */
+                                    default?: unknown;
+                                    /** @description The choices of select, multiSelect and radio. */
+                                    options?: {
+                                        /** @description Stored in the answer. */
+                                        value: string;
+                                        label: string;
+                                        translations?: {
+                                            [key: string]: {
+                                                label?: string;
+                                            };
+                                        };
+                                    }[];
+                                    validation?: {
+                                        minLength?: number;
+                                        maxLength?: number;
+                                        /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
+                                        pattern?: string;
+                                        min?: number;
+                                        max?: number;
+                                        decimals?: number;
+                                        /** Format: date */
+                                        minDate?: string;
+                                        /** Format: date */
+                                        maxDate?: string;
+                                        minItems?: number;
+                                        maxItems?: number;
+                                    };
+                                    translations?: {
+                                        [key: string]: {
+                                            label?: string;
+                                            help?: string;
+                                            placeholder?: string;
+                                        };
+                                    };
+                                }[];
+                                translations?: {
+                                    [key: string]: {
+                                        title?: string;
+                                        description?: string;
+                                    };
+                                };
+                            }[];
+                        };
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormsController_saveDraft_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The form's `revision` you edited: refused (409 form_conflict) if it changed since. */
+                    revision: number;
+                    /**
+                     * @example {
+                     *       "format": 1,
+                     *       "sections": [
+                     *         {
+                     *           "key": "contact",
+                     *           "title": "Contact",
+                     *           "fields": [
+                     *             {
+                     *               "key": "full_name",
+                     *               "type": "text",
+                     *               "label": "Name",
+                     *               "required": true
+                     *             },
+                     *             {
+                     *               "key": "topic",
+                     *               "type": "select",
+                     *               "label": "Topic",
+                     *               "options": [
+                     *                 {
+                     *                   "value": "billing",
+                     *                   "label": "Billing"
+                     *                 },
+                     *                 {
+                     *                   "value": "other",
+                     *                   "label": "Something else"
+                     *                 }
+                     *               ]
+                     *             }
+                     *           ]
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    definition: {
+                        /**
+                         * @description The descriptor format: 1.
+                         * @default 1
+                         * @enum {number}
+                         */
+                        format?: 1;
+                        sections: {
+                            key: string;
+                            title?: string;
+                            description?: string;
+                            fields: {
+                                /** @description The answer's key: unique in the form, and once published its type never changes. */
+                                key: string;
+                                /** @enum {string} */
+                                type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                label: string;
+                                help?: string;
+                                placeholder?: string;
+                                /** @description A checkbox that is required must be checked (a consent). */
+                                required?: boolean;
+                                /** @description Used when the answer is left out: of the field's type. */
+                                default?: unknown;
+                                /** @description The choices of select, multiSelect and radio. */
+                                options?: {
+                                    /** @description Stored in the answer. */
+                                    value: string;
+                                    label: string;
+                                    translations?: {
+                                        [key: string]: {
+                                            label?: string;
+                                        };
+                                    };
+                                }[];
+                                validation?: {
+                                    minLength?: number;
+                                    maxLength?: number;
+                                    /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
+                                    pattern?: string;
+                                    min?: number;
+                                    max?: number;
+                                    decimals?: number;
+                                    /** Format: date */
+                                    minDate?: string;
+                                    /** Format: date */
+                                    maxDate?: string;
+                                    minItems?: number;
+                                    maxItems?: number;
+                                };
+                                translations?: {
+                                    [key: string]: {
+                                        label?: string;
+                                        help?: string;
+                                        placeholder?: string;
+                                    };
+                                };
+                            }[];
+                            translations?: {
+                                [key: string]: {
+                                    title?: string;
+                                    description?: string;
+                                };
+                            };
+                        }[];
+                    };
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        formId: string;
+                        revision: number;
+                        /**
+                         * @example {
+                         *       "format": 1,
+                         *       "sections": [
+                         *         {
+                         *           "key": "contact",
+                         *           "title": "Contact",
+                         *           "fields": [
+                         *             {
+                         *               "key": "full_name",
+                         *               "type": "text",
+                         *               "label": "Name",
+                         *               "required": true
+                         *             },
+                         *             {
+                         *               "key": "topic",
+                         *               "type": "select",
+                         *               "label": "Topic",
+                         *               "options": [
+                         *                 {
+                         *                   "value": "billing",
+                         *                   "label": "Billing"
+                         *                 },
+                         *                 {
+                         *                   "value": "other",
+                         *                   "label": "Something else"
+                         *                 }
+                         *               ]
+                         *             }
+                         *           ]
+                         *         }
+                         *       ]
+                         *     }
+                         */
+                        definition: {
+                            /**
+                             * @description The descriptor format: 1.
+                             * @default 1
+                             * @enum {number}
+                             */
+                            format: 1;
+                            sections: {
+                                key: string;
+                                title?: string;
+                                description?: string;
+                                fields: {
+                                    /** @description The answer's key: unique in the form, and once published its type never changes. */
+                                    key: string;
+                                    /** @enum {string} */
+                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                    label: string;
+                                    help?: string;
+                                    placeholder?: string;
+                                    /** @description A checkbox that is required must be checked (a consent). */
+                                    required?: boolean;
+                                    /** @description Used when the answer is left out: of the field's type. */
+                                    default?: unknown;
+                                    /** @description The choices of select, multiSelect and radio. */
+                                    options?: {
+                                        /** @description Stored in the answer. */
+                                        value: string;
+                                        label: string;
+                                        translations?: {
+                                            [key: string]: {
+                                                label?: string;
+                                            };
+                                        };
+                                    }[];
+                                    validation?: {
+                                        minLength?: number;
+                                        maxLength?: number;
+                                        /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
+                                        pattern?: string;
+                                        min?: number;
+                                        max?: number;
+                                        decimals?: number;
+                                        /** Format: date */
+                                        minDate?: string;
+                                        /** Format: date */
+                                        maxDate?: string;
+                                        minItems?: number;
+                                        maxItems?: number;
+                                    };
+                                    translations?: {
+                                        [key: string]: {
+                                            label?: string;
+                                            help?: string;
+                                            placeholder?: string;
+                                        };
+                                    };
+                                }[];
+                                translations?: {
+                                    [key: string]: {
+                                        title?: string;
+                                        description?: string;
+                                    };
+                                };
+                            }[];
+                        };
+                    };
+                };
+            };
+            /** @description The definition breaks a rule, each at its path (`definition.sections.0.fields.2.options`): duplicate keys, a choice without options, a default of the wrong type, a pattern RE2 refuses, HTML in a label, a published key with another type, a limit (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The revision you edited is not the form's any more (form_conflict, with the current `revision`): read it again. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormsController_publish_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The form's `revision` you edited: refused (409 form_conflict) if it changed since. */
+                    revision: number;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** Format: uuid */
+                        formId: string;
+                        version: number;
+                        /**
+                         * @example {
+                         *       "format": 1,
+                         *       "sections": [
+                         *         {
+                         *           "key": "contact",
+                         *           "title": "Contact",
+                         *           "fields": [
+                         *             {
+                         *               "key": "full_name",
+                         *               "type": "text",
+                         *               "label": "Name",
+                         *               "required": true
+                         *             },
+                         *             {
+                         *               "key": "topic",
+                         *               "type": "select",
+                         *               "label": "Topic",
+                         *               "options": [
+                         *                 {
+                         *                   "value": "billing",
+                         *                   "label": "Billing"
+                         *                 },
+                         *                 {
+                         *                   "value": "other",
+                         *                   "label": "Something else"
+                         *                 }
+                         *               ]
+                         *             }
+                         *           ]
+                         *         }
+                         *       ]
+                         *     }
+                         */
+                        definition: {
+                            /**
+                             * @description The descriptor format: 1.
+                             * @default 1
+                             * @enum {number}
+                             */
+                            format: 1;
+                            sections: {
+                                key: string;
+                                title?: string;
+                                description?: string;
+                                fields: {
+                                    /** @description The answer's key: unique in the form, and once published its type never changes. */
+                                    key: string;
+                                    /** @enum {string} */
+                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                    label: string;
+                                    help?: string;
+                                    placeholder?: string;
+                                    /** @description A checkbox that is required must be checked (a consent). */
+                                    required?: boolean;
+                                    /** @description Used when the answer is left out: of the field's type. */
+                                    default?: unknown;
+                                    /** @description The choices of select, multiSelect and radio. */
+                                    options?: {
+                                        /** @description Stored in the answer. */
+                                        value: string;
+                                        label: string;
+                                        translations?: {
+                                            [key: string]: {
+                                                label?: string;
+                                            };
+                                        };
+                                    }[];
+                                    validation?: {
+                                        minLength?: number;
+                                        maxLength?: number;
+                                        /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
+                                        pattern?: string;
+                                        min?: number;
+                                        max?: number;
+                                        decimals?: number;
+                                        /** Format: date */
+                                        minDate?: string;
+                                        /** Format: date */
+                                        maxDate?: string;
+                                        minItems?: number;
+                                        maxItems?: number;
+                                    };
+                                    translations?: {
+                                        [key: string]: {
+                                            label?: string;
+                                            help?: string;
+                                            placeholder?: string;
+                                        };
+                                    };
+                                }[];
+                                translations?: {
+                                    [key: string]: {
+                                        title?: string;
+                                        description?: string;
+                                    };
+                                };
+                            }[];
+                        };
+                        /** Format: date-time */
+                        publishedAt: string;
+                    };
+                };
+            };
+            /** @description The definition breaks a rule, each at its path (`definition.sections.0.fields.2.options`): duplicate keys, a choice without options, a default of the wrong type, a pattern RE2 refuses, HTML in a label, a published key with another type, a limit (validation_failed). Or no field at all. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The revision you edited is not the form's any more (form_conflict, with the current `revision`): read it again. Or the draft is published already (form_unchanged), or the form is archived (form_archived). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormsController_archive_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        slug: string;
+                        name: string;
+                        description: string | null;
+                        /** @enum {string} */
+                        status: "active" | "archived";
+                        revision: number;
+                        /** @description The version submitters fill in; null until published. */
+                        publishedVersion: number | null;
+                        /** @description Editors only: the draft differs from the published version. */
+                        hasDraftChanges?: boolean;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormsController_unarchive_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        slug: string;
+                        name: string;
+                        description: string | null;
+                        /** @enum {string} */
+                        status: "active" | "archived";
+                        revision: number;
+                        /** @description The version submitters fill in; null until published. */
+                        publishedVersion: number | null;
+                        /** @description Editors only: the draft differs from the published version. */
+                        hasDraftChanges?: boolean;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormsController_published_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        formId: string;
+                        slug: string;
+                        name: string;
+                        description: string | null;
+                        /**
+                         * Format: uuid
+                         * @description Send it back with the answers.
+                         */
+                        versionId: string;
+                        version: number;
+                        /**
+                         * @example {
+                         *       "format": 1,
+                         *       "sections": [
+                         *         {
+                         *           "key": "contact",
+                         *           "title": "Contact",
+                         *           "fields": [
+                         *             {
+                         *               "key": "full_name",
+                         *               "type": "text",
+                         *               "label": "Name",
+                         *               "required": true
+                         *             },
+                         *             {
+                         *               "key": "topic",
+                         *               "type": "select",
+                         *               "label": "Topic",
+                         *               "options": [
+                         *                 {
+                         *                   "value": "billing",
+                         *                   "label": "Billing"
+                         *                 },
+                         *                 {
+                         *                   "value": "other",
+                         *                   "label": "Something else"
+                         *                 }
+                         *               ]
+                         *             }
+                         *           ]
+                         *         }
+                         *       ]
+                         *     }
+                         */
+                        definition: {
+                            /**
+                             * @description The descriptor format: 1.
+                             * @default 1
+                             * @enum {number}
+                             */
+                            format: 1;
+                            sections: {
+                                key: string;
+                                title?: string;
+                                description?: string;
+                                fields: {
+                                    /** @description The answer's key: unique in the form, and once published its type never changes. */
+                                    key: string;
+                                    /** @enum {string} */
+                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                    label: string;
+                                    help?: string;
+                                    placeholder?: string;
+                                    /** @description A checkbox that is required must be checked (a consent). */
+                                    required?: boolean;
+                                    /** @description Used when the answer is left out: of the field's type. */
+                                    default?: unknown;
+                                    /** @description The choices of select, multiSelect and radio. */
+                                    options?: {
+                                        /** @description Stored in the answer. */
+                                        value: string;
+                                        label: string;
+                                        translations?: {
+                                            [key: string]: {
+                                                label?: string;
+                                            };
+                                        };
+                                    }[];
+                                    validation?: {
+                                        minLength?: number;
+                                        maxLength?: number;
+                                        /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
+                                        pattern?: string;
+                                        min?: number;
+                                        max?: number;
+                                        decimals?: number;
+                                        /** Format: date */
+                                        minDate?: string;
+                                        /** Format: date */
+                                        maxDate?: string;
+                                        minItems?: number;
+                                        maxItems?: number;
+                                    };
+                                    translations?: {
+                                        [key: string]: {
+                                            label?: string;
+                                            help?: string;
+                                            placeholder?: string;
+                                        };
+                                    };
+                                }[];
+                                translations?: {
+                                    [key: string]: {
+                                        title?: string;
+                                        description?: string;
+                                    };
+                                };
+                            }[];
+                        };
+                        /** Format: date-time */
+                        publishedAt: string;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormsController_versions_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            /** Format: uuid */
+                            formId: string;
+                            version: number;
+                            /** Format: date-time */
+                            publishedAt: string;
+                            fieldCount: number;
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormsController_version_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** Format: uuid */
+                        formId: string;
+                        version: number;
+                        /**
+                         * @example {
+                         *       "format": 1,
+                         *       "sections": [
+                         *         {
+                         *           "key": "contact",
+                         *           "title": "Contact",
+                         *           "fields": [
+                         *             {
+                         *               "key": "full_name",
+                         *               "type": "text",
+                         *               "label": "Name",
+                         *               "required": true
+                         *             },
+                         *             {
+                         *               "key": "topic",
+                         *               "type": "select",
+                         *               "label": "Topic",
+                         *               "options": [
+                         *                 {
+                         *                   "value": "billing",
+                         *                   "label": "Billing"
+                         *                 },
+                         *                 {
+                         *                   "value": "other",
+                         *                   "label": "Something else"
+                         *                 }
+                         *               ]
+                         *             }
+                         *           ]
+                         *         }
+                         *       ]
+                         *     }
+                         */
+                        definition: {
+                            /**
+                             * @description The descriptor format: 1.
+                             * @default 1
+                             * @enum {number}
+                             */
+                            format: 1;
+                            sections: {
+                                key: string;
+                                title?: string;
+                                description?: string;
+                                fields: {
+                                    /** @description The answer's key: unique in the form, and once published its type never changes. */
+                                    key: string;
+                                    /** @enum {string} */
+                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                    label: string;
+                                    help?: string;
+                                    placeholder?: string;
+                                    /** @description A checkbox that is required must be checked (a consent). */
+                                    required?: boolean;
+                                    /** @description Used when the answer is left out: of the field's type. */
+                                    default?: unknown;
+                                    /** @description The choices of select, multiSelect and radio. */
+                                    options?: {
+                                        /** @description Stored in the answer. */
+                                        value: string;
+                                        label: string;
+                                        translations?: {
+                                            [key: string]: {
+                                                label?: string;
+                                            };
+                                        };
+                                    }[];
+                                    validation?: {
+                                        minLength?: number;
+                                        maxLength?: number;
+                                        /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
+                                        pattern?: string;
+                                        min?: number;
+                                        max?: number;
+                                        decimals?: number;
+                                        /** Format: date */
+                                        minDate?: string;
+                                        /** Format: date */
+                                        maxDate?: string;
+                                        minItems?: number;
+                                        maxItems?: number;
+                                    };
+                                    translations?: {
+                                        [key: string]: {
+                                            label?: string;
+                                            help?: string;
+                                            placeholder?: string;
+                                        };
+                                    };
+                                }[];
+                                translations?: {
+                                    [key: string]: {
+                                        title?: string;
+                                        description?: string;
+                                    };
+                                };
+                            }[];
+                        };
+                        /** Format: date-time */
+                        publishedAt: string;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormSubmissionsController_list_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: versionId = */
+                versionId?: string;
+                /** @description Filter: versionId in */
+                "versionId.in"?: string;
+                /** @description Filter: submittedBy = */
+                submittedBy?: string;
+                /** @description Filter: submittedBy in */
+                "submittedBy.in"?: string;
+                /** @description Filter: createdAt gt */
+                "createdAt.gt"?: string;
+                /** @description Filter: createdAt gte */
+                "createdAt.gte"?: string;
+                /** @description Filter: createdAt lt */
+                "createdAt.lt"?: string;
+                /** @description Filter: createdAt lte */
+                "createdAt.lte"?: string;
+                /** @description Filter: createdAt between */
+                "createdAt.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"versionId","op":"eq","value":…},{…}]}. Fields and operators: versionId (eq, in); submittedBy (eq, in); createdAt (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: formId,versionId. Fields: id, formId, versionId, version, submittedBy, status, answers, createdAt. */
+                fields?: string;
+            };
+            header?: never;
+            path: {
+                formId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            /** Format: uuid */
+                            formId: string;
+                            /** Format: uuid */
+                            versionId: string;
+                            /** @description Read its definition at GET /forms/{id}/versions/{version}. */
+                            version: number;
+                            /** @description `user:<id>` or `client:<id>`. */
+                            submittedBy: string;
+                            /** @enum {string} */
+                            status: "submitted";
+                            answers: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormSubmissionsController_submit_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description A unique key per operation (a UUID), 1 to 255 printable ASCII characters. Send the same key on every retry of the same request: it runs once, and retries get its response (with Idempotent-Replayed: true). Kept for 24 hours.
+                 *
+                 *     In Swagger UI, leave `generate` to send a new key on every Execute, or type your own key and Execute twice to see a retry replayed.
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                formId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description The published version the answers were given to (`GET /forms/{id}/published`): refused (409 form_version_outdated) once another is published.
+                     */
+                    versionId: string;
+                    /**
+                     * @description Answers by field key, checked on the server against that version's definition.
+                     * @example {
+                     *       "full_name": "Ada",
+                     *       "topic": "billing"
+                     *     }
+                     */
+                    answers: {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** Format: uuid */
+                        formId: string;
+                        /** Format: uuid */
+                        versionId: string;
+                        /** @description Read its definition at GET /forms/{id}/versions/{version}. */
+                        version: number;
+                        /** @description `user:<id>` or `client:<id>`. */
+                        submittedBy: string;
+                        /** @enum {string} */
+                        status: "submitted";
+                        answers: {
+                            [key: string]: unknown;
+                        };
+                        /** Format: date-time */
+                        createdAt: string;
+                    };
+                };
+            };
+            /** @description An answer is refused, at its path (`answers.<key>`, `answers.<key>.<index>`): unknown key, wrong type, out of range, a required one missing; `versionId` not a version of the form; the answers over 64 KiB (validation_failed). Or the Idempotency-Key is missing. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such form open to submissions (unpublished, archived). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Another version was published since (form_version_outdated, with the current `versionId`); or a request with this Idempotency-Key is still running. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description This Idempotency-Key was used for a different request. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description More than 30 a minute from one user (rate_limited). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormSubmissionsController_get_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                formId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** Format: uuid */
+                        formId: string;
+                        /** Format: uuid */
+                        versionId: string;
+                        /** @description Read its definition at GET /forms/{id}/versions/{version}. */
+                        version: number;
+                        /** @description `user:<id>` or `client:<id>`. */
+                        submittedBy: string;
+                        /** @enum {string} */
+                        status: "submitted";
+                        answers: {
+                            [key: string]: unknown;
+                        };
+                        /** Format: date-time */
+                        createdAt: string;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -32630,6 +34755,288 @@ export interface operations {
             };
             /** @description No such note (or link). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteMergeController_find_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The record's values by field (a create or PATCH body's). */
+                    values: {
+                        [key: string]: string | number | boolean | (null);
+                    };
+                    /**
+                     * Format: uuid
+                     * @description The record being changed: never its own duplicate.
+                     */
+                    excludeId?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note that you may read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteMergeController_duplicates_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note that you may read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteMergeController_preview_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description The record merged into this one: it goes to the recycle bin once merged.
+                     */
+                    duplicateId: string;
+                    /**
+                     * @description Whose value each field keeps: `duplicate` takes the duplicate's; any field left out keeps the survivor's.
+                     * @default {}
+                     * @example {
+                     *       "title": "duplicate"
+                     *     }
+                     */
+                    fields?: {
+                        [key: string]: "survivor" | "duplicate";
+                    };
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergePreview"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change the survivor, delete the duplicate, choose a field (field_forbidden) or change a record referring to the duplicate (merge_references_forbidden). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note that you may read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The duplicate is under a legal hold (legal_hold). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The same record twice (merge_same_record), or the survivor would refer to itself (merge_self_reference). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteMergeController_merge_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description The record merged into this one: it goes to the recycle bin once merged.
+                     */
+                    duplicateId: string;
+                    /**
+                     * @description Whose value each field keeps: `duplicate` takes the duplicate's; any field left out keeps the survivor's.
+                     * @default {}
+                     * @example {
+                     *       "title": "duplicate"
+                     *     }
+                     */
+                    fields?: {
+                        [key: string]: "survivor" | "duplicate";
+                    };
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        /** @description The number people quote: NOTE-<year>-<n>, given on create. */
+                        number: string | null;
+                        /** @description Who wrote it: `user:<id>` or `client:<id>`. */
+                        ownerId: string;
+                        /**
+                         * Format: uuid
+                         * @description The author's organizational unit, when they were in exactly one.
+                         */
+                        unitId: string | null;
+                        title: string;
+                        /** @description Left out when your permissions don't include the note's text. */
+                        body?: string;
+                        /** @enum {string} */
+                        status: "draft" | "published";
+                        /** @description Custom field values by key; left out when your permissions don't include them. */
+                        custom?: {
+                            [key: string]: unknown;
+                        };
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        /**
+                         * Format: date-time
+                         * @description Set while the note is in the recycle bin (`?deleted=true`).
+                         */
+                        deletedAt: string | null;
+                        /** @description Who deleted it: `user:<id>` or `client:<id>`. */
+                        deletedBy: string | null;
+                        /** Format: date-time */
+                        publishedAt: string | null;
+                        /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
+                        tags: components["schemas"]["TagRef"][];
+                        /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
+                        can?: {
+                            /** @description PATCH would be allowed. */
+                            update: boolean;
+                            /** @description DELETE would be allowed. */
+                            delete: boolean;
+                            /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
+                            restore: boolean;
+                            /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
+                            issue: boolean;
+                        };
+                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares. */
+                        watching?: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description As the preview: the survivor, the duplicate, a field or a referring record. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note that you may read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A legal hold, an approval pending on either record, or a unique value another record holds. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description As the preview. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

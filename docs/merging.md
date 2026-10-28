@@ -5,7 +5,9 @@ survivor keeps its id and takes the values you choose from the duplicate,
 gains its tags, comments, attachments, watchers and the references to it,
 and the duplicate goes to the recycle bin. The capability is `merge`
 (`apps/api/src/platform/merge/`), tested on test items
-(`apps/api/test/merge.e2e-spec.ts`). Background scans for duplicates
+(`apps/api/test/merge.e2e-spec.ts`). Notes take it too, hand-wired
+(`features/notes/note-merge.ts`: a `Merges` with its own source, provided as
+`MERGES` next to `mergeRoutes(NOTE_ROUTES, …)`). Background scans for duplicates
 belong to data quality, not here: this finds them when a record is created
 or changed, or on demand.
 

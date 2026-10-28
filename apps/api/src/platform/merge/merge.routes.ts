@@ -3,6 +3,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Ip,
   Param,
   ParseUUIDPipe,
@@ -21,11 +22,11 @@ import {
 } from '@nestjs/swagger';
 import type { z } from 'zod';
 import type { RequestPrincipal } from '../../iam/auth/principal.js';
-import { type RecordDeclaration, recordKey } from '../records/record.js';
 import {
   aNounOf,
   namedController,
   RecordController,
+  type RecordRouteSpec,
 } from '../records/record-routes.js';
 import {
   duplicateListSchema,
@@ -35,18 +36,18 @@ import {
   mergePreviewSchema,
   mergeSchema,
 } from './merge.schemas.js';
-import { RecordMerge } from './record-merge.js';
+import { MERGES, type Merges } from './record-merge.js';
 
 /**
  * A record's duplicates and their merge (the `merge` capability,
  * docs/merging.md): `POST /<path>/duplicates` (values not saved yet),
  * `GET /<path>/{id}/duplicates`, `POST /<path>/{id}/merge/preview` and
- * `POST /<path>/{id}/merge`. Checked by RecordMerge: reading finds only
+ * `POST /<path>/{id}/merge`. Checked by its merges (MERGES: RecordMerge, or the feature's own): reading finds only
  * records the caller may read, merging takes changing the survivor and
  * deleting the duplicate.
  */
 export function mergeRoutes(
-  declaration: RecordDeclaration,
+  declaration: RecordRouteSpec,
   options: { response: z.ZodType },
 ): Type {
   const { noun, path } = declaration;
@@ -55,7 +56,7 @@ export function mergeRoutes(
   @ApiNotFoundResponse({ description: `No such ${noun} that you may read.` })
   @RecordController(declaration, path)
   class MergeRoutes {
-    constructor(private readonly merges: RecordMerge) {}
+    constructor(@Inject(MERGES) private readonly merges: Merges) {}
 
     @Post('duplicates')
     @HttpCode(HttpStatus.OK)
@@ -119,7 +120,7 @@ export function mergeRoutes(
     @Can.Anyone()
     @ApiOperation({
       summary: `Merge a duplicate into ${aNounOf(declaration)}`,
-      description: `In one transaction, or not at all: the survivor takes the values \`fields\` chooses from the duplicate (audited \`${recordKey(declaration)}.updated\`, a revision), gains its tags, comments, attachments and watchers, the records referring to it point at the survivor, and the duplicate goes to the recycle bin (restorable: POST /v1/${path}/{id}/restore). Audited \`.merged\` with what moved. The checks are the preview's. Answers the survivor.`,
+      description: `In one transaction, or not at all: the survivor takes the values \`fields\` chooses from the duplicate (audited \`${declaration.subject[0]!.toLowerCase()}${declaration.subject.slice(1)}.updated\`, a revision), gains its tags, comments, attachments and watchers, the records referring to it point at the survivor, and the duplicate goes to the recycle bin (restorable: POST /v1/${path}/{id}/restore). Audited \`.merged\` with what moved. The checks are the preview's. Answers the survivor.`,
     })
     @ApiOkResponse({ standardSchema: options.response })
     @ApiForbiddenResponse({

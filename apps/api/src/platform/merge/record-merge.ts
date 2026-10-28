@@ -35,14 +35,16 @@ import { attachments } from '../attachments/attachments.tables.js';
 import { comments } from '../comments/comments.tables.js';
 import { recordSubscriptions } from '../subscriptions/subscriptions.tables.js';
 import { recordTags } from '../tags/tags.tables.js';
-import { duplicateRules, recordKey, recordView } from '../records/record.js';
+import { duplicateRules, recordView } from '../records/record.js';
 import {
   RECORD_CONTRACT,
   type RecordContract,
+  type RecordPolicyContract,
   RecordPresenter,
   type RecordRow,
+  type RecordServiceContract,
 } from '../records/record-contract.js';
-import { relationsFrom, relationsTo } from '../records/record-relations.js';
+import { relationsTo } from '../records/record-relations.js';
 import {
   type FindDuplicatesDto,
   MAX_DUPLICATES,
@@ -67,45 +69,77 @@ const filled = (value: unknown) =>
   value !== undefined && value !== null && normalized(value) !== '';
 
 /**
- * A record's duplicates and their merge (the `merge` capability,
- * docs/merging.md): likely duplicates by the declaration's rules, among the
- * records the caller may read, matched only by fields they may read; a
- * merge previewed, then done in one transaction: the survivor takes the
- * values chosen from the duplicate, the duplicate's tags, comments,
- * attachments, watchers and the references to it move to the survivor, and
- * the duplicate goes to the recycle bin, each step through the feature's
- * own service (its audit entries, revisions, webhooks) plus a
- * `<item>.merged` entry naming what moved. The add-ons' rows are moved here
- * rather than through their services: each is one update of
- * (subject, record id) inside the merge's transaction, a change none of
- * their services offers.
+ * What merging needs of a subject's records: a declared record's comes
+ * from its contract (RecordMerge), a hand-written feature's from its own
+ * service and policy (notes: NoteMerge).
+ */
+export interface MergeSource {
+  subject: string;
+  path: string;
+  noun: string;
+  /** The fields a merge may take from the duplicate (and rules match by): kind and input schema. */
+  fields: Record<string, { kind: string; input: z.ZodType }>;
+  /** The duplicate rules: each the fields whose values all match. */
+  rules: readonly (readonly string[])[];
+  table: Table;
+  service: Pick<
+    RecordServiceContract,
+    'findOne' | 'update' | 'delete' | 'query'
+  >;
+  policy: Pick<RecordPolicyContract, 'update'>;
+  /** A row as the API shows it: the values a merge copies to the survivor. */
+  view(row: RecordRow): Record<string, unknown>;
+  /** Rows as `principal` may read them (the fields hidden from them left out). */
+  present(
+    principal: Principal,
+    rows: RecordRow[],
+  ): Promise<Record<string, unknown>[]>;
+  /** The merged survivor, as its routes answer it. */
+  one(principal: Principal, row: RecordRow): Promise<unknown>;
+}
+
+/** The merges a feature module's merge routes call (mergeRoutes): its RecordMerge, or its own. */
+export const MERGES = Symbol('MERGES');
+
+/**
+ * A subject's duplicates and their merge (the `merge` capability,
+ * docs/merging.md): likely duplicates by its rules, among the records the
+ * caller may read, matched only by fields they may read; a merge
+ * previewed, then done in one transaction: the survivor takes the values
+ * chosen from the duplicate, the duplicate's tags, comments, attachments,
+ * watchers and the references to it move to the survivor, and the
+ * duplicate goes to the recycle bin, each step through the feature's own
+ * service (its audit entries, revisions, webhooks) plus a `<item>.merged`
+ * entry naming what moved. The add-ons' rows are moved here rather than
+ * through their services: each is one update of (subject, record id)
+ * inside the merge's transaction, a change none of their services offers.
  */
 @Injectable()
-export class RecordMerge {
+export abstract class Merges {
+  protected abstract readonly s: MergeSource;
+
   constructor(
-    @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly access: AccessService,
     private readonly audit: AuditService,
     private readonly holds: LegalHoldsService,
-    private readonly presenter: RecordPresenter,
   ) {}
 
   private get subject() {
-    return this.c.declaration.subject;
+    return this.s.subject;
   }
 
   private get table() {
-    return this.c.table as unknown as Table;
+    return this.s.table;
   }
 
   private kind(field: string) {
-    return (this.c.declaration.fields[field] as { kind: string }).kind;
+    return (this.s.fields[field] as { kind: string }).kind;
   }
 
   /** A value a rule can match by: given, and one the field takes (else no query could compare it). */
   private usable(field: string, value: unknown) {
-    const f = this.c.declaration.fields[field] as { input: z.ZodType };
+    const f = this.s.fields[field] as { input: z.ZodType };
     return filled(value) && f.input.safeParse(value).success;
   }
 
@@ -128,7 +162,7 @@ export class RecordMerge {
    * the hidden value).
    */
   async find(principal: Principal, { values, excludeId }: FindDuplicatesDto) {
-    const rules = duplicateRules(this.c.declaration).filter((rule) =>
+    const rules = this.s.rules.filter((rule) =>
       rule.every((field) => this.usable(field, values[field])),
     );
     if (rules.length === 0) return { items: [] };
@@ -138,7 +172,7 @@ export class RecordMerge {
       this.subject,
       'read',
     );
-    const rows = (await this.c.service.query((db) =>
+    const rows = (await this.s.service.query((db) =>
       db
         .select()
         .from(table)
@@ -152,7 +186,7 @@ export class RecordMerge {
         .orderBy(desc(table.id!))
         .limit(MAX_DUPLICATES),
     )) as RecordRow[];
-    const shown = await this.presenter.many(principal, rows);
+    const shown = await this.s.present(principal, rows);
     const items = rows.flatMap((row, i) => {
       const record = shown[i]!;
       const matched = rules.filter((rule) =>
@@ -169,12 +203,12 @@ export class RecordMerge {
 
   /** The duplicates of a record, by its values the principal may read. */
   async duplicatesOf(principal: Principal, id: string) {
-    const row = await this.c.service.findOne(id, undefined, {
+    const row = await this.s.service.findOne(id, undefined, {
       visibleTo: principal,
     });
-    const [shown] = await this.presenter.many(principal, [row]);
+    const [shown] = await this.s.present(principal, [row]);
     const values = Object.fromEntries(
-      duplicateRules(this.c.declaration)
+      this.s.rules
         .flat()
         .filter((field) => field in shown!)
         .map((field) => [field, row[field] as Value]),
@@ -218,12 +252,12 @@ export class RecordMerge {
       );
       const moved = await this.move(tx, duplicate.id, survivor.id);
       // To the recycle bin first: a unique value it holds is free for the survivor.
-      await this.c.service.delete(principal, duplicate, ip);
+      await this.s.service.delete(principal, duplicate, ip);
       const merged =
         Object.keys(changes).length > 0
-          ? await this.c.service.update(principal, survivor, changes, ip)
+          ? await this.s.service.update(principal, survivor, changes, ip)
           : survivor;
-      const key = recordKey(this.c.declaration);
+      const key = this.s.subject[0]!.toLowerCase() + this.s.subject.slice(1);
       await this.audit.record(
         principal,
         {
@@ -239,7 +273,7 @@ export class RecordMerge {
         },
         tx,
       );
-      return this.presenter.one(principal, merged);
+      return this.s.one(principal, merged);
     });
   }
 
@@ -260,30 +294,30 @@ export class RecordMerge {
     if (id === dto.duplicateId) {
       throw new UnprocessableEntityException({
         code: 'merge_same_record',
-        message: `A ${this.c.declaration.noun} can't be merged into itself.`,
+        message: `A ${this.s.noun} can't be merged into itself.`,
       });
     }
-    const survivor = await this.c.service.findOne(id, db, {
+    const survivor = await this.s.service.findOne(id, db, {
       visibleTo: principal,
     });
-    const duplicate = await this.c.service.findOne(dto.duplicateId, db, {
+    const duplicate = await this.s.service.findOne(dto.duplicateId, db, {
       visibleTo: principal,
     });
     if (
-      !(await this.c.policy.update(principal, survivor)) ||
+      !(await this.s.policy.update(principal, survivor)) ||
       !(await this.access.can(principal, 'delete', this.subject, duplicate))
     ) {
       throw new ForbiddenException(
-        `You may not merge these ${this.c.declaration.path.replace(/-/g, ' ')}: it takes changing the survivor and deleting the duplicate.`,
+        `You may not merge these ${this.s.path.replace(/-/g, ' ')}: it takes changing the survivor and deleting the duplicate.`,
       );
     }
     await this.holds.assertNotHeld(this.subject, [duplicate.id], db);
 
-    const [shownSurvivor, shownDuplicate] = await this.presenter.many(
-      principal,
-      [survivor, duplicate],
-    );
-    const readable = Object.keys(this.c.declaration.fields).filter(
+    const [shownSurvivor, shownDuplicate] = await this.s.present(principal, [
+      survivor,
+      duplicate,
+    ]);
+    const readable = Object.keys(this.s.fields).filter(
       (field) => field in shownSurvivor! && field in shownDuplicate!,
     );
     const unwritable = new Set(
@@ -307,16 +341,15 @@ export class RecordMerge {
         fields: refused,
       });
     }
-    const duplicateView = recordView(this.c.declaration, duplicate) as Record<
-      string,
-      unknown
-    >;
+    const duplicateView = this.s.view(duplicate);
     const changes = Object.fromEntries(
       choosable
         .filter((field) => dto.fields[field] === 'duplicate')
         .map((field) => [field, duplicateView[field]]),
     );
-    for (const relation of relationsFrom(this.c.declaration)) {
+    for (const relation of relationsTo(this.subject).filter(
+      (relation) => relation.from.subject === this.subject,
+    )) {
       const value =
         relation.field in changes
           ? changes[relation.field]
@@ -505,6 +538,37 @@ export class RecordMerge {
       tags: tags.map((tag) => tag.tagId),
       watchers: watchers.length,
       references,
+    };
+  }
+}
+
+/** A declared record's merges (recordParts, with `merge`): from its contract. */
+@Injectable()
+export class RecordMerge extends Merges {
+  protected readonly s: MergeSource;
+
+  constructor(
+    @Inject(RECORD_CONTRACT) c: RecordContract,
+    presenter: RecordPresenter,
+    txHost: TransactionHost<DrizzleTransactions>,
+    access: AccessService,
+    audit: AuditService,
+    holds: LegalHoldsService,
+  ) {
+    super(txHost, access, audit, holds);
+    const { declaration } = c;
+    this.s = {
+      subject: declaration.subject,
+      path: declaration.path,
+      noun: declaration.noun,
+      fields: declaration.fields as MergeSource['fields'],
+      rules: duplicateRules(declaration),
+      table: c.table as unknown as Table,
+      service: c.service,
+      policy: c.policy,
+      view: (row) => recordView(declaration, row) as Record<string, unknown>,
+      present: (principal, rows) => presenter.many(principal, rows),
+      one: (principal, row) => presenter.one(principal, row),
     };
   }
 }

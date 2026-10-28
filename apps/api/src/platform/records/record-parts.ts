@@ -6,7 +6,7 @@ import { commentRoutes } from '../comments/comment.routes.js';
 import { documentRoutes } from '../documents/document.routes.js';
 import { revisionRoutes } from '../revisions/revision.routes.js';
 import { mergeRoutes } from '../merge/merge.routes.js';
-import { RecordMerge } from '../merge/record-merge.js';
+import { MERGES, RecordMerge } from '../merge/record-merge.js';
 import { shareRoutes } from '../shares/share.routes.js';
 import { watchRoutes } from '../subscriptions/subscription.routes.js';
 import { listSource } from '../lists/lists.registry.js';
@@ -164,6 +164,8 @@ export function recordParts(
     RecordStore,
     RecordLifecycle,
     RecordPresenter,
+    // The merge routes' (merge): its generic merges.
+    ...(has('merge') ? [{ provide: MERGES, useExisting: RecordMerge }] : []),
     // GET /v1/access/users/{id}/explanation finds its records.
     RecordAccessFinder,
     // GET /v1/lists/{subject}: its list described, and its capabilities.
