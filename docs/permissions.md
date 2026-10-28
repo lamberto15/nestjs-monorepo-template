@@ -183,6 +183,40 @@ subject the same fields when its users need to filter by them.
 
 Every condition has a CASL form (one record) and a SQL form (lists).
 
+### Explaining access
+
+`GET /v1/access/users/{id}/explanation?subject=Note&recordId=<id>` says
+why a member may or may not do each action of a subject, on one of its
+records (`recordId`) or on some records at least (left out), for the
+"Explain access" panel of the users page. The engine answers, not a copy
+of it: `AccessService.explain()` reads the member's grants and units as
+every request does (`loadPermissions()`, `loadContext()`), builds the same
+CASL ability, and answers with the checks `can()` and `redact()` make (the
+recycle bin rule too). Each permission of the member's roles for the
+action, and each of its conditions, is checked alone the same way, so
+`matches` says which grant reaches the record when several overlap. The
+response lists every role grant, an ended one marked `expired` (it
+counts for nothing), and the member's units as the unit conditions read
+them.
+
+- **Who:** `Access.manageRoles` or `Access.manageUsers`
+  (`AccessPolicy.explain`), as themselves (not while impersonating); a
+  member of the session's tenant (anyone else: 404).
+- **Which record:** looked up as the asker, with the read filter of its
+  own routes: a record they may not read is a 404, as on its routes, so
+  the explanation never tells one exists. Generated records register
+  their lookup (`RecordAccessFinder`, platform/records), notes theirs
+  (`NoteAccess`); a subject without one takes no `recordId` (400
+  `subject_without_records`).
+- **What it withholds:** a field the asker may not read on the record
+  never shows its value through the answer: when a condition reads such
+  a field, its `matches`, and the action's `allowed` and `fields`, are
+  `null`. Only declared field names are listed (the catalog's), never
+  values.
+- A policy's own rule (an override in `<x>.policy.ts`) is not in the
+  ability: the explanation says what the roles grant, which is what such
+  a rule starts from.
+
 ### Approvals
 
 The platform's `Approval` subject (docs/approvals.md): `read`, `cancel` and
@@ -396,6 +430,19 @@ members routes are the one way to change a membership
 (`PATCH /v1/access/users/{id}` takes no `unitIds`). A lead's role grants nothing by itself either: only the conditions
 and the roles an administrator gives do. A child's membership never implies
 the parent's.
+
+**Preview before restructuring.** `POST /v1/access/organizational-units/{id}/impact`
+(the PATCH's body) and `POST …/{id}/members/{userId}/impact` (the role
+change's body) answer who would gain or lose reach under
+`inMyUnitsAndBelow` and `inUnitsILeadAndBelow`, without changing
+anything: the change itself runs, with its permission, checks and errors
+(the same 403, 404 and 409), in a transaction that is rolled back, and the
+units are read before and after it as the access engine reads them
+(`AccessService.unitContext()`). Nothing is audited. A move can only change
+the reach of the members of the units above it, before and after; the first
+500 are compared (`truncated` past them). Deleting a unit needs no preview: an
+empty unit changes no one's reach. The Organization structure page shows the
+preview in the confirmation of a move and of a lead change.
 
 Three conditions read the current memberships (`iam/access/permissions.ts`):
 

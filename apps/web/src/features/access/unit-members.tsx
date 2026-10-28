@@ -37,15 +37,19 @@ import { toast } from 'sonner';
 import { ConfirmButton } from '@/components/confirm-button';
 import { PrincipalPicker } from '@/components/principal-picker';
 import {
+  type AccessImpact,
   addUnitMember,
   changeUnitMember,
   invalidateAccess,
+  previewUnitMemberChange,
   removeUnitMember,
   unitMembersQuery,
   unitsQuery,
   type UnitMember,
 } from '@/features/access/api';
 import { unitErrorMessage } from '@/features/access/unit-dialog';
+import { ImpactSummary } from '@/features/access/access-impact';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { formatDateTime } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
 import { useCan } from '@/lib/features';
@@ -109,6 +113,12 @@ export function UnitMembers(props: { unitId: string }) {
   // A new picker (an empty input) after each addition.
   const [picker, setPicker] = useState(0);
   const [error, setError] = useState<string>();
+  // A role change waiting for its confirmation, with what it would change of who sees what.
+  const [changing, setChanging] = useState<{
+    member: UnitMember;
+    role: Role;
+    impact: AccessImpact;
+  }>();
   const change = useMutation({
     mutationFn: (action: () => Promise<unknown>) => action(),
     meta: { errorToast: false },
@@ -269,12 +279,17 @@ export function UnitMembers(props: { unitId: string }) {
                     label={t('units.columns.role')}
                     value={member.role}
                     disabled={change.isPending}
-                    onChange={(next) =>
-                      void run(
-                        () => changeUnitMember(unit.id, member.userId, next),
-                        t('units.roleChanged'),
-                      ).catch(() => {})
-                    }
+                    onChange={(next) => {
+                      setError(undefined);
+                      // First what it would change (a dry run), then the confirmation.
+                      previewUnitMemberChange(unit.id, member.userId, next)
+                        .then((impact) =>
+                          setChanging({ member, role: next, impact }),
+                        )
+                        .catch((caught: unknown) =>
+                          setError(unitErrorMessage(caught, t)),
+                        );
+                    }}
                   />
                 ) : (
                   t(`units.roles.${member.role}`)
@@ -307,6 +322,31 @@ export function UnitMembers(props: { unitId: string }) {
           ))}
         </TableBody>
       </Table>
+      <ConfirmDialog
+        open={changing !== undefined}
+        onOpenChange={(open) => !open && setChanging(undefined)}
+        title={t('units.impact.roleTitle', {
+          name: changing?.member.name || changing?.member.email,
+          role: changing && t(`units.roles.${changing.role}`),
+        })}
+        description={
+          changing && (
+            <ImpactSummary impact={changing.impact} units={units.data} t={t} />
+          )
+        }
+        confirm={t('units.impact.roleConfirm')}
+        onConfirm={() =>
+          run(
+            () =>
+              changeUnitMember(
+                unit.id,
+                changing!.member.userId,
+                changing!.role,
+              ),
+            t('units.roleChanged'),
+          ).catch(() => {})
+        }
+      />
     </Page>
   );
 }

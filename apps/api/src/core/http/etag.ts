@@ -8,7 +8,10 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import type { ApiHeaderOptions } from '@nestjs/swagger';
-import type { Request, Response } from 'express';
+import type {
+  NodeRequest as Request,
+  NodeResponse as Response,
+} from '@nestjs/platform-node';
 import { map } from 'rxjs';
 
 /**
@@ -144,7 +147,7 @@ export class EtagInterceptor implements NestInterceptor {
         response.setHeader('Cache-Control', 'private, no-cache');
         if (
           request.method === 'GET' &&
-          tagsOf(request.header('if-none-match')).some(
+          tagsOf(request.headers['if-none-match']).some(
             (tag) => tag === etag || tag === '*',
           )
         ) {

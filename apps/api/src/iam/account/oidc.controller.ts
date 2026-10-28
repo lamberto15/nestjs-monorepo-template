@@ -13,7 +13,10 @@ import {
   Res,
   UnauthorizedException,
 } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import type {
+  NodeRequest as Request,
+  NodeResponse as Response,
+} from '@nestjs/platform-node';
 import {
   Authenticate,
   CurrentSession,

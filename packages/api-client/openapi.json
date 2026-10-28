@@ -7099,6 +7099,189 @@
         ]
       }
     },
+    "/v1/ops/diagnostics": {
+      "get": {
+        "description": "Each one ok, configured (set up, not probed: run its test), disabled, unconfigured or unavailable, with a hint. Built from switches and driver names: no URL, host credential or key is ever in it; errors are masked as in the logs and cut.",
+        "operationId": "OpsController_diagnosticsOverview_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "check": {
+                            "type": "string",
+                            "enum": [
+                              "database",
+                              "redis",
+                              "workers",
+                              "mail",
+                              "storage",
+                              "realtime"
+                            ]
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "ok",
+                              "configured",
+                              "disabled",
+                              "unconfigured",
+                              "unavailable"
+                            ]
+                          },
+                          "driver": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "detail": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "hint": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "testable": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "check",
+                          "state",
+                          "driver",
+                          "detail",
+                          "hint",
+                          "testable"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "canTest": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "canTest"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "operator_required: the caller does not act in the operator tenant.\n\nNot allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Integration diagnostics: database, Redis, workers, mail, storage, realtime",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/v1/ops/diagnostics/{check}/test": {
+      "post": {
+        "description": "SMTP: connects, authenticates and says QUIT. Storage: writes, reads and deletes a probe file. Database, Redis, realtime: a ping; workers: at least one connected. A failure answers 200 with ok false and the masked reason. 400 not_testable when the configuration has nothing to probe. 10 per minute per user. Audited.",
+        "operationId": "OpsController_testDiagnostic_v1",
+        "parameters": [
+          {
+            "name": "check",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "check": {
+                      "type": "string",
+                      "enum": [
+                        "database",
+                        "redis",
+                        "workers",
+                        "mail",
+                        "storage",
+                        "realtime"
+                      ]
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "durationMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "hint": {
+                      "nullable": true,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "check",
+                    "ok",
+                    "durationMs",
+                    "detail",
+                    "hint"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "operator_required: the caller does not act in the operator tenant.\n\nNot allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Test one integration now (safe: sends nothing, keeps nothing)",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
     "/v1/ops/queues/{name}/retry-failed": {
       "post": {
         "operationId": "OpsController_retryFailed_v1",
@@ -7284,6 +7467,719 @@
         "summary": "Delete dead letters (these ids, or all)",
         "tags": [
           "ops"
+        ]
+      }
+    },
+    "/v1/config-bundles/export": {
+      "get": {
+        "description": "Tenant-scope setting values (flag rollouts and rules, a role condition by role name) and the custom roles with their permissions, with a SHA-256 checksum. No secrets, users, grants, API clients or records.",
+        "operationId": "ConfigBundlesController_export_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "format": {
+                      "type": "string",
+                      "enum": [
+                        "config-bundle"
+                      ]
+                    },
+                    "version": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "exportedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "checksum": {
+                      "type": "string",
+                      "pattern": "^sha256:[0-9a-f]{64}$"
+                    },
+                    "contents": {
+                      "type": "object",
+                      "properties": {
+                        "settings": {
+                          "maxItems": 1000,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              "value": {},
+                              "rollout": {
+                                "nullable": true,
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 100
+                              },
+                              "rules": {
+                                "maxItems": 50,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": {}
+                                }
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "value",
+                              "rollout",
+                              "rules"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "roles": {
+                          "maxItems": 200,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 80
+                              },
+                              "description": {
+                                "type": "string",
+                                "maxLength": 500
+                              },
+                              "permissions": {
+                                "maxItems": 100,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "subject": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "action": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "conditions": {
+                                      "maxItems": 10,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "key": {
+                                            "type": "string",
+                                            "minLength": 1
+                                          },
+                                          "params": {
+                                            "type": "object",
+                                            "additionalProperties": {}
+                                          }
+                                        },
+                                        "required": [
+                                          "key"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "fields": {
+                                      "maxItems": 50,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "subject",
+                                    "action",
+                                    "conditions"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "description",
+                              "permissions"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "settings",
+                        "roles"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "format",
+                    "version",
+                    "exportedAt",
+                    "checksum",
+                    "contents"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "This tenant's settings and custom roles as a bundle",
+        "tags": [
+          "config-bundles"
+        ]
+      }
+    },
+    "/v1/config-bundles/preview": {
+      "post": {
+        "description": "Validates the bundle against this deployment (format, checksum, declared settings, their values, the permission catalog) and diffs it against this tenant. Changes nothing. Hand `targetVersion` to apply.",
+        "operationId": "ConfigBundlesController_preview_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bundle": {
+                    "type": "object",
+                    "properties": {
+                      "format": {
+                        "type": "string",
+                        "enum": [
+                          "config-bundle"
+                        ]
+                      },
+                      "version": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "exportedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      },
+                      "checksum": {
+                        "type": "string",
+                        "pattern": "^sha256:[0-9a-f]{64}$"
+                      },
+                      "contents": {
+                        "type": "object",
+                        "properties": {
+                          "settings": {
+                            "maxItems": 1000,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "value": {},
+                                "rollout": {
+                                  "nullable": true,
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                "rules": {
+                                  "maxItems": 50,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                  }
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "value",
+                                "rollout",
+                                "rules"
+                              ]
+                            }
+                          },
+                          "roles": {
+                            "maxItems": 200,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 80
+                                },
+                                "description": {
+                                  "type": "string",
+                                  "maxLength": 500
+                                },
+                                "permissions": {
+                                  "maxItems": 100,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "subject": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "action": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "conditions": {
+                                        "maxItems": 10,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "key": {
+                                              "type": "string",
+                                              "minLength": 1
+                                            },
+                                            "params": {
+                                              "type": "object",
+                                              "additionalProperties": {}
+                                            }
+                                          },
+                                          "required": [
+                                            "key"
+                                          ]
+                                        }
+                                      },
+                                      "fields": {
+                                        "maxItems": 50,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "subject",
+                                      "action",
+                                      "conditions"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "description",
+                                "permissions"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "settings",
+                          "roles"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "format",
+                      "version",
+                      "exportedAt",
+                      "checksum",
+                      "contents"
+                    ]
+                  }
+                },
+                "required": [
+                  "bundle"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "valid": {
+                      "type": "boolean"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ref": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "ref",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ref": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "ref",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "changes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "setting",
+                              "role"
+                            ]
+                          },
+                          "ref": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "create",
+                              "update",
+                              "unchanged"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "ref",
+                          "action"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "targetVersion": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "valid",
+                    "errors",
+                    "warnings",
+                    "changes",
+                    "targetVersion"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "What applying a bundle here would change (a dry run)",
+        "tags": [
+          "config-bundles"
+        ]
+      }
+    },
+    "/v1/config-bundles/apply": {
+      "post": {
+        "description": "Roles first, then settings, in one transaction, each through its own checks and audit entry, plus one config-bundle.applied entry. Additive: nothing the bundle lacks is removed.",
+        "operationId": "ConfigBundlesController_apply_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bundle": {
+                    "type": "object",
+                    "properties": {
+                      "format": {
+                        "type": "string",
+                        "enum": [
+                          "config-bundle"
+                        ]
+                      },
+                      "version": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "exportedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      },
+                      "checksum": {
+                        "type": "string",
+                        "pattern": "^sha256:[0-9a-f]{64}$"
+                      },
+                      "contents": {
+                        "type": "object",
+                        "properties": {
+                          "settings": {
+                            "maxItems": 1000,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "value": {},
+                                "rollout": {
+                                  "nullable": true,
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                "rules": {
+                                  "maxItems": 50,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                  }
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "value",
+                                "rollout",
+                                "rules"
+                              ]
+                            }
+                          },
+                          "roles": {
+                            "maxItems": 200,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 80
+                                },
+                                "description": {
+                                  "type": "string",
+                                  "maxLength": 500
+                                },
+                                "permissions": {
+                                  "maxItems": 100,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "subject": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "action": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "conditions": {
+                                        "maxItems": 10,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "key": {
+                                              "type": "string",
+                                              "minLength": 1
+                                            },
+                                            "params": {
+                                              "type": "object",
+                                              "additionalProperties": {}
+                                            }
+                                          },
+                                          "required": [
+                                            "key"
+                                          ]
+                                        }
+                                      },
+                                      "fields": {
+                                        "maxItems": 50,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "subject",
+                                      "action",
+                                      "conditions"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "description",
+                                "permissions"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "settings",
+                          "roles"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "format",
+                      "version",
+                      "exportedAt",
+                      "checksum",
+                      "contents"
+                    ]
+                  },
+                  "targetVersion": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                },
+                "required": [
+                  "bundle",
+                  "targetVersion"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "created": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "updated": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "unchanged": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "created",
+                    "updated",
+                    "unchanged"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "validation_failed: the bundle is invalid here (the preview lists why)."
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "409": {
+            "description": "config_changed: the tenant changed since the preview."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Apply a previewed bundle to this tenant, all or nothing",
+        "tags": [
+          "config-bundles"
         ]
       }
     },
@@ -16789,6 +17685,75 @@
                       "additionalProperties": false,
                       "description": "What the subject's records take, from their declaration (`<item>.record.ts`): a client shows a record's panels (comments, attachments, tags, revisions, PDF, approvals…) only where they are true. Whether the caller may use one on a record is the record's `can` (`?include=can`) and the routes' answers."
                     },
+                    "views": {
+                      "nullable": true,
+                      "description": "The views besides the table that this subject declares and this caller can use: a field they may not filter by leaves its view out. Null when none. Fetch their records with the list route, bounded by `filter` on the fields named here.",
+                      "type": "object",
+                      "properties": {
+                        "board": {
+                          "type": "object",
+                          "properties": {
+                            "field": {
+                              "type": "string",
+                              "description": "The enum field whose values are the board's columns.",
+                              "example": "status"
+                            },
+                            "readOnly": {
+                              "type": "boolean",
+                              "description": "The cards are not moved: the field is not changed through `PATCH`."
+                            }
+                          },
+                          "required": [
+                            "field",
+                            "readOnly"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "calendar": {
+                          "type": "object",
+                          "properties": {
+                            "fields": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "The `date` (all-day) and `datetime` fields to plan by, one at a time.",
+                              "example": [
+                                "dueAt"
+                              ]
+                            },
+                            "readOnly": {
+                              "type": "boolean",
+                              "description": "The dates are not changed through `PATCH`."
+                            }
+                          },
+                          "required": [
+                            "fields",
+                            "readOnly"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "timeline": {
+                          "type": "object",
+                          "properties": {
+                            "start": {
+                              "type": "string",
+                              "description": "The field a bar starts at."
+                            },
+                            "end": {
+                              "type": "string",
+                              "description": "The field a bar ends at; empty: the bar is still open."
+                            }
+                          },
+                          "required": [
+                            "start",
+                            "end"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    },
                     "attachmentLimits": {
                       "nullable": true,
                       "description": "What a record's attachment may be, as the upload route enforces it; null when the subject takes no attachments.",
@@ -16863,6 +17828,7 @@
                     "defaultSort",
                     "limits",
                     "capabilities",
+                    "views",
                     "attachmentLimits",
                     "documentTemplates"
                   ],
@@ -17253,6 +18219,293 @@
         ]
       }
     },
+    "/v1/attachments/{id}": {
+      "get": {
+        "description": "Whoever may read its record. Its ETag is what `If-Match` takes to replace or restore it (`POST …/attachments/{attachmentId}/versions`, `…/versions/{version}/restore`).",
+        "operationId": "AttachmentsController_get_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attachment"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "An attachment",
+        "tags": [
+          "attachments"
+        ]
+      },
+      "delete": {
+        "description": "Your own upload, or any attachment of a record you may change (for notes: Note.update). The file is deleted too. Audited (attachment.removed). Never an issued document (`locked`).",
+        "operationId": "AttachmentsController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not yours, and you may not change its record."
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "An issued document (attachment_locked): it stays with its record."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Remove an attachment",
+        "tags": [
+          "attachments"
+        ]
+      }
+    },
+    "/v1/attachments/{id}/versions": {
+      "get": {
+        "description": "The current file (`current: true`) and the earlier ones, with who uploaded each, when, and its revision note. Whoever may read its record.",
+        "operationId": "AttachmentsController_listVersions_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentVersionList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "An attachment's versions, newest first",
+        "tags": [
+          "attachments"
+        ]
+      }
+    },
+    "/v1/attachments/{id}/versions/{version}/download": {
+      "get": {
+        "description": "Whoever may read its record. Redirects to a signed link to that version's file, valid for 5m, as a download (never inline). The current version downloads as `GET /v1/attachments/{id}/download` does.",
+        "operationId": "AttachmentsController_downloadVersion_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "To the file (a signed link)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such attachment, or version (attachment_version_not_found)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Download one version of an attachment",
+        "tags": [
+          "attachments"
+        ]
+      }
+    },
+    "/v1/attachments/{id}/versions/{version}/restore": {
+      "post": {
+        "description": "Who may change its record. The version's bytes become the current file again as a new version (nothing is lost), scanned again like an upload. Audited (attachment.version-restored). With `If-Match` (the attachment's ETag) refused (412) if it changed since you read it.",
+        "operationId": "AttachmentsController_restoreVersion_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "\"mZ1k…\""
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "description": "Why the file changed, kept with the version.",
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attachment"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not change its record."
+          },
+          "404": {
+            "description": "No such attachment, or version (attachment_version_not_found)."
+          },
+          "409": {
+            "description": "An issued document (attachment_locked), still being scanned or processed (attachment_busy), or at the limit of versions."
+          },
+          "412": {
+            "description": "It changed since you read it (precondition_failed)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Restore an earlier version of an attachment",
+        "tags": [
+          "attachments"
+        ]
+      }
+    },
     "/v1/attachments/{id}/download": {
       "get": {
         "description": "Whoever may read its record. Redirects to a signed link to the file, valid for 5m: it needs no credentials, so a browser can follow it (a link, an image). The file comes as `Content-Disposition: attachment` (a download), with `X-Content-Type-Options: nosniff`; `?inline=true` shows a PDF in the browser instead (a preview in a new tab), under `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox` (nothing loads, nothing runs, no page may frame it). Any other type stays a download. `?rendition=thumb` or `preview` links to an image's smaller WebP copy instead, inline.",
@@ -17322,54 +18575,6 @@
           }
         ],
         "summary": "Download an attachment",
-        "tags": [
-          "attachments"
-        ]
-      }
-    },
-    "/v1/attachments/{id}": {
-      "delete": {
-        "description": "Your own upload, or any attachment of a record you may change (for notes: Note.update). The file is deleted too. Audited (attachment.removed). Never an issued document (`locked`).",
-        "operationId": "AttachmentsController_remove_v1",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": ""
-          },
-          "401": {
-            "description": "No valid API key or session."
-          },
-          "403": {
-            "description": "Not yours, and you may not change its record."
-          },
-          "404": {
-            "description": ""
-          },
-          "409": {
-            "description": "An issued document (attachment_locked): it stays with its record."
-          }
-        },
-        "security": [
-          {
-            "user-session": []
-          },
-          {
-            "user-token": []
-          },
-          {
-            "api-key": []
-          }
-        ],
-        "summary": "Remove an attachment",
         "tags": [
           "attachments"
         ]
@@ -36033,6 +37238,10 @@
                               "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                             },
                             "description": "The organizational units they are a current member of."
+                          },
+                          "managedByScim": {
+                            "type": "boolean",
+                            "description": "Provisioned over SCIM: the tenant's identity provider is its source of truth (docs/identity.md)."
                           }
                         },
                         "required": [
@@ -36049,7 +37258,8 @@
                           "updatedAt",
                           "roleIds",
                           "roles",
-                          "unitIds"
+                          "unitIds",
+                          "managedByScim"
                         ],
                         "additionalProperties": false
                       }
@@ -36119,8 +37329,8 @@
         ]
       },
       "post": {
-        "description": "The address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). A new address chooses its password with it; an existing account accepts while signed in (POST /auth/invitations/accept). The membership, with these roles and units, comes then. The answer is the same whether or not the address has an account; nobody sets another person's password.",
-        "operationId": "AccessController_createUser_v1",
+        "description": "An invitation with the membership's roles and units. `send: true` (invite, the default): the address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). `send: false` (prepare): no link and no access until POST /access/invitations/{id}/send; the address may come later (PATCH /access/invitations/{id}). A new address chooses its password with the link; an existing account accepts while signed in (POST /auth/invitations/accept). The membership comes then. The answer is the same whether or not the address has an account; nobody sets another person's password. 400 `email_required`: sending without an address.",
+        "operationId": "AccessController_addMember_v1",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -36130,15 +37340,16 @@
                 "type": "object",
                 "properties": {
                   "email": {
+                    "description": "Where the link goes; a prepared member (`send: false`) may get it later.",
                     "type": "string",
                     "format": "email",
                     "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
                   },
                   "name": {
-                    "description": "The name a new account starts with; its owner changes it.",
                     "type": "string",
                     "minLength": 1,
-                    "maxLength": 120
+                    "maxLength": 120,
+                    "description": "The name a new account starts with; its owner changes it."
                   },
                   "roleIds": {
                     "default": [],
@@ -36159,18 +37370,20 @@
                     }
                   },
                   "unitIds": {
-                    "description": "The organizational units the user belongs to, as a member.",
                     "type": "array",
                     "items": {
                       "type": "string",
                       "format": "uuid",
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                    }
+                    },
+                    "description": "The organizational units the user belongs to, as a member."
+                  },
+                  "send": {
+                    "default": true,
+                    "description": "true (invite): the link is mailed now. false (prepare): no link until POST /access/invitations/{id}/send.",
+                    "type": "boolean"
                   }
                 },
-                "required": [
-                  "email"
-                ],
                 "additionalProperties": false
               }
             }
@@ -36190,9 +37403,22 @@
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                     },
                     "email": {
+                      "nullable": true,
+                      "description": "null: prepared without one.",
                       "type": "string"
                     },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "prepared",
+                        "sent",
+                        "expired"
+                      ],
+                      "description": "`prepared`: no link yet (send it); `sent`: its link works until `expiresAt`; `expired`: send it again."
+                    },
                     "expiresAt": {
+                      "nullable": true,
+                      "description": "The link's end; null: prepared.",
                       "type": "string",
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
@@ -36201,6 +37427,7 @@
                   "required": [
                     "id",
                     "email",
+                    "status",
                     "expiresAt"
                   ],
                   "additionalProperties": false
@@ -36223,7 +37450,7 @@
             "user-session": []
           }
         ],
-        "summary": "Invite someone to this tenant",
+        "summary": "Invite or prepare a member of this tenant",
         "tags": [
           "access"
         ]
@@ -36344,6 +37571,10 @@
                         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                       },
                       "description": "The organizational units they are a current member of."
+                    },
+                    "managedByScim": {
+                      "type": "boolean",
+                      "description": "Provisioned over SCIM: the tenant's identity provider is its source of truth (docs/identity.md)."
                     }
                   },
                   "required": [
@@ -36360,7 +37591,8 @@
                     "updatedAt",
                     "roleIds",
                     "roles",
-                    "unitIds"
+                    "unitIds",
+                    "managedByScim"
                   ],
                   "additionalProperties": false
                 }
@@ -36468,6 +37700,298 @@
         ]
       }
     },
+    "/v1/access/users/{id}/explanation": {
+      "get": {
+        "description": "Computed by the authorization engine itself (the checks every route makes), per action: the answer, the fields it may touch, and each permission of the member's roles that could grant it, with whether it (and each of its conditions) reaches the record. The record is looked up as you: one you may not read is a 404. An answer that a field hidden from you decides is `null` (withheld). `Access.manageRoles` or `Access.manageUsers`.",
+        "operationId": "AccessController_explain_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "subject",
+            "required": true,
+            "in": "query",
+            "description": "A subject of the catalog (GET /access/catalog).",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "description": "A subject of the catalog (GET /access/catalog).",
+              "example": "Note"
+            }
+          },
+          {
+            "name": "recordId",
+            "required": false,
+            "in": "query",
+            "description": "One of its records, looked up as you; left out: on any record (some at least).",
+            "schema": {
+              "description": "One of its records, looked up as you; left out: on any record (some at least).",
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "email"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "recordId": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "roles": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "expiresAt": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "expired": {
+                            "type": "boolean",
+                            "description": "An ended grant: it counts for nothing."
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "expiresAt",
+                          "expired"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The member's role grants, ended ones too."
+                    },
+                    "units": {
+                      "type": "object",
+                      "properties": {
+                        "direct": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        },
+                        "andBelow": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        },
+                        "ledAndBelow": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        }
+                      },
+                      "required": [
+                        "direct",
+                        "andBelow",
+                        "ledAndBelow"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Their current units, as `inMyUnits`, `inMyUnitsAndBelow` and `inUnitsILeadAndBelow` read them."
+                    },
+                    "actions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "action": {
+                            "type": "string"
+                          },
+                          "allowed": {
+                            "nullable": true,
+                            "description": "With a record: on it; without: on some records at least.",
+                            "type": "boolean"
+                          },
+                          "fields": {
+                            "nullable": true,
+                            "description": "The declared fields it may touch (with a record: on it); null: withheld.",
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "grants": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "roleId": {
+                                  "nullable": true,
+                                  "description": "The role it comes with; null: built in.",
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "expiresAt": {
+                                  "nullable": true,
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "all": {
+                                  "type": "boolean",
+                                  "description": "`all.manage`: anything (an administrator)."
+                                },
+                                "fields": {
+                                  "nullable": true,
+                                  "description": "Only these declared fields; null: all.",
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "matches": {
+                                  "nullable": true,
+                                  "description": "Whether it reaches the record (always true without one).",
+                                  "type": "boolean"
+                                },
+                                "conditions": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "example": "mine"
+                                      },
+                                      "params": {
+                                        "nullable": true,
+                                        "type": "object",
+                                        "additionalProperties": {}
+                                      },
+                                      "matches": {
+                                        "nullable": true,
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "params",
+                                      "matches"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "roleId",
+                                "expiresAt",
+                                "all",
+                                "fields",
+                                "matches",
+                                "conditions"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "The permissions of the member's roles for this action."
+                          }
+                        },
+                        "required": [
+                          "action",
+                          "allowed",
+                          "fields",
+                          "grants"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "user",
+                    "subject",
+                    "recordId",
+                    "roles",
+                    "units",
+                    "actions"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": "Not a member of this tenant, or no record you may read."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Why a member may or may not do each action on a subject, or on one of its records",
+        "tags": [
+          "access"
+        ]
+      }
+    },
     "/v1/access/invitations": {
       "get": {
         "operationId": "AccessController_invitations_v1",
@@ -36491,9 +38015,22 @@
                             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                           },
                           "email": {
+                            "nullable": true,
+                            "description": "null: prepared without one.",
                             "type": "string"
                           },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "prepared",
+                              "sent",
+                              "expired"
+                            ],
+                            "description": "`prepared`: no link yet (send it); `sent`: its link works until `expiresAt`; `expired`: send it again."
+                          },
                           "expiresAt": {
+                            "nullable": true,
+                            "description": "The link's end; null: prepared.",
                             "type": "string",
                             "format": "date-time",
                             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
@@ -36531,7 +38068,16 @@
                             "type": "string"
                           },
                           "expired": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "deprecated": true,
+                            "description": "`status` is `expired`: kept for the clients that read it."
+                          },
+                          "sentAt": {
+                            "nullable": true,
+                            "description": "When its current link was sent; null: prepared (or sent before this was recorded).",
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                           },
                           "createdAt": {
                             "type": "string",
@@ -36542,6 +38088,7 @@
                         "required": [
                           "id",
                           "email",
+                          "status",
                           "expiresAt",
                           "name",
                           "roleIds",
@@ -36549,6 +38096,7 @@
                           "unitIds",
                           "invitedBy",
                           "expired",
+                          "sentAt",
                           "createdAt"
                         ],
                         "additionalProperties": false
@@ -36584,10 +38132,10 @@
         ]
       }
     },
-    "/v1/access/invitations/{id}/resend": {
-      "post": {
-        "description": "Expired or not. The previous link stops working; the roles, their ends (`roleExpiresAt`) and the units stay as they were. You must be able to grant its roles, as when inviting.",
-        "operationId": "AccessController_resendInvitation_v1",
+    "/v1/access/invitations/{id}": {
+      "patch": {
+        "description": "Prepared or sent: its address, the name a new account starts with, roles, their ends and units. You must be able to grant its roles and place people in its units, those it has and those it gets. A new address withdraws a sent link (`status: prepared`: send it again).",
+        "operationId": "AccessController_updateInvitation_v1",
         "parameters": [
           {
             "name": "id",
@@ -36598,8 +38146,61 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "description": "A new address withdraws a sent link: send again.",
+                    "nullable": true,
+                    "type": "string",
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  "name": {
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120,
+                    "description": "The name a new account starts with; its owner changes it."
+                  },
+                  "roleIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  },
+                  "roleExpiresAt": {
+                    "description": "When each grant ends, by role id (temporary access); the others never do.",
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    }
+                  },
+                  "unitIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "description": "The organizational units the user belongs to, as a member."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "responses": {
-          "202": {
+          "200": {
             "description": "",
             "content": {
               "application/json": {
@@ -36612,9 +38213,22 @@
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                     },
                     "email": {
+                      "nullable": true,
+                      "description": "null: prepared without one.",
                       "type": "string"
                     },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "prepared",
+                        "sent",
+                        "expired"
+                      ],
+                      "description": "`prepared`: no link yet (send it); `sent`: its link works until `expiresAt`; `expired`: send it again."
+                    },
                     "expiresAt": {
+                      "nullable": true,
+                      "description": "The link's end; null: prepared.",
                       "type": "string",
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
@@ -36623,6 +38237,7 @@
                   "required": [
                     "id",
                     "email",
+                    "status",
                     "expiresAt"
                   ],
                   "additionalProperties": false
@@ -36648,13 +38263,11 @@
             "user-session": []
           }
         ],
-        "summary": "Send a pending invitation again: a new link and expiry",
+        "summary": "Change a pending invitation; only what is sent changes",
         "tags": [
           "access"
         ]
-      }
-    },
-    "/v1/access/invitations/{id}": {
+      },
       "delete": {
         "operationId": "AccessController_revokeInvitation_v1",
         "parameters": [
@@ -36690,6 +38303,174 @@
           }
         ],
         "summary": "Withdraw an invitation: its link stops working",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/v1/access/invitations/{id}/send": {
+      "post": {
+        "description": "Prepared, sent or expired. A new link and expiry; a previous link stops working; the roles, their ends (`roleExpiresAt`) and the units stay as they are. You must be able to grant its roles and place people in its units, as when inviting. 400 `email_required`: it has no address yet.",
+        "operationId": "AccessController_sendInvitation_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "email": {
+                      "nullable": true,
+                      "description": "null: prepared without one.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "prepared",
+                        "sent",
+                        "expired"
+                      ],
+                      "description": "`prepared`: no link yet (send it); `sent`: its link works until `expiresAt`; `expired`: send it again."
+                    },
+                    "expiresAt": {
+                      "nullable": true,
+                      "description": "The link's end; null: prepared.",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "status",
+                    "expiresAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "404": {
+            "description": "No pending invitation of this id."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Send a pending invitation: its link, or a new one",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/v1/access/invitations/{id}/resend": {
+      "post": {
+        "deprecated": true,
+        "operationId": "AccessController_resendInvitation_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "email": {
+                      "nullable": true,
+                      "description": "null: prepared without one.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "prepared",
+                        "sent",
+                        "expired"
+                      ],
+                      "description": "`prepared`: no link yet (send it); `sent`: its link works until `expiresAt`; `expired`: send it again."
+                    },
+                    "expiresAt": {
+                      "nullable": true,
+                      "description": "The link's end; null: prepared.",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "status",
+                    "expiresAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "404": {
+            "description": "No pending invitation of this id."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "",
         "tags": [
           "access"
         ]
@@ -39121,6 +40902,181 @@
         ]
       }
     },
+    "/v1/access/organizational-units/{id}/impact": {
+      "post": {
+        "description": "A dry run: the change runs with its checks (the same 403, 404 and 409 as the change itself) in a transaction that is rolled back, so nothing changes and nothing is audited. The units are read as the unit conditions read them.",
+        "operationId": "OrganizationalUnitsController_impact_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "division",
+                      "department",
+                      "team"
+                    ]
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "parentId": {
+                    "description": "Moves the unit, with every unit under it; null: to the top.",
+                    "nullable": true,
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "changes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "andBelow": {
+                            "type": "object",
+                            "properties": {
+                              "gains": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "description": "Units they would reach and do not now."
+                              },
+                              "loses": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "description": "Units they reach now and would not."
+                              }
+                            },
+                            "required": [
+                              "gains",
+                              "loses"
+                            ],
+                            "additionalProperties": false,
+                            "description": "What `inMyUnitsAndBelow` would reach."
+                          },
+                          "ledAndBelow": {
+                            "type": "object",
+                            "properties": {
+                              "gains": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "description": "Units they would reach and do not now."
+                              },
+                              "loses": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "description": "Units they reach now and would not."
+                              }
+                            },
+                            "required": [
+                              "gains",
+                              "loses"
+                            ],
+                            "additionalProperties": false,
+                            "description": "What `inUnitsILeadAndBelow` would reach."
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "name",
+                          "email",
+                          "andBelow",
+                          "ledAndBelow"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Only the users whose reach would change."
+                    },
+                    "truncated": {
+                      "type": "boolean",
+                      "description": "More than 500 users could be affected: only the first were compared."
+                    }
+                  },
+                  "required": [
+                    "changes",
+                    "truncated"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "As PATCH: the change would be refused."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Who would gain or lose reach (my units and below, units I lead and below) if the unit changed as PATCH would change it",
+        "tags": [
+          "access"
+        ]
+      }
+    },
     "/v1/access/organizational-units/{id}/members": {
       "get": {
         "operationId": "OrganizationalUnitsController_members_v1",
@@ -39553,6 +41509,179 @@
           }
         ],
         "summary": "Remove a user from a unit: their membership ends now (kept)",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/v1/access/organizational-units/{id}/members/{userId}/impact": {
+      "post": {
+        "description": "A dry run: the change runs with its checks (the same 403, 404 and 409 as the change itself) in a transaction that is rolled back, so nothing changes and nothing is audited. The units are read as the unit conditions read them.",
+        "operationId": "OrganizationalUnitsController_memberImpact_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "member",
+                      "lead"
+                    ]
+                  }
+                },
+                "required": [
+                  "role"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "changes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "andBelow": {
+                            "type": "object",
+                            "properties": {
+                              "gains": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "description": "Units they would reach and do not now."
+                              },
+                              "loses": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "description": "Units they reach now and would not."
+                              }
+                            },
+                            "required": [
+                              "gains",
+                              "loses"
+                            ],
+                            "additionalProperties": false,
+                            "description": "What `inMyUnitsAndBelow` would reach."
+                          },
+                          "ledAndBelow": {
+                            "type": "object",
+                            "properties": {
+                              "gains": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "description": "Units they would reach and do not now."
+                              },
+                              "loses": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "description": "Units they reach now and would not."
+                              }
+                            },
+                            "required": [
+                              "gains",
+                              "loses"
+                            ],
+                            "additionalProperties": false,
+                            "description": "What `inUnitsILeadAndBelow` would reach."
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "name",
+                          "email",
+                          "andBelow",
+                          "ledAndBelow"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Only the users whose reach would change."
+                    },
+                    "truncated": {
+                      "type": "boolean",
+                      "description": "More than 500 users could be affected: only the first were compared."
+                    }
+                  },
+                  "required": [
+                    "changes",
+                    "truncated"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "`unit_managed_by_scim`."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "What a change of the member's role would change of their reach (units they lead and below)",
         "tags": [
           "access"
         ]
@@ -48474,6 +50603,107 @@
         ]
       }
     },
+    "/v1/notes/{id}/attachments/{attachmentId}/versions": {
+      "post": {
+        "description": "Who may change the note (Note.update). Multipart: the field `file` (checked like any upload: type from its bytes, size, quota, malware scan) and an optional `note`. The file it replaces stays as the previous version (`GET /v1/attachments/{id}/versions`). With `If-Match` (the attachment's ETag, `GET /v1/attachments/{id}`) it is refused (412) if the attachment changed since you read it. Audited (attachment.replaced).",
+        "operationId": "NoteAttachmentsController_replace_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "attachmentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "\"mZ1k…\""
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "description": "Why the file changed, kept with the version.",
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Required for a replacement: checked like any upload (type from its bytes, size, quota, malware scan)."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attachment"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not change the note."
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "An issued document (attachment_locked), still being scanned or processed (attachment_busy), or at the limit of versions (attachment_versions_limit)."
+          },
+          "412": {
+            "description": "It changed since you read it (precondition_failed)."
+          },
+          "413": {
+            "description": "Larger than ATTACHMENT_MAX_MB (payload_too_large)."
+          },
+          "415": {
+            "description": "A type not allowed, or not the one declared (unsupported_media_type)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Replace the file of a note's attachment with a new version",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
     "/v1/notes/{id}/attachments": {
       "post": {
         "description": "Who may change the note (Note.update). Multipart, the field `file`. Its type is read from its bytes: allowed types only (ATTACHMENT_ALLOWED_TYPES), and not another one than declared. Audited (attachment.added).",
@@ -48800,9 +51030,9 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, renditionStatus, renditions, createdAt, updatedAt.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, renditionStatus, renditions, version, revisionNote, versionedAt, createdAt, updatedAt.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, renditionStatus, renditions, createdAt, updatedAt.",
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, renditionStatus, renditions, version, revisionNote, versionedAt, createdAt, updatedAt.",
               "type": "string"
             }
           }
@@ -48939,7 +51169,7 @@
     },
     "/v1/notes/{id}/attachments/complete": {
       "post": {
-        "description": "After the PUT to the URL of `POST …/attachments/presign`: the server reads the object back (its size and type from the store, its first bytes for the type the bytes say, never the client's word), deletes it if it is not what was announced, and otherwise attaches it exactly as an upload through the API does (`attachment.added`, the quota, the malware scan, the image renditions). Only the one who announced the upload may complete it.",
+        "description": "After the PUT to the URL of `POST …/attachments/presign`, or after the last chunk of a resumable session (`POST …/attachments/sessions`; any storage driver): the server reads the object back (its size and type from the store, its first bytes for the type the bytes say, never the client's word), deletes it if it is not what was announced, and otherwise attaches it exactly as an upload through the API does (`attachment.added`, the quota, the malware scan, the image renditions). Only the one who announced the upload may complete it.",
         "operationId": "NoteAttachmentsController_complete_v1",
         "parameters": [
           {
@@ -49008,7 +51238,7 @@
             "description": "The bytes are a type not allowed, or not the one declared (unsupported_media_type); deleted."
           },
           "503": {
-            "description": "The server stores files on a local disk (presigned_uploads_unavailable)."
+            "description": "A signed-URL upload on a server with a local disk (presigned_uploads_unavailable)."
           }
         },
         "security": [
@@ -49020,6 +51250,290 @@
           }
         ],
         "summary": "Complete a direct upload to a note",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/v1/notes/{id}/attachments/sessions": {
+      "post": {
+        "description": "For large files and flaky connections, on every storage driver: who may change the note (Note.update). Send the file's name, size and type; the same checks as `…/presign` (size, type, the tenant's storage quota, at most 100 open uploads). Answer a session to send the file to in chunks (`PUT …/attachments/sessions/{uploadId}?offset=`), then `POST …/attachments/complete` with its `uploadId`. Nothing is attached, listed or downloadable until then. A session lasts 24 hours.",
+        "operationId": "NoteAttachmentsController_startSession_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "example": "invoice.pdf",
+                    "description": "The file name, shown and used for downloads. Never a path."
+                  },
+                  "size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991,
+                    "description": "The size in bytes. The URL accepts exactly this many; at most ATTACHMENT_MAX_MB (413 `payload_too_large`)."
+                  },
+                  "contentType": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "example": "application/pdf",
+                    "description": "The file's type, as the browser names it (`File.type`). Required, and one of the allowed types (415 `unsupported_media_type`); the URL accepts only this `Content-Type`. It is checked against the file's bytes on completion."
+                  }
+                },
+                "required": [
+                  "name",
+                  "size",
+                  "contentType"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadSession"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not change the note."
+          },
+          "404": {
+            "description": ""
+          },
+          "413": {
+            "description": "Larger than ATTACHMENT_MAX_MB (payload_too_large)."
+          },
+          "415": {
+            "description": "A type not allowed, or none declared (unsupported_media_type)."
+          },
+          "429": {
+            "description": "Too many uploads open (attachment_uploads_pending)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Start a resumable upload of a file to a note",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/v1/notes/{id}/attachments/sessions/{uploadId}": {
+      "get": {
+        "description": "How many bytes were received: continue from there after an interruption. Your own sessions only.",
+        "operationId": "NoteAttachmentsController_sessionProgress_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "uploadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadSession"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such record, or no such open upload of yours (attachment_upload_not_found)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Progress of a resumable upload to a note",
+        "tags": [
+          "notes"
+        ]
+      },
+      "put": {
+        "description": "The raw bytes as the body (`application/octet-stream`), at most the session's `chunkSize`, starting at `?offset=`, which must be the `received` of the last answer. A retried or parallel chunk at a stale offset is a 409 and stores nothing: read `received` and continue.",
+        "operationId": "NoteAttachmentsController_sessionChunk_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "uploadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "required": true,
+            "in": "query",
+            "description": "Where this chunk starts: the session's `received`. 409 `attachment_upload_offset_mismatch` otherwise.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "description": "Where this chunk starts: the session's `received`. 409 `attachment_upload_offset_mismatch` otherwise."
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadSession"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not change the note."
+          },
+          "404": {
+            "description": "No such open upload of yours (attachment_upload_not_found)."
+          },
+          "409": {
+            "description": "The offset is not the next one (attachment_upload_offset_mismatch), or the upload is being completed."
+          },
+          "410": {
+            "description": "The session expired (attachment_upload_expired)."
+          },
+          "413": {
+            "description": "The chunk is larger than allowed (payload_too_large)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Send a chunk of a resumable upload to a note",
+        "tags": [
+          "notes"
+        ]
+      },
+      "delete": {
+        "description": "The chunks received are deleted at once. Your own sessions only.",
+        "operationId": "NoteAttachmentsController_cancelSession_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "uploadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such open upload of yours (attachment_upload_not_found)."
+          },
+          "409": {
+            "description": "The upload is being completed (attachment_upload_in_progress)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Cancel a resumable upload to a note",
         "tags": [
           "notes"
         ]
@@ -50578,6 +53092,235 @@
           "received",
           "duplicate",
           "handled"
+        ],
+        "additionalProperties": false
+      },
+      "Attachment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "subject": {
+            "type": "string",
+            "example": "Note"
+          },
+          "recordId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string",
+            "example": "invoice.pdf"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Bytes."
+          },
+          "contentType": {
+            "type": "string",
+            "example": "application/pdf",
+            "description": "Detected from the file's bytes."
+          },
+          "uploadedBy": {
+            "type": "string",
+            "example": "user:0199a3f2-…",
+            "description": "`user:<id>`, `client:<id>`, or `anonymized`."
+          },
+          "locked": {
+            "type": "boolean",
+            "description": "An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record."
+          },
+          "scanStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "clean"
+            ],
+            "description": "`pending`: the malware scan has not finished (MALWARE_SCANNER is on) and the file cannot be downloaded yet (409 `attachment_scan_pending`). `clean` otherwise, always when scanning is off. An infected file is rejected: the attachment is deleted and its uploader notified."
+          },
+          "renditionStatus": {
+            "nullable": true,
+            "description": "Only for JPEG, PNG, WebP and GIF uploads while IMAGE_PROCESSING is on, else null. `pending`: the thumbnail and preview are being made (after the malware scan, when it is on); the original can be downloaded meanwhile. `ready`: `renditions` has them. `failed`: the image could not be processed (more than IMAGE_MAX_PIXELS, damaged, over the time limit); the file stays as it was uploaded.",
+            "type": "string",
+            "enum": [
+              "pending",
+              "ready",
+              "failed"
+            ]
+          },
+          "renditions": {
+            "type": "object",
+            "properties": {
+              "thumb": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/AttachmentRendition"
+                  }
+                ]
+              },
+              "preview": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/AttachmentRendition"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "description": "Smaller WebP copies of an image, upright and without metadata: `thumb` fits in 256 × 256 pixels, `preview` in 1600 × 1600 (neither enlarges). Empty until `renditionStatus` is `ready`. Download one with `GET /v1/attachments/{id}/download?rendition=thumb|preview`."
+          },
+          "version": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "The number of the current file: 1, and one more with every replacement or restoration (`GET /v1/attachments/{id}/versions`)."
+          },
+          "revisionNote": {
+            "nullable": true,
+            "description": "The note given with the current version, if any.",
+            "type": "string"
+          },
+          "versionedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When the current version was put in place."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "recordId",
+          "name",
+          "size",
+          "contentType",
+          "uploadedBy",
+          "locked",
+          "scanStatus",
+          "renditionStatus",
+          "renditions",
+          "version",
+          "revisionNote",
+          "versionedAt",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "AttachmentRendition": {
+        "type": "object",
+        "properties": {
+          "width": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Pixels, upright."
+          },
+          "height": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Pixels, upright."
+          },
+          "size": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Bytes."
+          },
+          "contentType": {
+            "type": "string",
+            "example": "image/webp"
+          }
+        },
+        "required": [
+          "width",
+          "height",
+          "size",
+          "contentType"
+        ],
+        "additionalProperties": false
+      },
+      "AttachmentVersionList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttachmentVersion"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "AttachmentVersion": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "current": {
+            "type": "boolean",
+            "description": "The file the attachment serves now."
+          },
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Bytes."
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "uploadedBy": {
+            "type": "string",
+            "description": "`user:<id>`, `client:<id>`, or `anonymized`."
+          },
+          "note": {
+            "nullable": true,
+            "description": "The revision note it was given.",
+            "type": "string"
+          },
+          "uploadedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When it became the attachment's file."
+          }
+        },
+        "required": [
+          "version",
+          "current",
+          "name",
+          "size",
+          "contentType",
+          "uploadedBy",
+          "note",
+          "uploadedAt"
         ],
         "additionalProperties": false
       },
@@ -52406,148 +55149,6 @@
         ],
         "additionalProperties": false
       },
-      "Attachment": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-          },
-          "subject": {
-            "type": "string",
-            "example": "Note"
-          },
-          "recordId": {
-            "type": "string",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-          },
-          "name": {
-            "type": "string",
-            "example": "invoice.pdf"
-          },
-          "size": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991,
-            "description": "Bytes."
-          },
-          "contentType": {
-            "type": "string",
-            "example": "application/pdf",
-            "description": "Detected from the file's bytes."
-          },
-          "uploadedBy": {
-            "type": "string",
-            "example": "user:0199a3f2-…",
-            "description": "`user:<id>`, `client:<id>`, or `anonymized`."
-          },
-          "locked": {
-            "type": "boolean",
-            "description": "An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record."
-          },
-          "scanStatus": {
-            "type": "string",
-            "enum": [
-              "pending",
-              "clean"
-            ],
-            "description": "`pending`: the malware scan has not finished (MALWARE_SCANNER is on) and the file cannot be downloaded yet (409 `attachment_scan_pending`). `clean` otherwise, always when scanning is off. An infected file is rejected: the attachment is deleted and its uploader notified."
-          },
-          "renditionStatus": {
-            "nullable": true,
-            "description": "Only for JPEG, PNG, WebP and GIF uploads while IMAGE_PROCESSING is on, else null. `pending`: the thumbnail and preview are being made (after the malware scan, when it is on); the original can be downloaded meanwhile. `ready`: `renditions` has them. `failed`: the image could not be processed (more than IMAGE_MAX_PIXELS, damaged, over the time limit); the file stays as it was uploaded.",
-            "type": "string",
-            "enum": [
-              "pending",
-              "ready",
-              "failed"
-            ]
-          },
-          "renditions": {
-            "type": "object",
-            "properties": {
-              "thumb": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/AttachmentRendition"
-                  }
-                ]
-              },
-              "preview": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/AttachmentRendition"
-                  }
-                ]
-              }
-            },
-            "additionalProperties": false,
-            "description": "Smaller WebP copies of an image, upright and without metadata: `thumb` fits in 256 × 256 pixels, `preview` in 1600 × 1600 (neither enlarges). Empty until `renditionStatus` is `ready`. Download one with `GET /v1/attachments/{id}/download?rendition=thumb|preview`."
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-          }
-        },
-        "required": [
-          "id",
-          "subject",
-          "recordId",
-          "name",
-          "size",
-          "contentType",
-          "uploadedBy",
-          "locked",
-          "scanStatus",
-          "renditionStatus",
-          "renditions",
-          "createdAt",
-          "updatedAt"
-        ],
-        "additionalProperties": false
-      },
-      "AttachmentRendition": {
-        "type": "object",
-        "properties": {
-          "width": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991,
-            "description": "Pixels, upright."
-          },
-          "height": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991,
-            "description": "Pixels, upright."
-          },
-          "size": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991,
-            "description": "Bytes."
-          },
-          "contentType": {
-            "type": "string",
-            "example": "image/webp"
-          }
-        },
-        "required": [
-          "width",
-          "height",
-          "size",
-          "contentType"
-        ],
-        "additionalProperties": false
-      },
       "PresignedUpload": {
         "type": "object",
         "properties": {
@@ -52587,6 +55188,57 @@
           "url",
           "method",
           "headers",
+          "expiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "UploadSession": {
+        "type": "object",
+        "properties": {
+          "uploadId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Names the session in every call, and in `…/complete`."
+          },
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "The announced size in bytes."
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "received": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Bytes stored so far, which is the offset of the next chunk (progress is `received / size`)."
+          },
+          "chunkSize": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "The most one chunk may carry, in bytes."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When the session stops taking chunks; its chunks are removed shortly after."
+          }
+        },
+        "required": [
+          "uploadId",
+          "name",
+          "size",
+          "contentType",
+          "received",
+          "chunkSize",
           "expiresAt"
         ],
         "additionalProperties": false

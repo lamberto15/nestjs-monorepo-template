@@ -3,13 +3,19 @@ import {
   bigint,
   boolean,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
+  unique,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { at, timestamps, uuidPk } from '../../core/database/columns.js';
-import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
+import {
+  tenantColumn,
+  tenantReference,
+  tenantTable,
+} from '../../core/tenancy/tenant-scope.js';
 import type {
   RenditionStatus,
   StoredRenditions,
@@ -79,6 +85,15 @@ export const attachments = pgTable(
       .$type<StoredRenditions>()
       .notNull()
       .default({}),
+    /**
+     * The number of the file the row holds now (1, then one more with every
+     * replacement or restoration); the earlier ones are `attachment_versions`.
+     */
+    version: integer('version').notNull().default(1),
+    /** The note the uploader gave this version (a replacement's), if any. */
+    revisionNote: text('revision_note'),
+    /** When the current version was put in place: the upload, or the last replacement or restoration. */
+    versionedAt: at('versioned_at').notNull().defaultNow(),
     ...timestamps(),
   },
   (table) => [
@@ -131,7 +146,16 @@ export const attachmentUploads = pgTable(
     contentType: text('content_type').notNull(),
     /** `user:<id>` or `client:<id>`: only they may complete it. */
     uploadedBy: text('uploaded_by').notNull(),
-    /** When the URL stops working (a PUT already under way may finish after it). */
+    /**
+     * A resumable session (`POST …/attachments/sessions`) rather than a signed
+     * URL: the client sends the file in chunks through the API, each at the
+     * offset `received` says, kept as parts under `<key>.parts/` until the
+     * completion assembles them. Works on every storage driver.
+     */
+    resumable: boolean('resumable').notNull().default(false),
+    /** Bytes of a resumable session stored so far (the next chunk's offset). */
+    received: bigint('received', { mode: 'number' }).notNull().default(0),
+    /** When the URL, or the session, stops working (a PUT already under way may finish after it). */
     expiresAt: at('expires_at').notNull(),
     /**
      * Set while a request completes it: a second, parallel request is refused
@@ -153,3 +177,49 @@ export const attachmentUploads = pgTable(
 ).enableRLS();
 
 export type AttachmentUpload = typeof attachmentUploads.$inferSelect;
+
+/**
+ * The earlier files of an attachment (replaced, or set aside by a
+ * restoration): the bytes at `key` stay as they were, clean when they were
+ * archived (a file is replaced only once its scan is done), until the
+ * attachment goes (removal, the nightly sweep), which deletes them with it.
+ * They count in the tenant's `storageBytes`. docs/attachments.md, "Versions".
+ */
+export const attachmentVersions = pgTable(
+  'attachment_versions',
+  {
+    id: uuidPk(),
+    tenantId: tenantColumn(),
+    attachmentId: uuid('attachment_id').notNull(),
+    /** The number it had as the attachment's file. */
+    version: integer('version').notNull(),
+    /** Where the file is on the private disk, under the tenant's prefix. */
+    key: text('key').notNull(),
+    name: text('name').notNull(),
+    size: bigint('size', { mode: 'number' }).notNull(),
+    contentType: text('content_type').notNull(),
+    /** `user:<id>` or `client:<id>`; `anonymized` after the uploader's account was deleted. */
+    uploadedBy: text('uploaded_by').notNull(),
+    /** The note it was given. */
+    note: text('note'),
+    /** When it became the attachment's file. */
+    uploadedAt: at('uploaded_at').notNull(),
+    /** When it was replaced. */
+    replacedAt: at('replaced_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('attachment_versions_attachment_version_key').on(
+      table.attachmentId,
+      table.version,
+    ),
+    index('attachment_versions_uploaded_by_idx').on(table.uploadedBy),
+    ...tenantTable('attachment_versions', table),
+    tenantReference(
+      'attachment_versions_attachment_fk',
+      [table.tenantId, table.attachmentId],
+      [attachments.tenantId, attachments.id],
+    ),
+  ],
+).enableRLS();
+
+export type AttachmentVersion = typeof attachmentVersions.$inferSelect;

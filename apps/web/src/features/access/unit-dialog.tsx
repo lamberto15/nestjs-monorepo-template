@@ -13,19 +13,25 @@ import { toast } from 'sonner';
 import { isApiError } from '@nestjs-monorepo-template/api-client';
 import type { TFunction } from 'i18next';
 import {
+  type AccessImpact,
   createUnit,
   invalidateAccess,
+  previewUnitChange,
   type Unit,
   UNIT_LIMITS,
   type UnitType,
   updateUnit,
 } from '@/features/access/api';
+import { ImpactSummary } from '@/features/access/access-impact';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { orderedTree } from '@/features/access/pickers';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { z } from '@/lib/zod';
 
 const TOP = '-';
+
+type Body = { type: UnitType; name: string; parentId: string | null };
 
 const UNIT_TYPES = ['division', 'department', 'team'] as const;
 
@@ -90,15 +96,25 @@ function UnitForm(props: { units: Unit[]; unit?: Unit; onDone: () => void }) {
   const { t } = useTranslation('access');
   const queryClient = useQueryClient();
   const [error, setError] = useState<string>();
+  // A move waiting for its confirmation, with what it would change of who sees what.
+  const [moving, setMoving] = useState<{ body: Body; impact: AccessImpact }>();
   const save = useMutation({
-    mutationFn: (body: {
-      type: UnitType;
-      name: string;
-      parentId: string | null;
-    }) => (props.unit ? updateUnit(props.unit.id, body) : createUnit(body)),
+    mutationFn: (body: Body) =>
+      props.unit ? updateUnit(props.unit.id, body) : createUnit(body),
     meta: { errorToast: false },
     onSuccess: () => invalidateAccess(queryClient),
   });
+  const submit = async (body: Body) => {
+    try {
+      await save.mutateAsync(body);
+      toast.success(t(props.unit ? 'units.saved' : 'units.created'));
+      props.onDone();
+    } catch (caught) {
+      if (!applyFieldErrors(form, caught)) {
+        setError(unitErrorMessage(caught, t));
+      }
+    }
+  };
   const form = useAppForm({
     defaultValues: {
       type: props.unit?.type ?? ('team' as UnitType),
@@ -121,19 +137,26 @@ function UnitForm(props: { units: Unit[]; unit?: Unit; onDone: () => void }) {
     },
     onSubmit: async ({ value }) => {
       setError(undefined);
-      try {
-        await save.mutateAsync({
-          type: value.type,
-          name: value.name.trim(),
-          parentId: value.parentId === TOP ? null : value.parentId,
-        });
-        toast.success(t(props.unit ? 'units.saved' : 'units.created'));
-        props.onDone();
-      } catch (caught) {
-        if (!applyFieldErrors(form, caught)) {
-          setError(unitErrorMessage(caught, t));
+      const body = {
+        type: value.type,
+        name: value.name.trim(),
+        parentId: value.parentId === TOP ? null : value.parentId,
+      };
+      if (props.unit && body.parentId !== props.unit.parentId) {
+        // A move: first what it would change (a dry run), then the confirmation.
+        try {
+          setMoving({
+            body,
+            impact: await previewUnitChange(props.unit.id, body),
+          });
+        } catch (caught) {
+          if (!applyFieldErrors(form, caught)) {
+            setError(unitErrorMessage(caught, t));
+          }
         }
+        return;
       }
+      await submit(body);
     },
   });
   const options = [
@@ -183,6 +206,18 @@ function UnitForm(props: { units: Unit[]; unit?: Unit; onDone: () => void }) {
           </form.SubmitButton>
         </form.AppForm>
       </FieldGroup>
+      <ConfirmDialog
+        open={moving !== undefined}
+        onOpenChange={(open) => !open && setMoving(undefined)}
+        title={t('units.impact.moveTitle', { unit: props.unit?.name })}
+        description={
+          moving && (
+            <ImpactSummary impact={moving.impact} units={props.units} t={t} />
+          )
+        }
+        confirm={t('units.impact.moveConfirm')}
+        onConfirm={() => submit(moving!.body)}
+      />
     </form>
   );
 }

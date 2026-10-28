@@ -501,6 +501,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ops/diagnostics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Integration diagnostics: database, Redis, workers, mail, storage, realtime
+         * @description Each one ok, configured (set up, not probed: run its test), disabled, unconfigured or unavailable, with a hint. Built from switches and driver names: no URL, host credential or key is ever in it; errors are masked as in the logs and cut.
+         */
+        get: operations["OpsController_diagnosticsOverview_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/diagnostics/{check}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test one integration now (safe: sends nothing, keeps nothing)
+         * @description SMTP: connects, authenticates and says QUIT. Storage: writes, reads and deletes a probe file. Database, Redis, realtime: a ping; workers: at least one connected. A failure answers 200 with ok false and the masked reason. 400 not_testable when the configuration has nothing to probe. 10 per minute per user. Audited.
+         */
+        post: operations["OpsController_testDiagnostic_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ops/queues/{name}/retry-failed": {
         parameters: {
             query?: never;
@@ -546,6 +586,66 @@ export interface paths {
         put?: never;
         /** Delete dead letters (these ids, or all) */
         post: operations["OpsController_purge_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/config-bundles/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * This tenant's settings and custom roles as a bundle
+         * @description Tenant-scope setting values (flag rollouts and rules, a role condition by role name) and the custom roles with their permissions, with a SHA-256 checksum. No secrets, users, grants, API clients or records.
+         */
+        get: operations["ConfigBundlesController_export_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/config-bundles/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * What applying a bundle here would change (a dry run)
+         * @description Validates the bundle against this deployment (format, checksum, declared settings, their values, the permission catalog) and diffs it against this tenant. Changes nothing. Hand `targetVersion` to apply.
+         */
+        post: operations["ConfigBundlesController_preview_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/config-bundles/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply a previewed bundle to this tenant, all or nothing
+         * @description Roles first, then settings, in one transaction, each through its own checks and audit entry, plus one config-bundle.applied entry. Additive: nothing the bundle lacks is removed.
+         */
+        post: operations["ConfigBundlesController_apply_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1681,6 +1781,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/attachments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * An attachment
+         * @description Whoever may read its record. Its ETag is what `If-Match` takes to replace or restore it (`POST …/attachments/{attachmentId}/versions`, `…/versions/{version}/restore`).
+         */
+        get: operations["AttachmentsController_get_v1"];
+        put?: never;
+        post?: never;
+        /**
+         * Remove an attachment
+         * @description Your own upload, or any attachment of a record you may change (for notes: Note.update). The file is deleted too. Audited (attachment.removed). Never an issued document (`locked`).
+         */
+        delete: operations["AttachmentsController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attachments/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * An attachment's versions, newest first
+         * @description The current file (`current: true`) and the earlier ones, with who uploaded each, when, and its revision note. Whoever may read its record.
+         */
+        get: operations["AttachmentsController_listVersions_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attachments/{id}/versions/{version}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download one version of an attachment
+         * @description Whoever may read its record. Redirects to a signed link to that version's file, valid for 5m, as a download (never inline). The current version downloads as `GET /v1/attachments/{id}/download` does.
+         */
+        get: operations["AttachmentsController_downloadVersion_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attachments/{id}/versions/{version}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore an earlier version of an attachment
+         * @description Who may change its record. The version's bytes become the current file again as a new version (nothing is lost), scanned again like an upload. Audited (attachment.version-restored). With `If-Match` (the attachment's ETag) refused (412) if it changed since you read it.
+         */
+        post: operations["AttachmentsController_restoreVersion_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/attachments/{id}/download": {
         parameters: {
             query?: never;
@@ -1696,26 +1880,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/attachments/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Remove an attachment
-         * @description Your own upload, or any attachment of a record you may change (for notes: Note.update). The file is deleted too. Audited (attachment.removed). Never an issued document (`locked`).
-         */
-        delete: operations["AttachmentsController_remove_v1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3741,10 +3905,10 @@ export interface paths {
         get: operations["AccessController_users_v1"];
         put?: never;
         /**
-         * Invite someone to this tenant
-         * @description The address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). A new address chooses its password with it; an existing account accepts while signed in (POST /auth/invitations/accept). The membership, with these roles and units, comes then. The answer is the same whether or not the address has an account; nobody sets another person's password.
+         * Invite or prepare a member of this tenant
+         * @description An invitation with the membership's roles and units. `send: true` (invite, the default): the address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). `send: false` (prepare): no link and no access until POST /access/invitations/{id}/send; the address may come later (PATCH /access/invitations/{id}). A new address chooses its password with the link; an existing account accepts while signed in (POST /auth/invitations/accept). The membership comes then. The answer is the same whether or not the address has an account; nobody sets another person's password. 400 `email_required`: sending without an address.
          */
-        post: operations["AccessController_createUser_v1"];
+        post: operations["AccessController_addMember_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3772,6 +3936,26 @@ export interface paths {
         patch: operations["AccessController_updateUser_v1"];
         trace?: never;
     };
+    "/v1/access/users/{id}/explanation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Why a member may or may not do each action on a subject, or on one of its records
+         * @description Computed by the authorization engine itself (the checks every route makes), per action: the answer, the fields it may touch, and each permission of the member's roles that could grant it, with whether it (and each of its conditions) reaches the record. The record is looked up as you: one you may not read is a 404. An answer that a field hidden from you decides is `null` (withheld). `Access.manageRoles` or `Access.manageUsers`.
+         */
+        get: operations["AccessController_explain_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/access/invitations": {
         parameters: {
             query?: never;
@@ -3783,26 +3967,6 @@ export interface paths {
         get: operations["AccessController_invitations_v1"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/access/invitations/{id}/resend": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Send a pending invitation again: a new link and expiry
-         * @description Expired or not. The previous link stops working; the roles, their ends (`roleExpiresAt`) and the units stay as they were. You must be able to grant its roles, as when inviting.
-         */
-        post: operations["AccessController_resendInvitation_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3821,6 +3985,47 @@ export interface paths {
         post?: never;
         /** Withdraw an invitation: its link stops working */
         delete: operations["AccessController_revokeInvitation_v1"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a pending invitation; only what is sent changes
+         * @description Prepared or sent: its address, the name a new account starts with, roles, their ends and units. You must be able to grant its roles and place people in its units, those it has and those it gets. A new address withdraws a sent link (`status: prepared`: send it again).
+         */
+        patch: operations["AccessController_updateInvitation_v1"];
+        trace?: never;
+    };
+    "/v1/access/invitations/{id}/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a pending invitation: its link, or a new one
+         * @description Prepared, sent or expired. A new link and expiry; a previous link stops working; the roles, their ends (`roleExpiresAt`) and the units stay as they are. You must be able to grant its roles and place people in its units, as when inviting. 400 `email_required`: it has no address yet.
+         */
+        post: operations["AccessController_sendInvitation_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/invitations/{id}/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @deprecated */
+        post: operations["AccessController_resendInvitation_v1"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -4019,6 +4224,26 @@ export interface paths {
         patch: operations["OrganizationalUnitsController_update_v1"];
         trace?: never;
     };
+    "/v1/access/organizational-units/{id}/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Who would gain or lose reach (my units and below, units I lead and below) if the unit changed as PATCH would change it
+         * @description A dry run: the change runs with its checks (the same 403, 404 and 409 as the change itself) in a transaction that is rolled back, so nothing changes and nothing is audited. The units are read as the unit conditions read them.
+         */
+        post: operations["OrganizationalUnitsController_impact_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/access/organizational-units/{id}/members": {
         parameters: {
             query?: never;
@@ -4053,6 +4278,26 @@ export interface paths {
         head?: never;
         /** Change a member's role: their membership ends now and a new one starts */
         patch: operations["OrganizationalUnitsController_changeMember_v1"];
+        trace?: never;
+    };
+    "/v1/access/organizational-units/{id}/members/{userId}/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * What a change of the member's role would change of their reach (units they lead and below)
+         * @description A dry run: the change runs with its checks (the same 403, 404 and 409 as the change itself) in a transaction that is rolled back, so nothing changes and nothing is audited. The units are read as the unit conditions read them.
+         */
+        post: operations["OrganizationalUnitsController_memberImpact_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/legal-holds": {
@@ -4907,6 +5152,26 @@ export interface paths {
         patch: operations["NoteCommentsController_edit_v1"];
         trace?: never;
     };
+    "/v1/notes/{id}/attachments/{attachmentId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replace the file of a note's attachment with a new version
+         * @description Who may change the note (Note.update). Multipart: the field `file` (checked like any upload: type from its bytes, size, quota, malware scan) and an optional `note`. The file it replaces stays as the previous version (`GET /v1/attachments/{id}/versions`). With `If-Match` (the attachment's ETag, `GET /v1/attachments/{id}`) it is refused (412) if the attachment changed since you read it. Audited (attachment.replaced).
+         */
+        post: operations["NoteAttachmentsController_replace_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/notes/{id}/attachments": {
         parameters: {
             query?: never;
@@ -4962,10 +5227,58 @@ export interface paths {
         put?: never;
         /**
          * Complete a direct upload to a note
-         * @description After the PUT to the URL of `POST …/attachments/presign`: the server reads the object back (its size and type from the store, its first bytes for the type the bytes say, never the client's word), deletes it if it is not what was announced, and otherwise attaches it exactly as an upload through the API does (`attachment.added`, the quota, the malware scan, the image renditions). Only the one who announced the upload may complete it.
+         * @description After the PUT to the URL of `POST …/attachments/presign`, or after the last chunk of a resumable session (`POST …/attachments/sessions`; any storage driver): the server reads the object back (its size and type from the store, its first bytes for the type the bytes say, never the client's word), deletes it if it is not what was announced, and otherwise attaches it exactly as an upload through the API does (`attachment.added`, the quota, the malware scan, the image renditions). Only the one who announced the upload may complete it.
          */
         post: operations["NoteAttachmentsController_complete_v1"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/attachments/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a resumable upload of a file to a note
+         * @description For large files and flaky connections, on every storage driver: who may change the note (Note.update). Send the file's name, size and type; the same checks as `…/presign` (size, type, the tenant's storage quota, at most 100 open uploads). Answer a session to send the file to in chunks (`PUT …/attachments/sessions/{uploadId}?offset=`), then `POST …/attachments/complete` with its `uploadId`. Nothing is attached, listed or downloadable until then. A session lasts 24 hours.
+         */
+        post: operations["NoteAttachmentsController_startSession_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/attachments/sessions/{uploadId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Progress of a resumable upload to a note
+         * @description How many bytes were received: continue from there after an interruption. Your own sessions only.
+         */
+        get: operations["NoteAttachmentsController_sessionProgress_v1"];
+        /**
+         * Send a chunk of a resumable upload to a note
+         * @description The raw bytes as the body (`application/octet-stream`), at most the session's `chunkSize`, starting at `?offset=`, which must be the `received` of the last answer. A retried or parallel chunk at a stale offset is a 409 and stores nothing: read `received` and continue.
+         */
+        put: operations["NoteAttachmentsController_sessionChunk_v1"];
+        post?: never;
+        /**
+         * Cancel a resumable upload to a note
+         * @description The chunks received are deleted at once. Your own sessions only.
+         */
+        delete: operations["NoteAttachmentsController_cancelSession_v1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5223,6 +5536,89 @@ export interface components {
             duplicate: boolean;
             /** @description false: no handler is registered for the event type (acknowledged and ignored, so the sender does not retry). */
             handled: boolean;
+        };
+        Attachment: {
+            /** Format: uuid */
+            id: string;
+            /** @example Note */
+            subject: string;
+            /** Format: uuid */
+            recordId: string;
+            /** @example invoice.pdf */
+            name: string;
+            /** @description Bytes. */
+            size: number;
+            /**
+             * @description Detected from the file's bytes.
+             * @example application/pdf
+             */
+            contentType: string;
+            /**
+             * @description `user:<id>`, `client:<id>`, or `anonymized`.
+             * @example user:0199a3f2-…
+             */
+            uploadedBy: string;
+            /** @description An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record. */
+            locked: boolean;
+            /**
+             * @description `pending`: the malware scan has not finished (MALWARE_SCANNER is on) and the file cannot be downloaded yet (409 `attachment_scan_pending`). `clean` otherwise, always when scanning is off. An infected file is rejected: the attachment is deleted and its uploader notified.
+             * @enum {string}
+             */
+            scanStatus: "pending" | "clean";
+            /**
+             * @description Only for JPEG, PNG, WebP and GIF uploads while IMAGE_PROCESSING is on, else null. `pending`: the thumbnail and preview are being made (after the malware scan, when it is on); the original can be downloaded meanwhile. `ready`: `renditions` has them. `failed`: the image could not be processed (more than IMAGE_MAX_PIXELS, damaged, over the time limit); the file stays as it was uploaded.
+             * @enum {string|null}
+             */
+            renditionStatus: "pending" | "ready" | "failed" | null;
+            /** @description Smaller WebP copies of an image, upright and without metadata: `thumb` fits in 256 × 256 pixels, `preview` in 1600 × 1600 (neither enlarges). Empty until `renditionStatus` is `ready`. Download one with `GET /v1/attachments/{id}/download?rendition=thumb|preview`. */
+            renditions: {
+                thumb?: components["schemas"]["AttachmentRendition"];
+                preview?: components["schemas"]["AttachmentRendition"];
+            };
+            /** @description The number of the current file: 1, and one more with every replacement or restoration (`GET /v1/attachments/{id}/versions`). */
+            version: number;
+            /** @description The note given with the current version, if any. */
+            revisionNote: string | null;
+            /**
+             * Format: date-time
+             * @description When the current version was put in place.
+             */
+            versionedAt: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        AttachmentRendition: {
+            /** @description Pixels, upright. */
+            width: number;
+            /** @description Pixels, upright. */
+            height: number;
+            /** @description Bytes. */
+            size: number;
+            /** @example image/webp */
+            contentType: string;
+        };
+        AttachmentVersionList: {
+            items: components["schemas"]["AttachmentVersion"][];
+        };
+        AttachmentVersion: {
+            version: number;
+            /** @description The file the attachment serves now. */
+            current: boolean;
+            name: string;
+            /** @description Bytes. */
+            size: number;
+            contentType: string;
+            /** @description `user:<id>`, `client:<id>`, or `anonymized`. */
+            uploadedBy: string;
+            /** @description The revision note it was given. */
+            note: string | null;
+            /**
+             * Format: date-time
+             * @description When it became the attachment's file.
+             */
+            uploadedAt: string;
         };
         DocumentAcknowledgment: {
             id: string;
@@ -5804,59 +6200,6 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
-        Attachment: {
-            /** Format: uuid */
-            id: string;
-            /** @example Note */
-            subject: string;
-            /** Format: uuid */
-            recordId: string;
-            /** @example invoice.pdf */
-            name: string;
-            /** @description Bytes. */
-            size: number;
-            /**
-             * @description Detected from the file's bytes.
-             * @example application/pdf
-             */
-            contentType: string;
-            /**
-             * @description `user:<id>`, `client:<id>`, or `anonymized`.
-             * @example user:0199a3f2-…
-             */
-            uploadedBy: string;
-            /** @description An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record. */
-            locked: boolean;
-            /**
-             * @description `pending`: the malware scan has not finished (MALWARE_SCANNER is on) and the file cannot be downloaded yet (409 `attachment_scan_pending`). `clean` otherwise, always when scanning is off. An infected file is rejected: the attachment is deleted and its uploader notified.
-             * @enum {string}
-             */
-            scanStatus: "pending" | "clean";
-            /**
-             * @description Only for JPEG, PNG, WebP and GIF uploads while IMAGE_PROCESSING is on, else null. `pending`: the thumbnail and preview are being made (after the malware scan, when it is on); the original can be downloaded meanwhile. `ready`: `renditions` has them. `failed`: the image could not be processed (more than IMAGE_MAX_PIXELS, damaged, over the time limit); the file stays as it was uploaded.
-             * @enum {string|null}
-             */
-            renditionStatus: "pending" | "ready" | "failed" | null;
-            /** @description Smaller WebP copies of an image, upright and without metadata: `thumb` fits in 256 × 256 pixels, `preview` in 1600 × 1600 (neither enlarges). Empty until `renditionStatus` is `ready`. Download one with `GET /v1/attachments/{id}/download?rendition=thumb|preview`. */
-            renditions: {
-                thumb?: components["schemas"]["AttachmentRendition"];
-                preview?: components["schemas"]["AttachmentRendition"];
-            };
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
-        AttachmentRendition: {
-            /** @description Pixels, upright. */
-            width: number;
-            /** @description Pixels, upright. */
-            height: number;
-            /** @description Bytes. */
-            size: number;
-            /** @example image/webp */
-            contentType: string;
-        };
         PresignedUpload: {
             /**
              * Format: uuid
@@ -5877,6 +6220,26 @@ export interface components {
             /**
              * Format: date-time
              * @description When the URL stops working. The upload may be completed for an hour after it.
+             */
+            expiresAt: string;
+        };
+        UploadSession: {
+            /**
+             * Format: uuid
+             * @description Names the session in every call, and in `…/complete`.
+             */
+            uploadId: string;
+            name: string;
+            /** @description The announced size in bytes. */
+            size: number;
+            contentType: string;
+            /** @description Bytes stored so far, which is the offset of the next chunk (progress is `received / size`). */
+            received: number;
+            /** @description The most one chunk may carry, in bytes. */
+            chunkSize: number;
+            /**
+             * Format: date-time
+             * @description When the session stops taking chunks; its chunks are removed shortly after.
              */
             expiresAt: string;
         };
@@ -8805,6 +9168,101 @@ export interface operations {
             };
         };
     };
+    OpsController_diagnosticsOverview_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** @enum {string} */
+                            check: "database" | "redis" | "workers" | "mail" | "storage" | "realtime";
+                            /** @enum {string} */
+                            state: "ok" | "configured" | "disabled" | "unconfigured" | "unavailable";
+                            driver: string | null;
+                            detail: string | null;
+                            hint: string | null;
+                            testable: boolean;
+                        }[];
+                        canTest: boolean;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_testDiagnostic_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                check: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        check: "database" | "redis" | "workers" | "mail" | "storage" | "realtime";
+                        ok: boolean;
+                        durationMs: number;
+                        detail: string | null;
+                        hint: string | null;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     OpsController_retryFailed_v1: {
         parameters: {
             query?: never;
@@ -8929,6 +9387,250 @@ export interface operations {
              *     Not allowed by your permissions.
              */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ConfigBundlesController_export_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        format: "config-bundle";
+                        version: number;
+                        /** Format: date-time */
+                        exportedAt: string;
+                        checksum: string;
+                        contents: {
+                            settings: {
+                                key: string;
+                                value: unknown;
+                                rollout: number | null;
+                                rules: {
+                                    [key: string]: unknown;
+                                }[];
+                            }[];
+                            roles: {
+                                name: string;
+                                description: string;
+                                permissions: {
+                                    subject: string;
+                                    action: string;
+                                    conditions: {
+                                        key: string;
+                                        params?: {
+                                            [key: string]: unknown;
+                                        };
+                                    }[];
+                                    fields?: string[];
+                                }[];
+                            }[];
+                        };
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ConfigBundlesController_preview_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    bundle: {
+                        /** @enum {string} */
+                        format: "config-bundle";
+                        version: number;
+                        /** Format: date-time */
+                        exportedAt: string;
+                        checksum: string;
+                        contents: {
+                            settings: {
+                                key: string;
+                                value: unknown;
+                                rollout: number | null;
+                                rules: {
+                                    [key: string]: unknown;
+                                }[];
+                            }[];
+                            roles: {
+                                name: string;
+                                description: string;
+                                permissions: {
+                                    subject: string;
+                                    action: string;
+                                    conditions: {
+                                        key: string;
+                                        params?: {
+                                            [key: string]: unknown;
+                                        };
+                                    }[];
+                                    fields?: string[];
+                                }[];
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        valid: boolean;
+                        errors: {
+                            ref: string | null;
+                            message: string;
+                        }[];
+                        warnings: {
+                            ref: string | null;
+                            message: string;
+                        }[];
+                        changes: {
+                            /** @enum {string} */
+                            type: "setting" | "role";
+                            ref: string;
+                            /** @enum {string} */
+                            action: "create" | "update" | "unchanged";
+                        }[];
+                        targetVersion: string;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ConfigBundlesController_apply_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    bundle: {
+                        /** @enum {string} */
+                        format: "config-bundle";
+                        version: number;
+                        /** Format: date-time */
+                        exportedAt: string;
+                        checksum: string;
+                        contents: {
+                            settings: {
+                                key: string;
+                                value: unknown;
+                                rollout: number | null;
+                                rules: {
+                                    [key: string]: unknown;
+                                }[];
+                            }[];
+                            roles: {
+                                name: string;
+                                description: string;
+                                permissions: {
+                                    subject: string;
+                                    action: string;
+                                    conditions: {
+                                        key: string;
+                                        params?: {
+                                            [key: string]: unknown;
+                                        };
+                                    }[];
+                                    fields?: string[];
+                                }[];
+                            }[];
+                        };
+                    };
+                    targetVersion: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        created: number;
+                        updated: number;
+                        unchanged: number;
+                    };
+                };
+            };
+            /** @description validation_failed: the bundle is invalid here (the preview lists why). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description config_changed: the tenant changed since the preview. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13373,6 +14075,35 @@ export interface operations {
                             /** @description An action on the records may need approval (GET /v1/approvals). */
                             approvals: boolean;
                         };
+                        /** @description The views besides the table that this subject declares and this caller can use: a field they may not filter by leaves its view out. Null when none. Fetch their records with the list route, bounded by `filter` on the fields named here. */
+                        views: {
+                            board?: {
+                                /**
+                                 * @description The enum field whose values are the board's columns.
+                                 * @example status
+                                 */
+                                field: string;
+                                /** @description The cards are not moved: the field is not changed through `PATCH`. */
+                                readOnly: boolean;
+                            };
+                            calendar?: {
+                                /**
+                                 * @description The `date` (all-day) and `datetime` fields to plan by, one at a time.
+                                 * @example [
+                                 *       "dueAt"
+                                 *     ]
+                                 */
+                                fields: string[];
+                                /** @description The dates are not changed through `PATCH`. */
+                                readOnly: boolean;
+                            };
+                            timeline?: {
+                                /** @description The field a bar starts at. */
+                                start: string;
+                                /** @description The field a bar ends at; empty: the bar is still open. */
+                                end: string;
+                            };
+                        } | null;
                         /** @description What a record's attachment may be, as the upload route enforces it; null when the subject takes no attachments. */
                         attachmentLimits: {
                             /**
@@ -13612,14 +14343,9 @@ export interface operations {
             };
         };
     };
-    AttachmentsController_download_v1: {
+    AttachmentsController_get_v1: {
         parameters: {
-            query?: {
-                /** @description `true`: a PDF is shown in the browser (`Content-Disposition: inline`); any other type is still a download. */
-                inline?: "true" | "false";
-                /** @description An image attachment's smaller copy instead of the file: `thumb` (fits in 256 × 256 pixels) or `preview` (1600 × 1600), WebP, upright, without metadata. Shown inline whatever `inline` says. 404 (`attachment_rendition_not_found`) when there is none: not an image, not made yet (`renditionStatus` `pending`), or it could not be processed. */
-                rendition?: "thumb" | "preview";
-            };
+            query?: never;
             header?: never;
             path: {
                 id: string;
@@ -13628,12 +14354,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description To the file (a signed link). */
-            302: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Attachment"];
+                };
             };
             /** @description No valid API key or session. */
             401: {
@@ -13642,15 +14369,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description No such attachment, or with `rendition`: it has no such copy (attachment_rendition_not_found). */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The malware scan has not finished (attachment_scan_pending): try again shortly. */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13696,6 +14415,188 @@ export interface operations {
                 content?: never;
             };
             /** @description An issued document (attachment_locked): it stays with its record. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentsController_listVersions_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttachmentVersionList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentsController_downloadVersion_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description To the file (a signed link). */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such attachment, or version (attachment_version_not_found). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentsController_restoreVersion_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
+                "If-Match"?: string;
+            };
+            path: {
+                id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Why the file changed, kept with the version. */
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attachment"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change its record. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such attachment, or version (attachment_version_not_found). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An issued document (attachment_locked), still being scanned or processed (attachment_busy), or at the limit of versions. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description It changed since you read it (precondition_failed). */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentsController_download_v1: {
+        parameters: {
+            query?: {
+                /** @description `true`: a PDF is shown in the browser (`Content-Disposition: inline`); any other type is still a download. */
+                inline?: "true" | "false";
+                /** @description An image attachment's smaller copy instead of the file: `thumb` (fits in 256 × 256 pixels) or `preview` (1600 × 1600), WebP, upright, without metadata. Shown inline whatever `inline` says. 404 (`attachment_rendition_not_found`) when there is none: not an image, not made yet (`renditionStatus` `pending`), or it could not be processed. */
+                rendition?: "thumb" | "preview";
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description To the file (a signed link). */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such attachment, or with `rendition`: it has no such copy (attachment_rendition_not_found). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The malware scan has not finished (attachment_scan_pending): try again shortly. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -22527,6 +23428,8 @@ export interface operations {
                             }[];
                             /** @description The organizational units they are a current member of. */
                             unitIds: string[];
+                            /** @description Provisioned over SCIM: the tenant's identity provider is its source of truth (docs/identity.md). */
+                            managedByScim: boolean;
                         }[];
                         /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
                         nextCursor: string | null;
@@ -22559,7 +23462,7 @@ export interface operations {
             };
         };
     };
-    AccessController_createUser_v1: {
+    AccessController_addMember_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -22569,8 +23472,11 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** Format: email */
-                    email: string;
+                    /**
+                     * Format: email
+                     * @description Where the link goes; a prepared member (`send: false`) may get it later.
+                     */
+                    email?: string;
                     /** @description The name a new account starts with; its owner changes it. */
                     name?: string;
                     /** @default [] */
@@ -22581,6 +23487,11 @@ export interface operations {
                     };
                     /** @description The organizational units the user belongs to, as a member. */
                     unitIds?: string[];
+                    /**
+                     * @description true (invite): the link is mailed now. false (prepare): no link until POST /access/invitations/{id}/send.
+                     * @default true
+                     */
+                    send?: boolean;
                 };
             };
         };
@@ -22593,9 +23504,18 @@ export interface operations {
                     "application/json": {
                         /** Format: uuid */
                         id: string;
-                        email: string;
-                        /** Format: date-time */
-                        expiresAt: string;
+                        /** @description null: prepared without one. */
+                        email: string | null;
+                        /**
+                         * @description `prepared`: no link yet (send it); `sent`: its link works until `expiresAt`; `expired`: send it again.
+                         * @enum {string}
+                         */
+                        status: "prepared" | "sent" | "expired";
+                        /**
+                         * Format: date-time
+                         * @description The link's end; null: prepared.
+                         */
+                        expiresAt: string | null;
                     };
                 };
             };
@@ -22665,6 +23585,8 @@ export interface operations {
                         }[];
                         /** @description The organizational units they are a current member of. */
                         unitIds: string[];
+                        /** @description Provisioned over SCIM: the tenant's identity provider is its source of truth (docs/identity.md). */
+                        managedByScim: boolean;
                     };
                 };
             };
@@ -22749,11 +23671,18 @@ export interface operations {
             };
         };
     };
-    AccessController_invitations_v1: {
+    AccessController_explain_v1: {
         parameters: {
-            query?: never;
+            query: {
+                /** @description A subject of the catalog (GET /access/catalog). */
+                subject: string;
+                /** @description One of its records, looked up as you; left out: on any record (some at least). */
+                recordId?: string;
+            };
             header?: never;
-            path?: never;
+            path: {
+                id: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -22764,23 +23693,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        items: {
+                        user: {
                             /** Format: uuid */
                             id: string;
+                            name: string;
                             email: string;
+                        };
+                        subject: string;
+                        /** Format: uuid */
+                        recordId: string | null;
+                        /** @description The member's role grants, ended ones too. */
+                        roles: {
+                            /** Format: uuid */
+                            id: string;
+                            name: string;
                             /** Format: date-time */
-                            expiresAt: string;
-                            name: string | null;
-                            roleIds: string[];
-                            /** @description When each grant ends once accepted, by role id; the others never do. */
-                            roleExpiresAt: {
-                                [key: string]: string;
-                            };
-                            unitIds: string[];
-                            invitedBy: string;
+                            expiresAt: string | null;
+                            /** @description An ended grant: it counts for nothing. */
                             expired: boolean;
-                            /** Format: date-time */
-                            createdAt: string;
+                        }[];
+                        /** @description Their current units, as `inMyUnits`, `inMyUnitsAndBelow` and `inUnitsILeadAndBelow` read them. */
+                        units: {
+                            direct: string[];
+                            andBelow: string[];
+                            ledAndBelow: string[];
+                        };
+                        actions: {
+                            action: string;
+                            /** @description With a record: on it; without: on some records at least. */
+                            allowed: boolean | null;
+                            /** @description The declared fields it may touch (with a record: on it); null: withheld. */
+                            fields: string[] | null;
+                            /** @description The permissions of the member's roles for this action. */
+                            grants: {
+                                /**
+                                 * Format: uuid
+                                 * @description The role it comes with; null: built in.
+                                 */
+                                roleId: string | null;
+                                /** Format: date-time */
+                                expiresAt: string | null;
+                                /** @description `all.manage`: anything (an administrator). */
+                                all: boolean;
+                                /** @description Only these declared fields; null: all. */
+                                fields: string[] | null;
+                                /** @description Whether it reaches the record (always true without one). */
+                                matches: boolean | null;
+                                conditions: {
+                                    /** @example mine */
+                                    key: string;
+                                    params: {
+                                        [key: string]: unknown;
+                                    } | null;
+                                    matches: boolean | null;
+                                }[];
+                            }[];
                         }[];
                     };
                 };
@@ -22799,30 +23766,66 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Not a member of this tenant, or no record you may read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
-    AccessController_resendInvitation_v1: {
+    AccessController_invitations_v1: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            202: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        email: string;
-                        /** Format: date-time */
-                        expiresAt: string;
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            /** @description null: prepared without one. */
+                            email: string | null;
+                            /**
+                             * @description `prepared`: no link yet (send it); `sent`: its link works until `expiresAt`; `expired`: send it again.
+                             * @enum {string}
+                             */
+                            status: "prepared" | "sent" | "expired";
+                            /**
+                             * Format: date-time
+                             * @description The link's end; null: prepared.
+                             */
+                            expiresAt: string | null;
+                            name: string | null;
+                            roleIds: string[];
+                            /** @description When each grant ends once accepted, by role id; the others never do. */
+                            roleExpiresAt: {
+                                [key: string]: string;
+                            };
+                            unitIds: string[];
+                            invitedBy: string;
+                            /**
+                             * @deprecated
+                             * @description `status` is `expired`: kept for the clients that read it.
+                             */
+                            expired: boolean;
+                            /**
+                             * Format: date-time
+                             * @description When its current link was sent; null: prepared (or sent before this was recorded).
+                             */
+                            sentAt: string | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
                     };
                 };
             };
@@ -22833,15 +23836,8 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            /** @description Not allowed by your permissions. */
             403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No pending invitation of this id. */
-            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -22880,6 +23876,196 @@ export interface operations {
                 };
                 content?: never;
             };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccessController_updateInvitation_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: email
+                     * @description A new address withdraws a sent link: send again.
+                     */
+                    email?: string | null;
+                    /** @description The name a new account starts with; its owner changes it. */
+                    name?: string | null;
+                    roleIds?: string[];
+                    /** @description When each grant ends, by role id (temporary access); the others never do. */
+                    roleExpiresAt?: {
+                        [key: string]: string;
+                    };
+                    /** @description The organizational units the user belongs to, as a member. */
+                    unitIds?: string[];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @description null: prepared without one. */
+                        email: string | null;
+                        /**
+                         * @description `prepared`: no link yet (send it); `sent`: its link works until `expiresAt`; `expired`: send it again.
+                         * @enum {string}
+                         */
+                        status: "prepared" | "sent" | "expired";
+                        /**
+                         * Format: date-time
+                         * @description The link's end; null: prepared.
+                         */
+                        expiresAt: string | null;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No pending invitation of this id. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccessController_sendInvitation_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @description null: prepared without one. */
+                        email: string | null;
+                        /**
+                         * @description `prepared`: no link yet (send it); `sent`: its link works until `expiresAt`; `expired`: send it again.
+                         * @enum {string}
+                         */
+                        status: "prepared" | "sent" | "expired";
+                        /**
+                         * Format: date-time
+                         * @description The link's end; null: prepared.
+                         */
+                        expiresAt: string | null;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No pending invitation of this id. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccessController_resendInvitation_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @description null: prepared without one. */
+                        email: string | null;
+                        /**
+                         * @description `prepared`: no link yet (send it); `sent`: its link works until `expiresAt`; `expired`: send it again.
+                         * @enum {string}
+                         */
+                        status: "prepared" | "sent" | "expired";
+                        /**
+                         * Format: date-time
+                         * @description The link's end; null: prepared.
+                         */
+                        expiresAt: string | null;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No pending invitation of this id. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -23920,6 +25106,77 @@ export interface operations {
             };
         };
     };
+    OrganizationalUnitsController_impact_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    type?: "division" | "department" | "team";
+                    name?: string;
+                    /**
+                     * Format: uuid
+                     * @description Moves the unit, with every unit under it; null: to the top.
+                     */
+                    parentId?: string | null;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Only the users whose reach would change. */
+                        changes: {
+                            /** Format: uuid */
+                            userId: string;
+                            name: string;
+                            email: string;
+                            /** @description What `inMyUnitsAndBelow` would reach. */
+                            andBelow: {
+                                /** @description Units they would reach and do not now. */
+                                gains: string[];
+                                /** @description Units they reach now and would not. */
+                                loses: string[];
+                            };
+                            /** @description What `inUnitsILeadAndBelow` would reach. */
+                            ledAndBelow: {
+                                /** @description Units they would reach and do not now. */
+                                gains: string[];
+                                /** @description Units they reach now and would not. */
+                                loses: string[];
+                            };
+                        }[];
+                        /** @description More than 500 users could be affected: only the first were compared. */
+                        truncated: boolean;
+                    };
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description As PATCH: the change would be refused. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     OrganizationalUnitsController_members_v1: {
         parameters: {
             query?: never;
@@ -24126,6 +25383,72 @@ export interface operations {
                         createdAt: string;
                         /** Format: date-time */
                         updatedAt: string;
+                    };
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `unit_managed_by_scim`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OrganizationalUnitsController_memberImpact_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    role: "member" | "lead";
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Only the users whose reach would change. */
+                        changes: {
+                            /** Format: uuid */
+                            userId: string;
+                            name: string;
+                            email: string;
+                            /** @description What `inMyUnitsAndBelow` would reach. */
+                            andBelow: {
+                                /** @description Units they would reach and do not now. */
+                                gains: string[];
+                                /** @description Units they reach now and would not. */
+                                loses: string[];
+                            };
+                            /** @description What `inUnitsILeadAndBelow` would reach. */
+                            ledAndBelow: {
+                                /** @description Units they would reach and do not now. */
+                                gains: string[];
+                                /** @description Units they reach now and would not. */
+                                loses: string[];
+                            };
+                        }[];
+                        /** @description More than 500 users could be affected: only the first were compared. */
+                        truncated: boolean;
                     };
                 };
             };
@@ -28330,6 +29653,91 @@ export interface operations {
             };
         };
     };
+    NoteAttachmentsController_replace_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
+                "If-Match"?: string;
+            };
+            path: {
+                id: string;
+                attachmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** @description Why the file changed, kept with the version. */
+                    note?: string;
+                    /**
+                     * Format: binary
+                     * @description Required for a replacement: checked like any upload (type from its bytes, size, quota, malware scan).
+                     */
+                    file?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attachment"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change the note. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An issued document (attachment_locked), still being scanned or processed (attachment_busy), or at the limit of versions (attachment_versions_limit). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description It changed since you read it (precondition_failed). */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Larger than ATTACHMENT_MAX_MB (payload_too_large). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A type not allowed, or not the one declared (unsupported_media_type). */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     NoteAttachmentsController_list_v1: {
         parameters: {
             query?: {
@@ -28373,7 +29781,7 @@ export interface operations {
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, size, createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, renditionStatus, renditions, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, renditionStatus, renditions, version, revisionNote, versionedAt, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -28643,8 +30051,235 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The server stores files on a local disk (presigned_uploads_unavailable). */
+            /** @description A signed-URL upload on a server with a local disk (presigned_uploads_unavailable). */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteAttachmentsController_startSession_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description The file name, shown and used for downloads. Never a path.
+                     * @example invoice.pdf
+                     */
+                    name: string;
+                    /** @description The size in bytes. The URL accepts exactly this many; at most ATTACHMENT_MAX_MB (413 `payload_too_large`). */
+                    size: number;
+                    /**
+                     * @description The file's type, as the browser names it (`File.type`). Required, and one of the allowed types (415 `unsupported_media_type`); the URL accepts only this `Content-Type`. It is checked against the file's bytes on completion.
+                     * @example application/pdf
+                     */
+                    contentType: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadSession"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change the note. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Larger than ATTACHMENT_MAX_MB (payload_too_large). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A type not allowed, or none declared (unsupported_media_type). */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Too many uploads open (attachment_uploads_pending). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteAttachmentsController_sessionProgress_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                uploadId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadSession"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such record, or no such open upload of yours (attachment_upload_not_found). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteAttachmentsController_sessionChunk_v1: {
+        parameters: {
+            query: {
+                /** @description Where this chunk starts: the session's `received`. 409 `attachment_upload_offset_mismatch` otherwise. */
+                offset: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                uploadId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadSession"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change the note. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such open upload of yours (attachment_upload_not_found). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The offset is not the next one (attachment_upload_offset_mismatch), or the upload is being completed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The session expired (attachment_upload_expired). */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The chunk is larger than allowed (payload_too_large). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteAttachmentsController_cancelSession_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                uploadId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such open upload of yours (attachment_upload_not_found). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The upload is being completed (attachment_upload_in_progress). */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

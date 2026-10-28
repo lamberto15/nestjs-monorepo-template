@@ -30,6 +30,7 @@ import { RecordStore } from './record-store.js';
 import type { RecordSchemas } from './record.schemas.js';
 import {
   recordKey,
+  RecordAccessFinder,
   RecordAttachments,
   RecordBulk,
   RecordComments,
@@ -153,8 +154,15 @@ export function recordParts(
     RecordStore,
     RecordLifecycle,
     RecordPresenter,
+    // GET /v1/access/users/{id}/explanation finds its records.
+    RecordAccessFinder,
     // GET /v1/lists/{subject}: its list described, and its capabilities.
-    listSource(declaration.subject, options.list, declaration.capabilities),
+    listSource(
+      declaration.subject,
+      options.list,
+      declaration.capabilities,
+      declaration.views,
+    ),
     // GET /v1/templates: values to prefill a create, checked against its schema.
     templateSource({
       subject: declaration.subject,

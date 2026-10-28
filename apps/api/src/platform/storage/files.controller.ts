@@ -13,7 +13,10 @@ import {
   serveSignedUrl,
   StorageDisk,
 } from '@nestjs/storage';
-import type { Request, Response } from 'express';
+import type {
+  NodeRequest as Request,
+  NodeResponse as Response,
+} from '@nestjs/platform-node';
 import { FILES_ROUTE } from './storage.config.js';
 
 /**
