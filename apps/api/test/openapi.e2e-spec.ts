@@ -257,6 +257,8 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/data',
         '/v1/data/exports',
         '/v1/data/imports',
+        '/v1/data/imports/{name}/mappings',
+        '/v1/data/imports/{name}/mappings/{id}',
         '/v1/data/imports/{name}/template',
         '/v1/data/transfers',
         '/v1/data/transfers/{id}',
@@ -383,6 +385,7 @@ describe('OpenAPI document (e2e)', () => {
     expect(Object.keys(body.properties)).toEqual([
       'name',
       'matchOn',
+      'mapping',
       'dryRun',
       'file',
     ]);

@@ -4,13 +4,17 @@ import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify';
 import ExcelJS from 'exceljs';
 import { streamArray } from 'stream-json/streamers/stream-array.js';
-import { isTimeZone } from '../../core/config/env.helpers.js';
 import type {
   ImportColumn,
   TransferColumn,
   TransferFormat,
 } from './data-transfer.types.js';
 import { exampleOf } from './import-columns.js';
+import {
+  headerColumn as columnOf,
+  type ImportMapping,
+  renameHeaders,
+} from './import-mapping.js';
 
 /**
  * The file formats, streamed both ways: a 100 MB export or import never sits
@@ -141,19 +145,6 @@ export function instantOf(text: string, timeZone: string) {
 
 /** A date-time column's header in CSV and Excel: `createdAt (Asia/Dubai)`. */
 const zonedHeader = (name: string, timeZone: string) => `${name} (${timeZone})`;
-const ZONED_HEADER = /^(.+) \(([^()]+)\)$/;
-
-/**
- * The column a header names, and the zone of its times when it is a
- * date-time column (`createdAt (Asia/Dubai)`).
- */
-function columnOf(header: string) {
-  const zoned = ZONED_HEADER.exec(header);
-  return zoned && isTimeZone(zoned[2]!)
-    ? { key: zoned[1]!, zone: zoned[2]! }
-    : { key: header };
-}
-
 /**
  * A value as a cell: dates in ISO 8601 in `timeZone`, objects as JSON,
  * nothing as empty. Text that would start a formula gets a leading single
@@ -487,15 +478,20 @@ export async function createTemplate(
  * The records of a file, with their row numbers (1: the first after the
  * header). Headers are the column names; values come as strings (CSV,
  * spreadsheets) or as written (JSON). A date cell of one of `dateColumns`
- * (the template's `date` columns) is read as its day, `2026-10-15`.
+ * (the template's `date` columns) is read as its day, `2026-10-15`. A
+ * `mapping` renames the file's headers first (or ignores a column): the
+ * date columns and zones are those of the names it gives.
  */
 export async function* readRecords(
   format: TransferFormat,
   input: Readable,
-  { dateColumns = new Set() }: { dateColumns?: ReadonlySet<string> } = {},
+  {
+    dateColumns = new Set(),
+    mapping,
+  }: { dateColumns?: ReadonlySet<string>; mapping?: ImportMapping } = {},
 ): AsyncGenerator<{ row: number; record: Record<string, unknown> }> {
   try {
-    yield* records(format, input, dateColumns);
+    yield* records(format, input, dateColumns, mapping);
   } finally {
     // Read to the end, failed, or left early (too many errors): the source
     // (a file, an S3 download) is released either way.
@@ -507,13 +503,23 @@ async function* records(
   format: TransferFormat,
   input: Readable,
   dateColumns: ReadonlySet<string>,
+  mapping: ImportMapping | undefined,
 ): AsyncGenerator<{ row: number; record: Record<string, unknown> }> {
   let row = 0;
   if (format === 'csv') {
     // pipeline, not pipe: an error of the source reaches the parser (and the loop).
     const parser = pipeline(
       input,
-      parse({ columns: true, bom: true, skip_empty_lines: true, trim: true }),
+      parse({
+        // A mapping renames the headers (false: csv-parse drops the column).
+        columns: mapping
+          ? (headers: string[]) =>
+              renameHeaders(headers, mapping).map((header) => header ?? false)
+          : true,
+        bom: true,
+        skip_empty_lines: true,
+        trim: true,
+      }),
       () => undefined,
     );
     for await (const record of parser) {
@@ -537,7 +543,10 @@ async function* records(
       for await (const { value } of elements as AsyncIterable<
         streamArray.StreamArrayItem<Record<string, unknown>>
       >) {
-        yield { row: ++row, record: value };
+        yield {
+          row: ++row,
+          record: mapping ? renamedKeys(value, mapping) : value,
+        };
       }
     } catch (error) {
       throw jsonFormatError(error);
@@ -560,7 +569,7 @@ async function* records(
   if (!sheet) {
     return;
   }
-  let headers: string[] | undefined;
+  let headers: (string | null)[] | undefined;
   // Row by row, as eachRow() (the rows with values), without a second copy
   // of every row next to the workbook (#618).
   for (let number = 1; number <= sheet.rowCount; number++) {
@@ -568,8 +577,13 @@ async function* records(
     if (!line?.hasValues) continue;
     const cells = (line.values as unknown[]).slice(1);
     if (!headers) {
-      headers = cells.map((header) =>
-        header === null || header === undefined ? '' : cellText(header).trim(),
+      headers = renameHeaders(
+        cells.map((header) =>
+          header === null || header === undefined
+            ? ''
+            : cellText(header).trim(),
+        ),
+        mapping,
       );
       continue;
     }
@@ -577,28 +591,46 @@ async function* records(
       row: ++row,
       record: fromCells(
         Object.fromEntries(
-          headers.map((header, i) => {
+          headers.flatMap((header, i) => {
+            if (header === null) return [];
             const value = cells[i];
-            if (value === null || value === undefined) return [header, ''];
+            if (value === null || value === undefined) return [[header, '']];
             if (value instanceof Date) {
               // A date cell: the day of a date column; the wall-clock time
               // (as UTC) of a zoned column; else ISO 8601.
               if (dateColumns.has(header)) {
-                return [header, value.toISOString().slice(0, 10)];
+                return [[header, value.toISOString().slice(0, 10)]];
               }
               if (columnOf(header).zone) {
                 return [
-                  header,
-                  value.toISOString().slice(0, 23).replace('T', ' '),
+                  [header, value.toISOString().slice(0, 23).replace('T', ' ')],
                 ];
               }
             }
-            return [header, cellText(value)];
+            return [[header, cellText(value)]];
           }),
         ),
       ),
     };
   }
+}
+
+/** A JSON element under the mapping's names; an ignored key is dropped. */
+function renamedKeys(
+  value: Record<string, unknown>,
+  mapping: ImportMapping,
+): Record<string, unknown> {
+  const keys = Object.keys(value);
+  const names = renameHeaders(keys, mapping);
+  return Object.fromEntries(
+    keys.flatMap((key, i) => {
+      const name = names[i];
+      // JSON carries no zone: a target's is not part of the key.
+      return name === null || name === undefined
+        ? []
+        : [[columnOf(name).key, value[key]]];
+    }),
+  );
 }
 
 /**
