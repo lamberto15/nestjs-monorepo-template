@@ -124,6 +124,48 @@ describe('security (e2e)', () => {
       .expect(403);
   });
 
+  it('places people only in units the actor manages or belongs to (#842)', async () => {
+    const manageUsers = await role(['Access', 'manageUsers']);
+    const support = await node.user([manageUsers]);
+    const helper = await node.user([manageUsers]);
+    const newUnit = async (name: string, parentId?: string) =>
+      (
+        await node
+          .admin()
+          .post('/v1/access/organizational-units')
+          .send({ type: 'team', name, parentId })
+          .expect(201)
+      ).body.id as string;
+    const foreign = await newUnit(`Foreign ${randomUUID().slice(0, 8)}`);
+    const own = await newUnit(`Own ${randomUUID().slice(0, 8)}`);
+    const below = await newUnit(`Below ${randomUUID().slice(0, 8)}`, own);
+    await node
+      .admin()
+      .post(`/v1/access/organizational-units/${own}/members`)
+      .send({ userId: support.id })
+      .expect(201);
+
+    // A unit they neither manage nor belong to: not as lead, nor as member.
+    const refused = await support.agent
+      .post(`/v1/access/organizational-units/${foreign}/members`)
+      .send({ userId: helper.id, role: 'lead' })
+      .expect(403);
+    expect(refused.body.code).toBe('unit_authority_required');
+    await support.agent
+      .patch(`/v1/access/users/${helper.id}`)
+      .send({ unitIds: [foreign] })
+      .expect(403);
+    // Their own unit and the units under it: yes.
+    await support.agent
+      .post(`/v1/access/organizational-units/${below}/members`)
+      .send({ userId: helper.id, role: 'lead' })
+      .expect(201);
+    await support.agent
+      .patch(`/v1/access/users/${helper.id}`)
+      .send({ unitIds: [own] })
+      .expect(204);
+  });
+
   it('keeps a grant’s end when the roles are sent again', async () => {
     const [viewer] = await node.roleIds('viewer');
     const { id } = await node.user([]);
