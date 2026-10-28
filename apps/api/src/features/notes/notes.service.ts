@@ -1,8 +1,5 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import {
@@ -123,18 +120,24 @@ export class NotesService {
     });
     // A tenant's own sender (docs/webhooks-and-realtime.md): the tenant is the
     // sender's, so the event names only the note, and the request already runs in it.
-    incomingEvents.register('note.publish-requested', ({ webhook }) => {
-      const data = webhook.payload.data as { noteId?: unknown } | null;
-      const noteId = data?.noteId;
-      if (typeof noteId !== 'string') {
-        throw new BadRequestException('data.noteId is required.');
-      }
-      return inTransaction(this.txHost, async (tx) =>
-        webhook.processInTransaction(tx, () =>
-          this.requestPublish(tx, noteId, webhook.id),
-        ),
-      );
-    });
+    incomingEvents.register(
+      'note.publish-requested',
+      {
+        description: 'Request publication of an existing note of the tenant.',
+        dataSchema: z.object({ noteId: z.uuid() }),
+        example: { noteId: '00000000-0000-4000-8000-000000000001' },
+        delivery:
+          'Deduplicated by the webhook-id: a redelivery is answered 200 and not run again. 200 once the request is recorded; an unknown note is a 404, which the sender may retry.',
+      },
+      ({ webhook }) => {
+        const { noteId } = webhook.payload.data as { noteId: string };
+        return inTransaction(this.txHost, async (tx) =>
+          webhook.processInTransaction(tx, () =>
+            this.requestPublish(tx, noteId, webhook.id),
+          ),
+        );
+      },
+    );
   }
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */

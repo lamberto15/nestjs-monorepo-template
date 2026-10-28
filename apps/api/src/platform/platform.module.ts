@@ -51,6 +51,7 @@ import { ClientWebhooksController } from './webhooks/client-webhooks.controller.
 import { WebhookManagementService } from './webhooks/webhook-management.service.js';
 import { IncomingEventHandlers } from './webhooks/incoming-event-handlers.js';
 import { IncomingSendersController } from './webhooks/incoming-senders.controller.js';
+import { IncomingEventTypesController } from './webhooks/incoming-event-types.controller.js';
 import { IncomingSendersService } from './webhooks/incoming-senders.service.js';
 import { TenantSenderGuard } from './webhooks/tenant-sender.guard.js';
 import { TenantWebhookReceiverController } from './webhooks/tenant-webhook-receiver.controller.js';
@@ -449,6 +450,7 @@ export class PlatformModule {
         ),
         // Incoming webhooks of a tenant's own senders: not behind WEBHOOKS (that switch is for the outgoing ones).
         IncomingSendersController,
+        IncomingEventTypesController,
         TenantWebhookReceiverController,
         OpsController,
         FeaturesController,

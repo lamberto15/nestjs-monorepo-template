@@ -354,6 +354,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/webhook-endpoints/{id}/rotate-secret',
         '/v1/webhook-endpoints/{id}/test',
         '/v1/webhook-event-types',
+        '/v1/webhook-incoming-event-types',
         '/v1/webhook-senders',
         '/v1/webhook-senders/{id}',
         '/v1/webhook-senders/{id}/rotate-secret',

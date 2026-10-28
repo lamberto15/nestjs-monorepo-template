@@ -3644,6 +3644,44 @@
         ]
       }
     },
+    "/v1/webhook-incoming-event-types": {
+      "get": {
+        "description": "Incoming events only; the events an endpoint receives are `GET /v1/webhook-event-types`. Generated from the registered handlers, so it matches what the receiver validates. A listed type is not a permission. A type not listed is acknowledged and ignored (`handled: false`).",
+        "operationId": "IncomingEventTypesController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncomingWebhookEventTypes"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (an API key is none)."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "The event types a sender may send in, with their data schemas",
+        "tags": [
+          "incoming webhooks",
+          "access"
+        ]
+      }
+    },
     "/v1/webhooks/tenants/{tenantId}/senders/{name}": {
       "post": {
         "description": "Signed with Standard Webhooks (webhook-id, webhook-timestamp, webhook-signature) using the secret of the sender registered at POST /v1/webhook-senders. The body is `{ type, data }`. A redelivered webhook-id is answered 200 and not processed again.",
@@ -49317,6 +49355,62 @@
           "createdAt",
           "updatedAt",
           "secret"
+        ],
+        "additionalProperties": false
+      },
+      "IncomingWebhookEventTypes": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "example": "note.publish-requested"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "dataSchema": {
+                  "type": "object",
+                  "additionalProperties": {},
+                  "description": "JSON Schema of the envelope's `data`."
+                },
+                "example": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "data": {}
+                  },
+                  "required": [
+                    "type",
+                    "data"
+                  ],
+                  "additionalProperties": false,
+                  "description": "A complete, safe request body."
+                },
+                "delivery": {
+                  "type": "string",
+                  "description": "Deduplication and acknowledgement semantics."
+                }
+              },
+              "required": [
+                "type",
+                "description",
+                "dataSchema",
+                "example",
+                "delivery"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
         ],
         "additionalProperties": false
       },
