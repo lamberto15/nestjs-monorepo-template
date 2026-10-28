@@ -499,7 +499,8 @@ export class NotificationsService {
   }
 
   /**
-   * A recipient's notification backlog, for `pnpm ops notifications:settle`:
+   * A recipient's notification backlog in the current tenant scope (the
+   * account's own rows with no tenant), for `pnpm ops notifications:settle`:
    * their undelivered `notifications.deliver` outbox messages and the
    * notifications behind them, optionally only those created before `before`.
    * `mandatory` types are never counted: they are delivered as usual.
@@ -520,15 +521,32 @@ export class NotificationsService {
   }
 
   /**
-   * Drops the backlog `backlog()` counts: deletes the messages (the outbox
-   * package deletes one only as published, so its table is cleared directly,
-   * leaving any under a live lease: being delivered now) and marks the
-   * notifications delivered and read, with no digest mail left to send.
+   * Drops up to `limit` of each of what `backlog()` counts: deletes the
+   * messages (the outbox package deletes one only as published, so its
+   * table is cleared directly, leaving any under a live lease: being
+   * delivered now) and marks the notifications delivered and read, with no
+   * digest mail left to send. Called until it returns zeros, one short
+   * transaction per call, so no statement nears the statement timeout on a
+   * backlog of hundreds of thousands.
    */
-  async settleBacklog(tx: Transaction, recipient: string, before?: Date) {
+  async settleBacklog(
+    tx: Transaction,
+    recipient: string,
+    before: Date | undefined,
+    limit: number,
+  ) {
     const removed = await tx
       .delete(outboxMessages)
-      .where(this.pendingMessages(recipient, before));
+      .where(
+        inArray(
+          outboxMessages.id,
+          tx
+            .select({ id: outboxMessages.id })
+            .from(outboxMessages)
+            .where(this.pendingMessages(recipient, before))
+            .limit(limit),
+        ),
+      );
     const now = new Date();
     const settled = await tx
       .update(notifications)
@@ -538,7 +556,16 @@ export class NotificationsService {
         digest: null,
         digestDueAt: null,
       })
-      .where(this.backlogOf(recipient, before));
+      .where(
+        inArray(
+          notifications.id,
+          tx
+            .select({ id: notifications.id })
+            .from(notifications)
+            .where(this.backlogOf(recipient, before))
+            .limit(limit),
+        ),
+      );
     // Database's portable result type is unknown; node-postgres reports rowCount.
     const rows = (result: unknown) =>
       (result as { rowCount?: number | null }).rowCount ?? 0;
@@ -554,9 +581,13 @@ export class NotificationsService {
 
   private pendingMessages(recipient: string, before?: Date) {
     const mandatory = this.mandatoryTypes();
+    const tenantId = currentTenantId();
+    const tenantOf = sql`${outboxMessages.payload}->>'tenantId'`;
     return and(
       eq(outboxMessages.topic, NOTIFICATIONS_TOPIC),
       eq(sql`${outboxMessages.payload}->>'recipient'`, recipient),
+      // The outbox has no row-level security: the scope's messages only.
+      tenantId ? eq(tenantOf, tenantId) : isNull(tenantOf),
       mandatory.length > 0
         ? notInArray(sql`${outboxMessages.payload}->>'type'`, mandatory)
         : undefined,
@@ -570,8 +601,12 @@ export class NotificationsService {
 
   private backlogOf(recipient: string, before?: Date) {
     const mandatory = this.mandatoryTypes();
+    const tenantId = currentTenantId();
     return and(
       eq(notifications.recipient, recipient),
+      tenantId
+        ? eq(notifications.tenantId, tenantId)
+        : isNull(notifications.tenantId),
       isNull(notifications.deliveredAt),
       mandatory.length > 0
         ? notInArray(notifications.type, mandatory)
