@@ -21,6 +21,19 @@ export const COMMENT_NOTIFICATIONS = defineNotifications([
       excerpt: z.string(),
     }),
   },
+  {
+    // Someone answered the recipient's comment (a reply in their thread).
+    type: 'comment.replied',
+    channels: { email: 'immediate', webhook: true },
+    data: z.object({
+      subject: z.string(),
+      recordId: z.uuid(),
+      commentId: z.uuid(),
+      title: z.string(),
+      by: z.string(),
+      excerpt: z.string(),
+    }),
+  },
 ]);
 
 /** The `data` of a feature's `<subject>.commented` type (`note.commented`). */

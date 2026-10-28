@@ -84,11 +84,22 @@ export class TenantWebhookReceiverController {
         })),
       });
     }
-    const handler = this.handlers.find(parsed.data.type);
-    if (!handler) {
+    const registered = this.handlers.find(parsed.data.type);
+    if (!registered) {
       return { received: true as const, duplicate: false, handled: false };
     }
-    const result = await handler({
+    const data = registered.definition.dataSchema.safeParse(parsed.data.data);
+    if (!data.success) {
+      throw new BadRequestException({
+        code: 'validation_failed',
+        message: 'The request is invalid.',
+        errors: data.error.issues.map((issue) => ({
+          path: ['data', ...issue.path].join('.'),
+          message: issue.message,
+        })),
+      });
+    }
+    const result = await registered.handler({
       tenantId: tenantId.toLowerCase(),
       sender: name,
       webhook: webhook as IncomingWebhook<IncomingEvent>,
