@@ -554,6 +554,13 @@
       "when": 1793159926522,
       "tag": "0078_wise_human_torch",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1793162061474,
+      "tag": "0079_flashy_secret_warriors",
+      "breakpoints": true
     }
   ]
 }

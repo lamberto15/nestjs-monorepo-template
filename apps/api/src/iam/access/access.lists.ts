@@ -9,7 +9,10 @@ import {
   sql,
 } from 'drizzle-orm';
 import { QueryBuilder } from 'drizzle-orm/pg-core';
-import { SIGN_IN_ACTIONS } from '../audit/sign-in-actions.js';
+import {
+  SIGN_IN_ACTION_LIST,
+  SIGN_IN_ACTIONS,
+} from '../audit/sign-in-actions.js';
 import { escapeLike, listQuery } from '../../core/http/list-query.js';
 import {
   apiClients,
@@ -209,10 +212,7 @@ export const AUDIT_LIST = listQuery(
 );
 
 /** Sign-in log entries only (the tenant's own, SignInLog): what every query of SIGN_IN_LIST starts from. */
-export const SIGN_IN_ENTRIES = inArray(auditLog.action, [
-  SIGN_IN_ACTIONS.succeeded,
-  SIGN_IN_ACTIONS.failed,
-]);
+export const SIGN_IN_ENTRIES = inArray(auditLog.action, SIGN_IN_ACTION_LIST);
 const signInMethod = sql<string>`${auditLog.details}->>'method'`;
 const signInResult = sql<string>`case when ${auditLog.action} = ${SIGN_IN_ACTIONS.succeeded} then 'success' else 'failure' end`;
 const signInResultIs = (value: unknown) =>

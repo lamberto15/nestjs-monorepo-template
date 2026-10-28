@@ -443,6 +443,13 @@ export const apiClientRoles = pgTable(
 ).enableRLS();
 
 /**
+ * The sign-in log's actions (SIGN_IN_ACTIONS) as the partial indexes of
+ * `audit_log` write them: literals, as an index predicate takes no
+ * parameter; access.lists.spec.ts keeps the two in step.
+ */
+const signInEntries = sql`action in ('member.signed-in', 'member.sign-in-failed')`;
+
+/**
  * Who did what: sign-ins, access changes and sensitive actions. Append-only.
  * Per tenant (the tenant of the work that recorded it); an account's own
  * entries made outside any tenant (sign-ins, sign-ups, password resets)
@@ -489,6 +496,20 @@ export const auditLog = pgTable(
       table.action,
       table.id,
     ),
+    // The sign-in log (GET /access/sign-ins) is a few rows among millions: a
+    // scan of the tenant's entries by id or by time, filtering on the
+    // action, reads them all when fewer than a page match. These hold the
+    // sign-ins alone, in both orders the list sorts by (SIGN_IN_ENTRIES).
+    index('audit_log_sign_ins_id_idx')
+      .on(table.tenantId, table.id)
+      .where(signInEntries),
+    index('audit_log_sign_ins_at_ms_idx')
+      .on(
+        table.tenantId,
+        sql`${utcMilliseconds(table.at)} desc nulls first`,
+        table.id.desc().nullsFirst(),
+      )
+      .where(signInEntries),
     ...tenantTable('audit_log', table, { nullRows: 'outside' }),
   ],
 ).enableRLS();

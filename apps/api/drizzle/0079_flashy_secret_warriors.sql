@@ -1,0 +1,2 @@
+CREATE INDEX "audit_log_sign_ins_id_idx" ON "audit_log" USING btree ("tenant_id","id") WHERE action in ('member.signed-in', 'member.sign-in-failed');--> statement-breakpoint
+CREATE INDEX "audit_log_sign_ins_at_ms_idx" ON "audit_log" USING btree ("tenant_id",(date_trunc('milliseconds', "at" at time zone 'UTC') at time zone 'UTC') desc nulls first,"id" DESC NULLS FIRST) WHERE action in ('member.signed-in', 'member.sign-in-failed');
