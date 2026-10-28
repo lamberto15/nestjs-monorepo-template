@@ -137,13 +137,17 @@ export function ConfigBundleCard() {
               <ul className="flex flex-col gap-1 text-sm">
                 {preview.errors.map((issue, index) => (
                   <li key={`e${index}`} className="text-destructive">
-                    {issue.ref && <span className="font-mono">{issue.ref}: </span>}
+                    {issue.ref && (
+                      <span className="font-mono">{issue.ref}: </span>
+                    )}
                     {issue.message}
                   </li>
                 ))}
                 {preview.warnings.map((issue, index) => (
                   <li key={`w${index}`} className="text-muted-foreground">
-                    {issue.ref && <span className="font-mono">{issue.ref}: </span>}
+                    {issue.ref && (
+                      <span className="font-mono">{issue.ref}: </span>
+                    )}
                     {issue.message}
                   </li>
                 ))}
@@ -152,7 +156,10 @@ export function ConfigBundleCard() {
             {changes?.length ? (
               <ul className="flex flex-col gap-1 text-sm">
                 {changes.map((change) => (
-                  <li key={`${change.type}:${change.ref}`} className="flex gap-2">
+                  <li
+                    key={`${change.type}:${change.ref}`}
+                    className="flex gap-2"
+                  >
                     <Badge variant="outline">
                       {t(`bundle.actions.${change.action}`)}
                     </Badge>

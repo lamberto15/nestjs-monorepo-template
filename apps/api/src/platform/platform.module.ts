@@ -17,6 +17,7 @@ import { PostgresWebhookStore } from '@nestjs/webhooks/postgres';
 import { WorkflowsModule, WorkflowStorage } from '@nestjs/workflows';
 import { fromDrizzle, PostgresWorkflowStore } from '@nestjs/workflows/postgres';
 import { runsWorkers } from '../core/config/core.env.js';
+import { DatabaseHealth } from '../core/database/database-health.js';
 import { loadOrCreateSecret, type Database } from '../core/database/drizzle.js';
 import { DrizzleIdempotencyStore } from './idempotency/drizzle-idempotency.store.js';
 import { principalScope } from './idempotency/idempotency.scopes.js';
@@ -545,6 +546,8 @@ export class PlatformModule {
           },
         },
         OpsQueues,
+        // DatabaseHealth: CoreModule's, stateless; the diagnostics' own instance reads the same pool.
+        DatabaseHealth,
         OpsDiagnostics,
         ConfigBundlesService,
         ConfigBundlePolicy,
