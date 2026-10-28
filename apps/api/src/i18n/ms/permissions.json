@@ -12,6 +12,7 @@
       "manageLegalHolds": "Letakkan dan lepaskan penahanan undang-undang: rekod disimpan walau apa pun yang dilakukan oleh padam, pembersihan atau peraturan pengekalan (iam/holds)",
       "manageRetention": "Tetapkan berapa lama penyewa menyimpan setiap jenis rekod sebelum ia dibersihkan atau dinyahkenalkan (platform/retention)",
       "manageNamingSeries": "Cipta, ubah dan padam format nombor rekod bernombor, dan tetapkan pembilangnya (platform/sequences)",
+      "manageCalendars": "Cipta, ubah dan padam kalendar perniagaan (waktu bekerja, zon waktu, cuti) yang menjadi asas pengiraan tarikh akhir (platform/calendars)",
       "manageViews": "Kongsi paparan tersimpan senarai dengan seluruh penyewa, dan ubah atau padam paparan yang dikongsi (platform/views)",
       "manageTemplates": "Kongsi templat rekod dengan seluruh penyewa, dan ubah atau padam templat yang dikongsi (platform/templates)",
       "readAudit": "Baca log audit",
@@ -170,6 +171,10 @@
     "report-runner": {
       "label": "Laporan berjadual",
       "description": "Memulakan laporan berjadual yang tiba masanya (sebagai pemiliknya), menjeda yang tidak lagi boleh dijalankan, dan merekodkan bagaimana setiap larian berakhir."
+    },
+    "record-schedules": {
+      "label": "Jadual rekod berulang",
+      "description": "Mencipta rekod bagi jadual berulang yang telah tiba masanya (sebagai pemiliknya), menamatkan jadual yang tidak lagi boleh dijalankan, dan merekodkan kejadian yang dilangkau."
     },
     "approvals": {
       "label": "Kelulusan",

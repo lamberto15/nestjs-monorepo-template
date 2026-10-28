@@ -24,6 +24,8 @@ export * from './platform/ai/ai.tables.js';
 export * from './platform/comments/comments.tables.js';
 export * from './platform/tags/tags.tables.js';
 export * from './platform/reports/reports.tables.js';
+export * from './platform/calendars/calendars.tables.js';
+export * from './platform/recurrence/record-schedules.tables.js';
 export * from './platform/retention/retention.tables.js';
 export * from './platform/views/views.tables.js';
 export * from './platform/templates/templates.tables.js';
