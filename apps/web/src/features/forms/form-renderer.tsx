@@ -19,6 +19,7 @@ import { Textarea } from '@nestjs-monorepo-template/ui/components/textarea';
 import { useTranslation } from 'react-i18next';
 import { useDescribedBy } from '@/lib/form';
 import type { FormDefinition, FormField } from './api';
+import { walkForm } from './rules';
 
 /** What an input holds while the person types: text, a checkbox, choices. */
 export type AnswerDraft = string | boolean | string[] | undefined;
@@ -50,9 +51,44 @@ const isEmpty = (draft: AnswerDraft) =>
   (Array.isArray(draft) && draft.length === 0);
 
 /**
+ * A draft as the server reads it (numbers as numbers, text trimmed, the
+ * default when left empty); undefined: none, or not valid.
+ */
+const valueOf = (field: FormField, given: AnswerDraft): unknown => {
+  const draft =
+    isEmpty(given) && field.default !== undefined
+      ? draftOf(field, field.default)
+      : given;
+  if (field.type === 'checkbox') return draft === true;
+  if (isEmpty(draft)) return undefined;
+  if (field.type === 'integer' || field.type === 'decimal') {
+    const number = Number(draft);
+    return Number.isNaN(number) ||
+      (field.type === 'integer' && !Number.isInteger(number))
+      ? undefined
+      : number;
+  }
+  return typeof draft === 'string' ? draft.trim() : draft;
+};
+
+/**
+ * What shows and what is required now, by the definition's conditions
+ * (rules.ts, the server's own pass): the renderer draws only these.
+ */
+export function stateOf(definition: FormDefinition, drafts: AnswerDrafts) {
+  const required = new Set<string>();
+  const { visible } = walkForm(definition.sections, (field, needed) => {
+    if (needed) required.add(field.key);
+    return valueOf(field, drafts[field.key]);
+  });
+  return { visible, required };
+}
+
+/**
  * The answers to send, and the problems the browser can tell already
  * (a required answer missing, a number that isn't one), by `answers.<key>`:
- * the server checks everything again against the published version.
+ * the server checks everything again against the published version. A
+ * field its conditions hide is left out (the server would strip it).
  */
 export function answersOf(
   definition: FormDefinition,
@@ -61,32 +97,27 @@ export function answersOf(
 ): { answers: Record<string, unknown>; errors: Record<string, string> } {
   const answers: Record<string, unknown> = {};
   const errors: Record<string, string> = {};
-  for (const field of definition.sections.flatMap((s) => s.fields)) {
+  walkForm(definition.sections, (field, required) => {
     const draft = drafts[field.key];
     const path = `answers.${field.key}`;
+    const value = valueOf(field, draft);
     if (field.type === 'checkbox') {
-      if (field.required && draft !== true) errors[path] = messages.required;
-      answers[field.key] = draft === true;
-      continue;
+      if (required && draft !== true) errors[path] = messages.required;
+      answers[field.key] = value;
+      return value;
     }
     if (isEmpty(draft)) {
-      if (field.required) errors[path] = messages.required;
-      continue;
+      if (required) errors[path] = messages.required;
+      return undefined;
     }
-    if (field.type === 'integer' || field.type === 'decimal') {
-      const number = Number(draft);
-      if (
-        Number.isNaN(number) ||
-        (field.type === 'integer' && !Number.isInteger(number))
-      ) {
-        errors[path] = messages.number;
-        continue;
-      }
-      answers[field.key] = number;
-      continue;
+    if (value === undefined) {
+      errors[path] = messages.number;
+      return undefined;
     }
-    answers[field.key] = draft;
-  }
+    answers[field.key] =
+      field.type === 'integer' || field.type === 'decimal' ? value : draft;
+    return value;
+  });
   return { answers, errors };
 }
 
@@ -103,10 +134,14 @@ export function FormRenderer(props: {
   errors?: Record<string, string>;
   idPrefix?: string;
 }) {
+  const { visible, required } = stateOf(props.definition, props.value);
   return (
     <div className="flex flex-col gap-8">
       {props.definition.sections.map((section) => (
-        <FieldSet key={section.key}>
+        <FieldSet
+          key={section.key}
+          hidden={!section.fields.some((field) => visible.has(field.key))}
+        >
           {section.title && (
             <FieldLegend className="text-base font-medium">
               {section.title}
@@ -116,16 +151,18 @@ export function FormRenderer(props: {
             <FieldDescription>{section.description}</FieldDescription>
           )}
           <div className="flex flex-col gap-4">
-            {section.fields.map((field) => (
-              <AnswerInput
-                key={field.key}
-                field={field}
-                idPrefix={props.idPrefix ?? 'form'}
-                draft={props.value[field.key]}
-                onChange={(draft) => props.onChange(field.key, draft)}
-                error={props.errors?.[`answers.${field.key}`]}
-              />
-            ))}
+            {section.fields
+              .filter((field) => visible.has(field.key))
+              .map((field) => (
+                <AnswerInput
+                  key={field.key}
+                  field={{ ...field, required: required.has(field.key) }}
+                  idPrefix={props.idPrefix ?? 'form'}
+                  draft={props.value[field.key]}
+                  onChange={(draft) => props.onChange(field.key, draft)}
+                  error={props.errors?.[`answers.${field.key}`]}
+                />
+              ))}
           </div>
         </FieldSet>
       ))}
