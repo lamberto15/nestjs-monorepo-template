@@ -71,7 +71,9 @@ describe('shares: read-only links to a record (e2e)', () => {
       ...(await node.auditEntries({ action: 'share.opened' })),
       ...(await node.auditEntries({ action: 'share.revoked' })),
     ];
-    expect(entries.map((entry) => entry.action).sort()).toEqual([
+    expect(
+      entries.map((entry) => entry.action).sort((a, b) => a.localeCompare(b)),
+    ).toEqual([
       'share.created',
       'share.opened',
       'share.revoked',
