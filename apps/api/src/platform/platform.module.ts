@@ -834,6 +834,7 @@ export class PlatformModule {
         AttachmentsRegistry,
         AttachmentsService,
         AttachmentUploadsService,
+        AttachmentVersionsService,
         DocumentsRegistry,
         DocumentsService,
         AiRegistry,

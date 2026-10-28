@@ -645,7 +645,7 @@ describe('attachments (e2e)', () => {
       const codes = (await Promise.all([replace(tag), replace(tag)])).map(
         (r) => r.status,
       );
-      expect(codes.sort()).toEqual([201, 412]);
+      expect(codes.sort((a, b) => a - b)).toEqual([201, 412]);
       const viewer = await node.user(['viewer']);
       await viewer.agent
         .post(`/v1/attachments/${file.id}/versions/1/restore`)
