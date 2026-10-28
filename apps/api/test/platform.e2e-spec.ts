@@ -951,6 +951,7 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       'reencryption',
       'retention',
       'messaging',
+      'custom-domains',
     ]);
   });
 });
