@@ -361,7 +361,10 @@ describe('operator CLI (e2e)', () => {
 
       const state = async (id: string) =>
         (
-          await db.select().from(notifications).where(eq(notifications.id, id))
+          await node.db
+            .select()
+            .from(notifications)
+            .where(eq(notifications.id, id))
         )[0]!;
       for (const id of [old1, old2]) {
         expect(await state(id)).toMatchObject({
@@ -374,7 +377,8 @@ describe('operator CLI (e2e)', () => {
         readAt: null,
       });
       expect(await state(others)).toMatchObject({ deliveredAt: null });
-      const left = await db
+      // The test pool: notifications are under the tenants' row-level security.
+      const left = await node.db
         .select({ id: sql<string>`payload->>'notificationId'` })
         .from(sql`nest_outbox.messages`)
         .where(sql`topic = 'notifications.deliver'`);
