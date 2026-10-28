@@ -145,6 +145,20 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
   does not choose a key for the caller. Generated features import through
   the platform's record transfer (`platform/records`), which inserts only:
   no `matchKeys`, so no lookup to filter.
+- **Column mappings**: a file whose headers differ from the template's
+  imports with `mapping`, a JSON object in the multipart body: the file's
+  header to a template column (`{ "Surname": "lastName" }`), or `null` to
+  ignore the column; a header not named keeps its own name, and a date-time
+  column takes the file's zone as the template's header does
+  (`"When": "dueAt (Asia/Dubai)"`). It is checked as a saved one is: against
+  the template as it is now and the caller's field permissions, two headers
+  to one column refused. The import then runs as usual, `dryRun` included.
+  Saved mappings are the tenant's, by import:
+  `GET`/`POST /v1/data/imports/{name}/mappings` (`{ name, mapping }`) and
+  `DELETE …/mappings/{id}`. The web import page reads a CSV's or JSON
+  file's headers and first row, offers each header's column (or "ignore")
+  with that sample, applies and saves mappings, and sends only what
+  differs.
 - **Templates**: the columns the caller may set (forbidden fields left
   out), read from the importer's schema with `z.toJSONSchema`, required,
   limits, choices, `.meta({ example })` and `.describe()` included;

@@ -1,4 +1,5 @@
 import { Reflector } from '@nestjs/core';
+import type { NodeRequest, NodeRouter } from '@nestjs/platform-node';
 import { MetricsService } from '../metrics/metrics.service.js';
 import {
   Deprecated,
@@ -7,6 +8,7 @@ import {
   deprecationLinks,
   sunsetHeader,
 } from './deprecated.js';
+import { recordMatchedRoutes } from './route-key.js';
 
 describe('Deprecated()', () => {
   it('writes the deprecation date as an RFC 9745 structured-field date', () => {
@@ -50,11 +52,13 @@ describe('Deprecated()', () => {
       setHeader: (k: string, v: string) => (headers[k] = v),
       append: (k: string, v: string) => (headers[k] = v),
     };
-    const req = {
-      method: 'GET',
-      baseUrl: '/v1',
-      route: { path: '/things/:id' },
-    };
+    // A request the router handled for the route `/v1/things/:id`.
+    const route = vi.fn();
+    const router = { route } as unknown as NodeRouter;
+    recordMatchedRoutes(router);
+    router.route('GET', '/v1/things/:id', () => undefined);
+    const req = { method: 'GET' } as NodeRequest;
+    (route.mock.calls[0]![2] as (r: NodeRequest) => void)(req);
     const context = {
       getType: () => 'http',
       getHandler: () => undefined,

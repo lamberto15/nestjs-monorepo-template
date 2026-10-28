@@ -77,6 +77,11 @@ export const ACCESS_PERMISSIONS = definePermissions({
             'Share saved views of lists with the whole tenant, and change or delete shared views (platform/views)',
           conditions: [],
         },
+        manageTemplates: {
+          label:
+            'Share record templates with the whole tenant, and change or delete shared templates (platform/templates)',
+          conditions: [],
+        },
         readAudit: { label: 'Read the audit log', conditions: [] },
         manageTenants: {
           label:

@@ -750,7 +750,7 @@ jobs:
   # The instrumentation: a sixth of the e2e suite with OpenTelemetry
   # (OTEL_EXPORTER_OTLP_ENDPOINT) and Sentry (SENTRY_DSN) pointing at a stub
   # collector on loopback (apps/api/test/telemetry-stub.mjs). test/setup-env.ts
-  # starts the SDKs when either is set, as main.ts does, so http, Express, pg
+  # starts the SDKs when either is set, as main.ts does, so http, pg
   # and ioredis are patched while the tests run: the instrumentation must not
   # break the app (as NestJS Observe's proxies broke the mail transports and
   # the lock-decorated jobs, issue #392), and the collector must have received

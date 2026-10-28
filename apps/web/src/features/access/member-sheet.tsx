@@ -37,6 +37,7 @@ import {
   isEnded,
   type GrantDraft,
 } from '@/features/access/grants';
+import { AccessExplanation } from '@/features/access/access-explanation';
 import { ImpersonateButton } from '@/features/access/impersonate-button';
 import { RoleGrantsPicker, UnitsPicker } from '@/features/access/pickers';
 import { formatDateTime } from '@/lib/date-time';
@@ -113,6 +114,8 @@ function MemberDetail(props: { member: Member; onDone: () => void }) {
   const self = me?.user.id === member.id;
   // Read-only for whoever reads the members without managing them.
   const mayManage = useCan('Access.manageUsers');
+  // Explaining access: who hands out roles or manages members (AccessPolicy.explain).
+  const mayExplain = useCan('Access.manageRoles') || mayManage;
   const queryClient = useQueryClient();
   const roles = useQuery(rolesQuery);
   const units = useQuery(unitsQuery);
@@ -231,6 +234,21 @@ function MemberDetail(props: { member: Member; onDone: () => void }) {
       </section>
 
       <Separator />
+
+      {mayExplain && (
+        <>
+          <section
+            className="flex flex-col gap-3"
+            aria-labelledby="member-explain"
+          >
+            <h3 id="member-explain" className="font-medium">
+              {t('users.explain.title')}
+            </h3>
+            <AccessExplanation memberId={member.id} roles={roleById} />
+          </section>
+          <Separator />
+        </>
+      )}
 
       <section className="flex flex-wrap gap-2" aria-label={t('actions')}>
         {!mayManage ? null : member.active ? (

@@ -21,7 +21,8 @@
     "status": {
       "active": "活跃",
       "inactive": "已移除",
-      "unverified": "电子邮件未验证"
+      "unverified": "电子邮件未验证",
+      "scim": "由身份提供商管理"
     },
     "you": "您",
     "since": "自 {{date}} 起为成员",
@@ -46,7 +47,33 @@
       "confirm": "代为操作"
     },
     "readOnly": "您可以查看此成员。更改其角色、组织单元或访问权限需要管理成员的权限。",
-    "open": "打开"
+    "open": "打开",
+    "explain": {
+      "title": "解释访问权限",
+      "description": "按权限检查的判定，说明此成员为何可以或不可以执行每项操作：选择对象，也可指定一条记录。您无权读取的记录视为不存在；由对您隐藏的字段决定的结果仍会隐藏。",
+      "subject": "对象",
+      "record": "记录 ID（可选）",
+      "run": "解释",
+      "allowed": "允许",
+      "denied": "不允许",
+      "withheld": "对您隐藏",
+      "fields": "字段：{{fields}}",
+      "noFields": "不含任何受限字段",
+      "noGrant": "其角色均未授予此权限。",
+      "builtIn": "内置",
+      "all": "全部（管理员）",
+      "everyRecord": "所有记录",
+      "condition": {
+        "allowed": "成立",
+        "denied": "不成立",
+        "withheld": "已隐藏"
+      },
+      "reaches": {
+        "allowed": "覆盖此记录",
+        "denied": "不覆盖此记录",
+        "withheld": "对您隐藏"
+      }
+    }
   },
   "grants": {
     "roles": "角色",
@@ -58,13 +85,15 @@
     "ended": "已结束的授予（不再生效）：{{roles}}"
   },
   "invitations": {
-    "invite": "邀请",
-    "inviteTitle": "邀请他人",
+    "invite": "邀请成员",
+    "inviteTitle": "邀请成员",
     "inviteDescription": "对方会收到一封带链接的电子邮件。对方接受后，将以这些角色和组织单元开始成员资格。",
     "fields": {
       "email": "电子邮件",
       "name": "姓名（可选）",
-      "nameHint": "仅用于新账户；账户所有者可以更改。"
+      "nameHint": "仅用于新账户；账户所有者可以更改。",
+      "emailOptional": "电子邮件（发送前可选）",
+      "emailHint": "发送链接时需要。不会检查或显示该地址的任何账户信息。"
     },
     "errors": {
       "email": "请输入有效的电子邮件地址。",
@@ -76,10 +105,9 @@
     "columns": {
       "email": "受邀者",
       "roles": "角色",
-      "expires": "到期时间"
+      "status": "状态"
     },
     "by": "邀请人：{{who}}",
-    "expired": "已过期",
     "resend": "重新发送",
     "resendTitle": "向 {{email}} 发送新链接？",
     "resendDescription": "当前链接将失效，并通过电子邮件发送新链接。角色、其结束日期和组织单元保持不变。",
@@ -87,7 +115,26 @@
     "revoke": "撤销",
     "revokeTitle": "撤销对 {{email}} 的邀请？",
     "revokeDescription": "其链接将失效。",
-    "revoked": "对 {{email}} 的邀请已撤销。"
+    "revoked": "对 {{email}} 的邀请已撤销。",
+    "prepare": "预备成员",
+    "prepareTitle": "预备成员",
+    "prepareDescription": "现在设置其角色和单位，稍后再发送链接。在其接受之前没有任何访问权限。",
+    "editTitle": "更改邀请",
+    "editDescription": "新地址会使已发送的链接失效：之后请重新发送。",
+    "save": "保存",
+    "saved": "已保存 {{email}} 的邀请。",
+    "linkWithdrawn": "已保存。之前发送的链接已失效：请重新向 {{email}} 发送邀请。",
+    "noAddress": "尚无地址",
+    "expires": "链接有效期至 {{date}}",
+    "edit": "编辑",
+    "sendNow": "发送",
+    "sendTitle": "向 {{email}} 发送邀请？",
+    "sendDescription": "将通过电子邮件发送链接。其成员资格（含这些角色和单位）在接受时开始。",
+    "status": {
+      "prepared": "已预备",
+      "sent": "已发送",
+      "expired": "已过期"
+    }
   },
   "roles": {
     "title": "角色与权限",
@@ -209,6 +256,23 @@
     "removeTitle": "将此成员从 {{unit}} 中移除？",
     "removeDescription": "其将失去此组织单元赋予的内容。成员资格结束，并作为历史保留。",
     "memberRemoved": "已移除成员。",
-    "roleChanged": "角色已更改。"
+    "roleChanged": "角色已更改。",
+    "impact": {
+      "moveTitle": "移动 {{unit}}？",
+      "moveConfirm": "移动",
+      "roleTitle": "将 {{name}} 设为{{role}}？",
+      "roleConfirm": "更改角色",
+      "none": "没有人会通过其组织单元获得或失去访问权限。",
+      "some": "将通过其组织单元获得或失去访问权限的人：",
+      "truncated": "可能影响更多人：仅比较了前 500 人。",
+      "andBelow": {
+        "gains": "获得 {{units}}（我的单元及以下）",
+        "loses": "失去 {{units}}（我的单元及以下）"
+      },
+      "ledAndBelow": {
+        "gains": "获得 {{units}}（我领导的单元及以下）",
+        "loses": "失去 {{units}}（我领导的单元及以下）"
+      }
+    }
   }
 }
