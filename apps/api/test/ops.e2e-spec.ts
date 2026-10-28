@@ -92,7 +92,7 @@ describe('operations API (e2e)', () => {
         inFlight: 0,
       },
       deadLetters: [],
-      notifications: { undelivered: 0 },
+      notifications: { undelivered: 0, undeliveredCapped: false },
       canManage: true,
     });
   });

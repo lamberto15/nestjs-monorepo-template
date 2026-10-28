@@ -29,6 +29,7 @@ import {
 import type { ListQuery } from '../../core/http/list-query.js';
 import {
   afterCursor,
+  COUNT_CAP,
   countPage,
   pageOffset,
   pageOrder,
@@ -416,20 +417,27 @@ export class NotificationsService {
 
   /**
    * How many notifications the worker has not delivered, though older than
-   * ten minutes: the number to alert on. Those the context can see: in a
+   * ten minutes: the number to alert on (stops at COUNT_CAP). Those the context can see: in a
    * request, its tenant's and the accounts' own.
    */
   async undelivered() {
-    const [row] = await this.db
-      .select({ undelivered: sql<number>`count(*)::int` })
+    // Capped, as countPage does: an exact count reads the whole backlog.
+    const late = this.db
+      .select({ one: sql`1` })
       .from(notifications)
       .where(
         and(
           isNull(notifications.deliveredAt),
           lt(notifications.createdAt, new Date(Date.now() - 10 * 60_000)),
         ),
-      );
-    return { undelivered: row?.undelivered ?? 0 };
+      )
+      .limit(COUNT_CAP + 1)
+      .as('late');
+    const [row] = await this.db.select({ rows: count() }).from(late);
+    const rows = row?.rows ?? 0;
+    return rows > COUNT_CAP
+      ? { undelivered: COUNT_CAP, undeliveredCapped: true }
+      : { undelivered: rows, undeliveredCapped: false };
   }
 
   /** The caller's notification, or a 404. */

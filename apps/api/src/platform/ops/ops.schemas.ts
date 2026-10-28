@@ -63,8 +63,10 @@ export const outboxStateSchema = z.object({
   /** The latest 50. */
   deadLetters: z.array(deadLetterSchema),
   notifications: z.object({
-    /** Stored notifications the worker has not delivered, though older than ten minutes. */
+    /** Stored notifications the worker has not delivered, though older than ten minutes; stops at 10,000. */
     undelivered: count,
+    /** True when `undelivered` stopped at 10,000 (show 10,000+). */
+    undeliveredCapped: z.boolean(),
   }),
   /** Whether the caller may requeue and purge dead letters. */
   canManage: z.boolean(),

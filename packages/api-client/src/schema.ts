@@ -433,7 +433,7 @@ export interface paths {
         };
         /**
          * Outbox stats and the latest 50 dead letters
-         * @description lagMs is the number to alert on: how long the oldest due message has waited. notifications.undelivered: stored notifications the worker has not delivered, though older than ten minutes. Errors, payloads and headers are masked as in the logs and cut; no stack traces.
+         * @description lagMs is the number to alert on: how long the oldest due message has waited. notifications.undelivered: stored notifications the worker has not delivered, though older than ten minutes; it stops at 10,000 and undeliveredCapped is then true. Errors, payloads and headers are masked as in the logs and cut; no stack traces.
          */
         get: operations["OpsController_state_v1"];
         put?: never;
@@ -7353,6 +7353,7 @@ export interface operations {
                         }[];
                         notifications: {
                             undelivered: number;
+                            undeliveredCapped: boolean;
                         };
                         canManage: boolean;
                     };
