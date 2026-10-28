@@ -204,6 +204,8 @@ deleted rows the principal may restore, under that action's conditions
 
 ## Roles and grants
 
+Account, tenant membership and unit membership are different things: [identity](identity.md).
+
 Roles, grants, organizational units and the audit log are per tenant ([tenancy](tenancy.md)):
 every tenant gets the built-in Administrator and the declared `seedRoles`
 when it is made; a user's roles are their membership's in the tenant the

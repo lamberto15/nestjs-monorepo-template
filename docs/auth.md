@@ -50,7 +50,7 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
   tenant's administrators manage its memberships (`PATCH` deactivates the
   membership, never the account) and never set or change anyone's password
   or name.
-- **Invitations (invite-only):** `POST /v1/access/users` (202) mails the
+- **Invitations (the default way in; [identity](identity.md) lists the other modes):** `POST /v1/access/users` (202) mails the
   address a link (`WEB_URL/accept-invitation`); nothing about an account is
   read, changed or returned until its owner accepts at
   `POST /v1/auth/invitations/accept`: a new address chooses its password
