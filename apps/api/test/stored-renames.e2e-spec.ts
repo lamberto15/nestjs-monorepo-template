@@ -1,4 +1,4 @@
-import { eq, inArray, sql } from 'drizzle-orm';
+import { eq, inArray, like, sql } from 'drizzle-orm';
 import { applyStoredRenames } from '../src/core/database/stored-renames.js';
 import { AccessService } from '../src/iam/access/access.service.js';
 import { rolePermissions, roles } from '../src/iam/iam.tables.js';
@@ -130,6 +130,12 @@ describe('stored renames (e2e)', () => {
           .from(savedViews)
           .where(eq(savedViews.visibility, 'team' as never))
       ).length,
+      viewScopes: (
+        await node.db
+          .select({ id: savedViews.id })
+          .from(savedViews)
+          .where(like(savedViews.scope, 'team:%'))
+      ).length,
       keys: (
         await node.db
           .select({ id: roles.id })
@@ -142,6 +148,7 @@ describe('stored renames (e2e)', () => {
       actions: 0,
       scopes: 0,
       views: 0,
+      viewScopes: 0,
       keys: 0,
     });
     const log = lines.join('\n');
@@ -151,6 +158,7 @@ describe('stored renames (e2e)', () => {
     expect(log).toMatch(/orgUnit → team in 2 rows/);
     expect(log).toMatch(/setting_overrides\.scope team → unit in 3 rows/);
     expect(log).toMatch(/saved_views\.visibility team → unit in 1 rows/);
+    expect(log).toMatch(/saved_views\.scope team: → unit: in 1 rows/);
     expect(log).toMatch(/roles\.key team-lead → unit-lead in 2 rows/);
 
     // The renamed rows work: the lead's role reads its units' and those

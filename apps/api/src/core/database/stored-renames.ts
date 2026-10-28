@@ -5,7 +5,8 @@ import { tenants } from '../tenancy/tenancy.tables.js';
 
 /**
  * A name the code no longer uses, stored in rows: a text column holding
- * exactly `from`, or a JSON column holding `"from"` as a key or a value
+ * exactly `from` (with `prefix`, starting with it: a saved view's
+ * `team:<id>` scope), or a JSON column holding `"from"` as a key or a value
  * anywhere in it (a condition's key, a rule's type).
  */
 export interface StoredRename {
@@ -13,6 +14,7 @@ export interface StoredRename {
   from: string;
   to: string;
   json?: boolean;
+  prefix?: boolean;
 }
 
 /**
@@ -54,10 +56,17 @@ export async function applyStoredRenames(
                   [key]: sql`replace(${column}::text, ${`"${rename.from}"`}, ${`"${rename.to}"`})::jsonb`,
                 })
                 .where(like(sql`${column}::text`, `%"${rename.from}"%`))
-            : await tx
-                .update(table)
-                .set({ [key]: rename.to })
-                .where(eq(column, rename.from));
+            : rename.prefix
+              ? await tx
+                  .update(table)
+                  .set({
+                    [key]: sql`${rename.to} || substr(${column}, ${rename.from.length + 1})`,
+                  })
+                  .where(like(column, `${rename.from}%`))
+              : await tx
+                  .update(table)
+                  .set({ [key]: rename.to })
+                  .where(eq(column, rename.from));
           counts.set(
             rename,
             (counts.get(rename) ?? 0) + (result.rowCount ?? 0),
