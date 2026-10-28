@@ -104,7 +104,7 @@ Everything is in `docs/`; a name below is its file (`tags` is
 - **Features:** `adding-a-feature` (`pnpm feature:add`; changing one: edit
   its `<item>.record.ts`, then `pnpm feature:sync`), `api-conventions`
   (versions, errors, pagination, filters, credentials).
-- **Access:** `auth` (sign-in, tokens, passkeys, SSO, SCIM, API clients,
+- **Access:** `identity` (account vs membership vs unit membership vs employee; onboarding modes; offboarding), `auth` (sign-in, tokens, passkeys, SSO, SCIM, API clients,
   impersonation, Turnstile, data export, account deletion, "Locked out"),
   `permissions` (roles, grants, organizational units, audit), `tenancy` (RLS, operators,
   break-glass, `TENANCY=single`), `encryption`, `retention` (and legal holds).

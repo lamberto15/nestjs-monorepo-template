@@ -211,7 +211,8 @@ Built in the platform code, never at call sites (`tenantKey()`):
   in another (a new cookie; realtime connections reconnect). Token clients ask
   for a tenant when they sign in (`POST /v1/auth/token { tenantId }`); the
   tenant is the token family's `tid` claim.
-- **Invitations: adding people is invite-only.** `POST /v1/access/users
+- **Invitations: the default way to add people** (sign-up, SSO and SCIM are
+  the optional others: [identity](identity.md)). `POST /v1/access/users
   { email, name?, roleIds, roleExpiresAt?, unitIds? }` (202) stores an
   invitation (a tenant table; the link's token, `inv_<tenant id>_<secret>`,
   only as its SHA-256) and mails a link (`WEB_URL/accept-invitation?token=…`,

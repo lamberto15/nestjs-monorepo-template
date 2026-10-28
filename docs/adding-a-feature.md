@@ -562,6 +562,8 @@ pnpm test:e2e`, and `pnpm db:check` after table changes.
 
 ## Starting a real project
 
+A feature about people (employees, contacts) is a domain record with, at most, an optional link to an account: [identity](identity.md), "Reference example".
+
 Rename it (`name` in the root `package.json` and the `@nestjs-monorepo-template/`
 scope of the packages, `API_TITLE` in `apps/api/src/openapi.ts`,
 `API_KEY_PREFIX`), then remove the example feature and its table:

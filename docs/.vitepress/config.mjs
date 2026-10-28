@@ -33,6 +33,7 @@ const technical = [
     ['Configuration', '/configuration'],
   ]),
   group('Identity and data', [
+    ['Identity boundaries', '/identity'],
     ['Authentication', '/auth'],
     ['Permissions', '/permissions'],
     ['Tenancy', '/tenancy'],

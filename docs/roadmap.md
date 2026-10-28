@@ -92,7 +92,7 @@ first project is built on the template; until then they report only.
 
 **Answered by the owner, 2026-10-17:** all as recommended.
 
-- Adding people to a tenant is **invite-only**: administrators never set passwords
+- Adding people to a tenant is **by invitation by default** (sign-up, SSO and SCIM are optional paths, docs/identity.md): administrators never set passwords
   or names; an invitation is accepted by its owner (closes the account-sharing
   findings of #14's review).
 - An account's export includes only personal data (membership, audit about them)
