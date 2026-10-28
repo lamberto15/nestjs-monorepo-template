@@ -103,7 +103,10 @@ function AppLayout() {
         {/* Only its starting state: the provider keeps its own after that. */}
         <SidebarProvider defaultOpen={savedSidebarOpen()}>
           <AppSidebar />
-          <SidebarInset>
+          {/* min-w-0: a flex child doesn't shrink below its content, so a wide
+              table would widen the page past the window instead of scrolling
+              in its own box. */}
+          <SidebarInset className="min-w-0">
             <SessionIdleWarning />
             {/* Most urgent first: the strip shows the first one present. */}
             <BannerStrip>

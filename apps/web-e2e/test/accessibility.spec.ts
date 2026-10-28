@@ -178,6 +178,27 @@ test.describe('signed in as the administrator', () => {
       .toBe(0);
   });
 
+  // A wide table scrolls in its own box, not the page: the header's search
+  // and bell stay on screen (the inset is a flex child, so it needs min-w-0).
+  for (const path of ['/audit', '/sign-ins']) {
+    test(`${path} never scrolls the page sideways on a laptop`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 1024, height: 768 });
+      await page.goto(path);
+      await expect(page.getByRole('table')).toBeVisible();
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () =>
+              document.documentElement.scrollWidth -
+              document.documentElement.clientWidth,
+          ),
+        )
+        .toBe(0);
+    });
+  }
+
   test.describe('open overlays', () => {
     // Only what the overlay holds is scanned: the page behind it is inert
     // while a modal is open, and the page-level rules are covered above.
