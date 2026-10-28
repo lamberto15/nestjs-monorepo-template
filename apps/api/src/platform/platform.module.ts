@@ -191,6 +191,12 @@ import { NamingSeriesService } from './sequences/naming-series.service.js';
 import { NamingVariables } from './sequences/naming-variables.js';
 import { NUMBERING_SETTINGS } from './sequences/numbering-settings.js';
 import { SequencesService } from './sequences/sequences.service.js';
+import {
+  AttachmentAcknowledgmentsController,
+  MyAcknowledgmentsController,
+} from './acknowledgments/acknowledgments.controller.js';
+import { AcknowledgmentsService } from './acknowledgments/acknowledgments.service.js';
+import { ACKNOWLEDGMENT_NOTIFICATIONS } from './acknowledgments/acknowledgment-notifications.js';
 import { AttachmentImagesProcessor } from './attachments/attachment-images.processor.js';
 import { AttachmentImagesRetryJob } from './attachments/attachment-images-retry.job.js';
 import { AttachmentImagesQueue } from './attachments/attachment-images.queue.js';
@@ -478,6 +484,8 @@ export class PlatformModule {
         PeopleController,
         UnitDirectoryController,
         AttachmentsController,
+        AttachmentAcknowledgmentsController,
+        MyAcknowledgmentsController,
         DocumentsController,
         AiController,
         TagsController,
@@ -505,6 +513,7 @@ export class PlatformModule {
             ...options,
             notifications: [
               ...COMMENT_NOTIFICATIONS,
+              ...ACKNOWLEDGMENT_NOTIFICATIONS,
               ...APPROVAL_NOTIFICATIONS,
               ...ATTACHMENT_NOTIFICATIONS,
               // Development only, with the route that sends it.
@@ -832,6 +841,7 @@ export class PlatformModule {
         AttachmentsRegistry,
         AttachmentsService,
         AttachmentUploadsService,
+        AcknowledgmentsService,
         DocumentsRegistry,
         DocumentsService,
         AiRegistry,

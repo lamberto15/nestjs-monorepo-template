@@ -41,6 +41,18 @@
       }
     }
   },
+  "acknowledgment": {
+    "requested": {
+      "label": "Dokument zu bestätigen",
+      "title": "Bitte bestätigen Sie ein Dokument",
+      "body": "{by} bittet Sie, „{name}“ (Version {version}) zu bestätigen."
+    },
+    "reminder": {
+      "label": "Erinnerung zur Bestätigung",
+      "title": "Erinnerung: Bitte bestätigen Sie ein Dokument",
+      "body": "{by} erinnert Sie daran, „{name}“ (Version {version}) zu bestätigen."
+    }
+  },
   "comment": {
     "mentioned": {
       "label": "In einem Kommentar erwähnt",

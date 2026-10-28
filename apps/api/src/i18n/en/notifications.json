@@ -41,6 +41,18 @@
       }
     }
   },
+  "acknowledgment": {
+    "requested": {
+      "label": "Document to acknowledge",
+      "title": "Please acknowledge a document",
+      "body": "{by} asked you to acknowledge \"{name}\" (version {version})."
+    },
+    "reminder": {
+      "label": "Reminder to acknowledge",
+      "title": "Reminder: please acknowledge a document",
+      "body": "{by} reminded you to acknowledge \"{name}\" (version {version})."
+    }
+  },
   "comment": {
     "mentioned": {
       "label": "Mentioned in a comment",

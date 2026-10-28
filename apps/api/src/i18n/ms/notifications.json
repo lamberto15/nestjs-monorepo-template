@@ -36,6 +36,18 @@
       }
     }
   },
+  "acknowledgment": {
+    "requested": {
+      "label": "Dokumen untuk diakui",
+      "title": "Sila akui satu dokumen",
+      "body": "{by} meminta anda mengakui \"{name}\" (versi {version})."
+    },
+    "reminder": {
+      "label": "Peringatan untuk mengakui",
+      "title": "Peringatan: sila akui satu dokumen",
+      "body": "{by} mengingatkan anda untuk mengakui \"{name}\" (versi {version})."
+    }
+  },
   "comment": {
     "mentioned": {
       "label": "Disebut dalam komen",

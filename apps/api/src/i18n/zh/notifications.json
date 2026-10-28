@@ -36,6 +36,18 @@
       }
     }
   },
+  "acknowledgment": {
+    "requested": {
+      "label": "待确认的文档",
+      "title": "请确认一份文档",
+      "body": "{by} 请您确认“{name}”（版本 {version}）。"
+    },
+    "reminder": {
+      "label": "确认提醒",
+      "title": "提醒：请确认一份文档",
+      "body": "{by} 提醒您确认“{name}”（版本 {version}）。"
+    }
+  },
   "comment": {
     "mentioned": {
       "label": "在评论中被提及",
