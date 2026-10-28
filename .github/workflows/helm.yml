@@ -144,8 +144,11 @@ jobs:
           yq -e 'select(.kind == "PrometheusRule" and .metadata.name == "app") | .metadata.labels.release == "monitoring"' "$RUNNER_TEMP/app-single-node.yaml"
           yq -e 'select(.kind == "PrometheusRule" and .metadata.name == "app") | (.spec.groups | length) > 0' "$RUNNER_TEMP/app-single-node.yaml"
           # No API path is a bare Prefix: Traefik would give /api-keys to the API (#875).
-          yq -e 'select(.kind == "Ingress") | [.spec.rules[0].http.paths[] | select(.backend.service.name == "app-api" and .pathType == "Prefix" and (.path | test("/$") | not))] | length == 0' "$RUNNER_TEMP/app-single-node.yaml"
-          yq -e 'select(.kind == "Ingress") | .spec.rules[0].http.paths[] | select(.path == "/api") | .pathType == "Exact"' "$RUNNER_TEMP/app-single-node.yaml"
+          yq ea -e '[select(.kind == "Ingress") | .spec.rules[0].http.paths[] | select(.backend.service.name == "app-api" and .pathType == "Prefix" and (.path | test("/$") | not))] | length == 0' "$RUNNER_TEMP/app-single-node.yaml"
+          yq ea -e '[select(.kind == "Ingress" and .metadata.name == "app-exact") | .spec.rules[0].http.paths[] | select(.pathType == "Exact") | .path] | contains(["/api", "/health", "/files"])' "$RUNNER_TEMP/app-single-node.yaml"
+          # Traefik names a router after its Ingress and path without the
+          # punctuation: /health and /health/ in one Ingress would be one router.
+          yq ea -e '[select(.kind == "Ingress") | [.spec.rules[0].http.paths[].path | sub("/$"; "")] | length == (unique | length)] | all' "$RUNNER_TEMP/app-single-node.yaml"
           if grep -q 'path: /metrics' "$RUNNER_TEMP/app-single-node.yaml"; then
             echo "the public app ingress must not route /metrics"; exit 1
           fi

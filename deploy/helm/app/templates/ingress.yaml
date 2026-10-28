@@ -1,29 +1,46 @@
 {{- if .Values.ingress.enabled }}
+{{- /*
+Two Ingresses: the API's Exact paths in "<fullname>-exact", the Prefix ones
+and the web app in "<fullname>". Traefik names a router after the Ingress
+and the path with its punctuation dropped, so /health (Exact) and /health/
+(Prefix) in one Ingress are one router and the bare path falls to the web
+app; a second Ingress keeps their names apart.
+*/}}
+{{- range $exact := list false true }}
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "app.fullname" . }}
+  name: {{ include "app.fullname" $ }}{{ if $exact }}-exact{{ end }}
   labels:
-    {{- include "app.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
+    {{- include "app.labels" $ | nindent 4 }}
+  {{- /* cert-manager's annotations on the first only: one Certificate per secret. */}}
+  {{- $annotations := dict }}
+  {{- range $key, $value := $.Values.ingress.annotations }}
+  {{- if not (and $exact (hasPrefix "cert-manager.io/" $key)) }}
+  {{- $_ := set $annotations $key $value }}
+  {{- end }}
+  {{- end }}
+  {{- with $annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- with .Values.ingress.className }}
+  {{- with $.Values.ingress.className }}
   ingressClassName: {{ . }}
   {{- end }}
-  {{- if .Values.ingress.tlsSecretName }}
+  {{- if $.Values.ingress.tlsSecretName }}
   tls:
     - hosts:
-        - {{ required "set domain" .Values.domain | quote }}
-      secretName: {{ .Values.ingress.tlsSecretName }}
+        - {{ required "set domain" $.Values.domain | quote }}
+      secretName: {{ $.Values.ingress.tlsSecretName }}
   {{- end }}
   rules:
-    - host: {{ required "set domain" .Values.domain | quote }}
+    - host: {{ required "set domain" $.Values.domain | quote }}
       http:
         paths:
-          {{- range .Values.ingress.apiPaths }}
+          {{- range $.Values.ingress.apiPaths }}
+          {{- if eq (eq .pathType "Exact") $exact }}
           - path: {{ .path }}
             pathType: {{ .pathType }}
             backend:
@@ -32,13 +49,15 @@ spec:
                 port:
                   number: 3000
           {{- end }}
-          {{- if .Values.web.enabled }}
+          {{- end }}
+          {{- if and $.Values.web.enabled (not $exact) }}
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: {{ include "app.fullname" . }}-web
+                name: {{ include "app.fullname" $ }}-web
                 port:
                   number: 80
           {{- end }}
+{{- end }}
 {{- end }}
