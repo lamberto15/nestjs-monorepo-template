@@ -167,7 +167,7 @@ export class TemplatesService implements PersonalDataSource {
         );
         const fields = Object.keys(this.registry.get(subject)!.create.shape)
           .filter((field) => !SYSTEM_FIELDS.has(field) && !denied.has(field))
-          .sort();
+          .sort((a, b) => a.localeCompare(b));
         return { subject, fields };
       }),
     );

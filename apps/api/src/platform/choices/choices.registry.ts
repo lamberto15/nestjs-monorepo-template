@@ -120,8 +120,12 @@ export class ChoicesRegistry {
       const provider =
         this.providers.get(spec.provider) ??
         fail(`${name} names the unregistered provider "${spec.provider}".`);
-      const given = Object.keys(spec.params ?? {}).sort();
-      const wanted = Object.keys(provider.params).sort();
+      const given = Object.keys(spec.params ?? {}).sort((a, b) =>
+        a.localeCompare(b),
+      );
+      const wanted = Object.keys(provider.params).sort((a, b) =>
+        a.localeCompare(b),
+      );
       if (given.join() !== wanted.join()) {
         fail(
           `${name} must fill exactly the parameters of "${provider.key}" (${wanted.join(', ') || 'none'}), not (${given.join(', ') || 'none'}).`,

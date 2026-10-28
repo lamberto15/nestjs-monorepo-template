@@ -241,7 +241,7 @@ describe('record templates (e2e)', () => {
     expect(
       (await node.auditEntries({ targetId: id }))
         .map((entry) => entry.action)
-        .sort(),
+        .sort((a, b) => a.localeCompare(b)),
     ).toEqual([
       'recordTemplate.created',
       'recordTemplate.deleted',
