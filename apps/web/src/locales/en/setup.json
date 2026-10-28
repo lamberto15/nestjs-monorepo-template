@@ -1,0 +1,14 @@
+{
+  "title": "Set up your organization",
+  "progress": "{{done}} of {{total}} steps done",
+  "done": "Done",
+  "todo": "To do",
+  "steps": {
+    "invite": "Invite your team",
+    "roles": "Create a custom role",
+    "units": "Set up organizational units",
+    "branding": "Add your branding",
+    "tags": "Create tags",
+    "customFields": "Define custom fields"
+  }
+}
