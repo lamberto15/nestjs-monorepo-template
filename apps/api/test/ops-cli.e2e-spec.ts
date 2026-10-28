@@ -378,9 +378,10 @@ describe('operator CLI (e2e)', () => {
         .select({ id: sql<string>`payload->>'notificationId'` })
         .from(sql`nest_outbox.messages`)
         .where(sql`topic = 'notifications.deliver'`);
-      expect(left.map((message) => message.id).sort()).toEqual(
-        [secure, others].sort(),
+      expect(left.map((message) => message.id)).toEqual(
+        expect.arrayContaining([secure, others]),
       );
+      expect(left).toHaveLength(2);
       const [entry] = await written('ops.notifications-settled');
       expect(entry).toMatchObject({
         targetId: user.id,
