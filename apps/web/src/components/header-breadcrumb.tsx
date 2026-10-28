@@ -4,7 +4,6 @@ import {
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
-  BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@nestjs-monorepo-template/ui/components/breadcrumb';
 import { useTranslation } from 'react-i18next';
@@ -41,7 +40,12 @@ export function HeaderBreadcrumb() {
         )}
         <BreadcrumbItem className="min-w-0">
           {pathname === item.to ? (
-            <BreadcrumbPage className="truncate">{label}</BreadcrumbPage>
+            // The page as text, not shadcn's disabled link: the menu's
+            // active entry and the page's heading already name it, and a
+            // second "link" of that name is noise to a screen reader.
+            <span aria-current="page" className="truncate text-foreground">
+              {label}
+            </span>
           ) : (
             <BreadcrumbLink className="truncate" render={<Link to={item.to} />}>
               {label}
