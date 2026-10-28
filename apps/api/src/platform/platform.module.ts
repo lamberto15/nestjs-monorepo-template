@@ -17,6 +17,7 @@ import { PostgresWebhookStore } from '@nestjs/webhooks/postgres';
 import { WorkflowsModule, WorkflowStorage } from '@nestjs/workflows';
 import { fromDrizzle, PostgresWorkflowStore } from '@nestjs/workflows/postgres';
 import { runsWorkers } from '../core/config/core.env.js';
+import { DatabaseHealth } from '../core/database/database-health.js';
 import { loadOrCreateSecret, type Database } from '../core/database/drizzle.js';
 import { DrizzleIdempotencyStore } from './idempotency/drizzle-idempotency.store.js';
 import { principalScope } from './idempotency/idempotency.scopes.js';
@@ -25,6 +26,10 @@ import { FeaturesController } from './features/features.controller.js';
 import { FeaturesService } from './features/features.service.js';
 import { OpsPolicy } from './ops/ops.policy.js';
 import { OpsQueues } from './ops/ops-queues.service.js';
+import { OpsDiagnostics } from './ops/ops-diagnostics.service.js';
+import { ConfigBundlesController } from './config-bundles/config-bundles.controller.js';
+import { ConfigBundlePolicy } from './config-bundles/config-bundle.policy.js';
+import { ConfigBundlesService } from './config-bundles/config-bundles.service.js';
 import { OpsMetrics } from './ops/ops-metrics.js';
 import { OutboxMetricsReader } from './ops/outbox-metrics.reader.js';
 import { OutboxRetentionJob } from './ops/outbox-retention.job.js';
@@ -456,6 +461,7 @@ export class PlatformModule {
         IncomingEventTypesController,
         TenantWebhookReceiverController,
         OpsController,
+        ConfigBundlesController,
         FeaturesController,
         FilesController,
         DataTransferController,
@@ -544,6 +550,11 @@ export class PlatformModule {
           },
         },
         OpsQueues,
+        // DatabaseHealth: CoreModule's, stateless; the diagnostics' own instance reads the same pool.
+        DatabaseHealth,
+        OpsDiagnostics,
+        ConfigBundlesService,
+        ConfigBundlePolicy,
         // Queue depths and the outbox on core's /metrics.
         OpsMetrics,
         OutboxMetricsReader,

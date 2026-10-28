@@ -501,6 +501,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ops/diagnostics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Integration diagnostics: database, Redis, workers, mail, storage, realtime
+         * @description Each one ok, configured (set up, not probed: run its test), disabled, unconfigured or unavailable, with a hint. Built from switches and driver names: no URL, host credential or key is ever in it; errors are masked as in the logs and cut.
+         */
+        get: operations["OpsController_diagnosticsOverview_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/diagnostics/{check}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test one integration now (safe: sends nothing, keeps nothing)
+         * @description SMTP: connects, authenticates and says QUIT. Storage: writes, reads and deletes a probe file. Database, Redis, realtime: a ping; workers: at least one connected. A failure answers 200 with ok false and the masked reason. 400 not_testable when the configuration has nothing to probe. 10 per minute per user. Audited.
+         */
+        post: operations["OpsController_testDiagnostic_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ops/queues/{name}/retry-failed": {
         parameters: {
             query?: never;
@@ -546,6 +586,66 @@ export interface paths {
         put?: never;
         /** Delete dead letters (these ids, or all) */
         post: operations["OpsController_purge_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/config-bundles/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * This tenant's settings and custom roles as a bundle
+         * @description Tenant-scope setting values (flag rollouts and rules, a role condition by role name) and the custom roles with their permissions, with a SHA-256 checksum. No secrets, users, grants, API clients or records.
+         */
+        get: operations["ConfigBundlesController_export_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/config-bundles/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * What applying a bundle here would change (a dry run)
+         * @description Validates the bundle against this deployment (format, checksum, declared settings, their values, the permission catalog) and diffs it against this tenant. Changes nothing. Hand `targetVersion` to apply.
+         */
+        post: operations["ConfigBundlesController_preview_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/config-bundles/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply a previewed bundle to this tenant, all or nothing
+         * @description Roles first, then settings, in one transaction, each through its own checks and audit entry, plus one config-bundle.applied entry. Additive: nothing the bundle lacks is removed.
+         */
+        post: operations["ConfigBundlesController_apply_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8719,6 +8819,101 @@ export interface operations {
             };
         };
     };
+    OpsController_diagnosticsOverview_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** @enum {string} */
+                            check: "database" | "redis" | "workers" | "mail" | "storage" | "realtime";
+                            /** @enum {string} */
+                            state: "ok" | "configured" | "disabled" | "unconfigured" | "unavailable";
+                            driver: string | null;
+                            detail: string | null;
+                            hint: string | null;
+                            testable: boolean;
+                        }[];
+                        canTest: boolean;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_testDiagnostic_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                check: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        check: "database" | "redis" | "workers" | "mail" | "storage" | "realtime";
+                        ok: boolean;
+                        durationMs: number;
+                        detail: string | null;
+                        hint: string | null;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     OpsController_retryFailed_v1: {
         parameters: {
             query?: never;
@@ -8843,6 +9038,250 @@ export interface operations {
              *     Not allowed by your permissions.
              */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ConfigBundlesController_export_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        format: "config-bundle";
+                        version: number;
+                        /** Format: date-time */
+                        exportedAt: string;
+                        checksum: string;
+                        contents: {
+                            settings: {
+                                key: string;
+                                value: unknown;
+                                rollout: number | null;
+                                rules: {
+                                    [key: string]: unknown;
+                                }[];
+                            }[];
+                            roles: {
+                                name: string;
+                                description: string;
+                                permissions: {
+                                    subject: string;
+                                    action: string;
+                                    conditions: {
+                                        key: string;
+                                        params?: {
+                                            [key: string]: unknown;
+                                        };
+                                    }[];
+                                    fields?: string[];
+                                }[];
+                            }[];
+                        };
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ConfigBundlesController_preview_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    bundle: {
+                        /** @enum {string} */
+                        format: "config-bundle";
+                        version: number;
+                        /** Format: date-time */
+                        exportedAt: string;
+                        checksum: string;
+                        contents: {
+                            settings: {
+                                key: string;
+                                value: unknown;
+                                rollout: number | null;
+                                rules: {
+                                    [key: string]: unknown;
+                                }[];
+                            }[];
+                            roles: {
+                                name: string;
+                                description: string;
+                                permissions: {
+                                    subject: string;
+                                    action: string;
+                                    conditions: {
+                                        key: string;
+                                        params?: {
+                                            [key: string]: unknown;
+                                        };
+                                    }[];
+                                    fields?: string[];
+                                }[];
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        valid: boolean;
+                        errors: {
+                            ref: string | null;
+                            message: string;
+                        }[];
+                        warnings: {
+                            ref: string | null;
+                            message: string;
+                        }[];
+                        changes: {
+                            /** @enum {string} */
+                            type: "setting" | "role";
+                            ref: string;
+                            /** @enum {string} */
+                            action: "create" | "update" | "unchanged";
+                        }[];
+                        targetVersion: string;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ConfigBundlesController_apply_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    bundle: {
+                        /** @enum {string} */
+                        format: "config-bundle";
+                        version: number;
+                        /** Format: date-time */
+                        exportedAt: string;
+                        checksum: string;
+                        contents: {
+                            settings: {
+                                key: string;
+                                value: unknown;
+                                rollout: number | null;
+                                rules: {
+                                    [key: string]: unknown;
+                                }[];
+                            }[];
+                            roles: {
+                                name: string;
+                                description: string;
+                                permissions: {
+                                    subject: string;
+                                    action: string;
+                                    conditions: {
+                                        key: string;
+                                        params?: {
+                                            [key: string]: unknown;
+                                        };
+                                    }[];
+                                    fields?: string[];
+                                }[];
+                            }[];
+                        };
+                    };
+                    targetVersion: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        created: number;
+                        updated: number;
+                        unchanged: number;
+                    };
+                };
+            };
+            /** @description validation_failed: the bundle is invalid here (the preview lists why). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description config_changed: the tenant changed since the preview. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13287,6 +13726,35 @@ export interface operations {
                             /** @description An action on the records may need approval (GET /v1/approvals). */
                             approvals: boolean;
                         };
+                        /** @description The views besides the table that this subject declares and this caller can use: a field they may not filter by leaves its view out. Null when none. Fetch their records with the list route, bounded by `filter` on the fields named here. */
+                        views: {
+                            board?: {
+                                /**
+                                 * @description The enum field whose values are the board's columns.
+                                 * @example status
+                                 */
+                                field: string;
+                                /** @description The cards are not moved: the field is not changed through `PATCH`. */
+                                readOnly: boolean;
+                            };
+                            calendar?: {
+                                /**
+                                 * @description The `date` (all-day) and `datetime` fields to plan by, one at a time.
+                                 * @example [
+                                 *       "dueAt"
+                                 *     ]
+                                 */
+                                fields: string[];
+                                /** @description The dates are not changed through `PATCH`. */
+                                readOnly: boolean;
+                            };
+                            timeline?: {
+                                /** @description The field a bar starts at. */
+                                start: string;
+                                /** @description The field a bar ends at; empty: the bar is still open. */
+                                end: string;
+                            };
+                        } | null;
                         /** @description What a record's attachment may be, as the upload route enforces it; null when the subject takes no attachments. */
                         attachmentLimits: {
                             /**

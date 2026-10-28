@@ -34,6 +34,10 @@ import {
 import { NotificationsService } from '../platform/notifications/notifications.service.js';
 import { mailSuppressions } from '../platform/deliverability/deliverability.tables.js';
 import { SuppressionsService } from '../platform/deliverability/suppressions.service.js';
+import {
+  type DiagnosticCheck,
+  OpsDiagnostics,
+} from '../platform/ops/ops-diagnostics.service.js';
 import { SettingsService } from '../platform/settings/settings.service.js';
 import {
   platformSettingValues,
@@ -515,6 +519,40 @@ export class OpsService {
           { tenantId: tenant?.id ?? null },
         ),
     };
+  }
+
+  /** The integrations' states (OpsDiagnostics, the platform's: looked up). */
+  diagnostics() {
+    return this.opsDiagnostics().overview();
+  }
+
+  /** A safe connection test of one integration, audited as `system:ops` like a change. */
+  async testDiagnostic(check: DiagnosticCheck, operator: Operator) {
+    const result = await this.opsDiagnostics().test(check);
+    await this.system.run(
+      OPS_JOB,
+      (system, tx) =>
+        this.audit.record(
+          system,
+          {
+            action: 'ops.diagnostic-tested',
+            targetType: 'integration',
+            targetId: check,
+            details: {
+              ok: result.ok,
+              durationMs: result.durationMs,
+              ...by(operator),
+            },
+          },
+          tx,
+        ),
+      { tenantId: null },
+    );
+    return result;
+  }
+
+  private opsDiagnostics() {
+    return this.moduleRef.get(OpsDiagnostics, { strict: false });
   }
 
   /**
