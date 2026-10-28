@@ -7745,6 +7745,10 @@
                     "minLength": 1,
                     "maxLength": 80
                   },
+                  "mapping": {
+                    "description": "A JSON object: the file's headers to the template's columns (`{\"Surname\": \"lastName\", \"Notes\": null}`; null ignores a column). Checked as a saved mapping is; the import then runs as usual (`dryRun` included). A date-time target takes the file's zone: `\"dueAt (Asia/Dubai)\"`.",
+                    "type": "string"
+                  },
                   "dryRun": {
                     "description": "true: check every row, write nothing.",
                     "default": "false",
@@ -20602,6 +20606,197 @@
         "summary": "Unpin a favorite",
         "tags": [
           "favorites"
+        ]
+      }
+    },
+    "/v1/data/imports/{name}/mappings": {
+      "get": {
+        "description": "The tenant’s, by name. `stale` lists the targets you may no longer import (the schema or your permissions changed since): use the mapping only after changing them.",
+        "operationId": "ImportMappingsController_list_v1",
+        "parameters": [
+          {
+            "name": "name",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ImportMapping"
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Nothing to import by that name."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The saved column mappings of an import",
+        "tags": [
+          "data"
+        ]
+      },
+      "post": {
+        "description": "Checked as an import would be: every target a column you may fill, none twice. At most 50 per import. Audited (`importMapping.created`).",
+        "operationId": "ImportMappingsController_create_v1",
+        "parameters": [
+          {
+            "name": "name",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "example": "CRM export"
+                  },
+                  "mapping": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "description": "The file's headers to the template's columns: `{ \"Surname\": \"lastName\", \"Notes\": null }` (null: ignore the column). A header not named keeps its own name. A date-time column takes the zone of the file's times as the template's header does: `{ \"When\": \"dueAt (Asia/Dubai)\" }`.",
+                    "example": {
+                      "Title": "title",
+                      "Internal": null
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "mapping"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportMapping"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A target you cannot import, a target twice, or too many saved."
+          },
+          "404": {
+            "description": "Nothing to import by that name."
+          },
+          "409": {
+            "description": "The name is taken (conflict)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Save a column mapping",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/v1/data/imports/{name}/mappings/{id}": {
+      "delete": {
+        "description": "Audited (`importMapping.deleted`).",
+        "operationId": "ImportMappingsController_remove_v1",
+        "parameters": [
+          {
+            "name": "name",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Delete a saved column mapping",
+        "tags": [
+          "data"
         ]
       }
     },
@@ -50545,6 +50740,56 @@
           "params",
           "columns",
           "hiddenColumns"
+        ],
+        "additionalProperties": false
+      },
+      "ImportMapping": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "importer": {
+            "type": "string",
+            "example": "notes"
+          },
+          "name": {
+            "type": "string"
+          },
+          "mapping": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true,
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "description": "The file's headers to the template's columns: `{ \"Surname\": \"lastName\", \"Notes\": null }` (null: ignore the column). A header not named keeps its own name. A date-time column takes the zone of the file's times as the template's header does: `{ \"When\": \"dueAt (Asia/Dubai)\" }`.",
+            "example": {
+              "Title": "title",
+              "Internal": null
+            }
+          },
+          "stale": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Targets that are no longer columns you may import (the schema changed, or your permissions did): saving or using the mapping as it is would be refused; change them first."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "importer",
+          "name",
+          "mapping",
+          "stale",
+          "createdAt"
         ],
         "additionalProperties": false
       },

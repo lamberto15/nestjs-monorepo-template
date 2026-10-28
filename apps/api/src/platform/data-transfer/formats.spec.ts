@@ -1,3 +1,4 @@
+import ExcelJS from 'exceljs';
 import { Readable } from 'node:stream';
 import type { TransferFormat } from './data-transfer.types.js';
 import {
@@ -7,6 +8,7 @@ import {
   localDateTime,
   readRecords,
 } from './formats.js';
+import { MappingError } from './import-mapping.js';
 
 describe('isoInZone', () => {
   const moment = new Date('2026-10-15T14:30:05.123Z');
@@ -256,5 +258,74 @@ describe('JSON imports', () => {
     await expect(read('[{"title":"x"}] junk')).rejects.toThrow(
       /^The file is not valid JSON/,
     );
+  });
+});
+
+describe('readRecords with a column mapping', () => {
+  const read = async (
+    format: TransferFormat,
+    file: string | Buffer,
+    options: Parameters<typeof readRecords>[2],
+  ) => {
+    const records = [];
+    for await (const { record } of readRecords(
+      format,
+      Readable.from([file]),
+      options,
+    )) {
+      records.push(record);
+    }
+    return records;
+  };
+
+  it('renames, ignores and reads the zone a target names; other columns keep their name', async () => {
+    const csv =
+      'Name,When,Internal,Area,body\nOne,2026-10-15 18:30:00,x,North,Hi\n';
+    expect(
+      await read('csv', csv, {
+        mapping: {
+          Name: 'title',
+          When: 'dueAt (Asia/Dubai)',
+          Internal: null,
+          Area: 'custom.region',
+        },
+      }),
+    ).toEqual([
+      {
+        title: 'One',
+        dueAt: '2026-10-15T14:30:00.000Z',
+        'custom.region': 'North',
+        body: 'Hi',
+      },
+    ]);
+  });
+
+  it('renames JSON keys, without a zone', async () => {
+    const json = JSON.stringify([{ Name: 'One', When: '2026-10-15', Skip: 1 }]);
+    expect(
+      await read('json', json, {
+        mapping: { Name: 'title', When: 'dueAt (UTC)', Skip: null },
+      }),
+    ).toEqual([{ title: 'One', dueAt: '2026-10-15' }]);
+  });
+
+  it('reads an Excel date cell as the day under a date target', async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Sheet1');
+    sheet.addRow(['Birthday']);
+    sheet.addRow([new Date('2026-01-05T00:00:00Z')]);
+    const file = Buffer.from(await workbook.xlsx.writeBuffer());
+    expect(
+      await read('xlsx', file, {
+        dateColumns: new Set(['day']),
+        mapping: { Birthday: 'day' },
+      }),
+    ).toEqual([{ day: '2026-01-05' }]);
+  });
+
+  it('refuses two columns that end up with one name', async () => {
+    await expect(
+      read('csv', 'title,Name\nA,B\n', { mapping: { Name: 'title' } }),
+    ).rejects.toThrow(MappingError);
   });
 });

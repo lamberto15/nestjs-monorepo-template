@@ -2212,6 +2212,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/data/imports/{name}/mappings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The saved column mappings of an import
+         * @description The tenant’s, by name. `stale` lists the targets you may no longer import (the schema or your permissions changed since): use the mapping only after changing them.
+         */
+        get: operations["ImportMappingsController_list_v1"];
+        put?: never;
+        /**
+         * Save a column mapping
+         * @description Checked as an import would be: every target a column you may fill, none twice. At most 50 per import. Audited (`importMapping.created`).
+         */
+        post: operations["ImportMappingsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/data/imports/{name}/mappings/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a saved column mapping
+         * @description Audited (`importMapping.deleted`).
+         */
+        delete: operations["ImportMappingsController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/retention/rules": {
         parameters: {
             query?: never;
@@ -5289,6 +5333,26 @@ export interface components {
             columns: string[] | null;
             /** @description Columns of the view your field permissions hide: left out, not an error. */
             hiddenColumns: string[];
+        };
+        ImportMapping: {
+            id: string;
+            /** @example notes */
+            importer: string;
+            name: string;
+            /**
+             * @description The file's headers to the template's columns: `{ "Surname": "lastName", "Notes": null }` (null: ignore the column). A header not named keeps its own name. A date-time column takes the zone of the file's times as the template's header does: `{ "When": "dueAt (Asia/Dubai)" }`.
+             * @example {
+             *       "Title": "title",
+             *       "Internal": null
+             *     }
+             */
+            mapping: {
+                [key: string]: string | null;
+            };
+            /** @description Targets that are no longer columns you may import (the schema changed, or your permissions did): saving or using the mapping as it is would be refused; change them first. */
+            stale: string[];
+            /** Format: date-time */
+            createdAt: string;
         };
         RetentionRuleList: {
             items: components["schemas"]["RetentionRule"][];
@@ -8825,6 +8889,8 @@ export interface operations {
                     name: string;
                     /** @description Update existing rows by this declared match key. */
                     matchOn?: string;
+                    /** @description A JSON object: the file's headers to the template's columns (`{"Surname": "lastName", "Notes": null}`; null ignores a column). Checked as a saved mapping is; the import then runs as usual (`dryRun` included). A date-time target takes the file's zone: `"dueAt (Asia/Dubai)"`. */
+                    mapping?: string;
                     /**
                      * @description true: check every row, write nothing.
                      * @default false
@@ -15220,6 +15286,121 @@ export interface operations {
                 content?: never;
             };
             /** @description Not one of your favorites. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ImportMappingsController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["ImportMapping"][];
+                    };
+                };
+            };
+            /** @description Nothing to import by that name. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ImportMappingsController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example CRM export */
+                    name: string;
+                    /**
+                     * @description The file's headers to the template's columns: `{ "Surname": "lastName", "Notes": null }` (null: ignore the column). A header not named keeps its own name. A date-time column takes the zone of the file's times as the template's header does: `{ "When": "dueAt (Asia/Dubai)" }`.
+                     * @example {
+                     *       "Title": "title",
+                     *       "Internal": null
+                     *     }
+                     */
+                    mapping: {
+                        [key: string]: string | null;
+                    };
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportMapping"];
+                };
+            };
+            /** @description A target you cannot import, a target twice, or too many saved. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Nothing to import by that name. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The name is taken (conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ImportMappingsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             404: {
                 headers: {
                     [name: string]: unknown;
