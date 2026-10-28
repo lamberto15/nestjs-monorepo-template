@@ -42,8 +42,13 @@ GET    /v1/forms/{id}/versions[/{version}]
 DELETE /v1/forms/{id}                     only a form never published
 ```
 
-- **The definition** (format 1) is `sections[]` of `{ key, title?, description?, fields[] }`;
-  a field is `{ key, type, label, help?, placeholder?, required?, default?, options?, validation?, translations? }`.
+- **The definition** is `{ format, sections[] }`, a section
+  `{ key, title?, description?, visibleWhen?, fields[] }`, a field
+  `{ key, type, label, help?, placeholder?, required?, default?, options?, validation?, visibleWhen?, requiredWhen?, translations? }`.
+  **Formats**: 1 is fields and sections; 2 adds conditions
+  ([Conditions](#conditions)). A definition sent without `format` takes the
+  latest; a stored format-1 version keeps meaning what it meant, and a
+  condition in a format-1 definition is refused.
   Types: `text`, `textarea`, `email`, `url`, `integer`, `decimal`, `date`,
   `checkbox`, `select`, `multiSelect`, `radio`. Texts are plain (no HTML);
   patterns run on RE2. A key is a slug (`^[a-z][a-z0-9_]{0,49}$`), unique in
@@ -61,6 +66,48 @@ DELETE /v1/forms/{id}                     only a form never published
 - **Slugs** are unique per tenant (409 `form_slug_taken`). Archiving hides a
   form from submitters and refuses new answers; its versions and
   submissions stay.
+
+## Conditions
+
+A section or a field can show only when a condition holds (`visibleWhen`),
+and a field can be required only when one holds (`requiredWhen`, beside
+`required`, which is "always"). A condition is data, checked when the draft
+is saved and when it is published, never code: no expression language, no
+eval, no pattern from an administrator. The code is
+`apps/api/src/platform/forms/form-rules.ts`.
+
+```json
+{ "field": "topic", "op": "eq", "value": "other" }
+{ "all": [ { "field": "seats", "op": "gte", "value": 5 }, { "not": { "field": "email", "op": "isEmpty" } } ] }
+```
+
+- **A predicate** `{ field, op, value }` reads the answer of a field
+  **before** it in the form (in an earlier section, or earlier in its own):
+  a field after it, itself, or an unknown key is refused at its path
+  (`definition.sections.0.fields.3.visibleWhen.field`). So no cycle can
+  form, and one pass in form order decides everything.
+- **Operators by type**: text and email `eq`, `ne`, `in`, `isEmpty`;
+  textarea and url `isEmpty`; integer `eq`, `ne`, `gt`, `gte`, `lt`,
+  `lte`, `in`, `isEmpty`; decimal and date the comparisons and `isEmpty`
+  (dates compare as `YYYY-MM-DD`); checkbox `eq`, `ne` (`true` or
+  `false`); select and radio `eq`, `ne`, `in` (option values the field
+  has), `isEmpty`; multiSelect `contains` (one of its options), `isEmpty`.
+  A value of another type, or an option the field lacks, is refused.
+- **Groups**: `{ all: [...] }`, `{ any: [...] }`, `{ not: ... }`, at most
+  4 inside each other, 20 predicates and 50 values of an `in` in one
+  condition. `required: true` takes no `requiredWhen`.
+- **Empty**: a missing answer, a hidden field's included, is empty: every
+  comparison with it is false, `ne` true, `isEmpty` true. Defaults count
+  as answers. Values compare as the server normalizes them (`"3"` is 3).
+- **Hidden answers are stripped**, deterministically: the answer to a field
+  that its conditions (or its section's) hide is not checked, not stored and
+  not filled with its default, whatever the client sent; a hidden field is
+  never required. A client showing a stale form loses nothing it should keep
+  and can't store an answer the form says doesn't apply.
+- **The same in the browser**: `apps/web/src/features/forms/rules.ts`
+  mirrors the evaluator, and its test (`rules.test.ts`) runs both on
+  generated cases, so what the page shows and requires is what the server
+  checks. The server stays the authority.
 
 ## Submissions
 
@@ -106,12 +153,17 @@ another tenant's form or submission is a 404, even by id.
 - **The builder** (`/forms/{id}`): sections and their fields (type, label,
   key, help, required, options as `value = Label` lines), fields reordered by
   drag and drop or the keyboard, and a live preview drawn by the same
-  renderer people fill in. **Save draft** sends the whole draft under the
+  renderer people fill in. Each field has **Show only when** and
+  **Required when**, each section **Show this section only when**: rows of
+  field (only those before it), operator and value, joined by all or any
+  of them; the preview follows them as the page will. A deeper condition
+  (`not`, groups in groups) made through the API shows as such and can be
+  removed, not edited. Saved drafts are format 2. **Save draft** sends the whole draft under the
   revision it was read at; a 409 says someone else saved meanwhile, and the
   server's problems are listed at their paths. **Publish** is offered once
   the changes are saved.
 - **Filling in** (`/forms/{id}/fill`, `Form.submit`): the published
-  version's fields, each of its type (radio buttons, checkboxes, a select,
+  version's fields that its conditions show, each of its type (radio buttons, checkboxes, a select,
   number, date, text). Required answers and numbers are checked in the
   browser first, then the server's errors show at their fields; a newer
   version published meanwhile (409 `form_version_outdated`) is loaded again.
@@ -121,6 +173,6 @@ another tenant's form or submission is a 404, even by id.
 
 ## Not yet
 
-Conditional rules (#547), pages
-and repeatable groups (#548) and choice sources (#549) build on this.
+Pages and repeatable groups (#548) and choice sources (#549) build on
+this.
 Public, anonymous forms are #583.

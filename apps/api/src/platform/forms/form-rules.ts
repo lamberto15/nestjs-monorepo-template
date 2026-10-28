@@ -139,19 +139,6 @@ export function evaluate(
   }
 }
 
-/** The fields a condition reads, in order, each once. */
-export function referencesOf(condition: RuleCondition): string[] {
-  const found: string[] = [];
-  const walk = (part: RuleCondition) => {
-    if ('all' in part) part.all.forEach(walk);
-    else if ('any' in part) part.any.forEach(walk);
-    else if ('not' in part) walk(part.not);
-    else if (!found.includes(part.field)) found.push(part.field);
-  };
-  walk(condition);
-  return found;
-}
-
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Whether a predicate's value has the type its field's answers have. */
