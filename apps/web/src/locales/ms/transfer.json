@@ -108,5 +108,21 @@
     "running": "Sedang berjalan… {{count}} diproses setakat ini.",
     "result": "{{done}} selesai, {{failed}} gagal, {{skipped}} dilangkau.",
     "failed": "Larian dihentikan."
+  },
+  "mapping": {
+    "title": "Pemetaan lajur",
+    "header": "Dalam fail",
+    "sample": "Baris pertama",
+    "column": "Diimport sebagai",
+    "columnOf": "Lajur untuk {{header}}",
+    "asIs": "{{header}} (seperti asal)",
+    "ignore": "Abaikan lajur ini",
+    "twice": "Dua lajur fail pergi ke {{columns}}: pilih yang lain untuk salah satunya.",
+    "apply": "Pemetaan tersimpan",
+    "choose": "Guna pemetaan tersimpan",
+    "delete": "Padam “{{name}}”",
+    "name": "Simpan pemetaan ini sebagai",
+    "save": "Simpan pemetaan",
+    "saved": "Pemetaan disimpan."
   }
 }

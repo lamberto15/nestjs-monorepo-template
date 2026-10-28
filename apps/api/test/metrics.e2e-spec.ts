@@ -91,6 +91,20 @@ describe('GET /metrics (e2e)', () => {
     expect(text).not.toMatch(/route="[A-Z]+ \/(metrics|health)/);
   });
 
+  // The native adapter matches the decoded path (its `req.path`): an encoded
+  // parameter is still counted under its route's pattern, never as itself.
+  it('times a percent-encoded path under its route pattern', async () => {
+    await node
+      .admin()
+      .get(`/v1/test-items/${encodeURIComponent('été 42')}`)
+      .expect(400);
+    const text = (await scrape().expect(200)).text;
+    expect(text).toMatch(
+      /^http_request_duration_seconds_count\{method="GET",route="GET \/v1\/test-items\/\{id\}",status="400"\} 1$/m,
+    );
+    expect(text).not.toMatch(/%C3|été/);
+  });
+
   it('is not in the OpenAPI document', async () => {
     // No version prefix: the scrape is not an API route.
     await node

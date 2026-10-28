@@ -12,7 +12,9 @@
       "manageLegalHolds": "Place and release legal holds: records kept whatever a delete, a purge or a retention rule would do (iam/holds)",
       "manageRetention": "Set how long the tenant keeps each kind of record before it is purged or anonymised (platform/retention)",
       "manageNamingSeries": "Create, change and delete the number formats of numbered records, and set their counters (platform/sequences)",
+      "manageCalendars": "Create, change and delete the business calendars (working hours, time zone, holidays) that deadlines count in (platform/calendars)",
       "manageViews": "Share saved views of lists with the whole tenant, and change or delete shared views (platform/views)",
+      "manageTemplates": "Share record templates with the whole tenant, and change or delete shared templates (platform/templates)",
       "readAudit": "Read the audit log",
       "manageTenants": "Create tenants (the deployment's operators: only in the operator tenant)",
       "impersonate": "Act as another user (support), never as an administrator",
@@ -56,6 +58,19 @@
       "manage": "Add an address to the suppression list, or remove one"
     }
   },
+  "form": {
+    "label": "Forms",
+    "names": {
+      "singular": "Form",
+      "plural": "Forms"
+    },
+    "actions": {
+      "read": "See published forms and their versions",
+      "submit": "Fill in published forms, and see their own submissions",
+      "edit": "Create forms, edit their drafts, publish and archive them",
+      "readResponses": "See everyone's submissions and their answers"
+    }
+  },
   "note": {
     "label": "Notes (example)",
     "names": {
@@ -67,7 +82,8 @@
       "create": "Write notes",
       "update": "Change notes",
       "delete": "Delete notes",
-      "restore": "See deleted notes and restore them"
+      "restore": "See deleted notes and restore them",
+      "share": "Share notes by link"
     },
     "fields": {
       "body": "The note's text",
@@ -172,6 +188,10 @@
     "report-runner": {
       "label": "Scheduled reports",
       "description": "Starts the scheduled reports that are due (as their owners), pauses the ones that can no longer run, and records how each run ended."
+    },
+    "record-schedules": {
+      "label": "Recurring record schedules",
+      "description": "Creates the records of the recurring schedules that are due (as their owners), ends the schedules that can no longer run, and records the occurrences it skips."
     },
     "approvals": {
       "label": "Approvals",

@@ -10,7 +10,11 @@ import {
   DEFAULT_LIMIT,
   MAX_LIMIT,
 } from '../../core/http/pagination.js';
-import type { ListField, ListMetadata } from './list-metadata.schemas.js';
+import type {
+  ListField,
+  ListMetadata,
+  ListViewsDeclaration,
+} from './list-metadata.schemas.js';
 
 /** The list fields `searchFields()` declares: `search: true` stands for them. */
 const SEARCH_FIELDS = ['q', 'rank'];
@@ -61,7 +65,11 @@ export function listMetadata(
   } = {},
 ): Omit<
   ListMetadata,
-  'capabilities' | 'attachmentLimits' | 'documentTemplates'
+  | 'capabilities'
+  | 'views'
+  | 'attachmentLimits'
+  | 'documentTemplates'
+  | 'related'
 > {
   // `q` reads the search document's fields: off with any of them hidden, or
   // shown on some records only.
@@ -102,4 +110,83 @@ export function listMetadata(
     defaultSort: list.fields.createdAt?.sortable ? '-createdAt' : null,
     limits: LIST_LIMITS,
   };
+}
+
+const DATES = ['date', 'datetime'];
+
+/**
+ * A declaration's views must name fields of the list of the right type
+ * (an enum for the board, `date` or `datetime` for the others): a
+ * mistake fails at startup, not in a client.
+ */
+export function checkListViews(
+  subject: string,
+  list: List,
+  views: ListViewsDeclaration,
+) {
+  const check = (name: string, types: string[], what: string) => {
+    const type = list.fields[name]?.type;
+    if (type === undefined || !types.includes(type)) {
+      throw new Error(
+        `${subject}: ${what} "${name}" must be a list field of type ${types.join(' or ')}.`,
+      );
+    }
+  };
+  if (views.board) check(views.board.field, ['enum'], 'the board field');
+  for (const name of views.calendar?.fields ?? []) {
+    check(name, DATES, 'the calendar field');
+  }
+  if (views.calendar?.fields.length === 0) {
+    throw new Error(`${subject}: the calendar needs a field.`);
+  }
+  if (views.timeline) {
+    check(views.timeline.start, DATES, 'the timeline start');
+    check(views.timeline.end, DATES, 'the timeline end');
+  }
+}
+
+/**
+ * The declared views this caller can use: a view stays when every field it
+ * reads is in the description (not hidden from them) with the operators it
+ * bounds its query by, so a client never asks for what the list refuses
+ * (403 `field_forbidden`, 400). A calendar keeps the fields that qualify.
+ */
+export function listViews(
+  declared: ListViewsDeclaration | undefined,
+  fields: readonly ListField[],
+): ListMetadata['views'] {
+  if (!declared) return null;
+  const usable = (name: string, ...ops: string[]) => {
+    const field = fields.find((f) => f.name === name);
+    return (
+      field !== undefined &&
+      ops.every((op) => (field.operators as string[]).includes(op))
+    );
+  };
+  const calendar = declared.calendar?.fields.filter((name) =>
+    usable(name, 'gte', 'lt'),
+  );
+  const views: NonNullable<ListMetadata['views']> = {
+    ...(declared.board &&
+      usable(declared.board.field, 'eq') && {
+        board: {
+          field: declared.board.field,
+          readOnly: declared.board.readOnly ?? false,
+        },
+      }),
+    ...(declared.calendar &&
+      calendar &&
+      calendar.length > 0 && {
+        calendar: {
+          fields: calendar,
+          readOnly: declared.calendar.readOnly ?? false,
+        },
+      }),
+    ...(declared.timeline &&
+      usable(declared.timeline.start, 'lt') &&
+      usable(declared.timeline.end, 'gte', 'isNull') && {
+        timeline: declared.timeline,
+      }),
+  };
+  return Object.keys(views).length > 0 ? views : null;
 }

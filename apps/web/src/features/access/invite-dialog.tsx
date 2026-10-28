@@ -9,7 +9,7 @@ import {
 } from '@nestjs-monorepo-template/ui/components/dialog';
 import { FieldGroup } from '@nestjs-monorepo-template/ui/components/field';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
-import { MailPlusIcon } from 'lucide-react';
+import { MailPlusIcon, UserPlusIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -19,9 +19,12 @@ import {
   invite,
   rolesQuery,
   unitsQuery,
-  type InvitationBody,
+  updateInvitation,
+  type Invitation,
+  type InvitationChanges,
 } from '@/features/access/api';
 import {
+  draftOf,
   endInPast,
   grantsBody,
   type GrantDraft,
@@ -32,55 +35,131 @@ import { FormAlert, useAppForm } from '@/lib/form';
 import { z } from '@/lib/zod';
 
 /**
- * Invite someone (`POST /v1/access/users`, 202): the address gets a link,
- * and the membership with these roles and units comes when it is accepted.
- * With roles, the API wants a recent sign-in (the dialog asks for it).
+ * `invite`: the address gets its link now. `prepare`: the member waits,
+ * maybe without an address, until someone sends it from the invitations
+ * list. `edit`: a pending invitation's address, name, roles and units.
  */
-export function InviteDialog() {
+type Mode = 'invite' | 'prepare' | 'edit';
+
+/**
+ * The two ways an administrator adds someone (docs/identity.md, "Getting
+ * people in"), both `POST /v1/access/users` (202): Invite member mails the
+ * link now; Prepare member saves the roles and units without one. The
+ * membership comes when the link is accepted. With roles, the API wants a
+ * recent sign-in (the client asks for it).
+ */
+export function AddMemberButtons() {
   const { t } = useTranslation('access');
-  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<'invite' | 'prepare'>();
   return (
     <>
-      <Button onClick={() => setOpen(true)}>
+      <Button onClick={() => setMode('invite')}>
         <MailPlusIcon />
         {t('invitations.invite')}
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{t('invitations.inviteTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('invitations.inviteDescription')}
-            </DialogDescription>
-          </DialogHeader>
-          {open && <InviteForm onDone={() => setOpen(false)} />}
-        </DialogContent>
-      </Dialog>
+      <Button variant="outline" onClick={() => setMode('prepare')}>
+        <UserPlusIcon />
+        {t('invitations.prepare')}
+      </Button>
+      <InvitationDialog
+        mode={mode ?? 'invite'}
+        open={mode !== undefined}
+        onClose={() => setMode(undefined)}
+      />
     </>
   );
 }
 
-function InviteForm(props: { onDone: () => void }) {
+/** The form of one mode in a dialog; `invitation` is the one `edit` changes. */
+export function InvitationDialog(props: {
+  mode: Mode;
+  invitation?: Invitation;
+  open: boolean;
+  onClose: () => void;
+}) {
   const { t } = useTranslation('access');
+  return (
+    <Dialog open={props.open} onOpenChange={(open) => !open && props.onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{t(`invitations.${props.mode}Title`)}</DialogTitle>
+          <DialogDescription>
+            {t(`invitations.${props.mode}Description`)}
+          </DialogDescription>
+        </DialogHeader>
+        {props.open && (
+          <InvitationForm
+            mode={props.mode}
+            invitation={props.invitation}
+            onDone={props.onClose}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function InvitationForm(props: {
+  mode: Mode;
+  invitation?: Invitation;
+  onDone: () => void;
+}) {
+  const { t } = useTranslation('access');
+  const { mode, invitation } = props;
   const queryClient = useQueryClient();
   const roles = useQuery(rolesQuery);
   const units = useQuery(unitsQuery);
   const [error, setError] = useState<string>();
-  const send = useMutation({
-    mutationFn: (body: InvitationBody) => invite(body),
+  const initial = {
+    email: invitation?.email ?? '',
+    name: invitation?.name ?? '',
+    grants: invitation
+      ? draftOf(
+          invitation.roleIds.map((roleId) => ({
+            roleId,
+            expiresAt: invitation.roleExpiresAt[roleId] ?? null,
+          })),
+        )
+      : ({} as GrantDraft),
+    unitIds: invitation?.unitIds ?? ([] as string[]),
+  };
+  const save = useMutation({
+    mutationFn: async (value: typeof initial) => {
+      const email = value.email.trim();
+      const name = value.name.trim();
+      if (mode !== 'edit') {
+        return invite({
+          ...(email && { email }),
+          ...(name && { name }),
+          ...grantsBody(value.grants),
+          ...(value.unitIds.length > 0 && { unitIds: value.unitIds }),
+          send: mode === 'invite',
+        });
+      }
+      // Only what changed: roles or a new address ask for a recent sign-in.
+      const changes: InvitationChanges = {};
+      if (email !== initial.email) changes.email = email || null;
+      if (name !== initial.name) changes.name = name || null;
+      if (JSON.stringify(value.grants) !== JSON.stringify(initial.grants)) {
+        Object.assign(changes, grantsBody(value.grants));
+      }
+      if (value.unitIds.join() !== initial.unitIds.join()) {
+        changes.unitIds = value.unitIds;
+      }
+      return updateInvitation(invitation!.id, changes);
+    },
     meta: { errorToast: false },
     onSuccess: () => invalidateAccess(queryClient),
   });
   const form = useAppForm({
-    defaultValues: {
-      email: '',
-      name: '',
-      grants: {} as GrantDraft,
-      unitIds: [] as string[],
-    },
+    defaultValues: initial,
     validators: {
       onSubmit: z.object({
-        email: z.email(t('invitations.errors.email')),
+        // Inviting sends now: it needs the address. Preparing may wait.
+        email:
+          mode === 'invite'
+            ? z.email(t('invitations.errors.email'))
+            : z.union([z.literal(''), z.email(t('invitations.errors.email'))]),
         name: z.string().max(
           INVITATION_LIMITS.name,
           t('invitations.errors.nameTooLong', {
@@ -99,13 +178,20 @@ function InviteForm(props: { onDone: () => void }) {
     onSubmit: async ({ value }) => {
       setError(undefined);
       try {
-        const sent = await send.mutateAsync({
-          email: value.email.trim(),
-          ...(value.name.trim() && { name: value.name.trim() }),
-          ...grantsBody(value.grants),
-          ...(value.unitIds.length > 0 && { unitIds: value.unitIds }),
-        });
-        toast.success(t('invitations.sent', { email: sent.email }));
+        const saved = await save.mutateAsync(value);
+        const who = saved.email ?? t('invitations.noAddress');
+        if (mode === 'invite') {
+          toast.success(t('invitations.sent', { email: who }));
+        } else if (
+          mode === 'edit' &&
+          invitation!.status !== 'prepared' &&
+          saved.status === 'prepared'
+        ) {
+          // A new address: the link that went to the old one stopped.
+          toast.success(t('invitations.linkWithdrawn', { email: who }));
+        } else {
+          toast.success(t('invitations.saved', { email: who }));
+        }
         props.onDone();
       } catch (caught) {
         if (!applyFieldErrors(form, caught)) {
@@ -133,7 +219,16 @@ function InviteForm(props: { onDone: () => void }) {
         <form.AppField name="email">
           {(field) => (
             <field.TextField
-              label={t('invitations.fields.email')}
+              label={t(
+                mode === 'invite'
+                  ? 'invitations.fields.email'
+                  : 'invitations.fields.emailOptional',
+              )}
+              description={
+                mode === 'invite'
+                  ? undefined
+                  : t('invitations.fields.emailHint')
+              }
               type="email"
               autoComplete="off"
               autoFocus
@@ -151,7 +246,7 @@ function InviteForm(props: { onDone: () => void }) {
         <form.Field name="grants">
           {(field) => (
             <RoleGrantsPicker
-              idPrefix="invite"
+              idPrefix={mode}
               roles={roles.data}
               value={field.state.value}
               onChange={field.handleChange}
@@ -161,7 +256,7 @@ function InviteForm(props: { onDone: () => void }) {
         <form.Field name="unitIds">
           {(field) => (
             <UnitsPicker
-              idPrefix="invite"
+              idPrefix={mode}
               units={units.data}
               value={field.state.value}
               onChange={field.handleChange}
@@ -170,7 +265,7 @@ function InviteForm(props: { onDone: () => void }) {
         </form.Field>
         <form.AppForm>
           <form.SubmitButton className="self-start">
-            {t('invitations.send')}
+            {t(mode === 'invite' ? 'invitations.send' : 'invitations.save')}
           </form.SubmitButton>
         </form.AppForm>
       </FieldGroup>

@@ -33,8 +33,6 @@
         // Started as a worker_threads thread by text-extractor.ts (a URL, not an import).
         "src/platform/attachments/text-extraction.worker.ts",
       ],
-      // The global `Express.Multer.File` type of the upload interceptor.
-      "ignoreDependencies": ["@types/multer"],
       // Started by test/global-setup.ts; CI and the devcontainer install it.
       "ignoreBinaries": ["redis-server"],
     },

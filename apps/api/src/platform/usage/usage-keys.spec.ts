@@ -6,7 +6,7 @@ import {
   usageKey,
 } from './usage-keys.js';
 
-// routeKey (re-exported from core): src/core/http/route-key.spec.ts.
+// The route key (core's matchedRouteKey): src/core/http/route-key.spec.ts.
 describe('usage keys', () => {
   it('walks UTC days across months and years', () => {
     expect(addDays('2026-12-31', 1)).toBe('2027-01-01');

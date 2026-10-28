@@ -54,6 +54,3 @@ export function parseUsageKey(key: string) {
     ? { tenantId: match[1], clientId: match[2], day: match[3] }
     : undefined;
 }
-
-/** A request's route as counted (`GET /v1/notes/{id}`): core's, shared with the metrics. */
-export { routeKey } from '../../core/http/route-key.js';

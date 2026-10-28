@@ -98,5 +98,12 @@
     "option": "Choose one of the listed options.",
     "none": "None",
     "choose": "Choose…"
+  },
+  "related": {
+    "title": "Related",
+    "heading": "{{subject}} ({{field}})",
+    "empty": "None yet.",
+    "error": "The related records could not be loaded.",
+    "more": "The newest {{shown}} of {{total}}."
   }
 }

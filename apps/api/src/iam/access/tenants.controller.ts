@@ -33,7 +33,7 @@ import {
   ApiPreconditionFailedResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Response } from 'express';
+import type { NodeResponse as Response } from '@nestjs/platform-node';
 import { z } from 'zod';
 import {
   assertUnchanged,

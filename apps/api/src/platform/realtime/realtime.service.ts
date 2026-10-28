@@ -4,7 +4,13 @@ import { SessionLifecycleRegistry } from '../../iam/auth/session-lifecycle.regis
 import { JwtAuth } from '../../iam/auth/jwt-auth.provider.js';
 import { ApiKeyAuth } from '../../iam/auth/api-key-auth.provider.js';
 import { TenantLifecycleRegistry } from '../../iam/access/tenant-lifecycle.registry.js';
-import { Inject, Logger, Optional, UseInterceptors } from '@nestjs/common';
+import {
+  type BeforeApplicationShutdown,
+  Inject,
+  Logger,
+  Optional,
+  UseInterceptors,
+} from '@nestjs/common';
 import { ClsInterceptor } from 'nestjs-cls';
 import {
   CurrentUser,
@@ -118,9 +124,15 @@ const MAX_TIMER_MS = 2 ** 31 - 1;
 @WebSocketGateway({ namespace: REALTIME_NAMESPACE })
 @UseInterceptors(ClsInterceptor)
 export class Realtime
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+  implements
+    OnGatewayInit,
+    OnGatewayConnection,
+    OnGatewayDisconnect,
+    BeforeApplicationShutdown
 {
   private readonly logger = new Logger('Realtime');
+  /** Set when the app begins to close, before the adapter's Redis clients are. */
+  private closing = false;
   /** Each socket's pending end (or key check): cleared on disconnect. */
   private readonly timers = new WeakMap<Socket, NodeJS.Timeout>();
   /** The manifest and the features' events: what may be pushed. */
@@ -246,6 +258,11 @@ export class Realtime
     this.toRoom(principalRoom(principal, tenantId), event, data);
   }
 
+  /** Nest calls it before it closes the WebSocket adapter (and its Redis clients). */
+  beforeApplicationShutdown() {
+    this.closing = true;
+  }
+
   /**
    * To every connection in a room. Without a socket server, nothing: NestJS
    * sets @WebSocketServer() only in an HTTP application, once its gateways
@@ -256,6 +273,10 @@ export class Realtime
    * HTTP app, so they always have one.
    */
   toRoom(room: string, event: string, data: unknown) {
+    // A job still finishing while the app closes: its Redis adapter is going
+    // away, and a publish on it would reject unhandled. Live events are
+    // best-effort, so it is dropped.
+    if (this.closing) return;
     if (!this.server) {
       this.logger.debug(`No socket server: ${event} not sent`);
       return;

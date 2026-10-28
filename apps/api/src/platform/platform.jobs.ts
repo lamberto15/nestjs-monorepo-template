@@ -84,6 +84,20 @@ export const REPORT_RUNNER_JOB = defineSystemJob({
 });
 
 /**
+ * RecordScheduleRunnerJob: creates the records of the recurring schedules
+ * that are due (each as the schedule's owner, with the owner's
+ * permissions), ends the ones that can no longer run, skips an occurrence
+ * that fails for good.
+ */
+export const RECORD_SCHEDULE_JOB = defineSystemJob({
+  key: 'record-schedules',
+  label: 'Recurring record schedules',
+  description:
+    'Creates the records of the recurring schedules that are due (as their owners), ends the schedules that can no longer run, and records the occurrences it skips.',
+  permissions: [],
+});
+
+/**
  * ApprovalWorkflow's steps: starting stages, reminders, escalations,
  * expiry, and the outcome handlers (which act as it: `outcome.actor`).
  */
@@ -236,6 +250,7 @@ export const PLATFORM_SYSTEM_JOBS = [
   NOTIFICATION_DIGEST_JOB,
   NOTIFICATION_DELIVERY_JOB,
   REPORT_RUNNER_JOB,
+  RECORD_SCHEDULE_JOB,
   APPROVALS_JOB,
   EXCHANGE_RATES_JOB,
   MAIL_INTAKE_JOB,

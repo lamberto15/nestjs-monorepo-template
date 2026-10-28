@@ -4,14 +4,17 @@ Files people attach to a feature's records: a contract on an order, photos
 on a ticket. `apps/api/src/platform/attachments/`; notes take attachments as the
 example (`features/notes/note-attachments.ts`, `attachmentRoutes()` in `notes.module.ts`).
 
-| Route | Does |
-| --- | --- |
-| `POST /v1/notes/{id}/attachments` (multipart, field `file`) | 201, the attachment; who may change the note (`Note.update`) |
-| `POST /v1/notes/{id}/attachments/presign` (JSON `{ name, size, contentType }`) | 201, a signed PUT URL to the object store, `STORAGE_DRIVER=s3` only, else 503 `presigned_uploads_unavailable`; the same right as the upload ([Direct uploads](#direct-uploads-s3)) |
-| `POST /v1/notes/{id}/attachments/complete` (JSON `{ uploadId }`) | 201, the attachment, once the file is in the store and was checked ([Direct uploads](#direct-uploads-s3)) |
-| `GET /v1/notes/{id}/attachments` | a page of them, newest first (`?contentType=`, `?name.contains=`, `size`, `createdAt`); who may read the note |
-| `GET /v1/attachments/{id}/download` | 302 to a signed link to the file (5 minutes, no credentials needed: a link or an image works); `?inline=true` shows a PDF in the browser; `?rendition=thumb\|preview` links to an image's smaller copy ([Image renditions](#image-renditions)) |
-| `DELETE /v1/attachments/{id}` | 204; the uploader, or who may change the record; the file goes too |
+| Route                                                                                                                                | Does                                                                                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /v1/notes/{id}/attachments` (multipart, field `file`)                                                                          | 201, the attachment; who may change the note (`Note.update`)                                                                                                                                                                                   |
+| `POST /v1/notes/{id}/attachments/presign` (JSON `{ name, size, contentType }`)                                                       | 201, a signed PUT URL to the object store, `STORAGE_DRIVER=s3` only, else 503 `presigned_uploads_unavailable`; the same right as the upload ([Direct uploads](#direct-uploads-s3))                                                             |
+| `POST /v1/notes/{id}/attachments/complete` (JSON `{ uploadId }`)                                                                     | 201, the attachment, once the file is in the store and was checked ([Direct uploads](#direct-uploads-s3))                                                                                                                                      |
+| `POST /v1/notes/{id}/attachments/sessions` (JSON `{ name, size, contentType }`), `GET`/`PUT ?offset=`/`DELETE …/sessions/{uploadId}` | a resumable upload in chunks, any storage driver; finished with `…/complete` ([Resumable uploads](#resumable-uploads))                                                                                                                         |
+| `POST /v1/notes/{id}/attachments/{attachmentId}/versions` (multipart, field `file`, optional `note`; `If-Match`)                     | 201, replaces the file, the old one stays as a version ([Versions](#versions))                                                                                                                                                                 |
+| `GET /v1/attachments/{id}` (with an `ETag`), `GET …/versions`, `GET …/versions/{n}/download`, `POST …/versions/{n}/restore`          | the attachment, its history, an earlier file, and restoring one ([Versions](#versions))                                                                                                                                                        |
+| `GET /v1/notes/{id}/attachments`                                                                                                     | a page of them, newest first (`?contentType=`, `?name.contains=`, `size`, `createdAt`); who may read the note                                                                                                                                  |
+| `GET /v1/attachments/{id}/download`                                                                                                  | 302 to a signed link to the file (5 minutes, no credentials needed: a link or an image works); `?inline=true` shows a PDF in the browser; `?rendition=thumb\|preview` links to an image's smaller copy ([Image renditions](#image-renditions)) |
+| `DELETE /v1/attachments/{id}`                                                                                                        | 204; the uploader, or who may change the record; the file goes too                                                                                                                                                                             |
 
 A feature registers an `AttachmentTarget` and adds the two record routes:
 
@@ -45,7 +48,7 @@ upload(…, @UploadedFile() file: StoredUpload) { return this.attachments.upload
   "PNG" that is text): 415 `unsupported_media_type`. Over
   `ATTACHMENT_MAX_MB` (25): 413 `payload_too_large`. Both are published
   in `GET /v1/lists/{subject}` (`attachmentLimits: { maxBytes, maxMb,
-  types }`, read as the upload reads them: `attachmentLimits()`), so a
+types }`, read as the upload reads them: `attachmentLimits()`), so a
   client checks a file before sending it.
 - **Malware scanning** (`MALWARE_SCANNER`, `platform/attachments/malware-scanner.ts`):
   `off` (the default) changes nothing: no scan, no pending state, an upload
@@ -97,7 +100,7 @@ upload(…, @UploadedFile() file: StoredUpload) { return this.attachments.upload
     `{ infected, signature? }` or throws).
 - **Realtime**: an upload, a removal or an issued PDF sends
   `record.attachments.changed` (`{ subject, recordId, attachmentId,
-  action }`, `action` `added`, `removed`, `scanned` or `processed`) to the record's watchers and the uploader's other tabs who
+action }`, `action` `added`, `removed`, `scanned` or `processed`) to the record's watchers and the uploader's other tabs who
   may read it ([webhooks-and-realtime.md](webhooks-and-realtime.md),
   "Record events"); a feature that calls `attachStored()` in its own
   transaction calls `attachments.changed()` after the commit.
@@ -105,7 +108,7 @@ upload(…, @UploadedFile() file: StoredUpload) { return this.attachments.upload
   disk, by the bucket on S3, with `Content-Disposition: attachment` and
   the file's name, `nosniff`.
 - **Preview** (`?inline=true`): a PDF comes as `Content-Disposition:
-  inline`, so a browser shows it (a preview in a new tab). Only
+inline`, so a browser shows it (a preview in a new tab). Only
   `application/pdf` (`INLINE_TYPES`), the type read from its bytes at
   upload: any other type stays `attachment` whatever is asked, HTML, SVG
   and anything else that can script above all (and the storage package
@@ -114,7 +117,7 @@ upload(…, @UploadedFile() file: StoredUpload) { return this.attachments.upload
   `response-content-disposition`, inside the SigV4 signature): turning a
   download link into a preview is a 403. Every file `/files` serves
   carries `Content-Security-Policy: default-src 'none'; frame-ancestors
-  'none'; sandbox` (`FILE_CSP`, in place of the API's own policy) and
+'none'; sandbox` (`FILE_CSP`, in place of the API's own policy) and
   `X-Content-Type-Options: nosniff`: nothing loads, nothing runs, no page
   frames it, and it is its own opaque origin. Chrome's PDF viewer renders
   under it (checked with Chrome 155: the viewer loads the document and its
@@ -161,7 +164,7 @@ only way with the local driver). `GET /v1/features` says so
 (`attachment-uploads.service.ts`):
 
 1. **`POST /v1/notes/{id}/attachments/presign`**, `{ name, size,
-   contentType }`: needs the right to attach files to the record (the
+contentType }`: needs the right to attach files to the record (the
    upload's: 404 for a record the caller cannot read, 403 for a reader) and
    refuses what the upload refuses before any byte moves: over
    `ATTACHMENT_MAX_MB` 413, a type not allowed (`ATTACHMENT_ALLOWED_TYPES`)
@@ -169,7 +172,7 @@ only way with the local driver). `GET /v1/features` says so
    text is signed as the upload through the API types it,
    `text/plain; charset=utf-8` or `text/csv; charset=utf-8`), the tenant's
    storage quota 422 `quota_exceeded`. It answers 201 `{ uploadId, url,
-   method: 'PUT', headers, expiresAt }`.
+method: 'PUT', headers, expiresAt }`.
 2. **The client PUTs the file to `url`** with `headers` as they are
    (`content-type`, and `x-amz-server-side-encryption` when the deployment
    encrypts at rest; the browser sets `Content-Length` itself). The URL
@@ -247,6 +250,93 @@ only way with the local driver). `GET /v1/features` says so
   (`attachment-types.spec.ts`, `attachment-upload-check.spec.ts`). Nothing
   here has run against a real bucket or MinIO.
 
+## Resumable uploads
+
+For large files and flaky connections, on every storage driver (the signed-URL
+direct upload above is S3-only). The file goes through the API in chunks and
+can be continued after an interruption. It uses the `attachment_uploads` row
+of the direct uploads (`resumable: true`, `received`), so the same
+limits apply:
+
+1. **`POST …/attachments/sessions`**, `{ name, size, contentType }`: the
+   checks of `…/presign` before any byte moves: the right to attach files
+   (404, 403), `ATTACHMENT_MAX_MB` (413), a type that is allowed and declared
+   (415), the tenant's storage quota (422), at most 100 open uploads per
+   uploader (429). Answers 201 `{ uploadId, size, received: 0, chunkSize,
+expiresAt }`. The session is bound to the uploader, the record and the
+   tenant (RLS): nobody else can see, feed, cancel or complete it (404).
+2. **`PUT …/sessions/{uploadId}?offset=N`**, the raw bytes
+   (`application/octet-stream`, at most `chunkSize`, 8 MiB): `N` must be
+   `received`, else 409 `attachment_upload_offset_mismatch` and nothing is
+   stored, so a retried or parallel chunk is harmless. The chunk is written
+   under a name of its own and takes its place only if the offset is still
+   the next one. Answers the session with the new `received` (progress is
+   `received / size`). Past `expiresAt` (24 hours) 410
+   `attachment_upload_expired`.
+3. **`GET …/sessions/{uploadId}`** says how far it got: resume from `received`.
+4. **`POST …/attachments/complete`**, `{ uploadId }` (the same route as the
+   direct uploads): all the bytes must be there (409
+   `attachment_upload_incomplete` otherwise, the session stays). The parts
+   are assembled in order into one object, which then takes the path of a
+   direct upload: copied to a key of the server's own, typed from its bytes,
+   size and type checked, and `AttachmentsService.upload()` applies the quota,
+   audit (`attachment.added`), the malware scan and the renditions. Completing
+   twice makes one attachment (409 while in progress, 404 after).
+5. **`DELETE …/sessions/{uploadId}`** cancels: the parts and the row go at
+   once (204).
+
+- **Hidden until done:** an incomplete session is not an attachment: it is not
+  listed or downloadable and does not count against the storage quota. A
+  finished upload waiting for its malware scan is listed with
+  `scanStatus: pending` and cannot be downloaded (409
+  `attachment_scan_pending`), as every upload.
+- **Expiry and cleanup:** an expired session stops taking chunks and frees its
+  place in the cap at once; the nightly sweep deletes its parts and row an
+  hour after the expiry (`attachments.uploads-swept`). A finished or
+  cancelled session removes its parts immediately.
+- **Tested:** `test/attachments-resumable.e2e-spec.ts`.
+
+## Versions
+
+An attachment keeps its earlier files. `version` (1, then +1 per change) and
+`revisionNote` are on the attachment; `attachment_versions` holds the files
+it had. Not the record's field revisions ([revisions](revisions.md)): these
+are the bytes of one file.
+
+- **Replace:** `POST /v1/notes/{id}/attachments/{attachmentId}/versions`
+  (multipart `file`, optional `note`): who may change the record, the checks
+  of any upload (type from the bytes, size, quota, malware scan, renditions).
+  `If-Match` takes the attachment's ETag (`GET /v1/attachments/{id}`): 412
+  `precondition_failed` if it changed since, which also settles two
+  replacements racing (one wins). The file replaced is kept as the previous
+  version; audited `attachment.replaced`. 409 `attachment_busy` while the
+  current file is `pending` (scan or renditions), `attachment_locked` for an
+  issued document, `attachment_versions_limit` at 100 versions.
+- **History:** `GET /v1/attachments/{id}/versions` (current first, with who,
+  when and the note) and `…/versions/{n}/download` (a signed link, always a
+  download); whoever may read the record.
+- **Restore:** `POST /v1/attachments/{id}/versions/{n}/restore` (optional
+  `note`, `If-Match`): who may change the record. The old bytes are copied to a
+  file of their own and become the current file as a new version; nothing is
+  lost. Scanned again like an upload; audited `attachment.version-restored`.
+- **Scanning:** only a clean file is archived (replacing waits for the scan).
+  If a replacement is found infected the file is deleted and the previous
+  version becomes current again (`attachment.rejected`), rather than the
+  history going.
+- **Quota:** versions count in the tenant's `storageBytes`; a replacement or
+  restoration needs room for the new file as well.
+- **Retention and holds:** a version lives as long as its attachment:
+  removing the attachment (`DELETE`) or the sweep of a purged record deletes
+  all its files. `DELETE` of an attachment of a record under a legal hold is
+  409 `legal_hold`, so every version is kept. There is no way to delete one
+  version.
+- **Backups:** versions are plain objects under the tenant's
+  `tenants/<id>/attachments/` prefix and rows in `attachment_versions`: the
+  object store and database backups ([deployment](deployment.md)) cover them
+  with the attachments.
+- **Realtime:** a replacement or restoration sends `record.attachments.changed`
+  with `action: 'processed'` (re-read the attachment).
+
 ## Image renditions
 
 A JPEG, PNG, WebP or GIF upload (by its bytes; SVG, AVIF and HEIC are stored
@@ -263,7 +353,7 @@ nothing for it), loaded by a worker on its first image, never by the API.
   (null for anything that is not processed, and for everything stored while
   `IMAGE_PROCESSING=off`), then `ready` or `failed`. `renditions` holds
   `thumb` and `preview` once ready, each `{ width, height, size,
-  contentType }`, never a storage key. The original can be downloaded while
+contentType }`, never a storage key. The original can be downloaded while
   `pending`.
 - **When:** after the malware scan found the file clean: with the scanner
   off the upload queues the job; with it on, the scan does when it sets
