@@ -22,6 +22,7 @@ import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteRouteImport } from './routes/_app/account/route'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
+import { Route as AppAutomationsRouteImport } from './routes/_app/automations'
 import { Route as AppBrandingRouteImport } from './routes/_app/branding'
 import { Route as AppCustomFieldsRouteImport } from './routes/_app/custom-fields'
 import { Route as AppExchangeRatesRouteImport } from './routes/_app/exchange-rates'
@@ -132,6 +133,11 @@ const AppAccountRouteRoute = AppAccountRouteRouteImport.update({
 const AppAuditRoute = AppAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAutomationsRoute = AppAutomationsRouteImport.update({
+  id: '/automations',
+  path: '/automations',
   getParentRoute: () => AppRoute,
 } as any)
 const AppBrandingRoute = AppBrandingRouteImport.update({
@@ -387,6 +393,7 @@ export interface FileRoutesByFullPath {
   '/verify-email': typeof VerifyEmailRoute
   '/account': typeof AppAccountRouteRouteWithChildren
   '/audit': typeof AppAuditRoute
+  '/automations': typeof AppAutomationsRoute
   '/branding': typeof AppBrandingRoute
   '/custom-fields': typeof AppCustomFieldsRoute
   '/exchange-rates': typeof AppExchangeRatesRoute
@@ -446,6 +453,7 @@ export interface FileRoutesByTo {
   '/unsubscribe': typeof UnsubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/audit': typeof AppAuditRoute
+  '/automations': typeof AppAutomationsRoute
   '/branding': typeof AppBrandingRoute
   '/custom-fields': typeof AppCustomFieldsRoute
   '/exchange-rates': typeof AppExchangeRatesRoute
@@ -509,6 +517,7 @@ export interface FileRoutesById {
   '/verify-email': typeof VerifyEmailRoute
   '/_app/account': typeof AppAccountRouteRouteWithChildren
   '/_app/audit': typeof AppAuditRoute
+  '/_app/automations': typeof AppAutomationsRoute
   '/_app/branding': typeof AppBrandingRoute
   '/_app/custom-fields': typeof AppCustomFieldsRoute
   '/_app/exchange-rates': typeof AppExchangeRatesRoute
@@ -573,6 +582,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/account'
     | '/audit'
+    | '/automations'
     | '/branding'
     | '/custom-fields'
     | '/exchange-rates'
@@ -632,6 +642,7 @@ export interface FileRouteTypes {
     | '/unsubscribe'
     | '/verify-email'
     | '/audit'
+    | '/automations'
     | '/branding'
     | '/custom-fields'
     | '/exchange-rates'
@@ -694,6 +705,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/_app/account'
     | '/_app/audit'
+    | '/_app/automations'
     | '/_app/branding'
     | '/_app/custom-fields'
     | '/_app/exchange-rates'
@@ -848,6 +860,13 @@ declare module '@tanstack/react-router' {
       path: '/audit'
       fullPath: '/audit'
       preLoaderRoute: typeof AppAuditRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/automations': {
+      id: '/_app/automations'
+      path: '/automations'
+      fullPath: '/automations'
+      preLoaderRoute: typeof AppAutomationsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/branding': {
@@ -1209,6 +1228,7 @@ const AppAccountRouteRouteWithChildren = AppAccountRouteRoute._addFileChildren(
 interface AppRouteChildren {
   AppAccountRouteRoute: typeof AppAccountRouteRouteWithChildren
   AppAuditRoute: typeof AppAuditRoute
+  AppAutomationsRoute: typeof AppAutomationsRoute
   AppBrandingRoute: typeof AppBrandingRoute
   AppCustomFieldsRoute: typeof AppCustomFieldsRoute
   AppExchangeRatesRoute: typeof AppExchangeRatesRoute
@@ -1255,6 +1275,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRouteRoute: AppAccountRouteRouteWithChildren,
   AppAuditRoute: AppAuditRoute,
+  AppAutomationsRoute: AppAutomationsRoute,
   AppBrandingRoute: AppBrandingRoute,
   AppCustomFieldsRoute: AppCustomFieldsRoute,
   AppExchangeRatesRoute: AppExchangeRatesRoute,
