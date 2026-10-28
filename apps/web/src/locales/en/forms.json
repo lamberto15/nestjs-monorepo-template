@@ -80,5 +80,36 @@
   "mySubmissions": "Your submissions.",
   "noSubmissions": "No submissions yet.",
   "submittedAt": "Sent",
-  "answers": "Answers"
+  "answers": "Answers",
+  "rules": {
+    "visibleWhen": "Show only when",
+    "requiredWhen": "Required when",
+    "sectionVisibleWhen": "Show this section only when",
+    "always": "Always.",
+    "add": "Add a condition",
+    "remove": "Remove the condition",
+    "join": "Combine",
+    "all": "All of these",
+    "any": "Any of these",
+    "field": "Field",
+    "operator": "Is",
+    "value": "Value",
+    "values": "Values (comma-separated)",
+    "checked": "Checked",
+    "unchecked": "Not checked",
+    "noEarlier": "A condition reads the fields before this one: add one above first.",
+    "nested": "nested conditions, kept as they are (edited through the API).",
+    "clear": "Remove",
+    "ops": {
+      "eq": "equal to",
+      "ne": "not equal to",
+      "gt": "greater than",
+      "gte": "at least",
+      "lt": "less than",
+      "lte": "at most",
+      "in": "one of",
+      "contains": "includes",
+      "isEmpty": "empty"
+    }
+  }
 }

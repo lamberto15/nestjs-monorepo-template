@@ -80,5 +80,36 @@
   "mySubmissions": "Penyerahan anda.",
   "noSubmissions": "Belum ada penyerahan.",
   "submittedAt": "Dihantar",
-  "answers": "Jawapan"
+  "answers": "Jawapan",
+  "rules": {
+    "visibleWhen": "Papar hanya apabila",
+    "requiredWhen": "Wajib apabila",
+    "sectionVisibleWhen": "Papar bahagian ini hanya apabila",
+    "always": "Sentiasa.",
+    "add": "Tambah syarat",
+    "remove": "Buang syarat",
+    "join": "Gabung",
+    "all": "Semua ini",
+    "any": "Mana-mana ini",
+    "field": "Medan",
+    "operator": "Ialah",
+    "value": "Nilai",
+    "values": "Nilai (dipisah dengan koma)",
+    "checked": "Ditanda",
+    "unchecked": "Tidak ditanda",
+    "noEarlier": "Syarat membaca medan sebelum medan ini: tambah satu di atas dahulu.",
+    "nested": "syarat bersarang, dikekalkan seperti asal (disunting melalui API).",
+    "clear": "Buang",
+    "ops": {
+      "eq": "sama dengan",
+      "ne": "tidak sama dengan",
+      "gt": "lebih daripada",
+      "gte": "sekurang-kurangnya",
+      "lt": "kurang daripada",
+      "lte": "paling banyak",
+      "in": "salah satu daripada",
+      "contains": "mengandungi",
+      "isEmpty": "kosong"
+    }
+  }
 }
