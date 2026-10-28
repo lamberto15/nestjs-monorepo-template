@@ -1306,7 +1306,7 @@ describe('promoting configuration', () => {
   it('needs Access.manageRoles too', async () => {
     api(admin);
     await renderApp('/settings');
-    await screen.findByText('Label');
+    await screen.findByText('Rich text editor');
     expect(screen.queryByText('Promote configuration')).toBeNull();
   });
 

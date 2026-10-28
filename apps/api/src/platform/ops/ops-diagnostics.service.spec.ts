@@ -93,7 +93,7 @@ describe('OpsDiagnostics', () => {
     const disk = new InMemoryDisk();
     const result = await diagnostics({ disk }).test('storage');
     expect(result.ok).toBe(true);
-    expect((await disk.list({ prefix: 'ops/' })).items).toEqual([]);
+    expect((await disk.list({ prefix: 'ops/' })).entries).toEqual([]);
   });
 
   it('refuses a test there is nothing safe to run, or an unknown check', async () => {
