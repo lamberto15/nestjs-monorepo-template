@@ -36,11 +36,28 @@
       }
     }
   },
+  "acknowledgment": {
+    "requested": {
+      "label": "Dokumen untuk diakui",
+      "title": "Sila akui satu dokumen",
+      "body": "{by} meminta anda mengakui \"{name}\" (versi {version})."
+    },
+    "reminder": {
+      "label": "Peringatan untuk mengakui",
+      "title": "Peringatan: sila akui satu dokumen",
+      "body": "{by} mengingatkan anda untuk mengakui \"{name}\" (versi {version})."
+    }
+  },
   "comment": {
     "mentioned": {
       "label": "Disebut dalam komen",
       "title": "Anda telah disebut",
       "body": "{by} menyebut anda pada \"{title}\": {excerpt}"
+    },
+    "replied": {
+      "label": "Balasan kepada komen anda",
+      "title": "{by} membalas komen anda",
+      "body": "{by} membalas komen anda pada \"{title}\": {excerpt}"
     }
   },
   "from": " (dari {ip})",

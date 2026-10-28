@@ -27,6 +27,28 @@ this.comments.add(user, { subject: 'Note', recordId: id }, dto.body, ip);
 | `POST /v1/notes/{id}/comments { body }` | 201; 1 to 10 000 characters |
 | `PATCH /v1/notes/{id}/comments/{commentId} { body }` | the author only (403); sets `editedAt` |
 | `DELETE /v1/notes/{id}/comments/{commentId}` | the author, or a moderator (`canModerate`: for notes, `Note.update`, so with the seeded editor role an owner moderates their drafts, not their published notes); for good |
+| `POST /v1/notes/{id}/comments { body, parentId }` | `parentId` (optional) answers a top-level comment: a reply |
+| `POST /v1/notes/{id}/comments/{commentId}/resolve`, `…/reopen` | settle or reopen a thread (200) |
+
+- **Threads**: a top-level comment is a thread; replies are one level deep
+  (a reply to a reply is a 400 `comment_reply_too_deep`) and at most 200 per
+  thread (409 `comment_thread_full`). The list stays flat and oldest first,
+  replies included, each with `parentId` (null for a thread): existing
+  clients see nothing new but the fields. Filters: `?parentId.isNull=true`
+  (the threads), `?parentId=<id>` (one thread's replies),
+  `?resolvedAt.isNull=true` (open) or `=false` (resolved).
+- **Resolving**: the thread's author or a moderator (`canModerate`) resolves
+  and reopens it (403 otherwise; 400 `comment_not_thread` on a reply);
+  `resolvedAt` and `resolvedBy` are set on the thread, and cleared on reopening;
+  repeating either changes nothing. A resolved thread takes no reply
+  (409 `comment_thread_resolved`) until reopened.
+- **Removing**: a reply goes alone; removing a thread removes its replies
+  (`comment.removed` records `replies`). Editing is the author's, as ever.
+  A reply tells the thread's author, `comment.replied` (email at once by
+  default), unless they wrote it or were mentioned in it; the watchers'
+  `<subject>.commented` skips them, so nobody hears twice. Audit:
+  `comment.resolved`, `comment.reopened` beside the existing entries;
+  `record.commented` carries `resolved` and `reopened` as its `action`.
 
 - **Who**: whoever may read the record reads and writes its comments
   (404 otherwise, the same as when the record doesn't exist:
