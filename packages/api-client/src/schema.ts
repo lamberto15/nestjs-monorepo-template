@@ -2246,6 +2246,204 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/calendars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The tenant's business calendars, by name
+         * @description At most 50 per tenant, so one list (no pages).
+         */
+        get: operations["CalendarsController_list_v1"];
+        put?: never;
+        /**
+         * Create a business calendar
+         * @description Hours per weekday and exceptions (a holiday: no `hours`; special hours), in an IANA `timezone`. Audited (`businessCalendar.created`).
+         */
+        post: operations["CalendarsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/calendars/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A business calendar */
+        get: operations["CalendarsController_findOne_v1"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a business calendar
+         * @description Audited (`businessCalendar.deleted`).
+         */
+        delete: operations["CalendarsController_remove_v1"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a business calendar
+         * @description Only what is sent changes; hours and exceptions are replaced whole. A change of hours, zone or exceptions raises `version`. Deadlines already computed are not recomputed: ask again. Audited (`businessCalendar.updated`).
+         */
+        patch: operations["CalendarsController_update_v1"];
+        trace?: never;
+    };
+    "/v1/calendars/{id}/deadline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A deadline in working time
+         * @description `minutes` of working time after `from`, skipping nights, weekends and exceptions in the calendar's zone (daylight-saving changes followed); 0 minutes: the first working moment at or after `from`. Returns the calendar `version` to store beside the deadline.
+         */
+        post: operations["CalendarsController_deadline_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/record-schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your recurring record schedules
+         * @description `?status=active`, `?importer=notes`, `?name.contains=`, `?sort=nextRunAt`; newest first; cursor pages.
+         */
+        get: operations["RecordSchedulesController_list_v1"];
+        put?: never;
+        /**
+         * Schedule recurring records
+         * @description Creates the `template` (one row of an importer, as a file import takes it) as you at every occurrence of `rrule` from `startDate` at `time` in `timezone`, optionally moved into a business calendar's working time. Each occurrence makes one record, however often it is retried. Missed occurrences (downtime) are made up, oldest first, a few per pass; pausing skips a period. At most 20 active schedules, 1000 records each. Audited (`recordSchedule.created`).
+         */
+        post: operations["RecordSchedulesController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/record-schedules/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview the next occurrences
+         * @description The next moments (up to 20) a schedule with this rule, start, time, zone and calendar would create records, from now. Nothing is saved.
+         */
+        post: operations["RecordSchedulesController_preview_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/record-schedules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One of your recurring record schedules */
+        get: operations["RecordSchedulesController_get_v1"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a recurring record schedule
+         * @description Audited (`recordSchedule.deleted`). The records it made stay.
+         */
+        delete: operations["RecordSchedulesController_remove_v1"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a recurring record schedule
+         * @description Only what is sent changes; an active schedule's next run is computed again from now when its rule, start, time, zone or calendar changes. Audited (`recordSchedule.updated`).
+         */
+        patch: operations["RecordSchedulesController_update_v1"];
+        trace?: never;
+    };
+    "/v1/record-schedules/{id}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pause a schedule
+         * @description No records are created until it is resumed, and the occurrences in between are not made up.
+         */
+        post: operations["RecordSchedulesController_pause_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/record-schedules/{id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume a paused schedule
+         * @description Continues at the first occurrence after now.
+         */
+        post: operations["RecordSchedulesController_resume_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/record-schedules/{id}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End a schedule for good
+         * @description The records it made stay. It cannot be resumed.
+         */
+        post: operations["RecordSchedulesController_end_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/views": {
         parameters: {
             query?: never;
@@ -5918,6 +6116,118 @@ export interface components {
              * @example INV-2026-10-00043
              */
             next: string;
+        };
+        BusinessCalendarList: {
+            items: components["schemas"]["BusinessCalendar"][];
+        };
+        BusinessCalendar: {
+            /** Format: uuid */
+            id: string;
+            /** @example Support desk */
+            name: string;
+            /** @example Europe/Berlin */
+            timezone: string;
+            /** @description The spans worked each weekday, in `timezone`; a weekday with none is closed. A span ends by 24:00 and does not cross midnight: split it over two days. */
+            hours: {
+                /** @example 09:00 */
+                start: string;
+                /** @example 17:00 */
+                end: string;
+                /** @description 0 Sunday … 6 Saturday. */
+                weekday: number;
+            }[];
+            exceptions: components["schemas"]["CalendarException"][];
+            /** @description Starts at 1; +1 whenever the hours, the zone or the exceptions change. Deadlines already computed keep their value: compare the version they carry. */
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CalendarException: {
+            /**
+             * Format: date
+             * @description A date in the calendar's zone.
+             * @example 2026-12-25
+             */
+            date: string;
+            /** @example Christmas Day */
+            name: string;
+            /** @description Special hours that day; left out: closed all day. */
+            hours?: {
+                /** @example 09:00 */
+                start: string;
+                /** @example 17:00 */
+                end: string;
+            }[];
+        };
+        CalendarDeadline: {
+            /** Format: date-time */
+            due: string;
+            /** @description The calendar version it was computed with: store it with the deadline. */
+            calendarVersion: number;
+        };
+        RecordSchedule: {
+            /** Format: uuid */
+            id: string;
+            /** @example Weekly review */
+            name: string;
+            /** @example notes */
+            importer: string;
+            /**
+             * @description One row of the importer, as its file import takes it (`GET /v1/data/imports/{name}/template` lists the columns); checked on create and again at every occurrence, as the owner. The same values are used each time.
+             * @example {
+             *       "title": "Weekly review",
+             *       "body": "Check the board."
+             *     }
+             */
+            template: {
+                [key: string]: unknown;
+            };
+            /**
+             * @description An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.
+             * @example FREQ=WEEKLY;BYDAY=MO;COUNT=26
+             */
+            rrule: string;
+            /**
+             * Format: date
+             * @description The first date that may occur, in the schedule's zone.
+             * @example 2026-11-02
+             */
+            startDate: string;
+            /**
+             * @description Time of day of each occurrence, in the schedule's zone.
+             * @example 08:30
+             */
+            time: string;
+            /** @example Europe/Berlin */
+            timezone: string;
+            /** Format: uuid */
+            calendarId: string | null;
+            /** @enum {string} */
+            status: "active" | "paused" | "ended";
+            /** @description `completed`, `ended` (by its owner), `owner_inactive`, `import_not_allowed`, `template_invalid`. */
+            endReason: string | null;
+            /** @description Occurrences handled: created, or skipped after failing for good. */
+            occurrences: number;
+            maxOccurrences: number | null;
+            /** @description Failed attempts at the occurrence due now (3 skip it). */
+            failures: number;
+            lastError: string | null;
+            /** Format: date-time */
+            lastRunAt: string | null;
+            /** @enum {string|null} */
+            lastStatus: "created" | "failed" | null;
+            /** Format: date-time */
+            nextRunAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        RecordSchedulePreview: {
+            /** @description The next moments records would be created, from now. */
+            occurrences: string[];
         };
         SavedViewPage: {
             items: components["schemas"]["SavedView"][];
@@ -16061,6 +16371,839 @@ export interface operations {
             };
             /** @description Below the last value taken: that number is given. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarsController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessCalendarList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarsController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    /** @example Europe/Berlin */
+                    timezone: string;
+                    /** @description The spans worked each weekday, in `timezone`; a weekday with none is closed. A span ends by 24:00 and does not cross midnight: split it over two days. */
+                    hours: {
+                        /** @example 09:00 */
+                        start: string;
+                        /** @example 17:00 */
+                        end: string;
+                        /** @description 0 Sunday … 6 Saturday. */
+                        weekday: number;
+                    }[];
+                    /** @default [] */
+                    exceptions?: components["schemas"]["CalendarException"][];
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessCalendar"];
+                };
+            };
+            /** @description An unknown time zone, a bad or overlapping span, a date twice, more than 50 calendars (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A calendar has this name. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarsController_findOne_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessCalendar"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A recurring schedule still follows it. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarsController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name?: string;
+                    /** @example Europe/Berlin */
+                    timezone?: string;
+                    /** @description The spans worked each weekday, in `timezone`; a weekday with none is closed. A span ends by 24:00 and does not cross midnight: split it over two days. */
+                    hours?: {
+                        /** @example 09:00 */
+                        start: string;
+                        /** @example 17:00 */
+                        end: string;
+                        /** @description 0 Sunday … 6 Saturday. */
+                        weekday: number;
+                    }[];
+                    exceptions?: components["schemas"]["CalendarException"][];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessCalendar"];
+                };
+            };
+            /** @description An invalid body (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A calendar has this name. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarsController_deadline_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: date-time
+                     * @example 2026-10-23T14:00:00Z
+                     */
+                    from: string;
+                    /**
+                     * @description Working minutes to add; 0: the first working moment at or after `from`.
+                     * @example 480
+                     */
+                    minutes: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarDeadline"];
+                };
+            };
+            /** @description The calendar has no working time in the next ten years (calendar_has_no_working_time). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_list_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: importer = */
+                importer?: string;
+                /** @description Filter: importer in */
+                "importer.in"?: string;
+                /** @description Filter: status = */
+                status?: string;
+                /** @description Filter: status in */
+                "status.in"?: string;
+                /** @description Filter: name = */
+                name?: string;
+                /** @description Filter: name contains */
+                "name.contains"?: string;
+                /** @description Filter: nextRunAt gte */
+                "nextRunAt.gte"?: string;
+                /** @description Filter: nextRunAt lt */
+                "nextRunAt.lt"?: string;
+                /** @description Filter: nextRunAt between */
+                "nextRunAt.between"?: string;
+                /** @description Filter: createdAt gt */
+                "createdAt.gt"?: string;
+                /** @description Filter: createdAt gte */
+                "createdAt.gte"?: string;
+                /** @description Filter: createdAt lt */
+                "createdAt.lt"?: string;
+                /** @description Filter: createdAt lte */
+                "createdAt.lte"?: string;
+                /** @description Filter: createdAt between */
+                "createdAt.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"importer","op":"eq","value":…},{…}]}. Fields and operators: importer (eq, in); status (eq, in); name (eq, contains); nextRunAt (gte, lt, between); createdAt (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, nextRunAt, createdAt. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: name,importer. Fields: id, name, importer, template, rrule, startDate, time, timezone, calendarId, status, endReason, occurrences, maxOccurrences, failures, lastError, lastRunAt, lastStatus, nextRunAt, createdAt, updatedAt. */
+                fields?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["RecordSchedule"][];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example Weekly review */
+                    name: string;
+                    /**
+                     * @description The importer whose rows are created (`GET /v1/data`).
+                     * @example notes
+                     */
+                    importer: string;
+                    /**
+                     * @description One row of the importer, as its file import takes it (`GET /v1/data/imports/{name}/template` lists the columns); checked on create and again at every occurrence, as the owner. The same values are used each time.
+                     * @example {
+                     *       "title": "Weekly review",
+                     *       "body": "Check the board."
+                     *     }
+                     */
+                    template: {
+                        [key: string]: unknown;
+                    };
+                    /**
+                     * @description An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.
+                     * @example FREQ=WEEKLY;BYDAY=MO;COUNT=26
+                     */
+                    rrule: string;
+                    /**
+                     * Format: date
+                     * @description The first date that may occur, in the schedule's zone.
+                     * @example 2026-11-02
+                     */
+                    startDate: string;
+                    /**
+                     * @description Time of day of each occurrence, in the schedule's zone.
+                     * @example 08:30
+                     */
+                    time: string;
+                    /**
+                     * @description Default: your own time zone, else the server's (APP_TIMEZONE).
+                     * @example Europe/Berlin
+                     */
+                    timezone?: string;
+                    /**
+                     * Format: uuid
+                     * @description A business calendar (`GET /v1/calendars`): an occurrence outside its working time moves to its next working moment; occurrences that land on the same moment make one record.
+                     */
+                    calendarId?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedule"];
+                };
+            };
+            /** @description An import you may not run (`importer`), a template it refuses (`template.<field>`), a bad rule, time zone or calendar, no occurrence to come, more than 20 active schedules (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The template sets a field your permissions hide (field_forbidden), or the session is impersonating a user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_preview_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.
+                     * @example FREQ=WEEKLY;BYDAY=MO;COUNT=26
+                     */
+                    rrule: string;
+                    /**
+                     * Format: date
+                     * @description The first date that may occur, in the schedule's zone.
+                     * @example 2026-11-02
+                     */
+                    startDate: string;
+                    /**
+                     * @description Time of day of each occurrence, in the schedule's zone.
+                     * @example 08:30
+                     */
+                    time: string;
+                    /** @example Europe/Berlin */
+                    timezone?: string;
+                    /**
+                     * Format: uuid
+                     * @description A business calendar (`GET /v1/calendars`): an occurrence outside its working time moves to its next working moment; occurrences that land on the same moment make one record.
+                     */
+                    calendarId?: string;
+                    /** @default 5 */
+                    count?: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedulePreview"];
+                };
+            };
+            /** @description An import you may not run (`importer`), a template it refuses (`template.<field>`), a bad rule, time zone or calendar, no occurrence to come, more than 20 active schedules (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_get_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedule"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example Weekly review */
+                    name?: string;
+                    /**
+                     * @description One row of the importer, as its file import takes it (`GET /v1/data/imports/{name}/template` lists the columns); checked on create and again at every occurrence, as the owner. The same values are used each time.
+                     * @example {
+                     *       "title": "Weekly review",
+                     *       "body": "Check the board."
+                     *     }
+                     */
+                    template?: {
+                        [key: string]: unknown;
+                    };
+                    /**
+                     * @description An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.
+                     * @example FREQ=WEEKLY;BYDAY=MO;COUNT=26
+                     */
+                    rrule?: string;
+                    /**
+                     * Format: date
+                     * @description The first date that may occur, in the schedule's zone.
+                     * @example 2026-11-02
+                     */
+                    startDate?: string;
+                    /**
+                     * @description Time of day of each occurrence, in the schedule's zone.
+                     * @example 08:30
+                     */
+                    time?: string;
+                    /** @example Europe/Berlin */
+                    timezone?: string;
+                    /**
+                     * Format: uuid
+                     * @description A business calendar (`GET /v1/calendars`): an occurrence outside its working time moves to its next working moment; occurrences that land on the same moment make one record.
+                     */
+                    calendarId?: string | null;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedule"];
+                };
+            };
+            /** @description An import you may not run (`importer`), a template it refuses (`template.<field>`), a bad rule, time zone or calendar, no occurrence to come, more than 20 active schedules (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The schedule has ended. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_pause_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedule"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The schedule has ended. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_resume_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedule"];
+                };
+            };
+            /** @description More than 20 active schedules. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The schedule has ended. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_end_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedule"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
