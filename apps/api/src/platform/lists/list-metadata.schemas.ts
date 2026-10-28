@@ -104,6 +104,38 @@ export const attachmentLimitsSchema = z
     "What a record's attachment may be, as the upload route enforces it; null when the subject takes no attachments.",
   );
 
+/** Records that refer to the subject's: a related panel of its records (record-relations.ts). */
+export const listRelatedSchema = z.object({
+  subject: z
+    .string()
+    .describe(
+      'The referring records: their own list is GET /v1/lists/{subject}.',
+    )
+    .meta({ example: 'InvoiceLine' }),
+  path: z
+    .string()
+    .describe(
+      "Their list, under /v1: a record's related ones are `GET /v1/<path>?<field>=<id>` (paginated, newest first, only those the caller may read).",
+    )
+    .meta({ example: 'invoice-lines' }),
+  field: z
+    .string()
+    .describe("Their field holding the record's id.")
+    .meta({ example: 'invoiceId' }),
+  title: z
+    .string()
+    .nullable()
+    .describe(
+      'The field a client names each one by (their first text field); null when none.',
+    )
+    .meta({ example: 'title' }),
+  required: z
+    .boolean()
+    .describe(
+      'Required: a record they refer to cannot be deleted (409 `record_referenced`). Optional: the field empties when it is deleted for good.',
+    ),
+});
+
 /** What GET /v1/lists/{subject} answers. */
 export const listMetadataSchema = z.object({
   subject: z.string().meta({ example: 'Note' }),
@@ -155,6 +187,11 @@ export const listMetadataSchema = z.object({
     })
     .describe("The list's limits, the same on every list."),
   capabilities: listCapabilitiesSchema,
+  related: z
+    .array(listRelatedSchema)
+    .describe(
+      "The records that refer to this subject's (a `ref` field of theirs), which the caller may list and filter by that field: a record's related panels.",
+    ),
   attachmentLimits: attachmentLimitsSchema,
   documentTemplates: z
     .array(documentTemplateSchema)

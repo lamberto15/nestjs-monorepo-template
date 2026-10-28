@@ -14,6 +14,7 @@ import { listCapabilities } from './list-capabilities.js';
 import { listMetadata } from './list-metadata.js';
 import type { ListMetadata } from './list-metadata.schemas.js';
 import { ListsRegistry, type ListSource } from './lists.registry.js';
+import { relationsTo, relationTitle } from '../records/record-relations.js';
 
 /**
  * Lists described for clients (GET /v1/lists/{subject}): a subject's
@@ -102,6 +103,7 @@ export class ListsService {
         recycleBin: restore,
       }),
       capabilities,
+      related: await this.related(principal, subject),
       // What the upload route enforces (AttachmentUpload reads the same).
       attachmentLimits: source.capabilities.includes('attachments')
         ? attachmentLimits(this.config)
@@ -111,6 +113,43 @@ export class ListsService {
         ? this.documents.templatesOf(subject)
         : null,
     };
+  }
+
+  /**
+   * The relations that refer to the subject's records (record-relations.ts),
+   * as the caller may follow them: the referring list is registered (its
+   * module is in the app), they may read it, and may filter by the field
+   * (one they may read on every record: AccessService.assertQueryFields).
+   */
+  private async related(
+    principal: Principal,
+    subject: string,
+  ): Promise<ListMetadata['related']> {
+    const related: ListMetadata['related'] = [];
+    for (const relation of relationsTo(subject)) {
+      const from = relation.from.subject;
+      if (!this.registry.get(from) || !(await this.mayRead(principal, from))) {
+        continue;
+      }
+      const [denied, conditional] = await Promise.all([
+        this.access.deniedFields(principal, 'read', from),
+        this.access.conditionalFields(principal, 'read', from),
+      ]);
+      if (
+        denied.includes(relation.field) ||
+        conditional.includes(relation.field)
+      ) {
+        continue;
+      }
+      related.push({
+        subject: from,
+        path: relation.from.path,
+        field: relation.field,
+        title: relationTitle(relation.from),
+        required: relation.required,
+      });
+    }
+    return related;
   }
 
   /**

@@ -40,6 +40,7 @@ import {
   RESERVED_ACTIONS,
 } from './record-approvals.js';
 import type { RecordRouteSpec } from './record-routes.js';
+import { relate } from './record-relations.js';
 import type { RecordSettingSpec } from './record-settings.js';
 
 /**
@@ -342,6 +343,11 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
   }).enableRLS();
   TABLES.set(declaration, built as unknown as PgTable);
   tableHolds(built, declaration.subject);
+  // Its `ref` fields' relations (record-relations.ts): what refers to what.
+  relate(
+    declaration,
+    built as unknown as PgTable & Record<string, AnyPgColumn>,
+  );
   return built;
 }
 
