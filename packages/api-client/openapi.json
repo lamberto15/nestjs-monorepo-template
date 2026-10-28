@@ -21445,6 +21445,954 @@
         ]
       }
     },
+    "/v1/templates/subjects": {
+      "get": {
+        "description": "The subjects whose records you may create, with the create fields you may set in a template.",
+        "operationId": "TemplatesController_subjects_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordTemplateSubjects"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The records that take templates",
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/v1/templates": {
+      "get": {
+        "description": "Yours, those shared with your units and the tenant-wide ones, of the records you may create. `?subject=Note`, `?visibility=unit`, `?name.contains=`, `?sort=name`; newest first; cursor pages.",
+        "operationId": "TemplatesController_list_v1",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "`nextCursor` of the previous page (the same `sort`).",
+            "schema": {
+              "description": "`nextCursor` of the previous page (the same `sort`).",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+            "schema": {
+              "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "count",
+            "required": false,
+            "in": "query",
+            "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+            "schema": {
+              "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "lang",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 35
+            }
+          },
+          {
+            "name": "subject",
+            "required": false,
+            "in": "query",
+            "description": "Filter: subject =",
+            "schema": {
+              "description": "Filter: subject =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "subject.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: subject in",
+            "schema": {
+              "description": "Filter: subject in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "visibility",
+            "required": false,
+            "in": "query",
+            "description": "Filter: visibility =",
+            "schema": {
+              "description": "Filter: visibility =",
+              "type": "string",
+              "enum": [
+                "private",
+                "unit",
+                "tenant"
+              ]
+            }
+          },
+          {
+            "name": "visibility.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: visibility in",
+            "schema": {
+              "description": "Filter: visibility in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "unitId",
+            "required": false,
+            "in": "query",
+            "description": "Filter: unitId =",
+            "schema": {
+              "description": "Filter: unitId =",
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "name",
+            "required": false,
+            "in": "query",
+            "description": "Filter: name =",
+            "schema": {
+              "description": "Filter: name =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "name.contains",
+            "required": false,
+            "in": "query",
+            "description": "Filter: name contains",
+            "schema": {
+              "description": "Filter: name contains",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "createdAt.gt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt gt",
+            "schema": {
+              "description": "Filter: createdAt gt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.gte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt gte",
+            "schema": {
+              "description": "Filter: createdAt gte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.lt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt lt",
+            "schema": {
+              "description": "Filter: createdAt lt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.lte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt lte",
+            "schema": {
+              "description": "Filter: createdAt lte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.between",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt between",
+            "schema": {
+              "description": "Filter: createdAt between",
+              "type": "string"
+            }
+          },
+          {
+            "name": "updatedAt.gt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: updatedAt gt",
+            "schema": {
+              "description": "Filter: updatedAt gt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "updatedAt.gte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: updatedAt gte",
+            "schema": {
+              "description": "Filter: updatedAt gte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "updatedAt.lt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: updatedAt lt",
+            "schema": {
+              "description": "Filter: updatedAt lt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "updatedAt.lte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: updatedAt lte",
+            "schema": {
+              "description": "Filter: updatedAt lte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "updatedAt.between",
+            "required": false,
+            "in": "query",
+            "description": "Filter: updatedAt between",
+            "schema": {
+              "description": "Filter: updatedAt between",
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "required": false,
+            "in": "query",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"subject\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: subject (eq, in); visibility (eq, in); unitId (eq); name (eq, contains); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
+            "schema": {
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"subject\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: subject (eq, in); visibility (eq, in); unitId (eq); name (eq, contains); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
+              "type": "string",
+              "maxLength": 20000
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, createdAt, updatedAt.",
+            "schema": {
+              "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, createdAt, updatedAt.",
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,name. Fields: id, subject, name, visibility, unitId, owner, mine, editable, values, createdAt, updatedAt.",
+            "schema": {
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,name. Fields: id, subject, name, visibility, unitId, owner, mine, editable, values, createdAt, updatedAt.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordTemplatePage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The record templates you see",
+        "tags": [
+          "templates"
+        ]
+      },
+      "post": {
+        "description": "Values to prefill the subject's create body (`values`), checked against that body as it is now and your own field permissions. System-set values (ids, numbers, owners, dates) are not fields of it and are refused. `visibility`: `private` (default), `unit` (with `unitId`: an organizational unit you belong to) or `tenant` (`Access.manageTemplates`). The name is unique per subject and place, whatever its case. Audited (`recordTemplate.created`).",
+        "operationId": "TemplatesController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "subject": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80,
+                    "description": "The records: a subject `GET /v1/templates/subjects` names.",
+                    "example": "Note"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "example": "Weekly status"
+                  },
+                  "visibility": {
+                    "default": "private",
+                    "type": "string",
+                    "enum": [
+                      "private",
+                      "unit",
+                      "tenant"
+                    ]
+                  },
+                  "unitId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "For `visibility: \"unit\"`: an organizational unit you belong to."
+                  },
+                  "values": {
+                    "default": {},
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "Values of the subject's create body (`POST /v1/<path>`), as that route takes them. Only fields it declares and you may set: no ids, numbers, owners or dates the system sets. Required fields may be left out.",
+                    "example": {
+                      "title": "Weekly status",
+                      "body": "Done:\nNext:"
+                    }
+                  }
+                },
+                "required": [
+                  "subject",
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordTemplate"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An unknown subject, a value the subject’s create body refuses or does not have (`values.<field>`), a unit that does not exist, more than 100 templates (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not create the subject; not allowed to share it so; A value sets a field your permissions do not let you set (field_forbidden, naming it)."
+          },
+          "409": {
+            "description": "The name is taken (conflict)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Save a record template",
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/v1/templates/{id}": {
+      "get": {
+        "operationId": "TemplatesController_get_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordTemplate"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "One record template you see",
+        "tags": [
+          "templates"
+        ]
+      },
+      "patch": {
+        "description": "Only what is sent changes (never the subject; `values` replaces all values). Its owner changes it; a shared one, a template manager too (`Access.manageTemplates`). Audited (`recordTemplate.updated`, with what changed).",
+        "operationId": "TemplatesController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "example": "Weekly status"
+                  },
+                  "visibility": {
+                    "type": "string",
+                    "enum": [
+                      "private",
+                      "unit",
+                      "tenant"
+                    ]
+                  },
+                  "unitId": {
+                    "nullable": true,
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "For `visibility: \"unit\"`: an organizational unit you belong to."
+                  },
+                  "values": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "Values of the subject's create body (`POST /v1/<path>`), as that route takes them. Only fields it declares and you may set: no ids, numbers, owners or dates the system sets. Required fields may be left out.",
+                    "example": {
+                      "title": "Weekly status",
+                      "body": "Done:\nNext:"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordTemplate"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An unknown subject, a value the subject’s create body refuses or does not have (`values.<field>`), a unit that does not exist, more than 100 templates (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not yours to change or to share so; A value sets a field your permissions do not let you set (field_forbidden, naming it)."
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "The name is taken (conflict)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Change a record template",
+        "tags": [
+          "templates"
+        ]
+      },
+      "delete": {
+        "description": "Its owner; a shared one, a template manager too. Audited (`recordTemplate.deleted`).",
+        "operationId": "TemplatesController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not yours to delete."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Delete a record template",
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/v1/templates/{id}/preview": {
+      "get": {
+        "description": "The template checked again against the subject's create body as it is now and your permissions: `values` is what still holds, `dropped` what the schema or your permissions no longer allow. Create the record with `POST` on the subject's own route, which validates and authorizes it as any create; a template never creates or bypasses anything.",
+        "operationId": "TemplatesController_preview_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordTemplatePreview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not create the subject."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "A record template, ready to prefill a create",
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/v1/choices": {
+      "get": {
+        "description": "Each set’s fields (parents first) that you may use, and what each depends on.",
+        "operationId": "ChoicesController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChoiceSets"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The sets of dependent choices",
+        "tags": [
+          "choices"
+        ]
+      }
+    },
+    "/v1/choices/{set}": {
+      "get": {
+        "operationId": "ChoicesController_one_v1",
+        "parameters": [
+          {
+            "name": "set",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChoiceSet"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "One set of dependent choices",
+        "tags": [
+          "choices"
+        ]
+      }
+    },
+    "/v1/choices/{set}/{field}/options": {
+      "get": {
+        "description": "At most `limit` (50) matching `q`, for the values of the fields it depends on (`parent.<field>=<value>`, all required). The answer echoes `parents`: ignore it when the form’s parents have changed since. Only what you may see.",
+        "operationId": "ChoicesController_options_v1",
+        "parameters": [
+          {
+            "name": "set",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "field",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChoiceOptions"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A parent value is missing, malformed, or not a parameter of the field (validation_failed, `parent.<field>`)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not use its provider."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The choices of a field, for its parents’ values",
+        "tags": [
+          "choices"
+        ]
+      }
+    },
+    "/v1/choices/{set}/validate": {
+      "post": {
+        "description": "Each value must be one of the choices you could pick for the values of its parents sent with it (the check a write repeats). A parent changed under a child that no longer fits is refused for the child. Nothing is stored.",
+        "operationId": "ChoicesController_validate_v1",
+        "parameters": [
+          {
+            "name": "set",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "values": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "nullable": true,
+                      "type": "string",
+                      "maxLength": 200
+                    },
+                    "description": "The set’s fields as the form holds them, `null` or absent for none. A field’s value is checked among its choices for its parents’ values here.",
+                    "example": {
+                      "unit": "…",
+                      "member": "…"
+                    }
+                  }
+                },
+                "required": [
+                  "values"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Every value is a valid choice."
+          },
+          "400": {
+            "description": "A value is not an available choice, or its parent is missing or invalid (validation_failed, `path` the field)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not use a field’s provider."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Check a set’s values",
+        "tags": [
+          "choices"
+        ]
+      }
+    },
     "/v1/favorites": {
       "get": {
         "description": "In your order. A record or a saved view you no longer see (deleted, or your access changed) is left out.",
@@ -53205,6 +54153,331 @@
           "params",
           "columns",
           "hiddenColumns"
+        ],
+        "additionalProperties": false
+      },
+      "RecordTemplateSubjects": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "subject": {
+                  "type": "string",
+                  "example": "Note"
+                },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "The create fields a template may hold and you may set."
+                }
+              },
+              "required": [
+                "subject",
+                "fields"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "RecordTemplatePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecordTemplate"
+            }
+          },
+          "nextCursor": {
+            "nullable": true,
+            "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
+            "type": "string"
+          },
+          "page": {
+            "description": "With `page`: this page.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "nextPage": {
+            "description": "With `page`: the next page; null: no more.",
+            "nullable": true,
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pageCount": {
+            "description": "With `page` and `count=true`: ceil(total / limit).",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "totalCapped": {
+            "description": "true: there are more than `total` (show \"10,000+\").",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "RecordTemplate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string",
+            "example": "Note"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "example": "Weekly status"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "unit",
+              "tenant"
+            ]
+          },
+          "unitId": {
+            "nullable": true,
+            "description": "Set for a `unit` template.",
+            "type": "string"
+          },
+          "owner": {
+            "type": "string",
+            "description": "`user:<id>` or `client:<id>`; `anonymous` once its owner’s account is gone."
+          },
+          "mine": {
+            "type": "boolean",
+            "description": "You own it."
+          },
+          "editable": {
+            "type": "boolean",
+            "description": "You may change and delete it (its owner, or a template manager)."
+          },
+          "values": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "Values of the subject's create body (`POST /v1/<path>`), as that route takes them. Only fields it declares and you may set: no ids, numbers, owners or dates the system sets. Required fields may be left out.",
+            "example": {
+              "title": "Weekly status",
+              "body": "Done:\nNext:"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "name",
+          "visibility",
+          "unitId",
+          "owner",
+          "mine",
+          "editable",
+          "values",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "RecordTemplatePreview": {
+        "type": "object",
+        "properties": {
+          "template": {
+            "$ref": "#/components/schemas/RecordTemplate"
+          },
+          "values": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "The values that still hold: send them (with what the user adds) as the body of the subject's create route, which validates and authorizes them as any create."
+          },
+          "dropped": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string",
+                  "enum": [
+                    "unknown",
+                    "invalid",
+                    "forbidden"
+                  ]
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field",
+                "reason",
+                "message"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Values left out because the schema or your permissions changed since: `unknown` (no longer a create field), `invalid` (the schema refuses it now), `forbidden` (you may not set that field)."
+          }
+        },
+        "required": [
+          "template",
+          "values",
+          "dropped"
+        ],
+        "additionalProperties": false
+      },
+      "ChoiceSets": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChoiceSet"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "ChoiceSet": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "unit-member"
+          },
+          "label": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "member"
+                },
+                "provider": {
+                  "type": "string",
+                  "example": "unit-members"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "dependsOn": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "The fields whose values this one’s choices depend on: ask for its options with `parent.<field>=<value>` for each. When one changes, drop this field’s value and ignore answers still in flight."
+                }
+              },
+              "required": [
+                "name",
+                "provider",
+                "label",
+                "dependsOn"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Parents before the fields that depend on them. Only the fields whose provider you may use."
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "fields"
+        ],
+        "additionalProperties": false
+      },
+      "ChoiceOptions": {
+        "type": "object",
+        "properties": {
+          "set": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string"
+          },
+          "parents": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The parent values this answer is for, echoed: show it only while they are still the form’s (an answer for an earlier parent is stale)."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "description": "What the form stores and the server checks."
+                },
+                "label": {
+                  "type": "string",
+                  "description": "For display only: never sent back or trusted."
+                }
+              },
+              "required": [
+                "value",
+                "label"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "hasMore": {
+            "type": "boolean",
+            "description": "More match: narrow with `q` (answers hold at most `limit`)."
+          }
+        },
+        "required": [
+          "set",
+          "field",
+          "parents",
+          "items",
+          "hasMore"
         ],
         "additionalProperties": false
       },

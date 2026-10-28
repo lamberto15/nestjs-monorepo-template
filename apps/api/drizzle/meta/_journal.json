@@ -603,6 +603,13 @@
       "when": 1793220105019,
       "tag": "0085_first_molecule_man",
       "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1793224139643,
+      "tag": "0086_tan_namorita",
+      "breakpoints": true
     }
   ]
 }

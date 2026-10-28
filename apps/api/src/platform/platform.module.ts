@@ -234,6 +234,13 @@ import { ImportMappingsController } from './data-transfer/import-mappings.contro
 import { ImportMappingsService } from './data-transfer/import-mappings.service.js';
 import { FavoritesController } from './favorites/favorites.controller.js';
 import { FavoritesService } from './favorites/favorites.service.js';
+import { ChoicesBuiltins } from './choices/choices.builtins.js';
+import { ChoicesController } from './choices/choices.controller.js';
+import { ChoicesRegistry } from './choices/choices.registry.js';
+import { ChoicesService } from './choices/choices.service.js';
+import { TemplatesController } from './templates/templates.controller.js';
+import { TemplatesRegistry } from './templates/templates.registry.js';
+import { TemplatesService } from './templates/templates.service.js';
 import { ViewsController } from './views/views.controller.js';
 import { ViewsService } from './views/views.service.js';
 import { ReportRunnerJob } from './reports/report-runner.job.js';
@@ -502,6 +509,8 @@ export class PlatformModule {
         TagsController,
         NamingSeriesController,
         ViewsController,
+        TemplatesController,
+        ChoicesController,
         FavoritesController,
         ImportMappingsController,
         RetentionController,
@@ -762,6 +771,13 @@ export class PlatformModule {
         TagsService,
         // Saved views: a list's filters, sort and columns under a name (private, unit, tenant).
         ViewsService,
+        // Record templates: values to prefill a create, checked again at preview (private, unit, tenant).
+        TemplatesRegistry,
+        TemplatesService,
+        // Dependent dropdowns: server-registered choice providers and the sets that chain them.
+        ChoicesRegistry,
+        ChoicesService,
+        ChoicesBuiltins,
         // Favorites: a person's pinned records, pages and saved views, in their order.
         FavoritesService,
         // Saved column mappings of an import (docs/data-transfer.md).
@@ -865,6 +881,8 @@ export class PlatformModule {
         AttachmentUploadsService,
         AttachmentVersionsService,
         AcknowledgmentsService,
+        // A record's templates register here (record-parts.ts).
+        TemplatesRegistry,
         DocumentsRegistry,
         DocumentsService,
         AiRegistry,
