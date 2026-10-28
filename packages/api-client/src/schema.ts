@@ -404,6 +404,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/webhook-incoming-event-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The event types a sender may send in, with their data schemas
+         * @description Incoming events only; the events an endpoint receives are `GET /v1/webhook-event-types`. Generated from the registered handlers, so it matches what the receiver validates. A listed type is not a permission. A type not listed is acknowledged and ignored (`handled: false`).
+         */
+        get: operations["IncomingEventTypesController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/webhooks/tenants/{tenantId}/senders/{name}": {
         parameters: {
             query?: never;
@@ -4809,6 +4829,24 @@ export interface components {
             /** @description The `whsec_…` signing secret (Standard Webhooks). Shown this once. */
             secret: string;
         };
+        IncomingWebhookEventTypes: {
+            items: {
+                /** @example note.publish-requested */
+                type: string;
+                description: string;
+                /** @description JSON Schema of the envelope's `data`. */
+                dataSchema: {
+                    [key: string]: unknown;
+                };
+                /** @description A complete, safe request body. */
+                example: {
+                    type: string;
+                    data: unknown;
+                };
+                /** @description Deduplication and acknowledgement semantics. */
+                delivery: string;
+            }[];
+        };
         IncomingWebhookResult: {
             /** @enum {boolean} */
             received: true;
@@ -7322,6 +7360,39 @@ export interface operations {
                 content?: never;
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    IncomingEventTypesController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncomingWebhookEventTypes"];
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
