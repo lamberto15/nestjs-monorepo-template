@@ -84,8 +84,8 @@
     "why": "keep: advisory locks"
   },
   "apps/api/src/platform/ops/outbox-metrics.reader.ts": {
-    "count": 2,
-    "why": "keep: SET LOCAL and one bounded aggregate over the package's nest_outbox tables (count, min(CASE) matching the relay's rule)"
+    "count": 3,
+    "why": "keep: SET LOCAL (twice: the stats and the per-topic counts, each its own read-only transaction) and one bounded aggregate over the package's nest_outbox tables (count, min(CASE) matching the relay's rule)"
   },
   "apps/api/src/platform/records/record.ts": {
     "count": 1,
