@@ -43,6 +43,7 @@ import { jobStatusFilter } from '../queues/job-status.js';
 import { startedSchema, statusSchema } from './data-transfer.schemas.js';
 import { TRANSFER_FORMATS } from './data-transfer.types.js';
 import { CONTENT_TYPES, formatOf } from './formats.js';
+import { importMappingSchema } from './import-mappings.schemas.js';
 import { ImportUpload } from './import-upload.interceptor.js';
 
 const exportSchema = z.object({
@@ -83,6 +84,12 @@ const importFieldsSchema = z.object({
     .max(80)
     .optional()
     .describe('Update existing rows by this declared match key.'),
+  mapping: z
+    .string()
+    .optional()
+    .describe(
+      'A JSON object: the file\'s headers to the template\'s columns (`{"Surname": "lastName", "Notes": null}`; null ignores a column). Checked as a saved mapping is; the import then runs as usual (`dryRun` included). A date-time target takes the file\'s zone: `"dueAt (Asia/Dubai)"`.',
+    ),
   dryRun: z
     .enum(['true', 'false'])
     .default('false')
@@ -259,8 +266,28 @@ export class DataTransferController {
       format,
       dryRun: body.dryRun,
       matchOn: body.matchOn,
+      mapping: await this.parseMapping(body.mapping, file.key),
       limits: request.importLimits,
     });
+  }
+
+  /** The `mapping` field (a JSON object), or a 400; the upload goes with a refused one. */
+  private async parseMapping(raw: string | undefined, key: string) {
+    if (raw === undefined || raw === '') return undefined;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = undefined;
+    }
+    const mapping = importMappingSchema.safeParse(parsed);
+    if (!mapping.success) {
+      await this.disk.delete(key).catch(() => undefined);
+      throw new BadRequestException(
+        'The mapping is a JSON object: file header to template column, or null to ignore it.',
+      );
+    }
+    return mapping.data;
   }
 
   @Get('imports/:name/template')
