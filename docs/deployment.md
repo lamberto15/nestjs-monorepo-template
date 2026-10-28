@@ -1546,8 +1546,8 @@ is not tied to one hosted vendor:
 - **`OTEL_EXPORTER_OTLP_ENDPOINT`** (and `OTEL_EXPORTER_OTLP_HEADERS` for the
   collector's credential, e.g. `x-honeycomb-team=KEY`): OpenTelemetry through
   `@opentelemetry/sdk-node`. Traces and metrics go over OTLP/HTTP to any
-  collector (Grafana Tempo, Jaeger, Honeycomb, Datadog): spans for HTTP,
-  Express, PostgreSQL and Redis (the commands of a request), and runtime
+  collector (Grafana Tempo, Jaeger, Honeycomb, Datadog): spans for HTTP
+  (named after the matched route), PostgreSQL and Redis (the commands of a request), and runtime
   metrics. The SDK reads the standard `OTEL_*` variables too
   (`OTEL_SERVICE_NAME`, defaulting to `SERVICE_NAME`; `OTEL_TRACES_SAMPLER`,
   …).
@@ -1557,16 +1557,19 @@ is not tied to one hosted vendor:
   is set.
 
 `main.ts` awaits `core/observability/instrument.ts` (after the development
-settings) before it loads anything else: the SDKs patch `http`, Express and
+settings) before it loads anything else: the SDKs patch `http` and
 the database and Redis clients as they load, so they start first. The app's
 modules are imported with `await import()` after it, not as static imports
 below it: a module's top-level `await` holds back only the modules that
-import it, so static imports would load Nest, Express and `pg` while the SDKs
+import it, so static imports would load Nest and `pg` while the SDKs
 were still starting, and nothing would be traced. The packages are imported
 only when their variable is set. Libraries loaded through `require` or a CJS
-`import` (Express, `pg`, `ioredis`) are instrumented. NestJS's own
+`import` (`pg`, `ioredis`) are instrumented. NestJS's own
 instrumentation (`@opentelemetry/instrumentation-nestjs-core`) does not
-support Nest 12 yet, so there are no spans of controllers and providers.
+support Nest 12 yet, so there are no spans of controllers and providers;
+Nest's native HTTP adapter has no instrumentation either, so
+`core/http/route-key.ts` names each server span after the matched route
+(`GET /v1/notes/:id`, `http.route`).
 
 The SDKs start before the environment is validated, so they read their `_FILE`
 secrets themselves (`SENTRY_DSN_FILE`, `OTEL_EXPORTER_OTLP_HEADERS_FILE`,
@@ -1626,7 +1629,8 @@ by the validation, which stops the app.
   own (`node apps/api/test/telemetry-stub.mjs boot`, with `DATABASE_URL`,
   `DATABASE_OWNER_URL`, `DATABASE_MAINTENANCE_URL` and `REDIS_URL` set, as for
   the browser tests): the credentials are `_FILE` secrets, and it fails unless
-  the request it sent was traced (HTTP, Express and `pg` spans) with the
+  the request it sent was traced (HTTP spans named after their route, and
+  `pg` spans) with the
   secrets of its query string masked. Locally, run the stub
   (`node apps/api/test/telemetry-stub.mjs serve`) or Jaeger
   (`jaegertracing/all-in-one`, OTLP on 4318) and point the variables at it.
