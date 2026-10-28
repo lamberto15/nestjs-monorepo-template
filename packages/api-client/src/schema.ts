@@ -2246,6 +2246,204 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/calendars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The tenant's business calendars, by name
+         * @description At most 50 per tenant, so one list (no pages).
+         */
+        get: operations["CalendarsController_list_v1"];
+        put?: never;
+        /**
+         * Create a business calendar
+         * @description Hours per weekday and exceptions (a holiday: no `hours`; special hours), in an IANA `timezone`. Audited (`businessCalendar.created`).
+         */
+        post: operations["CalendarsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/calendars/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A business calendar */
+        get: operations["CalendarsController_findOne_v1"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a business calendar
+         * @description Audited (`businessCalendar.deleted`).
+         */
+        delete: operations["CalendarsController_remove_v1"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a business calendar
+         * @description Only what is sent changes; hours and exceptions are replaced whole. A change of hours, zone or exceptions raises `version`. Deadlines already computed are not recomputed: ask again. Audited (`businessCalendar.updated`).
+         */
+        patch: operations["CalendarsController_update_v1"];
+        trace?: never;
+    };
+    "/v1/calendars/{id}/deadline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A deadline in working time
+         * @description `minutes` of working time after `from`, skipping nights, weekends and exceptions in the calendar's zone (daylight-saving changes followed); 0 minutes: the first working moment at or after `from`. Returns the calendar `version` to store beside the deadline.
+         */
+        post: operations["CalendarsController_deadline_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/record-schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your recurring record schedules
+         * @description `?status=active`, `?importer=notes`, `?name.contains=`, `?sort=nextRunAt`; newest first; cursor pages.
+         */
+        get: operations["RecordSchedulesController_list_v1"];
+        put?: never;
+        /**
+         * Schedule recurring records
+         * @description Creates the `template` (one row of an importer, as a file import takes it) as you at every occurrence of `rrule` from `startDate` at `time` in `timezone`, optionally moved into a business calendar's working time. Each occurrence makes one record, however often it is retried. Missed occurrences (downtime) are made up, oldest first, a few per pass; pausing skips a period. At most 20 active schedules, 1000 records each. Audited (`recordSchedule.created`).
+         */
+        post: operations["RecordSchedulesController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/record-schedules/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview the next occurrences
+         * @description The next moments (up to 20) a schedule with this rule, start, time, zone and calendar would create records, from now. Nothing is saved.
+         */
+        post: operations["RecordSchedulesController_preview_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/record-schedules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One of your recurring record schedules */
+        get: operations["RecordSchedulesController_get_v1"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a recurring record schedule
+         * @description Audited (`recordSchedule.deleted`). The records it made stay.
+         */
+        delete: operations["RecordSchedulesController_remove_v1"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a recurring record schedule
+         * @description Only what is sent changes; an active schedule's next run is computed again from now when its rule, start, time, zone or calendar changes. Audited (`recordSchedule.updated`).
+         */
+        patch: operations["RecordSchedulesController_update_v1"];
+        trace?: never;
+    };
+    "/v1/record-schedules/{id}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pause a schedule
+         * @description No records are created until it is resumed, and the occurrences in between are not made up.
+         */
+        post: operations["RecordSchedulesController_pause_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/record-schedules/{id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume a paused schedule
+         * @description Continues at the first occurrence after now.
+         */
+        post: operations["RecordSchedulesController_resume_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/record-schedules/{id}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End a schedule for good
+         * @description The records it made stay. It cannot be resumed.
+         */
+        post: operations["RecordSchedulesController_end_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/views": {
         parameters: {
             query?: never;
@@ -2542,77 +2740,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/forms": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Forms
-         * @description Editors (and those who read responses) see every form; whoever may read or submit, the published, active ones. `?status=`, `?slug=`, `?name.contains=`; cursor pages.
-         */
-        get: operations["FormsController_list_v1"];
-        put?: never;
-        /**
-         * Create a form
-         * @description A draft (revision 1), with no sections unless `definition` is sent. Audited (`form.created`).
-         */
-        post: operations["FormsController_create_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/forms/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** One form (without its definition) */
-        get: operations["FormsController_get_v1"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete a form never published
-         * @description Audited (`form.deleted`). A published form is archived.
-         */
-        delete: operations["FormsController_remove_v1"];
-        options?: never;
-        head?: never;
-        /**
-         * Change a form's name, slug or description
-         * @description Not versioned: they apply at once. Audited (`form.updated`, from and to).
-         */
-        patch: operations["FormsController_update_v1"];
-        trace?: never;
-    };
-    "/v1/forms/{id}/draft": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** A form's draft and its revision */
-        get: operations["FormsController_draft_v1"];
-        /**
-         * Replace a form's draft
-         * @description With the `revision` you edited; the answer carries the next one. Checked as a publication is. Published versions never change. Audited (`form.draft-saved`, without the definition).
-         */
-        put: operations["FormsController_saveDraft_v1"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/forms/{id}/publish": {
+    "/v1/shared/open": {
         parameters: {
             query?: never;
             header?: never;
@@ -2622,17 +2750,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Publish the draft as the next version
-         * @description The draft of `revision` becomes version 1, 2, 3…, an immutable snapshot that new submissions answer; earlier submissions keep theirs. Audited (`form.published`).
+         * Open a shared link
+         * @description No sign-in. The record's shared fields, as its maker may read them now, and its files when the link shares them. A link to a recipient needs `code` (POST /v1/shared/code mails one). Audited `share.opened`.
          */
-        post: operations["FormsController_publish_v1"];
+        post: operations["SharedController_open_v1"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/forms/{id}/archive": {
+    "/v1/shared/code": {
         parameters: {
             query?: never;
             header?: never;
@@ -2642,17 +2770,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Archive a form
-         * @description It takes no more submissions and submitters no longer see it; its versions and submissions stay. Audited (`form.archived`).
+         * Mail a code to a shared link's recipient
+         * @description The code opens the link for 10 minutes, 5 tries; a new one replaces it. The same answer whether or not the link has a recipient.
          */
-        post: operations["FormsController_archive_v1"];
+        post: operations["SharedController_code_v1"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/forms/{id}/unarchive": {
+    "/v1/shared/files/{attachmentId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2662,111 +2790,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Unarchive a form
-         * @description Audited (`form.unarchived`).
+         * A shared record's file
+         * @description A signed link to one of the files the link lists, valid for 5 minutes, handed out only while the link works. Audited `share.opened` with the file.
          */
-        post: operations["FormsController_unarchive_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/forms/{id}/published": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The version to fill in now
-         * @description Its definition and `versionId`, which a submission sends back. 404 while the form is unpublished or archived.
-         */
-        get: operations["FormsController_published_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/forms/{id}/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** A form's published versions, newest first */
-        get: operations["FormsController_versions_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/forms/{id}/versions/{version}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * One published version, with its definition
-         * @description What the submissions of that version answered.
-         */
-        get: operations["FormsController_version_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/forms/{formId}/submissions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * A form's submissions
-         * @description Everyone's with `Form.readResponses`, else your own (`Form.submit`). `?versionId=`, `?submittedBy=`, `?createdAt.gte=`; newest first, cursor pages. Never filtered by answers.
-         */
-        get: operations["FormSubmissionsController_list_v1"];
-        put?: never;
-        /**
-         * Submit answers
-         * @description Checked on the server against the published version `versionId` names, never against what the client shows: only that version's keys, each of its type and limits, required ones present; text trimmed, defaults filled in. Stored with that version for good. Audited (`form.submitted`, never the answers). 30 a minute per user.
-         */
-        post: operations["FormSubmissionsController_submit_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/forms/{formId}/submissions/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * One submission, with its answers
-         * @description Its `version`: read that definition at GET /forms/{formId}/versions/{version}.
-         */
-        get: operations["FormSubmissionsController_get_v1"];
-        put?: never;
-        post?: never;
+        post: operations["SharedController_file_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5700,6 +5727,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notes/{id}/shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A note's links, newest first
+         * @description Revoked and expired ones too (`active: false`); never their tokens.
+         */
+        get: operations["NoteSharesController_list_v1"];
+        put?: never;
+        /**
+         * Share a note by a read-only link
+         * @description A link that shows the chosen fields (and the files, with `files`) to whoever holds it, or only to `recipientEmail` with a mailed code, until `expiresAt` (within 30 days) or until revoked. Only a person (not an API client, not while impersonating), and only fields you may read; it never shows more than you still may when it is opened. The token is in this answer only. At most 20 working links per note. Audited `share.created`.
+         */
+        post: operations["NoteSharesController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/shares/{shareId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke a link
+         * @description It stops opening at once; a file link it gave ends within 5 minutes. Its maker, or whoever may share the note. Audited `share.revoked`.
+         */
+        delete: operations["NoteSharesController_revoke_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -6045,6 +6116,118 @@ export interface components {
              * @example INV-2026-10-00043
              */
             next: string;
+        };
+        BusinessCalendarList: {
+            items: components["schemas"]["BusinessCalendar"][];
+        };
+        BusinessCalendar: {
+            /** Format: uuid */
+            id: string;
+            /** @example Support desk */
+            name: string;
+            /** @example Europe/Berlin */
+            timezone: string;
+            /** @description The spans worked each weekday, in `timezone`; a weekday with none is closed. A span ends by 24:00 and does not cross midnight: split it over two days. */
+            hours: {
+                /** @example 09:00 */
+                start: string;
+                /** @example 17:00 */
+                end: string;
+                /** @description 0 Sunday … 6 Saturday. */
+                weekday: number;
+            }[];
+            exceptions: components["schemas"]["CalendarException"][];
+            /** @description Starts at 1; +1 whenever the hours, the zone or the exceptions change. Deadlines already computed keep their value: compare the version they carry. */
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CalendarException: {
+            /**
+             * Format: date
+             * @description A date in the calendar's zone.
+             * @example 2026-12-25
+             */
+            date: string;
+            /** @example Christmas Day */
+            name: string;
+            /** @description Special hours that day; left out: closed all day. */
+            hours?: {
+                /** @example 09:00 */
+                start: string;
+                /** @example 17:00 */
+                end: string;
+            }[];
+        };
+        CalendarDeadline: {
+            /** Format: date-time */
+            due: string;
+            /** @description The calendar version it was computed with: store it with the deadline. */
+            calendarVersion: number;
+        };
+        RecordSchedule: {
+            /** Format: uuid */
+            id: string;
+            /** @example Weekly review */
+            name: string;
+            /** @example notes */
+            importer: string;
+            /**
+             * @description One row of the importer, as its file import takes it (`GET /v1/data/imports/{name}/template` lists the columns); checked on create and again at every occurrence, as the owner. The same values are used each time.
+             * @example {
+             *       "title": "Weekly review",
+             *       "body": "Check the board."
+             *     }
+             */
+            template: {
+                [key: string]: unknown;
+            };
+            /**
+             * @description An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.
+             * @example FREQ=WEEKLY;BYDAY=MO;COUNT=26
+             */
+            rrule: string;
+            /**
+             * Format: date
+             * @description The first date that may occur, in the schedule's zone.
+             * @example 2026-11-02
+             */
+            startDate: string;
+            /**
+             * @description Time of day of each occurrence, in the schedule's zone.
+             * @example 08:30
+             */
+            time: string;
+            /** @example Europe/Berlin */
+            timezone: string;
+            /** Format: uuid */
+            calendarId: string | null;
+            /** @enum {string} */
+            status: "active" | "paused" | "ended";
+            /** @description `completed`, `ended` (by its owner), `owner_inactive`, `import_not_allowed`, `template_invalid`. */
+            endReason: string | null;
+            /** @description Occurrences handled: created, or skipped after failing for good. */
+            occurrences: number;
+            maxOccurrences: number | null;
+            /** @description Failed attempts at the occurrence due now (3 skip it). */
+            failures: number;
+            lastError: string | null;
+            /** Format: date-time */
+            lastRunAt: string | null;
+            /** @enum {string|null} */
+            lastStatus: "created" | "failed" | null;
+            /** Format: date-time */
+            nextRunAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        RecordSchedulePreview: {
+            /** @description The next moments records would be created, from now. */
+            occurrences: string[];
         };
         SavedViewPage: {
             items: components["schemas"]["SavedView"][];
@@ -6627,6 +6810,69 @@ export interface components {
             attachmentId: string | null;
             /** @description Why it failed, written for people. */
             error: string | null;
+        };
+        ShareList: {
+            items: components["schemas"]["Share"][];
+        };
+        Share: {
+            id: string;
+            /** @example Note */
+            subject: string;
+            recordId: string;
+            /**
+             * @example [
+             *       "title",
+             *       "body"
+             *     ]
+             */
+            fields: string[];
+            files: boolean;
+            /** @description Set: the link opens only with a code mailed to this address. */
+            recipientEmail: string | null;
+            /** @description `user:<id>` of who made it. */
+            createdBy: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            revokedAt: string | null;
+            active: boolean;
+            views: number;
+            /** Format: date-time */
+            lastViewedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CreatedShare: {
+            id: string;
+            /** @example Note */
+            subject: string;
+            recordId: string;
+            /**
+             * @example [
+             *       "title",
+             *       "body"
+             *     ]
+             */
+            fields: string[];
+            files: boolean;
+            /** @description Set: the link opens only with a code mailed to this address. */
+            recipientEmail: string | null;
+            /** @description `user:<id>` of who made it. */
+            createdBy: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            revokedAt: string | null;
+            active: boolean;
+            views: number;
+            /** Format: date-time */
+            lastViewedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description Shown once: only its hash is kept. */
+            token: string;
+            /** @description The web app's page that opens it: `<WEB_URL>/shared#<token>`. */
+            url: string;
         };
         RealtimeNotificationEvent: {
             /** Format: uuid */
@@ -14303,6 +14549,8 @@ export interface operations {
                             events: boolean;
                             /** @description A human-readable number (`number`, `INV-2026-00042`). */
                             numbered: boolean;
+                            /** @description Read-only links to a record (`…/{id}/shares`), opened without a sign-in (POST /v1/shared/open). */
+                            share: boolean;
                             /** @description An action on the records may need approval (GET /v1/approvals). */
                             approvals: boolean;
                         };
@@ -16130,6 +16378,839 @@ export interface operations {
             };
         };
     };
+    CalendarsController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessCalendarList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarsController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    /** @example Europe/Berlin */
+                    timezone: string;
+                    /** @description The spans worked each weekday, in `timezone`; a weekday with none is closed. A span ends by 24:00 and does not cross midnight: split it over two days. */
+                    hours: {
+                        /** @example 09:00 */
+                        start: string;
+                        /** @example 17:00 */
+                        end: string;
+                        /** @description 0 Sunday … 6 Saturday. */
+                        weekday: number;
+                    }[];
+                    /** @default [] */
+                    exceptions?: components["schemas"]["CalendarException"][];
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessCalendar"];
+                };
+            };
+            /** @description An unknown time zone, a bad or overlapping span, a date twice, more than 50 calendars (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A calendar has this name. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarsController_findOne_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessCalendar"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A recurring schedule still follows it. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarsController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name?: string;
+                    /** @example Europe/Berlin */
+                    timezone?: string;
+                    /** @description The spans worked each weekday, in `timezone`; a weekday with none is closed. A span ends by 24:00 and does not cross midnight: split it over two days. */
+                    hours?: {
+                        /** @example 09:00 */
+                        start: string;
+                        /** @example 17:00 */
+                        end: string;
+                        /** @description 0 Sunday … 6 Saturday. */
+                        weekday: number;
+                    }[];
+                    exceptions?: components["schemas"]["CalendarException"][];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessCalendar"];
+                };
+            };
+            /** @description An invalid body (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A calendar has this name. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarsController_deadline_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: date-time
+                     * @example 2026-10-23T14:00:00Z
+                     */
+                    from: string;
+                    /**
+                     * @description Working minutes to add; 0: the first working moment at or after `from`.
+                     * @example 480
+                     */
+                    minutes: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarDeadline"];
+                };
+            };
+            /** @description The calendar has no working time in the next ten years (calendar_has_no_working_time). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_list_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: importer = */
+                importer?: string;
+                /** @description Filter: importer in */
+                "importer.in"?: string;
+                /** @description Filter: status = */
+                status?: string;
+                /** @description Filter: status in */
+                "status.in"?: string;
+                /** @description Filter: name = */
+                name?: string;
+                /** @description Filter: name contains */
+                "name.contains"?: string;
+                /** @description Filter: nextRunAt gte */
+                "nextRunAt.gte"?: string;
+                /** @description Filter: nextRunAt lt */
+                "nextRunAt.lt"?: string;
+                /** @description Filter: nextRunAt between */
+                "nextRunAt.between"?: string;
+                /** @description Filter: createdAt gt */
+                "createdAt.gt"?: string;
+                /** @description Filter: createdAt gte */
+                "createdAt.gte"?: string;
+                /** @description Filter: createdAt lt */
+                "createdAt.lt"?: string;
+                /** @description Filter: createdAt lte */
+                "createdAt.lte"?: string;
+                /** @description Filter: createdAt between */
+                "createdAt.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"importer","op":"eq","value":…},{…}]}. Fields and operators: importer (eq, in); status (eq, in); name (eq, contains); nextRunAt (gte, lt, between); createdAt (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, nextRunAt, createdAt. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: name,importer. Fields: id, name, importer, template, rrule, startDate, time, timezone, calendarId, status, endReason, occurrences, maxOccurrences, failures, lastError, lastRunAt, lastStatus, nextRunAt, createdAt, updatedAt. */
+                fields?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["RecordSchedule"][];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example Weekly review */
+                    name: string;
+                    /**
+                     * @description The importer whose rows are created (`GET /v1/data`).
+                     * @example notes
+                     */
+                    importer: string;
+                    /**
+                     * @description One row of the importer, as its file import takes it (`GET /v1/data/imports/{name}/template` lists the columns); checked on create and again at every occurrence, as the owner. The same values are used each time.
+                     * @example {
+                     *       "title": "Weekly review",
+                     *       "body": "Check the board."
+                     *     }
+                     */
+                    template: {
+                        [key: string]: unknown;
+                    };
+                    /**
+                     * @description An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.
+                     * @example FREQ=WEEKLY;BYDAY=MO;COUNT=26
+                     */
+                    rrule: string;
+                    /**
+                     * Format: date
+                     * @description The first date that may occur, in the schedule's zone.
+                     * @example 2026-11-02
+                     */
+                    startDate: string;
+                    /**
+                     * @description Time of day of each occurrence, in the schedule's zone.
+                     * @example 08:30
+                     */
+                    time: string;
+                    /**
+                     * @description Default: your own time zone, else the server's (APP_TIMEZONE).
+                     * @example Europe/Berlin
+                     */
+                    timezone?: string;
+                    /**
+                     * Format: uuid
+                     * @description A business calendar (`GET /v1/calendars`): an occurrence outside its working time moves to its next working moment; occurrences that land on the same moment make one record.
+                     */
+                    calendarId?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedule"];
+                };
+            };
+            /** @description An import you may not run (`importer`), a template it refuses (`template.<field>`), a bad rule, time zone or calendar, no occurrence to come, more than 20 active schedules (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The template sets a field your permissions hide (field_forbidden), or the session is impersonating a user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_preview_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.
+                     * @example FREQ=WEEKLY;BYDAY=MO;COUNT=26
+                     */
+                    rrule: string;
+                    /**
+                     * Format: date
+                     * @description The first date that may occur, in the schedule's zone.
+                     * @example 2026-11-02
+                     */
+                    startDate: string;
+                    /**
+                     * @description Time of day of each occurrence, in the schedule's zone.
+                     * @example 08:30
+                     */
+                    time: string;
+                    /** @example Europe/Berlin */
+                    timezone?: string;
+                    /**
+                     * Format: uuid
+                     * @description A business calendar (`GET /v1/calendars`): an occurrence outside its working time moves to its next working moment; occurrences that land on the same moment make one record.
+                     */
+                    calendarId?: string;
+                    /** @default 5 */
+                    count?: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedulePreview"];
+                };
+            };
+            /** @description An import you may not run (`importer`), a template it refuses (`template.<field>`), a bad rule, time zone or calendar, no occurrence to come, more than 20 active schedules (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_get_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedule"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example Weekly review */
+                    name?: string;
+                    /**
+                     * @description One row of the importer, as its file import takes it (`GET /v1/data/imports/{name}/template` lists the columns); checked on create and again at every occurrence, as the owner. The same values are used each time.
+                     * @example {
+                     *       "title": "Weekly review",
+                     *       "body": "Check the board."
+                     *     }
+                     */
+                    template?: {
+                        [key: string]: unknown;
+                    };
+                    /**
+                     * @description An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.
+                     * @example FREQ=WEEKLY;BYDAY=MO;COUNT=26
+                     */
+                    rrule?: string;
+                    /**
+                     * Format: date
+                     * @description The first date that may occur, in the schedule's zone.
+                     * @example 2026-11-02
+                     */
+                    startDate?: string;
+                    /**
+                     * @description Time of day of each occurrence, in the schedule's zone.
+                     * @example 08:30
+                     */
+                    time?: string;
+                    /** @example Europe/Berlin */
+                    timezone?: string;
+                    /**
+                     * Format: uuid
+                     * @description A business calendar (`GET /v1/calendars`): an occurrence outside its working time moves to its next working moment; occurrences that land on the same moment make one record.
+                     */
+                    calendarId?: string | null;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedule"];
+                };
+            };
+            /** @description An import you may not run (`importer`), a template it refuses (`template.<field>`), a bad rule, time zone or calendar, no occurrence to come, more than 20 active schedules (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The schedule has ended. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_pause_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedule"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The schedule has ended. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_resume_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedule"];
+                };
+            };
+            /** @description More than 20 active schedules. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The schedule has ended. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_end_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedule"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     ViewsController_list_v1: {
         parameters: {
             query?: {
@@ -17246,322 +18327,23 @@ export interface operations {
             };
         };
     };
-    FormsController_list_v1: {
-        parameters: {
-            query?: {
-                limit?: number;
-                /** @description `nextCursor` of the previous page (the same `sort`). */
-                cursor?: string;
-                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
-                page?: number;
-                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
-                count?: "true" | "false";
-                lang?: string;
-                /** @description Filter: slug = */
-                slug?: string;
-                /** @description Filter: slug in */
-                "slug.in"?: string;
-                /** @description Filter: status = */
-                status?: "active" | "archived";
-                /** @description Filter: status in */
-                "status.in"?: string;
-                /** @description Filter: name = */
-                name?: string;
-                /** @description Filter: name contains */
-                "name.contains"?: string;
-                /** @description Filter: createdAt gt */
-                "createdAt.gt"?: string;
-                /** @description Filter: createdAt gte */
-                "createdAt.gte"?: string;
-                /** @description Filter: createdAt lt */
-                "createdAt.lt"?: string;
-                /** @description Filter: createdAt lte */
-                "createdAt.lte"?: string;
-                /** @description Filter: createdAt between */
-                "createdAt.between"?: string;
-                /** @description Filter: updatedAt gt */
-                "updatedAt.gt"?: string;
-                /** @description Filter: updatedAt gte */
-                "updatedAt.gte"?: string;
-                /** @description Filter: updatedAt lt */
-                "updatedAt.lt"?: string;
-                /** @description Filter: updatedAt lte */
-                "updatedAt.lte"?: string;
-                /** @description Filter: updatedAt between */
-                "updatedAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"slug","op":"eq","value":…},{…}]}. Fields and operators: slug (eq, in); status (eq, in); name (eq, contains); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
-                filter?: string;
-                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, createdAt, updatedAt. */
-                sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: slug,name. Fields: id, slug, name, description, status, revision, publishedVersion, hasDraftChanges, createdAt, updatedAt. */
-                fields?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: {
-                            /** Format: uuid */
-                            id: string;
-                            slug: string;
-                            name: string;
-                            description: string | null;
-                            /** @enum {string} */
-                            status: "active" | "archived";
-                            revision: number;
-                            /** @description The version submitters fill in; null until published. */
-                            publishedVersion: number | null;
-                            /** @description Editors only: the draft differs from the published version. */
-                            hasDraftChanges?: boolean;
-                            /** Format: date-time */
-                            createdAt: string;
-                            /** Format: date-time */
-                            updatedAt: string;
-                        }[];
-                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
-                        nextCursor: string | null;
-                        /** @description With `page`: this page. */
-                        page?: number;
-                        /** @description With `page`: the next page; null: no more. */
-                        nextPage?: number | null;
-                        /** @description With `page` and `count=true`: ceil(total / limit). */
-                        pageCount?: number;
-                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
-                        total?: number;
-                        /** @description true: there are more than `total` (show "10,000+"). */
-                        totalCapped?: boolean;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Also while the `forms.enabled` flag is off for you. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    FormsController_create_v1: {
+    SharedController_open_v1: {
         parameters: {
             query?: never;
-            header?: {
-                /**
-                 * @description A unique key per operation (a UUID), 1 to 255 printable ASCII characters. Send the same key on every retry of the same request: it runs once, and retries get its response (with Idempotent-Replayed: true). Kept for 24 hours.
-                 *
-                 *     In Swagger UI, leave `generate` to send a new key on every Execute, or type your own key and Execute twice to see a retry replayed.
-                 */
-                "Idempotency-Key"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
                 "application/json": {
-                    /** @example incident-report */
-                    slug: string;
-                    /** @example Incident report */
-                    name: string;
-                    description?: string;
-                    /**
-                     * @description The first draft; default: no sections.
-                     * @example {
-                     *       "format": 1,
-                     *       "sections": [
-                     *         {
-                     *           "key": "contact",
-                     *           "title": "Contact",
-                     *           "fields": [
-                     *             {
-                     *               "key": "full_name",
-                     *               "type": "text",
-                     *               "label": "Name",
-                     *               "required": true
-                     *             },
-                     *             {
-                     *               "key": "topic",
-                     *               "type": "select",
-                     *               "label": "Topic",
-                     *               "options": [
-                     *                 {
-                     *                   "value": "billing",
-                     *                   "label": "Billing"
-                     *                 },
-                     *                 {
-                     *                   "value": "other",
-                     *                   "label": "Something else"
-                     *                 }
-                     *               ]
-                     *             }
-                     *           ]
-                     *         }
-                     *       ]
-                     *     }
-                     */
-                    definition?: {
-                        /**
-                         * @description The descriptor format: 1.
-                         * @default 1
-                         * @enum {number}
-                         */
-                        format?: 1;
-                        sections: {
-                            key: string;
-                            title?: string;
-                            description?: string;
-                            fields: {
-                                /** @description The answer's key: unique in the form, and once published its type never changes. */
-                                key: string;
-                                /** @enum {string} */
-                                type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
-                                label: string;
-                                help?: string;
-                                placeholder?: string;
-                                /** @description A checkbox that is required must be checked (a consent). */
-                                required?: boolean;
-                                /** @description Used when the answer is left out: of the field's type. */
-                                default?: unknown;
-                                /** @description The choices of select, multiSelect and radio. */
-                                options?: {
-                                    /** @description Stored in the answer. */
-                                    value: string;
-                                    label: string;
-                                    translations?: {
-                                        [key: string]: {
-                                            label?: string;
-                                        };
-                                    };
-                                }[];
-                                validation?: {
-                                    minLength?: number;
-                                    maxLength?: number;
-                                    /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
-                                    pattern?: string;
-                                    min?: number;
-                                    max?: number;
-                                    decimals?: number;
-                                    /** Format: date */
-                                    minDate?: string;
-                                    /** Format: date */
-                                    maxDate?: string;
-                                    minItems?: number;
-                                    maxItems?: number;
-                                };
-                                translations?: {
-                                    [key: string]: {
-                                        label?: string;
-                                        help?: string;
-                                        placeholder?: string;
-                                    };
-                                };
-                            }[];
-                            translations?: {
-                                [key: string]: {
-                                    title?: string;
-                                    description?: string;
-                                };
-                            };
-                        }[];
-                    };
+                    /** @description The link's token: the part of the link after `#`. Sent in the body, never in a URL, so no log or `Referer` carries it. */
+                    token: string;
+                    /** @description The code mailed to the recipient, for a link that has one. */
+                    code?: string;
                 };
             };
         };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        slug: string;
-                        name: string;
-                        description: string | null;
-                        /** @enum {string} */
-                        status: "active" | "archived";
-                        revision: number;
-                        /** @description The version submitters fill in; null until published. */
-                        publishedVersion: number | null;
-                        /** @description Editors only: the draft differs from the published version. */
-                        hasDraftChanges?: boolean;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
-                };
-            };
-            /** @description The definition breaks a rule, each at its path (`definition.sections.0.fields.2.options`): duplicate keys, a choice without options, a default of the wrong type, a pattern RE2 refuses, HTML in a label, a published key with another type, a limit (validation_failed). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Also while the `forms.enabled` flag is off for you. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The slug is taken (form_slug_taken). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    FormsController_get_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
         responses: {
             200: {
                 headers: {
@@ -17569,39 +18351,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        slug: string;
-                        name: string;
-                        description: string | null;
-                        /** @enum {string} */
-                        status: "active" | "archived";
-                        revision: number;
-                        /** @description The version submitters fill in; null until published. */
-                        publishedVersion: number | null;
-                        /** @description Editors only: the draft differs from the published version. */
-                        hasDraftChanges?: boolean;
+                        /** @example Note */
+                        subject: string;
+                        /** @description The shared fields, as reading the record shows them: one its maker may no longer read is left out. */
+                        fields: {
+                            [key: string]: unknown;
+                        };
+                        /** @description Its files, when the link shares them (else empty). */
+                        files: {
+                            id: string;
+                            name: string;
+                            size: number;
+                            contentType: string;
+                        }[];
                         /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
+                        expiresAt: string;
                     };
                 };
             };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
+            /** @description The link needs the mailed code (`share_code_required`), or the code is wrong, used up or expired (`share_code_invalid`). */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description The link is invalid, expired or revoked (`share_not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -17610,16 +18385,21 @@ export interface operations {
             };
         };
     };
-    FormsController_remove_v1: {
+    SharedController_code_v1: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The link's token: the part of the link after `#`. Sent in the body, never in a URL, so no log or `Referer` carries it. */
+                    token: string;
+                };
+            };
+        };
         responses: {
             204: {
                 headers: {
@@ -17627,28 +18407,8 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+            /** @description The link is invalid, expired or revoked (`share_not_found`). */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description It was published (form_published). */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -17656,23 +18416,22 @@ export interface operations {
             };
         };
     };
-    FormsController_update_v1: {
+    SharedController_file_v1: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                attachmentId: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
                 "application/json": {
-                    /** @example incident-report */
-                    slug?: string;
-                    /** @example Incident report */
-                    name?: string;
-                    description?: string | null;
+                    /** @description The link's token: the part of the link after `#`. Sent in the body, never in a URL, so no log or `Referer` carries it. */
+                    token: string;
+                    /** @description The code mailed to the recipient, for a link that has one. */
+                    code?: string;
                 };
             };
         };
@@ -17683,1375 +18442,19 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        slug: string;
-                        name: string;
-                        description: string | null;
-                        /** @enum {string} */
-                        status: "active" | "archived";
-                        revision: number;
-                        /** @description The version submitters fill in; null until published. */
-                        publishedVersion: number | null;
-                        /** @description Editors only: the draft differs from the published version. */
-                        hasDraftChanges?: boolean;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
+                        /** @description A signed link to the file, valid for 5 minutes. */
+                        url: string;
                     };
                 };
             };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
+            /** @description The link needs its code. */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The slug is taken (form_slug_taken). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    FormsController_draft_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        formId: string;
-                        revision: number;
-                        /**
-                         * @example {
-                         *       "format": 1,
-                         *       "sections": [
-                         *         {
-                         *           "key": "contact",
-                         *           "title": "Contact",
-                         *           "fields": [
-                         *             {
-                         *               "key": "full_name",
-                         *               "type": "text",
-                         *               "label": "Name",
-                         *               "required": true
-                         *             },
-                         *             {
-                         *               "key": "topic",
-                         *               "type": "select",
-                         *               "label": "Topic",
-                         *               "options": [
-                         *                 {
-                         *                   "value": "billing",
-                         *                   "label": "Billing"
-                         *                 },
-                         *                 {
-                         *                   "value": "other",
-                         *                   "label": "Something else"
-                         *                 }
-                         *               ]
-                         *             }
-                         *           ]
-                         *         }
-                         *       ]
-                         *     }
-                         */
-                        definition: {
-                            /**
-                             * @description The descriptor format: 1.
-                             * @default 1
-                             * @enum {number}
-                             */
-                            format: 1;
-                            sections: {
-                                key: string;
-                                title?: string;
-                                description?: string;
-                                fields: {
-                                    /** @description The answer's key: unique in the form, and once published its type never changes. */
-                                    key: string;
-                                    /** @enum {string} */
-                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
-                                    label: string;
-                                    help?: string;
-                                    placeholder?: string;
-                                    /** @description A checkbox that is required must be checked (a consent). */
-                                    required?: boolean;
-                                    /** @description Used when the answer is left out: of the field's type. */
-                                    default?: unknown;
-                                    /** @description The choices of select, multiSelect and radio. */
-                                    options?: {
-                                        /** @description Stored in the answer. */
-                                        value: string;
-                                        label: string;
-                                        translations?: {
-                                            [key: string]: {
-                                                label?: string;
-                                            };
-                                        };
-                                    }[];
-                                    validation?: {
-                                        minLength?: number;
-                                        maxLength?: number;
-                                        /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
-                                        pattern?: string;
-                                        min?: number;
-                                        max?: number;
-                                        decimals?: number;
-                                        /** Format: date */
-                                        minDate?: string;
-                                        /** Format: date */
-                                        maxDate?: string;
-                                        minItems?: number;
-                                        maxItems?: number;
-                                    };
-                                    translations?: {
-                                        [key: string]: {
-                                            label?: string;
-                                            help?: string;
-                                            placeholder?: string;
-                                        };
-                                    };
-                                }[];
-                                translations?: {
-                                    [key: string]: {
-                                        title?: string;
-                                        description?: string;
-                                    };
-                                };
-                            }[];
-                        };
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    FormsController_saveDraft_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description The form's `revision` you edited: refused (409 form_conflict) if it changed since. */
-                    revision: number;
-                    /**
-                     * @example {
-                     *       "format": 1,
-                     *       "sections": [
-                     *         {
-                     *           "key": "contact",
-                     *           "title": "Contact",
-                     *           "fields": [
-                     *             {
-                     *               "key": "full_name",
-                     *               "type": "text",
-                     *               "label": "Name",
-                     *               "required": true
-                     *             },
-                     *             {
-                     *               "key": "topic",
-                     *               "type": "select",
-                     *               "label": "Topic",
-                     *               "options": [
-                     *                 {
-                     *                   "value": "billing",
-                     *                   "label": "Billing"
-                     *                 },
-                     *                 {
-                     *                   "value": "other",
-                     *                   "label": "Something else"
-                     *                 }
-                     *               ]
-                     *             }
-                     *           ]
-                     *         }
-                     *       ]
-                     *     }
-                     */
-                    definition: {
-                        /**
-                         * @description The descriptor format: 1.
-                         * @default 1
-                         * @enum {number}
-                         */
-                        format?: 1;
-                        sections: {
-                            key: string;
-                            title?: string;
-                            description?: string;
-                            fields: {
-                                /** @description The answer's key: unique in the form, and once published its type never changes. */
-                                key: string;
-                                /** @enum {string} */
-                                type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
-                                label: string;
-                                help?: string;
-                                placeholder?: string;
-                                /** @description A checkbox that is required must be checked (a consent). */
-                                required?: boolean;
-                                /** @description Used when the answer is left out: of the field's type. */
-                                default?: unknown;
-                                /** @description The choices of select, multiSelect and radio. */
-                                options?: {
-                                    /** @description Stored in the answer. */
-                                    value: string;
-                                    label: string;
-                                    translations?: {
-                                        [key: string]: {
-                                            label?: string;
-                                        };
-                                    };
-                                }[];
-                                validation?: {
-                                    minLength?: number;
-                                    maxLength?: number;
-                                    /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
-                                    pattern?: string;
-                                    min?: number;
-                                    max?: number;
-                                    decimals?: number;
-                                    /** Format: date */
-                                    minDate?: string;
-                                    /** Format: date */
-                                    maxDate?: string;
-                                    minItems?: number;
-                                    maxItems?: number;
-                                };
-                                translations?: {
-                                    [key: string]: {
-                                        label?: string;
-                                        help?: string;
-                                        placeholder?: string;
-                                    };
-                                };
-                            }[];
-                            translations?: {
-                                [key: string]: {
-                                    title?: string;
-                                    description?: string;
-                                };
-                            };
-                        }[];
-                    };
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        formId: string;
-                        revision: number;
-                        /**
-                         * @example {
-                         *       "format": 1,
-                         *       "sections": [
-                         *         {
-                         *           "key": "contact",
-                         *           "title": "Contact",
-                         *           "fields": [
-                         *             {
-                         *               "key": "full_name",
-                         *               "type": "text",
-                         *               "label": "Name",
-                         *               "required": true
-                         *             },
-                         *             {
-                         *               "key": "topic",
-                         *               "type": "select",
-                         *               "label": "Topic",
-                         *               "options": [
-                         *                 {
-                         *                   "value": "billing",
-                         *                   "label": "Billing"
-                         *                 },
-                         *                 {
-                         *                   "value": "other",
-                         *                   "label": "Something else"
-                         *                 }
-                         *               ]
-                         *             }
-                         *           ]
-                         *         }
-                         *       ]
-                         *     }
-                         */
-                        definition: {
-                            /**
-                             * @description The descriptor format: 1.
-                             * @default 1
-                             * @enum {number}
-                             */
-                            format: 1;
-                            sections: {
-                                key: string;
-                                title?: string;
-                                description?: string;
-                                fields: {
-                                    /** @description The answer's key: unique in the form, and once published its type never changes. */
-                                    key: string;
-                                    /** @enum {string} */
-                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
-                                    label: string;
-                                    help?: string;
-                                    placeholder?: string;
-                                    /** @description A checkbox that is required must be checked (a consent). */
-                                    required?: boolean;
-                                    /** @description Used when the answer is left out: of the field's type. */
-                                    default?: unknown;
-                                    /** @description The choices of select, multiSelect and radio. */
-                                    options?: {
-                                        /** @description Stored in the answer. */
-                                        value: string;
-                                        label: string;
-                                        translations?: {
-                                            [key: string]: {
-                                                label?: string;
-                                            };
-                                        };
-                                    }[];
-                                    validation?: {
-                                        minLength?: number;
-                                        maxLength?: number;
-                                        /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
-                                        pattern?: string;
-                                        min?: number;
-                                        max?: number;
-                                        decimals?: number;
-                                        /** Format: date */
-                                        minDate?: string;
-                                        /** Format: date */
-                                        maxDate?: string;
-                                        minItems?: number;
-                                        maxItems?: number;
-                                    };
-                                    translations?: {
-                                        [key: string]: {
-                                            label?: string;
-                                            help?: string;
-                                            placeholder?: string;
-                                        };
-                                    };
-                                }[];
-                                translations?: {
-                                    [key: string]: {
-                                        title?: string;
-                                        description?: string;
-                                    };
-                                };
-                            }[];
-                        };
-                    };
-                };
-            };
-            /** @description The definition breaks a rule, each at its path (`definition.sections.0.fields.2.options`): duplicate keys, a choice without options, a default of the wrong type, a pattern RE2 refuses, HTML in a label, a published key with another type, a limit (validation_failed). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The revision you edited is not the form's any more (form_conflict, with the current `revision`): read it again. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    FormsController_publish_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description The form's `revision` you edited: refused (409 form_conflict) if it changed since. */
-                    revision: number;
-                };
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        /** Format: uuid */
-                        formId: string;
-                        version: number;
-                        /**
-                         * @example {
-                         *       "format": 1,
-                         *       "sections": [
-                         *         {
-                         *           "key": "contact",
-                         *           "title": "Contact",
-                         *           "fields": [
-                         *             {
-                         *               "key": "full_name",
-                         *               "type": "text",
-                         *               "label": "Name",
-                         *               "required": true
-                         *             },
-                         *             {
-                         *               "key": "topic",
-                         *               "type": "select",
-                         *               "label": "Topic",
-                         *               "options": [
-                         *                 {
-                         *                   "value": "billing",
-                         *                   "label": "Billing"
-                         *                 },
-                         *                 {
-                         *                   "value": "other",
-                         *                   "label": "Something else"
-                         *                 }
-                         *               ]
-                         *             }
-                         *           ]
-                         *         }
-                         *       ]
-                         *     }
-                         */
-                        definition: {
-                            /**
-                             * @description The descriptor format: 1.
-                             * @default 1
-                             * @enum {number}
-                             */
-                            format: 1;
-                            sections: {
-                                key: string;
-                                title?: string;
-                                description?: string;
-                                fields: {
-                                    /** @description The answer's key: unique in the form, and once published its type never changes. */
-                                    key: string;
-                                    /** @enum {string} */
-                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
-                                    label: string;
-                                    help?: string;
-                                    placeholder?: string;
-                                    /** @description A checkbox that is required must be checked (a consent). */
-                                    required?: boolean;
-                                    /** @description Used when the answer is left out: of the field's type. */
-                                    default?: unknown;
-                                    /** @description The choices of select, multiSelect and radio. */
-                                    options?: {
-                                        /** @description Stored in the answer. */
-                                        value: string;
-                                        label: string;
-                                        translations?: {
-                                            [key: string]: {
-                                                label?: string;
-                                            };
-                                        };
-                                    }[];
-                                    validation?: {
-                                        minLength?: number;
-                                        maxLength?: number;
-                                        /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
-                                        pattern?: string;
-                                        min?: number;
-                                        max?: number;
-                                        decimals?: number;
-                                        /** Format: date */
-                                        minDate?: string;
-                                        /** Format: date */
-                                        maxDate?: string;
-                                        minItems?: number;
-                                        maxItems?: number;
-                                    };
-                                    translations?: {
-                                        [key: string]: {
-                                            label?: string;
-                                            help?: string;
-                                            placeholder?: string;
-                                        };
-                                    };
-                                }[];
-                                translations?: {
-                                    [key: string]: {
-                                        title?: string;
-                                        description?: string;
-                                    };
-                                };
-                            }[];
-                        };
-                        /** Format: date-time */
-                        publishedAt: string;
-                    };
-                };
-            };
-            /** @description The definition breaks a rule, each at its path (`definition.sections.0.fields.2.options`): duplicate keys, a choice without options, a default of the wrong type, a pattern RE2 refuses, HTML in a label, a published key with another type, a limit (validation_failed). Or no field at all. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The revision you edited is not the form's any more (form_conflict, with the current `revision`): read it again. Or the draft is published already (form_unchanged), or the form is archived (form_archived). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    FormsController_archive_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        slug: string;
-                        name: string;
-                        description: string | null;
-                        /** @enum {string} */
-                        status: "active" | "archived";
-                        revision: number;
-                        /** @description The version submitters fill in; null until published. */
-                        publishedVersion: number | null;
-                        /** @description Editors only: the draft differs from the published version. */
-                        hasDraftChanges?: boolean;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    FormsController_unarchive_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        slug: string;
-                        name: string;
-                        description: string | null;
-                        /** @enum {string} */
-                        status: "active" | "archived";
-                        revision: number;
-                        /** @description The version submitters fill in; null until published. */
-                        publishedVersion: number | null;
-                        /** @description Editors only: the draft differs from the published version. */
-                        hasDraftChanges?: boolean;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    FormsController_published_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        formId: string;
-                        slug: string;
-                        name: string;
-                        description: string | null;
-                        /**
-                         * Format: uuid
-                         * @description Send it back with the answers.
-                         */
-                        versionId: string;
-                        version: number;
-                        /**
-                         * @example {
-                         *       "format": 1,
-                         *       "sections": [
-                         *         {
-                         *           "key": "contact",
-                         *           "title": "Contact",
-                         *           "fields": [
-                         *             {
-                         *               "key": "full_name",
-                         *               "type": "text",
-                         *               "label": "Name",
-                         *               "required": true
-                         *             },
-                         *             {
-                         *               "key": "topic",
-                         *               "type": "select",
-                         *               "label": "Topic",
-                         *               "options": [
-                         *                 {
-                         *                   "value": "billing",
-                         *                   "label": "Billing"
-                         *                 },
-                         *                 {
-                         *                   "value": "other",
-                         *                   "label": "Something else"
-                         *                 }
-                         *               ]
-                         *             }
-                         *           ]
-                         *         }
-                         *       ]
-                         *     }
-                         */
-                        definition: {
-                            /**
-                             * @description The descriptor format: 1.
-                             * @default 1
-                             * @enum {number}
-                             */
-                            format: 1;
-                            sections: {
-                                key: string;
-                                title?: string;
-                                description?: string;
-                                fields: {
-                                    /** @description The answer's key: unique in the form, and once published its type never changes. */
-                                    key: string;
-                                    /** @enum {string} */
-                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
-                                    label: string;
-                                    help?: string;
-                                    placeholder?: string;
-                                    /** @description A checkbox that is required must be checked (a consent). */
-                                    required?: boolean;
-                                    /** @description Used when the answer is left out: of the field's type. */
-                                    default?: unknown;
-                                    /** @description The choices of select, multiSelect and radio. */
-                                    options?: {
-                                        /** @description Stored in the answer. */
-                                        value: string;
-                                        label: string;
-                                        translations?: {
-                                            [key: string]: {
-                                                label?: string;
-                                            };
-                                        };
-                                    }[];
-                                    validation?: {
-                                        minLength?: number;
-                                        maxLength?: number;
-                                        /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
-                                        pattern?: string;
-                                        min?: number;
-                                        max?: number;
-                                        decimals?: number;
-                                        /** Format: date */
-                                        minDate?: string;
-                                        /** Format: date */
-                                        maxDate?: string;
-                                        minItems?: number;
-                                        maxItems?: number;
-                                    };
-                                    translations?: {
-                                        [key: string]: {
-                                            label?: string;
-                                            help?: string;
-                                            placeholder?: string;
-                                        };
-                                    };
-                                }[];
-                                translations?: {
-                                    [key: string]: {
-                                        title?: string;
-                                        description?: string;
-                                    };
-                                };
-                            }[];
-                        };
-                        /** Format: date-time */
-                        publishedAt: string;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    FormsController_versions_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: {
-                            /** Format: uuid */
-                            id: string;
-                            /** Format: uuid */
-                            formId: string;
-                            version: number;
-                            /** Format: date-time */
-                            publishedAt: string;
-                            fieldCount: number;
-                        }[];
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    FormsController_version_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-                version: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        /** Format: uuid */
-                        formId: string;
-                        version: number;
-                        /**
-                         * @example {
-                         *       "format": 1,
-                         *       "sections": [
-                         *         {
-                         *           "key": "contact",
-                         *           "title": "Contact",
-                         *           "fields": [
-                         *             {
-                         *               "key": "full_name",
-                         *               "type": "text",
-                         *               "label": "Name",
-                         *               "required": true
-                         *             },
-                         *             {
-                         *               "key": "topic",
-                         *               "type": "select",
-                         *               "label": "Topic",
-                         *               "options": [
-                         *                 {
-                         *                   "value": "billing",
-                         *                   "label": "Billing"
-                         *                 },
-                         *                 {
-                         *                   "value": "other",
-                         *                   "label": "Something else"
-                         *                 }
-                         *               ]
-                         *             }
-                         *           ]
-                         *         }
-                         *       ]
-                         *     }
-                         */
-                        definition: {
-                            /**
-                             * @description The descriptor format: 1.
-                             * @default 1
-                             * @enum {number}
-                             */
-                            format: 1;
-                            sections: {
-                                key: string;
-                                title?: string;
-                                description?: string;
-                                fields: {
-                                    /** @description The answer's key: unique in the form, and once published its type never changes. */
-                                    key: string;
-                                    /** @enum {string} */
-                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
-                                    label: string;
-                                    help?: string;
-                                    placeholder?: string;
-                                    /** @description A checkbox that is required must be checked (a consent). */
-                                    required?: boolean;
-                                    /** @description Used when the answer is left out: of the field's type. */
-                                    default?: unknown;
-                                    /** @description The choices of select, multiSelect and radio. */
-                                    options?: {
-                                        /** @description Stored in the answer. */
-                                        value: string;
-                                        label: string;
-                                        translations?: {
-                                            [key: string]: {
-                                                label?: string;
-                                            };
-                                        };
-                                    }[];
-                                    validation?: {
-                                        minLength?: number;
-                                        maxLength?: number;
-                                        /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
-                                        pattern?: string;
-                                        min?: number;
-                                        max?: number;
-                                        decimals?: number;
-                                        /** Format: date */
-                                        minDate?: string;
-                                        /** Format: date */
-                                        maxDate?: string;
-                                        minItems?: number;
-                                        maxItems?: number;
-                                    };
-                                    translations?: {
-                                        [key: string]: {
-                                            label?: string;
-                                            help?: string;
-                                            placeholder?: string;
-                                        };
-                                    };
-                                }[];
-                                translations?: {
-                                    [key: string]: {
-                                        title?: string;
-                                        description?: string;
-                                    };
-                                };
-                            }[];
-                        };
-                        /** Format: date-time */
-                        publishedAt: string;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    FormSubmissionsController_list_v1: {
-        parameters: {
-            query?: {
-                limit?: number;
-                /** @description `nextCursor` of the previous page (the same `sort`). */
-                cursor?: string;
-                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
-                page?: number;
-                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
-                count?: "true" | "false";
-                lang?: string;
-                /** @description Filter: versionId = */
-                versionId?: string;
-                /** @description Filter: versionId in */
-                "versionId.in"?: string;
-                /** @description Filter: submittedBy = */
-                submittedBy?: string;
-                /** @description Filter: submittedBy in */
-                "submittedBy.in"?: string;
-                /** @description Filter: createdAt gt */
-                "createdAt.gt"?: string;
-                /** @description Filter: createdAt gte */
-                "createdAt.gte"?: string;
-                /** @description Filter: createdAt lt */
-                "createdAt.lt"?: string;
-                /** @description Filter: createdAt lte */
-                "createdAt.lte"?: string;
-                /** @description Filter: createdAt between */
-                "createdAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"versionId","op":"eq","value":…},{…}]}. Fields and operators: versionId (eq, in); submittedBy (eq, in); createdAt (gt, gte, lt, lte, between). */
-                filter?: string;
-                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt. */
-                sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: formId,versionId. Fields: id, formId, versionId, version, submittedBy, status, answers, createdAt. */
-                fields?: string;
-            };
-            header?: never;
-            path: {
-                formId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: {
-                            /** Format: uuid */
-                            id: string;
-                            /** Format: uuid */
-                            formId: string;
-                            /** Format: uuid */
-                            versionId: string;
-                            /** @description Read its definition at GET /forms/{id}/versions/{version}. */
-                            version: number;
-                            /** @description `user:<id>` or `client:<id>`. */
-                            submittedBy: string;
-                            /** @enum {string} */
-                            status: "submitted";
-                            answers: {
-                                [key: string]: unknown;
-                            };
-                            /** Format: date-time */
-                            createdAt: string;
-                        }[];
-                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
-                        nextCursor: string | null;
-                        /** @description With `page`: this page. */
-                        page?: number;
-                        /** @description With `page`: the next page; null: no more. */
-                        nextPage?: number | null;
-                        /** @description With `page` and `count=true`: ceil(total / limit). */
-                        pageCount?: number;
-                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
-                        total?: number;
-                        /** @description true: there are more than `total` (show "10,000+"). */
-                        totalCapped?: boolean;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    FormSubmissionsController_submit_v1: {
-        parameters: {
-            query?: never;
-            header?: {
-                /**
-                 * @description A unique key per operation (a UUID), 1 to 255 printable ASCII characters. Send the same key on every retry of the same request: it runs once, and retries get its response (with Idempotent-Replayed: true). Kept for 24 hours.
-                 *
-                 *     In Swagger UI, leave `generate` to send a new key on every Execute, or type your own key and Execute twice to see a retry replayed.
-                 */
-                "Idempotency-Key"?: string;
-            };
-            path: {
-                formId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /**
-                     * Format: uuid
-                     * @description The published version the answers were given to (`GET /forms/{id}/published`): refused (409 form_version_outdated) once another is published.
-                     */
-                    versionId: string;
-                    /**
-                     * @description Answers by field key, checked on the server against that version's definition.
-                     * @example {
-                     *       "full_name": "Ada",
-                     *       "topic": "billing"
-                     *     }
-                     */
-                    answers: {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        /** Format: uuid */
-                        formId: string;
-                        /** Format: uuid */
-                        versionId: string;
-                        /** @description Read its definition at GET /forms/{id}/versions/{version}. */
-                        version: number;
-                        /** @description `user:<id>` or `client:<id>`. */
-                        submittedBy: string;
-                        /** @enum {string} */
-                        status: "submitted";
-                        answers: {
-                            [key: string]: unknown;
-                        };
-                        /** Format: date-time */
-                        createdAt: string;
-                    };
-                };
-            };
-            /** @description An answer is refused, at its path (`answers.<key>`, `answers.<key>.<index>`): unknown key, wrong type, out of range, a required one missing; `versionId` not a version of the form; the answers over 64 KiB (validation_failed). Or the Idempotency-Key is missing. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such form open to submissions (unpublished, archived). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Another version was published since (form_version_outdated, with the current `versionId`); or a request with this Idempotency-Key is still running. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description This Idempotency-Key was used for a different request. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description More than 30 a minute from one user (rate_limited). */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    FormSubmissionsController_get_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                formId: string;
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        /** Format: uuid */
-                        formId: string;
-                        /** Format: uuid */
-                        versionId: string;
-                        /** @description Read its definition at GET /forms/{id}/versions/{version}. */
-                        version: number;
-                        /** @description `user:<id>` or `client:<id>`. */
-                        submittedBy: string;
-                        /** @enum {string} */
-                        status: "submitted";
-                        answers: {
-                            [key: string]: unknown;
-                        };
-                        /** Format: date-time */
-                        createdAt: string;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+            /** @description The link does not work, or does not share this file. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -33015,6 +32418,160 @@ export interface operations {
                 content?: never;
             };
             /** @description You were not watching it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteSharesController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not share the note. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note (or link). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteSharesController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The record's fields the link shows: fields you may read, never a reference to another record. */
+                    fields: string[];
+                    /**
+                     * @description List the record's files, and hand out their download links: only files that show no field outside `fields`.
+                     * @default false
+                     */
+                    files?: boolean;
+                    /**
+                     * Format: date-time
+                     * @description When the link stops: within 30 days.
+                     */
+                    expiresAt: string;
+                    /**
+                     * Format: email
+                     * @description Only this address opens it: a code is mailed to it each time (POST /v1/shared/code).
+                     */
+                    recipientEmail?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedShare"];
+                };
+            };
+            /** @description A field a link does not share, an expiry out of range, or too many links (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not share the note. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note (or link). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteSharesController_revoke_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                shareId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not share the note. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note (or link). */
             404: {
                 headers: {
                     [name: string]: unknown;
