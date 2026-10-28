@@ -413,6 +413,14 @@ is logged, and counts in `mail_withheld_total{reason}` (`policy`,
 `budget` or `tenant_budget`). The notification itself, in-app and realtime, is unaffected,
 and its delivery completes: the outbox does not retry the mail later.
 
+- **A backlog already queued** (notifications published before the
+  collapsing of bulk publishes, one outbox message each) keeps draining, and
+  deleting the BullMQ `mail` queue does not help: the outbox recreates the
+  jobs. `pnpm ops notifications:settle <email> [--before <date>]` shows the
+  counts, then deletes that user's undelivered `notifications.deliver`
+  messages and marks their notifications delivered and read, with no push or
+  mail. `mandatory` types are never touched. Audited as
+  `ops.notifications-settled`.
 - **The `mail.delivery` setting**: `all` (default), `essential` (only
   essential mail: the classes marked `@EssentialMail()`, password reset,
   email verification, magic links, account deletion, and the mail of a

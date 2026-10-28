@@ -10,6 +10,7 @@ interface ChangeOptions {
   tenant?: string;
   platform?: boolean;
   name?: string;
+  before?: string;
 }
 
 /**
@@ -243,6 +244,36 @@ export class SettingDeleteCommand extends Changing {
   }
 }
 
+@Command({
+  name: 'notifications:settle',
+  arguments: '<email>',
+  description:
+    "Drop a user's undelivered notification backlog (no push or mail), leaving mandatory types",
+})
+@Injectable()
+export class NotificationsSettleCommand extends Changing {
+  async run([email]: string[], options: ChangeOptions) {
+    const result = await carryOut(
+      this.confirmer,
+      await this.ops.settleNotifications(email!, options),
+      options,
+    );
+    console.log(
+      `Settled ${email}: ${result.messages} message(s) deleted, ${result.notifications} notification(s) marked delivered and read.`,
+    );
+  }
+  @Option(YES) parseYes() {
+    return true;
+  }
+  @Option({
+    flags: '-b, --before <date>',
+    description: 'only those created before this date (ISO 8601); default all',
+  })
+  parseBefore(value: string) {
+    return value;
+  }
+}
+
 export const OPS_COMMANDS = [
   TenantListCommand,
   UserListCommand,
@@ -251,4 +282,5 @@ export const OPS_COMMANDS = [
   UserRemoveMfaCommand,
   UserUnlockCommand,
   SettingDeleteCommand,
+  NotificationsSettleCommand,
 ];
