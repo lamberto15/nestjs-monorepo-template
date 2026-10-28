@@ -207,6 +207,7 @@ import { malwareScanner } from './attachments/malware-scanner.factory.js';
 import { ImageProcessor } from './images/image-processor.js';
 import { imageProcessor } from './images/image-processor.factory.js';
 import { AttachmentUploadsService } from './attachments/attachment-uploads.service.js';
+import { AttachmentVersionsService } from './attachments/attachment-versions.service.js';
 import { AttachmentsController } from './attachments/attachments.controller.js';
 import { AttachmentsRegistry } from './attachments/attachments.registry.js';
 import { AttachmentsService } from './attachments/attachments.service.js';
@@ -701,6 +702,7 @@ export class PlatformModule {
         AttachmentsService,
         // Uploads straight to the object store (STORAGE_DRIVER=s3): presign, then complete through AttachmentsService.upload().
         AttachmentUploadsService,
+        AttachmentVersionsService,
         AttachmentSweepJob,
         // PDF documents of records: features register a DocumentSource and call DocumentsService.request().
         DocumentsRegistry,
