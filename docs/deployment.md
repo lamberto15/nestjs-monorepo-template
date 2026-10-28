@@ -1643,7 +1643,7 @@ environment (the database URL, the keys). Nothing in the API calls it.
 | `user:reset-password <email>` | a new one-time password; every session and token client of the account is signed out, and their realtime connections on the API end (through Redis) |
 | `user:remove-mfa <email>` | removes the authenticator and the recovery codes, clears the failed-code counter, revokes the account's tokens |
 | `user:unlock <email>` | clears the failed second-factor attempts (the 15-minute lockout) and takes the address off the mail suppression list. Per-address rate limits (Redis) lapse by themselves within minutes |
-| `notifications:settle <email> [--before <date>]` | drops a user's undelivered `notifications.deliver` outbox messages (all, or created before the date) and marks their notifications delivered and read; `mandatory` types are left alone. Shows the counts first (docs/notifications.md, "Stopping a mail storm") |
+| `notifications:settle <email> [--before <date>]` | drops a user's undelivered `notifications.deliver` outbox messages (all, or created before the date) and marks their notifications delivered and read; `mandatory` types are left alone. Shows the counts first; works tenant by tenant in chunks of 5,000, so a backlog of hundreds of thousands never meets the statement timeout (docs/notifications.md, "Stopping a mail storm") |
 | `setting:delete <key> (--tenant <id\|slug> \| --platform)` | removes a stored value; the next scope's, or the default, holds again |
 
 - **Each command shows what it will do and asks** (`Proceed? (y/N)`).

@@ -352,12 +352,19 @@ describe('operator CLI (e2e)', () => {
         comment,
       );
 
-      const plan = await ops.settleNotifications(user.email, {});
-      expect(plan.summary.join(' ')).toMatch(/Delete 2 undelivered/);
-      expect(await plan.apply(operator)).toEqual({
-        messages: 2,
-        notifications: 2,
-      });
+      // As the CLI runs (cli.ts): APP_ROLE=api, no row-level security bypass.
+      const role = process.env.APP_ROLE;
+      process.env.APP_ROLE = 'api';
+      try {
+        const plan = await ops.settleNotifications(user.email, {});
+        expect(plan.summary.join(' ')).toMatch(/Delete 2 undelivered/);
+        expect(await plan.apply(operator)).toEqual({
+          messages: 2,
+          notifications: 2,
+        });
+      } finally {
+        process.env.APP_ROLE = role;
+      }
 
       const state = async (id: string) =>
         (

@@ -10,7 +10,6 @@ import {
 import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
 import type { Transaction } from '../core/database/drizzle.js';
 import { Tenancy } from '../core/tenancy/tenancy.service.js';
-import type { SystemPrincipal } from '../iam/auth/principal.js';
 import { tenants } from '../core/tenancy/tenancy.tables.js';
 import { AccessService } from '../iam/access/access.service.js';
 import { SystemContext } from '../iam/access/system-context.js';
@@ -91,6 +90,9 @@ const by = (operator: Operator) => ({
  * What it prints is the commands' business; this class returns data and
  * never logs a password.
  */
+/** Rows settled per transaction by `notifications:settle`. */
+const SETTLE_CHUNK = 5_000;
+
 @Injectable()
 export class OpsService {
   constructor(
@@ -520,8 +522,11 @@ export class OpsService {
    * "Stopping a mail storm"): deletes their undelivered
    * `notifications.deliver` messages (those created before `before`, when
    * given) and marks the notifications delivered and read. `mandatory`
-   * types are left to be delivered as usual. Across the recipient's tenants,
-   * so under the maintenance role's bypass.
+   * types are left to be delivered as usual. Scope by scope (the account's
+   * own rows, then each tenant's), as the app role: the CLI runs as
+   * APP_ROLE=api, with no row-level security bypass. In chunks of
+   * SETTLE_CHUNK, one transaction each, so a backlog of hundreds of
+   * thousands never meets the statement timeout; one audit entry at the end.
    */
   async settleNotifications(
     emailInput: string,
@@ -536,44 +541,69 @@ export class OpsService {
     }
     const user = await this.account(email);
     const recipient = `user:${user.id}`;
-    const across = <T>(
-      work: (system: SystemPrincipal, tx: Transaction) => Promise<T>,
-    ) =>
-      this.tenancy.bypass('ops:notifications-settle', () =>
-        this.system.run(OPS_JOB, work),
+    const scopes: (string | null)[] = [
+      null,
+      ...(await this.tenancy.all()).map((tenant) => tenant.id),
+    ];
+    const total = { messages: 0, notifications: 0 };
+    for (const tenantId of scopes) {
+      const found = await this.system.run(
+        OPS_JOB,
+        (_system, tx) => this.notifications.backlog(tx, recipient, before),
+        { tenantId },
       );
-    const found = await across((_system, tx) =>
-      this.notifications.backlog(tx, recipient, before),
-    );
+      total.messages += found.messages;
+      total.notifications += found.notifications;
+    }
     return {
       summary: [
-        `Delete ${found.messages} undelivered notification message(s) of ${email}${before ? ` created before ${before.toISOString()}` : ''}, and mark ${found.notifications} notification(s) delivered and read: no push or mail goes out for them.`,
+        `Delete ${total.messages} undelivered notification message(s) of ${email}${before ? ` created before ${before.toISOString()}` : ''}, and mark ${total.notifications} notification(s) delivered and read: no push or mail goes out for them.`,
         'Mandatory (security) notification types are not touched.',
       ],
-      apply: (operator) =>
-        across(async (system, tx) => {
-          const settled = await this.notifications.settleBacklog(
-            tx,
-            recipient,
-            before,
-          );
-          await this.audit.record(
-            system,
-            {
-              action: 'ops.notifications-settled',
-              targetType: 'user',
-              targetId: user.id,
-              details: {
-                email,
-                before: before?.toISOString() ?? null,
-                ...settled,
-                ...by(operator),
+      apply: async (operator) => {
+        const settled = { messages: 0, notifications: 0 };
+        for (const tenantId of scopes) {
+          for (;;) {
+            const chunk = await this.system.run(
+              OPS_JOB,
+              (_system, tx) =>
+                this.notifications.settleBacklog(
+                  tx,
+                  recipient,
+                  before,
+                  SETTLE_CHUNK,
+                ),
+              { tenantId },
+            );
+            settled.messages += chunk.messages;
+            settled.notifications += chunk.notifications;
+            if (chunk.messages === 0 && chunk.notifications === 0) {
+              break;
+            }
+          }
+        }
+        await this.system.run(
+          OPS_JOB,
+          (system, tx) =>
+            this.audit.record(
+              system,
+              {
+                action: 'ops.notifications-settled',
+                targetType: 'user',
+                targetId: user.id,
+                details: {
+                  email,
+                  before: before?.toISOString() ?? null,
+                  ...settled,
+                  ...by(operator),
+                },
               },
-            },
-            tx,
-          );
-          return settled;
-        }),
+              tx,
+            ),
+          { tenantId: null },
+        );
+        return settled;
+      },
     };
   }
 

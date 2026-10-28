@@ -13,6 +13,7 @@ import { bigint, jsonb, pgSchema, text } from 'drizzle-orm/pg-core';
 const store = pgSchema('nest_outbox');
 
 export const outboxMessages = store.table('messages', {
+  id: text('id').notNull(),
   topic: text('topic').notNull(),
   payload: jsonb('payload'),
   createdAt: bigint('created_at', { mode: 'number' }),
