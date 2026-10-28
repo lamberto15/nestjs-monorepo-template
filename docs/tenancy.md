@@ -402,22 +402,24 @@ refusals (operators only, step-up, never through `/v1/data/exports`).
 ## Quotas
 
 A tenant's size is capped so one customer can't fill the disk or the
-database. Four limits, each a whole number, unlimited until set: `maxMembers`
+database. Five limits, each a whole number, unlimited until set: `maxMembers`
 (active memberships), `maxApiClients`, `maxStorageBytes` (attachments and the
 documents issued as attachments; the transfer files that expire after days
 are not counted) and `maxRecords` per feature, by its subject (`Note`; the
-recycle bin is not counted). Code: `core/tenancy/tenant-quotas.ts` (the
+recycle bin is not counted), and `maxMailsPerDay`, the mails it queues per UTC
+day (past `mail.essentialOnlyPercent` of it only essential mail goes,
+[notifications](notifications.md), "Stopping a mail storm"). Code: `core/tenancy/tenant-quotas.ts` (the
 enforcement), `platform/quotas/` (the defaults, the routes, the metrics).
 
 | Route                                                                                                       | What                                                                                                                                                                                                                                                                                 |
 | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `PUT /v1/tenants/{id}/quotas { maxMembers?, maxApiClients?, maxStorageBytes?, maxRecords?: { Note: 100 } }` | Operators only (`Access.manageTenants`, `@OperatorOnly()`). A number sets a limit, `null` removes the tenant's own (the default holds again), an absent key stays. Answers the usage. Audited `tenant.quotas-changed` (each limit from to) in the operator's tenant and in that one. |
-| `GET /v1/tenants/{id}/usage`                                                                                | Operators only: `{ members, apiClients, storageBytes: { used, limit }, records: { Note: { used, limit } }, limits }`; `limit` null is unlimited.                                                                                                                                     |
+| `PUT /v1/tenants/{id}/quotas { maxMembers?, maxApiClients?, maxStorageBytes?, maxMailsPerDay?, maxRecords?: { Note: 100 } }` | Operators only (`Access.manageTenants`, `@OperatorOnly()`). A number sets a limit, `null` removes the tenant's own (the default holds again), an absent key stays. Answers the usage. Audited `tenant.quotas-changed` (each limit from to) in the operator's tenant and in that one. |
+| `GET /v1/tenants/{id}/usage`                                                                                | Operators only: `{ members, apiClients, storageBytes, mailsPerDay: { used, limit }, records: { Note: { used, limit } }, limits }`; `limit` null is unlimited.                                                                                                                                     |
 | `GET /v1/tenant/usage`                                                                                      | The same for the caller's own tenant, to those with `Access.manageSettings`.                                                                                                                                                                                                         |
 
 **Defaults** are the platform settings `quotas.maxMembers`,
-`quotas.maxApiClients`, `quotas.maxStorageBytes` and `quotas.maxRecords`
-(per feature), set by the operators for every tenant at once
+`quotas.maxApiClients`, `quotas.maxStorageBytes`, `quotas.maxMailsPerDay`
+and `quotas.maxRecords` (per feature), set by the operators for every tenant at once
 (`PUT /v1/settings/quotas.maxMembers/platform { value: 50 }`,
 [settings](settings.md)). They have no tenant scope: a tenant's administrators
 can't raise their own. A tenant's own limit wins over the default, and

@@ -7,6 +7,12 @@ export const updateQuotasSchema = z
     maxMembers: amount.nullable().optional(),
     maxApiClients: amount.nullable().optional(),
     maxStorageBytes: amount.nullable().optional(),
+    maxMailsPerDay: amount
+      .nullable()
+      .optional()
+      .describe(
+        'Mails queued per UTC day; past mail.essentialOnlyPercent of it, only essential mail goes.',
+      ),
     maxRecords: z
       .record(z.string().min(1), amount.nullable())
       .optional()
@@ -32,6 +38,7 @@ export const tenantUsageSchema = z.object({
   members: meter.describe('Active memberships.'),
   apiClients: meter,
   storageBytes: meter.describe('Attachments and issued documents.'),
+  mailsPerDay: meter.describe('Mails queued today (UTC).'),
   records: z
     .record(z.string(), meter)
     .describe('Per feature, by the record’s subject.'),
@@ -40,6 +47,7 @@ export const tenantUsageSchema = z.object({
       maxMembers: z.number().int().optional(),
       maxApiClients: z.number().int().optional(),
       maxStorageBytes: z.number().int().optional(),
+      maxMailsPerDay: z.number().int().optional(),
       maxRecords: z.record(z.string(), z.number().int()).optional(),
     })
     .describe('What the operators set for this tenant (the rest is default).'),

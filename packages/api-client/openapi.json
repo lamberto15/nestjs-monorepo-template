@@ -15092,6 +15092,29 @@
                       "additionalProperties": false,
                       "description": "Attachments and issued documents."
                     },
+                    "mailsPerDay": {
+                      "type": "object",
+                      "properties": {
+                        "used": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "limit": {
+                          "nullable": true,
+                          "description": "Null: unlimited. The tenant’s own limit, else the default.",
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "used",
+                        "limit"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Mails queued today (UTC)."
+                    },
                     "records": {
                       "type": "object",
                       "additionalProperties": {
@@ -15136,6 +15159,11 @@
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991
                         },
+                        "maxMailsPerDay": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
                         "maxRecords": {
                           "type": "object",
                           "additionalProperties": {
@@ -15154,6 +15182,7 @@
                     "members",
                     "apiClients",
                     "storageBytes",
+                    "mailsPerDay",
                     "records",
                     "limits"
                   ],
@@ -15209,6 +15238,13 @@
                     "maximum": 9007199254740991
                   },
                   "maxStorageBytes": {
+                    "nullable": true,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "maxMailsPerDay": {
+                    "description": "Mails queued per UTC day; past mail.essentialOnlyPercent of it, only essential mail goes.",
                     "nullable": true,
                     "type": "integer",
                     "minimum": 0,
@@ -15312,6 +15348,29 @@
                       "additionalProperties": false,
                       "description": "Attachments and issued documents."
                     },
+                    "mailsPerDay": {
+                      "type": "object",
+                      "properties": {
+                        "used": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "limit": {
+                          "nullable": true,
+                          "description": "Null: unlimited. The tenant’s own limit, else the default.",
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "used",
+                        "limit"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Mails queued today (UTC)."
+                    },
                     "records": {
                       "type": "object",
                       "additionalProperties": {
@@ -15356,6 +15415,11 @@
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991
                         },
+                        "maxMailsPerDay": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
                         "maxRecords": {
                           "type": "object",
                           "additionalProperties": {
@@ -15374,6 +15438,7 @@
                     "members",
                     "apiClients",
                     "storageBytes",
+                    "mailsPerDay",
                     "records",
                     "limits"
                   ],
@@ -15481,6 +15546,29 @@
                       "additionalProperties": false,
                       "description": "Attachments and issued documents."
                     },
+                    "mailsPerDay": {
+                      "type": "object",
+                      "properties": {
+                        "used": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "limit": {
+                          "nullable": true,
+                          "description": "Null: unlimited. The tenant’s own limit, else the default.",
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "used",
+                        "limit"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Mails queued today (UTC)."
+                    },
                     "records": {
                       "type": "object",
                       "additionalProperties": {
@@ -15525,6 +15613,11 @@
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991
                         },
+                        "maxMailsPerDay": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
                         "maxRecords": {
                           "type": "object",
                           "additionalProperties": {
@@ -15543,6 +15636,7 @@
                     "members",
                     "apiClients",
                     "storageBytes",
+                    "mailsPerDay",
                     "records",
                     "limits"
                   ],

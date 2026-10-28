@@ -44,10 +44,21 @@ export const QUOTA_MAX_RECORDS = setting({
   scopes: [],
   public: false,
 });
+export const QUOTA_MAX_MAILS_PER_DAY = setting({
+  key: 'quotas.maxMailsPerDay',
+  label: 'Default limit of mails per day and tenant',
+  description:
+    'Mails queued per UTC day; past mail.essentialOnlyPercent of it, only essential mail (sign-in, password reset, verification) goes.',
+  schema: limit,
+  default: null as number | null,
+  scopes: [],
+  public: false,
+});
 
 export const QUOTA_SETTINGS = defineSettings([
   QUOTA_MAX_MEMBERS,
   QUOTA_MAX_API_CLIENTS,
   QUOTA_MAX_STORAGE_BYTES,
   QUOTA_MAX_RECORDS,
+  QUOTA_MAX_MAILS_PER_DAY,
 ]);

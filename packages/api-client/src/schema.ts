@@ -11971,6 +11971,12 @@ export interface operations {
                             /** @description Null: unlimited. The tenant’s own limit, else the default. */
                             limit: number | null;
                         };
+                        /** @description Mails queued today (UTC). */
+                        mailsPerDay: {
+                            used: number;
+                            /** @description Null: unlimited. The tenant’s own limit, else the default. */
+                            limit: number | null;
+                        };
                         /** @description Per feature, by the record’s subject. */
                         records: {
                             [key: string]: {
@@ -11984,6 +11990,7 @@ export interface operations {
                             maxMembers?: number;
                             maxApiClients?: number;
                             maxStorageBytes?: number;
+                            maxMailsPerDay?: number;
                             maxRecords?: {
                                 [key: string]: number;
                             };
@@ -12021,6 +12028,8 @@ export interface operations {
                     maxMembers?: number | null;
                     maxApiClients?: number | null;
                     maxStorageBytes?: number | null;
+                    /** @description Mails queued per UTC day; past mail.essentialOnlyPercent of it, only essential mail goes. */
+                    maxMailsPerDay?: number | null;
                     /** @description Per feature, by the record’s subject (`Note`). */
                     maxRecords?: {
                         [key: string]: number | null;
@@ -12054,6 +12063,12 @@ export interface operations {
                             /** @description Null: unlimited. The tenant’s own limit, else the default. */
                             limit: number | null;
                         };
+                        /** @description Mails queued today (UTC). */
+                        mailsPerDay: {
+                            used: number;
+                            /** @description Null: unlimited. The tenant’s own limit, else the default. */
+                            limit: number | null;
+                        };
                         /** @description Per feature, by the record’s subject. */
                         records: {
                             [key: string]: {
@@ -12067,6 +12082,7 @@ export interface operations {
                             maxMembers?: number;
                             maxApiClients?: number;
                             maxStorageBytes?: number;
+                            maxMailsPerDay?: number;
                             maxRecords?: {
                                 [key: string]: number;
                             };
@@ -12123,6 +12139,12 @@ export interface operations {
                             /** @description Null: unlimited. The tenant’s own limit, else the default. */
                             limit: number | null;
                         };
+                        /** @description Mails queued today (UTC). */
+                        mailsPerDay: {
+                            used: number;
+                            /** @description Null: unlimited. The tenant’s own limit, else the default. */
+                            limit: number | null;
+                        };
                         /** @description Per feature, by the record’s subject. */
                         records: {
                             [key: string]: {
@@ -12136,6 +12158,7 @@ export interface operations {
                             maxMembers?: number;
                             maxApiClients?: number;
                             maxStorageBytes?: number;
+                            maxMailsPerDay?: number;
                             maxRecords?: {
                                 [key: string]: number;
                             };
