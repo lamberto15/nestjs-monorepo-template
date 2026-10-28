@@ -28,7 +28,6 @@ async function extract({ bytes, type }: Input): Promise<string> {
   if (type === 'application/pdf') {
     const { extractText, getDocumentProxy } = await import('unpdf');
     const pdf = await getDocumentProxy(bytes, {
-      isEvalSupported: false,
       disableFontFace: true,
       useSystemFonts: false,
       verbosity: 0,
@@ -54,7 +53,7 @@ const text = await extract(input);
 // PostgreSQL's text holds no NUL; whitespace runs say nothing to a search.
 parentPort!.postMessage(
   text
-    .replace(/\u0000/g, ' ')
+    .replaceAll('\0', ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, input.maxChars),
