@@ -1,9 +1,5 @@
 {
-<<<<<<< HEAD
-  "id": "f90c6e42-2423-46ce-a4d7-0c34bc5b899b",
-=======
   "id": "884a640e-641c-4d5b-85e8-4de67a29be72",
->>>>>>> origin/main
   "prevId": "80f79add-433d-47ec-81e2-e6590683f875",
   "version": "7",
   "dialect": "postgresql",
@@ -8333,8 +8329,6 @@
           "primaryKey": false,
           "notNull": false
         },
-<<<<<<< HEAD
-=======
         "parent_id": {
           "name": "parent_id",
           "type": "uuid",
@@ -8353,7 +8347,6 @@
           "primaryKey": false,
           "notNull": false
         },
->>>>>>> origin/main
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -8426,8 +8419,6 @@
           "concurrently": false,
           "method": "gin",
           "with": {}
-<<<<<<< HEAD
-=======
         },
         "comments_parent_idx": {
           "name": "comments_parent_idx",
@@ -8443,7 +8434,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
->>>>>>> origin/main
         }
       },
       "foreignKeys": {
@@ -8459,12 +8449,6 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
-<<<<<<< HEAD
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-=======
         },
         "comments_parent_fk": {
           "name": "comments_parent_fk",
@@ -8493,7 +8477,6 @@
           ]
         }
       },
->>>>>>> origin/main
       "policies": {
         "comments_tenant_select": {
           "name": "comments_tenant_select",
@@ -9447,238 +9430,6 @@
       },
       "isRLSEnabled": true
     },
-<<<<<<< HEAD
-    "public.record_templates": {
-      "name": "record_templates",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuidv7()"
-        },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "subject": {
-          "name": "subject",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "visibility": {
-          "name": "visibility",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "owner": {
-          "name": "owner",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "unit_id": {
-          "name": "unit_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "scope": {
-          "name": "scope",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "values": {
-          "name": "values",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "record_templates_name_idx": {
-          "name": "record_templates_name_idx",
-          "columns": [
-            {
-              "expression": "tenant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "subject",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "scope",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "lower(\"name\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "record_templates_owner_idx": {
-          "name": "record_templates_owner_idx",
-          "columns": [
-            {
-              "expression": "owner",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "subject",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "record_templates_unit_idx": {
-          "name": "record_templates_unit_idx",
-          "columns": [
-            {
-              "expression": "unit_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "record_templates_tenant_id_tenants_id_fk": {
-          "name": "record_templates_tenant_id_tenants_id_fk",
-          "tableFrom": "record_templates",
-          "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "record_templates_unit_fk": {
-          "name": "record_templates_unit_fk",
-          "tableFrom": "record_templates",
-          "tableTo": "organizational_units",
-          "columnsFrom": [
-            "tenant_id",
-            "unit_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {
-        "record_templates_tenant_select": {
-          "name": "record_templates_tenant_select",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "public"
-          ],
-          "using": "(\"record_templates\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "record_templates_tenant_insert": {
-          "name": "record_templates_tenant_insert",
-          "as": "PERMISSIVE",
-          "for": "INSERT",
-          "to": [
-            "public"
-          ],
-          "withCheck": "(\"record_templates\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "record_templates_tenant_update": {
-          "name": "record_templates_tenant_update",
-          "as": "PERMISSIVE",
-          "for": "UPDATE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"record_templates\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
-          "withCheck": "(\"record_templates\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "record_templates_tenant_delete": {
-          "name": "record_templates_tenant_delete",
-          "as": "PERMISSIVE",
-          "for": "DELETE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"record_templates\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        }
-      },
-      "checkConstraints": {
-        "record_templates_unit_check": {
-          "name": "record_templates_unit_check",
-          "value": "(\"record_templates\".\"visibility\" = 'unit') = (\"record_templates\".\"unit_id\" is not null)"
-        },
-        "record_templates_visibility_check": {
-          "name": "record_templates_visibility_check",
-          "value": "\"record_templates\".\"visibility\" in ('private', 'unit', 'tenant')"
-        }
-      },
-      "isRLSEnabled": true
-    },
-=======
->>>>>>> origin/main
     "public.favorites": {
       "name": "favorites",
       "schema": "",
