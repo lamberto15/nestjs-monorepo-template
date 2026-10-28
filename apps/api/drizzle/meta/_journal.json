@@ -624,6 +624,13 @@
       "when": 1793226560465,
       "tag": "0088_big_sally_floyd",
       "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1793227984375,
+      "tag": "0089_slow_blindfold",
+      "breakpoints": true
     }
   ]
 }

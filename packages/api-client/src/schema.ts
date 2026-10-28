@@ -2800,6 +2800,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/data-quality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Open findings per subject, and the last scan
+         * @description Counts only the findings you may see: on records you may read, on fields shown to you. `lastScan` says how fresh they are, and how far a running scan got.
+         */
+        get: operations["DataQualityController_summary_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/data-quality/scans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Scan every record again
+         * @description Runs on the queue in batches; follow it at GET /v1/data-quality (`lastScan`). It adds the findings that hold and deletes those that no longer do; dismissed ones stay dismissed. Audited `data-quality.scan-started`.
+         */
+        post: operations["DataQualityController_scan_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/data-quality/subjects/{subject}/findings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A page of one subject’s findings
+         * @description Open ones unless `dismissed=true`; newest first. Only those on records you may read and fields shown to you.
+         */
+        get: operations["DataQualityController_findings_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/data-quality/findings/{id}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss a finding: right as it is
+         * @description It stays dismissed while it holds; one that stops holding and comes back is new. Audited `data-quality.finding-dismissed`.
+         */
+        post: operations["DataQualityController_dismiss_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/data-quality/findings/{id}/recheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check a finding’s record again now
+         * @description Its record’s findings are brought up to date; `resolved` when this one no longer holds.
+         */
+        post: operations["DataQualityController_recheck_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/data/imports/{name}/mappings": {
         parameters: {
             query?: never;
@@ -6390,6 +6490,81 @@ export interface components {
             }[];
             /** @description More match: narrow with `q` (answers hold at most `limit`). */
             hasMore: boolean;
+        };
+        DataQualitySummary: {
+            /** @description The newest scan (running or not): how fresh the findings are. */
+            lastScan: components["schemas"]["DataQualityScan"] | null;
+            subjects: {
+                /** @example Note */
+                subject: string;
+                errors: number;
+                suggestions: number;
+                dismissed: number;
+            }[];
+        };
+        DataQualityScan: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "completed" | "failed";
+            /** @description The records to check when it started. */
+            total: number;
+            /** @description The records checked so far. */
+            scanned: number;
+            /** @description Open findings once it completed; null before. */
+            findings: number | null;
+            /** @example user:0198… */
+            startedBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            finishedAt: string | null;
+        };
+        DataQualityFindingPage: {
+            items: components["schemas"]["DataQualityFinding"][];
+            /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+            nextCursor: string | null;
+            /** @description With `page`: this page. */
+            page?: number;
+            /** @description With `page`: the next page; null: no more. */
+            nextPage?: number | null;
+            /** @description With `page` and `count=true`: ceil(total / limit). */
+            pageCount?: number;
+            /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+            total?: number;
+            /** @description true: there are more than `total` (show "10,000+"). */
+            totalCapped?: boolean;
+        };
+        DataQualityFinding: {
+            /** Format: uuid */
+            id: string;
+            /** @example Note */
+            subject: string;
+            /** Format: uuid */
+            recordId: string;
+            /**
+             * @description `missing`: a recommended field is empty; `reference`: it refers to a record in the recycle bin; `duplicate`: another record has the same value.
+             * @enum {string}
+             */
+            check: "missing" | "reference" | "duplicate";
+            /** @example body */
+            field: string;
+            /** @enum {string} */
+            severity: "error" | "suggestion";
+            /** @description `referencedId` (reference), `duplicateOf`: the other record (duplicate). */
+            detail: {
+                [key: string]: string;
+            } | null;
+            /** Format: date-time */
+            checkedAt: string;
+            /** Format: date-time */
+            dismissedAt: string | null;
+            dismissedBy: string | null;
+        };
+        DataQualityRecheck: {
+            /** @description true: the problem is gone. */
+            resolved: boolean;
+            finding: components["schemas"]["DataQualityFinding"] | null;
         };
         ImportMapping: {
             id: string;
@@ -18455,6 +18630,214 @@ export interface operations {
                 content?: never;
             };
             /** @description The link does not work, or does not share this file. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DataQualityController_summary_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataQualitySummary"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DataQualityController_scan_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataQualityScan"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A scan is already running (scan_running). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DataQualityController_findings_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                severity?: "error" | "suggestion";
+                check?: "missing" | "reference" | "duplicate";
+                /** @description true: the dismissed ones instead of the open ones. */
+                dismissed?: "true" | "false";
+                lang?: string;
+            };
+            header?: never;
+            path: {
+                subject: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataQualityFindingPage"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No checks for this subject (subject_not_found). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DataQualityController_dismiss_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataQualityFinding"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No finding with this id that you may see. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DataQualityController_recheck_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataQualityRecheck"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No finding with this id that you may see. */
             404: {
                 headers: {
                     [name: string]: unknown;

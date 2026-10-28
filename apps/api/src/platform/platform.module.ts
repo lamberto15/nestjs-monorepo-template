@@ -235,6 +235,11 @@ import { ImportMappingsService } from './data-transfer/import-mappings.service.j
 import { FavoritesController } from './favorites/favorites.controller.js';
 import { FavoritesService } from './favorites/favorites.service.js';
 import { SharedController } from './shares/shared.controller.js';
+import { DataQualityController } from './data-quality/data-quality.controller.js';
+import { DataQualityPolicy } from './data-quality/data-quality.policy.js';
+import { DataQualityProcessor } from './data-quality/data-quality.processor.js';
+import { DataQualityRegistry } from './data-quality/data-quality.registry.js';
+import { DataQualityService } from './data-quality/data-quality.service.js';
 import { ShareCodeMail } from './shares/share.mails.js';
 import { SharesRegistry } from './shares/shares.registry.js';
 import { SharesService } from './shares/shares.service.js';
@@ -525,6 +530,7 @@ export class PlatformModule {
         FavoritesController,
         // Opening a record's read-only link, without a sign-in (POST /v1/shared/open).
         SharedController,
+        DataQualityController,
         ImportMappingsController,
         RetentionController,
         ...whenOn('REPORTS', ReportsController),
@@ -801,6 +807,11 @@ export class PlatformModule {
         // Read-only links to records: features register a ShareTarget (the `share` capability).
         SharesRegistry,
         SharesService,
+        // Data-quality checks: records register a DataQualityTarget, scans run on the queue.
+        DataQualityRegistry,
+        DataQualityService,
+        DataQualityProcessor,
+        DataQualityPolicy,
         ShareCodeMail,
         // Saved column mappings of an import (docs/data-transfer.md).
         ImportMappingsService,
@@ -894,6 +905,7 @@ export class PlatformModule {
         PersonalDataRegistry,
         SubscriptionsService,
         SubscriptionsRegistry,
+        DataQualityRegistry,
         SharesRegistry,
         SharesService,
         SearchRegistry,

@@ -34,6 +34,7 @@ import { bulkRoutes } from '../../platform/bulk/bulk.routes.js';
 import { watchRoutes } from '../../platform/subscriptions/subscription.routes.js';
 import { shareRoutes } from '../../platform/shares/share.routes.js';
 import { NoteShares } from './note-shares.js';
+import { NoteQuality } from './note-quality.js';
 import { noteBulkSchema, noteSchema } from './note.schemas.js';
 import { NotePublishApproval } from './note-approvals.js';
 import { NoteAi } from './note-ai.js';
@@ -89,6 +90,7 @@ import { NOTE_LIST, NOTE_VIEWS } from './note.list.js';
     NoteAccess,
     NoteSubscriptions,
     NoteShares,
+    NoteQuality,
     NoteTags,
     NoteRevisions,
     NotePublishApproval,

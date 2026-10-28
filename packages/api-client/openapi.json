@@ -24377,6 +24377,317 @@
         ]
       }
     },
+    "/v1/data-quality": {
+      "get": {
+        "description": "Counts only the findings you may see: on records you may read, on fields shown to you. `lastScan` says how fresh they are, and how far a running scan got.",
+        "operationId": "DataQualityController_summary_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataQualitySummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Open findings per subject, and the last scan",
+        "tags": [
+          "data-quality"
+        ]
+      }
+    },
+    "/v1/data-quality/scans": {
+      "post": {
+        "description": "Runs on the queue in batches; follow it at GET /v1/data-quality (`lastScan`). It adds the findings that hold and deletes those that no longer do; dismissed ones stay dismissed. Audited `data-quality.scan-started`.",
+        "operationId": "DataQualityController_scan_v1",
+        "parameters": [],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataQualityScan"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "409": {
+            "description": "A scan is already running (scan_running)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Scan every record again",
+        "tags": [
+          "data-quality"
+        ]
+      }
+    },
+    "/v1/data-quality/subjects/{subject}/findings": {
+      "get": {
+        "description": "Open ones unless `dismissed=true`; newest first. Only those on records you may read and fields shown to you.",
+        "operationId": "DataQualityController_findings_v1",
+        "parameters": [
+          {
+            "name": "subject",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "`nextCursor` of the previous page (the same `sort`).",
+            "schema": {
+              "description": "`nextCursor` of the previous page (the same `sort`).",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            }
+          },
+          {
+            "name": "severity",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "error",
+                "suggestion"
+              ]
+            }
+          },
+          {
+            "name": "check",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "missing",
+                "reference",
+                "duplicate"
+              ]
+            }
+          },
+          {
+            "name": "dismissed",
+            "required": false,
+            "in": "query",
+            "description": "true: the dismissed ones instead of the open ones.",
+            "schema": {
+              "description": "true: the dismissed ones instead of the open ones.",
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "lang",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 35
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataQualityFindingPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": "No checks for this subject (subject_not_found)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "A page of one subject’s findings",
+        "tags": [
+          "data-quality"
+        ]
+      }
+    },
+    "/v1/data-quality/findings/{id}/dismiss": {
+      "post": {
+        "description": "It stays dismissed while it holds; one that stops holding and comes back is new. Audited `data-quality.finding-dismissed`.",
+        "operationId": "DataQualityController_dismiss_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataQualityFinding"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": "No finding with this id that you may see."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Dismiss a finding: right as it is",
+        "tags": [
+          "data-quality"
+        ]
+      }
+    },
+    "/v1/data-quality/findings/{id}/recheck": {
+      "post": {
+        "description": "Its record’s findings are brought up to date; `resolved` when this one no longer holds.",
+        "operationId": "DataQualityController_recheck_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataQualityRecheck"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": "No finding with this id that you may see."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Check a finding’s record again now",
+        "tags": [
+          "data-quality"
+        ]
+      }
+    },
     "/v1/data/imports/{name}/mappings": {
       "get": {
         "description": "The tenant’s, by name. `stale` lists the targets you may no longer import (the schema or your permissions changed since): use the mapping only after changing them.",
@@ -56618,6 +56929,270 @@
           "parents",
           "items",
           "hasMore"
+        ],
+        "additionalProperties": false
+      },
+      "DataQualitySummary": {
+        "type": "object",
+        "properties": {
+          "lastScan": {
+            "nullable": true,
+            "description": "The newest scan (running or not): how fresh the findings are.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DataQualityScan"
+              }
+            ]
+          },
+          "subjects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "subject": {
+                  "type": "string",
+                  "example": "Note"
+                },
+                "errors": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "suggestions": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "dismissed": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "subject",
+                "errors",
+                "suggestions",
+                "dismissed"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "lastScan",
+          "subjects"
+        ],
+        "additionalProperties": false
+      },
+      "DataQualityScan": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed"
+            ]
+          },
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "The records to check when it started."
+          },
+          "scanned": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "The records checked so far."
+          },
+          "findings": {
+            "nullable": true,
+            "description": "Open findings once it completed; null before.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "startedBy": {
+            "type": "string",
+            "example": "user:0198…"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "finishedAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "total",
+          "scanned",
+          "findings",
+          "startedBy",
+          "createdAt",
+          "finishedAt"
+        ],
+        "additionalProperties": false
+      },
+      "DataQualityFindingPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataQualityFinding"
+            }
+          },
+          "nextCursor": {
+            "nullable": true,
+            "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
+            "type": "string"
+          },
+          "page": {
+            "description": "With `page`: this page.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "nextPage": {
+            "description": "With `page`: the next page; null: no more.",
+            "nullable": true,
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pageCount": {
+            "description": "With `page` and `count=true`: ceil(total / limit).",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "totalCapped": {
+            "description": "true: there are more than `total` (show \"10,000+\").",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "DataQualityFinding": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "subject": {
+            "type": "string",
+            "example": "Note"
+          },
+          "recordId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "check": {
+            "type": "string",
+            "enum": [
+              "missing",
+              "reference",
+              "duplicate"
+            ],
+            "description": "`missing`: a recommended field is empty; `reference`: it refers to a record in the recycle bin; `duplicate`: another record has the same value."
+          },
+          "field": {
+            "type": "string",
+            "example": "body"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "error",
+              "suggestion"
+            ]
+          },
+          "detail": {
+            "nullable": true,
+            "description": "`referencedId` (reference), `duplicateOf`: the other record (duplicate).",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "dismissedAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "dismissedBy": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "recordId",
+          "check",
+          "field",
+          "severity",
+          "detail",
+          "checkedAt",
+          "dismissedAt",
+          "dismissedBy"
+        ],
+        "additionalProperties": false
+      },
+      "DataQualityRecheck": {
+        "type": "object",
+        "properties": {
+          "resolved": {
+            "type": "boolean",
+            "description": "true: the problem is gone."
+          },
+          "finding": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DataQualityFinding"
+              }
+            ]
+          }
+        },
+        "required": [
+          "resolved",
+          "finding"
         ],
         "additionalProperties": false
       },

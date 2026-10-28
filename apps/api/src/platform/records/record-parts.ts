@@ -35,6 +35,7 @@ import {
   RecordAttachments,
   RecordBulk,
   RecordComments,
+  RecordDataQuality,
   RecordDocuments,
   RecordRevisions,
   RecordSearch,
@@ -173,6 +174,8 @@ export function recordParts(
       create: options.schemas.create,
       custom: has('custom'),
     }),
+    // The data-quality checks it declares (platform/data-quality).
+    ...(declaration.quality ? [RecordDataQuality] : []),
     ...declaration.capabilities.flatMap((capability) => {
       const target = options.override?.[capability] ?? TARGETS[capability];
       return target ? [target] : [];
