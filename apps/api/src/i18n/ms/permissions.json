@@ -56,6 +56,19 @@
       "manage": "Tambah alamat ke senarai sekatan, atau alih keluar satu"
     }
   },
+  "form": {
+    "label": "Borang",
+    "names": {
+      "singular": "Borang",
+      "plural": "Borang"
+    },
+    "actions": {
+      "read": "Melihat borang yang diterbitkan dan versinya",
+      "submit": "Mengisi borang yang diterbitkan dan melihat serahan sendiri",
+      "edit": "Mencipta borang, menyunting draf, menerbitkan dan mengarkibkannya",
+      "readResponses": "Melihat serahan semua orang dan jawapannya"
+    }
+  },
   "note": {
     "label": "Nota (contoh)",
     "names": {

@@ -56,6 +56,19 @@
       "manage": "Eine Adresse zur Sperrliste hinzufügen oder entfernen"
     }
   },
+  "form": {
+    "label": "Formulare",
+    "names": {
+      "singular": "Formular",
+      "plural": "Formulare"
+    },
+    "actions": {
+      "read": "Veröffentlichte Formulare und ihre Versionen sehen",
+      "submit": "Veröffentlichte Formulare ausfüllen und die eigenen Einreichungen sehen",
+      "edit": "Formulare anlegen, ihre Entwürfe bearbeiten, veröffentlichen und archivieren",
+      "readResponses": "Die Einreichungen aller und ihre Antworten sehen"
+    }
+  },
   "note": {
     "label": "Notizen (Beispiel)",
     "names": {

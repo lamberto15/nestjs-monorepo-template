@@ -39,6 +39,12 @@ import { AiProvider, DisabledAiProvider } from './ai/ai-provider.js';
 import { AiRegistry } from './ai/ai.registry.js';
 import { AiService } from './ai/ai.service.js';
 import { AI_SETTINGS } from './ai/ai-settings.js';
+import { FORM_SETTINGS } from './forms/form-settings.js';
+import { FormPolicy } from './forms/form.policy.js';
+import { FormsController } from './forms/forms.controller.js';
+import { FormsService } from './forms/forms.service.js';
+import { FormSubmissionsController } from './forms/form-submissions.controller.js';
+import { FormSubmissionsService } from './forms/form-submissions.service.js';
 import { AnthropicProvider } from './ai/anthropic.provider.js';
 import { AUTH_SETTINGS } from './auth-policy/auth-settings.js';
 import { DASHBOARD_SETTINGS } from './settings/dashboard.setting.js';
@@ -484,6 +490,9 @@ export class PlatformModule {
         NamingSeriesController,
         ViewsController,
         FavoritesController,
+        // Runtime forms (docs/forms.md): off per tenant until `forms.enabled`.
+        FormsController,
+        FormSubmissionsController,
         RetentionController,
         ...whenOn('REPORTS', ReportsController),
         ...whenOn('USAGE', UsageController),
@@ -523,6 +532,7 @@ export class PlatformModule {
               ...DELIVERABILITY_SETTINGS,
               ...DASHBOARD_SETTINGS,
               ...AI_SETTINGS,
+              ...FORM_SETTINGS,
               ...DATA_TRANSFER_SETTINGS,
               ...(options.settings ?? []),
             ],
@@ -735,6 +745,10 @@ export class PlatformModule {
         ViewsService,
         // Favorites: a person's pinned records, pages and saved views, in their order.
         FavoritesService,
+        // Runtime forms: definitions, published versions, submissions.
+        FormPolicy,
+        FormsService,
+        FormSubmissionsService,
         // Scheduled reports: exports run on a schedule, mailed to their recipients.
         ...whenOn<Provider>(
           'REPORTS',

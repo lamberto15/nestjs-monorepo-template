@@ -56,6 +56,19 @@
       "manage": "Add an address to the suppression list, or remove one"
     }
   },
+  "form": {
+    "label": "Forms",
+    "names": {
+      "singular": "Form",
+      "plural": "Forms"
+    },
+    "actions": {
+      "read": "See published forms and their versions",
+      "submit": "Fill in published forms, and see their own submissions",
+      "edit": "Create forms, edit their drafts, publish and archive them",
+      "readResponses": "See everyone's submissions and their answers"
+    }
+  },
   "note": {
     "label": "Notes (example)",
     "names": {
