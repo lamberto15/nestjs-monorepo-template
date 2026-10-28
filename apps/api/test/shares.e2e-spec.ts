@@ -186,7 +186,7 @@ describe('shares: read-only links to a record (e2e)', () => {
         id: file.body.id,
         name: 'minutes.txt',
         size: 8,
-        contentType: 'text/plain',
+        contentType: 'text/plain; charset=utf-8',
       },
     ]);
     const link = await node
