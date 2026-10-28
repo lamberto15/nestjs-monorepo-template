@@ -71,8 +71,6 @@ export const templateUrl = (name: string, format: TransferFormat) =>
 
 /** A file's headers to the template's columns (null: ignore the column). */
 export type ImportMapping = Record<string, string | null>;
-export type SavedMapping =
-  GetResponse<'/v1/data/imports/{name}/mappings'>['items'][number];
 
 /** Starts an import (multipart: `name`, `dryRun`, `mapping`, `file`), with upload progress. */
 export function startImport(
