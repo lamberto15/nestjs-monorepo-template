@@ -45,13 +45,20 @@ describe('the work inbox (e2e)', () => {
   it('lists a mention of a record the user reads, dismisses it, and pages across sources', async () => {
     const { node } = harness;
     const owner = await node.user(['editor']);
-    const editor = await node.user(['editor']);
+    // An approver who also reads others' items, so a mention can reach them.
+    const editor = await node.user(['editor', 'viewer']);
     const colleague = await node.user(['editor']);
     const outsider = await node.user(['viewer']);
-    const { testItem } = await publication(owner, editor);
+    await publication(owner, editor);
+    // A mention needs a record the mentioned person reads: not the draft awaiting approval.
+    const shared = (
+      await node
+        .writeItem(owner.agent, { title: 'Plan', body: 'x' })
+        .expect(201)
+    ).body.id as string;
 
     await owner.agent
-      .post(`/v1/test-items/${testItem}/comments`)
+      .post(`/v1/test-items/${shared}/comments`)
       .send({ body: `@${editor.email} please look.` })
       .expect(201);
     await node.app.get(OutboxRelay).runOnce();
@@ -80,8 +87,8 @@ describe('the work inbox (e2e)', () => {
     await editor.agent.get('/v1/inbox?cursor=!!').expect(400);
 
     // Not mentioned: nothing. Dismissing marks the mention read.
-    expect((await inbox(colleague.agent)).items).toEqual([]);
-    expect((await inbox(outsider.agent)).items).toEqual([]);
+    expect((await inbox(colleague.agent, '?source=mention')).items).toEqual([]);
+    expect((await inbox(outsider.agent, '?source=mention')).items).toEqual([]);
     const mention = all.items.find((i) => i.kind === 'mention')!;
     expect(mention.canDismiss).toBe(true);
     await colleague.agent
