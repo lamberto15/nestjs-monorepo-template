@@ -2,11 +2,12 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
-import { sampleNote, useNotesApi } from '@/features/notes/test/notes-api';
 import { renderApp } from '@/test/render-app';
+import { renderComponent } from '@/test/render-component';
 import { server } from '@/test/server';
 import { useSignedIn } from '@/test/signed-in';
 import type { Favorite } from './api';
+import { FavoriteButton } from './favorite-button';
 
 /** The API's favorites, kept in memory: added and removed. */
 function useFavoritesApi(start: Favorite[] = []) {
@@ -60,11 +61,12 @@ describe('favorites', () => {
     expect(menu.queryByRole('link', { name: 'Not mine to see' })).toBeNull();
   });
 
-  it("pins and unpins a list page from its header's star", async () => {
-    useNotesApi({ can: ['Note.read'], notes: [sampleNote()] });
+  it('pins and unpins a page from its star', async () => {
     const state = useFavoritesApi();
     const user = userEvent.setup();
-    await renderApp('/notes');
+    await renderComponent(
+      <FavoriteButton kind="page" target="/notes" label="Notes" />,
+    );
     const star = await screen.findByRole('button', {
       name: 'Add Notes to favorites',
     });
