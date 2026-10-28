@@ -258,6 +258,101 @@ describe('forms (e2e)', () => {
     expect(kept.body).toMatchObject({ version: 1, answers: body.answers });
   });
 
+  it('validates conditions at save, and requires or strips answers by them on the server', async () => {
+    const admin = node.admin();
+    await enable(admin);
+    // Version 1: format 1, no conditions; its submission stays readable as it was.
+    const created = await admin
+      .post('/v1/forms')
+      .send({
+        slug: `rules-${randomUUID().slice(0, 8)}`,
+        name: 'Rules',
+        definition: { ...definition, format: 1 },
+      })
+      .expect(201);
+    const id = created.body.id as string;
+    const v1 = await admin
+      .post(`/v1/forms/${id}/publish`)
+      .send({ revision: created.body.revision })
+      .expect(201);
+    const filler = await node.user([await role(admin, 'read', 'submit')]);
+    const first = await submit(filler.agent, id, {
+      versionId: v1.body.id,
+      answers: { full_name: 'Ada' },
+    }).expect(201);
+
+    const other = { field: 'topic', op: 'eq', value: 'other' };
+    const fields = [
+      ...definition.sections[0]!.fields,
+      {
+        key: 'details',
+        type: 'textarea',
+        label: 'Details',
+        visibleWhen: other,
+        requiredWhen: other,
+      },
+    ];
+    const draft = (body: object) =>
+      admin.put(`/v1/forms/${id}/draft`).send(body);
+    const current = await admin.get(`/v1/forms/${id}/draft`).expect(200);
+    // A condition on a later field (a cycle in the making), or on an option the field lacks.
+    const refused = await draft({
+      revision: current.body.revision,
+      definition: {
+        sections: [
+          {
+            key: 'contact',
+            fields: [
+              { ...fields[0], visibleWhen: { field: 'topic', op: 'isEmpty' } },
+              ...fields.slice(1, 3),
+              { ...fields[3], visibleWhen: { ...other, value: 'nope' } },
+            ],
+          },
+        ],
+      },
+    }).expect(400);
+    expect(paths(refused.body)).toEqual([
+      'definition.sections.0.fields.0.visibleWhen.field',
+      'definition.sections.0.fields.3.visibleWhen.value',
+    ]);
+    const saved = await draft({
+      revision: current.body.revision,
+      definition: { sections: [{ key: 'contact', fields }] },
+    }).expect(200);
+    const v2 = await admin
+      .post(`/v1/forms/${id}/publish`)
+      .send({ revision: saved.body.revision })
+      .expect(201);
+    expect(v2.body.definition.format).toBe(2);
+
+    const missing = await submit(filler.agent, id, {
+      versionId: v2.body.id,
+      answers: { full_name: 'Ada', topic: 'other' },
+    }).expect(400);
+    expect(paths(missing.body)).toEqual(['answers.details']);
+    // Hidden (topic is billing): what a client sends for details is dropped.
+    const stripped = await submit(filler.agent, id, {
+      versionId: v2.body.id,
+      answers: { full_name: 'Ada', topic: 'billing', details: 'sneaked' },
+    }).expect(201);
+    expect(stripped.body.answers).toEqual({
+      full_name: 'Ada',
+      topic: 'billing',
+    });
+
+    const old = await filler.agent
+      .get(`/v1/forms/${id}/submissions/${first.body.id}`)
+      .expect(200);
+    expect(old.body).toMatchObject({
+      version: 1,
+      answers: { full_name: 'Ada' },
+    });
+    const oldVersion = await filler.agent
+      .get(`/v1/forms/${id}/versions/1`)
+      .expect(200);
+    expect(oldVersion.body.definition.format).toBe(1);
+  });
+
   it('shows a submitter their own submissions, everyone’s only to those who read responses', async () => {
     const admin = node.admin();
     await enable(admin);
