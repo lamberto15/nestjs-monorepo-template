@@ -444,7 +444,7 @@ describe('attachments (e2e)', () => {
     ).toEqual([]);
   });
 
-  it('offers no direct uploads on a disk that is not S3: the flag is off and both routes answer 503 (presigned_uploads_unavailable)', async () => {
+  it('offers no direct uploads on a disk that is not S3: the flag is off and presign answers 503 (presigned_uploads_unavailable)', async () => {
     const features = (await node.admin().get('/v1/features').expect(200)).body;
     expect(features.presignedUploads).toBe(false);
     const { editor, note } = await noteOfEditor();
@@ -453,11 +453,11 @@ describe('attachments (e2e)', () => {
       .send({ name: 'dot.png', size: PNG.length, contentType: 'image/png' })
       .expect(503);
     expect(presign.body.code).toBe('presigned_uploads_unavailable');
-    const complete = await editor.agent
+    // Complete also finishes resumable sessions, which work on any disk: an unknown one is a 404.
+    await editor.agent
       .post(`/v1/test-items/${note.id}/attachments/complete`)
       .send({ uploadId: crypto.randomUUID() })
-      .expect(503);
-    expect(complete.body.code).toBe('presigned_uploads_unavailable');
+      .expect(404);
     // Uploading through the API is what works here.
     await editor.agent
       .post(`/v1/test-items/${note.id}/attachments`)
