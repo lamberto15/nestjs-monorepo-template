@@ -57,6 +57,13 @@
       "manage": "Tambah alamat ke senarai sekatan, atau alih keluar satu"
     }
   },
+  "data-quality": {
+    "label": "Kualiti data",
+    "actions": {
+      "read": "Lihat dapatan kualiti data pada rekod dan medan yang anda boleh baca",
+      "manage": "Mulakan imbasan kualiti data, tolak dan semak semula dapatan"
+    }
+  },
   "note": {
     "label": "Nota (contoh)",
     "names": {

@@ -57,6 +57,13 @@
       "manage": "Add an address to the suppression list, or remove one"
     }
   },
+  "data-quality": {
+    "label": "Data quality",
+    "actions": {
+      "read": "See the data-quality findings on the records and fields you may read",
+      "manage": "Start a data-quality scan, dismiss and recheck findings"
+    }
+  },
   "note": {
     "label": "Notes (example)",
     "names": {

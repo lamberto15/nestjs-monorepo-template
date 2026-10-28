@@ -57,6 +57,13 @@
       "manage": "Eine Adresse zur Sperrliste hinzufügen oder entfernen"
     }
   },
+  "data-quality": {
+    "label": "Datenqualität",
+    "actions": {
+      "read": "Die Datenqualitäts-Befunde zu den Datensätzen und Feldern sehen, die Sie lesen dürfen",
+      "manage": "Eine Datenqualitätsprüfung starten, Befunde verwerfen und neu prüfen"
+    }
+  },
   "note": {
     "label": "Notizen (Beispiel)",
     "names": {
