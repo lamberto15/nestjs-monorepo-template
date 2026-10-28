@@ -5,7 +5,8 @@
   "tabs": {
     "queues": "Baris gilir",
     "outbox": "Peti keluar",
-    "events": "Peristiwa langsung"
+    "events": "Peristiwa langsung",
+    "diagnostics": "Diagnostik"
   },
   "queues": {
     "empty": "Tiada baris gilir.",
@@ -80,5 +81,30 @@
       "closed": "Terputus"
     },
     "reconnect": "Sambung semula"
+  },
+  "diagnostics": {
+    "check": "Integrasi",
+    "state": "Keadaan",
+    "driver": "Pemacu",
+    "details": "Butiran",
+    "actions": "Tindakan",
+    "test": "Uji",
+    "passed": "{{check}}: ujian lulus ({{ms}} ms).",
+    "failed": "{{check}}: ujian gagal.",
+    "checks": {
+      "database": "Pangkalan data",
+      "redis": "Redis",
+      "workers": "Pekerja",
+      "mail": "Mel",
+      "storage": "Storan fail",
+      "realtime": "Masa nyata"
+    },
+    "states": {
+      "ok": "OK",
+      "configured": "Dikonfigurasi",
+      "disabled": "Dilumpuhkan",
+      "unconfigured": "Tidak dikonfigurasi",
+      "unavailable": "Tidak tersedia"
+    }
   }
 }

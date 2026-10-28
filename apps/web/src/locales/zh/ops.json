@@ -5,7 +5,8 @@
   "tabs": {
     "queues": "队列",
     "outbox": "发件箱",
-    "events": "实时事件"
+    "events": "实时事件",
+    "diagnostics": "诊断"
   },
   "queues": {
     "empty": "没有队列。",
@@ -80,5 +81,30 @@
       "closed": "已断开"
     },
     "reconnect": "重新连接"
+  },
+  "diagnostics": {
+    "check": "集成",
+    "state": "状态",
+    "driver": "驱动",
+    "details": "详情",
+    "actions": "操作",
+    "test": "测试",
+    "passed": "{{check}}：测试通过（{{ms}} 毫秒）。",
+    "failed": "{{check}}：测试失败。",
+    "checks": {
+      "database": "数据库",
+      "redis": "Redis",
+      "workers": "工作进程",
+      "mail": "邮件",
+      "storage": "文件存储",
+      "realtime": "实时"
+    },
+    "states": {
+      "ok": "正常",
+      "configured": "已配置",
+      "disabled": "已停用",
+      "unconfigured": "未配置",
+      "unavailable": "不可用"
+    }
   }
 }
