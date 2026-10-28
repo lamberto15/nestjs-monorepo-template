@@ -30,6 +30,7 @@ import {
   parseCapabilities,
   parseChoices,
   parseSettings,
+  titleField,
 } from './capabilities.mjs';
 import { format } from './format.mjs';
 import { parseFields } from './fields.mjs';
@@ -109,6 +110,16 @@ export async function addFeature(root, options) {
         `ref(${ref}): its table must be referenceable first: tenantTable('…', table, { referenced: true }) in ${ref}.tables.ts, then pnpm db:generate.`,
       );
     }
+  }
+  if (capabilities.has('merge') && options.softDelete === false) {
+    throw new Error(
+      '--with merge: a merged duplicate goes to the recycle bin; drop --no-soft-delete.',
+    );
+  }
+  if (capabilities.has('merge') && !titleField(fields)) {
+    throw new Error(
+      '--with merge: the feature needs a string field to find duplicates by (or declare duplicates in its record.ts).',
+    );
   }
   const context = {
     t,

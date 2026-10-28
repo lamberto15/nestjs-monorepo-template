@@ -69,6 +69,7 @@ export const CAPABILITIES = [
   'events',
   'numbered',
   'share',
+  'merge',
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 
@@ -133,6 +134,13 @@ export interface RecordDeclaration<
    * of dates or a status the feature does not let `PATCH` change is `readOnly`.
    */
   views?: ListViewsDeclaration;
+  /**
+   * With `merge`: when two records are likely the same (docs/merging.md),
+   * each rule a set of fields whose values all match (text without case or
+   * surrounding spaces): `[['email'], ['firstName', 'lastName']]`. Default:
+   * the record's title field (its first searchable or string field).
+   */
+  duplicates?: readonly (readonly string[])[];
   fields: F;
   capabilities: C;
 }
@@ -169,6 +177,28 @@ export function defineRecord<
       throw new Error(
         `${declaration.subject}: "${action}" can't be an approval's action: a word like publish or markPaid, none of ${RESERVED_ACTIONS.join(', ')} (the record's own routes).`,
       );
+    }
+  }
+  if (takes(declaration, 'merge')) {
+    if (!declaration.softDelete) {
+      throw new Error(
+        `${declaration.subject} takes merge: it needs softDelete (a merged duplicate goes to the recycle bin).`,
+      );
+    }
+    const rules = duplicateRules(declaration);
+    if (rules.length === 0) {
+      throw new Error(
+        `${declaration.subject} takes merge: declare its duplicates rules (no string field to match by default).`,
+      );
+    }
+    for (const name of rules.flat()) {
+      const kind = (declaration.fields[name] as { kind?: string } | undefined)
+        ?.kind;
+      if (!kind || kind === 'money' || kind === 'json') {
+        throw new Error(
+          `${declaration.subject}: duplicates can't match by "${name}": a field of the record, not money or json.`,
+        );
+      }
     }
   }
   for (const name of Object.keys(declaration.settings ?? {})) {
@@ -247,6 +277,22 @@ export const recordEventTypes = (declaration: RecordDeclaration) => {
       ]
     : [];
 };
+
+/**
+ * The rules that find a record's duplicates (`merge`): the declared ones,
+ * else its title field alone (its first searchable or string field).
+ */
+export function duplicateRules(declaration: RecordDeclaration) {
+  if (declaration.duplicates) {
+    return declaration.duplicates.filter((rule) => rule.length > 0);
+  }
+  const title =
+    searchableFields(declaration.fields)[0] ??
+    Object.entries(declaration.fields).find(
+      ([, f]) => (f as { kind: string }).kind === 'string',
+    )?.[0];
+  return title ? [[title]] : [];
+}
 
 /** Whether a record takes a capability. */
 export const takes = (declaration: RecordDeclaration, capability: Capability) =>
