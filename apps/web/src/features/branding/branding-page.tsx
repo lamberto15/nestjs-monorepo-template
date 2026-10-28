@@ -25,9 +25,11 @@ import { RecordState } from '@/components/records/record-state';
 import { HexPicker } from '@/features/tags/tag-dialog';
 import { api } from '@/lib/api';
 import { brandingQuery, type Branding } from '@/lib/branding';
+import { useCan } from '@/lib/features';
 import { errorMessage } from '@/lib/errors';
 import { useStaleDraftSession } from '@/lib/form';
 import { postMultipart } from '@/lib/upload';
+import { DomainsSection } from './domains-section';
 
 /** What the API takes of a logo (BrandingService): the browser checks the same, the API decides by the bytes. */
 const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
@@ -39,6 +41,7 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
 /** The tenant's colour, sender name and logo (docs/branding.md), for who manages settings. */
 export function BrandingPage() {
   const { t } = useTranslation('branding');
+  const canManageDomains = useCan('Access.manageDomains');
   // The page says a failed read (below): no toast, no retries, as `useBranding`.
   const query = useQuery({
     ...brandingQuery,
@@ -72,6 +75,7 @@ export function BrandingPage() {
             />
             <LogoSection branding={data} version={query.dataUpdatedAt} />
             <LogoSection dark branding={data} version={query.dataUpdatedAt} />
+            {canManageDomains && <DomainsSection locked={data.locked} />}
           </>
         )}
       </RecordState>

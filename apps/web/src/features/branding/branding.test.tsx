@@ -256,3 +256,145 @@ describe('the page', () => {
     await findToast(/Locked by the operators/);
   });
 });
+
+describe('the brand before sign-in', () => {
+  it('shows a custom domain’s logo, name and colour on the sign-in page', async () => {
+    server.use(
+      http.get('/v1/branding/host', () =>
+        HttpResponse.json({
+          primaryColor: '#1d4ed8',
+          darkPrimaryColor: null,
+          mailFromName: 'Acme',
+          logoUrl: '/v1/branding/t1/logo',
+          darkLogoUrl: null,
+        }),
+      ),
+    );
+    await renderApp('/sign-in');
+    expect(await screen.findByText('Acme')).toBeInTheDocument();
+    expect(
+      document.querySelector('img[src="/v1/branding/t1/logo"]'),
+    ).not.toBeNull();
+    await waitFor(() =>
+      expect(document.documentElement.style.getPropertyValue('--primary')).toBe(
+        '#1d4ed8',
+      ),
+    );
+  });
+
+  it('keeps the app’s own look on any other host', async () => {
+    await renderApp('/sign-in');
+    await screen.findByRole('button', { name: 'Sign in' });
+    expect(document.querySelector('img[src^="/v1/branding/"]')).toBeNull();
+    expect(document.documentElement.style.getPropertyValue('--primary')).toBe(
+      '',
+    );
+  });
+});
+
+describe('custom domains', () => {
+  const domain = {
+    id: '0199a3f2-0000-7000-8000-0000000000d1',
+    hostname: 'app.example.com',
+    verified: false,
+    verifiedAt: null,
+    lastCheckedAt: null,
+    lastError: null,
+    record: {
+      type: 'TXT' as const,
+      name: '_app-verification.app.example.com',
+      value: 'app-verification=token',
+    },
+    createdAt: '2026-10-28T10:00:00.000Z',
+  };
+
+  /** The domains API in memory; `enabled`: the deployment serves custom domains. */
+  function useDomainsApi(enabled = true, locked = false) {
+    const calls = {
+      added: [] as unknown[],
+      verified: [] as string[],
+      removed: [] as string[],
+    };
+    let domains: (typeof domain)[] = [];
+    useBrandingApi(branding({ locked, canEdit: !locked }));
+    useSignedIn([...ADMIN, 'Access.manageDomains']);
+    server.use(
+      http.get('/v1/branding/domains', () =>
+        HttpResponse.json({ enabled, domains }),
+      ),
+      http.post('/v1/branding/domains', async ({ request }) => {
+        const body = await request.json();
+        calls.added.push(body);
+        domains = [domain];
+        return HttpResponse.json(domain, { status: 201 });
+      }),
+      http.post('/v1/branding/domains/:id/verify', ({ params }) => {
+        calls.verified.push(params.id as string);
+        return HttpResponse.json({ accepted: true }, { status: 202 });
+      }),
+      http.delete('/v1/branding/domains/:id', ({ params }) => {
+        calls.removed.push(params.id as string);
+        domains = [];
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    return calls;
+  }
+
+  it('adds a hostname, shows the record to publish, checks it and removes it', async () => {
+    const calls = useDomainsApi();
+    const user = userEvent.setup();
+    await renderApp('/branding');
+    expect(
+      await screen.findByText('No custom domains yet.'),
+    ).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Hostname'), ' app.example.com ');
+    await user.click(screen.getByRole('button', { name: 'Add domain' }));
+    expect(calls.added).toEqual([{ hostname: 'app.example.com' }]);
+    expect(
+      await screen.findByText('_app-verification.app.example.com'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('app-verification=token')).toBeInTheDocument();
+    expect(screen.getByText('Not verified')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Check the record' }));
+    await findToast(
+      'Looking the record up. Reload in a moment to see the result.',
+    );
+    expect(calls.verified).toEqual([domain.id]);
+    await user.click(
+      screen.getByRole('button', { name: 'Remove app.example.com' }),
+    );
+    await findToast('Removed app.example.com. It no longer serves the app.');
+    expect(calls.removed).toEqual([domain.id]);
+  });
+
+  it('shows the error of a refused hostname', async () => {
+    useDomainsApi();
+    server.use(
+      http.post('/v1/branding/domains', () => problem(400, 'invalid_hostname')),
+    );
+    const user = userEvent.setup();
+    await renderApp('/branding');
+    await user.type(await screen.findByLabelText('Hostname'), '10.0.0.1');
+    await user.click(screen.getByRole('button', { name: 'Add domain' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'invalid_hostname',
+    );
+  });
+
+  it('is hidden when the deployment serves none', async () => {
+    useDomainsApi(false);
+    await renderApp('/branding');
+    await screen.findByText('Brand colour');
+    await waitFor(() =>
+      expect(screen.queryByText('Custom domains')).not.toBeInTheDocument(),
+    );
+  });
+
+  it('offers no adding or checking while locked', async () => {
+    useDomainsApi(true, true);
+    await renderApp('/branding');
+    expect(await screen.findByText('Custom domains')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Hostname')).not.toBeInTheDocument();
+  });
+});

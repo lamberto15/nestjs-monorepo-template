@@ -286,7 +286,9 @@ const vary = (headers) =>
 
 /** A header by name, from either a Fetch `Headers` (get) or raw()'s plain, lower-case object. */
 const header = (headers, name) =>
-  typeof headers.get === 'function' ? headers.get(name) : headers[name] ?? null;
+  typeof headers.get === 'function'
+    ? headers.get(name)
+    : (headers[name] ?? null);
 
 /** The web app's headers besides the policy, as the `header` block sets them. */
 const WEB_HEADERS = {
@@ -425,7 +427,10 @@ describe("the tenants' custom domains", { skip }, () => {
     const custom = await onHost(caddy, VERIFIED_DOMAIN, path);
     assert.equal(custom.status, 404);
     assert.equal(custom.body, '');
-    assert.equal((await onHost(caddy, VERIFIED_DOMAIN, '/metrics')).status, 404);
+    assert.equal(
+      (await onHost(caddy, VERIFIED_DOMAIN, '/metrics')).status,
+      404,
+    );
   });
 });
 
