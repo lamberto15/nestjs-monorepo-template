@@ -267,6 +267,8 @@ export function ImportPage(props: { name?: string }) {
               </div>
               <FileUploadTrigger
                 render={<Button variant="outline" size="sm" type="button" />}
+                // A touch screen has nothing to drag: the button comes first, thumb-sized.
+                className="pointer-coarse:order-first pointer-coarse:h-11 pointer-coarse:w-full"
               >
                 {t('import.choose')}
               </FileUploadTrigger>

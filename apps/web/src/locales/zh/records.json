@@ -38,6 +38,7 @@
     "error": "无法加载附件。",
     "drop": "将文件拖到此处，或选择文件",
     "choose": "选择文件",
+    "dropAnywhere": "松开以附加到此记录",
     "limit": "每个文件最大 {{max}}。可接受的类型：{{types}}。",
     "rejected": "{{name}}：{{reason}}",
     "tooLarge": "文件大于 {{max}}",

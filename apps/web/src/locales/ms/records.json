@@ -38,6 +38,7 @@
     "error": "Lampiran tidak dapat dimuatkan.",
     "drop": "Seret fail ke sini, atau pilih fail",
     "choose": "Pilih fail",
+    "dropAnywhere": "Lepaskan untuk melampirkan pada rekod ini",
     "limit": "Paling besar {{max}} setiap satu. Diterima: {{types}}.",
     "rejected": "{{name}}: {{reason}}",
     "tooLarge": "fail lebih besar daripada {{max}}",

@@ -38,6 +38,7 @@
     "error": "Die Anhänge konnten nicht geladen werden.",
     "drop": "Dateien hierher ziehen oder auswählen",
     "choose": "Dateien auswählen",
+    "dropAnywhere": "Ablegen, um an diesen Datensatz anzuhängen",
     "limit": "Höchstens {{max}} pro Datei. Erlaubt: {{types}}.",
     "rejected": "{{name}}: {{reason}}",
     "tooLarge": "die Datei ist größer als {{max}}",
