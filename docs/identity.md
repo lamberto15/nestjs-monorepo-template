@@ -33,29 +33,74 @@ says which it gives.
 
 | Path | Default | Account | Membership and roles | Audit |
 | --- | --- | --- | --- | --- |
-| **Invitation** | yes: how an administrator adds a person today | made at acceptance (the owner chooses the password), or the existing account accepts signed in as itself | the invitation's roles (and end dates, units), in the acceptance's transaction | `user.invited`, `invitation.resent`, `invitation.revoked`, then the join |
+| **Invite member** | yes: `POST /v1/access/users` (`send: true`, the default) | made at acceptance (the owner chooses the password), or the existing account accepts signed in as itself | the invitation's roles (and end dates, units), in the acceptance's transaction | `user.invited`, `invitation.resent`, `invitation.revoked`, then `user.joined` |
+| **Prepare member** | an administrator's choice: `POST /v1/access/users` with `send: false` | as an invitation, once sent and accepted | the same invitation, prepared first: roles, end dates and units set and changed (`PATCH /v1/access/invitations/{id}`), the address optional until sending | `invitation.prepared`, `invitation.updated`, `invitation.sent`, then `user.joined` |
 | **Opt-in sign-up** | off: `AUTH_SIGN_UP=on` | self-made, verify first (no session until the address is proved) | none in `multi` (a tenant invites it); with `TENANT_SIGN_UP` its own new tenant; with `TENANCY=single` the one tenant with `SIGN_UP_ROLES` | `user.signed-up`, `user.joined` |
 | **SSO just in time** | off: a connection's `jitProvisioning` | linked or made at the first provider sign-in, a verified domain only | the connection's `defaultRoleIds` and its `roleMappings` | `member.provisioned`, `sso.roles-synced` |
 | **SCIM** | off: a token with `Access.provisionScim` | linked (address proved) or made without a password, a verified domain only | member, no roles over SCIM (map groups to roles on the SSO connection) | `scim.user-provisioned`, `scim.user-updated`, `scim.user-deprovisioned` |
 
-**Manual preparation and activation: not built yet.** Today there is no
-draft or pending member: no tenant-local person exists before the invitation
-is accepted, and no pending state without an email. The approved plan (#603,
-built in #604, its UI in #605) adds an administrator-prepared pending member
-(roles and units set first, activation sent now or later, no access until the
-activation rules are met), sharing the invitation's lifecycle rather than a
-second pending table; this page then gains its rows. Until it lands, an
-**invitation is the prepared state**: roles and units are set, nothing about
-an account is read or changed, and the person activates it by accepting. A
-membership turned off (`active: false`) and on again is a different thing:
+**Prepared members share the invitation's lifecycle.** There is one pending
+record, the invitation (`invitations`, a tenant table), whether it was sent
+at once or prepared first; no second pending-user table, no draft account,
+no fake address, and no membership until the acceptance. A prepared member
+is tenant-local data only: roles, end dates, units, a name for a new
+account, and an address that may come later (it is required to send).
+
+| State | Is | Next |
+| --- | --- | --- |
+| **prepared** | no link (`tokenHash` null), maybe no address; no access | change it (`PATCH /v1/access/invitations/{id}`), send it (`POST …/{id}/send`), withdraw it (`DELETE …/{id}`) |
+| **sent** | a link (`inv_<tenant>_<secret>`, only its SHA-256 stored) until `expiresAt` (`INVITATION_TTL_HOURS`) | accept, send again (a new link: the old one stops), change it (a new address withdraws the link: prepared again), withdraw it |
+| **expired** | the link's time passed | send again, change, withdraw |
+| **accepted** | the membership exists, ACTIVE, with the roles and units still there | the membership's own routes |
+| **withdrawn** | deleted; its audit entry stays | none: a new invitation |
+
+The rules on every transition:
+
+- **The grant rule each time.** Preparing, changing and sending check, as the
+  actor at that moment, that they may grant every role the invitation carries
+  (and gets) and place people in its units (`Access.manageUsers`, the grant
+  rule, unit authority). Changing an invitation also needs authority over what
+  it already carries: moving its address would otherwise mail another
+  administrator's roles to any mailbox. Roles and a new address want a recent
+  sign-in; sending always does, and is limited per user (30 per 15 minutes).
+- **Explicit sending.** Nothing is mailed for `send: false`; `POST
+  …/{id}/send` mails a new single-use link and invalidates any older one.
+  400 `email_required` without an address.
+- **Acceptance revalidates what is left.** A role or unit deleted since, or a
+  role end already passed, is left out. The token is single-use (taken under
+  a row update), expiring, and only its hash is stored.
+- **Acceptance never reactivates.** A membership an administrator or SCIM
+  turned off stays off: accepting is refused (403 `membership_inactive`) and
+  an administrator turns it back on (`PATCH /v1/access/users/{id}`). An
+  acceptance runs under the account's and the membership's locks, so it never
+  interleaves with a deactivation or the account's deletion.
+- **Nothing about accounts.** Preparing, changing and sending read nothing
+  about global accounts and answer the same whether the address has one. A new
+  address creates its credentials at acceptance (the link proves the mailbox);
+  an existing account must be signed in as itself. Nobody sets another
+  person's password, name or verified address.
+
+**Identity provider members.** SSO just in time and SCIM keep their own
+paths and are the source of truth for the members they provision (`GET
+/v1/access/users` marks them `managedByScim`). A pending invitation to such
+an address joins the existing membership when accepted (an inactive one is
+refused, as above); it never creates a second account, since accounts are one
+per address. SSO-required tenants still refuse a password sign-in after the
+acceptance (403 `sso_required`), so a project that requires SSO prepares or
+invites members only to sign in through the provider.
+
+A membership turned off (`active: false`) and on again is a different thing:
 access paused, not pending. A project that needs a person *known before they
-can sign in* (an employee hired next month) keeps a domain record, below, and
-sends the invitation when access should start.
+can sign in* without any intent to give access (an employee hired next month)
+keeps a domain record, below, and prepares or invites the member when access
+should start.
 
 ```
+      prepare --> invitation PREPARED (no link)
+                      | send
                 invite (default)            sign-up (opt-in)       SSO JIT / SCIM (trusted IdP)
                       |                           |                         |
-              invitation pending            account, unverified      account linked or made
+              invitation SENT (link)        account, unverified      account linked or made
                       |                           |                         |
      owner accepts: account + membership          | verify address          |
                       |                           v                         |
@@ -79,7 +124,7 @@ sends the invitation when access should start.
 
 | Action | Needs | Notes |
 | --- | --- | --- |
-| Invite, resend, revoke | `Access.manageUsers` | can grant only roles the actor may grant; resend needs a recent sign-in |
+| Invite, prepare, change, send, withdraw | `Access.manageUsers` | can grant only roles the actor may grant and units they may place people in, those an invitation carries too; send needs a recent sign-in |
 | Accept an invitation | the person | the link's owner, signed in as the account when it exists |
 | Deactivate or reactivate a membership, change roles | `Access.manageUsers` | at least one administrator remains |
 | Add a user to a unit, change role, end | `Access.manageUsers`, and authority over the user and unit | not oneself; a unit SCIM manages is read-only (409 `unit_managed_by_scim`) |
@@ -145,8 +190,9 @@ relates to the first three.
 - **Audit**: `employee.linked` and `employee.unlinked` through
   `audit.record(actor, …, tx)` with the employee id and the user id, in the
   transaction of the change.
-- **Hire**: create the employee; when access is wanted, invite the work
-  address (`POST /v1/access/users`); link after acceptance, or let the link
+- **Hire**: create the employee; prepare the member ahead
+  (`POST /v1/access/users { send: false }`) and send it when access should
+  start, or invite the work address then; link after acceptance, or let the link
   be made by an administrator. **Termination**: set the end date and status,
   then, if the project wants it, deactivate the membership (offboarding
   above). The employee row, its dates, manager and department history stay.
@@ -165,7 +211,7 @@ through the routes above, with audit.
 ## Where it is built
 
 Parent #603 (onboarding modes); the organization rewrite #595 (units);
-backend #604 (pending-member provisioning) and UI #605 (Invite or Prepare
-member). The earlier "adding people is invite-only" decision is superseded:
+backend #604 (prepared members on the invitation lifecycle) and UI #605
+(Invite member and Prepare member on the Members page). The earlier "adding people is invite-only" decision is superseded:
 invitation stays the default, and sign-up, SSO and SCIM are supported
 optional paths. The code is `apps/api/src/iam` (`access`, `sso`, `auth`).

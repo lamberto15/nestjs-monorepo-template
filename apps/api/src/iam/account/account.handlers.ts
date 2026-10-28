@@ -1,6 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import type { Request } from 'express';
+import type { NodeRequest as Request } from '@nestjs/platform-node';
 import { CLS_REQ, ClsService } from 'nestjs-cls';
 import {
   database,

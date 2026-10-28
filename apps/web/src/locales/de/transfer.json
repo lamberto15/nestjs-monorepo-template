@@ -111,5 +111,21 @@
     "running": "Läuft… {{count}} bisher verarbeitet.",
     "result": "{{done}} erledigt, {{failed}} fehlgeschlagen, {{skipped}} übersprungen.",
     "failed": "Der Lauf wurde abgebrochen."
+  },
+  "mapping": {
+    "title": "Spaltenzuordnung",
+    "header": "In der Datei",
+    "sample": "Erste Zeile",
+    "column": "Importiert als",
+    "columnOf": "Spalte für {{header}}",
+    "asIs": "{{header}} (unverändert)",
+    "ignore": "Diese Spalte ignorieren",
+    "twice": "Zwei Spalten der Datei gehen nach {{columns}}: Wählen Sie für eine davon eine andere.",
+    "apply": "Gespeicherte Zuordnung",
+    "choose": "Gespeicherte Zuordnung anwenden",
+    "delete": "„{{name}}“ löschen",
+    "name": "Diese Zuordnung speichern als",
+    "save": "Zuordnung speichern",
+    "saved": "Zuordnung gespeichert."
   }
 }

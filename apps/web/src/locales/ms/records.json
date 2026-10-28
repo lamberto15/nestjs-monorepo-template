@@ -98,5 +98,12 @@
     "option": "Pilih salah satu pilihan yang disenaraikan.",
     "none": "Tiada",
     "choose": "Pilih…"
+  },
+  "related": {
+    "title": "Berkaitan",
+    "heading": "{{subject}} ({{field}})",
+    "empty": "Belum ada.",
+    "error": "Rekod berkaitan tidak dapat dimuatkan.",
+    "more": "{{shown}} terbaharu daripada {{total}}."
   }
 }
