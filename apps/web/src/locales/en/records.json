@@ -105,5 +105,19 @@
     "empty": "None yet.",
     "error": "The related records could not be loaded.",
     "more": "The newest {{shown}} of {{total}}."
+  },
+  "duplicates": {
+    "title": "Duplicates",
+    "empty": "No likely duplicates.",
+    "error": "The duplicates could not be loaded.",
+    "matched": "(same {{fields}})",
+    "merge": "Merge into this record",
+    "description": "“{{name}}” is merged into this record and goes to the recycle bin. Its tags, comments, attachments and the records that refer to it move here.",
+    "same": "The records hold the same values: this record's are kept.",
+    "choose": "Take the duplicate's value for",
+    "take": "{{field}}: “{{value}}” instead of “{{current}}”",
+    "moves": "Moves here: {{tags}} tags, {{comments}} comments, {{attachments}} attachments, {{references}} references.",
+    "confirm": "Merge",
+    "merged": "Merged: the duplicate is in the recycle bin."
   }
 }
