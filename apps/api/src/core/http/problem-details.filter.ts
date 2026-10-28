@@ -112,7 +112,9 @@ export class ProblemDetailsFilter implements ExceptionFilter {
    */
   static toHttp(exception: unknown): HttpException | undefined {
     return exception instanceof HttpException
-      ? exception
+      ? // Express's adapter wraps a parser's http-error with its message
+        // ("request entity too large"): the status's own words instead.
+        (clientError(exception.cause) ?? exception)
       : (ProblemDetailsFilter.mappers
           .map((mapper) => mapper(exception))
           .find(Boolean) ?? clientError(exception));
