@@ -39,6 +39,11 @@ describe('access control (e2e)', () => {
     const viewer = (await node.user(['viewer'])).agent;
     await viewer.get('/v1/ops/outbox').expect(200);
     await viewer.post('/v1/ops/dead-letters/purge').send({}).expect(403);
+    await viewer
+      .post('/v1/ops/backlog/discard')
+      .send({ target: 'mail', scope: { global: true } })
+      .expect(403);
+    await viewer.post('/v1/ops/queues/mail/pause').expect(403);
     await viewer.get('/v1/access/roles').expect(403);
 
     const editor = (await node.user(['editor'])).agent;

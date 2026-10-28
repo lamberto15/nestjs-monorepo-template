@@ -331,7 +331,8 @@ For users with the `Ops` permissions (a session or a user token):
 | Outbox lag and dead letters       | `GET /v1/ops/outbox`                                                   |
 | Every engine's events, live (SSE) | `GET /v1/ops/events`                                                   |
 | Dead letters                      | `POST /v1/ops/dead-letters/requeue`, `POST /v1/ops/dead-letters/purge` |
-| Queues                            | `GET /v1/ops/queues`, `POST /v1/ops/queues/{name}/retry-failed`        |
+| Queues                            | `GET /v1/ops/queues`, `POST /v1/ops/queues/{name}/retry-failed`, `POST /v1/ops/queues/{name}/pause`, `POST /v1/ops/queues/{name}/resume` |
+| Backlog of one tenant (or all)    | `POST /v1/ops/backlog/preview`, `POST /v1/ops/backlog/discard`, `POST /v1/ops/backlog/retry` ([notifications.md](notifications.md), "Recovering a backlog") |
 
 Every answer is typed: `apps/api/src/platform/ops/ops.schemas.ts` declares it
 once, the routes send their answers through it (a `StandardSchemaSerializerInterceptor`

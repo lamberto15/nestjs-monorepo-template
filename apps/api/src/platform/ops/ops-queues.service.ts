@@ -91,6 +91,28 @@ export class OpsQueues {
   }
 
   /**
+   * How long each queue's oldest waiting job has waited, in seconds (0
+   * when none waits): a backlog that stopped moving shows here before its
+   * size alarms anyone. One job read per queue.
+   */
+  async oldestWaiting(now = Date.now()) {
+    return Promise.all(
+      this.names.map(async (name) => {
+        const [oldest] = await this.queue(name).getJobs(
+          ['waiting'],
+          0,
+          0,
+          true,
+        );
+        return {
+          name,
+          seconds: oldest ? Math.max(0, now - oldest.timestamp) / 1000 : 0,
+        };
+      }),
+    );
+  }
+
+  /**
    * The workers connected to each queue (BullMQ `getWorkersCount()`, Redis
    * `CLIENT LIST`): 0 everywhere means no worker process runs.
    */

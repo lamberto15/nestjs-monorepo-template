@@ -558,6 +558,103 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ops/queues/{name}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pause a queue (every worker stops taking its jobs)
+         * @description BullMQ pause, kept in Redis: nothing is lost, and running jobs finish. Leaving maintenance mode resumes every queue. The outbox keeps queuing jobs into it: see /v1/ops/backlog. Audited.
+         */
+        post: operations["OpsController_pauseQueue_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/queues/{name}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume a paused queue. Audited. */
+        post: operations["OpsController_resumeQueue_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/backlog/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Count the outbox and mail backlog of one tenant (or, explicitly, every tenant)
+         * @description Changes nothing. The outbox (pending messages by topic and notification type, dead letters, those being delivered) and the mail queue (jobs by state and mail class). Exactly one of tenantId and global: true. topic and type narrow the outbox, template the mail queue, before (ISO 8601) keeps to older work. Mail queued before jobs named their tenant counts under global only.
+         */
+        post: operations["OpsController_previewBacklog_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/backlog/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discard the outbox or mail backlog in a scope
+         * @description outbox: deletes pending notifications.deliver (and other) messages not being delivered, and dead letters, in batches; a discarded notification stays in the list, marked delivered, with no push, mail or webhook. mail: removes waiting, delayed and failed jobs. Never a mandatory notification type, essential mail or running work. Up to limit (10,000) per call: call again while more. Preview first. Audited.
+         */
+        post: operations["OpsController_discardBacklog_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/backlog/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry the outbox dead letters or failed mail in a scope
+         * @description outbox: requeues the dead letters with a fresh retry budget; mail: retries the failed jobs. The mail mode and the daily budgets still apply. Up to limit (10,000) per call: call again while more. Audited.
+         */
+        post: operations["OpsController_retryBacklog_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ops/dead-letters/requeue": {
         parameters: {
             query?: never;
@@ -9758,6 +9855,290 @@ export interface operations {
                 content: {
                     "application/json": {
                         retried: number;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_pauseQueue_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        name: string;
+                        paused: boolean;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_resumeQueue_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        name: string;
+                        paused: boolean;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_previewBacklog_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    tenantId?: string;
+                    /** @enum {boolean} */
+                    global?: true;
+                    topic?: string;
+                    type?: string;
+                    template?: string;
+                    /** Format: date-time */
+                    before?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        outbox: {
+                            pending: {
+                                total: number;
+                                groups: {
+                                    topic: string;
+                                    type: string | null;
+                                    count: number;
+                                    mandatory: boolean;
+                                }[];
+                            };
+                            deadLetters: {
+                                total: number;
+                                groups: {
+                                    topic: string;
+                                    type: string | null;
+                                    count: number;
+                                    mandatory: boolean;
+                                }[];
+                            };
+                            leased: number;
+                        };
+                        mail: {
+                            groups: {
+                                state: string;
+                                template: string;
+                                count: number;
+                                essential: number;
+                            }[];
+                            capped: boolean;
+                        };
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_discardBacklog_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    scope: {
+                        /** Format: uuid */
+                        tenantId?: string;
+                        /** @enum {boolean} */
+                        global?: true;
+                        topic?: string;
+                        type?: string;
+                        template?: string;
+                        /** Format: date-time */
+                        before?: string;
+                    };
+                    /** @enum {string} */
+                    target: "outbox" | "mail";
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        count: number;
+                        more: boolean;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_retryBacklog_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    scope: {
+                        /** Format: uuid */
+                        tenantId?: string;
+                        /** @enum {boolean} */
+                        global?: true;
+                        topic?: string;
+                        type?: string;
+                        template?: string;
+                        /** Format: date-time */
+                        before?: string;
+                    };
+                    /** @enum {string} */
+                    target: "outbox" | "mail";
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        count: number;
+                        more: boolean;
                     };
                 };
             };

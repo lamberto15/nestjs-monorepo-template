@@ -51,6 +51,16 @@ export class OpsMetrics implements OnModuleInit {
         ),
       ['queue', 'state'],
     );
+    this.metrics.collect(
+      'queue_oldest_waiting_seconds',
+      'How long the oldest waiting job of each queue has waited (0: none waits).',
+      async () =>
+        (await this.queues.oldestWaiting()).map(({ name, seconds }) => ({
+          labels: { queue: name },
+          value: seconds,
+        })),
+      ['queue'],
+    );
     const outboxStats = new MetricSnapshot(() => this.outbox.read());
     this.metrics.collect(
       'outbox_undelivered',
@@ -76,6 +86,17 @@ export class OpsMetrics implements OnModuleInit {
           },
         ];
       },
+    );
+    const outboxTopics = new MetricSnapshot(() => this.outbox.topics());
+    this.metrics.collect(
+      'outbox_undelivered_by_topic',
+      'Outbox messages not yet published, per topic (the 50 largest): notifications.deliver piling up is a notification storm.',
+      async () =>
+        (await outboxTopics.get()).map(({ topic, count }) => ({
+          labels: { topic },
+          value: count,
+        })),
+      ['topic'],
     );
     const webhookStats = oncePerScrape(() => this.webhookDeliveries.stats());
     this.metrics.collect(
