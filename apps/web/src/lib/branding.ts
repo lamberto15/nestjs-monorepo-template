@@ -13,8 +13,6 @@ export const brandingQuery = queryOptions({
   staleTime: 5 * 60_000,
 });
 
-export type HostBrand = GetResponse<'/v1/branding/host'>;
-
 /**
  * The brand of the host the app is on, before sign-in: a tenant's verified
  * custom domain's (docs/branding.md, "Custom domains"); every field null on

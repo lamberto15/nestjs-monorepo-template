@@ -315,17 +315,17 @@ describe('custom domains', () => {
       verified: [] as string[],
       removed: [] as string[],
     };
-    let domains: (typeof domain)[] = [];
+    const state = { domains: [] as (typeof domain)[] };
     useBrandingApi(branding({ locked, canEdit: !locked }));
     useSignedIn([...ADMIN, 'Access.manageDomains']);
     server.use(
       http.get('/v1/branding/domains', () =>
-        HttpResponse.json({ enabled, domains }),
+        HttpResponse.json({ enabled, domains: state.domains }),
       ),
       http.post('/v1/branding/domains', async ({ request }) => {
         const body = await request.json();
         calls.added.push(body);
-        domains = [domain];
+        state.domains = [domain];
         return HttpResponse.json(domain, { status: 201 });
       }),
       http.post('/v1/branding/domains/:id/verify', ({ params }) => {
@@ -334,7 +334,7 @@ describe('custom domains', () => {
       }),
       http.delete('/v1/branding/domains/:id', ({ params }) => {
         calls.removed.push(params.id as string);
-        domains = [];
+        state.domains = [];
         return new HttpResponse(null, { status: 204 });
       }),
     );

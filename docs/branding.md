@@ -32,7 +32,15 @@ POST   /v1/branding/logo/dark          the dark-mode logo, as the logo   Access.
 DELETE /v1/branding/logo/dark          204   Access.manageSettings
 GET    /v1/branding/{tenantId}/logo    the image, cached 5 minutes   no sign-in
 GET    /v1/branding/{tenantId}/logo/dark   the dark-mode image, as the logo   no sign-in
+GET    /v1/branding/host               the brand of the request's host, before sign-in   no sign-in
+GET    /v1/branding/domains            { enabled, domains }   Access.manageDomains
+POST   /v1/branding/domains            { hostname }   201, the domain and its TXT record   Access.manageDomains
+POST   /v1/branding/domains/{id}/verify   202, the DNS check queued   Access.manageDomains
+DELETE /v1/branding/domains/{id}       204, stops routing at once   Access.manageDomains
 ```
+
+The custom domains' routes are for people (no API keys), and their writes
+want a recent sign-in, as SSO's domains do (below, "Custom domains").
 
 `logoUrl` is the path of the last route. It is public on purpose: a mail client
 and the sign-in page show it without a session, and the logo is in every mail
@@ -122,12 +130,108 @@ instead of freezing them, operators set `branding.primaryColor` or
 `branding.mailFromName` at the platform scope with `enforced: true`: it beats
 every tenant's value.
 
+## Custom domains
+
+With `CUSTOM_DOMAINS=on` (off by default: the edge must serve them,
+[deployment](deployment.md#custom-domains-on-demand-tls)), a tenant's
+people may reach the app on a hostname of its own (`app.acme.com`), with its
+logo and colour from the sign-in page on. The code is
+`platform/branding/branding-domains.*`; the page is the Custom domains
+section of `/branding` (with `Access.manageDomains`).
+
+1. **Add the hostname** (`POST /v1/branding/domains`, audited
+   `branding.domain-added`). It is checked as a public FQDN
+   (`platform/branding/hostname.ts`): trimmed, lower-cased, without the
+   trailing dot, an internationalized name in punycode (`domainToASCII`),
+   two labels at least, labels of 63 and 253 characters in all, a top-level
+   name that is letters or `xn--`. Refused (400 `invalid_hostname`): an IP
+   address in any spelling (`10.0.0.1`, `[::1]`, `0x7f.1`), a port, a scheme,
+   a path, a user, a wildcard, a reserved top-level name (`.local`,
+   `.localhost`, `.internal`, `.test`, `.example`, `.invalid`, `.onion`,
+   `.arpa`, `.home`, `.lan`, `.corp`), and the app's own domain or one under
+   it (APP_URL's and WEB_URL's hosts). Unique per tenant (409
+   `domain_exists`), not across tenants: listing a hostname proves nothing,
+   so it blocks nobody.
+2. **Point it at the app** (a CNAME to `APP_DOMAIN`) and **publish the TXT
+   record** the answer gives: `_app-verification.<hostname>` holding
+   `app-verification=<token>` (the token is the domain's own, random).
+3. **Verify** (`POST …/{id}/verify`, 202): the lookup runs on the
+   `custom-domains` queue, never in the request (`system:custom-domains`).
+   Found, the domain is verified (audited `branding.domain-verified`) and
+   routes to the tenant in `tenant_domain_routes`, a global table read
+   before there is a tenant ([tenancy](tenancy.md)). One tenant per
+   hostname: the first to prove it; another that publishes its own record
+   too gets `lastError: Another tenant uses this domain.` until the first's
+   record goes.
+
+**Verified only while the record resolves.** Every night (02:15,
+`BrandingDomainsJob`) each verified domain is looked up again. The record
+gone or changed (the domain changed hands, the tenant took it down): the
+domain is suspended (audited `branding.domain-suspended`) and its route goes
+in the same transaction. A lookup that failed (a timeout, a server failure)
+records the error and changes nothing else: a DNS outage doesn't take
+domains away. A suspended domain is verified again by a check, once its
+record is back.
+
+**What a verified host does**, read at every request on it, never cached
+(so a domain removed or suspended stops at once, on every replica):
+
+- **The brand before sign-in.** `GET /v1/branding/host` answers the brand
+  (the colours, the sender name, the logos' paths) of the tenant whose
+  domain the request's `Host` is; the web app's pages before sign-in show
+  the logo and name and put the colour on the theme (`useHostBrand`). The
+  host is the request's own `Host` header, never a parameter and never
+  `X-Forwarded-Host`, so a page learns only the brand of the domain it is
+  on. Any other host (the app's own, an unknown or removed domain, an IP,
+  a deactivated tenant's) gets every field null: the same answer, no tenant
+  named. `Cache-Control: no-store`.
+- **The session's tenant.** On a tenant's host a session acts in that
+  tenant when its user is a member of it, else in none (the tenant tables
+  out of reach), whatever tenant it was switched to (`SessionAuth`, through
+  the `HOST_TENANTS` port the platform provides). The host only narrows
+  what a membership allows; it never grants one. An impersonation started in
+  another tenant ends there. Access tokens and API keys are not bound to a
+  host (no ambient credential to misuse).
+- **Origins and cookies.** The web app and the API share the custom host,
+  as they share `APP_DOMAIN`: requests are same-origin, so the CSRF check
+  passes them as it does on the app's host. Custom domains are never added
+  to `CORS_ORIGINS` or the trusted origins: a page on one tenant's domain
+  can't write to the app's host or another tenant's. The session cookie is
+  host-only (`__Host-sid`, no `Domain`), so a sign-in on a custom host is a
+  session of that host alone.
+- **SSO stays on APP_URL.** SAML and OpenID Connect URLs (the sign-in, the
+  assertion consumer service, the redirect URIs) are built from `APP_URL`,
+  never from the `Host`: an IdP registration holds whatever host people sign
+  in on. A sign-in through SSO ends on the app's own host (left out below).
+- **The edge's TLS question.** `GET /v1/internal/domains/allowed?domain=`
+  (not in the OpenAPI document, not rate limited) answers 200 for a verified
+  domain of an active tenant, else 404: Caddy's on-demand TLS `ask` and its
+  per-request check ([deployment](deployment.md#custom-domains-on-demand-tls)).
+
+**Removing** a domain (`DELETE …/{id}`, audited `branding.domain-removed`)
+deletes it and its route in one transaction: from the commit on, the host has
+no brand, no session pinned to it and no certificate or request from the
+edge. Removing is allowed while the operators lock the branding (it only
+narrows what is served); adding and verifying answer 409 `branding_locked`.
+`CUSTOM_DOMAINS=off` answers 404 `custom_domains_off` to adding and
+verifying, and every host is the app's (the list still reads, with
+`enabled: false`; the web hides the section).
+
+**Safe assets.** A custom host serves the same logo route
+(`/v1/branding/{tenantId}/logo`, with its headers above) and the web app's
+own files under the same Content-Security-Policy; nothing a tenant uploads
+is served from its domain but its checked logos.
+
 ## Left out
 
 - The logo does not count toward the tenant's `quotas.maxStorageBytes` (it is at
   most 512 KB and one per tenant; the quota counts attachments).
 - No per-user or per-team branding, no custom fonts or favicon, no dark-mode
-  variant in mail or documents, and no branding on the sign-in page before a
-  tenant is known (custom domains are tracked in #593).
+  variant in mail or documents, and no branding on the sign-in page of the
+  app's own host (only a custom domain's, above).
+- On a custom domain: SSO sign-in (it returns to `APP_URL`; the hand-over
+  back to the custom host with a one-time code is not built), passkeys (their
+  relying party is `PASSKEY_RP_ID`, the app's domain) and mail links (they go
+  to `WEB_URL`). Passwords and two-factor work there.
 - Mail sent by an operator for another tenant (a tenant's first invitation)
   carries the operator tenant's brand: the brand is that of the tenant in scope.
