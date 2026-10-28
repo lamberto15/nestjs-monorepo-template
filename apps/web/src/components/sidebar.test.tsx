@@ -151,6 +151,43 @@ describe('the sidebar on a phone', () => {
   });
 });
 
+describe('the bottom bar', () => {
+  const bar = async () =>
+    within(await screen.findByRole('navigation', { name: 'Quick navigation' }));
+
+  it('shows on a phone, with the menu sheet and search one tap away', async () => {
+    signedInWith({});
+    vi.stubGlobal('innerWidth', 500);
+    const { router } = await renderApp('/');
+    const user = userEvent.setup();
+    const tabs = await bar();
+    expect(tabs.getByRole('link', { name: 'Home' })).toHaveAttribute(
+      'href',
+      '/',
+    );
+    await user.click(tabs.getByRole('link', { name: 'Inbox' }));
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/notifications'),
+    );
+    await user.click(tabs.getByRole('button', { name: 'Menu' }));
+    const sheet = within(await screen.findByRole('dialog'));
+    expect(sheet.getByRole('link', { name: 'Dashboard' })).toBeVisible();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await user.click(tabs.getByRole('button', { name: 'Search' }));
+    expect(await screen.findByRole('dialog')).toBeVisible();
+  });
+
+  it('is not there on a desktop', async () => {
+    signedInWith({});
+    await renderApp('/');
+    await screen.findByRole('navigation', { name: 'Main menu' });
+    expect(
+      screen.queryByRole('navigation', { name: 'Quick navigation' }),
+    ).toBeNull();
+  });
+});
+
 describe('the menu groups', () => {
   afterEach(() => localStorage.removeItem('nav-groups'));
   const can = { 'Access.manageRoles': true, 'Access.readAudit': true };

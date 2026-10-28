@@ -10,7 +10,10 @@
     "skipToContent": "跳到内容",
     "sidebar": "侧边栏",
     "menu": "主菜单",
-    "breadcrumb": "面包屑导航"
+    "breadcrumb": "面包屑导航",
+    "bottom": "快速导航",
+    "search": "搜索",
+    "more": "菜单"
   },
   "auth": {
     "signIn": {

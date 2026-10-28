@@ -10,7 +10,10 @@
     "skipToContent": "Zum Inhalt springen",
     "sidebar": "Seitenleiste",
     "menu": "Hauptmenü",
-    "breadcrumb": "Brotkrümelnavigation"
+    "breadcrumb": "Brotkrümelnavigation",
+    "bottom": "Schnellnavigation",
+    "search": "Suche",
+    "more": "Menü"
   },
   "auth": {
     "signIn": {

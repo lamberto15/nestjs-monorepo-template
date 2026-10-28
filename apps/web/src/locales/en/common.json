@@ -10,7 +10,10 @@
     "skipToContent": "Skip to content",
     "sidebar": "Sidebar",
     "menu": "Main menu",
-    "breadcrumb": "Breadcrumb"
+    "breadcrumb": "Breadcrumb",
+    "bottom": "Quick navigation",
+    "search": "Search",
+    "more": "Menu"
   },
   "auth": {
     "signIn": {
