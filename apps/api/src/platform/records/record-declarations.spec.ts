@@ -1,6 +1,6 @@
 import { RequestMethod } from '@nestjs/common';
 import { field } from '../fields/field.js';
-import { defineRecord } from './record.js';
+import { defineRecord, duplicateRules } from './record.js';
 import { actionPath, recordApprovalActions } from './record-approvals.js';
 import { recordApprovalRoutes } from './record-approval-routes.js';
 import { recordSetting, recordSettings } from './record-settings.js';
@@ -127,5 +127,30 @@ describe('a record declaration', () => {
         settings: { payApproval: recordSetting.flag() },
       }),
     ).toThrow(/can't be a setting's name/);
+  });
+
+  it('finds duplicates by its declared rules, else its title field; merge needs a recycle bin', () => {
+    const base = {
+      subject: 'Contact',
+      path: 'contacts',
+      apiTag: 'contacts',
+      className: 'ContactSpec',
+      noun: 'contact',
+      table: 'contacts',
+      softDelete: true,
+      unit: false,
+      fields: { name: field.string(), email: field.string().optional() },
+      capabilities: ['merge'] as const,
+    };
+    expect(duplicateRules(defineRecord(base))).toEqual([['name']]);
+    expect(
+      duplicateRules(defineRecord({ ...base, duplicates: [['email']] })),
+    ).toEqual([['email']]);
+    expect(() => defineRecord({ ...base, softDelete: false })).toThrow(
+      /needs softDelete/,
+    );
+    expect(() => defineRecord({ ...base, duplicates: [['phone']] })).toThrow(
+      /can't match by "phone"/,
+    );
   });
 });

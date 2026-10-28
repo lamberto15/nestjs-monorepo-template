@@ -17666,6 +17666,10 @@
                           "type": "boolean",
                           "description": "Read-only links to a record (`…/{id}/shares`), opened without a sign-in (POST /v1/shared/open)."
                         },
+                        "merge": {
+                          "type": "boolean",
+                          "description": "Duplicates found by its declared rules (`…/duplicates`) and merged into one record (`…/{id}/merge`)."
+                        },
                         "approvals": {
                           "type": "boolean",
                           "description": "An action on the records may need approval (GET /v1/approvals)."
@@ -17685,6 +17689,7 @@
                         "events",
                         "numbered",
                         "share",
+                        "merge",
                         "approvals"
                       ],
                       "additionalProperties": false,
@@ -57964,6 +57969,176 @@
           "createdAt",
           "token",
           "url"
+        ],
+        "additionalProperties": false
+      },
+      "DuplicateList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Duplicate"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "Duplicate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "matched": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "The rules it matched, each the fields whose values are the same (text without case or surrounding spaces).",
+            "example": [
+              [
+                "title"
+              ]
+            ]
+          },
+          "record": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "The record as you may read it (fields hidden from you left out)."
+          }
+        },
+        "required": [
+          "id",
+          "matched",
+          "record"
+        ],
+        "additionalProperties": false
+      },
+      "MergePreview": {
+        "type": "object",
+        "properties": {
+          "survivor": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "The record as you may read it (fields hidden from you left out)."
+          },
+          "duplicate": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "The record as you may read it (fields hidden from you left out)."
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "survivor": {},
+                "duplicate": {},
+                "differs": {
+                  "type": "boolean"
+                },
+                "keep": {
+                  "type": "string",
+                  "enum": [
+                    "survivor",
+                    "duplicate"
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "survivor",
+                "duplicate",
+                "differs",
+                "keep"
+              ],
+              "additionalProperties": false
+            },
+            "description": "The fields you may read on both records and change on the survivor: the ones you may choose."
+          },
+          "result": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "The survivor once merged."
+          },
+          "moves": {
+            "type": "object",
+            "properties": {
+              "tags": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "comments": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "attachments": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "watchers": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "references": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "subject": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "subject",
+                    "field",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "tags",
+              "comments",
+              "attachments",
+              "watchers",
+              "references"
+            ],
+            "additionalProperties": false,
+            "description": "What moves from the duplicate to the survivor: its tags, comments, attachments and watchers, and the records whose references point at it. The duplicate's revisions stay with it."
+          }
+        },
+        "required": [
+          "survivor",
+          "duplicate",
+          "fields",
+          "result",
+          "moves"
         ],
         "additionalProperties": false
       },

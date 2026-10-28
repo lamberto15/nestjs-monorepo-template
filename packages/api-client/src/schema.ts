@@ -6874,6 +6874,61 @@ export interface components {
             /** @description The web app's page that opens it: `<WEB_URL>/shared#<token>`. */
             url: string;
         };
+        DuplicateList: {
+            items: components["schemas"]["Duplicate"][];
+        };
+        Duplicate: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description The rules it matched, each the fields whose values are the same (text without case or surrounding spaces).
+             * @example [
+             *       [
+             *         "title"
+             *       ]
+             *     ]
+             */
+            matched: string[][];
+            /** @description The record as you may read it (fields hidden from you left out). */
+            record: {
+                [key: string]: unknown;
+            };
+        };
+        MergePreview: {
+            /** @description The record as you may read it (fields hidden from you left out). */
+            survivor: {
+                [key: string]: unknown;
+            };
+            /** @description The record as you may read it (fields hidden from you left out). */
+            duplicate: {
+                [key: string]: unknown;
+            };
+            /** @description The fields you may read on both records and change on the survivor: the ones you may choose. */
+            fields: {
+                name: string;
+                survivor: unknown;
+                duplicate: unknown;
+                differs: boolean;
+                /** @enum {string} */
+                keep: "survivor" | "duplicate";
+            }[];
+            /** @description The survivor once merged. */
+            result: {
+                [key: string]: unknown;
+            };
+            /** @description What moves from the duplicate to the survivor: its tags, comments, attachments and watchers, and the records whose references point at it. The duplicate's revisions stay with it. */
+            moves: {
+                tags: number;
+                comments: number;
+                attachments: number;
+                watchers: number;
+                references: {
+                    subject: string;
+                    field: string;
+                    count: number;
+                }[];
+            };
+        };
         RealtimeNotificationEvent: {
             /** Format: uuid */
             id: string;
@@ -14551,6 +14606,8 @@ export interface operations {
                             numbered: boolean;
                             /** @description Read-only links to a record (`…/{id}/shares`), opened without a sign-in (POST /v1/shared/open). */
                             share: boolean;
+                            /** @description Duplicates found by its declared rules (`…/duplicates`) and merged into one record (`…/{id}/merge`). */
+                            merge: boolean;
                             /** @description An action on the records may need approval (GET /v1/approvals). */
                             approvals: boolean;
                         };
