@@ -32,11 +32,13 @@ FROM caddy:2.11.7-builder AS builder
 # builds of one commit are the same image; Dependabot doesn't see a version
 # inside this RUN line: raise it by hand, and with it the Caddy release the
 # builder and the final stage share (the FROM lines, which Dependabot raises).
-# golang.org/x/net raised past the release's (xcaddy's --replace: a replace
-# directive, no plugin import), so CI's scan (job caddy-image) finds nothing
-# fixable; drop it once a Caddy release ships this version or a newer one.
+# golang.org/x/net and go-jose/v4 (CVE-2026-116587, v4.1.6) raised past the
+# release's (xcaddy's --replace: a replace directive, no plugin import), so
+# CI's scan (job caddy-image) finds nothing fixable; drop each once a Caddy
+# release ships its version or a newer one.
 RUN xcaddy build --with github.com/caddy-dns/cloudflare@v0.2.4 \
-      --replace golang.org/x/net=golang.org/x/net@v0.61.0
+      --replace golang.org/x/net=golang.org/x/net@v0.61.0 \
+      --replace github.com/go-jose/go-jose/v4=github.com/go-jose/go-jose/v4@v4.1.6
 
 FROM caddy:2.11.7
 # Stable IDs also used by the one-time certificate-volume migration.
