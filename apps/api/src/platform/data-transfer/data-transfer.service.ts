@@ -47,7 +47,7 @@ import {
   type TemplateGuide,
 } from './formats.js';
 import { columnsOf } from './import-columns.js';
-import { mappingProblems } from './import-mapping.js';
+import { type ImportMapping, mappingProblems } from './import-mapping.js';
 import { importLimits, restrictImportLimits } from './import-limits.js';
 import { SettingsService } from '../settings/settings.service.js';
 
