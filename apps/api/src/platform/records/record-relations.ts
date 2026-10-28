@@ -1,6 +1,10 @@
+import { UnprocessableEntityException } from '@nestjs/common';
+import { getTableName } from 'drizzle-orm';
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
+import { ProblemDetailsFilter } from '../../core/http/problem-details.filter.js';
 import {
   type AnyField,
+  columnName,
   type Referenced,
   referencedSubject,
 } from '../fields/field.js';
@@ -80,3 +84,42 @@ export const relationTitle = (declaration: RecordDeclaration) =>
   Object.entries(declaration.fields).find(
     ([, f]) => (f as AnyField).kind === 'string',
   )?.[0] ?? null;
+
+/**
+ * A write whose reference names no row the key finds (another tenant's, or
+ * none at all): RecordLifecycle checks references after the row is written,
+ * so the key refuses it first. The same 422 `reference_not_found` as the
+ * check's, named by the key's constraint (`<table>_<column>_fk`,
+ * fieldExtras), instead of a 500. Deletes still referred to are the
+ * services' own (isStillReferenced).
+ */
+ProblemDetailsFilter.map(Error, (error) => {
+  for (let e: unknown = error, depth = 0; e && depth < 5; depth++) {
+    const { code, message, constraint } = e as {
+      code?: unknown;
+      message?: unknown;
+      constraint?: unknown;
+    };
+    if (
+      code === '23503' &&
+      typeof message === 'string' &&
+      message.startsWith('insert or update')
+    ) {
+      const relation = RELATIONS.find(
+        (r) =>
+          `${getTableName(r.table)}_${columnName(r.field)}_fk` === constraint,
+      );
+      if (!relation) return undefined;
+      return new UnprocessableEntityException(
+        {
+          code: 'reference_not_found',
+          message: `${relation.field}: no ${relation.target() ?? 'record'} with this id that you may read.`,
+          field: relation.field,
+        },
+        { cause: error },
+      );
+    }
+    e = (e as { cause?: unknown }).cause;
+  }
+  return undefined;
+});
