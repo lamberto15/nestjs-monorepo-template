@@ -974,7 +974,7 @@ function ColorPickerHueSlider(
     >
       <SliderPrimitive.Control className="relative flex w-full items-center">
         <SliderPrimitive.Track className="relative h-3 w-full grow overflow-hidden rounded-full bg-[linear-gradient(to_right,#ff0000_0%,#ffff00_16.66%,#00ff00_33.33%,#00ffff_50%,#0000ff_66.66%,#ff00ff_83.33%,#ff0000_100%)]" />
-        <SliderPrimitive.Thumb className="block size-3 rounded-full border border-primary/50 bg-background shadow transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50" />
+        <SliderPrimitive.Thumb aria-label="Hue" className="block size-3 rounded-full border border-primary/50 bg-background shadow transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50" />
       </SliderPrimitive.Control>
     </SliderPrimitive.Root>
   );
