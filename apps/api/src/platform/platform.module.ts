@@ -45,6 +45,12 @@ import { AiProvider, DisabledAiProvider } from './ai/ai-provider.js';
 import { AiRegistry } from './ai/ai.registry.js';
 import { AiService } from './ai/ai.service.js';
 import { AI_SETTINGS } from './ai/ai-settings.js';
+import { FORM_SETTINGS } from './forms/form-settings.js';
+import { FormPolicy } from './forms/form.policy.js';
+import { FormsController } from './forms/forms.controller.js';
+import { FormsService } from './forms/forms.service.js';
+import { FormSubmissionsController } from './forms/form-submissions.controller.js';
+import { FormSubmissionsService } from './forms/form-submissions.service.js';
 import { AnthropicProvider } from './ai/anthropic.provider.js';
 import { AUTH_SETTINGS } from './auth-policy/auth-settings.js';
 import { DASHBOARD_SETTINGS } from './settings/dashboard.setting.js';
@@ -538,6 +544,9 @@ export class PlatformModule {
         TemplatesController,
         ChoicesController,
         FavoritesController,
+        // Runtime forms (docs/forms.md): off per tenant until `forms.enabled`.
+        FormsController,
+        FormSubmissionsController,
         // Opening a record's read-only link, without a sign-in (POST /v1/shared/open).
         SharedController,
         ImportMappingsController,
@@ -581,6 +590,7 @@ export class PlatformModule {
               ...DELIVERABILITY_SETTINGS,
               ...DASHBOARD_SETTINGS,
               ...AI_SETTINGS,
+              ...FORM_SETTINGS,
               ...DATA_TRANSFER_SETTINGS,
               ...(options.settings ?? []),
             ],
@@ -808,6 +818,10 @@ export class PlatformModule {
         ChoicesBuiltins,
         // Favorites: a person's pinned records, pages and saved views, in their order.
         FavoritesService,
+        // Runtime forms: definitions, published versions, submissions.
+        FormPolicy,
+        FormsService,
+        FormSubmissionsService,
         // Business calendars: working hours, zone and holidays, and the deadline calculation on them.
         CalendarsService,
         // Recurring record schedules: records created from a template at each occurrence of a rule.
