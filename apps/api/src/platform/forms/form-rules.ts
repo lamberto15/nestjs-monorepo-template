@@ -71,6 +71,8 @@ export const OPERATORS_BY_TYPE: Record<string, readonly RuleOperator[]> = {
   select: ['eq', 'ne', 'in', 'isEmpty'],
   radio: ['eq', 'ne', 'in', 'isEmpty'],
   multiSelect: ['contains', 'isEmpty'],
+  // A repeatable group (format 3): whether it has items.
+  group: ['isEmpty'],
 };
 
 const isGroup = (
