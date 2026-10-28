@@ -248,6 +248,11 @@ import { TemplatesRegistry } from './templates/templates.registry.js';
 import { TemplatesService } from './templates/templates.service.js';
 import { ViewsController } from './views/views.controller.js';
 import { ViewsService } from './views/views.service.js';
+import { CalendarsController } from './calendars/calendars.controller.js';
+import { CalendarsService } from './calendars/calendars.service.js';
+import { RecordScheduleRunnerJob } from './recurrence/record-schedule-runner.job.js';
+import { RecordSchedulesController } from './recurrence/record-schedules.controller.js';
+import { RecordSchedulesService } from './recurrence/record-schedules.service.js';
 import { ReportRunnerJob } from './reports/report-runner.job.js';
 import { ReportFailedMail, ReportReadyMail } from './reports/report.mails.js';
 import { ReportsController } from './reports/reports.controller.js';
@@ -513,6 +518,8 @@ export class PlatformModule {
         AiController,
         TagsController,
         NamingSeriesController,
+        CalendarsController,
+        RecordSchedulesController,
         ViewsController,
         TemplatesController,
         ChoicesController,
@@ -788,6 +795,11 @@ export class PlatformModule {
         ChoicesBuiltins,
         // Favorites: a person's pinned records, pages and saved views, in their order.
         FavoritesService,
+        // Business calendars: working hours, zone and holidays, and the deadline calculation on them.
+        CalendarsService,
+        // Recurring record schedules: records created from a template at each occurrence of a rule.
+        RecordSchedulesService,
+        RecordScheduleRunnerJob,
         // Read-only links to records: features register a ShareTarget (the `share` capability).
         SharesRegistry,
         SharesService,

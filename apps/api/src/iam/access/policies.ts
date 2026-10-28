@@ -77,6 +77,11 @@ export class AccessPolicy {
     );
   }
 
+  /** Business calendars (platform/calendars): working hours, time zone and holidays for deadlines. */
+  async manageCalendars(user: Principal | null) {
+    return manager(user) && this.access.can(user, 'manageCalendars', 'Access');
+  }
+
   /** The deployment's tenants (TenantsController, also @OperatorOnly()). */
   async manageTenants(user: Principal | null) {
     return manager(user) && this.access.can(user, 'manageTenants', 'Access');
