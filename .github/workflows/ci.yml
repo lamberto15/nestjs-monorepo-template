@@ -76,6 +76,7 @@ jobs:
       image: ${{ steps.paths.outputs.image }}
       api_image: ${{ steps.paths.outputs.api_image }}
       full: ${{ steps.paths.outputs.full }}
+      chart: ${{ steps.paths.outputs.chart }}
       base: ${{ steps.paths.outputs.base }}
       head: ${{ steps.paths.outputs.head }}
       affected: ${{ steps.paths.outputs.affected }}

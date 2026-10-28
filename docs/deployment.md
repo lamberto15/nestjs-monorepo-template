@@ -2121,6 +2121,9 @@ the trusted manifest, so failed or skipped intervening releases cannot lose work
 Those cumulative component changes are revalidated against the same Turbo base.
 Runtime-only infrastructure checks may build an API artifact without publishing
 an unchanged API image.
+A change to the chart alone (`deploy/helm/app/`) also makes a manifest on `main`:
+the previous images with the new source SHA, so Deploy ships the chart without a
+rebuild.
 
 Reuse requires a successful `main` CI run's manifest, source ancestry, registry
 availability, an exact main-workflow cosign identity, a signed CycloneDX SBOM and

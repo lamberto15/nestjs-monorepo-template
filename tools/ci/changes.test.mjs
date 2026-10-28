@@ -55,11 +55,15 @@ test('shared, migrations, infrastructure, tooling, CI and unknown paths', () => 
   for (const file of [
     'README.md',
     'docs/deployment.md',
-    'deploy/helm/app/values.yaml',
     'deploy/k3s/data.yaml',
     'packages/api-client/CHANGELOG.md',
   ])
     assert.deepEqual(selected(route(file)), []);
+  // The chart is released, not built or tested here.
+  assert.deepEqual(selected(route('deploy/helm/app/values.yaml')), ['chart']);
+  assert.deepEqual(expectedJobs(route('deploy/helm/app/values.yaml')), [
+    'changes',
+  ]);
 });
 
 test('shared actions validate everything and documents beside code add nothing', () => {

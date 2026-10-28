@@ -227,6 +227,19 @@ test('release planning revalidates cumulative failures, separates runtime builds
     );
     assert.equal(plan.previous.sourceSha, oldSha);
     assert.ok(outputs.web && outputs.app && outputs.caddy && outputs.api_image);
+    // A chart-only change releases the previous images with its own source (#885).
+    const chart = classify({ files: ['deploy/helm/app/values.yaml'] });
+    const chartPlan = releasePlan(
+      chart,
+      env,
+      {},
+      classify,
+      () => ['deploy/helm/app/values.yaml'],
+      () => previous,
+    );
+    assert.equal(chartPlan.publish, true);
+    assert.equal(chartPlan.previous.sourceSha, oldSha);
+    assert.ok(!chart.api_image && !chart.caddy && !chart.gotenberg);
     const infra = classify({ files: ['compose.prod.yaml'] });
     assert.ok(infra.image);
     assert.equal(infra.api_image, false);
