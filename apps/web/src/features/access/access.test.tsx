@@ -15,7 +15,6 @@ import {
 import { unitRefsQuery } from '@/lib/list-refs';
 import { peopleQuery, unitNameQuery } from '@/lib/people';
 import { nav, visibleGroups } from '@/nav';
-import { peopleHandler } from '@/test/people';
 import { principalsHandler, userPrincipal } from '@/test/principals';
 import { renderApp } from '@/test/render-app';
 import { renderComponent } from '@/test/render-component';
@@ -641,22 +640,25 @@ describe('units: a unit’s members', () => {
 
     await user.type(screen.getByLabelText('Add a member'), 'carol');
     await user.click(await screen.findByRole('option', { name: /Carol/ }));
+    await user.type(screen.getByLabelText(/Starts/), '2027-01-01T09:00');
+    await user.type(screen.getByLabelText(/Ends/), '2027-06-30T17:00');
     await user.click(screen.getByRole('button', { name: 'Add' }));
     await findToast('Member added.');
     expect(added).toHaveLength(1);
     expect(added[0]!.url).toMatch(
       `/v1/access/organizational-units/${ids.north}/members`,
     );
-    expect(added[0]!.body).toEqual({ userId: ids.carol, role: 'member' });
+    expect(added[0]!.body).toEqual({
+      userId: ids.carol,
+      role: 'member',
+      validFrom: new Date('2027-01-01T09:00').toISOString(),
+      validTo: new Date('2027-06-30T17:00').toISOString(),
+    });
   });
 
   it('changes a member’s role and ends a membership', async () => {
     signedInWith(everything);
     server.use(
-      peopleHandler([
-        { id: ids.carol, name: 'Carol Admin' },
-        { id: ids.bob, name: 'Bob Former' },
-      ]),
       principalsHandler([]),
       http.get('/v1/access/organizational-units/:id/members', () =>
         HttpResponse.json({
@@ -665,6 +667,8 @@ describe('units: a unit’s members', () => {
               id: 'm1',
               unitId: ids.north,
               userId: ids.carol,
+              name: 'Carol Admin',
+              email: 'carol@example.com',
               role: 'member',
               validFrom: at,
               validTo: null,
@@ -675,6 +679,8 @@ describe('units: a unit’s members', () => {
               id: 'm0',
               unitId: ids.north,
               userId: ids.bob,
+              name: 'Bob Former',
+              email: 'bob@example.com',
               role: 'lead',
               validFrom: '2026-09-01T10:00:00.000Z',
               validTo: at,
@@ -697,6 +703,7 @@ describe('units: a unit’s members', () => {
     await renderApp(`/access/organization/${ids.north}`);
     const user = userEvent.setup();
     expect(await screen.findByText('Carol Admin')).toBeVisible();
+    expect(screen.getByText('carol@example.com')).toBeVisible();
     // An ended membership is history: not listed, so not changed or removed.
     expect(screen.queryByText('Bob Former')).toBeNull();
 

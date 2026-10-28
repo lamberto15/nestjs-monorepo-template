@@ -15,6 +15,7 @@ import {
   SheetTitle,
 } from '@nestjs-monorepo-template/ui/components/sheet';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
+import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -116,7 +117,6 @@ function MemberDetail(props: { member: Member; onDone: () => void }) {
   const roles = useQuery(rolesQuery);
   const units = useQuery(unitsQuery);
   const [grants, setGrants] = useState<GrantDraft>(() => draftOf(member.roles));
-  const [unitIds, setUnitIds] = useState<string[]>(member.unitIds);
   const [error, setError] = useState<string>();
   const change = useMutation({
     mutationFn: (body: MemberChanges) => updateMember(member.id, body),
@@ -216,28 +216,18 @@ function MemberDetail(props: { member: Member; onDone: () => void }) {
           <UnitsPicker
             idPrefix="member"
             units={units.data}
-            value={unitIds}
-            onChange={setUnitIds}
-            // The API refuses changing one's own units.
-            disabled={!mayManage || self || change.isPending}
+            value={member.unitIds}
+            onChange={() => {}}
+            // Read-only: memberships change on the unit's pages.
+            disabled
           />
         )}
-        {!mayManage ? null : self ? (
-          <p className="text-xs text-muted-foreground">
-            {t('users.selfUnits')}
-          </p>
-        ) : (
-          <Button
-            className="self-start"
-            variant="outline"
-            disabled={change.isPending || !units.isSuccess}
-            onClick={() =>
-              void run({ unitIds }, t('users.unitsSaved')).catch(() => {})
-            }
-          >
-            {t('users.saveUnits')}
-          </Button>
-        )}
+        <p className="text-xs text-muted-foreground">
+          {t('users.unitsOnUnits')}{' '}
+          <Link to="/access/organization" className="underline">
+            {t('units.title')}
+          </Link>
+        </p>
       </section>
 
       <Separator />
