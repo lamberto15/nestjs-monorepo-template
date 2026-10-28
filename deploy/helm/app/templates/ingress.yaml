@@ -24,8 +24,8 @@ spec:
       http:
         paths:
           {{- range .Values.ingress.apiPaths }}
-          - path: {{ . }}
-            pathType: Prefix
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
             backend:
               service:
                 name: {{ include "app.fullname" $ }}-api

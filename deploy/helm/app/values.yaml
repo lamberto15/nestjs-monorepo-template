@@ -157,16 +157,22 @@ ingress:
   # The Secret with the certificate (cert-manager fills it from the annotation above).
   tlsSecretName: ""
   # The paths caddy/Caddyfile sends to the API; the rest is the web app.
-  # /metrics is never exposed.
+  # /metrics is never exposed. Exact segments, as in the Caddyfile: Traefik
+  # (k3s) matches a Prefix as a string, so a Prefix /api would also take the
+  # app's /api-keys and /api-clients. A bare path is Exact, a subtree ends
+  # in "/" (every controller reads that Prefix as the subtree).
   apiPaths:
-    - /v1
-    - /socket.io
-    - /health
-    - /api
-    - /api-json
-    - /api-yaml
-    - /files
-    - /.well-known
+    - { path: /v1/, pathType: Prefix }
+    - { path: /socket.io/, pathType: Prefix }
+    - { path: /health, pathType: Exact }
+    - { path: /health/, pathType: Prefix }
+    - { path: /api, pathType: Exact }
+    - { path: /api/, pathType: Prefix }
+    - { path: /api-json, pathType: Exact }
+    - { path: /api-yaml, pathType: Exact }
+    - { path: /files, pathType: Exact }
+    - { path: /files/, pathType: Prefix }
+    - { path: /.well-known/, pathType: Prefix }
 
 # PDF documents (docs/documents.md): Gotenberg, reachable only by the worker.
 gotenberg:
