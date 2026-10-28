@@ -10,7 +10,7 @@ import { PasswordHasher } from '@nestjs/authentication';
 import { ConfigService } from '@nestjs/config';
 import { t } from '@nestjs/i18n';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { and, desc, eq, gt, inArray, isNull } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, isNotNull, isNull, ne } from 'drizzle-orm';
 import { type CoreEnv, webUrl } from '../../core/config/core.env.js';
 import type { Transaction } from '../../core/database/drizzle.js';
 import {
@@ -33,16 +33,26 @@ import {
 } from '../auth/principal.js';
 import { normalizeEmail, UsersRepository } from '../auth/users.repository.js';
 import type { IamEnv } from '../iam.env.js';
-import { invitations, roles, userRoles } from '../iam.tables.js';
+import { invitations, memberships, roles, userRoles } from '../iam.tables.js';
 import { AccessService } from './access.service.js';
 import { OrganizationalUnitsService } from './organizational-units.service.js';
 
 /** What an invitation grants once accepted. */
 export interface InvitationInput {
-  email: string;
+  /** Needed to send; a prepared one may wait for it. */
+  email?: string;
   /** The name a new account starts with. */
   name?: string;
   roleIds: string[];
+  roleExpiresAt?: Record<string, string>;
+  unitIds?: string[];
+}
+
+/** What an administrator changes of a pending invitation; `email: null` takes the address away. */
+export interface InvitationChanges {
+  email?: string | null;
+  name?: string | null;
+  roleIds?: string[];
   roleExpiresAt?: Record<string, string>;
   unitIds?: string[];
 }
@@ -55,9 +65,11 @@ const hashOf = (token: string) =>
   createHash('sha256').update(token).digest('base64url');
 
 /**
- * Adding people to a tenant (docs/tenancy.md, "Invitations"): invite-only.
- * An administrator invites an address with the roles and units its
- * membership will have; the address gets a link. Nothing about an account
+ * Adding people to a tenant (docs/tenancy.md, "Invitations"), the one
+ * pending-member lifecycle (docs/identity.md, "Getting people in"). An
+ * administrator invites an address (sent now) or prepares a member (sent
+ * later) with the roles and units its membership will have; sending gives
+ * the address a link. Nothing about an account
  * is read, changed or shown until its owner accepts, and the answer is the
  * same whether or not the address has an account: a new address chooses
  * its password with the link (which proves the mailbox), an existing
@@ -88,15 +100,24 @@ export class InvitationsService {
   /**
    * An invitation to the current tenant, in `tx` (the caller's transaction,
    * with its audit entry): a pending one to the same address is replaced.
-   * Returns the link's token; `send()` mails it after the commit.
+   * `send`: with its link, whose token is returned (`send()` mails it after
+   * the commit); otherwise prepared, with no link (token null).
    */
-  async create(tx: Transaction, input: InvitationInput, inviter: Principal) {
+  async create(
+    tx: Transaction,
+    input: InvitationInput,
+    inviter: Principal,
+    send = true,
+  ) {
     const tenantId = this.tenancy.tenantId('An invitation');
-    const email = normalizeEmail(input.email);
-    const { token, tokenHash, expiresAt } = this.newLink(tenantId);
-    await tx
-      .delete(invitations)
-      .where(and(eq(invitations.email, email), isNull(invitations.acceptedAt)));
+    const email = input.email ? normalizeEmail(input.email) : null;
+    if (send && !email) {
+      throw emailRequired();
+    }
+    const link = send ? this.newLink(tenantId) : null;
+    if (email) {
+      await this.replacePendingTo(tx, email);
+    }
     const [invitation] = await tx
       .insert(invitations)
       .values({
@@ -105,27 +126,86 @@ export class InvitationsService {
         roleIds: [...new Set(input.roleIds)],
         roleExpiresAt: input.roleExpiresAt ?? {},
         unitIds: input.unitIds ?? [],
-        tokenHash,
         invitedBy: principalKey(inviter),
-        expiresAt,
+        ...(link && {
+          tokenHash: link.tokenHash,
+          expiresAt: link.expiresAt,
+          sentAt: new Date(),
+        }),
       })
       .returning();
-    return { invitation: invitation!, token };
+    return { invitation: invitation!, token: link?.token ?? null };
   }
 
-  /** A pending invitation of the tenant (expired or not), or null. */
-  async findPending(id: string) {
-    const [invitation] = await this.db
+  /** One pending invitation per address: the newest replaces the others. */
+  private async replacePendingTo(
+    tx: Transaction,
+    email: string,
+    keep?: string,
+  ) {
+    await tx
+      .delete(invitations)
+      .where(
+        and(
+          eq(invitations.email, email),
+          isNull(invitations.acceptedAt),
+          keep ? ne(invitations.id, keep) : undefined,
+        ),
+      );
+  }
+
+  /** A pending invitation, locked until `tx` ends (one change at a time), or null. */
+  async lockPending(tx: Transaction, id: string) {
+    const [invitation] = await tx
       .select()
       .from(invitations)
-      .where(and(eq(invitations.id, id), isNull(invitations.acceptedAt)));
+      .where(and(eq(invitations.id, id), isNull(invitations.acceptedAt)))
+      .for('update');
     return invitation ?? null;
   }
 
   /**
+   * A pending invitation's changes (`current`, locked by `lockPending()`),
+   * in `tx` (the caller's, with its audit entry). A new address withdraws
+   * the link (it went to the old one): the invitation is prepared again
+   * until sent.
+   */
+  async update(
+    tx: Transaction,
+    current: typeof invitations.$inferSelect,
+    changes: InvitationChanges,
+  ) {
+    const email =
+      changes.email === undefined
+        ? current.email
+        : changes.email && normalizeEmail(changes.email);
+    const moved = email !== current.email;
+    if (moved && email) {
+      await this.replacePendingTo(tx, email, current.id);
+    }
+    const [invitation] = await tx
+      .update(invitations)
+      .set({
+        email,
+        ...(changes.name !== undefined && { name: changes.name }),
+        ...(changes.roleIds && { roleIds: [...new Set(changes.roleIds)] }),
+        ...(changes.roleExpiresAt && { roleExpiresAt: changes.roleExpiresAt }),
+        ...(changes.unitIds && { unitIds: changes.unitIds }),
+        ...(moved && { tokenHash: null, expiresAt: null, sentAt: null }),
+      })
+      .where(eq(invitations.id, current.id))
+      .returning();
+    return {
+      invitation: invitation!,
+      linkWithdrawn: moved && current.tokenHash !== null,
+    };
+  }
+
+  /**
    * A pending invitation's new link and expiry, in `tx` (the caller's, with
-   * its audit entry): the old link stops working. Null when it was
-   * accepted or withdrawn. `send()` mails the token after the commit.
+   * its audit entry): a prepared one is sent, a sent one's old link stops
+   * working. Null when it was accepted or withdrawn, or has no address
+   * (any more). `send()` mails the token after the commit.
    */
   async renew(tx: Transaction, id: string) {
     const { token, tokenHash, expiresAt } = this.newLink(
@@ -133,8 +213,14 @@ export class InvitationsService {
     );
     const [invitation] = await tx
       .update(invitations)
-      .set({ tokenHash, expiresAt })
-      .where(and(eq(invitations.id, id), isNull(invitations.acceptedAt)))
+      .set({ tokenHash, expiresAt, sentAt: new Date() })
+      .where(
+        and(
+          eq(invitations.id, id),
+          isNull(invitations.acceptedAt),
+          isNotNull(invitations.email),
+        ),
+      )
       .returning();
     return invitation ? { invitation, token } : null;
   }
@@ -154,23 +240,26 @@ export class InvitationsService {
 
   /** Mails the link (after the invitation's commit), in the inviter's language. */
   async send(
-    invitation: { email: string; expiresAt: Date },
+    invitation: { email: string | null; expiresAt: Date | null },
     token: string,
     inviter: Principal,
   ) {
     const tenant = await this.tenancy.find(this.tenancy.tenantId());
     await this.mailQueue.send(TenantInvitationMail, {
-      to: { address: invitation.email },
+      to: { address: invitation.email! },
       data: {
         inviter: actorOf(inviter).actorLabel,
         tenant: tenant!.name,
         url: `${webUrl(this.config)}/accept-invitation?token=${encodeURIComponent(token)}`,
-        expiresAt: invitation.expiresAt,
+        expiresAt: invitation.expiresAt!,
       },
     });
   }
 
-  /** The tenant's invitations not accepted yet, newest first (expired ones too, marked so). */
+  /**
+   * The tenant's invitations not accepted yet, newest first, each with its
+   * `status`: `prepared` (no link yet), `sent`, or `expired` (its link).
+   */
   async pending() {
     const rows = await this.db
       .select({
@@ -181,16 +270,18 @@ export class InvitationsService {
         roleExpiresAt: invitations.roleExpiresAt,
         unitIds: invitations.unitIds,
         invitedBy: invitations.invitedBy,
+        tokenHash: invitations.tokenHash,
+        sentAt: invitations.sentAt,
         expiresAt: invitations.expiresAt,
         createdAt: invitations.createdAt,
       })
       .from(invitations)
       .where(isNull(invitations.acceptedAt))
       .orderBy(desc(invitations.id));
-    return rows.map((row) => ({
-      ...row,
-      expired: row.expiresAt.getTime() <= Date.now(),
-    }));
+    return rows.map(({ tokenHash, ...row }) => {
+      const status = invitationStatus(tokenHash !== null, row.expiresAt);
+      return { ...row, status, expired: status === 'expired' };
+    });
   }
 
   /** Withdraws a pending invitation: its link stops working. */
@@ -199,7 +290,11 @@ export class InvitationsService {
       const [gone] = await tx
         .delete(invitations)
         .where(and(eq(invitations.id, id), isNull(invitations.acceptedAt)))
-        .returning({ id: invitations.id, email: invitations.email });
+        .returning({
+          id: invitations.id,
+          email: invitations.email,
+          roleIds: invitations.roleIds,
+        });
       if (!gone) {
         throw new NotFoundException(`Invitation ${id} not found.`);
       }
@@ -209,7 +304,7 @@ export class InvitationsService {
           action: 'invitation.revoked',
           targetType: 'invitation',
           targetId: id,
-          details: { email: gone.email },
+          details: { email: gone.email, roleIds: gone.roleIds },
           ip,
         },
         tx,
@@ -223,8 +318,8 @@ export class InvitationsService {
    * existing account must be the caller's (signed in as it). The membership
    * gets the invitation's roles and units, in the invitation's tenant, in
    * one transaction under the membership's lock (a deactivation racing it
-   * waits, or wins first and the acceptance reactivates by design: the
-   * invitation is the tenant's newer word).
+   * waits, or wins first and the acceptance is refused: an acceptance never
+   * turns a deactivated membership back on, an administrator does).
    */
   async accept(
     token: string,
@@ -262,10 +357,12 @@ export class InvitationsService {
           gt(invitations.expiresAt, new Date()),
         ),
       );
-    if (!invitation) {
+    // A prepared one has no token (nor address): nothing matches it.
+    if (!invitation?.email) {
       throw invalid();
     }
-    const account = await this.accounts.findByEmail(invitation.email);
+    const email = invitation.email;
+    const account = await this.accounts.findByEmail(email);
     if (account && !account.active) {
       throw invalid();
     }
@@ -310,8 +407,8 @@ export class InvitationsService {
       const user =
         account ??
         (await this.accounts.create(tx, {
-          email: invitation.email,
-          name: input.name ?? invitation.name ?? invitation.email,
+          email,
+          name: input.name ?? invitation.name ?? email,
           passwordHash: passwordHash!,
           // The link reached this mailbox: the address is proved.
           emailVerified: true,
@@ -322,7 +419,25 @@ export class InvitationsService {
         throw invalid();
       }
       await this.accounts.lockMembership(tx, tenantId, user.id);
-      // Taken once: a second accept of the same link finds nothing.
+      const [membership] = await tx
+        .select({ active: memberships.active })
+        .from(memberships)
+        .where(
+          and(
+            eq(memberships.tenantId, tenantId),
+            eq(memberships.userId, user.id),
+          ),
+        );
+      if (membership && !membership.active) {
+        throw new ForbiddenException({
+          code: 'membership_inactive',
+          message: t('auth.invitationMembershipInactive'),
+        });
+      }
+      // Taken once, with this link and its address still current: a second
+      // accept of the same link, or one an administrator's change
+      // withdrew meanwhile (a new address, PATCH), finds nothing. What is
+      // granted is what the invitation holds now.
       const [taken] = await tx
         .update(invitations)
         .set({ acceptedAt: new Date(), acceptedBy: user.id })
@@ -330,17 +445,19 @@ export class InvitationsService {
           and(
             eq(invitations.id, invitation.id),
             isNull(invitations.acceptedAt),
+            eq(invitations.tokenHash, hashOf(token)),
+            eq(invitations.email, email),
           ),
         )
-        .returning({ id: invitations.id });
+        .returning();
       if (!taken) {
         throw invalid();
       }
       await this.accounts.joinTenant(tx, tenantId, user.id);
       if (account && !account.emailVerified) {
-        await this.accounts.markEmailVerified(user.id, invitation.email, tx);
+        await this.accounts.markEmailVerified(user.id, email, tx);
       }
-      await this.grant(tx, user.id, invitation);
+      await this.grant(tx, user.id, taken);
       const member = {
         ...(account ?? user),
         kind: 'user' as const,
@@ -354,8 +471,8 @@ export class InvitationsService {
           targetId: user.id,
           details: {
             invitation: invitation.id,
-            invitedBy: invitation.invitedBy,
-            roleIds: invitation.roleIds,
+            invitedBy: taken.invitedBy,
+            roleIds: taken.roleIds,
             ...(account ? {} : { accountCreated: true }),
           },
           ip,
@@ -400,6 +517,21 @@ export class InvitationsService {
     await this.units.setUserUnits(tx, userId, units);
   }
 }
+
+/** A pending invitation's state, from its link: none yet, running, or ended. */
+export const invitationStatus = (sent: boolean, expiresAt: Date | null) =>
+  !sent
+    ? ('prepared' as const)
+    : expiresAt && expiresAt.getTime() > Date.now()
+      ? ('sent' as const)
+      : ('expired' as const);
+
+const emailRequired = () =>
+  new BadRequestException({
+    code: 'email_required',
+    message: t('auth.required'),
+    errors: [{ path: 'email', message: t('auth.required') }],
+  });
 
 const invalid = () =>
   new BadRequestException({

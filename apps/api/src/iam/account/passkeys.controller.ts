@@ -39,7 +39,7 @@ import type {
   AuthenticationResponseJSON,
   RegistrationResponseJSON,
 } from '@simplewebauthn/server';
-import type { Response } from 'express';
+import type { NodeResponse as Response } from '@nestjs/platform-node';
 import { z } from 'zod';
 import { AllowInMaintenance } from '../../core/http/maintenance.js';
 import { listSchema } from '../../core/http/pagination.js';

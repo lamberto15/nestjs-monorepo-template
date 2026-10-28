@@ -182,20 +182,41 @@ export const INVITATION_LIMITS = { name: 120 } as const;
 export const UNIT_LIMITS = { name: 120 } as const;
 
 export type InvitationBody = JsonBody<paths['/v1/access/users']['post']>;
+export type InvitationChanges = JsonBody<
+  paths['/v1/access/invitations/{id}']['patch']
+>;
 
-/** Invites someone; a pending invitation to the same address is replaced. */
+/**
+ * Invites (`send: true`, the link is mailed now) or prepares (`send: false`,
+ * no link until `sendInvitation()`) a member; a pending invitation to the
+ * same address is replaced.
+ */
 export async function invite(body: InvitationBody) {
   return unwrap(api.POST('/v1/access/users', { body }));
 }
 
 /**
- * Sends a pending invitation again (expired or not): a new link and expiry,
- * its roles, their ends and its units unchanged. Asks for a recent sign-in,
- * which the client's step-up middleware answers (lib/api.ts).
+ * Changes a pending invitation; a new address withdraws a sent link (it is
+ * prepared again). With roles or an address, asks for a recent sign-in.
  */
-export async function resendInvitation(id: string) {
+export async function updateInvitation(id: string, body: InvitationChanges) {
   return unwrap(
-    api.POST('/v1/access/invitations/{id}/resend', {
+    api.PATCH('/v1/access/invitations/{id}', {
+      params: { path: { id } },
+      body,
+    }),
+  );
+}
+
+/**
+ * Sends a pending invitation: a prepared one its first link, a sent or
+ * expired one a new link and expiry (the old one stops), its roles, their
+ * ends and its units unchanged. Asks for a recent sign-in, which the
+ * client's step-up middleware answers (lib/api.ts).
+ */
+export async function sendInvitation(id: string) {
+  return unwrap(
+    api.POST('/v1/access/invitations/{id}/send', {
       params: { path: { id } },
     }),
   );
@@ -261,6 +282,57 @@ export async function changeUnitMember(
       body: { role },
     }),
   );
+}
+
+/**
+ * Who would gain or lose reach (my units and below, units I lead and below)
+ * if a unit changed, or a member's role did: a dry run, nothing changes
+ * (docs/permissions.md, "Organization structure").
+ */
+export async function previewUnitChange(
+  id: string,
+  body: { type?: UnitType; name?: string; parentId?: string | null },
+) {
+  return unwrap(
+    api.POST('/v1/access/organizational-units/{id}/impact', {
+      params: { path: { id } },
+      body,
+    }),
+  );
+}
+
+export async function previewUnitMemberChange(
+  id: string,
+  userId: string,
+  role: UnitMember['role'],
+) {
+  return unwrap(
+    api.POST('/v1/access/organizational-units/{id}/members/{userId}/impact', {
+      params: { path: { id, userId } },
+      body: { role },
+    }),
+  );
+}
+
+export type AccessImpact = Awaited<ReturnType<typeof previewUnitChange>>;
+
+/** Why a member may or may not act on a subject or one of its records (docs/permissions.md, "Explaining access"). */
+export type Explanation = GetResponse<'/v1/access/users/{id}/explanation'>;
+
+export function explanationQuery(
+  id: string,
+  subject: string,
+  recordId?: string,
+) {
+  return queryOptions({
+    queryKey: [...accessKeys.members, 'explanation', id, subject, recordId],
+    queryFn: () =>
+      unwrap(
+        api.GET('/v1/access/users/{id}/explanation', {
+          params: { path: { id }, query: { subject, recordId } },
+        }),
+      ),
+  });
 }
 
 /** Ends the membership (the API keeps it as history). */

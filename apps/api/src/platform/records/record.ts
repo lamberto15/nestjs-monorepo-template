@@ -40,6 +40,7 @@ import {
   RESERVED_ACTIONS,
 } from './record-approvals.js';
 import { type ComputedFields, planComputed } from './record-computed.js';
+import type { ListViewsDeclaration } from '../lists/list-metadata.schemas.js';
 import type { RecordRouteSpec } from './record-routes.js';
 import type { RecordSettingSpec } from './record-settings.js';
 
@@ -124,6 +125,13 @@ export interface RecordDeclaration<
    * (`<path>.<name>` is the key): see record-settings.ts.
    */
   settings?: Record<string, RecordSettingSpec>;
+  /**
+   * Views besides the table, on the same list: a board of an enum field's
+   * values, a calendar of date fields, a timeline of a start and an end
+   * (docs/saved-views.md, "Record views"). Fields are list fields; a view
+   * of dates or a status the feature does not let `PATCH` change is `readOnly`.
+   */
+  views?: ListViewsDeclaration;
   fields: F;
   /**
    * Values computed from the fields on read, never stored

@@ -1,0 +1,67 @@
+{
+  "switch": "Anzeigen als",
+  "kinds": {
+    "table": "Tabelle",
+    "board": "Board",
+    "calendar": "Kalender",
+    "timeline": "Zeitleiste"
+  },
+  "open": "{{title}} öffnen",
+  "openShort": "Öffnen",
+  "board": {
+    "notApplied": "Die Karte wurde nicht verschoben: Die Änderung wurde nicht übernommen.",
+    "failed": "Diese Spalte konnte nicht geladen werden.",
+    "empty": "Nichts in dieser Spalte.",
+    "moveCard": "{{title}} verschieben",
+    "moveTo": "Nach {{column}} verschieben",
+    "more": "Mehr laden ({{shown}} von {{total}})"
+  },
+  "calendar": {
+    "notApplied": "Das Datum wurde nicht geändert: Die Änderung wurde nicht übernommen.",
+    "allDay": "Ganztägig",
+    "reschedule": "{{title}} verschieben",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "today": "Heute",
+    "field": "Datumsfeld",
+    "mode": "Kalenderansicht",
+    "modes": {
+      "month": "Monat",
+      "week": "Woche",
+      "agenda": "Agenda"
+    },
+    "failed": "Der Kalender konnte nicht geladen werden.",
+    "empty": "Nichts in diesem Zeitraum.",
+    "truncated": "{{shown}} von {{total}} in diesem Zeitraum werden angezeigt. Grenzen Sie die Filter ein, um den Rest zu sehen.",
+    "rescheduleTitle": "{{title}} verschieben",
+    "rescheduleDescription": "Die Uhrzeit bleibt unverändert.",
+    "invalidDay": "Geben Sie ein gültiges Datum ein.",
+    "sameDay": "Wählen Sie ein anderes Datum.",
+    "newDay": "Neues Datum",
+    "cancel": "Abbrechen",
+    "save": "Verschieben"
+  },
+  "timeline": {
+    "open": "Noch kein Ende",
+    "previous": "Früher",
+    "next": "Später",
+    "today": "Heute",
+    "zoom": "Zoom",
+    "zooms": {
+      "day": "Tage",
+      "week": "Wochen",
+      "month": "Monate"
+    },
+    "showList": "Als Liste anzeigen",
+    "showChart": "Diagramm anzeigen",
+    "failed": "Die Zeitleiste konnte nicht geladen werden.",
+    "bar": "{{title}}, von {{start}} bis {{end}}",
+    "caption": "Datensätze mit Beginn und Ende",
+    "record": "Datensatz",
+    "start": "Beginn",
+    "end": "Ende",
+    "empty": "Nichts in diesem Zeitraum.",
+    "invalid": "Nicht dargestellt, weil das Ende vor dem Beginn liegt:",
+    "truncated": "{{shown}} von {{total}} in diesem Zeitraum werden angezeigt. Grenzen Sie die Filter ein, um den Rest zu sehen."
+  }
+}

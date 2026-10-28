@@ -142,6 +142,19 @@ perYear: true, width: 5 }` (default: the subject's initials, per year, 5
   or `settings`)** are declared in the same file, one line each, and are
   not capabilities: they bring no table and no column, so no migration.
 
+- **Views (`views` in the declaration, or the 4th argument of `listSource()`
+  in a hand-written feature)** add a board, a calendar and a timeline to the
+  feature's list page, from fields the list already has; nothing else to
+  write ([saved-views](saved-views.md), "Record views"):
+
+  ```ts
+  views: {
+    board: { field: 'status' },                 // an enum field
+    calendar: { fields: ['dueDate'] },          // date or datetime fields
+    timeline: { start: 'startsOn', end: 'dueDate' },
+  },
+  ```
+
   ```ts
   approvals: {
     publish: { label: 'Publish an invoice' },

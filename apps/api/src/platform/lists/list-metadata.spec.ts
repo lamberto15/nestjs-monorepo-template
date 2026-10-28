@@ -10,7 +10,12 @@ import { searchFields, tsvector } from '../../core/database/search.js';
 import { fieldsRead, listQuery } from '../../core/http/list-query.js';
 import { customFilterFields } from '../custom-fields/custom-field.list.js';
 import type { CustomFieldDefinition } from '../custom-fields/custom-field.types.js';
-import { LIST_LIMITS, listMetadata } from './list-metadata.js';
+import {
+  checkListViews,
+  LIST_LIMITS,
+  listMetadata,
+  listViews,
+} from './list-metadata.js';
 
 const things = pgTable('things', {
   id: uuid('id').primaryKey(),
@@ -239,5 +244,42 @@ describe('listMetadata', () => {
     });
     expect(hidden.fields.some((f) => f.custom)).toBe(false);
     expect(hidden.select.some((name) => name.startsWith('custom'))).toBe(false);
+  });
+});
+
+describe('record views', () => {
+  const fields = listMetadata('Thing', LIST).fields;
+
+  it('keeps the declared views whose fields the caller can filter by', () => {
+    const declared = {
+      board: { field: 'status' },
+      calendar: { fields: ['createdAt', 'body'] },
+      timeline: { start: 'createdAt', end: 'createdAt' },
+    };
+    // `body` is no date and no `gte`: out of the calendar; the timeline's end has no `isNull`.
+    expect(listViews(declared, fields)).toEqual({
+      board: { field: 'status', readOnly: false },
+      calendar: { fields: ['createdAt'], readOnly: false },
+    });
+    // A hidden status (not in the description) leaves the board out.
+    expect(
+      listViews(
+        { board: { field: 'status', readOnly: true } },
+        fields.filter((f) => f.name !== 'status'),
+      ),
+    ).toBeNull();
+    expect(listViews(undefined, fields)).toBeNull();
+  });
+
+  it('refuses a declaration naming a field of the wrong type', () => {
+    expect(() =>
+      checkListViews('Thing', LIST, { board: { field: 'title' } }),
+    ).toThrow('the board field "title" must be a list field of type enum');
+    expect(() =>
+      checkListViews('Thing', LIST, { calendar: { fields: ['nope'] } }),
+    ).toThrow('the calendar field "nope"');
+    expect(() =>
+      checkListViews('Thing', LIST, { calendar: { fields: ['createdAt'] } }),
+    ).not.toThrow();
   });
 });

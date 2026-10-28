@@ -71,10 +71,38 @@ src/
 
 | Group | Holds |
 | --- | --- |
-| `core/` | config (Zod), database (Drizzle on PostgreSQL 18), encryption (`EncryptionService`, encrypted columns and blind indexes: [encryption](encryption.md)), tenancy (the tenant scope, row-level security, the pool that sets it: [tenancy](tenancy.md)), Redis, HTTP (security headers, CORS, CSRF, versioning, validation, rate limits, problem details, pagination, filters), logging and NestJS Observe, health (terminus), Prometheus metrics (`/metrics`), i18n, mail and its queue, BullMQ, locks and cron, the tree helper |
+| `core/` | config (Zod), database (Drizzle on PostgreSQL 18), encryption (`EncryptionService`, encrypted columns and blind indexes: [encryption](encryption.md)), tenancy (the tenant scope, row-level security, the pool that sets it: [tenancy](tenancy.md)), Redis, HTTP (the server, below; security headers, CORS, CSRF, versioning, validation, rate limits, problem details, pagination, filters), logging and NestJS Observe, health (terminus), Prometheus metrics (`/metrics`), i18n, mail and its queue, BullMQ, locks and cron, the tree helper |
 | `iam/` | sessions, tokens, API clients and keys, accounts (passwords, two-factor, passkeys, OAuth, magic links, invitations, impersonation), enterprise SSO (SAML, OIDC) and SCIM provisioning (`sso/`), bot protection (`captcha/`), roles and permissions (CASL, field-level, expiring grants), organizational units, tenants (break-glass), legal holds (`holds/`), resource declarations, the audit log, the system principal (`SystemContext.run()`: work without a user) |
 | `platform/` | idempotency, outbox, webhooks (out and in), workflows, feature queues, storage, http-client and resilience, realtime (socket.io), exports and imports, bulk operations, PDF documents (Gotenberg), custom fields, tags, comments, attachments, list descriptions (`GET /v1/lists/{subject}`), saved views (`/v1/views`), the people directory and units lookup (`GET /v1/people`, `GET /v1/organizational-units`), notifications, record subscriptions, global search, sequences and naming series, scheduled reports, record revisions, settings and feature flags, API clients' usage and quotas, email deliverability, retention rules (`retention/`), the AI helper (`ai/`), push and SMS channels (`messaging/`), the encrypted columns' re-encryption job (`encryption/`), platform analytics (`analytics/`), domain events (`events/`), approvals (multi-stage, on durable workflows), money (minor-unit amounts, rounding, allocation, formatting, ECB exchange rates), a person's own account, the ops API, the switches report (`GET /v1/features`) |
 | `features/` | one folder and module per feature |
+
+### The HTTP server
+
+The API runs on Nest's native `node:http` adapter (`@nestjs/platform-node`,
+`createHttpAdapter()` in `core/http/http-setup.ts`, used by `main.ts` and the
+tests), not Express: find-my-way routing, its own body parsers, CORS and
+multer. Code takes the adapter's `NodeRequest` and `NodeResponse` types (no
+`express` import anywhere in `apps/api/src`); they keep the Express helpers
+the API uses (`req.ip`, `req.get()`, `res.cookie()`, `res.redirect()`,
+`res.set()`). Where it differs from Express, on purpose:
+
+- **Routes match by specificity, not declaration order**: a static segment
+  (`/v1/naming-series/subjects`) wins over `:id` wherever either is declared.
+- **Paths are case-sensitive**: `/V1/notes` is a 404.
+- **A path parameter over 2048 characters is a 414** (`MAX_PARAM_LENGTH`;
+  the adapter's default of 100 would refuse the unsubscribe link's token).
+- **`req.path` is the decoded path** the router matched. The metrics, the
+  usage meter and the logs label a request by its route pattern
+  (`route-key.ts`, which also names the OpenTelemetry server span) or by
+  `originalUrl`, never by `req.path`.
+- **A type set on the response gets no `; charset=utf-8`**: the problem
+  filter and the routes that set a JSON type spell it out, so responses
+  carry the charset they had.
+- **No ETag of its own** on a JSON reply (Express added a weak one to every
+  2xx GET): `core/http/etag.ts` gives the records their strong ETags, 304
+  and 412, as before.
+- **`uploadToDisk()` is handed its disk** (`StorageDisk`): @nestjs/storage
+  finds a disk by name through Express's and Fastify's requests only.
 
 ## Rules
 
