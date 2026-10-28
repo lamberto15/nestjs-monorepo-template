@@ -37,6 +37,16 @@ export const BUSINESS_CALENDAR = defineResource({
   audit: {},
 });
 
+/** JSON with sorted keys: jsonb returns an object's keys in its own order. */
+const stable = (value: unknown) =>
+  JSON.stringify(value, (_key, item: unknown) =>
+    item && typeof item === 'object' && !Array.isArray(item)
+      ? Object.fromEntries(
+          Object.entries(item).sort(([a], [b]) => a.localeCompare(b)),
+        )
+      : item,
+  );
+
 const view = (row: BusinessCalendarRow) => ({
   id: row.id,
   name: row.name,
@@ -138,7 +148,7 @@ export class CalendarsService {
     const moves = (['timezone', 'hours', 'exceptions'] as const).some(
       (key) =>
         values[key] !== undefined &&
-        JSON.stringify(values[key]) !== JSON.stringify(before[key]),
+        stable(values[key]) !== stable(before[key]),
     );
     if (Object.keys(values).length === 0) {
       return view(before);

@@ -108,7 +108,7 @@ export function parseRule(text: string): Recurrence {
   return {
     freq,
     interval: integer('INTERVAL', parts.get('INTERVAL') ?? '1', 1, 99),
-    byDay: [...new Set(byDay)].sort(),
+    byDay: [...new Set(byDay)].sort((a, b) => a - b),
     byMonthDay:
       monthDay === undefined ? null : integer('BYMONTHDAY', monthDay, 1, 31),
     count:
