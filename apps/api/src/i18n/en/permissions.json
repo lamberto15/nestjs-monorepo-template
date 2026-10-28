@@ -12,6 +12,7 @@
       "manageLegalHolds": "Place and release legal holds: records kept whatever a delete, a purge or a retention rule would do (iam/holds)",
       "manageRetention": "Set how long the tenant keeps each kind of record before it is purged or anonymised (platform/retention)",
       "manageNamingSeries": "Create, change and delete the number formats of numbered records, and set their counters (platform/sequences)",
+      "manageCalendars": "Create, change and delete the business calendars (working hours, time zone, holidays) that deadlines count in (platform/calendars)",
       "manageViews": "Share saved views of lists with the whole tenant, and change or delete shared views (platform/views)",
       "readAudit": "Read the audit log",
       "manageTenants": "Create tenants (the deployment's operators: only in the operator tenant)",

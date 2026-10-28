@@ -12,6 +12,7 @@
       "manageLegalHolds": "设置和解除法律保全：无论删除、清除或保留规则如何，相关记录都会保留（iam/holds）",
       "manageRetention": "设置租户将每种记录保留多久，之后清除或匿名化（platform/retention）",
       "manageNamingSeries": "创建、更改和删除编号记录的编号格式，并设置其计数器（platform/sequences）",
+      "manageCalendars": "创建、更改和删除用于计算截止时间的营业日历（工作时间、时区、节假日）（platform/calendars）",
       "manageViews": "与整个租户共享列表的已保存视图，并更改或删除共享视图（platform/views）",
       "readAudit": "查看审计日志",
       "manageTenants": "创建租户（部署的运营者：仅在运营者租户中）",
