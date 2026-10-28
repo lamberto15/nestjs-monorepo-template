@@ -330,8 +330,19 @@ function textOf(type: StaticType, value: Value): string {
     case 'datetime':
       return new Date(value as number).toISOString();
     default:
-      return String(value);
+      return String(value as string | boolean);
   }
+}
+
+/** Characters as code points (`length('é')` is 1, an emoji 1 or more). */
+function codePoints(value: string) {
+  let count = 0;
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i);
+    // A high surrogate starts a pair: one character.
+    if (code < 0xd800 || code > 0xdbff) count++;
+  }
+  return count;
 }
 
 const boundedText = (value: string) => {
@@ -652,7 +663,7 @@ const FUNCTION_MAKERS: Record<string, (name: string) => Fn> = {
   length: unary(
     STRING,
     () => 'int',
-    (v) => ({ units: BigInt([...(v as string)].length), scale: 0 }),
+    (v) => ({ units: BigInt(codePoints(v as string)), scale: 0 }),
   ),
   lower: unary(
     STRING,
@@ -674,7 +685,7 @@ const FUNCTION_MAKERS: Record<string, (name: string) => Fn> = {
     for (const arg of args) takes(name, arg, STRING, at);
     return {
       type: 'string',
-      run: strict(args, (values) => boundedText(values.join(''))),
+      run: strict(args, (values) => boundedText((values as string[]).join(''))),
     };
   },
   /** A value as text: `12.50 EUR`, `2026-01-31`, `true`. */
@@ -737,14 +748,14 @@ const FUNCTION_MAKERS: Record<string, (name: string) => Fn> = {
     () => 'date',
     (v) =>
       dayNumber(v as string) === undefined
-        ? invalid(`'${String(v)}'`, 'date')
+        ? invalid(`'${v as string}'`, 'date')
         : v,
   ),
   /** `datetime('2026-01-31T09:00:00Z')`. */
   datetime: unary(
     STRING,
     () => 'datetime',
-    (v) => datetimeOf(v as string) ?? invalid(`'${String(v)}'`, 'datetime'),
+    (v) => datetimeOf(v as string) ?? invalid(`'${v as string}'`, 'datetime'),
   ),
 };
 
@@ -1085,7 +1096,7 @@ export function compileExpression(
     fail('type', 'The expression is always null');
   }
   const type = root.type as ExpressionType;
-  const reads = [...parser.reads].sort();
+  const reads = [...parser.reads].sort((a, b) => a.localeCompare(b));
   return {
     source,
     type,
