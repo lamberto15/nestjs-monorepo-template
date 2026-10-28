@@ -1,7 +1,11 @@
 {
   "groups": {
+    "home": "Utama",
     "workspace": "Ruang kerja",
-    "administration": "Pentadbiran",
-    "operators": "Pengendali"
+    "people": "Orang & akses",
+    "security": "Keselamatan & pematuhan",
+    "developers": "Pembangun",
+    "configuration": "Konfigurasi",
+    "platform": "Platform"
   }
 }

@@ -4,16 +4,16 @@ import { useApprovalCount } from './use-approval-count';
 
 export default [
   {
-    group: 'workspace',
-    order: 60,
+    group: 'home',
+    order: 20,
     to: '/approvals',
     label: 'approvals:nav.title',
     icon: ClipboardCheckIcon,
     badge: useApprovalCount,
   },
   {
-    group: 'administration',
-    order: 43,
+    group: 'configuration',
+    order: 60,
     to: '/approval-policies',
     label: 'approvals:nav.policies',
     icon: ClipboardListIcon,

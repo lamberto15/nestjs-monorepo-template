@@ -1,6 +1,6 @@
 {
-  "nav": "Numbering",
-  "title": "Numbering",
+  "nav": "Numbering series",
+  "title": "Numbering series",
   "description": "The formats of record numbers. A subject can have several series (invoices, quotes…); a new record takes the default one, or the one picked on its form. Numbers already given never change.",
   "subject": "Records",
   "allSubjects": "All records",

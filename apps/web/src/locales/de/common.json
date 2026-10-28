@@ -9,7 +9,8 @@
     "dashboard": "Dashboard",
     "skipToContent": "Zum Inhalt springen",
     "sidebar": "Seitenleiste",
-    "menu": "Hauptmenü"
+    "menu": "Hauptmenü",
+    "breadcrumb": "Brotkrümelnavigation"
   },
   "auth": {
     "signIn": {

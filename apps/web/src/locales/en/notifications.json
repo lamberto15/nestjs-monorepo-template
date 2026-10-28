@@ -1,6 +1,6 @@
 {
   "nav": {
-    "title": "Notifications"
+    "title": "Inbox"
   },
   "loading": "Loading…",
   "markAllRead": "Mark all as read",
@@ -17,7 +17,7 @@
     "remove": "Remove"
   },
   "inbox": {
-    "title": "Notifications",
+    "title": "Inbox",
     "unread_one": "{{count}} unread",
     "unread_other": "{{count}} unread",
     "empty": "No notifications here.",

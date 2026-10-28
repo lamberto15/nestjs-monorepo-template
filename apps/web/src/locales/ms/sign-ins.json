@@ -1,6 +1,6 @@
 {
-  "nav": { "title": "Log masuk" },
-  "title": "Log masuk",
+  "nav": { "title": "Sejarah log masuk" },
+  "title": "Sejarah log masuk",
   "columns": {
     "at": "Bila",
     "user": "Pengguna",

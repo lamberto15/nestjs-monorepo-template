@@ -31,8 +31,6 @@ describe('the quick actions', () => {
     expect(
       within(quick).getByRole('button', { name: 'Dashboard' }),
     ).toBeVisible();
-    expect(
-      within(quick).getByRole('button', { name: 'Notifications' }),
-    ).toBeVisible();
+    expect(within(quick).getByRole('button', { name: 'Inbox' })).toBeVisible();
   });
 });

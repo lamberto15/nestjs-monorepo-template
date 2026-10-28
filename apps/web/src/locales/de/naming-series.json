@@ -1,6 +1,6 @@
 {
-  "nav": "Nummerierung",
-  "title": "Nummerierung",
+  "nav": "Nummernkreise",
+  "title": "Nummernkreise",
   "description": "Die Formate der Datensatznummern. Ein Thema kann mehrere Serien haben (Rechnungen, Angebote …); ein neuer Datensatz nimmt die Standardserie oder die im Formular gewählte. Bereits vergebene Nummern ändern sich nie.",
   "subject": "Datensätze",
   "allSubjects": "Alle Datensätze",

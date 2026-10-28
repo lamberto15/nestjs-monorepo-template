@@ -1,13 +1,13 @@
 {
   "nav": {
-    "users": "Benutzer",
-    "roles": "Rollen",
-    "units": "Organisationsstruktur"
+    "users": "Mitglieder",
+    "roles": "Rollen & Berechtigungen",
+    "units": "Teams"
   },
   "actions": "Aktionen",
   "cancel": "Abbrechen",
   "users": {
-    "title": "Benutzer",
+    "title": "Mitglieder",
     "tabs": {
       "members": "Mitglieder",
       "invitations": "Einladungen"
@@ -92,7 +92,7 @@
     "revoked": "Einladung an {{email}} widerrufen."
   },
   "roles": {
-    "title": "Rollen",
+    "title": "Rollen & Berechtigungen",
     "new": "Neue Rolle",
     "newTitle": "Neue Rolle",
     "editTitle": "Rolle",
@@ -152,7 +152,7 @@
     }
   },
   "units": {
-    "title": "Organisationsstruktur",
+    "title": "Teams",
     "new": "Neue Einheit",
     "none": "Noch keine Einheiten.",
     "newTitle": "Neue Einheit",

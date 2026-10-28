@@ -2,8 +2,8 @@ import { GavelIcon } from 'lucide-react';
 import type { NavContribution } from '@/nav';
 
 export default {
-  group: 'administration',
-  order: 350,
+  group: 'security',
+  order: 40,
   to: '/legal-holds',
   label: 'legal-holds:nav',
   icon: GavelIcon,

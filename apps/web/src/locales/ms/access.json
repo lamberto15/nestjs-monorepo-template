@@ -1,13 +1,13 @@
 {
   "nav": {
-    "users": "Pengguna",
-    "roles": "Peranan",
-    "units": "Struktur organisasi"
+    "users": "Ahli",
+    "roles": "Peranan & kebenaran",
+    "units": "Pasukan"
   },
   "actions": "Tindakan",
   "cancel": "Batal",
   "users": {
-    "title": "Pengguna",
+    "title": "Ahli",
     "tabs": {
       "members": "Ahli",
       "invitations": "Jemputan"
@@ -92,7 +92,7 @@
     "revoked": "Jemputan kepada {{email}} dibatalkan."
   },
   "roles": {
-    "title": "Peranan",
+    "title": "Peranan & kebenaran",
     "new": "Peranan baharu",
     "newTitle": "Peranan baharu",
     "editTitle": "Peranan",
@@ -150,7 +150,7 @@
     }
   },
   "units": {
-    "title": "Struktur organisasi",
+    "title": "Pasukan",
     "new": "Unit baharu",
     "none": "Belum ada unit.",
     "newTitle": "Unit baharu",

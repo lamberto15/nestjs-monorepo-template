@@ -9,7 +9,8 @@
     "dashboard": "Papan pemuka",
     "skipToContent": "Langkau ke kandungan",
     "sidebar": "Bar sisi",
-    "menu": "Menu utama"
+    "menu": "Menu utama",
+    "breadcrumb": "Laluan navigasi"
   },
   "auth": {
     "signIn": {

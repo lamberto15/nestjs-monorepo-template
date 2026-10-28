@@ -36,8 +36,19 @@ export type NavItem = {
   badge?: () => number | undefined;
 };
 
-/** The sidebar's sections, in this order. */
-export const groupIds = ['workspace', 'administration', 'operators'] as const;
+/**
+ * The sidebar's sections, in this order: `home` (the pages everyone checks,
+ * no heading), then one per kind of work.
+ */
+export const groupIds = [
+  'home',
+  'workspace',
+  'people',
+  'security',
+  'developers',
+  'configuration',
+  'platform',
+] as const;
 export type NavGroupId = (typeof groupIds)[number];
 
 export type NavGroup = {
@@ -87,6 +98,34 @@ export function visibleGroups(
     .filter((group) => group.items.length > 0);
 }
 
+/** Whether `pathname` is the entry's page or a page under it. */
+const under = (to: string, pathname: string) =>
+  to === '/'
+    ? pathname === '/'
+    : pathname === to || pathname.startsWith(`${to}/`);
+
+/**
+ * The entry of the page at `pathname`, with its group: the longest match, so
+ * `/api-clients/usage` is API usage, not API clients. None off the menu.
+ */
+export function activeEntry(
+  groups: readonly NavGroup[],
+  pathname: string,
+): { group: NavGroup; item: NavItem } | undefined {
+  let found: { group: NavGroup; item: NavItem } | undefined;
+  for (const group of groups) {
+    for (const item of group.items) {
+      if (
+        under(item.to, pathname) &&
+        item.to.length > (found?.item.to.length ?? -1)
+      ) {
+        found = { group, item };
+      }
+    }
+  }
+  return found;
+}
+
 // Each feature adds its entry in its own file, so none edits this one.
 const contributed = Object.values(
   import.meta.glob<NavContribution | NavContribution[]>('./features/*/nav.ts', {
@@ -97,7 +136,7 @@ const contributed = Object.values(
 
 export const nav: NavGroup[] = mergeNav([
   {
-    group: 'workspace',
+    group: 'home',
     order: 0,
     to: '/',
     label: 'nav.dashboard',

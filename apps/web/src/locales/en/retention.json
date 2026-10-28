@@ -1,6 +1,6 @@
 {
-  "nav": "Retention",
-  "title": "Retention",
+  "nav": "Data retention",
+  "title": "Data retention",
   "description": "How long each kind of record is kept. A rule does nothing until you turn it on; then a nightly job purges or anonymises the records older than the days set.",
   "holds": "Records under a legal hold are never purged or anonymised, whatever the rules say. Place or release holds before turning a rule on.",
   "none": "No retention rules are declared.",

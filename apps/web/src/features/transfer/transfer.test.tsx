@@ -478,7 +478,7 @@ describe('your exports and imports', () => {
     });
     await renderApp('/transfers');
     const list = await screen.findByRole('list', {
-      name: 'Exports and imports',
+      name: 'Downloads & jobs',
     });
     expect(
       await within(list).findByText('Working… 40 rows so far.'),
@@ -524,7 +524,7 @@ describe('your exports and imports', () => {
     useTransferApi({ list: [exported('done', 'test-items')] });
     await renderApp('/transfers');
     const list = await screen.findByRole('list', {
-      name: 'Exports and imports',
+      name: 'Downloads & jobs',
     });
     expect(
       await within(list).findByText(/^Started Oct 18, 2026/),

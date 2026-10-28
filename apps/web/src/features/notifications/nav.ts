@@ -2,8 +2,8 @@ import { InboxIcon } from 'lucide-react';
 import type { NavContribution } from '@/nav';
 
 export default {
-  group: 'workspace',
-  order: 50,
+  group: 'home',
+  order: 10,
   to: '/notifications',
   label: 'notifications:nav.title',
   icon: InboxIcon,

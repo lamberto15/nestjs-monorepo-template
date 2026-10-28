@@ -2,7 +2,7 @@ import { ActivityIcon } from 'lucide-react';
 import type { NavContribution } from '@/nav';
 
 export default {
-  group: 'operators',
+  group: 'platform',
   order: 20,
   to: '/ops',
   label: 'ops:nav',

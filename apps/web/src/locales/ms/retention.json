@@ -1,6 +1,6 @@
 {
-  "nav": "Pengekalan",
-  "title": "Pengekalan",
+  "nav": "Pengekalan data",
+  "title": "Pengekalan data",
   "description": "Berapa lama setiap jenis rekod disimpan. Peraturan tidak berbuat apa-apa sehingga anda menghidupkannya; kemudian tugas malam memadam atau menganonimkan rekod yang lebih lama daripada bilangan hari yang ditetapkan.",
   "holds": "Rekod di bawah tahanan undang-undang tidak akan dipadam atau dianonimkan, apa pun peraturannya. Letak atau lepaskan tahanan sebelum menghidupkan peraturan.",
   "none": "Tiada peraturan pengekalan diisytiharkan.",

@@ -2,8 +2,8 @@ import { HashIcon } from 'lucide-react';
 import type { NavContribution } from '@/nav';
 
 export default {
-  group: 'administration',
-  order: 330,
+  group: 'configuration',
+  order: 50,
   to: '/naming-series',
   label: 'naming-series:nav',
   icon: HashIcon,

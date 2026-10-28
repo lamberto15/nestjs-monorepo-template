@@ -9,7 +9,8 @@
     "dashboard": "Dashboard",
     "skipToContent": "Skip to content",
     "sidebar": "Sidebar",
-    "menu": "Main menu"
+    "menu": "Main menu",
+    "breadcrumb": "Breadcrumb"
   },
   "auth": {
     "signIn": {

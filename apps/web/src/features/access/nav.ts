@@ -7,7 +7,7 @@ import type { NavContribution } from '@/nav';
 // gate.ts); what each may change is gated on the page. The API decides.
 export default [
   {
-    group: 'administration',
+    group: 'people',
     order: 10,
     to: '/access/users',
     label: 'access:nav.users',
@@ -15,7 +15,7 @@ export default [
     permission: usersReaders,
   },
   {
-    group: 'administration',
+    group: 'people',
     order: 20,
     to: '/access/roles',
     label: 'access:nav.roles',
@@ -23,7 +23,7 @@ export default [
     permission: 'Access.manageRoles',
   },
   {
-    group: 'administration',
+    group: 'people',
     order: 30,
     to: '/access/organization',
     label: 'access:nav.units',

@@ -1,6 +1,6 @@
 {
-  "nav": "Aufbewahrung",
-  "title": "Aufbewahrung",
+  "nav": "Datenaufbewahrung",
+  "title": "Datenaufbewahrung",
   "description": "Wie lange jede Art von Datensatz aufbewahrt wird. Eine Regel tut nichts, bis Sie sie einschalten; dann löscht oder anonymisiert ein nächtlicher Job die Datensätze, die älter als die eingestellten Tage sind.",
   "holds": "Datensätze unter Legal Hold werden nie gelöscht oder anonymisiert, was die Regeln auch sagen. Setzen oder lösen Sie Holds, bevor Sie eine Regel einschalten.",
   "none": "Es sind keine Aufbewahrungsregeln deklariert.",

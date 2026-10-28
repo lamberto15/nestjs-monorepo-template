@@ -1,6 +1,6 @@
 {
   "nav": {
-    "title": "Pemberitahuan"
+    "title": "Peti masuk"
   },
   "loading": "Memuatkan…",
   "markAllRead": "Tandakan semua sebagai dibaca",
@@ -16,7 +16,7 @@
     "remove": "Buang"
   },
   "inbox": {
-    "title": "Pemberitahuan",
+    "title": "Peti masuk",
     "unread_other": "{{count}} belum dibaca",
     "empty": "Tiada pemberitahuan di sini.",
     "loadMore": "Muat lagi",

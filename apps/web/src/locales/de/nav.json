@@ -1,7 +1,11 @@
 {
   "groups": {
+    "home": "Start",
     "workspace": "Arbeitsbereich",
-    "administration": "Verwaltung",
-    "operators": "Betreiber"
+    "people": "Personen & Zugriff",
+    "security": "Sicherheit & Compliance",
+    "developers": "Entwickler",
+    "configuration": "Konfiguration",
+    "platform": "Plattform"
   }
 }

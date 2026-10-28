@@ -2,8 +2,8 @@ import { HourglassIcon } from 'lucide-react';
 import type { NavContribution } from '@/nav';
 
 export default {
-  group: 'administration',
-  order: 340,
+  group: 'security',
+  order: 30,
   to: '/retention',
   label: 'retention:nav',
   icon: HourglassIcon,

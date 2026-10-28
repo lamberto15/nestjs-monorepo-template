@@ -1,6 +1,6 @@
 {
-  "nav": { "title": "Sign-ins" },
-  "title": "Sign-ins",
+  "nav": { "title": "Sign-in history" },
+  "title": "Sign-in history",
   "columns": {
     "at": "When",
     "user": "User",

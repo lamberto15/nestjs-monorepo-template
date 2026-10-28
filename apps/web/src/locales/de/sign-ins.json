@@ -1,6 +1,6 @@
 {
-  "nav": { "title": "Anmeldungen" },
-  "title": "Anmeldungen",
+  "nav": { "title": "Anmeldeverlauf" },
+  "title": "Anmeldeverlauf",
   "columns": {
     "at": "Zeitpunkt",
     "user": "Benutzer",

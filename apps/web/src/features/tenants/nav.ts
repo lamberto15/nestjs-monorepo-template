@@ -2,7 +2,7 @@ import { BuildingIcon } from 'lucide-react';
 import type { NavContribution } from '@/nav';
 
 export default {
-  group: 'operators',
+  group: 'platform',
   order: 10,
   to: '/tenants',
   label: 'tenants:nav',

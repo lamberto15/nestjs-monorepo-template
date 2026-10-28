@@ -2,8 +2,8 @@ import { MailXIcon } from 'lucide-react';
 import type { NavContribution } from '@/nav';
 
 export default {
-  group: 'operators',
-  order: 20,
+  group: 'platform',
+  order: 30,
   to: '/mail-suppressions',
   label: 'suppressions:nav',
   icon: MailXIcon,
