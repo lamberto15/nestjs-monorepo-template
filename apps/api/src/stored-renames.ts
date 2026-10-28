@@ -48,6 +48,8 @@ export const STORED_RENAMES: readonly StoredRename[] = [
   },
   { column: settingOverrides.scope, from: 'team', to: 'unit' },
   { column: savedViews.visibility, from: 'team', to: 'unit' },
+  // A view shared with a team: its scope `team:<id>` (#836).
+  { column: savedViews.scope, from: 'team:', to: 'unit:', prefix: true },
   {
     column: approvalPolicies.definition,
     from: 'teamRole',
