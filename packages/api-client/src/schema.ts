@@ -3606,6 +3606,26 @@ export interface paths {
         patch: operations["AccessController_updateUser_v1"];
         trace?: never;
     };
+    "/v1/access/users/{id}/explanation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Why a member may or may not do each action on a subject, or on one of its records
+         * @description Computed by the authorization engine itself (the checks every route makes), per action: the answer, the fields it may touch, and each permission of the member's roles that could grant it, with whether it (and each of its conditions) reaches the record. The record is looked up as you: one you may not read is a 404. An answer that a field hidden from you decides is `null` (withheld). `Access.manageRoles` or `Access.manageUsers`.
+         */
+        get: operations["AccessController_explain_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/access/invitations": {
         parameters: {
             query?: never;
@@ -3853,6 +3873,26 @@ export interface paths {
         patch: operations["OrganizationalUnitsController_update_v1"];
         trace?: never;
     };
+    "/v1/access/organizational-units/{id}/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Who would gain or lose reach (my units and below, units I lead and below) if the unit changed as PATCH would change it
+         * @description A dry run: the change runs with its checks (the same 403, 404 and 409 as the change itself) in a transaction that is rolled back, so nothing changes and nothing is audited. The units are read as the unit conditions read them.
+         */
+        post: operations["OrganizationalUnitsController_impact_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/access/organizational-units/{id}/members": {
         parameters: {
             query?: never;
@@ -3887,6 +3927,26 @@ export interface paths {
         head?: never;
         /** Change a member's role: their membership ends now and a new one starts */
         patch: operations["OrganizationalUnitsController_changeMember_v1"];
+        trace?: never;
+    };
+    "/v1/access/organizational-units/{id}/members/{userId}/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * What a change of the member's role would change of their reach (units they lead and below)
+         * @description A dry run: the change runs with its checks (the same 403, 404 and 409 as the change itself) in a transaction that is rolled back, so nothing changes and nothing is audited. The units are read as the unit conditions read them.
+         */
+        post: operations["OrganizationalUnitsController_memberImpact_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/legal-holds": {
@@ -21933,6 +21993,110 @@ export interface operations {
             };
         };
     };
+    AccessController_explain_v1: {
+        parameters: {
+            query: {
+                /** @description A subject of the catalog (GET /access/catalog). */
+                subject: string;
+                /** @description One of its records, looked up as you; left out: on any record (some at least). */
+                recordId?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        user: {
+                            /** Format: uuid */
+                            id: string;
+                            name: string;
+                            email: string;
+                        };
+                        subject: string;
+                        /** Format: uuid */
+                        recordId: string | null;
+                        /** @description The member's role grants, ended ones too. */
+                        roles: {
+                            /** Format: uuid */
+                            id: string;
+                            name: string;
+                            /** Format: date-time */
+                            expiresAt: string | null;
+                            /** @description An ended grant: it counts for nothing. */
+                            expired: boolean;
+                        }[];
+                        /** @description Their current units, as `inMyUnits`, `inMyUnitsAndBelow` and `inUnitsILeadAndBelow` read them. */
+                        units: {
+                            direct: string[];
+                            andBelow: string[];
+                            ledAndBelow: string[];
+                        };
+                        actions: {
+                            action: string;
+                            /** @description With a record: on it; without: on some records at least. */
+                            allowed: boolean | null;
+                            /** @description The declared fields it may touch (with a record: on it); null: withheld. */
+                            fields: string[] | null;
+                            /** @description The permissions of the member's roles for this action. */
+                            grants: {
+                                /**
+                                 * Format: uuid
+                                 * @description The role it comes with; null: built in.
+                                 */
+                                roleId: string | null;
+                                /** Format: date-time */
+                                expiresAt: string | null;
+                                /** @description `all.manage`: anything (an administrator). */
+                                all: boolean;
+                                /** @description Only these declared fields; null: all. */
+                                fields: string[] | null;
+                                /** @description Whether it reaches the record (always true without one). */
+                                matches: boolean | null;
+                                conditions: {
+                                    /** @example mine */
+                                    key: string;
+                                    params: {
+                                        [key: string]: unknown;
+                                    } | null;
+                                    matches: boolean | null;
+                                }[];
+                            }[];
+                        }[];
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a member of this tenant, or no record you may read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     AccessController_invitations_v1: {
         parameters: {
             query?: never;
@@ -23104,6 +23268,77 @@ export interface operations {
             };
         };
     };
+    OrganizationalUnitsController_impact_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    type?: "division" | "department" | "team";
+                    name?: string;
+                    /**
+                     * Format: uuid
+                     * @description Moves the unit, with every unit under it; null: to the top.
+                     */
+                    parentId?: string | null;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Only the users whose reach would change. */
+                        changes: {
+                            /** Format: uuid */
+                            userId: string;
+                            name: string;
+                            email: string;
+                            /** @description What `inMyUnitsAndBelow` would reach. */
+                            andBelow: {
+                                /** @description Units they would reach and do not now. */
+                                gains: string[];
+                                /** @description Units they reach now and would not. */
+                                loses: string[];
+                            };
+                            /** @description What `inUnitsILeadAndBelow` would reach. */
+                            ledAndBelow: {
+                                /** @description Units they would reach and do not now. */
+                                gains: string[];
+                                /** @description Units they reach now and would not. */
+                                loses: string[];
+                            };
+                        }[];
+                        /** @description More than 500 users could be affected: only the first were compared. */
+                        truncated: boolean;
+                    };
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description As PATCH: the change would be refused. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     OrganizationalUnitsController_members_v1: {
         parameters: {
             query?: never;
@@ -23310,6 +23545,72 @@ export interface operations {
                         createdAt: string;
                         /** Format: date-time */
                         updatedAt: string;
+                    };
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `unit_managed_by_scim`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OrganizationalUnitsController_memberImpact_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    role: "member" | "lead";
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Only the users whose reach would change. */
+                        changes: {
+                            /** Format: uuid */
+                            userId: string;
+                            name: string;
+                            email: string;
+                            /** @description What `inMyUnitsAndBelow` would reach. */
+                            andBelow: {
+                                /** @description Units they would reach and do not now. */
+                                gains: string[];
+                                /** @description Units they reach now and would not. */
+                                loses: string[];
+                            };
+                            /** @description What `inUnitsILeadAndBelow` would reach. */
+                            ledAndBelow: {
+                                /** @description Units they would reach and do not now. */
+                                gains: string[];
+                                /** @description Units they reach now and would not. */
+                                loses: string[];
+                            };
+                        }[];
+                        /** @description More than 500 users could be affected: only the first were compared. */
+                        truncated: boolean;
                     };
                 };
             };
