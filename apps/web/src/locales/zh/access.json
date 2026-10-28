@@ -1,13 +1,13 @@
 {
   "nav": {
-    "users": "用户",
-    "roles": "角色",
-    "units": "组织架构"
+    "users": "成员",
+    "roles": "角色与权限",
+    "units": "团队"
   },
   "actions": "操作",
   "cancel": "取消",
   "users": {
-    "title": "用户",
+    "title": "成员",
     "tabs": {
       "members": "成员",
       "invitations": "邀请"
@@ -92,7 +92,7 @@
     "revoked": "对 {{email}} 的邀请已撤销。"
   },
   "roles": {
-    "title": "角色",
+    "title": "角色与权限",
     "new": "新建角色",
     "newTitle": "新建角色",
     "editTitle": "角色",
@@ -150,7 +150,7 @@
     }
   },
   "units": {
-    "title": "组织架构",
+    "title": "团队",
     "new": "新建组织单元",
     "none": "还没有组织单元。",
     "newTitle": "新建组织单元",

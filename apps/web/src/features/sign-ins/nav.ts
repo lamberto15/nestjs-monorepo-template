@@ -1,11 +1,11 @@
-import { LogInIcon } from 'lucide-react';
+import { HistoryIcon } from 'lucide-react';
 import type { NavContribution } from '@/nav';
 
 export default {
-  group: 'administration',
-  order: 41,
+  group: 'security',
+  order: 20,
   to: '/sign-ins',
   label: 'sign-ins:nav.title',
-  icon: LogInIcon,
+  icon: HistoryIcon,
   permission: 'Access.readAudit',
 } satisfies NavContribution;

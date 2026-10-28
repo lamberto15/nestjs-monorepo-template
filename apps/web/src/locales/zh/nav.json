@@ -1,7 +1,11 @@
 {
   "groups": {
+    "home": "首页",
     "workspace": "工作区",
-    "administration": "管理",
-    "operators": "运营人员"
+    "people": "人员与访问",
+    "security": "安全与合规",
+    "developers": "开发者",
+    "configuration": "配置",
+    "platform": "平台"
   }
 }

@@ -1,6 +1,6 @@
 {
   "nav": {
-    "title": "الإشعارات"
+    "title": "صندوق الوارد"
   },
   "loading": "جارٍ التحميل…",
   "markAllRead": "تعليم الكل كمقروء",
@@ -21,7 +21,7 @@
     "remove": "إزالة"
   },
   "inbox": {
-    "title": "الإشعارات",
+    "title": "صندوق الوارد",
     "unread_zero": "{{count}} غير مقروء",
     "unread_one": "{{count}} غير مقروء",
     "unread_two": "{{count}} غير مقروء",

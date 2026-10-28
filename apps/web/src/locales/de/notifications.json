@@ -1,6 +1,6 @@
 {
   "nav": {
-    "title": "Benachrichtigungen"
+    "title": "Posteingang"
   },
   "loading": "Wird geladen …",
   "markAllRead": "Alle als gelesen markieren",
@@ -17,7 +17,7 @@
     "remove": "Entfernen"
   },
   "inbox": {
-    "title": "Benachrichtigungen",
+    "title": "Posteingang",
     "unread_one": "{{count}} ungelesen",
     "unread_other": "{{count}} ungelesen",
     "empty": "Hier gibt es keine Benachrichtigungen.",

@@ -9,6 +9,10 @@ import { allFeatures, problem, server, signedInUser } from '@/test/server';
 import { findToast } from '@/test/toast';
 import { slugify } from './queries';
 
+/** The sidebar's menu (the header's breadcrumb names the page too). */
+const menu = async () =>
+  within(await screen.findByRole('navigation', { name: 'Main menu' }));
+
 const OPERATOR_ID = signedInUser.tenant!.id;
 const row = (id: string, slug: string, extra: object = {}) => ({
   id,
@@ -317,7 +321,7 @@ describe('tenants page', () => {
     ).toBeInTheDocument();
     expect(within(table).getByText('Operators')).toBeInTheDocument();
     expect(
-      await screen.findByRole('link', { name: 'Tenants' }),
+      await (await menu()).findByRole('link', { name: 'Tenants' }),
     ).toHaveAttribute('href', '/tenants');
   });
 
@@ -1201,8 +1205,8 @@ describe('gating', () => {
   it('hides the menu entry from a tenant administrator who is no operator, and never asks', async () => {
     const state = api({ operator: false });
     await renderApp('/');
-    await screen.findByRole('link', { name: 'Dashboard' });
-    expect(screen.queryByRole('link', { name: 'Tenants' })).toBeNull();
+    await (await menu()).findByRole('link', { name: 'Dashboard' });
+    expect((await menu()).queryByRole('link', { name: 'Tenants' })).toBeNull();
     expect(state.listed).toBe(0);
   });
 
@@ -1239,13 +1243,13 @@ describe('gating', () => {
 });
 
 describe('menu', () => {
-  it('lists the entry in the operators group, for operators only', () => {
+  it('lists the entry in the platform group, for operators only', () => {
     const features = { ...allFeatures };
     const can = { 'Access.manageTenants': true };
     const ids = (operator: boolean) =>
       visibleGroups(nav, features, can, operator).map((g) => g.id);
-    expect(ids(true)).toContain('operators');
-    expect(ids(false)).not.toContain('operators');
+    expect(ids(true)).toContain('platform');
+    expect(ids(false)).not.toContain('platform');
   });
 });
 

@@ -222,6 +222,10 @@ describe('the approval policies page', () => {
   it('is in the menu for whoever manages policies', async () => {
     mockPoliciesApi();
     await renderApp('/');
+    // Its group (Configuration) starts folded away from its pages.
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Configuration' }),
+    );
     expect(
       await screen.findByRole('link', { name: 'Approval policies' }),
     ).toBeVisible();

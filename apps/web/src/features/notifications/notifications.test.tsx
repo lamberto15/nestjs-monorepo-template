@@ -287,7 +287,10 @@ describe('without realtime', () => {
     const count = queryClient
       .getQueryCache()
       .find({ queryKey: ['notifications', 'unread'] });
-    expect(count?.observers[0]?.options.refetchInterval).toBe(60_000);
+    // The inbox's own (the menu's count shares the query, without a timer).
+    expect(
+      count?.observers.map((observer) => observer.options.refetchInterval),
+    ).toContain(60_000);
   });
 });
 

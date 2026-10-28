@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import * as React from 'react';
 
 import type { DataTableFeatures } from '@/lib/data-table-features';
+import { useSortableProps } from '@/lib/sortable';
 
 import { SORT_ORDERS } from '@/lib/data-table-utils';
 import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
@@ -86,6 +87,11 @@ function DataTableSortMenuContent<TData extends RowData>({
   sorting: SortingState;
 }) {
   const { t } = useTranslation();
+  // Patched in (not in the registry): a touch delay and translated announcements.
+  const sortable = useSortableProps(
+    sorting.length,
+    (id) => table.getColumn(String(id))?.columnDef.meta?.label ?? String(id),
+  );
   const dir = useDirection();
   const id = React.useId();
   const labelId = React.useId();
@@ -193,6 +199,7 @@ function DataTableSortMenuContent<TData extends RowData>({
 
   return (
     <Sortable
+      {...sortable}
       value={sorting}
       onValueChange={onSortingChange}
       getItemValue={(item) => item.id}
@@ -446,7 +453,13 @@ function DataTableSortItem({
       </Button>
       <SortableItemHandle
         aria-label={t('list.table.reorderSort', { label })}
-        render={<Button variant="outline" size="icon" className="shrink-0" />}
+        render={
+          <Button
+            variant="outline"
+            size="icon"
+            className="shrink-0 max-md:size-11"
+          />
+        }
       >
         <GripVertical />
       </SortableItemHandle>

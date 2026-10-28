@@ -9,7 +9,11 @@
     "dashboard": "Papan pemuka",
     "skipToContent": "Langkau ke kandungan",
     "sidebar": "Bar sisi",
-    "menu": "Menu utama"
+    "menu": "Menu utama",
+    "breadcrumb": "Laluan navigasi",
+    "bottom": "Navigasi pantas",
+    "search": "Cari",
+    "more": "Menu"
   },
   "auth": {
     "signIn": {
@@ -323,6 +327,7 @@
   "list": {
     "loading": "Memuatkan",
     "search": "Cari",
+    "tools": "Tapis & isih",
     "empty": {
       "title": "Belum ada apa-apa",
       "description": "Rekod akan muncul di sini setelah wujud."
@@ -491,5 +496,14 @@
     "checking": "Menyemak…",
     "reload": "Muat semula",
     "copy": "Salin butiran"
+  },
+  "sortable": {
+    "picked": "{{item}} diambil, kedudukan {{position}} daripada {{count}}. Gerakkan dengan kekunci anak panah; tekan Space untuk melepaskannya.",
+    "moved": "{{item}} dipindahkan ke kedudukan {{position}} daripada {{count}}.",
+    "outside": "{{item}} tidak lagi di atas senarai. Tekan Escape untuk membatalkan.",
+    "dropped": "{{item}} dilepaskan di kedudukan {{position}} daripada {{count}}.",
+    "unchanged": "{{item}} dilepaskan. Tiada perubahan.",
+    "cancelled": "Pemindahan dibatalkan. {{item}} kembali ke kedudukan {{position}} daripada {{count}}.",
+    "instructions": "Untuk mengambil item, tekan Space atau Enter. Gerakkan dengan kekunci anak panah atas dan bawah. Tekan Space atau Enter sekali lagi untuk melepaskannya, atau Escape untuk membatalkan."
   }
 }

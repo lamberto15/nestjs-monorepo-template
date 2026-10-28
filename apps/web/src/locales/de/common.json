@@ -9,7 +9,11 @@
     "dashboard": "Dashboard",
     "skipToContent": "Zum Inhalt springen",
     "sidebar": "Seitenleiste",
-    "menu": "Hauptmenü"
+    "menu": "Hauptmenü",
+    "breadcrumb": "Brotkrümelnavigation",
+    "bottom": "Schnellnavigation",
+    "search": "Suche",
+    "more": "Menü"
   },
   "auth": {
     "signIn": {
@@ -324,6 +328,7 @@
   "list": {
     "loading": "Wird geladen",
     "search": "Suchen",
+    "tools": "Filtern & sortieren",
     "empty": {
       "title": "Noch nichts vorhanden",
       "description": "Einträge erscheinen hier, sobald es welche gibt."
@@ -496,5 +501,14 @@
     "checking": "Wird geprüft…",
     "reload": "Neu laden",
     "copy": "Details kopieren"
+  },
+  "sortable": {
+    "picked": "{{item}} aufgenommen, Position {{position}} von {{count}}. Mit den Pfeiltasten verschieben, mit der Leertaste ablegen.",
+    "moved": "{{item}} auf Position {{position}} von {{count}} verschoben.",
+    "outside": "{{item}} ist nicht mehr über der Liste. Mit Escape abbrechen.",
+    "dropped": "{{item}} auf Position {{position}} von {{count}} abgelegt.",
+    "unchanged": "{{item}} abgelegt. Nichts geändert.",
+    "cancelled": "Verschieben abgebrochen. {{item}} ist wieder auf Position {{position}} von {{count}}.",
+    "instructions": "Leertaste oder Eingabe nimmt ein Element auf. Die Pfeiltasten nach oben und unten verschieben es. Leertaste oder Eingabe legt es ab, Escape bricht ab."
   }
 }

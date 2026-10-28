@@ -326,12 +326,12 @@ describe('the palette', () => {
       'Access.manageUsers': true,
     });
     expect(await dialog.findByText('Dashboard')).toBeInTheDocument();
-    expect(dialog.getByText('Users')).toBeInTheDocument();
+    expect(dialog.getByText('Members')).toBeInTheDocument();
     // Gated: this user may not read the audit log or manage roles.
     expect(dialog.queryByText('Audit log')).toBeNull();
-    expect(dialog.queryByText('Roles')).toBeNull();
+    expect(dialog.queryByText('Roles & permissions')).toBeNull();
 
-    await user.type(screen.getByRole('combobox'), 'use');
+    await user.type(screen.getByRole('combobox'), 'mem');
     await user.keyboard('{Enter}');
     await vi.waitFor(() =>
       expect(router.state.location.pathname).toBe('/access/users'),

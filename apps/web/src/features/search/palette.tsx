@@ -36,8 +36,16 @@ export function useDebounced<T>(value: T, delay: number): T {
   return debounced;
 }
 
-/** Cmd/Ctrl+K toggles; Escape is the dialog's own. */
-function useShortcut(toggle: () => void) {
+/** The event that opens the palette from elsewhere (the phone's bottom bar). */
+const openEvent = 'search-palette:open';
+
+/** Opens the palette: one mounted in the header, whatever button asks. */
+export function openSearchPalette() {
+  window.dispatchEvent(new Event(openEvent));
+}
+
+/** Cmd/Ctrl+K toggles, `openSearchPalette()` opens; Escape is the dialog's own. */
+function useShortcut(toggle: () => void, open: () => void) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)) {
@@ -46,8 +54,12 @@ function useShortcut(toggle: () => void) {
       }
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [toggle]);
+    window.addEventListener(openEvent, open);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener(openEvent, open);
+    };
+  }, [toggle, open]);
 }
 
 /**
@@ -57,7 +69,10 @@ function useShortcut(toggle: () => void) {
 export function SearchPalette(props: { debounceMs?: number }) {
   const { t } = useTranslation('search');
   const [open, setOpen] = useState(false);
-  useShortcut(() => setOpen((value) => !value));
+  useShortcut(
+    () => setOpen((value) => !value),
+    () => setOpen(true),
+  );
   return (
     <>
       <Button

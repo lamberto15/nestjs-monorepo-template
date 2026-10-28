@@ -1,11 +1,11 @@
-import { ShieldCheckIcon } from 'lucide-react';
+import { LockKeyholeIcon } from 'lucide-react';
 import type { NavContribution } from '@/nav';
 
 export default {
-  group: 'administration',
-  order: 340,
+  group: 'people',
+  order: 40,
   to: '/sso',
   label: 'sso:nav',
-  icon: ShieldCheckIcon,
+  icon: LockKeyholeIcon,
   permission: 'Access.manageSso',
 } satisfies NavContribution;

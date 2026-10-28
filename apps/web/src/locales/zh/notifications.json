@@ -1,6 +1,6 @@
 {
   "nav": {
-    "title": "通知"
+    "title": "收件箱"
   },
   "loading": "加载中…",
   "markAllRead": "全部标为已读",
@@ -16,7 +16,7 @@
     "remove": "移除"
   },
   "inbox": {
-    "title": "通知",
+    "title": "收件箱",
     "unread_other": "{{count}} 条未读",
     "empty": "这里没有通知。",
     "loadMore": "加载更多",

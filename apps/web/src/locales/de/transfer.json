@@ -1,5 +1,5 @@
 {
-  "nav": "Exporte und Importe",
+  "nav": "Downloads & Aufträge",
   "kind": {
     "export": "Export",
     "import": "Import",
@@ -24,7 +24,7 @@
     "download": "Herunterladen ({{format}})"
   },
   "mine": {
-    "title": "Exporte und Importe",
+    "title": "Downloads & Aufträge",
     "import": "Datei importieren",
     "description": "Ihre Exporte, Importe und Massenläufe in diesem Mandanten, auf jedem Gerät. Ein Download-Link gilt 30 Minuten nach Erstellung der Datei; öffnen Sie den Export erneut für einen neuen.",
     "empty": "Noch nichts. Exportieren Sie aus einer Liste oder importieren Sie eine Datei.",

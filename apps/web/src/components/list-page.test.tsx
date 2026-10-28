@@ -1,12 +1,12 @@
 import { createApiClient } from '@nestjs-monorepo-template/api-client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18next from 'i18next';
 import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import type { ReactNode } from 'react';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import de from '@/locales/de/common.json';
 import en from '@/locales/en/common.json';
 import enTransfer from '@/locales/en/transfer.json';
@@ -900,5 +900,51 @@ describe('PageHeader and EmptyState', () => {
         screen.queryByRole('button', { name: 'Export' }),
       ).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('ListPage on a phone', () => {
+  beforeEach(() => {
+    mocks.fetch.mockReset();
+    mocks.exports = [];
+    vi.stubGlobal('innerWidth', 500);
+    mocks.fetch.mockImplementation(async (request?: Request) =>
+      request?.url.includes('/v1/lists/')
+        ? json(description)
+        : json(listPage([{ id: '1', title: 'First item', status: 'draft' }])),
+    );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('shows each row as a card: the title, labelled lines, not what is hidden', async () => {
+    await renderList('', 'en', {
+      columns: [
+        ...columns,
+        {
+          id: 'secret',
+          accessorKey: 'title',
+          meta: { label: 'Secret', mobile: 'hidden' },
+          header: 'Secret',
+        },
+      ],
+    });
+    const card = (await screen.findByText('First item')).closest('li')!;
+    expect(within(card).getByText('Status')).toBeInTheDocument();
+    expect(within(card).getByText('draft')).toBeInTheDocument();
+    expect(within(card).queryByText('Secret')).toBeNull();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('keeps the views, filters and sort in a sheet', async () => {
+    await renderList();
+    await screen.findByText('First item');
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Filter & sort' }),
+    );
+    const sheet = within(await screen.findByRole('dialog'));
+    expect(
+      sheet.getByRole('heading', { name: 'Filter & sort' }),
+    ).toBeInTheDocument();
+    expect(sheet.getAllByRole('button').length).toBeGreaterThan(1);
   });
 });

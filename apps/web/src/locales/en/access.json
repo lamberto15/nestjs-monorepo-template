@@ -1,13 +1,13 @@
 {
   "nav": {
-    "users": "Users",
-    "roles": "Roles",
-    "units": "Organization structure"
+    "users": "Members",
+    "roles": "Roles & permissions",
+    "units": "Teams"
   },
   "actions": "Actions",
   "cancel": "Cancel",
   "users": {
-    "title": "Users",
+    "title": "Members",
     "tabs": {
       "members": "Members",
       "invitations": "Invitations"
@@ -92,7 +92,7 @@
     "revoked": "Invitation to {{email}} revoked."
   },
   "roles": {
-    "title": "Roles",
+    "title": "Roles & permissions",
     "new": "New role",
     "newTitle": "New role",
     "editTitle": "Role",
@@ -152,7 +152,7 @@
     }
   },
   "units": {
-    "title": "Organization structure",
+    "title": "Teams",
     "new": "New unit",
     "none": "No units yet.",
     "newTitle": "New unit",

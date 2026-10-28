@@ -1,10 +1,10 @@
 {
   "nav": {
-    "title": "API 客户端",
+    "title": "API 密钥",
     "usage": "API 用量"
   },
   "list": {
-    "title": "API 客户端",
+    "title": "API 密钥",
     "description": "使用密钥调用 API 的系统。密钥仅在创建时显示一次。",
     "empty": "还没有 API 客户端。",
     "create": "新建客户端",

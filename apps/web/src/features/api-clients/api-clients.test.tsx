@@ -8,6 +8,10 @@ import { allFeatures, problem, server, signedInUser } from '@/test/server';
 import { findToast } from '@/test/toast';
 import { rangeFor } from './usage-page';
 
+/** The sidebar's menu (the header's breadcrumb names the page too). */
+const menu = async () =>
+  within(await screen.findByRole('navigation', { name: 'Main menu' }));
+
 const SECRET = 'sk_abc123_supersecretvalue';
 const ROTATED = 'sk_def456_rotatedsecretvalue';
 
@@ -550,16 +554,18 @@ describe('gating', () => {
     api();
     await renderApp('/api-clients');
     expect(
-      await screen.findByRole('link', { name: 'API clients' }),
+      await (await menu()).findByRole('link', { name: 'API keys' }),
     ).toBeVisible();
-    expect(screen.getByRole('link', { name: 'API usage' })).toBeVisible();
+    expect(
+      (await menu()).getByRole('link', { name: 'API usage' }),
+    ).toBeVisible();
   });
 
   it('has no entry and no route with apiClients off', async () => {
     api({ features: { apiClients: false } });
     await renderApp('/api-clients');
     expect(await screen.findByText('Page not found')).toBeVisible();
-    expect(screen.queryByRole('link', { name: 'API clients' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'API keys' })).toBeNull();
   });
 
   it('has no usage entry and no usage route with usage off', async () => {
@@ -572,9 +578,11 @@ describe('gating', () => {
     api({ features: { usage: false } });
     await renderApp('/api-clients');
     expect(
-      await screen.findByRole('link', { name: 'API clients' }),
+      await (await menu()).findByRole('link', { name: 'API keys' }),
     ).toBeVisible();
-    expect(screen.queryByRole('link', { name: 'API usage' })).toBeNull();
+    expect(
+      (await menu()).queryByRole('link', { name: 'API usage' }),
+    ).toBeNull();
     // The client's page no longer links to its usage.
     await userEvent.click(
       await screen.findByRole('link', { name: 'Billing exporter' }),
@@ -586,7 +594,7 @@ describe('gating', () => {
   it('hides the entries from a user without the permission', async () => {
     api({ can: false });
     await renderApp('/api-clients');
-    await screen.findByRole('heading', { name: 'API clients' });
+    await screen.findByRole('heading', { name: 'API keys' });
     expect(screen.queryByRole('link', { name: 'API usage' })).toBeNull();
   });
 });

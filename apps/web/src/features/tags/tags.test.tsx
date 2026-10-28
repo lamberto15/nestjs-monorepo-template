@@ -35,6 +35,10 @@ describe('gating', () => {
   it('opens for whoever manages tags, from the menu', async () => {
     useTagsApi({ can: ADMIN });
     await renderApp('/');
+    // Its group (Configuration) starts folded away from its pages.
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Configuration' }),
+    );
     expect(await screen.findByRole('link', { name: 'Tags' })).toHaveAttribute(
       'href',
       '/tags',

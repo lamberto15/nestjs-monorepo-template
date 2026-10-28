@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import * as React from 'react';
 
 import type { DataTableFeatures } from '@/lib/data-table-features';
+import { useSortableProps } from '@/lib/sortable';
 import type { TFunction } from 'i18next';
 import type {
   ColumnFilterItem,
@@ -140,6 +141,14 @@ function DataTableFilterMenuContent<TData extends RowData>({
   ...props
 }: DataTableFilterMenuContentProps<TData>) {
   const { t } = useTranslation();
+  // Patched in (not in the registry): a touch delay and translated announcements.
+  const sortable = useSortableProps(filters.length, (filterId) => {
+    const column = filters.find((f) => f.filterId === filterId)?.id;
+    return (
+      (column && table.getColumn(column)?.columnDef.meta?.label) ??
+      String(filterId)
+    );
+  });
   const dir = useDirection();
   const id = React.useId();
   const labelId = React.useId();
@@ -207,6 +216,7 @@ function DataTableFilterMenuContent<TData extends RowData>({
 
   return (
     <Sortable
+      {...sortable}
       value={filters}
       onValueChange={(value) => table.setColumnFilters(value)}
       getItemValue={(item) => item.filterId}
@@ -412,7 +422,9 @@ function DataTableFilterItem<TData extends RowData>({
       </Button>
       <SortableItemHandle
         aria-label={t('list.table.reorderFilter', { label })}
-        render={<Button variant="outline" size="icon" />}
+        render={
+          <Button variant="outline" size="icon" className="max-md:size-11" />
+        }
       >
         <GripVertical />
       </SortableItemHandle>

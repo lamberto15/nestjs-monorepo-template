@@ -1,5 +1,5 @@
 {
-  "nav": "Exports and imports",
+  "nav": "Downloads & jobs",
   "kind": {
     "export": "Export",
     "import": "Import",
@@ -24,7 +24,7 @@
     "download": "Download ({{format}})"
   },
   "mine": {
-    "title": "Exports and imports",
+    "title": "Downloads & jobs",
     "import": "Import a file",
     "description": "Your exports, imports and bulk runs in this tenant, on any device. A download link works for 30 minutes after the file is made; open the export again for a new one.",
     "empty": "Nothing yet. Export from a list, or import a file.",

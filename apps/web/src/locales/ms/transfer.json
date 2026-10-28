@@ -1,5 +1,5 @@
 {
-  "nav": "Eksport dan import",
+  "nav": "Muat turun & tugas",
   "kind": {
     "export": "Eksport",
     "import": "Import",
@@ -23,7 +23,7 @@
     "download": "Muat turun ({{format}})"
   },
   "mine": {
-    "title": "Eksport dan import",
+    "title": "Muat turun & tugas",
     "import": "Import fail",
     "description": "Eksport, import dan larian pukal anda dalam penyewa ini, pada sebarang peranti. Pautan muat turun berfungsi selama 30 minit selepas fail dibuat; buka eksport semula untuk pautan baharu.",
     "empty": "Belum ada. Eksport daripada senarai, atau import fail.",

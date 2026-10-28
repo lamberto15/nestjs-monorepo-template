@@ -2,8 +2,8 @@ import { ScrollTextIcon } from 'lucide-react';
 import type { NavContribution } from '@/nav';
 
 export default {
-  group: 'administration',
-  order: 40,
+  group: 'security',
+  order: 10,
   to: '/audit',
   label: 'audit:nav.title',
   icon: ScrollTextIcon,

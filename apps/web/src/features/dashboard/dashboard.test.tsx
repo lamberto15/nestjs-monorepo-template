@@ -140,9 +140,7 @@ describe('the dashboard', () => {
     expect(
       within(quick).queryByRole('button', { name: 'Audit log' }),
     ).toBeNull();
-    expect(
-      within(quick).getByRole('button', { name: 'Notifications' }),
-    ).toBeVisible();
+    expect(within(quick).getByRole('button', { name: 'Inbox' })).toBeVisible();
     expect(seen).not.toContain('audit');
   });
 

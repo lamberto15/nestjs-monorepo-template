@@ -126,7 +126,7 @@ describe('the sidebar on a phone', () => {
 
   it('closes the sheet when a menu entry takes the user to its page', async () => {
     const { router, user, sheet } = await openOnPhone();
-    await user.click(sheet.getByRole('link', { name: 'Notifications' }));
+    await user.click(sheet.getByRole('link', { name: 'Inbox' }));
     await waitFor(() =>
       expect(router.state.location.pathname).toBe('/notifications'),
     );
@@ -148,6 +148,99 @@ describe('the sidebar on a phone', () => {
     await user.click(sheet.getByRole('link', { name: 'Dashboard' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(router.state.location.pathname).toBe('/');
+  });
+});
+
+describe('the bottom bar', () => {
+  const bar = async () =>
+    within(await screen.findByRole('navigation', { name: 'Quick navigation' }));
+
+  it('shows on a phone, with the menu sheet and search one tap away', async () => {
+    signedInWith({});
+    vi.stubGlobal('innerWidth', 500);
+    const { router } = await renderApp('/');
+    const user = userEvent.setup();
+    const tabs = await bar();
+    expect(tabs.getByRole('link', { name: 'Home' })).toHaveAttribute(
+      'href',
+      '/',
+    );
+    await user.click(tabs.getByRole('link', { name: 'Inbox' }));
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/notifications'),
+    );
+    await user.click(tabs.getByRole('button', { name: 'Menu' }));
+    const sheet = within(await screen.findByRole('dialog'));
+    expect(sheet.getByRole('link', { name: 'Dashboard' })).toBeVisible();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await user.click(tabs.getByRole('button', { name: 'Search' }));
+    expect(await screen.findByRole('dialog')).toBeVisible();
+  });
+
+  it('is not there on a desktop', async () => {
+    signedInWith({});
+    await renderApp('/');
+    await screen.findByRole('navigation', { name: 'Main menu' });
+    expect(
+      screen.queryByRole('navigation', { name: 'Quick navigation' }),
+    ).toBeNull();
+  });
+});
+
+describe('the menu groups', () => {
+  afterEach(() => localStorage.removeItem('nav-groups'));
+  const can = { 'Access.manageRoles': true, 'Access.readAudit': true };
+  const menu = async () =>
+    within(await screen.findByRole('navigation', { name: 'Main menu' }));
+  const heading = async (name: string) =>
+    (await menu()).findByRole('button', { name });
+
+  it('opens Workspace and the group of the page, and folds the others', async () => {
+    signedInWith(can);
+    await renderApp('/access/roles');
+    expect(await heading('People & access')).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    expect(await heading('Security & compliance')).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    expect(
+      (await menu()).queryByRole('link', { name: 'Audit log' }),
+    ).toBeNull();
+    expect(
+      (await menu()).getByRole('link', { name: 'Roles & permissions' }),
+    ).toBeVisible();
+  });
+
+  it('keeps a group the user opened open on the next visit', async () => {
+    signedInWith(can);
+    await renderApp('/');
+    const user = userEvent.setup();
+    await user.click(await heading('Security & compliance'));
+    expect(
+      await (await menu()).findByRole('link', { name: 'Audit log' }),
+    ).toBeVisible();
+    cleanup();
+    await renderApp('/');
+    expect(
+      await (await menu()).findByRole('link', { name: 'Audit log' }),
+    ).toBeVisible();
+  });
+
+  it('names the group and the page in the header', async () => {
+    signedInWith(can);
+    await renderApp('/access/roles');
+    const crumbs = within(
+      await screen.findByRole('navigation', { name: 'Breadcrumb' }),
+    );
+    expect(crumbs.getByText('People & access')).toBeInTheDocument();
+    expect(crumbs.getByText('Roles & permissions')).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
   });
 });
 

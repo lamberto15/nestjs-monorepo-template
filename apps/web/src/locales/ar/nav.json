@@ -1,7 +1,11 @@
 {
   "groups": {
+    "home": "الرئيسية",
     "workspace": "مساحة العمل",
-    "administration": "الإدارة",
-    "operators": "المشغّلون"
+    "people": "الأشخاص والوصول",
+    "security": "الأمان والامتثال",
+    "developers": "المطوّرون",
+    "configuration": "التهيئة",
+    "platform": "المنصّة"
   }
 }

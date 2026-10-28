@@ -2,8 +2,8 @@ import { TagsIcon } from 'lucide-react';
 import type { NavContribution } from '@/nav';
 
 export default {
-  group: 'administration',
-  order: 320,
+  group: 'configuration',
+  order: 40,
   to: '/tags',
   label: 'tags:nav',
   icon: TagsIcon,

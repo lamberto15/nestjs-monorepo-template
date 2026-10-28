@@ -3,8 +3,8 @@ import type { NavContribution } from '@/nav';
 
 export default [
   {
-    group: 'administration',
-    order: 40,
+    group: 'developers',
+    order: 10,
     to: '/api-clients',
     label: 'api-clients:nav.title',
     icon: KeyRoundIcon,
@@ -12,8 +12,8 @@ export default [
     permission: 'Access.manageClients',
   },
   {
-    group: 'administration',
-    order: 41,
+    group: 'developers',
+    order: 20,
     to: '/api-clients/usage',
     label: 'api-clients:nav.usage',
     icon: ChartColumnIcon,

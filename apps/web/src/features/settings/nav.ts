@@ -2,8 +2,8 @@ import { SlidersHorizontalIcon } from 'lucide-react';
 import type { NavContribution } from '@/nav';
 
 export default {
-  group: 'administration',
-  order: 300,
+  group: 'configuration',
+  order: 10,
   to: '/settings',
   label: 'settings:nav',
   icon: SlidersHorizontalIcon,

@@ -14,6 +14,8 @@ import {
   SkipToContent,
 } from '@/components/route-accessibility';
 import { AppSidebar } from '@/components/app-sidebar';
+import { BottomNav } from '@/components/bottom-nav';
+import { HeaderBreadcrumb } from '@/components/header-breadcrumb';
 import { BreachedPasswordBanner } from '@/components/breached-password-banner';
 import { OfflineBanner } from '@/components/offline-banner';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
@@ -113,6 +115,7 @@ function AppLayout() {
                 orientation="vertical"
                 className="me-2 data-[orientation=vertical]:h-4"
               />
+              <HeaderBreadcrumb />
               <div className="ms-auto flex items-center gap-1">
                 <SearchPalette />
                 <NotificationsBell />
@@ -122,11 +125,12 @@ function AppLayout() {
             <div
               id={MAIN_CONTENT_ID}
               tabIndex={-1}
-              className="flex flex-1 flex-col gap-4 p-4 outline-none"
+              className="flex flex-1 flex-col gap-4 p-4 outline-none max-md:pb-24"
             >
               <Outlet />
             </div>
           </SidebarInset>
+          <BottomNav />
         </SidebarProvider>
       </RealtimeProvider>
     </TooltipProvider>

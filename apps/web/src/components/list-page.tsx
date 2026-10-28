@@ -2,15 +2,24 @@ import { isApiError } from '@nestjs-monorepo-template/api-client';
 import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import { Input } from '@nestjs-monorepo-template/ui/components/input';
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@nestjs-monorepo-template/ui/components/sheet';
+import { useIsMobile } from '@nestjs-monorepo-template/ui/hooks/use-mobile';
+import {
   Subscribe,
   type ReactTable,
   type RowData,
 } from '@tanstack/react-table';
 import { useRouter } from '@tanstack/react-router';
-import { SearchIcon } from 'lucide-react';
+import { SearchIcon, SlidersHorizontalIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTable } from '@/components/data-table/data-table';
+import { DataTableCards } from '@/components/data-table/data-table-cards';
 import { getDataTableActionsColumn } from '@/components/data-table/data-table-actions-column';
 import { DataTableAdvancedToolbar } from '@/components/data-table/data-table-advanced-toolbar';
 import { getDataTableSelectColumn } from '@/components/data-table/data-table-select-column';
@@ -210,6 +219,30 @@ function ListTable<P extends ListPath>({
 
   const filtered = 'filter' in query.params || 'q' in query.params;
   const empty = query.isSuccess && query.data.items.length === 0 && !filtered;
+  // A phone gets cards, and the toolbar's menus in a sheet: a table's columns
+  // and a row of menus would scroll sideways.
+  const phone = useIsMobile();
+  const tools = (
+    <>
+      <ViewsPicker
+        subject={subject}
+        description={description}
+        table={table}
+        params={query.params}
+        // Applying a saved view sets the search; the box follows `q`.
+        onSearch={query.search}
+      />
+      <DataTableFilterMenu table={table} />
+      <DataTableSortMenu table={table} />
+      {exporter && (
+        <>
+          <ExportButton exporter={exporter} {...exported} />
+          <ScheduleReportButton exporter={exporter} {...exported} />
+        </>
+      )}
+    </>
+  );
+  const Rows = phone ? DataTableCards : DataTable;
 
   return (
     <div className="flex flex-col gap-2">
@@ -218,22 +251,7 @@ function ListTable<P extends ListPath>({
         {description.search && (
           <SearchBox value={query.q} onSearch={query.search} />
         )}
-        <ViewsPicker
-          subject={subject}
-          description={description}
-          table={table}
-          params={query.params}
-          // Applying a saved view sets the search; the box follows `q`.
-          onSearch={query.search}
-        />
-        <DataTableFilterMenu table={table} />
-        <DataTableSortMenu table={table} />
-        {exporter && (
-          <>
-            <ExportButton exporter={exporter} {...exported} />
-            <ScheduleReportButton exporter={exporter} {...exported} />
-          </>
-        )}
+        {phone ? <ToolsSheet>{tools}</ToolsSheet> : tools}
       </DataTableAdvancedToolbar>
       {query.isError ? (
         <ErrorState error={query.error} onRetry={query.refetch} />
@@ -245,7 +263,7 @@ function ListTable<P extends ListPath>({
           description={t('list.empty.description')}
         />
       ) : (
-        <DataTable
+        <Rows
           table={table}
           aria-busy={query.isPlaceholderData}
           onRowClick={
@@ -271,6 +289,27 @@ function ListTable<P extends ListPath>({
 }
 
 const EMPTY: never[] = [];
+
+/** A phone's toolbar: one button, the views, filters, sort and export in a sheet. */
+function ToolsSheet(props: { children: ReactNode }) {
+  const { t } = useTranslation();
+  return (
+    <Sheet>
+      <SheetTrigger render={<Button variant="outline" className="h-9" />}>
+        <SlidersHorizontalIcon aria-hidden />
+        {t('list.tools')}
+      </SheetTrigger>
+      <SheetContent side="bottom" className="max-h-[85svh] rounded-t-xl">
+        <SheetHeader>
+          <SheetTitle>{t('list.tools')}</SheetTitle>
+        </SheetHeader>
+        <div className="flex flex-wrap gap-2 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] [&_button]:min-h-11">
+          {props.children}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
 
 /**
  * Reports the visible columns, which become `fields=` of the query. Only a

@@ -1,6 +1,6 @@
 {
-  "nav": "Penomboran",
-  "title": "Penomboran",
+  "nav": "Siri penomboran",
+  "title": "Siri penomboran",
   "description": "Format nombor rekod. Satu subjek boleh mempunyai beberapa siri (invois, sebut harga…); rekod baharu menggunakan siri lalai, atau yang dipilih pada borangnya. Nombor yang sudah diberikan tidak pernah berubah.",
   "subject": "Rekod",
   "allSubjects": "Semua rekod",

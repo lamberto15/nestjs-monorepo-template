@@ -157,15 +157,16 @@ test.describe('signed in as the administrator', () => {
       .toBe(0);
   });
 
-  // A wide table scrolls inside its own box, never the page (the box shows
-  // edge shadows to say so: `scroll-shadow-x`).
-  test('a table scrolls sideways on a phone, not the page', async ({
+  // A list is cards on a phone (`DataTableCards`): nothing scrolls sideways,
+  // neither the page nor a table's box.
+  test('a list is cards on a phone, and the page never scrolls sideways', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto('/notes');
-    const box = page.locator('[data-slot="table-container"]').first();
-    await expect(box).toBeVisible();
+    const cards = page.locator('[data-slot="data-table-cards"]');
+    await expect(cards.getByRole('listitem').first()).toBeVisible();
+    await expect(page.getByRole('table')).toHaveCount(0);
     await expect
       .poll(() =>
         page.evaluate(
@@ -175,9 +176,6 @@ test.describe('signed in as the administrator', () => {
         ),
       )
       .toBe(0);
-    await expect
-      .poll(() => box.evaluate((el) => el.scrollWidth - el.clientWidth))
-      .toBeGreaterThan(0);
   });
 
   test.describe('open overlays', () => {
