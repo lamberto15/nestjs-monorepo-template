@@ -58,6 +58,19 @@
       "manage": "向屏蔽列表添加或移除地址"
     }
   },
+  "form": {
+    "label": "表单",
+    "names": {
+      "singular": "表单",
+      "plural": "表单"
+    },
+    "actions": {
+      "read": "查看已发布的表单及其版本",
+      "submit": "填写已发布的表单，并查看自己的提交",
+      "edit": "创建表单、编辑草稿、发布和归档表单",
+      "readResponses": "查看所有人的提交及其答案"
+    }
+  },
   "note": {
     "label": "笔记（示例）",
     "names": {
