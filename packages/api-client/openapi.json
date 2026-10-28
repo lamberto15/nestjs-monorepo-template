@@ -35622,6 +35622,11 @@
                           "invitedBy": {
                             "type": "string"
                           },
+                          "expired": {
+                            "type": "boolean",
+                            "deprecated": true,
+                            "description": "`status` is `expired`: kept for the clients that read it."
+                          },
                           "sentAt": {
                             "nullable": true,
                             "description": "When its current link was sent; null: prepared (or sent before this was recorded).",
@@ -35645,6 +35650,7 @@
                           "roleExpiresAt",
                           "unitIds",
                           "invitedBy",
+                          "expired",
                           "sentAt",
                           "createdAt"
                         ],

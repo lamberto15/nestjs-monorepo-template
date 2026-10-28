@@ -317,7 +317,7 @@ describe('access administration (e2e)', () => {
       const id = prepared.body.id as string;
       expect(
         (await pendingInvitations()).find((item) => item.id === id),
-      ).toMatchObject({ status: 'prepared', expiresAt: null });
+      ).toMatchObject({ status: 'prepared', expiresAt: null, expired: false });
       // No address yet: nothing to send.
       const noAddress = await node
         .admin()

@@ -278,10 +278,10 @@ export class InvitationsService {
       .from(invitations)
       .where(isNull(invitations.acceptedAt))
       .orderBy(desc(invitations.id));
-    return rows.map(({ tokenHash, ...row }) => ({
-      ...row,
-      status: invitationStatus(tokenHash !== null, row.expiresAt),
-    }));
+    return rows.map(({ tokenHash, ...row }) => {
+      const status = invitationStatus(tokenHash !== null, row.expiresAt);
+      return { ...row, status, expired: status === 'expired' };
+    });
   }
 
   /** Withdraws a pending invitation: its link stops working. */

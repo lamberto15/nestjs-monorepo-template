@@ -22014,6 +22014,11 @@ export interface operations {
                             unitIds: string[];
                             invitedBy: string;
                             /**
+                             * @deprecated
+                             * @description `status` is `expired`: kept for the clients that read it.
+                             */
+                            expired: boolean;
+                            /**
                              * Format: date-time
                              * @description When its current link was sent; null: prepared (or sent before this was recorded).
                              */

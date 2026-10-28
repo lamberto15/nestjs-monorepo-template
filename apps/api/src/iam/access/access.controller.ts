@@ -188,6 +188,10 @@ const pendingInvitationSchema = invitationSchema.extend({
     ),
   unitIds: z.array(z.uuid()),
   invitedBy: z.string(),
+  expired: z
+    .boolean()
+    .meta({ deprecated: true })
+    .describe('`status` is `expired`: kept for the clients that read it.'),
   sentAt: z.iso
     .datetime()
     .nullable()
