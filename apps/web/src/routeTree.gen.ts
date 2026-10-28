@@ -24,6 +24,7 @@ import { Route as AppAccountRouteRouteImport } from './routes/_app/account/route
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppBrandingRouteImport } from './routes/_app/branding'
 import { Route as AppCustomFieldsRouteImport } from './routes/_app/custom-fields'
+import { Route as AppDataQualityRouteImport } from './routes/_app/data-quality'
 import { Route as AppExchangeRatesRouteImport } from './routes/_app/exchange-rates'
 import { Route as AppLegalHoldsRouteImport } from './routes/_app/legal-holds'
 import { Route as AppMailSuppressionsRouteImport } from './routes/_app/mail-suppressions'
@@ -142,6 +143,11 @@ const AppBrandingRoute = AppBrandingRouteImport.update({
 const AppCustomFieldsRoute = AppCustomFieldsRouteImport.update({
   id: '/custom-fields',
   path: '/custom-fields',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDataQualityRoute = AppDataQualityRouteImport.update({
+  id: '/data-quality',
+  path: '/data-quality',
   getParentRoute: () => AppRoute,
 } as any)
 const AppExchangeRatesRoute = AppExchangeRatesRouteImport.update({
@@ -389,6 +395,7 @@ export interface FileRoutesByFullPath {
   '/audit': typeof AppAuditRoute
   '/branding': typeof AppBrandingRoute
   '/custom-fields': typeof AppCustomFieldsRoute
+  '/data-quality': typeof AppDataQualityRoute
   '/exchange-rates': typeof AppExchangeRatesRoute
   '/legal-holds': typeof AppLegalHoldsRoute
   '/mail-suppressions': typeof AppMailSuppressionsRoute
@@ -448,6 +455,7 @@ export interface FileRoutesByTo {
   '/audit': typeof AppAuditRoute
   '/branding': typeof AppBrandingRoute
   '/custom-fields': typeof AppCustomFieldsRoute
+  '/data-quality': typeof AppDataQualityRoute
   '/exchange-rates': typeof AppExchangeRatesRoute
   '/legal-holds': typeof AppLegalHoldsRoute
   '/mail-suppressions': typeof AppMailSuppressionsRoute
@@ -511,6 +519,7 @@ export interface FileRoutesById {
   '/_app/audit': typeof AppAuditRoute
   '/_app/branding': typeof AppBrandingRoute
   '/_app/custom-fields': typeof AppCustomFieldsRoute
+  '/_app/data-quality': typeof AppDataQualityRoute
   '/_app/exchange-rates': typeof AppExchangeRatesRoute
   '/_app/legal-holds': typeof AppLegalHoldsRoute
   '/_app/mail-suppressions': typeof AppMailSuppressionsRoute
@@ -575,6 +584,7 @@ export interface FileRouteTypes {
     | '/audit'
     | '/branding'
     | '/custom-fields'
+    | '/data-quality'
     | '/exchange-rates'
     | '/legal-holds'
     | '/mail-suppressions'
@@ -634,6 +644,7 @@ export interface FileRouteTypes {
     | '/audit'
     | '/branding'
     | '/custom-fields'
+    | '/data-quality'
     | '/exchange-rates'
     | '/legal-holds'
     | '/mail-suppressions'
@@ -696,6 +707,7 @@ export interface FileRouteTypes {
     | '/_app/audit'
     | '/_app/branding'
     | '/_app/custom-fields'
+    | '/_app/data-quality'
     | '/_app/exchange-rates'
     | '/_app/legal-holds'
     | '/_app/mail-suppressions'
@@ -862,6 +874,13 @@ declare module '@tanstack/react-router' {
       path: '/custom-fields'
       fullPath: '/custom-fields'
       preLoaderRoute: typeof AppCustomFieldsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/data-quality': {
+      id: '/_app/data-quality'
+      path: '/data-quality'
+      fullPath: '/data-quality'
+      preLoaderRoute: typeof AppDataQualityRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/exchange-rates': {
@@ -1211,6 +1230,7 @@ interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
   AppBrandingRoute: typeof AppBrandingRoute
   AppCustomFieldsRoute: typeof AppCustomFieldsRoute
+  AppDataQualityRoute: typeof AppDataQualityRoute
   AppExchangeRatesRoute: typeof AppExchangeRatesRoute
   AppLegalHoldsRoute: typeof AppLegalHoldsRoute
   AppMailSuppressionsRoute: typeof AppMailSuppressionsRoute
@@ -1257,6 +1277,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
   AppBrandingRoute: AppBrandingRoute,
   AppCustomFieldsRoute: AppCustomFieldsRoute,
+  AppDataQualityRoute: AppDataQualityRoute,
   AppExchangeRatesRoute: AppExchangeRatesRoute,
   AppLegalHoldsRoute: AppLegalHoldsRoute,
   AppMailSuppressionsRoute: AppMailSuppressionsRoute,
