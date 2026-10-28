@@ -36,7 +36,11 @@ describe('business calendars (e2e)', () => {
     const editor = await node.user(['editor']);
     await editor.agent.post('/v1/calendars').send(office).expect(403);
 
-    const created = await node.admin().post('/v1/calendars').send(office).expect(201);
+    const created = await node
+      .admin()
+      .post('/v1/calendars')
+      .send(office)
+      .expect(201);
     expect(created.body).toMatchObject({ ...office, version: 1 });
     const id = created.body.id as string;
 
@@ -82,7 +86,11 @@ describe('business calendars (e2e)', () => {
   });
 
   it('raises the version when the hours, zone or exceptions change, not on a rename; audits it', async () => {
-    const { body } = await node.admin().post('/v1/calendars').send(office).expect(201);
+    const { body } = await node
+      .admin()
+      .post('/v1/calendars')
+      .send(office)
+      .expect(201);
     const id = body.id as string;
     const renamed = await node
       .admin()
@@ -108,7 +116,11 @@ describe('business calendars (e2e)', () => {
   });
 
   it('computes a deadline in working time across a daylight-saving change, with the version', async () => {
-    const { body } = await node.admin().post('/v1/calendars').send(office).expect(201);
+    const { body } = await node
+      .admin()
+      .post('/v1/calendars')
+      .send(office)
+      .expect(201);
     const id = body.id as string;
     const editor = await node.user(['editor']);
     // Fri 2026-03-06 16:00 EST + 2 h: Monday 2026-03-09 10:00 is EDT.
@@ -142,7 +154,7 @@ describe('business calendars (e2e)', () => {
     });
   });
 
-  it('answers 400 for a calendar with no working time, and is the tenant\'s own', async () => {
+  it("answers 400 for a calendar with no working time, and is the tenant's own", async () => {
     const { body } = await node
       .admin()
       .post('/v1/calendars')

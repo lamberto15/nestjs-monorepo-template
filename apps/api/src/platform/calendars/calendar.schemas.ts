@@ -96,7 +96,6 @@ export const calendarSchema = z
     updatedAt: z.iso.datetime(),
   })
   .meta({ id: 'BusinessCalendar' });
-export type CalendarView = z.infer<typeof calendarSchema>;
 
 export const calendarListSchema = listSchema(calendarSchema).meta({
   id: 'BusinessCalendarList',

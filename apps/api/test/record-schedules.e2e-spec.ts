@@ -90,7 +90,13 @@ describe('recurring record schedules (e2e)', () => {
 
     const preview = await ada.agent
       .post('/v1/record-schedules/preview')
-      .send({ rrule: 'FREQ=DAILY;COUNT=2', startDate: '2020-01-01', time: '08:00', timezone: 'Asia/Manila', count: 5 })
+      .send({
+        rrule: 'FREQ=DAILY;COUNT=2',
+        startDate: '2020-01-01',
+        time: '08:00',
+        timezone: 'Asia/Manila',
+        count: 5,
+      })
       .expect(200);
     expect(preview.body.occurrences).toHaveLength(2);
     expect(preview.body.occurrences[0]).toBe(created.body.nextRunAt);
@@ -108,9 +114,16 @@ describe('recurring record schedules (e2e)', () => {
     const ada = await node.user(['editor']);
     const bad = await ada.agent
       .post('/v1/record-schedules')
-      .send({ ...daily, importer: 'nothing', template: { title: '' }, rrule: 'FREQ=HOURLY' })
+      .send({
+        ...daily,
+        importer: 'nothing',
+        template: { title: '' },
+        rrule: 'FREQ=HOURLY',
+      })
       .expect(400);
-    expect(paths(bad.body)).toEqual(expect.arrayContaining(['importer', 'rrule']));
+    expect(paths(bad.body)).toEqual(
+      expect.arrayContaining(['importer', 'rrule']),
+    );
     const template = await ada.agent
       .post('/v1/record-schedules')
       .send({ ...daily, template: { title: '' } })
@@ -122,10 +135,7 @@ describe('recurring record schedules (e2e)', () => {
       .expect(400);
     expect(paths(past.body)).toEqual(['rrule']);
     const viewer = await node.user(['viewer']);
-    await viewer.agent
-      .post('/v1/record-schedules')
-      .send(daily)
-      .expect(400);
+    await viewer.agent.post('/v1/record-schedules').send(daily).expect(400);
   });
 
   it('creates the record once, however often or at once it is run', async () => {
@@ -153,9 +163,9 @@ describe('recurring record schedules (e2e)', () => {
       .where(eq(recordSchedules.id, id));
     await runner.run(now);
     expect(await notesNamed('Once')).toHaveLength(1);
-    expect(
-      (await state(id)).nextRunAt!.getTime() - nextRunAt.getTime(),
-    ).toBe(24 * HOUR);
+    expect((await state(id)).nextRunAt!.getTime() - nextRunAt.getTime()).toBe(
+      24 * HOUR,
+    );
     const runs = await node.db
       .select()
       .from(recordScheduleRuns)
@@ -180,7 +190,11 @@ describe('recurring record schedules (e2e)', () => {
     const ada = await node.user(['editor']);
     const { body } = await ada.agent
       .post('/v1/record-schedules')
-      .send({ ...daily, template: { title: 'Counted' }, rrule: 'FREQ=DAILY;COUNT=2' })
+      .send({
+        ...daily,
+        template: { title: 'Counted' },
+        rrule: 'FREQ=DAILY;COUNT=2',
+      })
       .expect(201);
     expect(body.maxOccurrences).toBe(2);
     const { now } = await due(body.id, 5 * 24 * HOUR);
@@ -212,7 +226,9 @@ describe('recurring record schedules (e2e)', () => {
       .post(`/v1/record-schedules/${id}/resume`)
       .expect(200);
     expect(resumed.body.status).toBe('active');
-    expect(new Date(resumed.body.nextRunAt).getTime()).toBeGreaterThan(Date.now());
+    expect(new Date(resumed.body.nextRunAt).getTime()).toBeGreaterThan(
+      Date.now(),
+    );
     expect(await notesNamed('Paused')).toHaveLength(0);
 
     const ended = await ada.agent
@@ -260,7 +276,9 @@ describe('recurring record schedules (e2e)', () => {
 
     // The importer works again: the next occurrence is made.
     write.mockRestore();
-    expect(await runner.run(new Date(skipped.nextRunAt!.getTime() + 1000))).toBe(1);
+    expect(
+      await runner.run(new Date(skipped.nextRunAt!.getTime() + 1000)),
+    ).toBe(1);
     expect(await notesNamed('Failing')).toHaveLength(1);
   });
 
@@ -282,9 +300,11 @@ describe('recurring record schedules (e2e)', () => {
       status: 'ended',
       endReason: 'import_not_allowed',
     });
-    expect((await audit('recordSchedule.ended', id))[0]!.details).toMatchObject({
-      reason: 'import_not_allowed',
-    });
+    expect((await audit('recordSchedule.ended', id))[0]!.details).toMatchObject(
+      {
+        reason: 'import_not_allowed',
+      },
+    );
     expect(await notesNamed('Revoked')).toHaveLength(0);
 
     const client = await node.client();
@@ -325,7 +345,9 @@ describe('recurring record schedules (e2e)', () => {
     expect(created.body.nextRunAt).toBe('2030-01-07T09:00:00.000Z');
     // The calendar can't go while it is followed.
     await node.admin().delete(`/v1/calendars/${calendar.body.id}`).expect(409);
-    await ada.agent.delete(`/v1/record-schedules/${created.body.id}`).expect(204);
+    await ada.agent
+      .delete(`/v1/record-schedules/${created.body.id}`)
+      .expect(204);
     await node.admin().delete(`/v1/calendars/${calendar.body.id}`).expect(204);
   });
 });

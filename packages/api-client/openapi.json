@@ -19541,6 +19541,1354 @@
         ]
       }
     },
+    "/v1/calendars": {
+      "get": {
+        "description": "At most 50 per tenant, so one list (no pages).",
+        "operationId": "CalendarsController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessCalendarList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The tenant's business calendars, by name",
+        "tags": [
+          "calendars"
+        ]
+      },
+      "post": {
+        "description": "Hours per weekday and exceptions (a holiday: no `hours`; special hours), in an IANA `timezone`. Audited (`businessCalendar.created`).",
+        "operationId": "CalendarsController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "Europe/Berlin"
+                  },
+                  "hours": {
+                    "maxItems": 70,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "start": {
+                          "type": "string",
+                          "pattern": "^\\d{2}:\\d{2}$",
+                          "example": "09:00"
+                        },
+                        "end": {
+                          "type": "string",
+                          "pattern": "^\\d{2}:\\d{2}$",
+                          "example": "17:00"
+                        },
+                        "weekday": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 6,
+                          "description": "0 Sunday … 6 Saturday."
+                        }
+                      },
+                      "required": [
+                        "start",
+                        "end",
+                        "weekday"
+                      ]
+                    },
+                    "description": "The spans worked each weekday, in `timezone`; a weekday with none is closed. A span ends by 24:00 and does not cross midnight: split it over two days."
+                  },
+                  "exceptions": {
+                    "default": [],
+                    "maxItems": 400,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/CalendarException"
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "timezone",
+                  "hours"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessCalendar"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An unknown time zone, a bad or overlapping span, a date twice, more than 50 calendars (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "409": {
+            "description": "A calendar has this name."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Create a business calendar",
+        "tags": [
+          "calendars"
+        ]
+      }
+    },
+    "/v1/calendars/{id}": {
+      "get": {
+        "operationId": "CalendarsController_findOne_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessCalendar"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "A business calendar",
+        "tags": [
+          "calendars"
+        ]
+      },
+      "patch": {
+        "description": "Only what is sent changes; hours and exceptions are replaced whole. A change of hours, zone or exceptions raises `version`. Deadlines already computed are not recomputed: ask again. Audited (`businessCalendar.updated`).",
+        "operationId": "CalendarsController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "Europe/Berlin"
+                  },
+                  "hours": {
+                    "maxItems": 70,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "start": {
+                          "type": "string",
+                          "pattern": "^\\d{2}:\\d{2}$",
+                          "example": "09:00"
+                        },
+                        "end": {
+                          "type": "string",
+                          "pattern": "^\\d{2}:\\d{2}$",
+                          "example": "17:00"
+                        },
+                        "weekday": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 6,
+                          "description": "0 Sunday … 6 Saturday."
+                        }
+                      },
+                      "required": [
+                        "start",
+                        "end",
+                        "weekday"
+                      ]
+                    },
+                    "description": "The spans worked each weekday, in `timezone`; a weekday with none is closed. A span ends by 24:00 and does not cross midnight: split it over two days."
+                  },
+                  "exceptions": {
+                    "maxItems": 400,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/CalendarException"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessCalendar"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An invalid body (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "A calendar has this name."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Change a business calendar",
+        "tags": [
+          "calendars"
+        ]
+      },
+      "delete": {
+        "description": "Audited (`businessCalendar.deleted`).",
+        "operationId": "CalendarsController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "A recurring schedule still follows it."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Delete a business calendar",
+        "tags": [
+          "calendars"
+        ]
+      }
+    },
+    "/v1/calendars/{id}/deadline": {
+      "post": {
+        "description": "`minutes` of working time after `from`, skipping nights, weekends and exceptions in the calendar's zone (daylight-saving changes followed); 0 minutes: the first working moment at or after `from`. Returns the calendar `version` to store beside the deadline.",
+        "operationId": "CalendarsController_deadline_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                    "example": "2026-10-23T14:00:00Z"
+                  },
+                  "minutes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000,
+                    "description": "Working minutes to add; 0: the first working moment at or after `from`.",
+                    "example": 480
+                  }
+                },
+                "required": [
+                  "from",
+                  "minutes"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarDeadline"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The calendar has no working time in the next ten years (calendar_has_no_working_time)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "A deadline in working time",
+        "tags": [
+          "calendars"
+        ]
+      }
+    },
+    "/v1/record-schedules": {
+      "get": {
+        "description": "`?status=active`, `?importer=notes`, `?name.contains=`, `?sort=nextRunAt`; newest first; cursor pages.",
+        "operationId": "RecordSchedulesController_list_v1",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "`nextCursor` of the previous page (the same `sort`).",
+            "schema": {
+              "description": "`nextCursor` of the previous page (the same `sort`).",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+            "schema": {
+              "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "count",
+            "required": false,
+            "in": "query",
+            "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+            "schema": {
+              "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "lang",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 35
+            }
+          },
+          {
+            "name": "importer",
+            "required": false,
+            "in": "query",
+            "description": "Filter: importer =",
+            "schema": {
+              "description": "Filter: importer =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "importer.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: importer in",
+            "schema": {
+              "description": "Filter: importer in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter: status =",
+            "schema": {
+              "description": "Filter: status =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "status.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: status in",
+            "schema": {
+              "description": "Filter: status in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "required": false,
+            "in": "query",
+            "description": "Filter: name =",
+            "schema": {
+              "description": "Filter: name =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "name.contains",
+            "required": false,
+            "in": "query",
+            "description": "Filter: name contains",
+            "schema": {
+              "description": "Filter: name contains",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "nextRunAt.gte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: nextRunAt gte",
+            "schema": {
+              "description": "Filter: nextRunAt gte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "nextRunAt.lt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: nextRunAt lt",
+            "schema": {
+              "description": "Filter: nextRunAt lt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "nextRunAt.between",
+            "required": false,
+            "in": "query",
+            "description": "Filter: nextRunAt between",
+            "schema": {
+              "description": "Filter: nextRunAt between",
+              "type": "string"
+            }
+          },
+          {
+            "name": "createdAt.gt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt gt",
+            "schema": {
+              "description": "Filter: createdAt gt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.gte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt gte",
+            "schema": {
+              "description": "Filter: createdAt gte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.lt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt lt",
+            "schema": {
+              "description": "Filter: createdAt lt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.lte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt lte",
+            "schema": {
+              "description": "Filter: createdAt lte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.between",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt between",
+            "schema": {
+              "description": "Filter: createdAt between",
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "required": false,
+            "in": "query",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"importer\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: importer (eq, in); status (eq, in); name (eq, contains); nextRunAt (gte, lt, between); createdAt (gt, gte, lt, lte, between).",
+            "schema": {
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"importer\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: importer (eq, in); status (eq, in); name (eq, contains); nextRunAt (gte, lt, between); createdAt (gt, gte, lt, lte, between).",
+              "type": "string",
+              "maxLength": 20000
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, nextRunAt, createdAt.",
+            "schema": {
+              "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, nextRunAt, createdAt.",
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: name,importer. Fields: id, name, importer, template, rrule, startDate, time, timezone, calendarId, status, endReason, occurrences, maxOccurrences, failures, lastError, lastRunAt, lastStatus, nextRunAt, createdAt, updatedAt.",
+            "schema": {
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: name,importer. Fields: id, name, importer, template, rrule, startDate, time, timezone, calendarId, status, endReason, occurrences, maxOccurrences, failures, lastError, lastRunAt, lastStatus, nextRunAt, createdAt, updatedAt.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RecordSchedule"
+                      }
+                    },
+                    "nextCursor": {
+                      "nullable": true,
+                      "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
+                      "type": "string"
+                    },
+                    "page": {
+                      "description": "With `page`: this page.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "nextPage": {
+                      "description": "With `page`: the next page; null: no more.",
+                      "nullable": true,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageCount": {
+                      "description": "With `page` and `count=true`: ceil(total / limit).",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "total": {
+                      "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "totalCapped": {
+                      "description": "true: there are more than `total` (show \"10,000+\").",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Your recurring record schedules",
+        "tags": [
+          "record-schedules"
+        ]
+      },
+      "post": {
+        "description": "Creates the `template` (one row of an importer, as a file import takes it) as you at every occurrence of `rrule` from `startDate` at `time` in `timezone`, optionally moved into a business calendar's working time. Each occurrence makes one record, however often it is retried. Missed occurrences (downtime) are made up, oldest first, a few per pass; pausing skips a period. At most 20 active schedules, 1000 records each. Audited (`recordSchedule.created`).",
+        "operationId": "RecordSchedulesController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "example": "Weekly review"
+                  },
+                  "importer": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80,
+                    "description": "The importer whose rows are created (`GET /v1/data`).",
+                    "example": "notes"
+                  },
+                  "template": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "One row of the importer, as its file import takes it (`GET /v1/data/imports/{name}/template` lists the columns); checked on create and again at every occurrence, as the owner. The same values are used each time.",
+                    "example": {
+                      "title": "Weekly review",
+                      "body": "Check the board."
+                    }
+                  },
+                  "rrule": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 200,
+                    "description": "An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.",
+                    "example": "FREQ=WEEKLY;BYDAY=MO;COUNT=26"
+                  },
+                  "startDate": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "description": "The first date that may occur, in the schedule's zone.",
+                    "example": "2026-11-02"
+                  },
+                  "time": {
+                    "type": "string",
+                    "pattern": "^\\d{2}:\\d{2}$",
+                    "description": "Time of day of each occurrence, in the schedule's zone.",
+                    "example": "08:30"
+                  },
+                  "timezone": {
+                    "description": "Default: your own time zone, else the server's (APP_TIMEZONE).",
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "Europe/Berlin"
+                  },
+                  "calendarId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "A business calendar (`GET /v1/calendars`): an occurrence outside its working time moves to its next working moment; occurrences that land on the same moment make one record."
+                  }
+                },
+                "required": [
+                  "name",
+                  "importer",
+                  "template",
+                  "rrule",
+                  "startDate",
+                  "time"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordSchedule"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An import you may not run (`importer`), a template it refuses (`template.<field>`), a bad rule, time zone or calendar, no occurrence to come, more than 20 active schedules (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "The template sets a field your permissions hide (field_forbidden), or the session is impersonating a user."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Schedule recurring records",
+        "tags": [
+          "record-schedules"
+        ]
+      }
+    },
+    "/v1/record-schedules/preview": {
+      "post": {
+        "description": "The next moments (up to 20) a schedule with this rule, start, time, zone and calendar would create records, from now. Nothing is saved.",
+        "operationId": "RecordSchedulesController_preview_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "rrule": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 200,
+                    "description": "An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.",
+                    "example": "FREQ=WEEKLY;BYDAY=MO;COUNT=26"
+                  },
+                  "startDate": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "description": "The first date that may occur, in the schedule's zone.",
+                    "example": "2026-11-02"
+                  },
+                  "time": {
+                    "type": "string",
+                    "pattern": "^\\d{2}:\\d{2}$",
+                    "description": "Time of day of each occurrence, in the schedule's zone.",
+                    "example": "08:30"
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "Europe/Berlin"
+                  },
+                  "calendarId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "A business calendar (`GET /v1/calendars`): an occurrence outside its working time moves to its next working moment; occurrences that land on the same moment make one record."
+                  },
+                  "count": {
+                    "default": 5,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20
+                  }
+                },
+                "required": [
+                  "rrule",
+                  "startDate",
+                  "time"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordSchedulePreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An import you may not run (`importer`), a template it refuses (`template.<field>`), a bad rule, time zone or calendar, no occurrence to come, more than 20 active schedules (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Preview the next occurrences",
+        "tags": [
+          "record-schedules"
+        ]
+      }
+    },
+    "/v1/record-schedules/{id}": {
+      "get": {
+        "operationId": "RecordSchedulesController_get_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordSchedule"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "One of your recurring record schedules",
+        "tags": [
+          "record-schedules"
+        ]
+      },
+      "patch": {
+        "description": "Only what is sent changes; an active schedule's next run is computed again from now when its rule, start, time, zone or calendar changes. Audited (`recordSchedule.updated`).",
+        "operationId": "RecordSchedulesController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "example": "Weekly review"
+                  },
+                  "template": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "One row of the importer, as its file import takes it (`GET /v1/data/imports/{name}/template` lists the columns); checked on create and again at every occurrence, as the owner. The same values are used each time.",
+                    "example": {
+                      "title": "Weekly review",
+                      "body": "Check the board."
+                    }
+                  },
+                  "rrule": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 200,
+                    "description": "An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.",
+                    "example": "FREQ=WEEKLY;BYDAY=MO;COUNT=26"
+                  },
+                  "startDate": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "description": "The first date that may occur, in the schedule's zone.",
+                    "example": "2026-11-02"
+                  },
+                  "time": {
+                    "type": "string",
+                    "pattern": "^\\d{2}:\\d{2}$",
+                    "description": "Time of day of each occurrence, in the schedule's zone.",
+                    "example": "08:30"
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "Europe/Berlin"
+                  },
+                  "calendarId": {
+                    "nullable": true,
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "A business calendar (`GET /v1/calendars`): an occurrence outside its working time moves to its next working moment; occurrences that land on the same moment make one record."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordSchedule"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An import you may not run (`importer`), a template it refuses (`template.<field>`), a bad rule, time zone or calendar, no occurrence to come, more than 20 active schedules (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "The schedule has ended."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Change a recurring record schedule",
+        "tags": [
+          "record-schedules"
+        ]
+      },
+      "delete": {
+        "description": "Audited (`recordSchedule.deleted`). The records it made stay.",
+        "operationId": "RecordSchedulesController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Delete a recurring record schedule",
+        "tags": [
+          "record-schedules"
+        ]
+      }
+    },
+    "/v1/record-schedules/{id}/pause": {
+      "post": {
+        "description": "No records are created until it is resumed, and the occurrences in between are not made up.",
+        "operationId": "RecordSchedulesController_pause_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordSchedule"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "The schedule has ended."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Pause a schedule",
+        "tags": [
+          "record-schedules"
+        ]
+      }
+    },
+    "/v1/record-schedules/{id}/resume": {
+      "post": {
+        "description": "Continues at the first occurrence after now.",
+        "operationId": "RecordSchedulesController_resume_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordSchedule"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "More than 20 active schedules."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "The schedule has ended."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Resume a paused schedule",
+        "tags": [
+          "record-schedules"
+        ]
+      }
+    },
+    "/v1/record-schedules/{id}/end": {
+      "post": {
+        "description": "The records it made stay. It cannot be resumed.",
+        "operationId": "RecordSchedulesController_end_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordSchedule"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "End a schedule for good",
+        "tags": [
+          "record-schedules"
+        ]
+      }
+    },
     "/v1/views": {
       "get": {
         "description": "Yours, those shared with your units and the tenant-wide ones, of the lists you may read. `?subject=Note`, `?visibility=unit`, `?name.contains=`, `?sort=name`; newest first; cursor pages.",
@@ -50276,6 +51624,337 @@
           "key",
           "current",
           "next"
+        ],
+        "additionalProperties": false
+      },
+      "BusinessCalendarList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BusinessCalendar"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "BusinessCalendar": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string",
+            "example": "Support desk"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Europe/Berlin"
+          },
+          "hours": {
+            "maxItems": 70,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "string",
+                  "pattern": "^\\d{2}:\\d{2}$",
+                  "example": "09:00"
+                },
+                "end": {
+                  "type": "string",
+                  "pattern": "^\\d{2}:\\d{2}$",
+                  "example": "17:00"
+                },
+                "weekday": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 6,
+                  "description": "0 Sunday … 6 Saturday."
+                }
+              },
+              "required": [
+                "start",
+                "end",
+                "weekday"
+              ],
+              "additionalProperties": false
+            },
+            "description": "The spans worked each weekday, in `timezone`; a weekday with none is closed. A span ends by 24:00 and does not cross midnight: split it over two days."
+          },
+          "exceptions": {
+            "maxItems": 400,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarException"
+            }
+          },
+          "version": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Starts at 1; +1 whenever the hours, the zone or the exceptions change. Deadlines already computed keep their value: compare the version they carry."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "timezone",
+          "hours",
+          "exceptions",
+          "version",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "CalendarException": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "example": "2026-12-25",
+            "description": "A date in the calendar's zone."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "Christmas Day"
+          },
+          "hours": {
+            "description": "Special hours that day; left out: closed all day.",
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "string",
+                  "pattern": "^\\d{2}:\\d{2}$",
+                  "example": "09:00"
+                },
+                "end": {
+                  "type": "string",
+                  "pattern": "^\\d{2}:\\d{2}$",
+                  "example": "17:00"
+                }
+              },
+              "required": [
+                "start",
+                "end"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "date",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "CalendarDeadline": {
+        "type": "object",
+        "properties": {
+          "due": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "calendarVersion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "The calendar version it was computed with: store it with the deadline."
+          }
+        },
+        "required": [
+          "due",
+          "calendarVersion"
+        ],
+        "additionalProperties": false
+      },
+      "RecordSchedule": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string",
+            "example": "Weekly review"
+          },
+          "importer": {
+            "type": "string",
+            "example": "notes"
+          },
+          "template": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "One row of the importer, as its file import takes it (`GET /v1/data/imports/{name}/template` lists the columns); checked on create and again at every occurrence, as the owner. The same values are used each time.",
+            "example": {
+              "title": "Weekly review",
+              "body": "Check the board."
+            }
+          },
+          "rrule": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 200,
+            "description": "An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.",
+            "example": "FREQ=WEEKLY;BYDAY=MO;COUNT=26"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "The first date that may occur, in the schedule's zone.",
+            "example": "2026-11-02"
+          },
+          "time": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}$",
+            "description": "Time of day of each occurrence, in the schedule's zone.",
+            "example": "08:30"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Europe/Berlin"
+          },
+          "calendarId": {
+            "nullable": true,
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused",
+              "ended"
+            ]
+          },
+          "endReason": {
+            "nullable": true,
+            "description": "`completed`, `ended` (by its owner), `owner_inactive`, `import_not_allowed`, `template_invalid`.",
+            "type": "string"
+          },
+          "occurrences": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Occurrences handled: created, or skipped after failing for good."
+          },
+          "maxOccurrences": {
+            "nullable": true,
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "failures": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Failed attempts at the occurrence due now (3 skip it)."
+          },
+          "lastError": {
+            "nullable": true,
+            "type": "string"
+          },
+          "lastRunAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "lastStatus": {
+            "nullable": true,
+            "type": "string",
+            "enum": [
+              "created",
+              "failed"
+            ]
+          },
+          "nextRunAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "importer",
+          "template",
+          "rrule",
+          "startDate",
+          "time",
+          "timezone",
+          "calendarId",
+          "status",
+          "endReason",
+          "occurrences",
+          "maxOccurrences",
+          "failures",
+          "lastError",
+          "lastRunAt",
+          "lastStatus",
+          "nextRunAt",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "RecordSchedulePreview": {
+        "type": "object",
+        "properties": {
+          "occurrences": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            },
+            "description": "The next moments records would be created, from now."
+          }
+        },
+        "required": [
+          "occurrences"
         ],
         "additionalProperties": false
       },
