@@ -19,10 +19,10 @@ export function viewKinds(views: ListDescription['views']): ViewKind[] {
   return KINDS.filter((kind) => kind === 'table' || views?.[kind]);
 }
 
-/** The shown kind, in the URL (`?view=board`); the table without it or when the list offers no such view. */
+/** The shown kind, in the URL (`?layout=board`; `?view=` is a saved view's); the table without it or when the list offers no such view. */
 export function useViewKind(kinds: ViewKind[]) {
   const [kind, setKind] = useQueryState(
-    'view',
+    'layout',
     parseAsStringEnum<ViewKind>(KINDS)
       .withDefault('table')
       .withOptions({ clearOnDefault: true }),

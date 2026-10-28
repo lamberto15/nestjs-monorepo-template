@@ -1,6 +1,6 @@
 import { FlexRender, useTable, type Row } from '@tanstack/react-table';
 import { useRouter } from '@tanstack/react-router';
-import type { VisibilityState } from '@tanstack/react-table';
+import type { ColumnVisibilityState } from '@tanstack/react-table';
 import { Fragment, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -21,7 +21,7 @@ export interface ViewProps {
   params: Record<string, string>;
   /** The table's data columns (not its checkboxes or actions) and which are visible: a card shows those. */
   columns: ListColumn<never>[];
-  visibility: VisibilityState;
+  visibility: ColumnVisibilityState;
   /** Where a record's page is. */
   rowHref?: (row: never) => string;
   /** Whether writes are off now (read-only or maintenance mode). */
@@ -40,7 +40,7 @@ const LINES = 2;
 export function useRecordRows<T extends { id: string }>(
   data: T[],
   columns: ListColumn<never>[],
-  visibility: VisibilityState,
+  visibility: ColumnVisibilityState,
 ) {
   return useTable({
     features: dataTableFeatures,

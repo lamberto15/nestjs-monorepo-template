@@ -990,12 +990,15 @@ describe('ListPage record views', () => {
     select: ['title', 'status', 'startsOn', 'dueOn'],
     views,
   };
+  // Around today: the calendar opens on the current month.
+  const day = (offset: number) =>
+    new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
   const draft = {
     id: '1',
     title: 'First item',
     status: 'draft',
-    startsOn: '2026-03-02',
-    dueOn: '2026-03-05',
+    startsOn: day(-3),
+    dueOn: day(0),
     can: { update: true },
   };
   let patch: Request | undefined;
@@ -1033,7 +1036,9 @@ describe('ListPage record views', () => {
       )?.value;
       return json(
         listPage(
-          rows.filter((row) => status === undefined || row.status === status),
+          rows.filter(
+            (row) => status === undefined || row.status === status,
+          ) as Row[],
         ),
       );
     };
@@ -1047,10 +1052,10 @@ describe('ListPage record views', () => {
 
   it('offers a board of the status, one query a column, and moves a card with its ETag', async () => {
     mocks.fetch.mockImplementation(answer([draft]));
-    await renderList('?view=board');
+    await renderList('?layout=board');
 
     const column = await screen.findByRole('region', { name: /^draft/ });
-    expect(within(column).getByText('First item')).toBeInTheDocument();
+    expect(await within(column).findByText('First item')).toBeInTheDocument();
     // A column is a query of the list: the status equal to it, nothing else.
     const filters = urls()
       .filter((url) => url.pathname === PATH && url.searchParams.has('filter'))
@@ -1074,11 +1079,11 @@ describe('ListPage record views', () => {
   it('puts the card back when the update is refused', async () => {
     patchStatus = 412;
     mocks.fetch.mockImplementation(answer([draft]));
-    await renderList('?view=board');
+    await renderList('?layout=board');
 
     const column = await screen.findByRole('region', { name: /^draft/ });
     await userEvent.click(
-      within(column).getByRole('button', { name: 'Move First item' }),
+      await within(column).findByRole('button', { name: 'Move First item' }),
     );
     await userEvent.click(
       await screen.findByRole('menuitem', { name: 'Move to published' }),
@@ -1103,14 +1108,14 @@ describe('ListPage record views', () => {
     mocks.fetch.mockImplementation(
       answer([{ ...draft, can: { update: false } }]),
     );
-    await renderList('?view=board');
+    await renderList('?layout=board');
     await screen.findByText('First item');
     expect(screen.queryByRole('button', { name: /^Move / })).toBeNull();
   });
 
   it('asks the calendar for the visible range only, and shows a date as all day', async () => {
     mocks.fetch.mockImplementation(answer([draft]));
-    await renderList('?view=calendar&title=first');
+    await renderList('?layout=calendar&title=first');
 
     await screen.findByRole('button', { name: 'Reschedule First item' });
     const calendar = urls()
@@ -1141,7 +1146,7 @@ describe('ListPage record views', () => {
 
   it('reschedules to a valid, different day through the update route', async () => {
     mocks.fetch.mockImplementation(answer([draft]));
-    await renderList('?view=calendar');
+    await renderList('?layout=calendar');
     await userEvent.click(
       await screen.findByRole('button', { name: 'Reschedule First item' }),
     );
@@ -1173,7 +1178,7 @@ describe('ListPage record views', () => {
         },
       ]),
     );
-    await renderList('?view=timeline');
+    await renderList('?layout=timeline');
 
     expect(
       await screen.findByText(/end is before the start/),

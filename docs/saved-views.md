@@ -139,7 +139,7 @@ list's and the update's own. `readOnly` is for a feature whose update does not
 change that field (notes: a status is published, not set).
 
 In the web app `ListPage` shows a **Show as** switch beside the search when a
-subject declares views (`?view=board|calendar|timeline`, the table without it;
+subject declares views (`?layout=board|calendar|timeline`, the table without it;
 `features/record-views`). Each view starts from the table's own filters and
 search (the table's `filter` and `q`, joined with the view's bounds) and shows
 the cells of the columns left visible:
