@@ -41,6 +41,11 @@
       "label": "在评论中被提及",
       "title": "有人提及了您",
       "body": "{by} 在“{title}”中提及了您：{excerpt}"
+    },
+    "replied": {
+      "label": "对您评论的回复",
+      "title": "{by} 回复了您的评论",
+      "body": "{by} 回复了您在“{title}”中的评论：{excerpt}"
     }
   },
   "from": "（来自 {ip}）",

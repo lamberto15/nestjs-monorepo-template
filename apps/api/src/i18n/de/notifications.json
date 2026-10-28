@@ -46,6 +46,11 @@
       "label": "In einem Kommentar erwähnt",
       "title": "Sie wurden erwähnt",
       "body": "{by} hat Sie bei „{title}“ erwähnt: {excerpt}"
+    },
+    "replied": {
+      "label": "Antwort auf Ihren Kommentar",
+      "title": "{by} hat auf Ihren Kommentar geantwortet",
+      "body": "{by} hat auf Ihren Kommentar bei „{title}“ geantwortet: {excerpt}"
     }
   },
   "from": " (von {ip})",

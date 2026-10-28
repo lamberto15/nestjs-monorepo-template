@@ -41,6 +41,11 @@
       "label": "Disebut dalam komen",
       "title": "Anda telah disebut",
       "body": "{by} menyebut anda pada \"{title}\": {excerpt}"
+    },
+    "replied": {
+      "label": "Balasan kepada komen anda",
+      "title": "{by} membalas komen anda",
+      "body": "{by} membalas komen anda pada \"{title}\": {excerpt}"
     }
   },
   "from": " (dari {ip})",
