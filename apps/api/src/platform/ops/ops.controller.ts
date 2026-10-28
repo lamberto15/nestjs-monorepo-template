@@ -99,7 +99,7 @@ export class OpsController {
   @ApiOperation({
     summary: 'Outbox stats and the latest 50 dead letters',
     description:
-      'lagMs is the number to alert on: how long the oldest due message has waited. notifications.undelivered: stored notifications the worker has not delivered, though older than ten minutes. Errors, payloads and headers are masked as in the logs and cut; no stack traces.',
+      'lagMs is the number to alert on: how long the oldest due message has waited. notifications.undelivered: stored notifications the worker has not delivered, though older than ten minutes; it stops at 10,000 and undeliveredCapped is then true. Errors, payloads and headers are masked as in the logs and cut; no stack traces.',
   })
   @ApiOkResponse({ standardSchema: outboxStateSchema })
   async state(@CurrentUser() user: UserPrincipal) {

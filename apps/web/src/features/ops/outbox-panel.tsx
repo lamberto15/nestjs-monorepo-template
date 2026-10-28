@@ -56,7 +56,12 @@ export function OutboxPanel() {
     ['inFlight', stats.inFlight],
     ['deadLetters', stats.deadLetters],
     ['lag', formatLag(stats.lagMs)],
-    ['undelivered', notifications.undelivered],
+    [
+      'undelivered',
+      notifications.undeliveredCapped
+        ? `${notifications.undelivered.toLocaleString('en-US')}+`
+        : notifications.undelivered,
+    ],
   ] as const;
   const requeued = (count: number) =>
     toast.success(t('outbox.requeued', { count }));

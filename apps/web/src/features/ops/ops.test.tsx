@@ -131,7 +131,7 @@ function api(
           inFlight: 1,
         },
         deadLetters: state.letters,
-        notifications: { undelivered: 6 },
+        notifications: { undelivered: 6, undeliveredCapped: false },
         canManage: true,
       });
     }),

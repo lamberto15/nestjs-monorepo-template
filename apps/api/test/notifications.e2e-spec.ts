@@ -793,7 +793,10 @@ describe('notifications (e2e)', () => {
     expect(noticesTo(email)).toEqual([]);
     const ops = await node.admin().get('/v1/ops/outbox').expect(200);
     expect(ops.body.deadLetters).toEqual([]);
-    expect(ops.body.notifications).toEqual({ undelivered: 0 });
+    expect(ops.body.notifications).toEqual({
+      undelivered: 0,
+      undeliveredCapped: false,
+    });
   });
 
   it('shows and takes preferences in their typed shape; a value the channel does not take is a 400', async () => {
