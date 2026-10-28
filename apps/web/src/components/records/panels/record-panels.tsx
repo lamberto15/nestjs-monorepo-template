@@ -15,6 +15,7 @@ import { panelKeys } from './api';
 import { AttachmentsPanel } from './attachments-panel';
 import { CommentsPanel } from './comments-panel';
 import { DocumentsPanel } from './documents-panel';
+import { RelatedPanel } from './related-panel';
 import { RevisionsPanel } from './revisions-panel';
 import { TagsPanel } from './tags-panel';
 
@@ -36,6 +37,10 @@ import { TagsPanel } from './tags-panel';
  * (`recordKeys`, list path = `path` without `/{id}`) are refreshed after a
  * tag change or a restore. Uploads are held to the list's
  * `attachmentLimits`.
+ *
+ * The related tab lists the records that refer to this one (`related` of
+ * `GET /v1/lists/{subject}`: their `ref` fields), each relation's newest,
+ * as their own list shows them to the user.
  *
  * The documents tab (a PDF of the record: docs/documents.md) needs the
  * subject's `pdf` capability and the `documents` feature.
@@ -102,14 +107,20 @@ export function RecordPanels(props: {
     return null;
   }
   const { capabilities, attachmentLimits } = description;
+  // Absent from an older API's answer.
+  const related = description.related ?? [];
   const tabs = [
     capabilities.comments && 'comments',
     capabilities.attachments && attachmentLimits && 'attachments',
     capabilities.revisions && 'revisions',
     // PDFs: the subject has them and the deployment has Gotenberg.
     capabilities.pdf && documentsOn && 'documents',
+    related.length > 0 && 'related',
   ].filter(
-    (tab): tab is 'comments' | 'attachments' | 'revisions' | 'documents' =>
+    (
+      tab,
+    ): tab is
+      'comments' | 'attachments' | 'revisions' | 'documents' | 'related' =>
       !!tab,
   );
 
@@ -175,6 +186,18 @@ export function RecordPanels(props: {
           {capabilities.pdf && documentsOn && (
             <TabsContent value="documents" className="pt-4">
               <DocumentsPanel base={props.path} id={props.id} />
+            </TabsContent>
+          )}
+          {related.length > 0 && (
+            <TabsContent value="related" className="flex flex-col gap-6 pt-4">
+              {related.map((relation) => (
+                <RelatedPanel
+                  key={`${relation.path}.${relation.field}`}
+                  base={props.path}
+                  id={props.id}
+                  related={relation}
+                />
+              ))}
             </TabsContent>
           )}
         </Tabs>

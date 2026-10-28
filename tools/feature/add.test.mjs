@@ -309,6 +309,24 @@ describe('addFeature', () => {
     );
   });
 
+  it('references its own records through the declaration, not its tables file', async () => {
+    await addFeature(root, {
+      name: 'tasks',
+      fields: 'title:string,parentId:ref(tasks)?',
+    });
+    const record = readFileSync(
+      api('src/features/tasks/task.record.ts'),
+      'utf8',
+    );
+    assert.match(
+      record,
+      /parentId: field\.ref\(\(\): Referenced => recordTableOf\(TASK\)\)\.optional\(\)/,
+    );
+    assert.match(record, /import \{ field, type Referenced \}/);
+    assert.match(record, /import \{ defineRecord, recordTableOf \}/);
+    assert.ok(!record.includes('tasks.tables.js'));
+  });
+
   it('declares the capabilities, and writes their texts in every locale', async () => {
     const result = await addFeature(root, {
       name: 'tickets',
