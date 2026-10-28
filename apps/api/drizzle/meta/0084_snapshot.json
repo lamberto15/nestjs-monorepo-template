@@ -1,5 +1,5 @@
 {
-  "id": "73a9cb62-a25f-4eef-8f35-9e32774ae24d",
+  "id": "b0fce4d4-f9ff-4ef2-87e4-717cdddea3e0",
   "prevId": "31dab1ae-e468-4a2b-b174-acc89a1f1b41",
   "version": "7",
   "dialect": "postgresql",
@@ -7595,6 +7595,20 @@
           "primaryKey": false,
           "notNull": true
         },
+        "resumable": {
+          "name": "resumable",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "received": {
+          "name": "received",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
         "expires_at": {
           "name": "expires_at",
           "type": "timestamp with time zone",
@@ -7719,6 +7733,185 @@
       "checkConstraints": {},
       "isRLSEnabled": true
     },
+    "public.attachment_versions": {
+      "name": "attachment_versions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "attachment_id": {
+          "name": "attachment_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "size": {
+          "name": "size",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content_type": {
+          "name": "content_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "uploaded_by": {
+          "name": "uploaded_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uploaded_at": {
+          "name": "uploaded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "replaced_at": {
+          "name": "replaced_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "attachment_versions_uploaded_by_idx": {
+          "name": "attachment_versions_uploaded_by_idx",
+          "columns": [
+            {
+              "expression": "uploaded_by",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "attachment_versions_tenant_id_tenants_id_fk": {
+          "name": "attachment_versions_tenant_id_tenants_id_fk",
+          "tableFrom": "attachment_versions",
+          "tableTo": "tenants",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "attachment_versions_attachment_fk": {
+          "name": "attachment_versions_attachment_fk",
+          "tableFrom": "attachment_versions",
+          "tableTo": "attachments",
+          "columnsFrom": [
+            "tenant_id",
+            "attachment_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "attachment_versions_attachment_version_key": {
+          "name": "attachment_versions_attachment_version_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "attachment_id",
+            "version"
+          ]
+        }
+      },
+      "policies": {
+        "attachment_versions_tenant_select": {
+          "name": "attachment_versions_tenant_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "public"
+          ],
+          "using": "(\"attachment_versions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        },
+        "attachment_versions_tenant_insert": {
+          "name": "attachment_versions_tenant_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "public"
+          ],
+          "withCheck": "(\"attachment_versions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        },
+        "attachment_versions_tenant_update": {
+          "name": "attachment_versions_tenant_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "public"
+          ],
+          "using": "(\"attachment_versions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+          "withCheck": "(\"attachment_versions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        },
+        "attachment_versions_tenant_delete": {
+          "name": "attachment_versions_tenant_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": [
+            "public"
+          ],
+          "using": "(\"attachment_versions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
     "public.attachments": {
       "name": "attachments",
       "schema": "",
@@ -7810,6 +8003,26 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::jsonb"
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "revision_note": {
+          "name": "revision_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "versioned_at": {
+          "name": "versioned_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         },
         "created_at": {
           "name": "created_at",
@@ -9229,572 +9442,6 @@
             "public"
           ],
           "using": "(\"report_schedules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        }
-      },
-      "checkConstraints": {},
-      "isRLSEnabled": true
-    },
-    "public.business_calendars": {
-      "name": "business_calendars",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuidv7()"
-        },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "timezone": {
-          "name": "timezone",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "hours": {
-          "name": "hours",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "exceptions": {
-          "name": "exceptions",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "business_calendars_name_idx": {
-          "name": "business_calendars_name_idx",
-          "columns": [
-            {
-              "expression": "tenant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "business_calendars_tenant_id_tenants_id_fk": {
-          "name": "business_calendars_tenant_id_tenants_id_fk",
-          "tableFrom": "business_calendars",
-          "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "business_calendars_tenant_id_id_key": {
-          "name": "business_calendars_tenant_id_id_key",
-          "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "id"
-          ]
-        }
-      },
-      "policies": {
-        "business_calendars_tenant_select": {
-          "name": "business_calendars_tenant_select",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "public"
-          ],
-          "using": "(\"business_calendars\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "business_calendars_tenant_insert": {
-          "name": "business_calendars_tenant_insert",
-          "as": "PERMISSIVE",
-          "for": "INSERT",
-          "to": [
-            "public"
-          ],
-          "withCheck": "(\"business_calendars\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "business_calendars_tenant_update": {
-          "name": "business_calendars_tenant_update",
-          "as": "PERMISSIVE",
-          "for": "UPDATE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"business_calendars\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
-          "withCheck": "(\"business_calendars\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "business_calendars_tenant_delete": {
-          "name": "business_calendars_tenant_delete",
-          "as": "PERMISSIVE",
-          "for": "DELETE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"business_calendars\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        }
-      },
-      "checkConstraints": {},
-      "isRLSEnabled": true
-    },
-    "public.record_schedule_runs": {
-      "name": "record_schedule_runs",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuidv7()"
-        },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "schedule_id": {
-          "name": "schedule_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "occurrence_at": {
-          "name": "occurrence_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "error": {
-          "name": "error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "record_schedule_runs_occurrence_idx": {
-          "name": "record_schedule_runs_occurrence_idx",
-          "columns": [
-            {
-              "expression": "schedule_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "occurrence_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "record_schedule_runs_tenant_id_tenants_id_fk": {
-          "name": "record_schedule_runs_tenant_id_tenants_id_fk",
-          "tableFrom": "record_schedule_runs",
-          "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "record_schedule_runs_schedule_fk": {
-          "name": "record_schedule_runs_schedule_fk",
-          "tableFrom": "record_schedule_runs",
-          "tableTo": "record_schedules",
-          "columnsFrom": [
-            "tenant_id",
-            "schedule_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {
-        "record_schedule_runs_tenant_select": {
-          "name": "record_schedule_runs_tenant_select",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "public"
-          ],
-          "using": "(\"record_schedule_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "record_schedule_runs_tenant_insert": {
-          "name": "record_schedule_runs_tenant_insert",
-          "as": "PERMISSIVE",
-          "for": "INSERT",
-          "to": [
-            "public"
-          ],
-          "withCheck": "(\"record_schedule_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "record_schedule_runs_tenant_update": {
-          "name": "record_schedule_runs_tenant_update",
-          "as": "PERMISSIVE",
-          "for": "UPDATE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"record_schedule_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
-          "withCheck": "(\"record_schedule_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "record_schedule_runs_tenant_delete": {
-          "name": "record_schedule_runs_tenant_delete",
-          "as": "PERMISSIVE",
-          "for": "DELETE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"record_schedule_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        }
-      },
-      "checkConstraints": {},
-      "isRLSEnabled": true
-    },
-    "public.record_schedules": {
-      "name": "record_schedules",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuidv7()"
-        },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "owner": {
-          "name": "owner",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "importer": {
-          "name": "importer",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "template": {
-          "name": "template",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rrule": {
-          "name": "rrule",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "start_date": {
-          "name": "start_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "time": {
-          "name": "time",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "timezone": {
-          "name": "timezone",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "calendar_id": {
-          "name": "calendar_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'active'"
-        },
-        "end_reason": {
-          "name": "end_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "occurrences": {
-          "name": "occurrences",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "max_occurrences": {
-          "name": "max_occurrences",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "failures": {
-          "name": "failures",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "last_error": {
-          "name": "last_error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_run_at": {
-          "name": "last_run_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_status": {
-          "name": "last_status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "next_run_at": {
-          "name": "next_run_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "record_schedules_owner_idx": {
-          "name": "record_schedules_owner_idx",
-          "columns": [
-            {
-              "expression": "owner",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "record_schedules_next_run_at_idx": {
-          "name": "record_schedules_next_run_at_idx",
-          "columns": [
-            {
-              "expression": "next_run_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"record_schedules\".\"status\" = 'active'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "record_schedules_tenant_id_tenants_id_fk": {
-          "name": "record_schedules_tenant_id_tenants_id_fk",
-          "tableFrom": "record_schedules",
-          "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "record_schedules_calendar_fk": {
-          "name": "record_schedules_calendar_fk",
-          "tableFrom": "record_schedules",
-          "tableTo": "business_calendars",
-          "columnsFrom": [
-            "tenant_id",
-            "calendar_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "record_schedules_tenant_id_id_key": {
-          "name": "record_schedules_tenant_id_id_key",
-          "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "id"
-          ]
-        }
-      },
-      "policies": {
-        "record_schedules_tenant_select": {
-          "name": "record_schedules_tenant_select",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "public"
-          ],
-          "using": "(\"record_schedules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "record_schedules_tenant_insert": {
-          "name": "record_schedules_tenant_insert",
-          "as": "PERMISSIVE",
-          "for": "INSERT",
-          "to": [
-            "public"
-          ],
-          "withCheck": "(\"record_schedules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "record_schedules_tenant_update": {
-          "name": "record_schedules_tenant_update",
-          "as": "PERMISSIVE",
-          "for": "UPDATE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"record_schedules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
-          "withCheck": "(\"record_schedules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "record_schedules_tenant_delete": {
-          "name": "record_schedules_tenant_delete",
-          "as": "PERMISSIVE",
-          "for": "DELETE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"record_schedules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         }
       },
       "checkConstraints": {},

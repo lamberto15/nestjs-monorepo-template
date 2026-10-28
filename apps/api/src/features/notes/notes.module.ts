@@ -15,6 +15,7 @@ import { NoteBulk } from './note.bulk.js';
 import { NoteAttachments } from './note-attachments.js';
 import { attachmentRoutes } from '../../platform/attachments/attachment.routes.js';
 import { NoteComments } from './note-comments.js';
+import { NoteAccess } from './note-access.js';
 import { NoteSubscriptions } from './note-subscriptions.js';
 import { commentRoutes } from '../../platform/comments/comment.routes.js';
 import { NoteTags } from './note-tags.js';
@@ -31,13 +32,15 @@ import { NoteRevisions } from './note-revisions.js';
 import { revisionRoutes } from '../../platform/revisions/revision.routes.js';
 import { bulkRoutes } from '../../platform/bulk/bulk.routes.js';
 import { watchRoutes } from '../../platform/subscriptions/subscription.routes.js';
+import { shareRoutes } from '../../platform/shares/share.routes.js';
+import { NoteShares } from './note-shares.js';
 import { noteBulkSchema, noteSchema } from './note.schemas.js';
 import { NotePublishApproval } from './note-approvals.js';
 import { NoteAi } from './note-ai.js';
 import { NoteDocuments } from './note-documents.js';
 import { documentRoutes } from '../../platform/documents/document.routes.js';
 import { listSource } from '../../platform/lists/lists.registry.js';
-import { NOTE_LIST } from './note.list.js';
+import { NOTE_LIST, NOTE_VIEWS } from './note.list.js';
 
 /**
  * The example feature, showing every tool in use: a policy with conditions
@@ -69,6 +72,7 @@ import { NOTE_LIST } from './note.list.js';
       docs: NOTE_BULK_DOCS,
     }),
     watchRoutes(NOTE_ROUTES, { docs: NOTE_WATCH_DOCS }),
+    shareRoutes(NOTE_ROUTES),
   ],
   providers: [
     NotesDemo,
@@ -82,14 +86,16 @@ import { NOTE_LIST } from './note.list.js';
     NoteBulk,
     NoteAttachments,
     NoteComments,
+    NoteAccess,
     NoteSubscriptions,
+    NoteShares,
     NoteTags,
     NoteRevisions,
     NotePublishApproval,
     NoteAi,
     NoteDocuments,
     // GET /v1/lists/Note: the list described, and what notes take (a generated record's comes from recordParts).
-    listSource('Note', NOTE_LIST, NOTE_CAPABILITIES),
+    listSource('Note', NOTE_LIST, NOTE_CAPABILITIES, NOTE_VIEWS),
   ],
   // The demo seed (src/demo) writes notes through it.
   exports: [NotesService, NotesDemo],

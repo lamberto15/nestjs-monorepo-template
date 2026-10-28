@@ -37,6 +37,8 @@ import { AllowInMaintenance } from '../../core/http/maintenance.js';
 import { redactValue } from '../../core/logging/redaction.js';
 import { opsEvent } from './ops-events.js';
 import {
+  diagnosticTestSchema,
+  diagnosticsSchema,
   opsEventSchema,
   outboxStateSchema,
   purgedSchema,
@@ -47,6 +49,9 @@ import {
 } from './ops.schemas.js';
 import { OpsPolicy } from './ops.policy.js';
 import { OpsQueues } from './ops-queues.service.js';
+import { OpsDiagnostics } from './ops-diagnostics.service.js';
+import { UserThrottle } from '../../iam/auth/user-throttle.guard.js';
+import { minutes } from '@nestjs/throttler';
 import type { UserPrincipal } from '../../iam/auth/principal.js';
 import { UserOnly } from '../../iam/auth/user-only.decorator.js';
 import { OperatorOnly } from '../../iam/auth/operator-only.js';
@@ -91,6 +96,7 @@ export class OpsController {
     private readonly opsPolicy: OpsPolicy,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly diagnostics: OpsDiagnostics,
   ) {}
 
   @Get('outbox')
@@ -157,6 +163,51 @@ export class OpsController {
   @ApiOkResponse({ standardSchema: queueOverviewSchema })
   async queueOverview() {
     return { items: await this.queues.overview() };
+  }
+
+  @Get('diagnostics')
+  @Can(OpsPolicy, 'view')
+  @SerializeOptions({ schema: diagnosticsSchema })
+  @ApiOperation({
+    summary:
+      'Integration diagnostics: database, Redis, workers, mail, storage, realtime',
+    description:
+      'Each one ok, configured (set up, not probed: run its test), disabled, unconfigured or unavailable, with a hint. Built from switches and driver names: no URL, host credential or key is ever in it; errors are masked as in the logs and cut.',
+  })
+  @ApiOkResponse({ standardSchema: diagnosticsSchema })
+  async diagnosticsOverview(@CurrentUser() user: UserPrincipal) {
+    return {
+      items: await this.diagnostics.overview(),
+      canTest: await this.opsPolicy.manage(user),
+    };
+  }
+
+  /** A safe connection test: nothing a user sees (no mail sent, a probe file deleted at once). */
+  @Post('diagnostics/:check/test')
+  @Can(OpsPolicy, 'manage')
+  @UserThrottle({ limit: 10, ttl: minutes(1) })
+  @HttpCode(200)
+  @SerializeOptions({ schema: diagnosticTestSchema })
+  @ApiOperation({
+    summary: 'Test one integration now (safe: sends nothing, keeps nothing)',
+    description:
+      'SMTP: connects, authenticates and says QUIT. Storage: writes, reads and deletes a probe file. Database, Redis, realtime: a ping; workers: at least one connected. A failure answers 200 with ok false and the masked reason. 400 not_testable when the configuration has nothing to probe. 10 per minute per user. Audited.',
+  })
+  @ApiOkResponse({ standardSchema: diagnosticTestSchema })
+  async testDiagnostic(
+    @CurrentUser() user: UserPrincipal,
+    @Param('check') check: string,
+    @Ip() ip: string,
+  ) {
+    const result = await this.diagnostics.test(check);
+    await this.audit.record(user, {
+      action: 'ops.diagnostic-tested',
+      targetType: 'integration',
+      targetId: check,
+      details: { ok: result.ok, durationMs: result.durationMs },
+      ip,
+    });
+    return result;
   }
 
   /** A queue's failed jobs, run again. */

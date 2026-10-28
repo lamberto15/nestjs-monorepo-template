@@ -6,7 +6,7 @@ import {
   type NotNull,
 } from 'drizzle-orm';
 import { bigint, char, index, uniqueIndex } from 'drizzle-orm/pg-core';
-import type { AnyPgColumn } from 'drizzle-orm/pg-core';
+import type { ExtraConfigColumn } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import { tenantReference } from '../../core/tenancy/tenant-scope.js';
 import {
@@ -105,7 +105,7 @@ export function fieldColumns<F extends Fields>(fields: F): FieldColumns<F> {
  */
 export function fieldExtras(
   tableName: string,
-  table: Record<string, AnyPgColumn>,
+  table: Record<string, ExtraConfigColumn>,
   fields: Fields,
   softDelete = false,
 ) {
@@ -123,7 +123,16 @@ export function fieldExtras(
     }
     if (f.options.ref) {
       const target = f.options.ref;
-      extras.push(index(`${column}_idx`).on(table[name]!));
+      // Leads with the tenant, then newest first: a record's related list
+      // (`?<x>Id=`, record-relations.ts) is one bounded range of it, and the
+      // key's checks on delete use it too (so not partial).
+      extras.push(
+        index(`${column}_idx`).on(
+          table.tenantId!,
+          table[name]!,
+          table.id!.desc().nullsFirst(),
+        ),
+      );
       extras.push(
         tenantReference(
           `${column}_fk`,

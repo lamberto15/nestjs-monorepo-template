@@ -126,6 +126,15 @@ export class AccessPolicy {
   }
 
   /**
+   * Why a member may or may not act on a subject or a record (GET
+   * /v1/access/users/{id}/explanation): who hands out roles or manages
+   * users, never while acting as someone else.
+   */
+  async explain(user: Principal | null) {
+    return (await this.manageRoles(user)) || (await this.manageUsers(user));
+  }
+
+  /**
    * The access API's read routes (the catalog, roles, users, units, API
    * clients, principals): any permission of access administration, so
    * whoever manages units lists them and whoever impersonates finds whom.

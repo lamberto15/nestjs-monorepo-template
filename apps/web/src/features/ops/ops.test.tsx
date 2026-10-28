@@ -196,6 +196,59 @@ describe('queues', () => {
   });
 });
 
+describe('diagnostics', () => {
+  it('shows each integration with its state and hint, and runs a safe test', async () => {
+    api();
+    const tested: string[] = [];
+    server.use(
+      http.get('/v1/ops/diagnostics', () =>
+        HttpResponse.json({
+          items: [
+            {
+              check: 'workers',
+              state: 'unavailable',
+              driver: 'bullmq',
+              detail: 'No worker is connected to any queue.',
+              hint: 'Start a worker process.',
+              testable: true,
+            },
+            {
+              check: 'realtime',
+              state: 'disabled',
+              driver: null,
+              detail: null,
+              hint: 'REALTIME=off',
+              testable: false,
+            },
+          ],
+          canTest: true,
+        }),
+      ),
+      http.post('/v1/ops/diagnostics/:check/test', ({ params }) => {
+        tested.push(String(params.check));
+        return HttpResponse.json({
+          check: params.check,
+          ok: true,
+          durationMs: 12,
+          detail: null,
+          hint: null,
+        });
+      }),
+    );
+    await renderApp('/ops');
+    await openTab('Diagnostics');
+    expect(await screen.findByText('Unavailable')).toBeInTheDocument();
+    expect(screen.getByText('Disabled')).toBeInTheDocument();
+    expect(screen.getByText('Start a worker process.')).toBeInTheDocument();
+    // Only the testable one offers a test.
+    const buttons = screen.getAllByRole('button', { name: 'Test' });
+    expect(buttons).toHaveLength(1);
+    await userEvent.click(buttons[0]!);
+    await waitFor(() => expect(tested).toEqual(['workers']));
+    expect(await findToast('Workers: test passed (12 ms).')).toBeVisible();
+  });
+});
+
 describe('outbox', () => {
   it('shows the counters and the dead letters', async () => {
     api();

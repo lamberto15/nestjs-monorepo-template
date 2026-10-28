@@ -14,6 +14,7 @@
       "manageNamingSeries": "Create, change and delete the number formats of numbered records, and set their counters (platform/sequences)",
       "manageCalendars": "Create, change and delete the business calendars (working hours, time zone, holidays) that deadlines count in (platform/calendars)",
       "manageViews": "Share saved views of lists with the whole tenant, and change or delete shared views (platform/views)",
+      "manageTemplates": "Share record templates with the whole tenant, and change or delete shared templates (platform/templates)",
       "readAudit": "Read the audit log",
       "manageTenants": "Create tenants (the deployment's operators: only in the operator tenant)",
       "impersonate": "Act as another user (support), never as an administrator",
@@ -68,7 +69,8 @@
       "create": "Write notes",
       "update": "Change notes",
       "delete": "Delete notes",
-      "restore": "See deleted notes and restore them"
+      "restore": "See deleted notes and restore them",
+      "share": "Share notes by link"
     },
     "fields": {
       "body": "The note's text",

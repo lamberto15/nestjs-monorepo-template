@@ -14,6 +14,7 @@
       "manageNamingSeries": "Die Nummernformate nummerierter Datensätze anlegen, ändern und löschen und ihre Zähler setzen (platform/sequences)",
       "manageCalendars": "Die Geschäftskalender (Arbeitszeiten, Zeitzone, Feiertage) anlegen, ändern und löschen, nach denen Fristen gezählt werden (platform/calendars)",
       "manageViews": "Gespeicherte Ansichten von Listen mit dem ganzen Mandanten teilen sowie geteilte Ansichten ändern oder löschen (platform/views)",
+      "manageTemplates": "Datensatzvorlagen mit dem ganzen Mandanten teilen sowie geteilte Vorlagen ändern oder löschen (platform/templates)",
       "readAudit": "Das Audit-Protokoll lesen",
       "manageTenants": "Mandanten anlegen (die Betreiber der Installation: nur im Betreiber-Mandanten)",
       "impersonate": "Als ein anderer Benutzer handeln (Support), nie als Administrator",
@@ -68,7 +69,8 @@
       "create": "Notizen schreiben",
       "update": "Notizen ändern",
       "delete": "Notizen löschen",
-      "restore": "Gelöschte Notizen sehen und wiederherstellen"
+      "restore": "Gelöschte Notizen sehen und wiederherstellen",
+      "share": "Notizen per Link teilen"
     },
     "fields": {
       "body": "Der Text der Notiz",

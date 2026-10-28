@@ -14,6 +14,7 @@
       "manageNamingSeries": "Cipta, ubah dan padam format nombor rekod bernombor, dan tetapkan pembilangnya (platform/sequences)",
       "manageCalendars": "Cipta, ubah dan padam kalendar perniagaan (waktu bekerja, zon waktu, cuti) yang menjadi asas pengiraan tarikh akhir (platform/calendars)",
       "manageViews": "Kongsi paparan tersimpan senarai dengan seluruh penyewa, dan ubah atau padam paparan yang dikongsi (platform/views)",
+      "manageTemplates": "Kongsi templat rekod dengan seluruh penyewa, dan ubah atau padam templat yang dikongsi (platform/templates)",
       "readAudit": "Baca log audit",
       "manageTenants": "Cipta penyewa (pengendali penggunaan: hanya dalam penyewa pengendali)",
       "impersonate": "Bertindak sebagai pengguna lain (sokongan), tidak sekali-kali sebagai pentadbir",
@@ -68,7 +69,8 @@
       "create": "Tulis nota",
       "update": "Ubah nota",
       "delete": "Padam nota",
-      "restore": "Lihat nota yang dipadam dan pulihkannya"
+      "restore": "Lihat nota yang dipadam dan pulihkannya",
+      "share": "Kongsi nota melalui pautan"
     },
     "fields": {
       "body": "Teks nota",

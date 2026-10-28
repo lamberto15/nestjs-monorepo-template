@@ -19,6 +19,7 @@ export const CAPABILITIES = [
   'custom',
   'events',
   'numbered',
+  'share',
 ];
 
 /** `--with tags,comments`: the capabilities, checked; pdf brings attachments (a PDF is one). */
@@ -85,6 +86,7 @@ export const RESERVED_ACTIONS = [
   'pdf',
   'watch',
   'bulk',
+  'shares',
 ];
 
 /** `--approvals publish,markPaid`: the actions that need approval, checked. */

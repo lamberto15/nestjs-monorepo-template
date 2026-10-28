@@ -5,7 +5,8 @@
   "tabs": {
     "queues": "الطوابير",
     "outbox": "صندوق الصادر",
-    "events": "الأحداث المباشرة"
+    "events": "الأحداث المباشرة",
+    "diagnostics": "التشخيص"
   },
   "queues": {
     "empty": "لا طوابير.",
@@ -95,5 +96,30 @@
       "closed": "غير متصل"
     },
     "reconnect": "إعادة الاتصال"
+  },
+  "diagnostics": {
+    "check": "التكامل",
+    "state": "الحالة",
+    "driver": "المشغّل",
+    "details": "التفاصيل",
+    "actions": "الإجراءات",
+    "test": "اختبار",
+    "passed": "{{check}}: نجح الاختبار ({{ms}} مللي ثانية).",
+    "failed": "{{check}}: فشل الاختبار.",
+    "checks": {
+      "database": "قاعدة البيانات",
+      "redis": "Redis",
+      "workers": "العمّال",
+      "mail": "البريد",
+      "storage": "تخزين الملفات",
+      "realtime": "الوقت الفعلي"
+    },
+    "states": {
+      "ok": "سليم",
+      "configured": "مُعدّ",
+      "disabled": "معطّل",
+      "unconfigured": "غير مُعدّ",
+      "unavailable": "غير متاح"
+    }
   }
 }

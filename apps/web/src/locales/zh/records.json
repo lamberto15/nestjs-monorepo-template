@@ -98,5 +98,12 @@
     "option": "请选择列出的选项之一。",
     "none": "无",
     "choose": "请选择…"
+  },
+  "related": {
+    "title": "相关",
+    "heading": "{{subject}}（{{field}}）",
+    "empty": "暂无。",
+    "error": "无法加载相关记录。",
+    "more": "最新的 {{shown}} 条，共 {{total}} 条。"
   }
 }

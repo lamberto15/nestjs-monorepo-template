@@ -5,10 +5,10 @@ import {
   type NestInterceptor,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { uploadToDisk } from '@nestjs/storage';
+import { FileInterceptor } from '@nestjs/platform-node';
+import { StorageDisk, uploadToDisk } from '@nestjs/storage';
 import { randomUUID } from 'node:crypto';
-import type { Request } from 'express';
+import type { NodeRequest as Request } from '@nestjs/platform-node';
 import { notWhileImpersonating } from '../../iam/account/account.schemas.js';
 import type { UserPrincipal } from '../../iam/auth/principal.js';
 import { assertDeclaredType } from '../attachments/attachment-types.js';
@@ -32,11 +32,14 @@ import { avatarLimits } from './avatar.js';
 export class AvatarUploadInterceptor implements NestInterceptor {
   private readonly multer: NestInterceptor;
 
-  constructor(config: ConfigService<PlatformEnv, true>) {
+  constructor(config: ConfigService<PlatformEnv, true>, disk: StorageDisk) {
     const limits = avatarLimits(config);
     const Upload = FileInterceptor('file');
     this.multer = new Upload({
       storage: uploadToDisk({
+        // The disk itself, not its name: uploadToDisk() finds a disk by name
+        // through Express's or Fastify's request only, not the native adapter's.
+        disk,
         key: (file, req) => {
           assertDeclaredType(file.mimetype, file.contentType!);
           return accountFileKey(

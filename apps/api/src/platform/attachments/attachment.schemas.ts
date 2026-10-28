@@ -51,6 +51,19 @@ export const attachmentSchema = z
       .describe(
         'Smaller WebP copies of an image, upright and without metadata: `thumb` fits in 256 × 256 pixels, `preview` in 1600 × 1600 (neither enlarges). Empty until `renditionStatus` is `ready`. Download one with `GET /v1/attachments/{id}/download?rendition=thumb|preview`.',
       ),
+    version: z
+      .number()
+      .int()
+      .describe(
+        'The number of the current file: 1, and one more with every replacement or restoration (`GET /v1/attachments/{id}/versions`).',
+      ),
+    revisionNote: z
+      .string()
+      .nullable()
+      .describe('The note given with the current version, if any.'),
+    versionedAt: z.iso
+      .datetime()
+      .describe('When the current version was put in place.'),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
   })
@@ -132,4 +145,87 @@ export type PresignedUploadView = z.infer<typeof presignedUploadSchema>;
 /** The body of `POST …/attachments/complete`. */
 export const attachmentCompleteSchema = z.object({
   uploadId: z.uuid().describe('The `uploadId` of the presign answer.'),
+});
+
+/** A resumable upload session. */
+export const uploadSessionSchema = z
+  .object({
+    uploadId: z
+      .uuid()
+      .describe('Names the session in every call, and in `…/complete`.'),
+    name: z.string(),
+    size: z.number().int().describe('The announced size in bytes.'),
+    contentType: z.string(),
+    received: z
+      .number()
+      .int()
+      .describe(
+        'Bytes stored so far, which is the offset of the next chunk (progress is `received / size`).',
+      ),
+    chunkSize: z
+      .number()
+      .int()
+      .describe('The most one chunk may carry, in bytes.'),
+    expiresAt: z.iso
+      .datetime()
+      .describe(
+        'When the session stops taking chunks; its chunks are removed shortly after.',
+      ),
+  })
+  .meta({ id: 'UploadSession' });
+export type UploadSessionView = z.infer<typeof uploadSessionSchema>;
+
+/** `?offset=` of `PUT …/attachments/sessions/{uploadId}`. */
+export const uploadChunkQuerySchema = z.object({
+  offset: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .describe(
+      "Where this chunk starts: the session's `received`. 409 `attachment_upload_offset_mismatch` otherwise.",
+    ),
+});
+
+/** One version of an attachment's file. */
+export const attachmentVersionSchema = z
+  .object({
+    version: z.number().int(),
+    current: z.boolean().describe('The file the attachment serves now.'),
+    name: z.string(),
+    size: z.number().int().describe('Bytes.'),
+    contentType: z.string(),
+    uploadedBy: z
+      .string()
+      .describe('`user:<id>`, `client:<id>`, or `anonymized`.'),
+    note: z.string().nullable().describe('The revision note it was given.'),
+    uploadedAt: z.iso
+      .datetime()
+      .describe("When it became the attachment's file."),
+  })
+  .meta({ id: 'AttachmentVersion' });
+export type AttachmentVersionView = z.infer<typeof attachmentVersionSchema>;
+
+/** The versions of an attachment, newest first (`GET /v1/attachments/{id}/versions`). */
+export const attachmentVersionListSchema = z
+  .object({ items: z.array(attachmentVersionSchema) })
+  .meta({ id: 'AttachmentVersionList' });
+
+/** The text fields of a replacement (multipart) and of a restoration (JSON). */
+export const attachmentVersionNoteSchema = z.object({
+  note: z
+    .string()
+    .max(1000)
+    .optional()
+    .describe('Why the file changed, kept with the version.'),
+  file: z.unknown().optional().meta({
+    type: 'string',
+    format: 'binary',
+    description:
+      'Required for a replacement: checked like any upload (type from its bytes, size, quota, malware scan).',
+  }),
+});
+
+/** The body of `POST /v1/attachments/{id}/versions/{version}/restore`. */
+export const attachmentRestoreSchema = attachmentVersionNoteSchema.pick({
+  note: true,
 });

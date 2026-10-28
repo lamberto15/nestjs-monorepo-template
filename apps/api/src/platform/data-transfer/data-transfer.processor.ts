@@ -9,6 +9,7 @@ import { OnWorkerEvent, Processor } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { StorageDisk } from '@nestjs/storage';
 import { type Job, UnrecoverableError } from 'bullmq';
+import { z } from 'zod';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import { inTenantOf, TenantWorkerHost } from '../../core/tenancy/tenant-job.js';
 import type { ListQuery } from '../../core/http/list-query.js';
@@ -357,14 +358,20 @@ export class DataTransferProcessor extends TenantWorkerHost<
       columns.filter((column) => column.type === 'date').map((c) => c.name),
     );
     // An empty cell of an optional column that can't hold an empty value
-    // (a number, a text with a minimum length) is no value: the file an
-    // export wrote imports as it is.
+    // (a number, a text with a minimum length, an id, an address) is no
+    // value: the file an export wrote imports as it is.
+    let input: z.ZodType = schema;
+    while (input instanceof z.ZodPipe) input = input.in as z.ZodType;
+    const shape: Record<string, z.ZodType | undefined> =
+      input instanceof z.ZodObject ? input.shape : {};
     const blankIsAbsent = new Set(
       columns
         .filter(
           (column) =>
             !column.required &&
-            (column.type !== 'text' || (column.min ?? 0) > 0),
+            (column.type !== 'text' ||
+              (column.min ?? 0) > 0 ||
+              shape[column.name]?.safeParse('').success === false),
         )
         .map((column) => column.name),
     );
