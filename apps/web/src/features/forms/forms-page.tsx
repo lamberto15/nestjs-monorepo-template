@@ -198,7 +198,8 @@ function CreateFormDialog(props: {
       .toLowerCase()
       .normalize('NFKD')
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
+      // One dash at most at either end: the line above collapsed each run.
+      .replace(/^-|-$/g, '')
       .slice(0, 80);
 
   return (
