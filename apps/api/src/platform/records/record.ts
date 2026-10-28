@@ -41,6 +41,7 @@ import {
 } from './record-approvals.js';
 import type { ListViewsDeclaration } from '../lists/list-metadata.schemas.js';
 import type { RecordRouteSpec } from './record-routes.js';
+import { relate } from './record-relations.js';
 import type { RecordSettingSpec } from './record-settings.js';
 
 /**
@@ -67,6 +68,7 @@ export const CAPABILITIES = [
   'custom',
   'events',
   'numbered',
+  'share',
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 
@@ -350,6 +352,11 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
   }).enableRLS();
   TABLES.set(declaration, built as unknown as PgTable);
   tableHolds(built, declaration.subject);
+  // Its `ref` fields' relations (record-relations.ts): what refers to what.
+  relate(
+    declaration,
+    built as unknown as PgTable & Record<string, AnyPgColumn>,
+  );
   return built;
 }
 

@@ -19,7 +19,7 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
-import type { Response } from 'express';
+import type { NodeResponse as Response } from '@nestjs/platform-node';
 import type { RequestPrincipal } from '../../iam/auth/principal.js';
 import { RecordIdempotent } from '../records/record-idempotency.js';
 import {

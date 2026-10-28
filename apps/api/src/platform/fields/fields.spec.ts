@@ -109,6 +109,14 @@ describe('fields', () => {
     expect(config.foreignKeys.map((k) => k.getName())).toContain(
       'test_invoices_customer_id_fk',
     );
+    // A related list's range: the tenant, the reference, newest first.
+    const reference = config.indexes.find(
+      (i) => i.config.name === 'test_invoices_customer_id_idx',
+    )!;
+    expect(
+      reference.config.columns.map((c) => (c as { name: string }).name),
+    ).toEqual(['tenant_id', 'customer_id', 'id']);
+    expect(reference.config.where).toBeUndefined();
   });
 
   it('makes the unique index partial on live rows when the table has soft delete, plain otherwise', () => {

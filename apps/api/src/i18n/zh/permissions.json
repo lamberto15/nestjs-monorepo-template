@@ -12,7 +12,9 @@
       "manageLegalHolds": "设置和解除法律保全：无论删除、清除或保留规则如何，相关记录都会保留（iam/holds）",
       "manageRetention": "设置租户将每种记录保留多久，之后清除或匿名化（platform/retention）",
       "manageNamingSeries": "创建、更改和删除编号记录的编号格式，并设置其计数器（platform/sequences）",
+      "manageCalendars": "创建、更改和删除用于计算截止时间的营业日历（工作时间、时区、节假日）（platform/calendars）",
       "manageViews": "与整个租户共享列表的已保存视图，并更改或删除共享视图（platform/views）",
+      "manageTemplates": "与整个租户共享记录模板，并更改或删除共享模板（platform/templates）",
       "readAudit": "查看审计日志",
       "manageTenants": "创建租户（部署的运营者：仅在运营者租户中）",
       "impersonate": "以其他用户身份操作（支持），绝不以管理员身份",
@@ -80,7 +82,8 @@
       "create": "撰写笔记",
       "update": "更改笔记",
       "delete": "删除笔记",
-      "restore": "查看已删除的笔记并恢复"
+      "restore": "查看已删除的笔记并恢复",
+      "share": "通过链接共享笔记"
     },
     "fields": {
       "body": "笔记的正文",
@@ -181,6 +184,10 @@
     "report-runner": {
       "label": "定时报表",
       "description": "启动到期的定时报表（以其所有者身份），暂停无法再运行的报表，并记录每次运行的结果。"
+    },
+    "record-schedules": {
+      "label": "周期记录计划",
+      "description": "按计划所有者的身份创建到期的周期计划记录，结束无法再运行的计划，并记录跳过的执行。"
     },
     "approvals": {
       "label": "审批",

@@ -9,7 +9,10 @@ import {
 import { Reflector } from '@nestjs/core';
 import { SessionService } from '@nestjs/authentication';
 import { ApiForbiddenResponse, ApiHeader } from '@nestjs/swagger';
-import type { Request, Response } from 'express';
+import type {
+  NodeRequest as Request,
+  NodeResponse as Response,
+} from '@nestjs/platform-node';
 import { UsersRepository } from '../auth/users.repository.js';
 import { CaptchaService } from './captcha.service.js';
 

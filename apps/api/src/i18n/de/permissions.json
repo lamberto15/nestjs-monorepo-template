@@ -12,7 +12,9 @@
       "manageLegalHolds": "Rechtliche Aufbewahrungspflichten (Legal Holds) setzen und aufheben: Datensätze bleiben trotz Löschen, Bereinigung oder Aufbewahrungsregel erhalten (iam/holds)",
       "manageRetention": "Festlegen, wie lange der Mandant jede Art von Datensatz behält, bevor er gelöscht oder anonymisiert wird (platform/retention)",
       "manageNamingSeries": "Die Nummernformate nummerierter Datensätze anlegen, ändern und löschen und ihre Zähler setzen (platform/sequences)",
+      "manageCalendars": "Die Geschäftskalender (Arbeitszeiten, Zeitzone, Feiertage) anlegen, ändern und löschen, nach denen Fristen gezählt werden (platform/calendars)",
       "manageViews": "Gespeicherte Ansichten von Listen mit dem ganzen Mandanten teilen sowie geteilte Ansichten ändern oder löschen (platform/views)",
+      "manageTemplates": "Datensatzvorlagen mit dem ganzen Mandanten teilen sowie geteilte Vorlagen ändern oder löschen (platform/templates)",
       "readAudit": "Das Audit-Protokoll lesen",
       "manageTenants": "Mandanten anlegen (die Betreiber der Installation: nur im Betreiber-Mandanten)",
       "impersonate": "Als ein anderer Benutzer handeln (Support), nie als Administrator",
@@ -80,7 +82,8 @@
       "create": "Notizen schreiben",
       "update": "Notizen ändern",
       "delete": "Notizen löschen",
-      "restore": "Gelöschte Notizen sehen und wiederherstellen"
+      "restore": "Gelöschte Notizen sehen und wiederherstellen",
+      "share": "Notizen per Link teilen"
     },
     "fields": {
       "body": "Der Text der Notiz",
@@ -181,6 +184,10 @@
     "report-runner": {
       "label": "Geplante Berichte",
       "description": "Startet die fälligen geplanten Berichte (als ihre Eigentümer), pausiert die, die nicht mehr laufen können, und hält fest, wie jeder Lauf endete."
+    },
+    "record-schedules": {
+      "label": "Wiederkehrende Datensatzpläne",
+      "description": "Legt die Datensätze der fälligen wiederkehrenden Pläne an (als deren Eigentümer), beendet Pläne, die nicht mehr laufen können, und vermerkt übersprungene Termine."
     },
     "approvals": {
       "label": "Genehmigungen",

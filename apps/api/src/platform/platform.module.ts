@@ -225,6 +225,7 @@ import { malwareScanner } from './attachments/malware-scanner.factory.js';
 import { ImageProcessor } from './images/image-processor.js';
 import { imageProcessor } from './images/image-processor.factory.js';
 import { AttachmentUploadsService } from './attachments/attachment-uploads.service.js';
+import { AttachmentVersionsService } from './attachments/attachment-versions.service.js';
 import { AttachmentsController } from './attachments/attachments.controller.js';
 import { AttachmentsRegistry } from './attachments/attachments.registry.js';
 import { AttachmentsService } from './attachments/attachments.service.js';
@@ -239,8 +240,24 @@ import { ImportMappingsController } from './data-transfer/import-mappings.contro
 import { ImportMappingsService } from './data-transfer/import-mappings.service.js';
 import { FavoritesController } from './favorites/favorites.controller.js';
 import { FavoritesService } from './favorites/favorites.service.js';
+import { SharedController } from './shares/shared.controller.js';
+import { ShareCodeMail } from './shares/share.mails.js';
+import { SharesRegistry } from './shares/shares.registry.js';
+import { SharesService } from './shares/shares.service.js';
+import { ChoicesBuiltins } from './choices/choices.builtins.js';
+import { ChoicesController } from './choices/choices.controller.js';
+import { ChoicesRegistry } from './choices/choices.registry.js';
+import { ChoicesService } from './choices/choices.service.js';
+import { TemplatesController } from './templates/templates.controller.js';
+import { TemplatesRegistry } from './templates/templates.registry.js';
+import { TemplatesService } from './templates/templates.service.js';
 import { ViewsController } from './views/views.controller.js';
 import { ViewsService } from './views/views.service.js';
+import { CalendarsController } from './calendars/calendars.controller.js';
+import { CalendarsService } from './calendars/calendars.service.js';
+import { RecordScheduleRunnerJob } from './recurrence/record-schedule-runner.job.js';
+import { RecordSchedulesController } from './recurrence/record-schedules.controller.js';
+import { RecordSchedulesService } from './recurrence/record-schedules.service.js';
 import { ReportRunnerJob } from './reports/report-runner.job.js';
 import { ReportFailedMail, ReportReadyMail } from './reports/report.mails.js';
 import { ReportsController } from './reports/reports.controller.js';
@@ -506,11 +523,17 @@ export class PlatformModule {
         AiController,
         TagsController,
         NamingSeriesController,
+        CalendarsController,
+        RecordSchedulesController,
         ViewsController,
+        TemplatesController,
+        ChoicesController,
         FavoritesController,
         // Runtime forms (docs/forms.md): off per tenant until `forms.enabled`.
         FormsController,
         FormSubmissionsController,
+        // Opening a record's read-only link, without a sign-in (POST /v1/shared/open).
+        SharedController,
         ImportMappingsController,
         RetentionController,
         ...whenOn('REPORTS', ReportsController),
@@ -736,6 +759,7 @@ export class PlatformModule {
         AttachmentsService,
         // Uploads straight to the object store (STORAGE_DRIVER=s3): presign, then complete through AttachmentsService.upload().
         AttachmentUploadsService,
+        AttachmentVersionsService,
         AttachmentSweepJob,
         // PDF documents of records: features register a DocumentSource and call DocumentsService.request().
         DocumentsRegistry,
@@ -770,12 +794,28 @@ export class PlatformModule {
         TagsService,
         // Saved views: a list's filters, sort and columns under a name (private, unit, tenant).
         ViewsService,
+        // Record templates: values to prefill a create, checked again at preview (private, unit, tenant).
+        TemplatesRegistry,
+        TemplatesService,
+        // Dependent dropdowns: server-registered choice providers and the sets that chain them.
+        ChoicesRegistry,
+        ChoicesService,
+        ChoicesBuiltins,
         // Favorites: a person's pinned records, pages and saved views, in their order.
         FavoritesService,
         // Runtime forms: definitions, published versions, submissions.
         FormPolicy,
         FormsService,
         FormSubmissionsService,
+        // Business calendars: working hours, zone and holidays, and the deadline calculation on them.
+        CalendarsService,
+        // Recurring record schedules: records created from a template at each occurrence of a rule.
+        RecordSchedulesService,
+        RecordScheduleRunnerJob,
+        // Read-only links to records: features register a ShareTarget (the `share` capability).
+        SharesRegistry,
+        SharesService,
+        ShareCodeMail,
         // Saved column mappings of an import (docs/data-transfer.md).
         ImportMappingsService,
         // Scheduled reports: exports run on a schedule, mailed to their recipients.
@@ -868,6 +908,8 @@ export class PlatformModule {
         PersonalDataRegistry,
         SubscriptionsService,
         SubscriptionsRegistry,
+        SharesRegistry,
+        SharesService,
         SearchRegistry,
         ListsRegistry,
         SequencesService,
@@ -875,7 +917,10 @@ export class PlatformModule {
         AttachmentsRegistry,
         AttachmentsService,
         AttachmentUploadsService,
+        AttachmentVersionsService,
         AcknowledgmentsService,
+        // A record's templates register here (record-parts.ts).
+        TemplatesRegistry,
         DocumentsRegistry,
         DocumentsService,
         AiRegistry,

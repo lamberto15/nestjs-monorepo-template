@@ -81,7 +81,10 @@ export function columnsOf(schema: z.ZodType): ImportColumn[] {
       example:
         property.example ??
         property.examples?.[0] ??
-        (property.default === '' ? undefined : property.default),
+        (property.default === '' ? undefined : property.default) ??
+        // An optional id (a reference) is left empty: any id a template made
+        // up would name no record, and the row would be refused.
+        (property.format === 'uuid' && !required.has(name) ? '' : undefined),
     });
   });
 }

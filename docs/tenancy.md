@@ -213,10 +213,12 @@ Built in the platform code, never at call sites (`tenantKey()`):
   tenant is the token family's `tid` claim.
 - **Invitations: the default way to add people** (sign-up, SSO and SCIM are
   the optional others: [identity](identity.md)). `POST /v1/access/users
-  { email, name?, roleIds, roleExpiresAt?, unitIds? }` (202) stores an
+  { email?, name?, roleIds, roleExpiresAt?, unitIds?, send? }` (202) stores an
   invitation (a tenant table; the link's token, `inv_<tenant id>_<secret>`,
-  only as its SHA-256) and mails a link (`WEB_URL/accept-invitation?token=…`,
-  `INVITATION_TTL_HOURS`). Nothing about an account is read, changed or
+  only as its SHA-256) and, with `send: true` (the default), mails a link
+  (`WEB_URL/accept-invitation?token=…`, `INVITATION_TTL_HOURS`); `send: false`
+  prepares the member with no link (and maybe no address yet) until sent
+  ([identity](identity.md), "Getting people in"). Nothing about an account is read, changed or
   returned, and the answer is the same whether or not the address has one.
   `POST /v1/auth/invitations/accept { token, password?, name? }`: a new
   address chooses its password (its address proved by the link; 400
@@ -225,12 +227,17 @@ Built in the platform code, never at call sites (`tenantKey()`):
   membership, with the invitation's roles and units (those still there), comes
   then, in one transaction under the account's and the membership's locks (an
   acceptance never interleaves with the account's deletion or the membership's
-  deactivation). `GET /v1/access/invitations` (with each one's `roleIds`,
-  `roleExpiresAt` and `unitIds`), `DELETE /v1/access/invitations/{id}`,
-  `POST /v1/access/invitations/{id}/resend` (202, expired or not: a new link
-  and expiry, the old link stops; the roles, their ends and the units stay;
-  the resender must be able to grant its roles, and signed in recently;
-  audited `invitation.resent`). Administrators never set or change anyone's
+  deactivation); a deactivated membership is not turned back on (403
+  `membership_inactive`). `GET /v1/access/invitations` (with each one's
+  `status`: `prepared`, `sent` or `expired`, its `roleIds`, `roleExpiresAt`
+  and `unitIds`), `PATCH /v1/access/invitations/{id}` (its address, name,
+  roles, ends, units; a new address withdraws a sent link; audited
+  `invitation.updated`), `DELETE /v1/access/invitations/{id}`,
+  `POST /v1/access/invitations/{id}/send` (202: a prepared one's first link,
+  or a new link and expiry, the old link stops; the roles, their ends and the
+  units stay; the sender must be able to grant its roles and place people in
+  its units, and signed in recently; audited `invitation.sent` or
+  `invitation.resent`; 400 `email_required` without an address). Administrators never set or change anyone's
   password or name: `PATCH /v1/access/users/{id}` changes the membership
   (`active`, roles) only; units change on the unit’s members routes, and a `password` or `name` is refused (400).
   Linking a provider and enrolling two-factor want a proved address (403

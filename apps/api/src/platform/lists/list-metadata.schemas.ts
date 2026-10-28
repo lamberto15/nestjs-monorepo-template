@@ -60,6 +60,8 @@ const CAPABILITY_DOCS = {
   events:
     'Webhook events of its changes (`<item>.created`…). False with WEBHOOKS=off.',
   numbered: 'A human-readable number (`number`, `INV-2026-00042`).',
+  share:
+    'Read-only links to a record (`…/{id}/shares`), opened without a sign-in (POST /v1/shared/open).',
   approvals: 'An action on the records may need approval (GET /v1/approvals).',
 } satisfies Record<Capability | 'approvals', string>;
 
@@ -104,6 +106,37 @@ export const attachmentLimitsSchema = z
     "What a record's attachment may be, as the upload route enforces it; null when the subject takes no attachments.",
   );
 
+/** Records that refer to the subject's: a related panel of its records (record-relations.ts). */
+export const listRelatedSchema = z.object({
+  subject: z
+    .string()
+    .describe(
+      'The referring records: their own list is GET /v1/lists/{subject}.',
+    )
+    .meta({ example: 'InvoiceLine' }),
+  path: z
+    .string()
+    .describe(
+      "Their list, under /v1: a record's related ones are `GET /v1/<path>?<field>=<id>` (paginated, newest first, only those the caller may read).",
+    )
+    .meta({ example: 'invoice-lines' }),
+  field: z
+    .string()
+    .describe("Their field holding the record's id.")
+    .meta({ example: 'invoiceId' }),
+  title: z
+    .string()
+    .nullable()
+    .describe(
+      'The field a client names each one by (their first text field); null when none.',
+    )
+    .meta({ example: 'title' }),
+  required: z
+    .boolean()
+    .describe(
+      'Required: a record they refer to cannot be deleted (409 `record_referenced`). Optional: the field empties when it is deleted for good.',
+    ),
+});
 /**
  * The record views a subject declares (`views` of its record or list
  * source), each naming list fields: a board of an enum field's values, a
@@ -209,6 +242,11 @@ export const listMetadataSchema = z.object({
     })
     .describe("The list's limits, the same on every list."),
   capabilities: listCapabilitiesSchema,
+  related: z
+    .array(listRelatedSchema)
+    .describe(
+      "The records that refer to this subject's (a `ref` field of theirs), which the caller may list and filter by that field: a record's related panels.",
+    ),
   views: listViewsSchema,
   attachmentLimits: attachmentLimitsSchema,
   documentTemplates: z

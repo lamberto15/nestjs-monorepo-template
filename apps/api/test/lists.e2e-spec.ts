@@ -123,7 +123,12 @@ describe('list metadata (e2e)', () => {
         .filter((field) => field.ref)
         .map((field) => [field.name, field.ref]),
     );
-    expect(refs).toEqual({ tag: 'tag', ownerId: 'principal', unitId: 'unit' });
+    expect(refs).toEqual({
+      tag: 'tag',
+      ownerId: 'principal',
+      unitId: 'unit',
+      parentId: 'TestItem',
+    });
     // `q` and `rank` are `search`, not fields.
     expect(names(fields)).not.toContain('q');
     expect(names(fields)).not.toContain('rank');
