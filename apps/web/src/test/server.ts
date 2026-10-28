@@ -90,8 +90,10 @@ export const handlers = [
   http.get('/v1/branding', () =>
     HttpResponse.json({
       primaryColor: null,
+      darkPrimaryColor: null,
       mailFromName: null,
       logoUrl: null,
+      darkLogoUrl: null,
       locked: false,
       canEdit: false,
     }),

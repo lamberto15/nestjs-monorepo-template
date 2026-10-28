@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { nav, visibleGroups } from '@/nav';
 import type { Branding } from '@/lib/branding';
 import { problem, server } from '@/test/server';
@@ -13,8 +13,10 @@ const ADMIN = ['Access.manageSettings'];
 
 const branding = (over: Partial<Branding> = {}): Branding => ({
   primaryColor: null,
+  darkPrimaryColor: null,
   mailFromName: null,
   logoUrl: null,
+  darkLogoUrl: null,
   locked: false,
   canEdit: true,
   ...over,
@@ -97,6 +99,50 @@ describe('the theme', () => {
   });
 });
 
+describe('the dark theme', () => {
+  afterEach(() => localStorage.clear());
+
+  it('uses the dark-mode colour and logo there, and the plain ones in the light theme', async () => {
+    useBrandingApi(
+      branding({
+        primaryColor: '#1d4ed8',
+        darkPrimaryColor: '#93c5fd',
+        logoUrl: '/v1/branding/t1/logo',
+        darkLogoUrl: '/v1/branding/t1/logo/dark',
+      }),
+    );
+    localStorage.setItem('theme', 'dark');
+    await renderApp('/');
+    await waitFor(() =>
+      expect(document.documentElement.style.getPropertyValue('--primary')).toBe(
+        '#93c5fd',
+      ),
+    );
+    expect(
+      document.querySelector('img[src="/v1/branding/t1/logo/dark"]'),
+    ).not.toBeNull();
+    expect(
+      document.querySelector('img[src="/v1/branding/t1/logo"]'),
+    ).toBeNull();
+  });
+
+  it('keeps the colour and the logo when there are no dark-mode ones', async () => {
+    useBrandingApi(
+      branding({ primaryColor: '#1d4ed8', logoUrl: '/v1/branding/t1/logo' }),
+    );
+    localStorage.setItem('theme', 'dark');
+    await renderApp('/');
+    await waitFor(() =>
+      expect(document.documentElement.style.getPropertyValue('--primary')).toBe(
+        '#1d4ed8',
+      ),
+    );
+    expect(
+      document.querySelector('img[src="/v1/branding/t1/logo"]'),
+    ).not.toBeNull();
+  });
+});
+
 describe('the page', () => {
   it('says a failed read, with a retry that loads the page', async () => {
     useBrandingApi(branding());
@@ -129,7 +175,11 @@ describe('the page', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await findToast('Branding saved.');
     expect(calls.put).toEqual([
-      { primaryColor: '#2563eb', mailFromName: 'Acme Support' },
+      {
+        primaryColor: '#2563eb',
+        darkPrimaryColor: null,
+        mailFromName: 'Acme Support',
+      },
     ]);
   });
 
@@ -144,7 +194,9 @@ describe('the page', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await findToast('Branding saved.');
-    expect(calls.put).toEqual([{ primaryColor: null, mailFromName: 'Acme' }]);
+    expect(calls.put).toEqual([
+      { primaryColor: null, darkPrimaryColor: null, mailFromName: 'Acme' },
+    ]);
   });
 
   it('names the hue slider and the logo input for assistive technology', async () => {
