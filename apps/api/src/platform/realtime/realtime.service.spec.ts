@@ -111,6 +111,21 @@ describe('Realtime without a socket server', () => {
   });
 });
 
+describe('Realtime while the app closes', () => {
+  it('sends nothing once shutdown began: the Redis adapter is closing', () => {
+    const emit = vi.fn();
+    const realtime = serverless();
+    (realtime as unknown as { server: Namespace }).server = {
+      to: () => ({ emit }),
+    } as unknown as Namespace;
+    realtime.toRoom('a-room', 'some.event', {});
+    expect(emit).toHaveBeenCalledOnce();
+    realtime.beforeApplicationShutdown();
+    realtime.toRoom('a-room', 'some.event', {});
+    expect(emit).toHaveBeenCalledOnce();
+  });
+});
+
 describe('Realtime declared events', () => {
   const realtimeWith = (realtimeEvents = {}) =>
     new Realtime(
