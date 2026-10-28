@@ -1,3 +1,4 @@
+import { Resolver } from 'node:dns/promises';
 import { randomBytes } from 'node:crypto';
 import {
   type DynamicModule,
@@ -156,6 +157,16 @@ import {
   PublicBrandingController,
 } from './branding/branding.controller.js';
 import { BrandingService } from './branding/branding.service.js';
+import {
+  BrandingDomainsController,
+  DomainAskController,
+  HostBrandingController,
+} from './branding/branding-domains.controller.js';
+import { BrandingDomainsService } from './branding/branding-domains.service.js';
+import { BrandingDomainsProcessor } from './branding/branding-domains.processor.js';
+import { BrandingDomainsJob } from './branding/branding-domains.job.js';
+import { CUSTOM_DOMAINS_TXT_RESOLVER } from './branding/branding-domains.queue.js';
+import { HOST_TENANTS } from '../iam/auth/host-tenant.js';
 import { BrandingLogoUpload } from './branding/branding-logo-upload.interceptor.js';
 import { BRANDING_SETTINGS } from './branding/branding.settings.js';
 import {
@@ -481,6 +492,10 @@ export class PlatformModule {
         // The tenant's colour, mail sender name and logo (docs/branding.md).
         BrandingController,
         PublicBrandingController,
+        // Its custom domains, the brand before sign-in by host, the edge's TLS ask.
+        BrandingDomainsController,
+        HostBrandingController,
+        DomainAskController,
         SubscriptionsController,
         SearchController,
         ListsController,
@@ -812,6 +827,16 @@ export class PlatformModule {
         BrandingService,
         BrandingLogoUpload,
         { provide: MAIL_BRANDING, useExisting: BrandingService },
+        // Custom domains: the session's tenant on a tenant's own host (SessionAuth).
+        BrandingDomainsService,
+        BrandingDomainsProcessor,
+        BrandingDomainsJob,
+        { provide: HOST_TENANTS, useExisting: BrandingDomainsService },
+        // The domains' TXT lookups: the system resolver, bounded; the tests replace it.
+        {
+          provide: CUSTOM_DOMAINS_TXT_RESOLVER,
+          useFactory: () => new Resolver({ timeout: 5000, tries: 2 }),
+        },
         MailSuppressionPolicy,
         // Encrypted columns onto the current keys (docs/encryption.md):
         // hourly scheduling, one batch per queue job, the stale rows on /metrics.
@@ -869,6 +894,7 @@ export class PlatformModule {
         MAIL_DELIVERY,
         MAIL_BRANDING,
         BrandingService,
+        HOST_TENANTS,
         MailEventIntakeRegistry,
         IncomingEventHandlers,
       ],

@@ -17,6 +17,7 @@
       "manageTenants": "Cipta penyewa (pengendali penggunaan: hanya dalam penyewa pengendali)",
       "impersonate": "Bertindak sebagai pengguna lain (sokongan), tidak sekali-kali sebagai pentadbir",
       "manageSso": "Sediakan log masuk tunggal penyewa: sambungan SAML dan OpenID Connect, domain e-mel yang disahkan",
+      "manageDomains": "Tambah, sahkan dan alih keluar domain tersuai penyewa: nama hos sendiri tempat aplikasi disajikan (platform/branding)",
       "provisionScim": "Peruntukkan pengguna dan kumpulan melalui SCIM 2.0 (klien API: token SCIM pembekal identiti)"
     }
   },
@@ -216,6 +217,10 @@
     "messaging-retention": {
       "label": "Pengekalan pemesejan",
       "description": "Membuang peranti yang tidak dilihat selama DEVICES_RETENTION_DAYS dan kaunter anti-penipuan hari lepas, setiap malam."
+    },
+    "custom-domains": {
+      "label": "Semakan domain tersuai",
+      "description": "Menyemak rekod DNS TXT domain tersuai penyewa apabila diminta dan setiap malam, dan menghentikan penghalaan domain yang rekodnya telah tiada."
     },
     "demo-seed": {
       "label": "Data demo",
