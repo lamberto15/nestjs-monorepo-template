@@ -69,18 +69,63 @@ export const startExport = (body: {
 export const templateUrl = (name: string, format: TransferFormat) =>
   `/v1/data/imports/${encodeURIComponent(name)}/template?format=${format}`;
 
-/** Starts an import (multipart: `name`, `dryRun`, `file`), with upload progress. */
+/** A file's headers to the template's columns (null: ignore the column). */
+export type ImportMapping = Record<string, string | null>;
+export type SavedMapping =
+  GetResponse<'/v1/data/imports/{name}/mappings'>['items'][number];
+
+/** Starts an import (multipart: `name`, `dryRun`, `mapping`, `file`), with upload progress. */
 export function startImport(
-  input: { name: string; file: File; dryRun: boolean; matchOn?: string },
+  input: {
+    name: string;
+    file: File;
+    dryRun: boolean;
+    matchOn?: string;
+    mapping?: ImportMapping;
+  },
   onProgress: (percent: number) => void,
 ): Promise<{ id: string; status: 'queued' }> {
   const form = new FormData();
   form.append('name', input.name);
   form.append('dryRun', String(input.dryRun));
   if (input.matchOn) form.append('matchOn', input.matchOn);
+  // Fields before the file: the server reads them when the file arrives.
+  if (input.mapping && Object.keys(input.mapping).length > 0) {
+    form.append('mapping', JSON.stringify(input.mapping));
+  }
   form.append('file', input.file);
   return postMultipart('/v1/data/imports', form, onProgress);
 }
+
+/** An import's saved column mappings (the tenant's). */
+export const mappingsQuery = (name: string) =>
+  queryOptions({
+    queryKey: ['data', 'mappings', name],
+    queryFn: () =>
+      unwrap(
+        api.GET('/v1/data/imports/{name}/mappings', {
+          params: { path: { name } },
+        }),
+      ),
+  });
+
+export const saveMapping = (
+  name: string,
+  body: { name: string; mapping: ImportMapping },
+) =>
+  unwrap(
+    api.POST('/v1/data/imports/{name}/mappings', {
+      params: { path: { name } },
+      body,
+    }),
+  );
+
+export const deleteMapping = (name: string, id: string) =>
+  unwrap(
+    api.DELETE('/v1/data/imports/{name}/mappings/{id}', {
+      params: { path: { name, id } },
+    }),
+  );
 
 // ------------------------------------------------------------------ lists
 

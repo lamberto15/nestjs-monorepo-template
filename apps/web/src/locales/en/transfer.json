@@ -111,5 +111,21 @@
     "running": "Working… {{count}} processed so far.",
     "result": "{{done}} done, {{failed}} failed, {{skipped}} skipped.",
     "failed": "The run stopped."
+  },
+  "mapping": {
+    "title": "Column mapping",
+    "header": "In the file",
+    "sample": "First row",
+    "column": "Imports as",
+    "columnOf": "Column for {{header}}",
+    "asIs": "{{header}} (as it is)",
+    "ignore": "Ignore this column",
+    "twice": "Two columns of the file go to {{columns}}: choose another for one of them.",
+    "apply": "Saved mapping",
+    "choose": "Apply a saved mapping",
+    "delete": "Delete “{{name}}”",
+    "name": "Save this mapping as",
+    "save": "Save mapping",
+    "saved": "Mapping saved."
   }
 }
