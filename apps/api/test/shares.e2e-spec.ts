@@ -73,11 +73,7 @@ describe('shares: read-only links to a record (e2e)', () => {
     ];
     expect(
       entries.map((entry) => entry.action).sort((a, b) => a.localeCompare(b)),
-    ).toEqual([
-      'share.created',
-      'share.opened',
-      'share.revoked',
-    ]);
+    ).toEqual(['share.created', 'share.opened', 'share.revoked']);
     expect(JSON.stringify(entries)).not.toContain(token.split('_')[2]);
   });
 

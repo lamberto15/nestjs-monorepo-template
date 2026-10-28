@@ -16766,6 +16766,10 @@
                           "type": "boolean",
                           "description": "A human-readable number (`number`, `INV-2026-00042`)."
                         },
+                        "share": {
+                          "type": "boolean",
+                          "description": "Read-only links to a record (`…/{id}/shares`), opened without a sign-in (POST /v1/shared/open)."
+                        },
                         "approvals": {
                           "type": "boolean",
                           "description": "An action on the records may need approval (GET /v1/approvals)."
@@ -16784,6 +16788,7 @@
                         "custom",
                         "events",
                         "numbered",
+                        "share",
                         "approvals"
                       ],
                       "additionalProperties": false,
@@ -20606,6 +20611,225 @@
         "summary": "Unpin a favorite",
         "tags": [
           "favorites"
+        ]
+      }
+    },
+    "/v1/shared/open": {
+      "post": {
+        "description": "No sign-in. The record's shared fields, as its maker may read them now, and its files when the link shares them. A link to a recipient needs `code` (POST /v1/shared/code mails one). Audited `share.opened`.",
+        "operationId": "SharedController_open_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "description": "The link's token: the part of the link after `#`. Sent in the body, never in a URL, so no log or `Referer` carries it."
+                  },
+                  "code": {
+                    "description": "The code mailed to the recipient, for a link that has one.",
+                    "type": "string",
+                    "pattern": "^\\d{6}$"
+                  }
+                },
+                "required": [
+                  "token"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "subject": {
+                      "type": "string",
+                      "example": "Note"
+                    },
+                    "fields": {
+                      "type": "object",
+                      "additionalProperties": {},
+                      "description": "The shared fields, as reading the record shows them: one its maker may no longer read is left out."
+                    },
+                    "files": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "contentType": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "size",
+                          "contentType"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Its files, when the link shares them (else empty)."
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "subject",
+                    "fields",
+                    "files",
+                    "expiresAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The link needs the mailed code (`share_code_required`), or the code is wrong, used up or expired (`share_code_invalid`)."
+          },
+          "404": {
+            "description": "The link is invalid, expired or revoked (`share_not_found`)."
+          }
+        },
+        "summary": "Open a shared link",
+        "tags": [
+          "shares"
+        ]
+      }
+    },
+    "/v1/shared/code": {
+      "post": {
+        "description": "The code opens the link for 10 minutes, 5 tries; a new one replaces it. The same answer whether or not the link has a recipient.",
+        "operationId": "SharedController_code_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "description": "The link's token: the part of the link after `#`. Sent in the body, never in a URL, so no log or `Referer` carries it."
+                  }
+                },
+                "required": [
+                  "token"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "The link is invalid, expired or revoked (`share_not_found`)."
+          }
+        },
+        "summary": "Mail a code to a shared link's recipient",
+        "tags": [
+          "shares"
+        ]
+      }
+    },
+    "/v1/shared/files/{attachmentId}": {
+      "post": {
+        "description": "A signed link to one of the files the link lists, valid for 5 minutes, handed out only while the link works. Audited `share.opened` with the file.",
+        "operationId": "SharedController_file_v1",
+        "parameters": [
+          {
+            "name": "attachmentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "description": "The link's token: the part of the link after `#`. Sent in the body, never in a URL, so no log or `Referer` carries it."
+                  },
+                  "code": {
+                    "description": "The code mailed to the recipient, for a link that has one.",
+                    "type": "string",
+                    "pattern": "^\\d{6}$"
+                  }
+                },
+                "required": [
+                  "token"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "description": "A signed link to the file, valid for 5 minutes."
+                    }
+                  },
+                  "required": [
+                    "url"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The link needs its code."
+          },
+          "404": {
+            "description": "The link does not work, or does not share this file."
+          }
+        },
+        "summary": "A shared record's file",
+        "tags": [
+          "shares"
         ]
       }
     },
@@ -49368,6 +49592,200 @@
           "notes"
         ]
       }
+    },
+    "/v1/notes/{id}/shares": {
+      "get": {
+        "description": "Revoked and expired ones too (`active: false`); never their tokens.",
+        "operationId": "NoteSharesController_list_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShareList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not share the note."
+          },
+          "404": {
+            "description": "No such note (or link)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "A note's links, newest first",
+        "tags": [
+          "notes"
+        ]
+      },
+      "post": {
+        "description": "A link that shows the chosen fields (and the files, with `files`) to whoever holds it, or only to `recipientEmail` with a mailed code, until `expiresAt` (within 30 days) or until revoked. Only a person (not an API client, not while impersonating), and only fields you may read; it never shows more than you still may when it is opened. The token is in this answer only. At most 20 working links per note. Audited `share.created`.",
+        "operationId": "NoteSharesController_create_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fields": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "description": "The record's fields the link shows: fields you may read, never a reference to another record."
+                  },
+                  "files": {
+                    "default": false,
+                    "description": "List the record's files, and hand out their download links: only files that show no field outside `fields`.",
+                    "type": "boolean"
+                  },
+                  "expiresAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "description": "When the link stops: within 30 days."
+                  },
+                  "recipientEmail": {
+                    "description": "Only this address opens it: a code is mailed to it each time (POST /v1/shared/code).",
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  }
+                },
+                "required": [
+                  "fields",
+                  "expiresAt"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedShare"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A field a link does not share, an expiry out of range, or too many links (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not share the note."
+          },
+          "404": {
+            "description": "No such note (or link)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Share a note by a read-only link",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/v1/notes/{id}/shares/{shareId}": {
+      "delete": {
+        "description": "It stops opening at once; a file link it gave ends within 5 minutes. Its maker, or whoever may share the note. Audited `share.revoked`.",
+        "operationId": "NoteSharesController_revoke_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "shareId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not share the note."
+          },
+          "404": {
+            "description": "No such note (or link)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Revoke a link",
+        "tags": [
+          "notes"
+        ]
+      }
     }
   },
   "info": {
@@ -51708,6 +52126,197 @@
           "finishedAt",
           "attachmentId",
           "error"
+        ],
+        "additionalProperties": false
+      },
+      "ShareList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Share"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "Share": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string",
+            "example": "Note"
+          },
+          "recordId": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "title",
+              "body"
+            ]
+          },
+          "files": {
+            "type": "boolean"
+          },
+          "recipientEmail": {
+            "nullable": true,
+            "description": "Set: the link opens only with a code mailed to this address.",
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string",
+            "description": "`user:<id>` of who made it."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "revokedAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "views": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "lastViewedAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "recordId",
+          "fields",
+          "files",
+          "recipientEmail",
+          "createdBy",
+          "expiresAt",
+          "revokedAt",
+          "active",
+          "views",
+          "lastViewedAt",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "CreatedShare": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string",
+            "example": "Note"
+          },
+          "recordId": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "title",
+              "body"
+            ]
+          },
+          "files": {
+            "type": "boolean"
+          },
+          "recipientEmail": {
+            "nullable": true,
+            "description": "Set: the link opens only with a code mailed to this address.",
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string",
+            "description": "`user:<id>` of who made it."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "revokedAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "views": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "lastViewedAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "token": {
+            "type": "string",
+            "description": "Shown once: only its hash is kept."
+          },
+          "url": {
+            "type": "string",
+            "description": "The web app's page that opens it: `<WEB_URL>/shared#<token>`."
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "recordId",
+          "fields",
+          "files",
+          "recipientEmail",
+          "createdBy",
+          "expiresAt",
+          "revokedAt",
+          "active",
+          "views",
+          "lastViewedAt",
+          "createdAt",
+          "token",
+          "url"
         ],
         "additionalProperties": false
       },
