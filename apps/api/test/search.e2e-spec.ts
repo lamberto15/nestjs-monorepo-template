@@ -1,3 +1,6 @@
+import { and, desc } from 'drizzle-orm';
+import { matches, rankedMatches } from '../src/core/database/search.js';
+import { testItems } from './fixtures/test-items/test-items.tables.js';
 import { bootApp, type TestApp } from './support.js';
 
 describe('full-text search (e2e)', () => {
@@ -118,5 +121,41 @@ describe('full-text search (e2e)', () => {
     expect(darkHit.snippet).toBe('<b>Dark</b> mode');
     const titled = await reader.agent.get('/v1/search?q=legacy').expect(200);
     expect(titled.body.items[0].snippet).toBe('<b>Legacy</b> dark theme');
+  });
+
+  it('ranks every match when few match, the newest when many do', async () => {
+    const editor = await node.user(['editor']);
+    const made: string[] = [];
+    for (const title of ['Zebra one', 'Zebra two', 'Zebra three']) {
+      made.push(
+        (await node.writeItem(editor.agent, { title }).expect(201)).body.id,
+      );
+    }
+    const where = matches(testItems.search, 'zebra');
+    const ranked = async (cap: number) => {
+      const only = await rankedMatches(
+        node.db,
+        testItems,
+        testItems.id,
+        where,
+        cap,
+      );
+      return {
+        only,
+        ids: (
+          await node.db
+            .select({ id: testItems.id })
+            .from(testItems)
+            .where(and(where, only))
+            .orderBy(desc(testItems.id))
+        ).map((row) => row.id),
+      };
+    };
+    // Few: no condition, so the planner may find them by the GIN index.
+    const few = await ranked(3);
+    expect(few.only).toBeUndefined();
+    expect(few.ids).toEqual(made.toReversed());
+    // Many: the newest `cap`.
+    expect((await ranked(2)).ids).toEqual(made.toReversed().slice(0, 2));
   });
 });

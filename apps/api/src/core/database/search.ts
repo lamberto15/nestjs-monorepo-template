@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { type AnyColumn, type SQL, sql } from 'drizzle-orm';
+import { type AnyColumn, type SQL, desc, inArray, sql } from 'drizzle-orm';
 import {
   type AnyPgColumn,
   type PgTable,
@@ -108,6 +108,36 @@ export const searchFields = (
  * the matches, not with `limit`; past this the caller narrows `q`.
  */
 export const RANK_CAP = 1_000;
+
+/**
+ * Which of `where`'s matches a search ranks: all of them (`undefined`, no
+ * further condition) when at most `cap` match, else the newest `cap`.
+ * Counting first, capped, lets the planner find a rare term's few rows by
+ * the GIN index; asked for them by id with a limit, it walks the primary
+ * key and tests every row instead, seconds on a large table (#861).
+ */
+export async function rankedMatches(
+  db: Database | Transaction,
+  table: PgTable,
+  id: AnyPgColumn,
+  where: SQL | undefined,
+  cap = RANK_CAP,
+): Promise<SQL | undefined> {
+  const total = await countPage(
+    db,
+    table,
+    where,
+    { limit: cap, count: true },
+    cap,
+  );
+  if (!total?.totalCapped) {
+    return undefined;
+  }
+  return inArray(
+    id,
+    db.select({ id }).from(table).where(where).orderBy(desc(id)).limit(cap),
+  );
+}
 
 /**
  * A 400 `search_too_broad` when `?sort=` ranks (`rank`) a `q` that matches
