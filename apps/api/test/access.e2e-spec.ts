@@ -233,6 +233,140 @@ describe('access control (e2e)', () => {
     });
   });
 
+  describe('explaining access (#562)', () => {
+    type Explained = {
+      roles: { id: string; expired: boolean }[];
+      actions: {
+        action: string;
+        allowed: boolean | null;
+        fields: string[] | null;
+        grants: { roleId: string; matches: boolean | null }[];
+      }[];
+    };
+    const action = (body: Explained, name: string) =>
+      body.actions.find((explained) => explained.action === name)!;
+
+    it('explains each action as the engine decides it: overlapping grants, fields, an ended grant', async () => {
+      const admin = node.admin();
+      const owner = await node.user(['editor']);
+      const theirs = (
+        await node
+          .writeItem(owner.agent, { title: 'Theirs', body: 'x' })
+          .expect(201)
+      ).body.id as string;
+      // Every item without its text, beside the editor's own items with it.
+      const textless = (
+        await admin
+          .post('/v1/access/roles')
+          .send({
+            name: `textless-${randomUUID().slice(0, 8)}`,
+            permissions: [
+              {
+                subject: 'TestItem',
+                action: 'read',
+                conditions: [],
+                fields: [],
+              },
+            ],
+          })
+          .expect(201)
+      ).body.id as string;
+      const [editor, viewer] = await node.roleIds('editor', 'viewer');
+      const user = await node.user([]);
+      await admin
+        .patch(`/v1/access/users/${user.id}`)
+        .send({
+          roleIds: [editor, textless, viewer],
+          roleExpiresAt: {
+            [viewer!]: new Date(Date.now() + 1500).toISOString(),
+          },
+        })
+        .expect(204);
+      await new Promise((resolve) => setTimeout(resolve, 1700));
+      const own = (
+        await node
+          .writeItem(user.agent, { title: 'Own', body: 'y' })
+          .expect(201)
+      ).body.id as string;
+      const explain = (query: Record<string, string>) =>
+        admin.get(`/v1/access/users/${user.id}/explanation`).query(query);
+
+      const onTheirs = (
+        await explain({ subject: 'TestItem', recordId: theirs }).expect(200)
+      ).body as Explained;
+      expect(action(onTheirs, 'read')).toMatchObject({
+        allowed: true,
+        fields: [],
+      });
+      expect(
+        action(onTheirs, 'read').grants.map((g) => [g.roleId, g.matches]),
+      ).toEqual(
+        expect.arrayContaining([
+          [editor, false],
+          [textless, true],
+        ]),
+      );
+      // The ended grant counts for nothing, and says so.
+      expect(
+        action(onTheirs, 'read').grants.some((g) => g.roleId === viewer),
+      ).toBe(false);
+      expect(onTheirs.roles.find((role) => role.id === viewer)).toMatchObject({
+        expired: true,
+      });
+      expect(action(onTheirs, 'update').allowed).toBe(false);
+      // What their requests get: the item without its text, no change.
+      const seen = await user.agent.get(`/v1/test-items/${theirs}`).expect(200);
+      expect(seen.body).not.toHaveProperty('body');
+      await user.agent
+        .patch(`/v1/test-items/${theirs}`)
+        .send({ title: 'No' })
+        .expect(403);
+
+      const onOwn = (
+        await explain({ subject: 'TestItem', recordId: own }).expect(200)
+      ).body as Explained;
+      expect(action(onOwn, 'read')).toMatchObject({
+        allowed: true,
+        fields: ['body'],
+      });
+      expect(action(onOwn, 'update').allowed).toBe(true);
+
+      // Without a record: on some records at least.
+      const anywhere = (await explain({ subject: 'TestItem' }).expect(200))
+        .body as Explained;
+      expect(action(anywhere, 'update').allowed).toBe(true);
+
+      expect(
+        (await explain({ subject: 'Nothing' }).expect(400)).body.code,
+      ).toBe('unknown_subject');
+      await explain({ subject: 'TestItem', recordId: randomUUID() }).expect(
+        404,
+      );
+      // Only who hands out roles or manages users asks.
+      const viewing = await node.user(['viewer']);
+      await viewing.agent
+        .get(`/v1/access/users/${user.id}/explanation`)
+        .query({ subject: 'TestItem' })
+        .expect(403);
+    });
+
+    it("keeps to the tenant: another tenant's administrator finds neither the member nor the record", async () => {
+      const owner = await node.user(['editor']);
+      const item = (await node.writeItem(owner.agent).expect(201)).body
+        .id as string;
+      const other = await node.otherTenant();
+      await other.admin
+        .get(`/v1/access/users/${owner.id}/explanation`)
+        .query({ subject: 'TestItem' })
+        .expect(404);
+      const theirs = await other.user(['editor']);
+      await other.admin
+        .get(`/v1/access/users/${theirs.id}/explanation`)
+        .query({ subject: 'TestItem', recordId: item })
+        .expect(404);
+    });
+  });
+
   describe('organizational units', () => {
     /** Units Sales > North > North East and Sales > South, with a test item written in each but North. */
     async function tree() {
@@ -317,7 +451,7 @@ describe('access control (e2e)', () => {
     });
 
     it('grants inUnitsILeadAndBelow to leads only, until their membership ends', async () => {
-      const { admin, sales, north } = await tree();
+      const { admin, sales, north, northEast } = await tree();
       const [lead] = await node.roleIds('unit-lead');
       const user = async (unitId: string, role: 'member' | 'lead') => {
         const created = await node.user([lead]);
@@ -341,6 +475,35 @@ describe('access control (e2e)', () => {
       // Promoted, then ended: the history stays, the grant goes at once.
       const promoted = await user(north, 'member');
       expect(await titles(promoted.agent)).toEqual([]);
+      // The preview (#841) tells what the promotion would open, and changes nothing.
+      const impact = await admin
+        .post(
+          `/v1/access/organizational-units/${north}/members/${promoted.id}/impact`,
+        )
+        .send({ role: 'lead' })
+        .expect(200);
+      expect(impact.body).toEqual({
+        changes: [
+          {
+            userId: promoted.id,
+            name: promoted.email,
+            email: promoted.email,
+            andBelow: { gains: [], loses: [] },
+            ledAndBelow: {
+              gains: expect.arrayContaining([north, northEast]),
+              loses: [],
+            },
+          },
+        ],
+        truncated: false,
+      });
+      expect(await titles(promoted.agent)).toEqual([]);
+      expect(
+        await node.auditEntries({
+          action: 'organizationalUnit.member-role-changed',
+          targetId: north,
+        }),
+      ).toHaveLength(0);
       await admin
         .patch(
           `/v1/access/organizational-units/${north}/members/${promoted.id}`,
@@ -438,10 +601,35 @@ describe('access control (e2e)', () => {
         .post(`/v1/access/organizational-units/${south}/members`)
         .send({ userId: southLead.id, role: 'lead' })
         .expect(201);
+      // The preview (#841) refuses what the move would refuse…
+      const impact = (status: number) =>
+        admin
+          .post(`/v1/access/organizational-units/${north}/impact`)
+          .send({ parentId: south, type: 'team' })
+          .expect(status);
+      expect((await impact(409)).body.code).toBe('unit_name_taken');
       // The type changes, the name clash under South goes first.
       await admin
         .delete(`/v1/access/organizational-units/${other.body.id}`)
         .expect(204);
+      // …and tells who would reach what, without moving anything.
+      const previewed = (await impact(200)).body as {
+        changes: {
+          userId: string;
+          andBelow: { gains: string[]; loses: string[] };
+          ledAndBelow: { gains: string[]; loses: string[] };
+        }[];
+      };
+      expect(
+        previewed.changes.find((change) => change.userId === southLead.id),
+      ).toMatchObject({
+        andBelow: { gains: expect.arrayContaining([north, northEast]) },
+        ledAndBelow: {
+          gains: expect.arrayContaining([north, northEast]),
+          loses: [],
+        },
+      });
+      expect(await titles(southLead.agent)).toEqual(['From South']);
       await admin
         .patch(`/v1/access/organizational-units/${north}`)
         .send({ parentId: south, type: 'team' })

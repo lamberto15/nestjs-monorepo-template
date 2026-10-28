@@ -15,6 +15,7 @@ import { NoteBulk } from './note.bulk.js';
 import { NoteAttachments } from './note-attachments.js';
 import { attachmentRoutes } from '../../platform/attachments/attachment.routes.js';
 import { NoteComments } from './note-comments.js';
+import { NoteAccess } from './note-access.js';
 import { NoteSubscriptions } from './note-subscriptions.js';
 import { commentRoutes } from '../../platform/comments/comment.routes.js';
 import { NoteTags } from './note-tags.js';
@@ -82,6 +83,7 @@ import { NOTE_LIST } from './note.list.js';
     NoteBulk,
     NoteAttachments,
     NoteComments,
+    NoteAccess,
     NoteSubscriptions,
     NoteTags,
     NoteRevisions,

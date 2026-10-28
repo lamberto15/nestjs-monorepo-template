@@ -46,6 +46,7 @@ import {
   ifMatchHeader,
   ifNoneMatchHeader,
 } from '../../core/http/etag.js';
+import { AccessExplanationService } from './access-explanation.service.js';
 import {
   AUDIT_LIST,
   PRINCIPAL_LIST,
@@ -56,6 +57,8 @@ import {
   auditPageSchema,
   signInPageSchema,
   catalogSchema,
+  explainQuerySchema,
+  explanationSchema,
   createdRoleSchema,
   principalSchema,
   roleViewSchema,
@@ -291,6 +294,7 @@ export class AccessController {
     private readonly impersonation: ImpersonationService,
     private readonly invitationsService: InvitationsService,
     private readonly principals: PrincipalsService,
+    private readonly explanations: AccessExplanationService,
   ) {}
 
   @Get('catalog')
@@ -433,6 +437,27 @@ export class AccessController {
   @ApiNotFoundResponse({ description: 'Not a member of this tenant.' })
   user(@Param('id', ParseUUIDPipe) id: string) {
     return this.admin.getUser(id);
+  }
+
+  @Get('users/:id/explanation')
+  @Can(AccessPolicy, 'explain')
+  @ApiOperation({
+    summary:
+      'Why a member may or may not do each action on a subject, or on one of its records',
+    description:
+      "Computed by the authorization engine itself (the checks every route makes), per action: the answer, the fields it may touch, and each permission of the member's roles that could grant it, with whether it (and each of its conditions) reaches the record. The record is looked up as you: one you may not read is a 404. An answer that a field hidden from you decides is `null` (withheld). `Access.manageRoles` or `Access.manageUsers`.",
+  })
+  @ApiOkResponse({ standardSchema: explanationSchema })
+  @ApiNotFoundResponse({
+    description: 'Not a member of this tenant, or no record you may read.',
+  })
+  explain(
+    @CurrentUser() user: UserPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query({ schema: explainQuerySchema })
+    query: z.infer<typeof explainQuerySchema>,
+  ) {
+    return this.explanations.explain(user, id, query.subject, query.recordId);
   }
 
   @Post('users')

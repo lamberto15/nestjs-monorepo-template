@@ -690,6 +690,19 @@ export class AccessAdminService {
     return this.units.changeMemberRole(actor, unitId, userId, role, ip);
   }
 
+  /** What `changeUnitMemberRole()` would change of the user's reach, without making it. */
+  previewUnitMemberRole(
+    actor: UserPrincipal,
+    unitId: string,
+    userId: string,
+    role: UnitRole,
+  ) {
+    return this.units.impactOf(
+      async () => [userId],
+      () => this.changeUnitMemberRole(actor, unitId, userId, role),
+    );
+  }
+
   /** Ends a user's membership of a unit, with authority over them. */
   async removeUnitMember(
     actor: UserPrincipal,

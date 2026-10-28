@@ -46,7 +46,33 @@
       "confirm": "代为操作"
     },
     "readOnly": "您可以查看此成员。更改其角色、组织单元或访问权限需要管理成员的权限。",
-    "open": "打开"
+    "open": "打开",
+    "explain": {
+      "title": "解释访问权限",
+      "description": "按权限检查的判定，说明此成员为何可以或不可以执行每项操作：选择对象，也可指定一条记录。您无权读取的记录视为不存在；由对您隐藏的字段决定的结果仍会隐藏。",
+      "subject": "对象",
+      "record": "记录 ID（可选）",
+      "run": "解释",
+      "allowed": "允许",
+      "denied": "不允许",
+      "withheld": "对您隐藏",
+      "fields": "字段：{{fields}}",
+      "noFields": "不含任何受限字段",
+      "noGrant": "其角色均未授予此权限。",
+      "builtIn": "内置",
+      "all": "全部（管理员）",
+      "everyRecord": "所有记录",
+      "condition": {
+        "allowed": "成立",
+        "denied": "不成立",
+        "withheld": "已隐藏"
+      },
+      "reaches": {
+        "allowed": "覆盖此记录",
+        "denied": "不覆盖此记录",
+        "withheld": "对您隐藏"
+      }
+    }
   },
   "grants": {
     "roles": "角色",
@@ -209,6 +235,23 @@
     "removeTitle": "将此成员从 {{unit}} 中移除？",
     "removeDescription": "其将失去此组织单元赋予的内容。成员资格结束，并作为历史保留。",
     "memberRemoved": "已移除成员。",
-    "roleChanged": "角色已更改。"
+    "roleChanged": "角色已更改。",
+    "impact": {
+      "moveTitle": "移动 {{unit}}？",
+      "moveConfirm": "移动",
+      "roleTitle": "将 {{name}} 设为{{role}}？",
+      "roleConfirm": "更改角色",
+      "none": "没有人会通过其组织单元获得或失去访问权限。",
+      "some": "将通过其组织单元获得或失去访问权限的人：",
+      "truncated": "可能影响更多人：仅比较了前 500 人。",
+      "andBelow": {
+        "gains": "获得 {{units}}（我的单元及以下）",
+        "loses": "失去 {{units}}（我的单元及以下）"
+      },
+      "ledAndBelow": {
+        "gains": "获得 {{units}}（我领导的单元及以下）",
+        "loses": "失去 {{units}}（我领导的单元及以下）"
+      }
+    }
   }
 }

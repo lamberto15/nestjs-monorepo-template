@@ -46,7 +46,33 @@
       "confirm": "Bertindak sebagai mereka"
     },
     "readOnly": "Anda boleh melihat ahli ini. Mengubah peranan, unit atau akses mereka memerlukan kebenaran untuk mengurus ahli.",
-    "open": "Buka"
+    "open": "Buka",
+    "explain": {
+      "title": "Terangkan akses",
+      "description": "Mengapa ahli ini boleh atau tidak boleh melakukan setiap tindakan, seperti yang diputuskan oleh semakan kebenaran: pilih perkara, dan satu rekod jika mahu. Rekod yang anda tidak boleh baca tidak dijumpai; apa yang diputuskan oleh medan yang tersembunyi daripada anda kekal tersembunyi.",
+      "subject": "Perkara",
+      "record": "ID rekod (pilihan)",
+      "run": "Terangkan",
+      "allowed": "Dibenarkan",
+      "denied": "Tidak dibenarkan",
+      "withheld": "Tersembunyi daripada anda",
+      "fields": "Medan: {{fields}}",
+      "noFields": "Tiada medan terhadnya",
+      "noGrant": "Tiada peranan mereka yang membenarkan ini.",
+      "builtIn": "Terbina dalam",
+      "all": "semuanya (pentadbir)",
+      "everyRecord": "setiap rekod",
+      "condition": {
+        "allowed": "dipenuhi",
+        "denied": "tidak dipenuhi",
+        "withheld": "tersembunyi"
+      },
+      "reaches": {
+        "allowed": "merangkumi rekod ini",
+        "denied": "tidak merangkumi rekod ini",
+        "withheld": "tersembunyi daripada anda"
+      }
+    }
   },
   "grants": {
     "roles": "Peranan",
@@ -209,6 +235,23 @@
     "removeTitle": "Buang ahli ini daripada {{unit}}?",
     "removeDescription": "Mereka kehilangan apa yang diberikan oleh unit ini. Keahlian tamat dan disimpan sebagai sejarah.",
     "memberRemoved": "Ahli dibuang.",
-    "roleChanged": "Peranan diubah."
+    "roleChanged": "Peranan diubah.",
+    "impact": {
+      "moveTitle": "Pindahkan {{unit}}?",
+      "moveConfirm": "Pindahkan",
+      "roleTitle": "Jadikan {{name}} {{role}}?",
+      "roleConfirm": "Tukar peranan",
+      "none": "Tiada sesiapa akan mendapat atau kehilangan akses melalui unit mereka.",
+      "some": "Siapa akan mendapat atau kehilangan akses melalui unit mereka:",
+      "truncated": "Lebih ramai mungkin terjejas: hanya 500 yang pertama dibandingkan.",
+      "andBelow": {
+        "gains": "mendapat {{units}} (unit saya dan di bawahnya)",
+        "loses": "kehilangan {{units}} (unit saya dan di bawahnya)"
+      },
+      "ledAndBelow": {
+        "gains": "mendapat {{units}} (unit yang saya ketuai dan di bawahnya)",
+        "loses": "kehilangan {{units}} (unit yang saya ketuai dan di bawahnya)"
+      }
+    }
   }
 }
