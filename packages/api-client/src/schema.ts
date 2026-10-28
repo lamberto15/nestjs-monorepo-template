@@ -1524,6 +1524,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/branding/logo/dark": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set the dark-mode logo of your tenant
+         * @description Who manages settings. Like the logo (the same types, size and checks), shown by the web app in its dark theme. Replaces the dark-mode logo. Audited (`branding.logo-changed`, `variant: dark`). 409 `branding_locked` while locked.
+         */
+        post: operations["BrandingController_uploadDark_v1"];
+        /**
+         * Remove the dark-mode logo of your tenant
+         * @description Who manages settings. The file goes too; the logo is shown in the dark theme again. Audited (`branding.logo-removed`). 409 `branding_locked` while locked.
+         */
+        delete: operations["BrandingController_removeDark_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/branding/{tenantId}/logo": {
         parameters: {
             query?: never;
@@ -1536,6 +1560,26 @@ export interface paths {
          * @description No sign-in needed. The image itself (PNG, JPEG or WebP, the type its bytes say), cached for five minutes, with `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox` and `Cross-Origin-Resource-Policy: cross-origin` (other sites' mail pages and apps may show it).
          */
         get: operations["PublicBrandingController_logo_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/{tenantId}/logo/dark": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The dark-mode logo of a tenant
+         * @description No sign-in needed. Like the logo, with the same headers: the image the web app shows in its dark theme.
+         */
+        get: operations["PublicBrandingController_darkLogo_v1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -12613,10 +12657,14 @@ export interface operations {
                     "application/json": {
                         /** @description `#rrggbb`, or null: the default theme. */
                         primaryColor: string | null;
+                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
+                        darkPrimaryColor: string | null;
                         /** @description The name mail is sent under, or null: the deployment’s. */
                         mailFromName: string | null;
                         /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
                         logoUrl: string | null;
+                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
+                        darkLogoUrl: string | null;
                         /** @description The operators locked it: `PUT` and the logo routes answer 409. */
                         locked: boolean;
                         /** @description The caller may change it (and it is not locked). */
@@ -12644,6 +12692,7 @@ export interface operations {
             content: {
                 "application/json": {
                     primaryColor?: string | null;
+                    darkPrimaryColor?: string | null;
                     mailFromName?: string | null;
                 };
             };
@@ -12657,10 +12706,14 @@ export interface operations {
                     "application/json": {
                         /** @description `#rrggbb`, or null: the default theme. */
                         primaryColor: string | null;
+                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
+                        darkPrimaryColor: string | null;
                         /** @description The name mail is sent under, or null: the deployment’s. */
                         mailFromName: string | null;
                         /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
                         logoUrl: string | null;
+                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
+                        darkLogoUrl: string | null;
                         /** @description The operators locked it: `PUT` and the logo routes answer 409. */
                         locked: boolean;
                         /** @description The caller may change it (and it is not locked). */
@@ -12711,10 +12764,14 @@ export interface operations {
                     "application/json": {
                         /** @description `#rrggbb`, or null: the default theme. */
                         primaryColor: string | null;
+                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
+                        darkPrimaryColor: string | null;
                         /** @description The name mail is sent under, or null: the deployment’s. */
                         mailFromName: string | null;
                         /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
                         logoUrl: string | null;
+                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
+                        darkLogoUrl: string | null;
                         /** @description The operators locked it: `PUT` and the logo routes answer 409. */
                         locked: boolean;
                         /** @description The caller may change it (and it is not locked). */
@@ -12790,6 +12847,116 @@ export interface operations {
             };
         };
     };
+    BrandingController_uploadDark_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description Required. A PNG, JPEG or WebP image of at most 512 KB, recognized by its bytes.
+                     */
+                    file?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description `#rrggbb`, or null: the default theme. */
+                        primaryColor: string | null;
+                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
+                        darkPrimaryColor: string | null;
+                        /** @description The name mail is sent under, or null: the deployment’s. */
+                        mailFromName: string | null;
+                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
+                        logoUrl: string | null;
+                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
+                        darkLogoUrl: string | null;
+                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
+                        locked: boolean;
+                        /** @description The caller may change it (and it is not locked). */
+                        canEdit: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked by the operators (branding_locked). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Larger than 512 KB (payload_too_large). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a PNG, JPEG or WebP (unsupported_media_type). */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingController_removeDark_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description There is no dark-mode logo. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked by the operators (branding_locked). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     PublicBrandingController_logo_v1: {
         parameters: {
             query?: never;
@@ -12809,6 +12976,33 @@ export interface operations {
                 content?: never;
             };
             /** @description The tenant has no logo. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PublicBrandingController_darkLogo_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The tenant has no dark-mode logo. */
             404: {
                 headers: {
                     [name: string]: unknown;

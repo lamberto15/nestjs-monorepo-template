@@ -15716,6 +15716,11 @@
                       "description": "`#rrggbb`, or null: the default theme.",
                       "type": "string"
                     },
+                    "darkPrimaryColor": {
+                      "nullable": true,
+                      "description": "`#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds.",
+                      "type": "string"
+                    },
                     "mailFromName": {
                       "nullable": true,
                       "description": "The name mail is sent under, or null: the deployment’s.",
@@ -15724,6 +15729,11 @@
                     "logoUrl": {
                       "nullable": true,
                       "description": "The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null.",
+                      "type": "string"
+                    },
+                    "darkLogoUrl": {
+                      "nullable": true,
+                      "description": "The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds.",
                       "type": "string"
                     },
                     "locked": {
@@ -15737,8 +15747,10 @@
                   },
                   "required": [
                     "primaryColor",
+                    "darkPrimaryColor",
                     "mailFromName",
                     "logoUrl",
+                    "darkLogoUrl",
                     "locked",
                     "canEdit"
                   ],
@@ -15783,6 +15795,11 @@
                     "type": "string",
                     "pattern": "^#[0-9a-fA-F]{6}$"
                   },
+                  "darkPrimaryColor": {
+                    "nullable": true,
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
                   "mailFromName": {
                     "nullable": true,
                     "type": "string",
@@ -15810,6 +15827,11 @@
                       "description": "`#rrggbb`, or null: the default theme.",
                       "type": "string"
                     },
+                    "darkPrimaryColor": {
+                      "nullable": true,
+                      "description": "`#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds.",
+                      "type": "string"
+                    },
                     "mailFromName": {
                       "nullable": true,
                       "description": "The name mail is sent under, or null: the deployment’s.",
@@ -15818,6 +15840,11 @@
                     "logoUrl": {
                       "nullable": true,
                       "description": "The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null.",
+                      "type": "string"
+                    },
+                    "darkLogoUrl": {
+                      "nullable": true,
+                      "description": "The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds.",
                       "type": "string"
                     },
                     "locked": {
@@ -15831,8 +15858,10 @@
                   },
                   "required": [
                     "primaryColor",
+                    "darkPrimaryColor",
                     "mailFromName",
                     "logoUrl",
+                    "darkLogoUrl",
                     "locked",
                     "canEdit"
                   ],
@@ -15900,6 +15929,11 @@
                       "description": "`#rrggbb`, or null: the default theme.",
                       "type": "string"
                     },
+                    "darkPrimaryColor": {
+                      "nullable": true,
+                      "description": "`#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds.",
+                      "type": "string"
+                    },
                     "mailFromName": {
                       "nullable": true,
                       "description": "The name mail is sent under, or null: the deployment’s.",
@@ -15908,6 +15942,11 @@
                     "logoUrl": {
                       "nullable": true,
                       "description": "The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null.",
+                      "type": "string"
+                    },
+                    "darkLogoUrl": {
+                      "nullable": true,
+                      "description": "The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds.",
                       "type": "string"
                     },
                     "locked": {
@@ -15921,8 +15960,10 @@
                   },
                   "required": [
                     "primaryColor",
+                    "darkPrimaryColor",
                     "mailFromName",
                     "logoUrl",
+                    "darkLogoUrl",
                     "locked",
                     "canEdit"
                   ],
@@ -15995,6 +16036,148 @@
         ]
       }
     },
+    "/v1/branding/logo/dark": {
+      "post": {
+        "description": "Who manages settings. Like the logo (the same types, size and checks), shown by the web app in its dark theme. Replaces the dark-mode logo. Audited (`branding.logo-changed`, `variant: dark`). 409 `branding_locked` while locked.",
+        "operationId": "BrandingController_uploadDark_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Required. A PNG, JPEG or WebP image of at most 512 KB, recognized by its bytes."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "primaryColor": {
+                      "nullable": true,
+                      "description": "`#rrggbb`, or null: the default theme.",
+                      "type": "string"
+                    },
+                    "darkPrimaryColor": {
+                      "nullable": true,
+                      "description": "`#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds.",
+                      "type": "string"
+                    },
+                    "mailFromName": {
+                      "nullable": true,
+                      "description": "The name mail is sent under, or null: the deployment’s.",
+                      "type": "string"
+                    },
+                    "logoUrl": {
+                      "nullable": true,
+                      "description": "The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null.",
+                      "type": "string"
+                    },
+                    "darkLogoUrl": {
+                      "nullable": true,
+                      "description": "The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds.",
+                      "type": "string"
+                    },
+                    "locked": {
+                      "type": "boolean",
+                      "description": "The operators locked it: `PUT` and the logo routes answer 409."
+                    },
+                    "canEdit": {
+                      "type": "boolean",
+                      "description": "The caller may change it (and it is not locked)."
+                    }
+                  },
+                  "required": [
+                    "primaryColor",
+                    "darkPrimaryColor",
+                    "mailFromName",
+                    "logoUrl",
+                    "darkLogoUrl",
+                    "locked",
+                    "canEdit"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "409": {
+            "description": "Locked by the operators (branding_locked)."
+          },
+          "413": {
+            "description": "Larger than 512 KB (payload_too_large)."
+          },
+          "415": {
+            "description": "Not a PNG, JPEG or WebP (unsupported_media_type)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Set the dark-mode logo of your tenant",
+        "tags": [
+          "branding"
+        ]
+      },
+      "delete": {
+        "description": "Who manages settings. The file goes too; the logo is shown in the dark theme again. Audited (`branding.logo-removed`). 409 `branding_locked` while locked.",
+        "operationId": "BrandingController_removeDark_v1",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "There is no dark-mode logo."
+          },
+          "409": {
+            "description": "Locked by the operators (branding_locked)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Remove the dark-mode logo of your tenant",
+        "tags": [
+          "branding"
+        ]
+      }
+    },
     "/v1/branding/{tenantId}/logo": {
       "get": {
         "description": "No sign-in needed. The image itself (PNG, JPEG or WebP, the type its bytes say), cached for five minutes, with `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox` and `Cross-Origin-Resource-Policy: cross-origin` (other sites' mail pages and apps may show it).",
@@ -16018,6 +16201,34 @@
           }
         },
         "summary": "The logo of a tenant",
+        "tags": [
+          "branding"
+        ]
+      }
+    },
+    "/v1/branding/{tenantId}/logo/dark": {
+      "get": {
+        "description": "No sign-in needed. Like the logo, with the same headers: the image the web app shows in its dark theme.",
+        "operationId": "PublicBrandingController_darkLogo_v1",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The image."
+          },
+          "404": {
+            "description": "The tenant has no dark-mode logo."
+          }
+        },
+        "summary": "The dark-mode logo of a tenant",
         "tags": [
           "branding"
         ]

@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   type NestInterceptor,
+  type Type,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { randomUUID } from 'node:crypto';
@@ -27,7 +28,7 @@ const Upload = FileInterceptor('file');
  * and capping its size (413). A refused or cut upload never replaces the
  * logo that is there. The dark-mode logo takes the very same checks.
  */
-function logoUpload(variant: LogoVariant) {
+function logoUpload(variant: LogoVariant): Type<NestInterceptor> {
   @Injectable()
   class LogoUpload implements NestInterceptor {
     private readonly multer: NestInterceptor;
