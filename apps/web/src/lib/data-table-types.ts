@@ -30,6 +30,13 @@ export interface DataTableColumnMeta {
    */
   search?: OptionSearch;
   range?: [number, number];
+  /**
+   * Patched in (not in the registry): the column's place on a phone's card
+   * (`DataTableCards`). Unset, the first column is the title and the next
+   * three are labelled lines; `badge` is a chip under them, `hidden` is left
+   * off the card.
+   */
+  mobile?: 'title' | 'meta' | 'badge' | 'hidden';
   unit?: string;
   icon?: React.ComponentType<React.ComponentProps<'svg'>>;
 }

@@ -328,6 +328,7 @@
   "list": {
     "loading": "Loading",
     "search": "Search",
+    "tools": "Filter & sort",
     "empty": {
       "title": "Nothing here yet",
       "description": "Records will appear here once they exist."
