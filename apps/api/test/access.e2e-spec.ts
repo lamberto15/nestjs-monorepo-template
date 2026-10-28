@@ -325,9 +325,10 @@ describe('access control (e2e)', () => {
       const onOwn = (
         await explain({ subject: 'TestItem', recordId: own }).expect(200)
       ).body as Explained;
+      // Every restrictable field: the custom fields and the text.
       expect(action(onOwn, 'read')).toMatchObject({
         allowed: true,
-        fields: ['body'],
+        fields: ['custom', 'body'],
       });
       expect(action(onOwn, 'update').allowed).toBe(true);
 
