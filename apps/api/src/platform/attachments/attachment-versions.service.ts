@@ -174,8 +174,7 @@ export class AttachmentVersionsService {
     try {
       assertOwnFile(file.key);
       await this.attachments.assertCanUpload(principal, record);
-      const current = await this.own(principal, record, id);
-      assertUnchanged(options.ifMatch, view(current));
+      const current = await this.own(principal, record, id, options.ifMatch);
       const row = await this.swap(
         principal,
         current,
@@ -212,8 +211,7 @@ export class AttachmentVersionsService {
   ): Promise<AttachmentView> {
     const found = await this.attachments.findReadable(principal, id);
     await this.attachments.assertCanUpload(principal, found);
-    const current = await this.own(principal, found, id);
-    assertUnchanged(options.ifMatch, view(current));
+    const current = await this.own(principal, found, id, options.ifMatch);
     if (version === current.version) {
       throw new BadRequestException({
         code: 'attachment_version_current',
@@ -312,7 +310,12 @@ export class AttachmentVersionsService {
   }
 
   /** The attachment of this record, or a 404; never an issued document (409). */
-  private async own(principal: Principal, record: RecordRef, id: string) {
+  private async own(
+    principal: Principal,
+    record: RecordRef,
+    id: string,
+    ifMatch: string | undefined,
+  ) {
     const current = await this.attachments.findReadable(principal, id);
     if (
       current.subject !== record.subject ||
@@ -326,6 +329,9 @@ export class AttachmentVersionsService {
         message: 'An issued document never changes: it has no versions.',
       });
     }
+    // A stale ETag first: what another change did since (a file it put in
+    // that is still being scanned) is that change's, not a reason of this one.
+    assertUnchanged(ifMatch, view(current));
     if (
       current.scanStatus === 'pending' ||
       current.renditionStatus === 'pending'
