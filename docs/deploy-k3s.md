@@ -106,6 +106,12 @@ public route:
 | Match SNI to Host  | enabled                                             |
 | No TLS Verify      | disabled                                            |
 
+Then apply [`deploy/k3s/traefik.yaml`](../deploy/k3s/traefik.yaml) as an
+administrator: Traefik trusts `X-Forwarded-For` from the pod network, where
+cloudflared runs. Without it, Traefik replaces the header with cloudflared's
+pod address, and the audit log, rate limits and sign-in history see that
+address for every user.
+
 Wait for the certificate before testing the route. Do not create a route or
 router forwarding rule for port 6443. Cloudflare connects to the application
 only; GitHub deploys through Tailscale.
