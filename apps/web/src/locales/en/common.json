@@ -510,5 +510,9 @@
     "unchanged": "{{item}} dropped. Nothing changed.",
     "cancelled": "Moving cancelled. {{item}} is back at position {{position}} of {{count}}.",
     "instructions": "To pick up an item, press Space or Enter. Move it with the up and down arrow keys. Press Space or Enter again to drop it, or Escape to cancel."
+  },
+  "banners": {
+    "more": "+{{count}} more",
+    "fewer": "Show less"
   }
 }

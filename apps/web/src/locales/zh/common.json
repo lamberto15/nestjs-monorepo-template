@@ -505,5 +505,9 @@
     "unchanged": "{{item}} 已放下，没有变化。",
     "cancelled": "已取消移动。{{item}} 回到位置 {{position}}/{{count}}。",
     "instructions": "按空格键或回车键拿起项目，用上下方向键移动，再按空格键或回车键放下，按 Esc 取消。"
+  },
+  "banners": {
+    "more": "另有 {{count}} 条",
+    "fewer": "收起"
   }
 }
