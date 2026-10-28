@@ -215,6 +215,15 @@ export const ATTACHMENT_IMAGES_JOB = defineSystemJob({
   permissions: [],
 });
 
+/** OpsBacklog: an operator's scoped discard or retry of the outbox and mail backlog, tenant by tenant. */
+export const OPS_BACKLOG_JOB = defineSystemJob({
+  key: 'ops-backlog',
+  label: 'Backlog recovery',
+  description:
+    "Discards or retries an operator's chosen part of the outbox and mail backlog, one tenant at a time, and marks the discarded notifications delivered.",
+  permissions: [],
+});
+
 export const PLATFORM_SYSTEM_JOBS = [
   ACCOUNT_DELETION_JOB,
   USAGE_ROLLUP_JOB,
@@ -232,6 +241,7 @@ export const PLATFORM_SYSTEM_JOBS = [
   MAIL_EVENTS_RETENTION_JOB,
   WEBHOOK_DELIVERY_RETENTION_JOB,
   OUTBOX_RETENTION_JOB,
+  OPS_BACKLOG_JOB,
   PLATFORM_ANALYTICS_JOB,
   REENCRYPTION_JOB,
   RETENTION_JOB,

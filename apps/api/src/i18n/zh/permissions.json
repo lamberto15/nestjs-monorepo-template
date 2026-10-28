@@ -195,6 +195,10 @@
       "label": "发件箱保留",
       "description": "每晚删除早于 OUTBOX_DEAD_LETTER_RETENTION_DAYS 的发件箱死信，以及早于 OUTBOX_INBOX_RETENTION_DAYS 的消费者收件箱记录。"
     },
+    "ops-backlog": {
+      "label": "积压恢复",
+      "description": "按租户逐一丢弃或重试运维人员选定的发件箱和邮件积压部分，并将被丢弃的通知标记为已送达。"
+    },
     "platform-analytics": {
       "label": "平台分析",
       "description": "每晚统计所有租户的租户、用户、成员资格和 API 使用量，隐去小群体，只存储报表角色可读取的聚合数据。"

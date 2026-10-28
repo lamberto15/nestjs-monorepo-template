@@ -513,7 +513,7 @@ template's: `seed`, `audit-retention`, `soft-delete-purge`, `sign-up-tenant-swee
 `iam/iam.jobs.ts`); `account-deletion`, `usage-rollup`,
 `attachment-sweep`, `attachment-scan`, `attachment-images`, `revisions-retention`, `notification-retention`,
 `notification-digests`, `notification-delivery`, `report-runner`,
-`approvals`, `exchange-rates`, `mail-intake`, `mail-events-retention`, `webhook-delivery-retention`, `outbox-retention`, `platform-analytics`,
+`approvals`, `exchange-rates`, `mail-intake`, `mail-events-retention`, `webhook-delivery-retention`, `outbox-retention`, `ops-backlog`, `platform-analytics`,
 `reencryption`, `retention`, `messaging`, `messaging-inbound`, `messaging-retention` (platform,
 `platform/platform.jobs.ts`); `note-publication` (notes); `demo-seed` (the
 demo seed, `src/demo/demo.jobs.ts`, [development](development.md), "Demo data").

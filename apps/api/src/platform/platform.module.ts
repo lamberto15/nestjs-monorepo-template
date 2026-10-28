@@ -26,6 +26,7 @@ import { FeaturesController } from './features/features.controller.js';
 import { FeaturesService } from './features/features.service.js';
 import { OpsPolicy } from './ops/ops.policy.js';
 import { OpsQueues } from './ops/ops-queues.service.js';
+import { OpsBacklog } from './ops/ops-backlog.service.js';
 import { OpsDiagnostics } from './ops/ops-diagnostics.service.js';
 import { ConfigBundlesController } from './config-bundles/config-bundles.controller.js';
 import { ConfigBundlePolicy } from './config-bundles/config-bundle.policy.js';
@@ -565,6 +566,7 @@ export class PlatformModule {
           },
         },
         OpsQueues,
+        OpsBacklog,
         // DatabaseHealth: CoreModule's, stateless; the diagnostics' own instance reads the same pool.
         DatabaseHealth,
         OpsDiagnostics,

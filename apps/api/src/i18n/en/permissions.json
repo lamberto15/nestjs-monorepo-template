@@ -195,6 +195,10 @@
       "label": "Outbox retention",
       "description": "Deletes outbox dead letters older than OUTBOX_DEAD_LETTER_RETENTION_DAYS and consumers' inbox records older than OUTBOX_INBOX_RETENTION_DAYS, every night."
     },
+    "ops-backlog": {
+      "label": "Backlog recovery",
+      "description": "Discards or retries an operator's chosen part of the outbox and mail backlog, one tenant at a time, and marks the discarded notifications delivered."
+    },
     "platform-analytics": {
       "label": "Platform analytics",
       "description": "Counts tenants, users, memberships and API use across every tenant, withholds small groups, and stores only the aggregates the reporting role reads, every night."
