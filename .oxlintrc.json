@@ -2,7 +2,9 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "rules": {
     "typescript/no-explicit-any": "off",
-    "typescript/no-floating-promises": "error"
+    "typescript/no-floating-promises": "error",
+    // SonarCloud fails the quality gate on a sort without a compare function (S2871).
+    "typescript/require-array-sort-compare": "error"
   },
   "ignorePatterns": [
     "packages/api-client/src/schema.ts",
