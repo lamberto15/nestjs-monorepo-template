@@ -234,6 +234,10 @@ import { ImportMappingsController } from './data-transfer/import-mappings.contro
 import { ImportMappingsService } from './data-transfer/import-mappings.service.js';
 import { FavoritesController } from './favorites/favorites.controller.js';
 import { FavoritesService } from './favorites/favorites.service.js';
+import { SharedController } from './shares/shared.controller.js';
+import { ShareCodeMail } from './shares/share.mails.js';
+import { SharesRegistry } from './shares/shares.registry.js';
+import { SharesService } from './shares/shares.service.js';
 import { ChoicesBuiltins } from './choices/choices.builtins.js';
 import { ChoicesController } from './choices/choices.controller.js';
 import { ChoicesRegistry } from './choices/choices.registry.js';
@@ -512,6 +516,8 @@ export class PlatformModule {
         TemplatesController,
         ChoicesController,
         FavoritesController,
+        // Opening a record's read-only link, without a sign-in (POST /v1/shared/open).
+        SharedController,
         ImportMappingsController,
         RetentionController,
         ...whenOn('REPORTS', ReportsController),
@@ -780,6 +786,10 @@ export class PlatformModule {
         ChoicesBuiltins,
         // Favorites: a person's pinned records, pages and saved views, in their order.
         FavoritesService,
+        // Read-only links to records: features register a ShareTarget (the `share` capability).
+        SharesRegistry,
+        SharesService,
+        ShareCodeMail,
         // Saved column mappings of an import (docs/data-transfer.md).
         ImportMappingsService,
         // Scheduled reports: exports run on a schedule, mailed to their recipients.
@@ -872,6 +882,8 @@ export class PlatformModule {
         PersonalDataRegistry,
         SubscriptionsService,
         SubscriptionsRegistry,
+        SharesRegistry,
+        SharesService,
         SearchRegistry,
         ListsRegistry,
         SequencesService,

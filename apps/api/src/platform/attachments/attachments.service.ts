@@ -529,6 +529,53 @@ export class AttachmentsService implements PersonalDataSource {
       .where(eq(attachmentUploads.uploadedBy, principalKey(user)));
   }
 
+  /**
+   * A shared record's files (platform/shares), as `principal` (the link's
+   * maker) may read them: scanned, and only those that show no field
+   * outside `fields` (an issued PDF of a field the link leaves out stays
+   * out). Oldest first.
+   */
+  async sharedFiles(
+    principal: Principal,
+    record: RecordRef,
+    fields: readonly string[],
+  ) {
+    await this.assertCanRead(principal, record);
+    const rows = await this.db
+      .select()
+      .from(attachments)
+      .where(
+        and(
+          eq(attachments.subject, record.subject),
+          eq(attachments.recordId, record.recordId),
+          eq(attachments.scanStatus, 'clean'),
+        ),
+      )
+      .orderBy(attachments.id);
+    return rows
+      .filter((row) => (row.fields ?? []).every((f) => fields.includes(f)))
+      .map(({ id, name, size, contentType }) => ({
+        id,
+        name,
+        size,
+        contentType,
+      }));
+  }
+
+  /** The download link of one of `sharedFiles()`, or a 404 for any other file. */
+  async sharedDownload(
+    principal: Principal,
+    record: RecordRef,
+    fields: readonly string[],
+    id: string,
+  ) {
+    const files = await this.sharedFiles(principal, record, fields);
+    if (!files.some((file) => file.id === id)) {
+      throw new NotFoundException(`Attachment ${id} not found.`);
+    }
+    return this.download(principal, id);
+  }
+
   /** An attachment of a record the principal may read, or a 404 (the acknowledgments use it too). */
   async findReadable(principal: Principal, id: string) {
     const [row] = await this.db
