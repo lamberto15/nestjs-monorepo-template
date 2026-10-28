@@ -50,8 +50,7 @@ export class FormPolicy {
   }
 
   async readResponses(user: Principal | null) {
-    return (
-      !user?.breakGlass && this.access.can(user, 'readResponses', 'Form')
-    );
+    const breakGlass = user?.kind === 'user' && user.breakGlass !== undefined;
+    return !breakGlass && this.access.can(user, 'readResponses', 'Form');
   }
 }

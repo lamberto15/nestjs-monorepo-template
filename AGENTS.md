@@ -113,7 +113,7 @@ Everything is in `docs/`; a name below is its file (`tags` is
   `deliverability`, `ai`, `documents` (PDFs).
 - **Record add-ons:** `tags`, `comments`, `attachments` (and avatars),
   `revisions`, `approvals`, `saved-views`, `favorites`, `custom-fields`,
-  `bulk-operations`, `sequences` (numbers, naming series), `data-transfer`
+  `forms` (runtime forms and submissions), `bulk-operations`, `sequences` (numbers, naming series), `data-transfer`
   (exports, imports), `import-limits`, `reports`.
 - **Configuration:** `configuration` (environment variables), `settings`
   (and feature flags), `branding`, `i18n-and-time`, `money`, `usage`
