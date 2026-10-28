@@ -34,7 +34,8 @@ export function canonicalJson(value: unknown): string {
   }
   if (value && typeof value === 'object') {
     return `{${Object.keys(value)
-      .sort()
+      // Code-unit order, not the locale's: the checksum must not depend on where it runs.
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
       .filter((key) => (value as Rule)[key] !== undefined)
       .map(
         (key) =>
@@ -242,7 +243,7 @@ export class ConfigBundlesService {
             scope: 'tenant',
             ...(setting.value !== null && { value: setting.value }),
             rollout: setting.rollout,
-            rules: rulesIn(setting.rules, roleIds) as FlagRule[],
+            rules: rulesIn(setting.rules, roleIds) as unknown as FlagRule[],
           },
           ip,
         );
@@ -287,7 +288,7 @@ export class ConfigBundlesService {
           key: declaration.key,
           value: row.value ?? null,
           rollout: row.rollout ?? null,
-          rules: rulesOut((row.rules ?? []) as Rule[], roleNames),
+          rules: rulesOut((row.rules ?? []) as unknown as Rule[], roleNames),
         });
       }
     }

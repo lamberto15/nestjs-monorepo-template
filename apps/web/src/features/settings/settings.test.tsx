@@ -1293,3 +1293,59 @@ describe('targeting rules', () => {
     );
   });
 });
+
+describe('promoting configuration', () => {
+  const bundle = {
+    format: 'config-bundle',
+    version: 1,
+    exportedAt: '2026-10-28T10:00:00.000Z',
+    checksum: `sha256:${'a'.repeat(64)}`,
+    contents: { settings: [], roles: [] },
+  };
+
+  it('needs Access.manageRoles too', async () => {
+    api(admin);
+    await renderApp('/settings');
+    await screen.findByText('Label');
+    expect(screen.queryByText('Promote configuration')).toBeNull();
+  });
+
+  it('previews a loaded bundle, then applies it with the preview version', async () => {
+    const applied: unknown[] = [];
+    api({ ...admin, can: { ...admin.can, 'Access.manageRoles': true } });
+    server.use(
+      http.post('/v1/config-bundles/preview', () =>
+        HttpResponse.json({
+          valid: true,
+          errors: [],
+          warnings: [{ ref: 'Editors', message: 'Check the unit.' }],
+          changes: [
+            { type: 'role', ref: 'Editors', action: 'create' },
+            { type: 'setting', ref: 'x.y', action: 'unchanged' },
+          ],
+          targetVersion: `sha256:${'b'.repeat(64)}`,
+        }),
+      ),
+      http.post('/v1/config-bundles/apply', async ({ request }) => {
+        applied.push(await request.json());
+        return HttpResponse.json({ created: 1, updated: 0, unchanged: 1 });
+      }),
+    );
+    await renderApp('/settings');
+    const file = new File([JSON.stringify(bundle)], 'config-bundle.json', {
+      type: 'application/json',
+    });
+    await userEvent.upload(await screen.findByLabelText('Load a bundle'), file);
+    expect(await screen.findByText('Editors')).toBeInTheDocument();
+    expect(screen.getByText('Check the unit.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    await waitFor(() =>
+      expect(applied).toEqual([
+        { bundle, targetVersion: `sha256:${'b'.repeat(64)}` },
+      ]),
+    );
+    expect(
+      await findToast('Applied: 1 created, 0 updated, 1 unchanged.'),
+    ).toBeVisible();
+  });
+});
