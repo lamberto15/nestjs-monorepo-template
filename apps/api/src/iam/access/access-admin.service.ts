@@ -402,6 +402,7 @@ export class AccessAdminService {
   async createUser(actor: UserPrincipal, input: UserInput, ip?: string) {
     await this.checkRoleGrant(actor, input.roleIds);
     await this.units.assertExist(input.unitIds ?? []);
+    await this.assertAuthorityOverUnits(actor, input.unitIds ?? []);
     this.checkExpiries(input.roleIds, input.roleExpiresAt);
     const { invitation, token } = await inTransaction(
       this.txHost,
@@ -572,6 +573,14 @@ export class AccessAdminService {
     } else if (changes.unitIds) {
       throw new ForbiddenException('You can’t change your own units.');
     }
+    if (changes.unitIds) {
+      // Units joined or left: what stays the same needs no authority.
+      const current = await this.units.unitsOf(id);
+      await this.assertAuthorityOverUnits(actor, [
+        ...changes.unitIds.filter((unit) => !current.includes(unit)),
+        ...current.filter((unit) => !changes.unitIds!.includes(unit)),
+      ]);
+    }
     // On oneself too: every role given (an ended one sent back included),
     // taken away or with a moved end goes through the grant rule.
     const grants =
@@ -678,6 +687,7 @@ export class AccessAdminService {
     ip?: string,
   ) {
     await this.assertAuthorityOverMember(actor, input.userId);
+    await this.assertAuthorityOverUnits(actor, [unitId]);
     return this.units.addMember(actor, unitId, input, ip);
   }
 
@@ -690,6 +700,7 @@ export class AccessAdminService {
     ip?: string,
   ) {
     await this.assertAuthorityOverMember(actor, userId);
+    await this.assertAuthorityOverUnits(actor, [unitId]);
     return this.units.changeMemberRole(actor, unitId, userId, role, ip);
   }
 
@@ -701,6 +712,7 @@ export class AccessAdminService {
     ip?: string,
   ) {
     await this.assertAuthorityOverMember(actor, userId);
+    await this.assertAuthorityOverUnits(actor, [unitId]);
     await this.units.removeMember(actor, unitId, userId, ip);
   }
 
@@ -716,6 +728,33 @@ export class AccessAdminService {
         await this.permissionsOfHolder('user', id),
         member.email,
       );
+    }
+  }
+
+  /**
+   * Who places someone in a unit (or takes them out) needs authority over
+   * the unit too: `manageOrganizationalUnits`, or a current membership of
+   * it or of a unit above it. Otherwise an account given at most your roles
+   * could be put in any unit and read, under "my units and below", what you
+   * can't (#842).
+   */
+  private async assertAuthorityOverUnits(
+    actor: UserPrincipal,
+    unitIds: string[],
+  ) {
+    if (
+      unitIds.length === 0 ||
+      (await this.access.can(actor, 'manageOrganizationalUnits', 'Access'))
+    ) {
+      return;
+    }
+    const mine = new Set(await this.units.unitsOf(actor.id, { below: true }));
+    if (unitIds.some((id) => !mine.has(id))) {
+      throw new ForbiddenException({
+        code: 'unit_authority_required',
+        message:
+          'You can’t place people in a unit you neither manage nor belong to (or one above it).',
+      });
     }
   }
 
