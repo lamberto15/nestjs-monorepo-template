@@ -38,7 +38,7 @@ This index organizes the **existing deep technical references** by task. The lin
 | Webhooks and realtime events | [Webhooks and realtime](../webhooks-and-realtime.md) |
 | Approval policies | [Approvals](../approvals.md) |
 | Notifications and channels | [Notifications](../notifications.md) |
-| Tags, comments, attachments and revisions | [Tags](../tags.md), [comments](../comments.md), [attachments](../attachments.md), [revisions](../revisions.md) |
+| Tags, comments, attachments and revisions | [Tags](../tags.md), [comments](../comments.md), [attachments](../attachments.md), [revisions](../revisions.md), [document acknowledgments](../acknowledgments.md) |
 | Runtime record fields and custom user views | [Custom fields](../custom-fields.md), [saved views](../saved-views.md) |
 | Sequences and numbering | [Sequences](../sequences.md) |
 | Imports, exports, bulk changes and reports | [Data transfer](../data-transfer.md), [bulk operations](../bulk-operations.md), [reports](../reports.md) |

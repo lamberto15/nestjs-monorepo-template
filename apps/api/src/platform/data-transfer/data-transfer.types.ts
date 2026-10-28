@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import type { TenantEnvelope } from '../../core/tenancy/tenant-job.js';
 import type { Principal, RequestPrincipal } from '../../iam/auth/principal.js';
+import type { ImportMapping } from './import-mapping.js';
 
 /** The file formats exports write and imports read. */
 export const TRANSFER_FORMATS = ['csv', 'json', 'xlsx'] as const;
@@ -210,6 +211,8 @@ export type TransferJob = TenantEnvelope &
         key: string;
         dryRun: boolean;
         matchOn?: string;
+        /** The file's headers renamed or ignored (validated when the import starts). */
+        mapping?: ImportMapping;
         /** Limits resolved before multipart parsing and snapshotted with this accepted job. */
         limits?: { maxBytes: number; maxRows: number };
         principal: RequestPrincipal;

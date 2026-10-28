@@ -12,6 +12,17 @@ export const commentBodySchema = z.object({
 });
 export type CommentBodyDto = z.infer<typeof commentBodySchema>;
 
+/** Body of `POST …/comments`: the text, and the top-level comment it answers. */
+export const commentCreateSchema = commentBodySchema.extend({
+  parentId: z
+    .uuid()
+    .optional()
+    .describe(
+      'Answer this top-level comment of the same record (a reply to a reply is refused: threads are one level deep).',
+    ),
+});
+export type CommentCreateDto = z.infer<typeof commentCreateSchema>;
+
 /** A comment, as the API shows it. */
 export const commentSchema = z
   .object({
@@ -45,6 +56,22 @@ export const commentSchema = z
         example: { 'user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00': 'Maya Patel' },
       }),
     editedAt: z.iso.datetime().nullable(),
+    parentId: z
+      .string()
+      .nullable()
+      .describe(
+        'The top-level comment this one answers; null for a top-level comment.',
+      ),
+    resolvedAt: z.iso
+      .datetime()
+      .nullable()
+      .describe(
+        'When its thread was resolved; null if open (always null on a reply).',
+      ),
+    resolvedBy: z
+      .string()
+      .nullable()
+      .describe('Who resolved the thread: `user:<id>` or `client:<id>`.'),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
   })
