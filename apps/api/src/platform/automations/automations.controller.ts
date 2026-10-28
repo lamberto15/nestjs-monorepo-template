@@ -74,7 +74,8 @@ export class AutomationsController {
   @Can(AutomationRulePolicy, 'read')
   @ApiOperation({
     summary: 'The automation rules',
-    description: '`?status=active`, `?subject=Note`, `?name.contains=`; newest first; cursor pages.',
+    description:
+      '`?status=active`, `?subject=Note`, `?name.contains=`; newest first; cursor pages.',
   })
   @ApiOkResponse({ standardSchema: pageSchema(automationRuleSchema) })
   async list(@Query({ schema: AUTOMATION_RULE_LIST.schema }) query: ListQuery) {
@@ -105,7 +106,8 @@ export class AutomationsController {
   @ApiBadRequestResponse({ description: VALIDATION })
   simulate(
     @CurrentUser() user: Principal,
-    @Body({ schema: simulateAutomationRuleSchema }) dto: SimulateAutomationRuleDto,
+    @Body({ schema: simulateAutomationRuleSchema })
+    dto: SimulateAutomationRuleDto,
   ) {
     return this.automations.simulate(user, dto);
   }
@@ -223,6 +225,9 @@ export class AutomationsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query({ schema: AUTOMATION_RUN_LIST.schema }) query: ListQuery,
   ) {
-    return AUTOMATION_RUN_LIST.pick(await this.automations.runs(id, query), query);
+    return AUTOMATION_RUN_LIST.pick(
+      await this.automations.runs(id, query),
+      query,
+    );
   }
 }

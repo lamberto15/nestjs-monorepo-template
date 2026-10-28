@@ -41,7 +41,10 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import { TagsService } from '../tags/tags.service.js';
 import { tags } from '../tags/tags.tables.js';
 import { AUTOMATION_WEBHOOK_EVENT } from './automation-events.js';
-import { AUTOMATION_RULE_LIST, AUTOMATION_RUN_LIST } from './automation.list.js';
+import {
+  AUTOMATION_RULE_LIST,
+  AUTOMATION_RUN_LIST,
+} from './automation.list.js';
 import type {
   AutomationAction,
   AutomationRunAction,
@@ -141,7 +144,15 @@ const invalid = (errors: { path: string; message: string }[]) =>
   });
 
 /** Page parameters a rule's conditions never take: they are a filter, not a page. */
-const PAGE_KEYS = ['limit', 'cursor', 'page', 'count', 'sort', 'fields', 'deleted'];
+const PAGE_KEYS = [
+  'limit',
+  'cursor',
+  'page',
+  'count',
+  'sort',
+  'fields',
+  'deleted',
+];
 
 /**
  * Tenant automation rules (docs/automations.md): when a record of a
@@ -281,9 +292,9 @@ export class AutomationsService {
       filters: dto.filters ?? current.filters,
       actions: dto.actions ?? current.actions,
     };
-    const changed = (
-      ['trigger', 'field', 'filters', 'actions'] as const
-    ).some((key) => !isDeepStrictEqual(definition[key], current[key]));
+    const changed = (['trigger', 'field', 'filters', 'actions'] as const).some(
+      (key) => !isDeepStrictEqual(definition[key], current[key]),
+    );
     if (changed) {
       await this.check(user, definition);
     }
@@ -558,10 +569,12 @@ export class AutomationsService {
       return;
     }
     const disable = (reason: string) =>
-      inTransaction(this.txHost, async (tx) =>
-        await ctx.processInTransaction(tx, () =>
-          this.setDisabled(tx, rule, reason, system),
-        ),
+      inTransaction(
+        this.txHost,
+        async (tx) =>
+          await ctx.processInTransaction(tx, () =>
+            this.setDisabled(tx, rule, reason, system),
+          ),
       );
     const target = this.registry.find(rule.subject);
     if (!target) {
@@ -585,33 +598,37 @@ export class AutomationsService {
     }
     let planned: Planned[] = [];
     try {
-      await inTransaction(this.txHost, async (tx) =>
-        await ctx.processInTransaction(tx, async () => {
-          const { query } = await this.check(owner, rule);
-          const [row] = await this.evaluate(target, owner, query, {
-            ids: [message.recordId],
-            limit: 1,
-          });
-          if (!row) {
-            return; // it doesn't match (or is gone, or hidden from the owner)
-          }
-          planned = await this.plan(target, owner, rule, row);
-          const refused = planned.find((p) => !p.result.allowed);
-          if (refused) {
-            throw new AutomationRefused(
-              `${refused.result.type}: ${refused.result.reason}`,
-            );
-          }
-          await AUTOMATING.run(true, async () => {
-            for (const { apply } of planned) {
-              await apply!(tx);
+      await inTransaction(
+        this.txHost,
+        async (tx) =>
+          await ctx.processInTransaction(tx, async () => {
+            const { query } = await this.check(owner, rule);
+            const [row] = await this.evaluate(target, owner, query, {
+              ids: [message.recordId],
+              limit: 1,
+            });
+            if (!row) {
+              return; // it doesn't match (or is gone, or hidden from the owner)
             }
-          });
-          await this.recordRun(tx, rule, message.recordId, planned, null);
-        }),
+            planned = await this.plan(target, owner, rule, row);
+            const refused = planned.find((p) => !p.result.allowed);
+            if (refused) {
+              throw new AutomationRefused(
+                `${refused.result.type}: ${refused.result.reason}`,
+              );
+            }
+            await AUTOMATING.run(true, async () => {
+              for (const { apply } of planned) {
+                await apply!(tx);
+              }
+            });
+            await this.recordRun(tx, rule, message.recordId, planned, null);
+          }),
       );
     } catch (error) {
-      if (!(error instanceof AutomationRefused || error instanceof HttpException)) {
+      if (!(
+        error instanceof AutomationRefused || error instanceof HttpException
+      )) {
         throw error; // retried by the outbox, then a dead letter
       }
       const reason = error.message;
@@ -620,19 +637,21 @@ export class AutomationsService {
         record: message.recordId,
         error: reason,
       });
-      await inTransaction(this.txHost, async (tx) =>
-        await ctx.processInTransaction(tx, async () => {
-          const failures = await this.recordRun(
-            tx,
-            rule,
-            message.recordId,
-            planned,
-            reason,
-          );
-          if (failures >= MAX_FAILURES) {
-            await this.setDisabled(tx, rule, 'failing', system);
-          }
-        }),
+      await inTransaction(
+        this.txHost,
+        async (tx) =>
+          await ctx.processInTransaction(tx, async () => {
+            const failures = await this.recordRun(
+              tx,
+              rule,
+              message.recordId,
+              planned,
+              reason,
+            );
+            if (failures >= MAX_FAILURES) {
+              await this.setDisabled(tx, rule, 'failing', system);
+            }
+          }),
       );
     }
   }

@@ -279,7 +279,14 @@ export class RecordShares implements ShareTarget {
 }
 
 /** The field kinds a rule's `setField` may set: plain values, never a reference, money or JSON. */
-const SETTABLE_KINDS = new Set(['string', 'text', 'int', 'decimal', 'bool', 'enum']);
+const SETTABLE_KINDS = new Set([
+  'string',
+  'text',
+  'int',
+  'decimal',
+  'bool',
+  'enum',
+]);
 
 /**
  * Rules may act on its records (platform/automations): RecordLifecycle
