@@ -60,6 +60,8 @@ const CAPABILITY_DOCS = {
   events:
     'Webhook events of its changes (`<item>.created`…). False with WEBHOOKS=off.',
   numbered: 'A human-readable number (`number`, `INV-2026-00042`).',
+  share:
+    'Read-only links to a record (`…/{id}/shares`), opened without a sign-in (POST /v1/shared/open).',
   approvals: 'An action on the records may need approval (GET /v1/approvals).',
 } satisfies Record<Capability | 'approvals', string>;
 

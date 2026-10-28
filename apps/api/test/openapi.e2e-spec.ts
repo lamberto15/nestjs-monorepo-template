@@ -34,6 +34,9 @@ const PANEL_COMPONENTS = [
   'RevisionDiff',
   'RecordDocument',
   'RecordDocumentPage',
+  'Share',
+  'ShareList',
+  'CreatedShare',
 ];
 
 describe('OpenAPI document (e2e)', () => {
@@ -337,6 +340,9 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/settings/{key}/mine',
         '/v1/settings/{key}/overrides',
         '/v1/settings/{key}/platform',
+        '/v1/shared/code',
+        '/v1/shared/files/{attachmentId}',
+        '/v1/shared/open',
         '/v1/sso/connections',
         '/v1/sso/connections/{id}',
         '/v1/sso/connections/{id}/refresh',

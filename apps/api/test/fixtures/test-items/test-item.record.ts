@@ -60,5 +60,6 @@ export const TEST_ITEM = defineRecord({
     'custom',
     'events',
     'numbered',
+    'share',
   ],
 });

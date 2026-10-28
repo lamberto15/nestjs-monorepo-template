@@ -31,5 +31,8 @@
   },
   "tenantInvitation": {
     "subject": "{inviter} invited you to {tenant} on {app}"
+  },
+  "shareCode": {
+    "subject": "Your code for the link shared with you on {app}"
   }
 }

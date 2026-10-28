@@ -68,7 +68,8 @@
       "create": "Notizen schreiben",
       "update": "Notizen ändern",
       "delete": "Notizen löschen",
-      "restore": "Gelöschte Notizen sehen und wiederherstellen"
+      "restore": "Gelöschte Notizen sehen und wiederherstellen",
+      "share": "Notizen per Link teilen"
     },
     "fields": {
       "body": "Der Text der Notiz",
