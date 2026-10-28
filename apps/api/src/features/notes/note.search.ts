@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { and, desc, getTableColumns, inArray } from 'drizzle-orm';
+import { and, desc, getTableColumns } from 'drizzle-orm';
 import {
-  RANK_CAP,
   headline,
   matches,
   rank,
+  rankedMatches,
   vectorOf,
 } from '../../core/database/search.js';
 import { AccessService } from '../../iam/access/access.service.js';
@@ -55,7 +55,7 @@ export class NoteSearch implements SearchSource {
       matches(vector, q),
     );
     const score = rank(vector, q);
-    const rows = await this.notes.query((db) =>
+    const rows = await this.notes.query(async (db) =>
       db
         // The whole row: the permission conditions (`mine`) read it.
         .select({
@@ -66,20 +66,7 @@ export class NoteSearch implements SearchSource {
         })
         .from(notes)
         // The best of the newest RANK_CAP matches: ranking reads every row it ranks.
-        .where(
-          and(
-            where,
-            inArray(
-              notes.id,
-              db
-                .select({ id: notes.id })
-                .from(notes)
-                .where(where)
-                .orderBy(desc(notes.id))
-                .limit(RANK_CAP),
-            ),
-          ),
-        )
+        .where(and(where, await rankedMatches(db, notes, notes.id, where)))
         .orderBy(desc(score), desc(notes.id))
         .limit(limit),
     );

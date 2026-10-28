@@ -9,10 +9,10 @@ import { AuthorizationService } from '@nestjs/authorization';
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { and, desc, eq, getTableColumns, inArray, lt } from 'drizzle-orm';
 import {
-  RANK_CAP,
   headline,
   matches,
   rank,
+  rankedMatches,
   vectorOf,
 } from '../../core/database/search.js';
 import type { ListQuery } from '../../core/http/list-query.js';
@@ -371,7 +371,7 @@ export class RecordSearch {
       matches(vector, q),
     );
     const score = rank(vector, q);
-    const rows = (await this.c.service.query((db) =>
+    const rows = (await this.c.service.query(async (db) =>
       db
         // The whole row: the permission conditions (`mine`) read it.
         .select({
@@ -390,18 +390,7 @@ export class RecordSearch {
         .from(table as never)
         // The best of the newest RANK_CAP matches: ranking reads every row it ranks.
         .where(
-          and(
-            where,
-            inArray(
-              table.id!,
-              db
-                .select({ id: table.id! })
-                .from(table as never)
-                .where(where)
-                .orderBy(desc(table.id!))
-                .limit(RANK_CAP),
-            ),
-          ),
+          and(where, await rankedMatches(db, table as never, table.id!, where)),
         )
         .orderBy(desc(score), desc(table.id!))
         .limit(limit),
