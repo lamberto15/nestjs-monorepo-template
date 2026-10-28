@@ -605,9 +605,11 @@ describe('notifications (e2e)', () => {
     // Time-ordered ids (UUIDv7, as every row's), not random ones.
     expect(one).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7/);
     const listed = await editor.agent.get('/v1/notifications').expect(200);
-    expect(
-      listed.body.items.map((item: { id: string }) => item.id),
-    ).toEqual([two, one, older]);
+    expect(listed.body.items.map((item: { id: string }) => item.id)).toEqual([
+      two,
+      one,
+      older,
+    ]);
   });
 
   it('lists with filters, marks all read up to a moment', async () => {
