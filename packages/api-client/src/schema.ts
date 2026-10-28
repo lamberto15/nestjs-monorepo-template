@@ -13105,6 +13105,35 @@ export interface operations {
                             /** @description An action on the records may need approval (GET /v1/approvals). */
                             approvals: boolean;
                         };
+                        /** @description The views besides the table that this subject declares and this caller can use: a field they may not filter by leaves its view out. Null when none. Fetch their records with the list route, bounded by `filter` on the fields named here. */
+                        views: {
+                            board?: {
+                                /**
+                                 * @description The enum field whose values are the board's columns.
+                                 * @example status
+                                 */
+                                field: string;
+                                /** @description The cards are not moved: the field is not changed through `PATCH`. */
+                                readOnly: boolean;
+                            };
+                            calendar?: {
+                                /**
+                                 * @description The `date` (all-day) and `datetime` fields to plan by, one at a time.
+                                 * @example [
+                                 *       "dueAt"
+                                 *     ]
+                                 */
+                                fields: string[];
+                                /** @description The dates are not changed through `PATCH`. */
+                                readOnly: boolean;
+                            };
+                            timeline?: {
+                                /** @description The field a bar starts at. */
+                                start: string;
+                                /** @description The field a bar ends at; empty: the bar is still open. */
+                                end: string;
+                            };
+                        } | null;
                         /** @description What a record's attachment may be, as the upload route enforces it; null when the subject takes no attachments. */
                         attachmentLimits: {
                             /**
