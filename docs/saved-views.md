@@ -40,7 +40,7 @@ Every response says `mine` (you own it) and `editable` (you may change it).
   `query.<parameter>`.
 - **`columns`**: item fields to show, in order, each one of the list's
   `select`. `null`: the list's own.
-- **`visibility`**: `private` (default), `unit` (with `unitId`) or `tenant`. A stored `team` is read as `unit` for this release (the stored renames rewrite it; removed in a later release, issue #602).
+- **`visibility`**: `private` (default), `unit` (with `unitId`) or `tenant`. Only these three are accepted (a database check); migrate fails on a stored `team` ([releases](releases.md), "Upgrading across a removed rename").
 
 ## Validated on save and on apply
 

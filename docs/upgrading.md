@@ -125,6 +125,11 @@ migrations were generated before you merged them, so:
 
 ## Deploying the update
 
+A database from before organizational units (#595) must run the release that
+introduced them first: later releases no longer rewrite the team-era names
+rows store, and their migrate fails if one is left ([releases](releases.md),
+"Upgrading across a removed rename").
+
 As any release of your project ([deployment](deployment.md)): the migrations
 run first, while the previous release still serves. Check the release notes'
 "Rolling back" section before deploying: rolling back is rolling the image

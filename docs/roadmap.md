@@ -680,9 +680,10 @@ directory `GET /v1/organizational-units` for every member.
   `unit_managed_by_scim` here). The web app's "Organization structure" is
   `/access/organization`.
 - **Existing data is kept:** migrations 0065 to 0067 rename the tables and
-  columns; `stored-renames.ts` rewrites the team-era names in rows at
-  migrate. The saved-views visibility check accepts `team` and `unit` for
-  this release; `team` goes in a later one (#602).
+  columns; `stored-renames.ts` rewrote the team-era names in rows at
+  migrate. #602 removed those renames and the saved-views `team` visibility:
+  a database must pass through the organizational-units release first, and
+  migrate fails if a team-era name is left (`RETIRED_NAMES`).
 - **Removed, not deferred:** parent and sub-organizations (#601, done on this
   branch): tenants are independent, no read spans two.
 - **Deferred:** cross-functional project groups (several trees per tenant,

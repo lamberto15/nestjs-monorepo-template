@@ -86,6 +86,21 @@ and its sunset date has passed. Check `deprecated_route_calls_total{route}`
 first: calls still arriving mean clients still depend on it. The release that
 removes it lists it in the notes as a breaking change.
 
+### Upgrading across a removed rename
+
+Names that rows store (a role's condition key, a settings scope, an approval
+rule's type) are rewritten at migrate by `apps/api/src/stored-renames.ts`;
+a release that drops an entry says so in its notes. The team-era renames
+(org units → teams → organizational units, #595) are gone, and so is the
+saved-views `team` visibility. A database must pass through the
+organizational-units release first, migrate included. A release without
+the renames fails its migrate when a row still holds `manageTeams`,
+`manageOrgUnits`, `inMyTeams`, a settings scope or view visibility `team` or
+`orgUnit`, a view scope `team:<id>`, `teamRole`, `orgUnitRole` or `team-lead`
+(`RETIRED_NAMES` in the same file), naming the tenant and column. Nothing is
+rewritten or deleted by the failure: migrate with the earlier release, then
+this one.
+
 ### Rolling back
 
 Rolling back is rolling the image back: the previous release's images in
