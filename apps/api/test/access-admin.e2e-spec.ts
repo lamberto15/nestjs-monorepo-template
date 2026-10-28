@@ -368,7 +368,10 @@ describe('access administration (e2e)', () => {
         .post(`/v1/access/invitations/${id}/resend`)
         .expect(202);
       expect(resent.headers.deprecation).toBeDefined();
-      await node.acceptAsNew(await nextLink(second));
+      await nextLink(second);
+      // Sending a sent one again: a new link (the one that works), audited as a resend.
+      await node.admin().post(`/v1/access/invitations/${id}/send`).expect(202);
+      await node.acceptAsNew(await nextLink(second, 1));
       const joined = (
         (await node.admin().get('/v1/access/users?limit=100').expect(200)).body
           .items as { email: string; roleIds: string[]; unitIds: string[] }[]
