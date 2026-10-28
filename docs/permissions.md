@@ -223,7 +223,7 @@ The built-in `Access` permissions (`ACCESS_PERMISSIONS`,
 | `Access.manageRoles`, `manageUsers`, `manageClients`, `manageOrganizationalUnits` | roles; invitations, memberships, roles and units of users; API clients and their keys; the organizational units and their members ("Organization structure") |
 | `Access.readAudit` | the audit log and the sign-in log |
 | `Access.impersonate` | acting as another user (support), never as an administrator |
-| `Access.manageCustomFields`, `manageSettings`, `manageTags`, `manageNamingSeries`, `manageViews` | custom field definitions; settings and feature flags; tags; naming series and their counters; saved views shared with the tenant |
+| `Access.manageCustomFields`, `manageSettings`, `manageTags`, `manageNamingSeries`, `manageViews`, `manageTemplates` | custom field definitions; settings and feature flags; tags; naming series and their counters; saved views and record templates shared with the tenant |
 | `Access.manageRetention`, `manageLegalHolds`                                                     | retention rules; legal holds ([retention](retention.md))                                                                         |
 | `Access.manageSso`                                                                               | the tenant's SAML and OpenID Connect connections and verified domains ([auth](auth.md), "Enterprise SSO")                        |
 | `Access.provisionScim`                                                                           | SCIM 2.0 provisioning: API clients only, the identity provider's token ([auth](auth.md), "Enterprise SSO")                       |

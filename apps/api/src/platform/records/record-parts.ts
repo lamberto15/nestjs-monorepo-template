@@ -7,6 +7,7 @@ import { documentRoutes } from '../documents/document.routes.js';
 import { revisionRoutes } from '../revisions/revision.routes.js';
 import { watchRoutes } from '../subscriptions/subscription.routes.js';
 import { listSource } from '../lists/lists.registry.js';
+import { templateSource } from '../templates/templates.registry.js';
 import { tagRoutes } from '../tags/tag.routes.js';
 import { type Capability, type RecordDeclaration, takes } from './record.js';
 import {
@@ -154,6 +155,12 @@ export function recordParts(
     RecordPresenter,
     // GET /v1/lists/{subject}: its list described, and its capabilities.
     listSource(declaration.subject, options.list, declaration.capabilities),
+    // GET /v1/templates: values to prefill a create, checked against its schema.
+    templateSource({
+      subject: declaration.subject,
+      create: options.schemas.create,
+      custom: has('custom'),
+    }),
     ...declaration.capabilities.flatMap((capability) => {
       const target = options.override?.[capability] ?? TARGETS[capability];
       return target ? [target] : [];

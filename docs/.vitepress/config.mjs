@@ -54,6 +54,8 @@ const technical = [
     ['Revisions', '/revisions'],
     ['Custom fields', '/custom-fields'],
     ['Saved views', '/saved-views'],
+    ['Record templates', '/templates'],
+    ['Dependent choices', '/choices'],
     ['Sequences', '/sequences'],
     ['Data transfer', '/data-transfer'],
     ['Import limits', '/import-limits'],
