@@ -160,7 +160,8 @@ ingress:
   # /metrics is never exposed. Exact segments, as in the Caddyfile: Traefik
   # (k3s) matches a Prefix as a string, so a Prefix /api would also take the
   # app's /api-keys and /api-clients. A bare path is Exact, a subtree ends
-  # in "/" (every controller reads that Prefix as the subtree).
+  # in "/" (every controller reads that Prefix as the subtree). The Exact
+  # paths get an Ingress of their own (templates/ingress.yaml says why).
   apiPaths:
     - { path: /v1/, pathType: Prefix }
     - { path: /socket.io/, pathType: Prefix }
