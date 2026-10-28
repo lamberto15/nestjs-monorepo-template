@@ -11,10 +11,13 @@ import {
 } from '@nestjs-monorepo-template/ui/components/dropdown-menu';
 import type { ReactTable, RowData } from '@tanstack/react-table';
 import { BookmarkIcon, CheckIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useQueryState } from 'nuqs';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { useCurrentPath } from '@/features/favorites/api';
+import { FavoriteButton } from '@/features/favorites/favorite-button';
 import type { DataTableFeatures } from '@/lib/data-table-features';
 import type { FilterOperator } from '@/lib/data-table-types';
 import { defaultSorting, type ListDescription } from '@/lib/list-query';
@@ -73,6 +76,7 @@ export function ViewsPicker<TData extends RowData>(props: {
   onSearch: (q: string) => void;
 }) {
   const { t } = useTranslation('views');
+  const path = useCurrentPath();
   const { table, description } = props;
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<SavedView>();
@@ -81,7 +85,7 @@ export function ViewsPicker<TData extends RowData>(props: {
   const apply = useApplyView();
   const remove = useDeleteView();
 
-  async function choose(view: SavedView) {
+  async function choose(view: Pick<SavedView, 'id' | 'name'>) {
     try {
       const applied = await apply.mutateAsync(view.id);
       const state = viewState(applied.params, contextOf(table, description));
@@ -107,7 +111,7 @@ export function ViewsPicker<TData extends RowData>(props: {
         table.resetColumnVisibility();
       }
       setActive(applied.view);
-      toast.success(t('applied', { name: view.name }));
+      toast.success(t('applied', { name: applied.view.name }));
     } catch (caught) {
       const name = view.name;
       if (caught instanceof UnshowableView) {
@@ -144,9 +148,28 @@ export function ViewsPicker<TData extends RowData>(props: {
     };
   };
 
+  // A view opened from the menu's favorites (`?view=<id>`): applied once,
+  // then out of the URL (the list's own parameters say what it shows).
+  const [opened, setOpened] = useQueryState('view');
+  useEffect(() => {
+    if (opened) {
+      void setOpened(null);
+      void choose({ id: opened, name: opened });
+    }
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- once per id: `choose` reads the table as it is then.
+  }, [opened]);
+
   const items = views.data?.items ?? [];
   return (
     <>
+      {active && (
+        <FavoriteButton
+          kind="view"
+          subject={path}
+          target={active.id}
+          label={active.name}
+        />
+      )}
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger
           render={

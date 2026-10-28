@@ -2026,7 +2026,7 @@ export interface paths {
         put?: never;
         /**
          * Pin a record, a page or a saved view
-         * @description Last in your list. `kind`: `record` (with its `subject`, `Note`, and its id as `target`), `page` (the app's path: `/notes`) or `view` (its id). At most 50.
+         * @description Last in your list. `kind`: `record` (with its `subject`, `Note`, and its id as `target`), `page` (the app's path: `/notes`) or `view` (its id as `target`, the list page it opens on as `subject`: `/notes`). At most 50.
          */
         post: operations["FavoritesController_add_v1"];
         delete?: never;
@@ -14456,7 +14456,7 @@ export interface operations {
                             /** @enum {string} */
                             kind: "record" | "page" | "view";
                             /**
-                             * @description A record's permission subject (`Note`); empty otherwise.
+                             * @description A record's permission subject (`Note`); a view's list page (`/notes`), where it opens; empty for a page.
                              * @example Note
                              */
                             subject: string;
@@ -14509,7 +14509,7 @@ export interface operations {
                         /** @enum {string} */
                         kind: "record" | "page" | "view";
                         /**
-                         * @description A record's permission subject (`Note`); empty otherwise.
+                         * @description A record's permission subject (`Note`); a view's list page (`/notes`), where it opens; empty for a page.
                          * @example Note
                          */
                         subject: string;
@@ -14579,7 +14579,7 @@ export interface operations {
                             /** @enum {string} */
                             kind: "record" | "page" | "view";
                             /**
-                             * @description A record's permission subject (`Note`); empty otherwise.
+                             * @description A record's permission subject (`Note`); a view's list page (`/notes`), where it opens; empty for a page.
                              * @example Note
                              */
                             subject: string;

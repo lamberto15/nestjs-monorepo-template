@@ -19850,7 +19850,7 @@
                           },
                           "subject": {
                             "type": "string",
-                            "description": "A record's permission subject (`Note`); empty otherwise.",
+                            "description": "A record's permission subject (`Note`); a view's list page (`/notes`), where it opens; empty for a page.",
                             "example": "Note"
                           },
                           "target": {
@@ -19908,7 +19908,7 @@
         ]
       },
       "post": {
-        "description": "Last in your list. `kind`: `record` (with its `subject`, `Note`, and its id as `target`), `page` (the app's path: `/notes`) or `view` (its id). At most 50.",
+        "description": "Last in your list. `kind`: `record` (with its `subject`, `Note`, and its id as `target`), `page` (the app's path: `/notes`) or `view` (its id as `target`, the list page it opens on as `subject`: `/notes`). At most 50.",
         "operationId": "FavoritesController_add_v1",
         "parameters": [],
         "requestBody": {
@@ -19972,7 +19972,7 @@
                     },
                     "subject": {
                       "type": "string",
-                      "description": "A record's permission subject (`Note`); empty otherwise.",
+                      "description": "A record's permission subject (`Note`); a view's list page (`/notes`), where it opens; empty for a page.",
                       "example": "Note"
                     },
                     "target": {
@@ -20086,7 +20086,7 @@
                           },
                           "subject": {
                             "type": "string",
-                            "description": "A record's permission subject (`Note`); empty otherwise.",
+                            "description": "A record's permission subject (`Note`); a view's list page (`/notes`), where it opens; empty for a page.",
                             "example": "Note"
                           },
                           "target": {

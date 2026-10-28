@@ -25,7 +25,7 @@ export const favorites = pgTable(
     /** Whose it is: `user:<id>` or `client:<id>`. */
     owner: text('owner').notNull(),
     kind: text('kind').$type<FavoriteKind>().notNull(),
-    /** A record's permission subject (`Note`); empty for a page or a view. */
+    /** A record's permission subject (`Note`), a view's list page (`/notes`); empty for a page. */
     subject: text('subject').notNull().default(''),
     /** The record's id, the page's path (`/notes`) or the view's id. */
     target: text('target').notNull(),

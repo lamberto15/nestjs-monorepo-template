@@ -10,7 +10,9 @@ export const favoriteSchema = z.object({
   kind: z.enum(FAVORITE_KINDS),
   subject: z
     .string()
-    .describe("A record's permission subject (`Note`); empty otherwise.")
+    .describe(
+      "A record's permission subject (`Note`); a view's list page (`/notes`), where it opens; empty for a page.",
+    )
     .meta({ example: 'Note' }),
   target: z
     .string()
@@ -30,10 +32,19 @@ export const createFavoriteSchema = z
     target: z.string().trim().min(1).max(500),
     label: z.string().trim().min(1).max(200),
   })
-  .refine((value) => (value.kind === 'record') === (value.subject !== ''), {
-    message: 'A record needs its subject; a page or a view has none.',
-    path: ['subject'],
-  })
+  .refine(
+    (value) =>
+      value.kind === 'page'
+        ? value.subject === ''
+        : value.kind === 'view'
+          ? value.subject.startsWith('/')
+          : /^[A-Z]\w*$/.test(value.subject),
+    {
+      message:
+        'A record needs its subject (`Note`), a view its list page (`/notes`); a page has none.',
+      path: ['subject'],
+    },
+  )
   .refine((value) => value.kind !== 'page' || value.target.startsWith('/'), {
     message: "A page is the app's path: `/notes`.",
     path: ['target'],

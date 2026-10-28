@@ -66,7 +66,7 @@ export class FavoritesController {
   @Post()
   @ApiOperation({
     summary: 'Pin a record, a page or a saved view',
-    description: `Last in your list. \`kind\`: \`record\` (with its \`subject\`, \`Note\`, and its id as \`target\`), \`page\` (the app's path: \`/notes\`) or \`view\` (its id). At most ${MAX_FAVORITES}.`,
+    description: `Last in your list. \`kind\`: \`record\` (with its \`subject\`, \`Note\`, and its id as \`target\`), \`page\` (the app's path: \`/notes\`) or \`view\` (its id as \`target\`, the list page it opens on as \`subject\`: \`/notes\`). At most ${MAX_FAVORITES}.`,
   })
   @ApiCreatedResponse({ standardSchema: favoriteSchema })
   @ApiBadRequestResponse({

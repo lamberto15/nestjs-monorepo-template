@@ -75,6 +75,31 @@ describe('favorites: pinned records, pages and views (e2e)', () => {
     expect((await list(editor.agent)).map((f) => f.id)).toEqual([record.id]);
   });
 
+  it('pins a saved view its owner sees, with the list page it opens on', async () => {
+    const editor = await node.user(['editor']);
+    const other = await node.user(['editor']);
+    const view = (
+      await editor.agent
+        .post('/v1/views')
+        .send({ subject: 'TestItem', name: 'Mine' })
+        .expect(201)
+    ).body as { id: string };
+    const pin = (agent: ReturnType<TestApp['admin']>) =>
+      agent.post('/v1/favorites').send({
+        kind: 'view',
+        subject: '/test-items',
+        target: view.id,
+        label: 'Mine',
+      });
+    expect((await pin(editor.agent).expect(201)).body).toMatchObject({
+      kind: 'view',
+      subject: '/test-items',
+      target: view.id,
+    });
+    // A private view is its owner's: someone else can't pin it.
+    await pin(other.agent).expect(404);
+  });
+
   it('leaves out a record once it is deleted, before showing its label', async () => {
     const editor = await node.user(['editor']);
     const item = (

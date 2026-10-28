@@ -21,6 +21,7 @@ import { DetailItem, DetailList } from '@/components/records/detail-list';
 import { RecordPanels } from '@/components/records/panels/record-panels';
 import { RecordState } from '@/components/records/record-state';
 import { WatchButton } from '@/components/records/watch-button';
+import { FavoriteButton } from '@/features/favorites/favorite-button';
 import { noteQuery, setNoteWatching, type Note } from '@/features/notes/api';
 import { useNoteDelete } from '@/features/notes/use-note-delete';
 import { useRichText } from '@/features/notes/use-rich-text';
@@ -94,6 +95,12 @@ function NoteView({ note }: { note: Note }) {
               onToggled={(watching) =>
                 setNoteWatching(queryClient, note.id, watching)
               }
+            />
+            <FavoriteButton
+              kind="record"
+              subject="Note"
+              target={note.id}
+              label={note.title}
             />
             {(canUpdate || canDelete) && (
               <DropdownMenu>

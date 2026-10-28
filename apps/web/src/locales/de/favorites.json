@@ -1,0 +1,12 @@
+{
+  "group": "Favoriten",
+  "add": "{{label}} zu den Favoriten hinzufügen",
+  "remove": "{{label}} aus den Favoriten entfernen",
+  "added": "{{label}} zu den Favoriten hinzugefügt.",
+  "removed": "{{label}} aus den Favoriten entfernt.",
+  "manage": "Favoriten ordnen",
+  "manageTitle": "Ihre Favoriten",
+  "manageHint": "Ziehen Sie die Griffe oder nutzen Sie darauf Leertaste und Pfeiltasten, um die Reihenfolge zu ändern.",
+  "reorder": "{{label}} verschieben",
+  "unpin": "{{label}} entfernen"
+}
