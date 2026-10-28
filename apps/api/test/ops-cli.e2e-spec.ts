@@ -1,8 +1,14 @@
+import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
+import { TransactionHost } from '@nestjs-cls/transactional';
 import { getDrizzleToken } from '@nestjs/drizzle';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { Database } from '../src/core/database/drizzle.js';
 import { OpsError, OpsService, type Plan } from '../src/cli/ops.service.js';
+import { inTransaction } from '../src/core/database/transactions.js';
+import type { NotificationType } from '../src/platform/notifications/notification.types.js';
+import { notifications } from '../src/platform/notifications/notifications.tables.js';
+import { NotificationsService } from '../src/platform/notifications/notifications.service.js';
 import { mfaFailures, mfaAuthenticators } from '../src/iam/iam.tables.js';
 import { mailSuppressions } from '../src/platform/deliverability/deliverability.tables.js';
 import {
@@ -304,6 +310,86 @@ describe('operator CLI (e2e)', () => {
       const [entry] = await written('ops.user-unlocked');
       expect(entry).toMatchObject({
         details: { failuresCleared: 2, suppressionRemoved: true, operator },
+      });
+    });
+  });
+
+  describe('notifications:settle', () => {
+    it("deletes a recipient's undelivered messages and marks their notifications delivered and read, never a mandatory type, audited", async () => {
+      const user = await node.user([]);
+      const other = await node.user([]);
+      const service = node.app.get(NotificationsService);
+      const txHost = node.app.get(TransactionHost);
+      const tell = async (to: string, type: string, data: object) => {
+        const [id] = await node.inTenant(() =>
+          inTransaction(txHost, (tx) =>
+            service.notify(tx, {
+              type: type as NotificationType,
+              to,
+              data,
+              key: randomUUID(),
+            }),
+          ),
+        );
+        return id!;
+      };
+      const comment = {
+        recordId: randomUUID(),
+        commentId: randomUUID(),
+        title: 'Old',
+        by: 'Ada',
+        excerpt: 'Hi',
+      };
+      const old1 = await tell(`user:${user.id}`, 'testItem.commented', comment);
+      const old2 = await tell(`user:${user.id}`, 'testItem.commented', comment);
+      const secure = await tell(`user:${user.id}`, 'security.passwordChanged', {
+        via: 'change',
+        ip: '192.0.2.10',
+      });
+      const others = await tell(
+        `user:${other.id}`,
+        'testItem.commented',
+        comment,
+      );
+
+      const plan = await ops.settleNotifications(user.email, {});
+      expect(plan.summary.join(' ')).toMatch(/Delete 2 undelivered/);
+      expect(await plan.apply(operator)).toEqual({
+        messages: 2,
+        notifications: 2,
+      });
+
+      const state = async (id: string) =>
+        (
+          await node.db
+            .select()
+            .from(notifications)
+            .where(eq(notifications.id, id))
+        )[0]!;
+      for (const id of [old1, old2]) {
+        expect(await state(id)).toMatchObject({
+          deliveredAt: expect.any(Date),
+          readAt: expect.any(Date),
+        });
+      }
+      expect(await state(secure)).toMatchObject({
+        deliveredAt: null,
+        readAt: null,
+      });
+      expect(await state(others)).toMatchObject({ deliveredAt: null });
+      // The test pool: notifications are under the tenants' row-level security.
+      const left = await node.db
+        .select({ id: sql<string>`payload->>'notificationId'` })
+        .from(sql`nest_outbox.messages`)
+        .where(sql`topic = 'notifications.deliver'`);
+      expect(left.map((message) => message.id)).toEqual(
+        expect.arrayContaining([secure, others]),
+      );
+      expect(left).toHaveLength(2);
+      const [entry] = await written('ops.notifications-settled');
+      expect(entry).toMatchObject({
+        targetId: user.id,
+        details: { messages: 2, notifications: 2, before: null, operator },
       });
     });
   });

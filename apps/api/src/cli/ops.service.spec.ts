@@ -4,7 +4,7 @@ import { OpsError, OpsService } from './ops.service.js';
 describe('OpsService input checks', () => {
   const ops = new OpsService(
     ...(Array.from(
-      { length: 11 },
+      { length: 13 },
       () => null,
     ) as unknown as ConstructorParameters<typeof OpsService>),
   );

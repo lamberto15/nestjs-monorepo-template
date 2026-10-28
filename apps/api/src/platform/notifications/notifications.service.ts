@@ -14,6 +14,7 @@ import {
   isNotNull,
   isNull,
   lt,
+  notInArray,
   or,
   sql,
 } from 'drizzle-orm';
@@ -41,6 +42,7 @@ import {
   principalKey,
   type UserPrincipal,
 } from '../../iam/auth/principal.js';
+import { outboxMessages } from '../ops/outbox-store.view.js';
 import { Realtime } from '../realtime/realtime.service.js';
 import { NotificationCatalog } from './notification-catalog.js';
 import { NOTIFICATION_LIST } from './notification.list.js';
@@ -494,6 +496,88 @@ export class NotificationsService {
           isNull(notifications.readAt),
         ),
       );
+  }
+
+  /**
+   * A recipient's notification backlog, for `pnpm ops notifications:settle`:
+   * their undelivered `notifications.deliver` outbox messages and the
+   * notifications behind them, optionally only those created before `before`.
+   * `mandatory` types are never counted: they are delivered as usual.
+   */
+  async backlog(tx: Transaction, recipient: string, before?: Date) {
+    const [pending] = await tx
+      .select({ count: count() })
+      .from(outboxMessages)
+      .where(this.pendingMessages(recipient, before));
+    const [unsettled] = await tx
+      .select({ count: count() })
+      .from(notifications)
+      .where(this.backlogOf(recipient, before));
+    return {
+      messages: pending?.count ?? 0,
+      notifications: unsettled?.count ?? 0,
+    };
+  }
+
+  /**
+   * Drops the backlog `backlog()` counts: deletes the messages (the outbox
+   * package deletes one only as published, so its table is cleared directly,
+   * leaving any under a live lease: being delivered now) and marks the
+   * notifications delivered and read, with no digest mail left to send.
+   */
+  async settleBacklog(tx: Transaction, recipient: string, before?: Date) {
+    const removed = await tx
+      .delete(outboxMessages)
+      .where(this.pendingMessages(recipient, before));
+    const now = new Date();
+    const settled = await tx
+      .update(notifications)
+      .set({
+        deliveredAt: now,
+        readAt: sql`coalesce(${notifications.readAt}, ${now})`,
+        digest: null,
+        digestDueAt: null,
+      })
+      .where(this.backlogOf(recipient, before));
+    // Database's portable result type is unknown; node-postgres reports rowCount.
+    const rows = (result: unknown) =>
+      (result as { rowCount?: number | null }).rowCount ?? 0;
+    return { messages: rows(removed), notifications: rows(settled) };
+  }
+
+  private mandatoryTypes() {
+    return this.catalog
+      .declarations()
+      .filter((declaration) => declaration.mandatory)
+      .map((declaration) => declaration.type);
+  }
+
+  private pendingMessages(recipient: string, before?: Date) {
+    const mandatory = this.mandatoryTypes();
+    return and(
+      eq(outboxMessages.topic, NOTIFICATIONS_TOPIC),
+      eq(sql`${outboxMessages.payload}->>'recipient'`, recipient),
+      mandatory.length > 0
+        ? notInArray(sql`${outboxMessages.payload}->>'type'`, mandatory)
+        : undefined,
+      before ? lt(outboxMessages.createdAt, before.getTime()) : undefined,
+      or(
+        isNull(outboxMessages.leaseUntil),
+        lt(outboxMessages.leaseUntil, Date.now()),
+      ),
+    );
+  }
+
+  private backlogOf(recipient: string, before?: Date) {
+    const mandatory = this.mandatoryTypes();
+    return and(
+      eq(notifications.recipient, recipient),
+      isNull(notifications.deliveredAt),
+      mandatory.length > 0
+        ? notInArray(notifications.type, mandatory)
+        : undefined,
+      before ? lt(notifications.createdAt, before) : undefined,
+    );
   }
 
   /** Tells the recipient's connections their unread count (after a change to it). */

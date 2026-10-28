@@ -9,6 +9,8 @@ import {
 } from '@nestjs/authentication';
 import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
 import type { Transaction } from '../core/database/drizzle.js';
+import { Tenancy } from '../core/tenancy/tenancy.service.js';
+import type { SystemPrincipal } from '../iam/auth/principal.js';
 import { tenants } from '../core/tenancy/tenancy.tables.js';
 import { AccessService } from '../iam/access/access.service.js';
 import { SystemContext } from '../iam/access/system-context.js';
@@ -30,6 +32,7 @@ import {
   userRoles,
   users,
 } from '../iam/iam.tables.js';
+import { NotificationsService } from '../platform/notifications/notifications.service.js';
 import { mailSuppressions } from '../platform/deliverability/deliverability.tables.js';
 import { SuppressionsService } from '../platform/deliverability/suppressions.service.js';
 import { SettingsService } from '../platform/settings/settings.service.js';
@@ -101,6 +104,8 @@ export class OpsService {
     private readonly sessions: SessionService,
     private readonly tokens: TokenService,
     private readonly settings: SettingsService,
+    private readonly notifications: NotificationsService,
+    private readonly tenancy: Tenancy,
     private readonly moduleRef: ModuleRef,
   ) {}
 
@@ -507,6 +512,68 @@ export class OpsService {
           },
           { tenantId: tenant?.id ?? null },
         ),
+    };
+  }
+
+  /**
+   * Settles one recipient's notification backlog (docs/notifications.md,
+   * "Stopping a mail storm"): deletes their undelivered
+   * `notifications.deliver` messages (those created before `before`, when
+   * given) and marks the notifications delivered and read. `mandatory`
+   * types are left to be delivered as usual. Across the recipient's tenants,
+   * so under the maintenance role's bypass.
+   */
+  async settleNotifications(
+    emailInput: string,
+    where: { before?: string },
+  ): Promise<Plan<{ messages: number; notifications: number }>> {
+    const email = this.email(emailInput);
+    const before = where.before ? new Date(where.before) : undefined;
+    if (before && Number.isNaN(before.getTime())) {
+      throw new OpsError(
+        `"${where.before}" is not a date (2026-10-01T00:00:00Z).`,
+      );
+    }
+    const user = await this.account(email);
+    const recipient = `user:${user.id}`;
+    const across = <T>(
+      work: (system: SystemPrincipal, tx: Transaction) => Promise<T>,
+    ) =>
+      this.tenancy.bypass('ops:notifications-settle', () =>
+        this.system.run(OPS_JOB, work),
+      );
+    const found = await across((_system, tx) =>
+      this.notifications.backlog(tx, recipient, before),
+    );
+    return {
+      summary: [
+        `Delete ${found.messages} undelivered notification message(s) of ${email}${before ? ` created before ${before.toISOString()}` : ''}, and mark ${found.notifications} notification(s) delivered and read: no push or mail goes out for them.`,
+        'Mandatory (security) notification types are not touched.',
+      ],
+      apply: (operator) =>
+        across(async (system, tx) => {
+          const settled = await this.notifications.settleBacklog(
+            tx,
+            recipient,
+            before,
+          );
+          await this.audit.record(
+            system,
+            {
+              action: 'ops.notifications-settled',
+              targetType: 'user',
+              targetId: user.id,
+              details: {
+                email,
+                before: before?.toISOString() ?? null,
+                ...settled,
+                ...by(operator),
+              },
+            },
+            tx,
+          );
+          return settled;
+        }),
     };
   }
 
