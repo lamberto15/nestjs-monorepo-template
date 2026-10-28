@@ -238,6 +238,10 @@ The built-in `Access` permissions (`ACCESS_PERMISSIONS`,
   `manageOrganizationalUnits`, or a current membership of it or of a unit
   above it (403 `unit_authority_required`), so `manageUsers` alone can't
   put an account in any unit to read what "my units and below" opens.
+  Making someone a unit's lead, or a lead a member again, takes
+  `manageOrganizationalUnits` or leading the unit or one above it: a plain
+  member can't hand out a lead's reach (the `inUnitsILeadAndBelow`
+  conditions, approval steps by unit role).
   The two lists the SSO page's pickers need, `GET` roles and users (not one
   by id), also admit `Access.manageSso` (`AccessPolicy.openForSso`), so an
   administrator holding only that reads them and still changes nothing.

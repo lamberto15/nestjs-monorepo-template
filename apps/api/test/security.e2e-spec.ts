@@ -155,11 +155,26 @@ describe('security (e2e)', () => {
       .patch(`/v1/access/users/${helper.id}`)
       .send({ unitIds: [foreign] })
       .expect(403);
-    // Their own unit and the units under it: yes.
+    // Their own unit and the units under it: as a member, yes.
     await support.agent
       .post(`/v1/access/organizational-units/${below}/members`)
-      .send({ userId: helper.id, role: 'lead' })
+      .send({ userId: helper.id })
       .expect(201);
+    // A lead takes leading the unit or one above it, not only belonging.
+    const notLead = await support.agent
+      .patch(`/v1/access/organizational-units/${below}/members/${helper.id}`)
+      .send({ role: 'lead' })
+      .expect(403);
+    expect(notLead.body.code).toBe('unit_authority_required');
+    await node
+      .admin()
+      .patch(`/v1/access/organizational-units/${own}/members/${support.id}`)
+      .send({ role: 'lead' })
+      .expect(200);
+    await support.agent
+      .patch(`/v1/access/organizational-units/${below}/members/${helper.id}`)
+      .send({ role: 'lead' })
+      .expect(200);
     await support.agent
       .patch(`/v1/access/users/${helper.id}`)
       .send({ unitIds: [own] })

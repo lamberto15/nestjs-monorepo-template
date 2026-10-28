@@ -687,7 +687,7 @@ export class AccessAdminService {
     ip?: string,
   ) {
     await this.assertAuthorityOverMember(actor, input.userId);
-    await this.assertAuthorityOverUnits(actor, [unitId]);
+    await this.assertAuthorityOverUnits(actor, [unitId], input.role);
     return this.units.addMember(actor, unitId, input, ip);
   }
 
@@ -700,7 +700,8 @@ export class AccessAdminService {
     ip?: string,
   ) {
     await this.assertAuthorityOverMember(actor, userId);
-    await this.assertAuthorityOverUnits(actor, [unitId]);
+    // Either way, a lead is made or unmade: a lead's authority.
+    await this.assertAuthorityOverUnits(actor, [unitId], 'lead');
     return this.units.changeMemberRole(actor, unitId, userId, role, ip);
   }
 
@@ -741,6 +742,8 @@ export class AccessAdminService {
   private async assertAuthorityOverUnits(
     actor: UserPrincipal,
     unitIds: string[],
+    /** `lead`: making (or unmaking) a lead takes leading the unit or one above it. */
+    role: UnitRole = 'member',
   ) {
     if (
       unitIds.length === 0 ||
@@ -748,12 +751,19 @@ export class AccessAdminService {
     ) {
       return;
     }
-    const mine = new Set(await this.units.unitsOf(actor.id, { below: true }));
+    const mine = new Set(
+      await this.units.unitsOf(actor.id, {
+        below: true,
+        ...(role === 'lead' && { role: 'lead' as const }),
+      }),
+    );
     if (unitIds.some((id) => !mine.has(id))) {
       throw new ForbiddenException({
         code: 'unit_authority_required',
         message:
-          'You can’t place people in a unit you neither manage nor belong to (or one above it).',
+          role === 'lead'
+            ? 'You can’t make or unmake a lead of a unit you neither manage nor lead (or one above it).'
+            : 'You can’t place people in a unit you neither manage nor belong to (or one above it).',
       });
     }
   }
