@@ -6,7 +6,6 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { AuthorizationService } from '@nestjs/authorization';
-import { Webhooks } from '@nestjs/webhooks';
 import { and, eq } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
@@ -22,6 +21,7 @@ import { RevisionsService } from '../revisions/revisions.service.js';
 import { NamingSeriesService } from '../sequences/naming-series.service.js';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service.js';
 import { TagsService } from '../tags/tags.service.js';
+import { RecordWebhooks } from '../webhooks/record-webhooks.service.js';
 import {
   numberFormat,
   numberingFields,
@@ -135,7 +135,7 @@ export class RecordLifecycle {
     private readonly subscriptions: SubscriptionsService,
     private readonly revisions: RevisionsService,
     private readonly namingSeries: NamingSeriesService,
-    private readonly webhooks: Webhooks<Transaction>,
+    private readonly recordWebhooks: RecordWebhooks,
     private readonly access: AccessService,
     private readonly customFields: CustomFieldsService,
     private readonly approvals: ApprovalsService,
@@ -221,37 +221,25 @@ export class RecordLifecycle {
   /**
    * An `events` webhook (`<item>.created`…), through the outbox in the
    * write's transaction: it goes out if and only if the write commits.
-   * The data is the record as the API shows it, less the fields its
-   * receiver may not read. Endpoints belong to API clients, so it goes to
-   * the client that owns the record (a user's records send none), as the
-   * example feature's do. Without an endpoint subscribed it is a no-op.
+   * The data is the record as the API shows it, less the fields each
+   * receiver may not read. It goes to the client that owns the record, and
+   * to the clients of its tenant subscribed with the `tenant` scope that may
+   * read it (RecordWebhooks, docs/webhooks-and-realtime.md "Subscriber
+   * scope"). Without an endpoint subscribed it is a no-op.
    */
   private async emit(tx: Transaction, event: RecordEvent, row: RecordRow) {
-    if (
-      !takes(this.declaration, 'events') ||
-      !row.ownerId.startsWith('client:')
-    ) {
+    if (!takes(this.declaration, 'events')) {
       return;
     }
-    const client = row.ownerId.slice('client:'.length);
-    const receiver = {
-      kind: 'client',
-      id: client,
-      name: client,
-      tenantId: row.tenantId as string,
-    } as const;
-    const data = await this.access.redact(
-      receiver,
-      'read',
-      this.declaration.subject,
-      recordView(this.declaration, row),
-    );
-    await this.webhooks.dispatch(tx, {
-      type: `${recordKey(this.declaration)}.${event}`,
-      tenant: client,
-      // Never an encrypted column's value, even as ciphertext.
-      data: withoutEncrypted(data),
-    });
+    await this.recordWebhooks.dispatch(tx, [
+      {
+        type: `${recordKey(this.declaration)}.${event}`,
+        subject: this.declaration.subject,
+        row: row as RecordRow & { tenantId: string },
+        // Never an encrypted column's value, even as ciphertext.
+        data: withoutEncrypted(recordView(this.declaration, row)),
+      },
+    ]);
   }
 
   async created(

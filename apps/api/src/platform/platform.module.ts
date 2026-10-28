@@ -54,6 +54,7 @@ import { WebhookEndpointsController } from './webhooks/webhook-endpoints.control
 import { WebhookEventTypesController } from './webhooks/webhook-event-types.controller.js';
 import { ClientWebhooksController } from './webhooks/client-webhooks.controller.js';
 import { WebhookManagementService } from './webhooks/webhook-management.service.js';
+import { RecordWebhooks } from './webhooks/record-webhooks.service.js';
 import { IncomingEventHandlers } from './webhooks/incoming-event-handlers.js';
 import { IncomingSendersController } from './webhooks/incoming-senders.controller.js';
 import { IncomingEventTypesController } from './webhooks/incoming-event-types.controller.js';
@@ -605,6 +606,8 @@ export class PlatformModule {
         },
         // Both doors to a client's webhooks: its own routes and an administrator's.
         WebhookManagementService,
+        // Who receives a record's webhook (its owner, the tenant-scope clients that may read it).
+        RecordWebhooks,
         // A tenant's incoming webhook senders; features register the events they handle.
         IncomingSendersService,
         IncomingEventHandlers,
@@ -915,6 +918,7 @@ export class PlatformModule {
         BrandingService,
         MailEventIntakeRegistry,
         IncomingEventHandlers,
+        RecordWebhooks,
       ],
     };
   }
