@@ -40,10 +40,11 @@ RUN for module in "github.com/gotenberg/gotenberg/v8@$GOTENBERG_VERSION" "github
     done \
  && chmod -R u+w gotenberg pdfcpu
 # Gotenberg v8.38.1 pins Echo v5.4.0; Trivy found two advisories fixed in v5.4.1.
+# And go-jose v4.1.5: CVE-2026-116587 (a DoS parsing RSA JWKs), fixed in v4.1.6.
 RUN cd gotenberg \
  && go mod edit -require=github.com/labstack/echo/v5@v5.4.1 \
  && go mod download github.com/labstack/echo/v5@v5.4.1 \
- && go get golang.org/x/net@v0.61.0 golang.org/x/crypto@v0.58.0 \
+ && go get golang.org/x/net@v0.61.0 golang.org/x/crypto@v0.58.0 github.com/go-jose/go-jose/v4@v4.1.6 \
  && go build -mod=readonly -trimpath -o /out/gotenberg \
       -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION#v}'" \
       ./cmd/gotenberg-chromium
