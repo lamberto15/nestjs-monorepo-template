@@ -76,9 +76,36 @@ export abstract class TenantWorkerHost<
   T extends object = object,
   R = unknown,
 > extends WorkerHost {
-  override process(job: Job<T & TenantEnvelope>, token?: string): Promise<R> {
-    return inTenantOf(job.data, () => this.handle(job, token));
+  override async process(
+    job: Job<T & TenantEnvelope>,
+    token?: string,
+  ): Promise<R> {
+    try {
+      return await inTenantOf(job.data, () => this.handle(job, token));
+    } catch (error) {
+      throw withCause(error);
+    }
   }
 
   abstract handle(job: Job<T & TenantEnvelope>, token?: string): Promise<R>;
+}
+
+/**
+ * The error with its cause's message added: BullMQ keeps only `message` as
+ * the job's `failedReason` (what Ops shows), and a query's error is
+ * Drizzle's "Failed query: …" with the database's own (a timeout, a lost
+ * connection) in `cause` (#859). The same object, so `instanceof` checks
+ * (UnrecoverableError) still hold.
+ */
+export function withCause(error: unknown) {
+  const cause = (error as { cause?: unknown } | null)?.cause;
+  if (
+    error instanceof Error &&
+    cause instanceof Error &&
+    cause.message &&
+    !error.message.includes(cause.message)
+  ) {
+    error.message = `${error.message}\ncause: ${cause.message}`;
+  }
+  return error;
 }
