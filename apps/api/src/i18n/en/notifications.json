@@ -41,11 +41,28 @@
       }
     }
   },
+  "acknowledgment": {
+    "requested": {
+      "label": "Document to acknowledge",
+      "title": "Please acknowledge a document",
+      "body": "{by} asked you to acknowledge \"{name}\" (version {version})."
+    },
+    "reminder": {
+      "label": "Reminder to acknowledge",
+      "title": "Reminder: please acknowledge a document",
+      "body": "{by} reminded you to acknowledge \"{name}\" (version {version})."
+    }
+  },
   "comment": {
     "mentioned": {
       "label": "Mentioned in a comment",
       "title": "You were mentioned",
       "body": "{by} mentioned you on \"{title}\": {excerpt}"
+    },
+    "replied": {
+      "label": "Reply to your comment",
+      "title": "{by} replied to your comment",
+      "body": "{by} replied to your comment on \"{title}\": {excerpt}"
     }
   },
   "from": " (from {ip})",
