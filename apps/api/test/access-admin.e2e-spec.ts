@@ -362,7 +362,12 @@ describe('access administration (e2e)', () => {
         .expect(400);
       expect(stale.body.code).toBe('invitation_invalid');
 
-      await node.admin().post(`/v1/access/invitations/${id}/send`).expect(202);
+      // The route's old name still sends, and says it is going away.
+      const resent = await node
+        .admin()
+        .post(`/v1/access/invitations/${id}/resend`)
+        .expect(202);
+      expect(resent.headers.deprecation).toBeDefined();
       await node.acceptAsNew(await nextLink(second));
       const joined = (
         (await node.admin().get('/v1/access/users?limit=100').expect(200)).body

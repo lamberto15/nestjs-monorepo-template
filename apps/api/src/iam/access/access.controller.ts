@@ -38,6 +38,7 @@ import {
 } from '@nestjs/swagger';
 import { minutes } from '@nestjs/throttler';
 import { z } from 'zod';
+import { Deprecated } from '../../core/http/deprecated.js';
 import type { ListQuery } from '../../core/http/list-query.js';
 import { listSchema, pageSchema } from '../../core/http/pagination.js';
 import {
@@ -572,6 +573,26 @@ export class AccessController {
   @ApiAcceptedResponse({ standardSchema: invitationSchema })
   @ApiNotFoundResponse({ description: 'No pending invitation of this id.' })
   sendInvitation(
+    @CurrentUser() user: UserPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Ip() ip: string,
+  ) {
+    return this.admin.sendInvitation(user, id, ip);
+  }
+
+  @Post('invitations/:id/resend')
+  @Deprecated({
+    since: '2026-10-28',
+    successor: '/v1/access/invitations/{id}/send',
+  })
+  @Can(AccessPolicy, 'manageUsers')
+  @RecentAuthentication()
+  @UserThrottle({ limit: 30, ttl: minutes(15) })
+  @HttpCode(202)
+  @ApiOperation({ summary: 'Send a pending invitation again (use `…/send`)' })
+  @ApiAcceptedResponse({ standardSchema: invitationSchema })
+  @ApiNotFoundResponse({ description: 'No pending invitation of this id.' })
+  resendInvitation(
     @CurrentUser() user: UserPrincipal,
     @Param('id', ParseUUIDPipe) id: string,
     @Ip() ip: string,
