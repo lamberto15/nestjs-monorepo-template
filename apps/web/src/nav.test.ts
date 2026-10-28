@@ -48,6 +48,7 @@ describe('mergeNav', () => {
     // with `pnpm feature:remove`) sits among them by its `order`.
     expect(tos('home')).toEqual([
       '/',
+      '/work',
       '/notifications',
       '/approvals',
       '/transfers',

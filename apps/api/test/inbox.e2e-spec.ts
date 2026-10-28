@@ -57,10 +57,9 @@ describe('the work inbox (e2e)', () => {
     await node.app.get(OutboxRelay).runOnce();
 
     const all = await inbox(editor.agent);
-    expect(all.items.map((i) => i.kind).sort()).toEqual([
-      'approval.decide',
-      'mention',
-    ]);
+    expect(
+      all.items.map((i) => i.kind).sort((a, b) => a.localeCompare(b)),
+    ).toEqual(['approval.decide', 'mention']);
     // One item a page: the cursor continues across both sources, each item once.
     const first = await inbox(editor.agent, '?limit=1');
     expect(first.nextCursor).not.toBeNull();
@@ -68,9 +67,11 @@ describe('the work inbox (e2e)', () => {
       editor.agent,
       `?limit=1&cursor=${first.nextCursor}`,
     );
-    expect([first.items[0]!.key, second.items[0]!.key].sort()).toEqual(
-      all.items.map((i) => i.key).sort(),
-    );
+    expect(
+      [first.items[0]!.key, second.items[0]!.key].sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    ).toEqual(all.items.map((i) => i.key).sort((a, b) => a.localeCompare(b)));
     expect(second.items).toHaveLength(1);
     expect((await inbox(editor.agent, '?source=mention')).items).toHaveLength(
       1,

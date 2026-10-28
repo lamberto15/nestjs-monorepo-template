@@ -1,0 +1,31 @@
+{
+  "nav": {
+    "title": "My work"
+  },
+  "page": {
+    "title": "My work",
+    "description": "What is waiting on you in this workspace.",
+    "empty": "Nothing is waiting on you.",
+    "more": "Show more"
+  },
+  "kind": {
+    "approval.decide": "To approve",
+    "approval.revise": "Changes requested",
+    "mention": "Mention"
+  },
+  "item": {
+    "approval": "Requested by {{requester}}",
+    "mention": "{{by}} mentioned you",
+    "due": "due {{date}}",
+    "dismiss": "Dismiss"
+  },
+  "recents": {
+    "group": "Recent",
+    "clear": "Clear history"
+  },
+  "presence": {
+    "viewing": "{{name}} is viewing",
+    "editing": "{{name}} is editing",
+    "warning": "Someone is editing this record. Your save is still checked against the latest version."
+  }
+}

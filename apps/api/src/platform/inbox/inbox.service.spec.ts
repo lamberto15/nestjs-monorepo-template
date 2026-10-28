@@ -17,7 +17,7 @@ const source = (
     Promise.resolve(
       ids
         .filter((id) => !page.after || id < page.after)
-        .sort()
+        .sort((a, b) => a.localeCompare(b))
         .reverse()
         .slice(0, page.limit)
         .map((id) => ({
