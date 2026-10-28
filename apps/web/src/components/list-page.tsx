@@ -34,8 +34,14 @@ import { FavoriteButton } from '@/features/favorites/favorite-button';
 import { ScheduleReportButton } from '@/features/reports/schedule-button';
 import { useExporterFor } from '@/features/transfer/api';
 import { ExportButton } from '@/features/transfer/export-button';
+import { useViewKind, viewKinds } from '@/features/record-views/api';
+import {
+  RecordViewOf,
+  ViewSwitcher,
+} from '@/features/record-views/record-views';
 import { ViewsPicker } from '@/features/views/views-picker';
 import type { BulkContext } from '@/features/bulk/types';
+import { useWritesPaused } from '@/lib/mode';
 import { useDataTable } from '@/hooks/use-data-table';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { customFieldColumns, refColumns } from '@/lib/list-columns';
@@ -162,6 +168,10 @@ function ListTable<P extends ListPath>({
   const { t, i18n } = useTranslation();
   const router = useRouter({ warn: false });
   const checkable = selectable || bulkActions !== undefined;
+  // The board, calendar and timeline the subject declares, besides the table.
+  const kinds = viewKinds(description.views);
+  const [kind, setKind] = useViewKind(kinds);
+  const paused = useWritesPaused();
   // What the reference fields point at: tags, units, users (`ref`).
   const refs = useListRefs(subject, description.fields);
   // The caller's columns, then what the list's metadata adds to them: the
@@ -254,11 +264,18 @@ function ListTable<P extends ListPath>({
     </>
   );
   const Rows = phone ? DataTableCards : DataTable;
+  // The other views show the cells of the table's data columns, as visible.
+  const dataColumns = cols.filter(
+    (c) => c.id !== 'select' && c.id !== 'actions',
+  );
 
   return (
     <div className="flex flex-col gap-2">
       <FieldsSync table={table} onChange={setFields} />
       <DataTableAdvancedToolbar table={table}>
+        {kinds.length > 1 && (
+          <ViewSwitcher kinds={kinds} kind={kind} onChange={setKind} />
+        )}
         {description.search && (
           <SearchBox value={query.q} onSearch={query.search} />
         )}
@@ -273,6 +290,25 @@ function ListTable<P extends ListPath>({
           title={t('list.empty.title')}
           description={t('list.empty.description')}
         />
+      ) : kind !== 'table' && description.views ? (
+        <Subscribe source={table.atoms.columnVisibility}>
+          {(visibility) => (
+            <RecordViewOf
+              subject={subject}
+              kind={kind}
+              views={description.views!}
+              path={path}
+              pathParams={pathParams}
+              description={description}
+              extra={extraQuery}
+              params={query.params}
+              columns={dataColumns as never}
+              visibility={visibility}
+              rowHref={rowHref as never}
+              paused={paused}
+            />
+          )}
+        </Subscribe>
       ) : (
         <Rows
           table={table}

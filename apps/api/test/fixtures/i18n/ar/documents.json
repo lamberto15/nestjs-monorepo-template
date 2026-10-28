@@ -7,6 +7,7 @@
       "title": "Title",
       "body": "Body",
       "publishedAt": "Published at",
+      "parentId": "Parent",
       "code": "Code"
     }
   }

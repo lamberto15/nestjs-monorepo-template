@@ -25,7 +25,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Response } from 'express';
+import type { NodeResponse as Response } from '@nestjs/platform-node';
 import { z } from 'zod';
 import { AccessPolicy } from '../../access/policies.js';
 import { ApiKeyAuth } from '../../auth/api-key-auth.provider.js';

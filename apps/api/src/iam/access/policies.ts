@@ -77,6 +77,11 @@ export class AccessPolicy {
     );
   }
 
+  /** Business calendars (platform/calendars): working hours, time zone and holidays for deadlines. */
+  async manageCalendars(user: Principal | null) {
+    return manager(user) && this.access.can(user, 'manageCalendars', 'Access');
+  }
+
   /** The deployment's tenants (TenantsController, also @OperatorOnly()). */
   async manageTenants(user: Principal | null) {
     return manager(user) && this.access.can(user, 'manageTenants', 'Access');
@@ -123,6 +128,15 @@ export class AccessPolicy {
       user?.kind === 'client' &&
       this.access.can(user, 'provisionScim', 'Access')
     );
+  }
+
+  /**
+   * Why a member may or may not act on a subject or a record (GET
+   * /v1/access/users/{id}/explanation): who hands out roles or manages
+   * users, never while acting as someone else.
+   */
+  async explain(user: Principal | null) {
+    return (await this.manageRoles(user)) || (await this.manageUsers(user));
   }
 
   /**

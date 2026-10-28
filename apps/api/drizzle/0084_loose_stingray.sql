@@ -1,1 +1,0 @@
-ALTER TABLE "tenants" ADD COLUMN "dark_logo_key" text;

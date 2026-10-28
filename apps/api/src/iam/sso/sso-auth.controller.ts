@@ -28,7 +28,10 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Request, Response } from 'express';
+import type {
+  NodeRequest as Request,
+  NodeResponse as Response,
+} from '@nestjs/platform-node';
 import { ClsServiceManager } from 'nestjs-cls';
 import { z } from 'zod';
 import { type CoreEnv, webUrl } from '../../core/config/core.env.js';

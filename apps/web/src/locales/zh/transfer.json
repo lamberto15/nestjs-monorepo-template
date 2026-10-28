@@ -108,5 +108,21 @@
     "running": "进行中… 已处理 {{count}} 项。",
     "result": "完成 {{done}} 项，失败 {{failed}} 项，跳过 {{skipped}} 项。",
     "failed": "运行已停止。"
+  },
+  "mapping": {
+    "title": "列映射",
+    "header": "文件中",
+    "sample": "第一行",
+    "column": "导入为",
+    "columnOf": "{{header}} 的列",
+    "asIs": "{{header}}（保持不变）",
+    "ignore": "忽略此列",
+    "twice": "文件中的两列都映射到 {{columns}}：请为其中一列另选。",
+    "apply": "已保存的映射",
+    "choose": "应用已保存的映射",
+    "delete": "删除“{{name}}”",
+    "name": "将此映射另存为",
+    "save": "保存映射",
+    "saved": "映射已保存。"
   }
 }

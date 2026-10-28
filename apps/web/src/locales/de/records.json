@@ -98,5 +98,12 @@
     "option": "Wählen Sie eine der angebotenen Möglichkeiten.",
     "none": "Keine",
     "choose": "Auswählen…"
+  },
+  "related": {
+    "title": "Verknüpft",
+    "heading": "{{subject}} ({{field}})",
+    "empty": "Noch keine.",
+    "error": "Die verknüpften Datensätze konnten nicht geladen werden.",
+    "more": "Die neuesten {{shown}} von {{total}}."
   }
 }

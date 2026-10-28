@@ -93,6 +93,35 @@ git push -u origin HEAD                   # a pull request, CI, review
 A file you deleted and the template changed comes back as a conflict
 (`deleted by us`): `git rm <file>` keeps it deleted.
 
+### Code written for Express
+
+The API moved from Express to Nest's native `node:http` adapter
+(`@nestjs/platform-node`; [architecture](architecture.md), "The HTTP
+server"). Code of your own that a merge leaves on Express:
+
+- **`import type { Request, Response } from 'express'`**: take
+  `NodeRequest` and `NodeResponse` from `@nestjs/platform-node`; the
+  Express helpers the template uses (`req.ip`, `req.get()`, `res.cookie()`,
+  `res.redirect()`, `res.set()`, `res.type()`) are there.
+- **`NestExpressApplication`**: `NestNodeApplication`. Create the app with
+  `createHttpAdapter()` (`core/http/http-setup.ts`), as `main.ts` and
+  `test/support.ts` do.
+- **`FileInterceptor` and the other upload interceptors** come from
+  `@nestjs/platform-node`; pass `uploadToDisk()` the injected `StorageDisk`
+  (`disk`), as the template's upload interceptors do.
+- **`req.route`** isn't set: `matchedRouteKey(req)` (`core/http/route-key.ts`)
+  names the matched route.
+- **Express-only middleware** (one that reads `req.app.settings`, Express's
+  router, or a helper the adapter lacks) needs a replacement; plain
+  connect-style `(req, res, next)` middleware, like `compression`, works.
+- **A string type set on a response** (`@Header('Content-Type', …)`,
+  `res.type()`) gets no `; charset=utf-8` added: write it out where clients
+  expect one. Paths are case-sensitive, and a path parameter over 2048
+  characters is a 414.
+
+Then `pnpm remove @nestjs/platform-express @types/express` in `apps/api`
+once nothing imports them.
+
 ### The migrations
 
 drizzle's migrator applies, in the journal's order, the migrations newer than

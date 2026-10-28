@@ -338,7 +338,16 @@ export function recordPaths(record) {
     `${base}/{id}`,
     ...(record.softDelete ? [`${base}/{id}/restore`] : []),
     ...(has('bulk') ? [`${base}/bulk`] : []),
-    ...(has('attachments') ? [`${base}/{id}/attachments`] : []),
+    ...(has('attachments')
+      ? [
+          `${base}/{id}/attachments`,
+          `${base}/{id}/attachments/complete`,
+          `${base}/{id}/attachments/presign`,
+          `${base}/{id}/attachments/sessions`,
+          `${base}/{id}/attachments/sessions/{uploadId}`,
+          `${base}/{id}/attachments/{attachmentId}/versions`,
+        ]
+      : []),
     ...(has('comments')
       ? [
           `${base}/{id}/comments`,
@@ -358,6 +367,9 @@ export function recordPaths(record) {
       : []),
     ...(has('tags') ? [`${base}/{id}/tags`] : []),
     ...(has('watch') ? [`${base}/{id}/watch`] : []),
+    ...(has('share')
+      ? [`${base}/{id}/shares`, `${base}/{id}/shares/{shareId}`]
+      : []),
     ...record.approvals.map((action) => `${base}/{id}/${actionPath(action)}`),
   ];
 }

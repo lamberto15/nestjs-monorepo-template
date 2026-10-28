@@ -54,6 +54,8 @@ const technical = [
     ['Revisions', '/revisions'],
     ['Custom fields', '/custom-fields'],
     ['Saved views', '/saved-views'],
+    ['Record templates', '/templates'],
+    ['Dependent choices', '/choices'],
     ['Sequences', '/sequences'],
     ['Data transfer', '/data-transfer'],
     ['Import limits', '/import-limits'],
@@ -86,7 +88,8 @@ const technical = [
 export default {
   lang: 'en-US',
   title: 'NestJS Monorepo Template',
-  description: 'Separate project evaluation and technical engineering documentation, grounded in repository source.',
+  description:
+    'Separate project evaluation and technical engineering documentation, grounded in repository source.',
   base,
   lastUpdated: true,
   // Documentation intentionally links to services on the reader's own machine.
@@ -130,13 +133,20 @@ export default {
       '/': technical,
     },
     search: { provider: 'local' },
-    socialLinks: [{ icon: 'github', link: 'https://github.com/lamberto15/nestjs-monorepo-template' }],
+    socialLinks: [
+      {
+        icon: 'github',
+        link: 'https://github.com/lamberto15/nestjs-monorepo-template',
+      },
+    ],
     editLink: {
-      pattern: 'https://github.com/lamberto15/nestjs-monorepo-template/edit/main/docs/:path',
+      pattern:
+        'https://github.com/lamberto15/nestjs-monorepo-template/edit/main/docs/:path',
       text: 'Suggest an edit on GitHub',
     },
     footer: {
-      message: 'PolyForm Noncommercial 1.0.0. Commercial use requires separate permission.',
+      message:
+        'PolyForm Noncommercial 1.0.0. Commercial use requires separate permission.',
     },
   },
 };

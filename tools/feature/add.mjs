@@ -94,6 +94,8 @@ export async function addFeature(root, options) {
     throw new Error(`features/${t.plural} exists already.`);
   }
   for (const ref of new Set(fields.filter((f) => f.ref).map((f) => f.ref))) {
+    // Its own records (a parent of the same feature): its table is made with it.
+    if (ref === t.plural) continue;
     const file = inside(api, 'src/features', ref, `${ref}.tables.ts`);
     if (!existsSync(file)) {
       throw new Error(

@@ -17,6 +17,7 @@ CREATE TABLE "tenant_domains" (
 );
 --> statement-breakpoint
 ALTER TABLE "tenant_domains" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "tenants" ADD COLUMN "dark_logo_key" text;--> statement-breakpoint
 ALTER TABLE "tenant_domain_routes" ADD CONSTRAINT "tenant_domain_routes_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tenant_domains" ADD CONSTRAINT "tenant_domains_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "tenant_domain_routes_tenant_id_idx" ON "tenant_domain_routes" USING btree ("tenant_id");--> statement-breakpoint

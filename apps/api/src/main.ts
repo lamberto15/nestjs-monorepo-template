@@ -1,13 +1,13 @@
 // First: .env.development into process.env, before the modules below are loaded.
 import './dev-env.js';
 import type { Server } from 'node:http';
-import type { NestExpressApplication } from '@nestjs/platform-express';
+import type { NestNodeApplication } from '@nestjs/platform-node';
 
 // Second: OpenTelemetry and Sentry start, and finish starting, before the app
-// is loaded: they patch the libraries it loads (http, Express, pg), so they
+// is loaded: they patch the libraries it loads (http, pg), so they
 // cannot start later. Not a static import of instrument.ts followed by static
 // imports of the app: a module's top-level await holds back only the modules
-// that import it, so Nest, Express and the rest would load while the SDKs were
+// that import it, so Nest and the rest would load while the SDKs were
 // still starting, and stay unpatched. Awaiting the imports in turn guarantees
 // the order.
 await import('./core/observability/instrument.js');
@@ -16,17 +16,22 @@ const { NestFactory } = await import('@nestjs/core');
 const { AppModule } = await import('./app.module.js');
 const { configureApp } = await import('./configure-app.js');
 const { createLogger } = await import('./core/logging/logging.js');
+const { createHttpAdapter } = await import('./core/http/http-setup.js');
 const { ObserveInstrument, observeEnabled } =
   await import('./core/observability/observe.js');
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    // rawBody: incoming webhooks are verified on the bytes that were signed, not on a re-serialized body.
-    rawBody: true,
-    logger: createLogger(),
-    // Traces every request, job and outgoing call when NestJS Observe is configured.
-    ...(observeEnabled() && { instrument: ObserveInstrument }),
-  });
+  const app = await NestFactory.create<NestNodeApplication>(
+    AppModule,
+    createHttpAdapter(),
+    {
+      // rawBody: incoming webhooks are verified on the bytes that were signed, not on a re-serialized body.
+      rawBody: true,
+      logger: createLogger(),
+      // Traces every request, job and outgoing call when NestJS Observe is configured.
+      ...(observeEnabled() && { instrument: ObserveInstrument }),
+    },
+  );
   const role = process.env.APP_ROLE ?? 'all';
   await configureApp(app, { openApi: role !== 'worker' });
   // On SIGTERM, /health turns 503, then the workers (workflows, outbox,
@@ -57,7 +62,7 @@ async function bootstrap() {
  * It also closes keep-alive connections as they go idle, once the server has
  * stopped listening (see below).
  */
-function exitIfShutdownHangs(role: string, app: NestExpressApplication) {
+function exitIfShutdownHangs(role: string, app: NestNodeApplication) {
   const deadlineMs = role === 'api' ? 25_000 : 55_000;
   const signals = ['SIGTERM', 'SIGINT', 'SIGHUP'] as const;
   const start = (signal: NodeJS.Signals) => {

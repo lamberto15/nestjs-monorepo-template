@@ -208,10 +208,13 @@ async function boot() {
       await fetch(
         `${appUrl}/v1/telemetry-boot-check?code=BOOT-CODE-1234&state=BOOT-STATE-5678&page=2`,
       );
+      // A route that is there: its span carries the route pattern (a 401 too).
+      await fetch(`${appUrl}/v1/auth/me`);
       await until(
         () =>
           stats.serverSpans > 0 &&
-          stats.scopes['@opentelemetry/instrumentation-pg'] > 0,
+          stats.scopes['@opentelemetry/instrumentation-pg'] > 0 &&
+          seen.traces.includes('GET /v1/auth/me'),
         20_000,
       );
     }
@@ -233,9 +236,11 @@ async function boot() {
     if (!traced(/instrumentation-pg/)) {
       failures.push('no PostgreSQL span: pg was loaded before the SDK started');
     }
-    if (!traced(/instrumentation-(express|router)/)) {
+    // The native adapter has no instrumentation of its own: route-key.ts
+    // names the http instrumentation's server span after the matched route.
+    if (!seen.traces.includes('GET /v1/auth/me')) {
       failures.push(
-        'no Express span: Express was loaded before the SDK started',
+        "no span named after its route (route-key.ts's http.route)",
       );
     }
     if (!seen.headers.has('read-from-a-file')) {
