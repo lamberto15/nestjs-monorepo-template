@@ -8,9 +8,9 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor } from '@nestjs/platform-node';
 import { uploadToDisk } from '@nestjs/storage';
-import type { Request } from 'express';
+import type { NodeRequest as Request } from '@nestjs/platform-node';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import type { RequestPrincipal } from '../../iam/auth/principal.js';
 import { SettingsService } from '../settings/settings.service.js';

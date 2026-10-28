@@ -5,10 +5,10 @@ import {
   type NestInterceptor,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor } from '@nestjs/platform-node';
 import { uploadToDisk } from '@nestjs/storage';
 import { randomUUID } from 'node:crypto';
-import type { Request } from 'express';
+import type { NodeRequest as Request } from '@nestjs/platform-node';
 import { notWhileImpersonating } from '../../iam/account/account.schemas.js';
 import type { UserPrincipal } from '../../iam/auth/principal.js';
 import { assertDeclaredType } from '../attachments/attachment-types.js';

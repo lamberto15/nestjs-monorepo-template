@@ -4,6 +4,7 @@
  * idempotency, languages, health and versions.
  */
 import { randomUUID } from 'node:crypto';
+import { MAX_PARAM_LENGTH } from '../src/core/http/http-setup.js';
 import { bootApp, newPassword, type TestApp } from './support.js';
 
 const PROBLEM = /^application\/problem\+json/;
@@ -189,6 +190,44 @@ describe('API conventions, edge cases (e2e)', () => {
       // No body at all.
       const empty = await node.http().post('/v1/auth/sign-in').expect(400);
       expect(empty.body.code).toBe('validation_failed');
+    });
+
+    it("never echoes a malformed JSON body's text in the problem", async () => {
+      const res = await node
+        .http()
+        .post('/v1/auth/sign-in')
+        .set('Content-Type', 'application/json')
+        .send('"secret-in-the-body"')
+        .expect(400);
+      expect(res.body.code).toBe('bad_request');
+      expect(res.body.detail).toBe('Bad Request');
+      expect(JSON.stringify(res.body)).not.toMatch(/secret-in-the-body/);
+    });
+
+    // The native adapter adds no `; charset=utf-8` to a type set on the response.
+    it('answers problems as application/problem+json, without a charset', async () => {
+      const res = await node.http().get('/v1/nowhere').expect(404);
+      expect(res.headers['content-type']).toBe('application/problem+json');
+    });
+
+    // The native adapter matches paths case-sensitively, unlike Express.
+    it('matches paths case-sensitively: /V1 is not /v1', async () => {
+      await node.admin().get('/v1/test-items').expect(200);
+      const res = await node.admin().get('/V1/test-items').expect(404);
+      expect(res.body.code).toBe('not_found');
+    });
+
+    // A path parameter past MAX_PARAM_LENGTH is a 414 (the native adapter's rule).
+    it('answers a path parameter over the length limit with 414', async () => {
+      await node
+        .admin()
+        .get(`/v1/test-items/${'a'.repeat(MAX_PARAM_LENGTH)}`)
+        .expect(400);
+      const res = await node
+        .admin()
+        .get(`/v1/test-items/${'a'.repeat(MAX_PARAM_LENGTH + 1)}`);
+      expect(res.status).toBe(414);
+      expect(res.headers['content-type']).toMatch(PROBLEM);
     });
 
     it('answers a percent-encoding that is not UTF-8 with a 400, not a 500', async () => {

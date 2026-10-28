@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ApiForbiddenResponse } from '@nestjs/swagger';
-import type { Request } from 'express';
+import type { NodeRequest as Request } from '@nestjs/platform-node';
 import { ReauthenticationService } from '../account/reauthentication.service.js';
 import type { RequestPrincipal } from './principal.js';
 

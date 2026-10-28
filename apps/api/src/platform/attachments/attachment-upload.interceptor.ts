@@ -8,9 +8,9 @@ import {
   type Type,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor } from '@nestjs/platform-node';
 import { uploadToDisk } from '@nestjs/storage';
-import type { Request } from 'express';
+import type { NodeRequest as Request } from '@nestjs/platform-node';
 import { z } from 'zod';
 import type { Principal } from '../../iam/auth/principal.js';
 import type { PlatformEnv } from '../platform.env.js';

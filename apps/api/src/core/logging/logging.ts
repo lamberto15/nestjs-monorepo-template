@@ -10,12 +10,18 @@ import {
 import { trace } from '@opentelemetry/api';
 import { inDatabaseContext } from '../database/database-observer.js';
 import { matchedRouteKey } from '../http/route-key.js';
-import type { NextFunction, Request, Response } from 'express';
+import type {
+  NodeRequest as Request,
+  NodeResponse as Response,
+} from '@nestjs/platform-node';
 import {
   observeRefusalStatus,
   recordTelemetryFailure,
 } from '../observability/telemetry-health.js';
 import { type LogRedaction, logRedaction } from './redaction.js';
+
+/** Hands the request on, or an error to the error handlers (connect-style). */
+type NextFunction = (error?: unknown) => void;
 
 const LEVELS: LogLevel[] = [
   'verbose',

@@ -4,7 +4,7 @@ import {
   Injectable,
   type NestInterceptor,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor } from '@nestjs/platform-node';
 import { randomUUID } from 'node:crypto';
 import { uploadToDisk } from '@nestjs/storage';
 import type { Principal } from '../../iam/auth/principal.js';

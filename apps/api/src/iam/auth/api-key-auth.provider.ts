@@ -10,7 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectDrizzle } from '@nestjs/drizzle';
 import { and, eq, isNull, lt, or } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
-import type { Request } from 'express';
+import type { NodeRequest as Request } from '@nestjs/platform-node';
 import type { Redis } from 'ioredis';
 import type { Database } from '../../core/database/drizzle.js';
 import { REDIS } from '../../core/redis/redis.js';
