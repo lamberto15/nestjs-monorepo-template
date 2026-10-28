@@ -82,7 +82,7 @@ export function Timeline(props: ViewProps & { start: string; end: string }) {
         : anchor;
   const to =
     zoom === 'month' ? addMonths(from, 12) : addDays(from, WINDOW[zoom]);
-  const [windowStart, windowEnd] = bounds(from, to, start.type, zone);
+  const [, windowEnd] = bounds(from, to, start.type, zone);
   const [endLower] = bounds(from, to, end.type, zone);
   const query = {
     ...extra,

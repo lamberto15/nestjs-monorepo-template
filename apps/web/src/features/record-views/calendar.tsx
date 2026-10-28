@@ -9,7 +9,7 @@ import {
 } from '@nestjs-monorepo-template/ui/components/dialog';
 import { Input } from '@nestjs-monorepo-template/ui/components/input';
 import { Label } from '@nestjs-monorepo-template/ui/components/label';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   CalendarClockIcon,
   ChevronLeftIcon,
@@ -89,7 +89,6 @@ export function Calendar(
   const zone = useMe()?.user.timezone ?? undefined;
   const canOf = useRecordCan(props.subject);
   const invalidate = useInvalidateRecords(path);
-  const queryClient = useQueryClient();
   const [field, setField] = useState(props.fields[0] as string);
   const [mode, setMode] = useState<Mode>('month');
   const [anchor, setAnchor] = useState<Day>(() => today(zone));
@@ -119,7 +118,7 @@ export function Calendar(
         ListPageData<Item>
       >,
   });
-  const items = result.data?.items ?? [];
+  const items = useMemo(() => result.data?.items ?? [], [result.data]);
   const rows = useRecordRows(items, props.columns, props.visibility);
   const rowOf = new Map(rows.map((row) => [row.id, row]));
 

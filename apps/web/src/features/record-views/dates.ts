@@ -41,15 +41,6 @@ export const weekday = (day: Day): number => {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 };
 
-/** Days from `from` to `to` (negative when before). */
-export function daysBetween(from: Day, to: Day): number {
-  const [fy, fm, fd] = parts(from);
-  const [ty, tm, td] = parts(to);
-  return Math.round(
-    (Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86_400_000,
-  );
-}
-
 /** The first day of the week holding `day`; `firstDay` 0 = Sunday, 1 = Monday. */
 export function startOfWeek(day: Day, firstDay: number): Day {
   return addDays(day, -((weekday(day) - firstDay + 7) % 7));
