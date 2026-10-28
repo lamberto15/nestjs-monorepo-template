@@ -14,8 +14,9 @@ import {
   useSidebar,
 } from '@nestjs-monorepo-template/ui/components/sidebar';
 import { ChevronRightIcon } from 'lucide-react';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { NavFavorites } from '@/features/favorites/nav-favorites';
 import { useOperator } from '@/features/tenants/queries';
 import { useFeatures, useMe } from '@/lib/features';
 import {
@@ -112,12 +113,14 @@ export function NavMain() {
         ))}
       </SidebarMenu>
     );
-    // The first group (Dashboard, Inbox...) has no heading and never folds.
+    // The first group (Dashboard, Inbox...) has no heading and never folds;
+    // the person's favorites come right after it.
     if (group.id === 'home') {
       return (
-        <SidebarGroup key={group.id} aria-label={t(group.label)}>
-          {menu}
-        </SidebarGroup>
+        <Fragment key={group.id}>
+          <SidebarGroup aria-label={t(group.label)}>{menu}</SidebarGroup>
+          <NavFavorites groups={groups} />
+        </Fragment>
       );
     }
     const open =

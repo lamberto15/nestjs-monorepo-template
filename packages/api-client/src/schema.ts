@@ -2011,6 +2011,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/favorites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your favorites
+         * @description In your order. A record or a saved view you no longer see (deleted, or your access changed) is left out.
+         */
+        get: operations["FavoritesController_list_v1"];
+        put?: never;
+        /**
+         * Pin a record, a page or a saved view
+         * @description Last in your list. `kind`: `record` (with its `subject`, `Note`, and its id as `target`), `page` (the app's path: `/notes`) or `view` (its id as `target`, the list page it opens on as `subject`: `/notes`). At most 50.
+         */
+        post: operations["FavoritesController_add_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/favorites/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Reorder your favorites
+         * @description Every one of your favorites, by id, in the new order.
+         */
+        put: operations["FavoritesController_reorder_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/favorites/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Unpin a favorite */
+        delete: operations["FavoritesController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/retention/rules": {
         parameters: {
             query?: never;
@@ -14367,6 +14428,212 @@ export interface operations {
                 };
                 content?: never;
             };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FavoritesController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            id: string;
+                            /** @enum {string} */
+                            kind: "record" | "page" | "view";
+                            /**
+                             * @description A record's permission subject (`Note`); a view's list page (`/notes`), where it opens; empty for a page.
+                             * @example Note
+                             */
+                            subject: string;
+                            /** @description The record's id, the page's path (`/notes`) or the view's id. */
+                            target: string;
+                            /** @example Q4 plan */
+                            label: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FavoritesController_add_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    kind: "record" | "page" | "view";
+                    /** @default  */
+                    subject?: string;
+                    target: string;
+                    label: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        /** @enum {string} */
+                        kind: "record" | "page" | "view";
+                        /**
+                         * @description A record's permission subject (`Note`); a view's list page (`/notes`), where it opens; empty for a page.
+                         * @example Note
+                         */
+                        subject: string;
+                        /** @description The record's id, the page's path (`/notes`) or the view's id. */
+                        target: string;
+                        /** @example Q4 plan */
+                        label: string;
+                        /** Format: date-time */
+                        createdAt: string;
+                    };
+                };
+            };
+            /** @description A malformed favorite, or 50 already (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such record or view, or you may not see it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description It is a favorite already (conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FavoritesController_reorder_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Every one of your favorites, in the new order. */
+                    ids: string[];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            id: string;
+                            /** @enum {string} */
+                            kind: "record" | "page" | "view";
+                            /**
+                             * @description A record's permission subject (`Note`); a view's list page (`/notes`), where it opens; empty for a page.
+                             * @example Note
+                             */
+                            subject: string;
+                            /** @description The record's id, the page's path (`/notes`) or the view's id. */
+                            target: string;
+                            /** @example Q4 plan */
+                            label: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description Not every one of your favorites, once each (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FavoritesController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not one of your favorites. */
             404: {
                 headers: {
                     [name: string]: unknown;

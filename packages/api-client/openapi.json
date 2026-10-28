@@ -19819,6 +19819,375 @@
         ]
       }
     },
+    "/v1/favorites": {
+      "get": {
+        "description": "In your order. A record or a saved view you no longer see (deleted, or your access changed) is left out.",
+        "operationId": "FavoritesController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "record",
+                              "page",
+                              "view"
+                            ]
+                          },
+                          "subject": {
+                            "type": "string",
+                            "description": "A record's permission subject (`Note`); a view's list page (`/notes`), where it opens; empty for a page.",
+                            "example": "Note"
+                          },
+                          "target": {
+                            "type": "string",
+                            "description": "The record's id, the page's path (`/notes`) or the view's id."
+                          },
+                          "label": {
+                            "type": "string",
+                            "example": "Q4 plan"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "subject",
+                          "target",
+                          "label",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Your favorites",
+        "tags": [
+          "favorites"
+        ]
+      },
+      "post": {
+        "description": "Last in your list. `kind`: `record` (with its `subject`, `Note`, and its id as `target`), `page` (the app's path: `/notes`) or `view` (its id as `target`, the list page it opens on as `subject`: `/notes`). At most 50.",
+        "operationId": "FavoritesController_add_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "record",
+                      "page",
+                      "view"
+                    ]
+                  },
+                  "subject": {
+                    "default": "",
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "target": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "kind",
+                  "target",
+                  "label"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "record",
+                        "page",
+                        "view"
+                      ]
+                    },
+                    "subject": {
+                      "type": "string",
+                      "description": "A record's permission subject (`Note`); a view's list page (`/notes`), where it opens; empty for a page.",
+                      "example": "Note"
+                    },
+                    "target": {
+                      "type": "string",
+                      "description": "The record's id, the page's path (`/notes`) or the view's id."
+                    },
+                    "label": {
+                      "type": "string",
+                      "example": "Q4 plan"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "kind",
+                    "subject",
+                    "target",
+                    "label",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed favorite, or 50 already (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such record or view, or you may not see it."
+          },
+          "409": {
+            "description": "It is a favorite already (conflict)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Pin a record, a page or a saved view",
+        "tags": [
+          "favorites"
+        ]
+      }
+    },
+    "/v1/favorites/order": {
+      "put": {
+        "description": "Every one of your favorites, by id, in the new order.",
+        "operationId": "FavoritesController_reorder_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Every one of your favorites, in the new order."
+                  }
+                },
+                "required": [
+                  "ids"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "record",
+                              "page",
+                              "view"
+                            ]
+                          },
+                          "subject": {
+                            "type": "string",
+                            "description": "A record's permission subject (`Note`); a view's list page (`/notes`), where it opens; empty for a page.",
+                            "example": "Note"
+                          },
+                          "target": {
+                            "type": "string",
+                            "description": "The record's id, the page's path (`/notes`) or the view's id."
+                          },
+                          "label": {
+                            "type": "string",
+                            "example": "Q4 plan"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "subject",
+                          "target",
+                          "label",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not every one of your favorites, once each (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Reorder your favorites",
+        "tags": [
+          "favorites"
+        ]
+      }
+    },
+    "/v1/favorites/{id}": {
+      "delete": {
+        "operationId": "FavoritesController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "Not one of your favorites."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Unpin a favorite",
+        "tags": [
+          "favorites"
+        ]
+      }
+    },
     "/v1/retention/rules": {
       "get": {
         "description": "A declared rule does nothing until the tenant turns it on. `days` is the age after which a record is purged or anonymised (`action`); records under a legal hold are always kept.",

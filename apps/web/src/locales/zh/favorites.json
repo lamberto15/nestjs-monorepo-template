@@ -1,0 +1,12 @@
+{
+  "group": "收藏",
+  "add": "将 {{label}} 加入收藏",
+  "remove": "将 {{label}} 移出收藏",
+  "added": "已将 {{label}} 加入收藏。",
+  "removed": "已将 {{label}} 移出收藏。",
+  "manage": "排列收藏",
+  "manageTitle": "您的收藏",
+  "manageHint": "拖动手柄，或在手柄上使用空格键和方向键来调整顺序。",
+  "reorder": "移动 {{label}}",
+  "unpin": "移除 {{label}}"
+}

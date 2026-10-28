@@ -80,6 +80,8 @@ export const handlers = [
   http.get('/v1/auth/methods', () => HttpResponse.json(allMethods)),
   http.get('/v1/features', () => HttpResponse.json(allFeatures)),
   http.get('/v1/settings', () => HttpResponse.json({ items: [] })),
+  // The sidebar's favorites, asked on every signed-in page: none, unless a test says so.
+  http.get('/v1/favorites', () => HttpResponse.json({ items: [] })),
   // The sidebar's approvals badge asks for its count on every signed-in page.
   http.get('/v1/approvals', () =>
     HttpResponse.json({ items: [], nextCursor: null, total: 0 }),

@@ -29,6 +29,8 @@ import { DataTableSortMenu } from '@/components/data-table/data-table-sort-menu'
 import { EmptyState } from '@/components/empty-state';
 import { Page, PageHeader } from '@/components/page-header';
 import { ListBulkBar } from '@/components/list-bulk-bar';
+import { useCurrentPath } from '@/features/favorites/api';
+import { FavoriteButton } from '@/features/favorites/favorite-button';
 import { ScheduleReportButton } from '@/features/reports/schedule-button';
 import { useExporterFor } from '@/features/transfer/api';
 import { ExportButton } from '@/features/transfer/export-button';
@@ -109,6 +111,7 @@ export interface ListPageProps<P extends ListPath> {
  * state is in the URL (nuqs), the page comes from the API (TanStack Query).
  */
 export function ListPage<P extends ListPath>(props: ListPageProps<P>) {
+  const path = useCurrentPath();
   const description = useListDescription(props.subject);
   const { t } = useTranslation();
 
@@ -117,7 +120,15 @@ export function ListPage<P extends ListPath>(props: ListPageProps<P>) {
       <PageHeader
         title={props.title}
         description={props.subtitle}
-        actions={props.toolbarActions}
+        actions={
+          <>
+            {/* A page of its own (not a list under another's heading): it can be a favorite. */}
+            {props.headingLevel !== 2 && (
+              <FavoriteButton kind="page" target={path} label={props.title} />
+            )}
+            {props.toolbarActions}
+          </>
+        }
         level={props.headingLevel}
       />
       {description.isPending ? (

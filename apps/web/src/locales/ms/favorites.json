@@ -1,0 +1,12 @@
+{
+  "group": "Kegemaran",
+  "add": "Tambah {{label}} ke kegemaran",
+  "remove": "Buang {{label}} daripada kegemaran",
+  "added": "{{label}} ditambah ke kegemaran.",
+  "removed": "{{label}} dibuang daripada kegemaran.",
+  "manage": "Susun kegemaran",
+  "manageTitle": "Kegemaran anda",
+  "manageHint": "Seret pemegang, atau gunakan Space dan kekunci anak panah padanya, untuk menukar susunan.",
+  "reorder": "Alih {{label}}",
+  "unpin": "Buang {{label}}"
+}

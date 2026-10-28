@@ -1,0 +1,12 @@
+{
+  "group": "Favorites",
+  "add": "Add {{label}} to favorites",
+  "remove": "Remove {{label}} from favorites",
+  "added": "{{label}} added to favorites.",
+  "removed": "{{label}} removed from favorites.",
+  "manage": "Reorder favorites",
+  "manageTitle": "Your favorites",
+  "manageHint": "Drag the handles, or use Space and the arrow keys on them, to change the order.",
+  "reorder": "Move {{label}}",
+  "unpin": "Remove {{label}}"
+}
