@@ -340,7 +340,12 @@ export function recordPaths(record) {
     ...(has('bulk') ? [`${base}/bulk`] : []),
     ...(has('attachments') ? [`${base}/{id}/attachments`] : []),
     ...(has('comments')
-      ? [`${base}/{id}/comments`, `${base}/{id}/comments/{commentId}`]
+      ? [
+          `${base}/{id}/comments`,
+          `${base}/{id}/comments/{commentId}`,
+          `${base}/{id}/comments/{commentId}/reopen`,
+          `${base}/{id}/comments/{commentId}/resolve`,
+        ]
       : []),
     ...(has('pdf') ? [`${base}/{id}/pdf`] : []),
     ...(has('revisions')

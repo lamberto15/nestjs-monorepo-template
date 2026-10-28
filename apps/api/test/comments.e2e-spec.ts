@@ -15,6 +15,9 @@ interface Comment {
   mentions: string[];
   mentionNames: Record<string, string | null>;
   editedAt: string | null;
+  parentId: string | null;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
 }
 
 /** The path and query of a signed URL: the tests reach the app on its own port. */
@@ -203,6 +206,95 @@ describe('comments and mentions on test items (e2e)', () => {
           recordId: itemId,
         }),
       });
+    }
+  });
+
+  it('threads: one level of replies, resolve and reopen by the author or a moderator, filters, a thread removed with its replies', async () => {
+    const owner = await person(['editor'], 'Owen');
+    const viewer = await person(['viewer'], 'Vera');
+    const outsider = await person(['editor'], 'Otto');
+    const itemId = await writeItem(owner.agent, 'Roadmap');
+    const base = `/v1/test-items/${itemId}/comments`;
+    const reply = (agent: Agent, parentId: string, body: string) =>
+      agent.post(base).send({ body, parentId });
+
+    const thread = await comment(viewer.agent, itemId, 'Is this final?');
+    const other = await comment(viewer.agent, itemId, 'Another question');
+    expect(thread).toMatchObject({ parentId: null, resolvedAt: null });
+    const answer = (await reply(owner.agent, thread.id, 'Yes.').expect(201))
+      .body as Comment & { parentId: string };
+    expect(answer.parentId).toBe(thread.id);
+
+    // Depth is one: no reply to a reply; the parent must be a comment of this record.
+    await reply(owner.agent, answer.id, 'Nested').expect(400);
+    await reply(owner.agent, randomUUID(), 'Nobody').expect(404);
+    await reply(outsider.agent, thread.id, 'Hi').expect(404);
+
+    // The thread's author is told of the reply, once; not the replier.
+    await deliver();
+    expect(await inbox(viewer.agent, 'comment.replied')).toEqual([
+      expect.objectContaining({
+        body: expect.stringContaining('Owen replied to your comment'),
+      }),
+    ]);
+    expect(await inbox(viewer.agent, 'testItem.commented')).toEqual([]);
+    expect(await inbox(owner.agent, 'comment.replied')).toEqual([]);
+
+    // Filters: the threads, one thread's replies, the open ones.
+    const ids = async (query: string) =>
+      (
+        (await viewer.agent.get(`${base}?${query}`).expect(200)).body
+          .items as Comment[]
+      ).map((c) => c.id);
+    expect(await ids('')).toEqual([thread.id, other.id, answer.id]);
+    expect(await ids('parentId.isNull=true')).toEqual([thread.id, other.id]);
+    expect(await ids(`parentId=${thread.id}`)).toEqual([answer.id]);
+
+    // Resolving: the thread's author or a moderator, not another reader; repeating changes nothing.
+    await reply(viewer.agent, thread.id, 'Mine too').expect(201);
+    await outsider.agent.post(`${base}/${thread.id}/resolve`).expect(404);
+    await owner.agent.post(`${base}/${answer.id}/resolve`).expect(400);
+    const resolved = await viewer.agent
+      .post(`${base}/${thread.id}/resolve`)
+      .expect(200);
+    expect(resolved.body).toMatchObject({
+      resolvedBy: viewer.key,
+      resolvedAt: expect.any(String),
+    });
+    await viewer.agent.post(`${base}/${thread.id}/resolve`).expect(200);
+    expect(await ids('resolvedAt.isNull=true&parentId.isNull=true')).toEqual([
+      other.id,
+    ]);
+    // A resolved thread takes no reply until reopened.
+    await reply(owner.agent, thread.id, 'Late').expect(409);
+    await viewer.agent.post(`${base}/${other.id}/resolve`).expect(200);
+    // A reader who isn't the author nor a moderator may not reopen it; the owner (a moderator) may.
+    const reader = await person(['viewer'], 'Rhea');
+    await reader.agent.post(`${base}/${thread.id}/reopen`).expect(403);
+    const reopened = await owner.agent
+      .post(`${base}/${thread.id}/reopen`)
+      .expect(200);
+    expect(reopened.body).toMatchObject({ resolvedAt: null, resolvedBy: null });
+    await reply(owner.agent, thread.id, 'Now yes').expect(201);
+
+    // Removing the thread removes its replies, audited with their number.
+    await owner.agent.delete(`${base}/${thread.id}`).expect(204);
+    expect(await ids('')).toEqual([other.id]);
+    const audit = await node
+      .admin()
+      .get('/v1/access/audit?action=comment.removed&limit=100')
+      .expect(200);
+    expect(
+      audit.body.items.find(
+        (e: { targetId: string }) => e.targetId === thread.id,
+      ).details,
+    ).toMatchObject({ replies: 3 });
+    for (const action of ['comment.resolved', 'comment.reopened']) {
+      const entries = await node
+        .admin()
+        .get(`/v1/access/audit?action=${action}&limit=100`)
+        .expect(200);
+      expect(entries.body.items).not.toHaveLength(0);
     }
   });
 
