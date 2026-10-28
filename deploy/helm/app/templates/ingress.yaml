@@ -3,8 +3,10 @@
 Two Ingresses: the API's Exact paths in "<fullname>-exact", the Prefix ones
 and the web app in "<fullname>". Traefik names a router after the Ingress
 and the path with its punctuation dropped, so /health (Exact) and /health/
-(Prefix) in one Ingress are one router and the bare path falls to the web
-app; a second Ingress keeps their names apart.
+(Prefix) in one Ingress would be one router; a second Ingress keeps their
+names apart. Traefik also orders routers by the length of their rule, so the
+web app's PathPrefix(`/`) outranks Path(`/api`) and Path(`/files`): the
+Exact Ingress gets a priority above every other (other controllers ignore it).
 */}}
 {{- range $exact := list false true }}
 ---
@@ -16,6 +18,9 @@ metadata:
     {{- include "app.labels" $ | nindent 4 }}
   {{- /* cert-manager's annotations on the first only: one Certificate per secret. */}}
   {{- $annotations := dict }}
+  {{- if $exact }}
+  {{- $_ := set $annotations "traefik.ingress.kubernetes.io/router.priority" "1000" }}
+  {{- end }}
   {{- range $key, $value := $.Values.ingress.annotations }}
   {{- if not (and $exact (hasPrefix "cert-manager.io/" $key)) }}
   {{- $_ := set $annotations $key $value }}

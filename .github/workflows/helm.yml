@@ -146,6 +146,8 @@ jobs:
           # No API path is a bare Prefix: Traefik would give /api-keys to the API (#875).
           yq ea -e '[select(.kind == "Ingress") | .spec.rules[0].http.paths[] | select(.backend.service.name == "app-api" and .pathType == "Prefix" and (.path | test("/$") | not))] | length == 0' "$RUNNER_TEMP/app-single-node.yaml"
           yq ea -e '[select(.kind == "Ingress" and .metadata.name == "app-exact") | .spec.rules[0].http.paths[] | select(.pathType == "Exact") | .path] | contains(["/api", "/health", "/files"])' "$RUNNER_TEMP/app-single-node.yaml"
+          # Traefik ranks routers by rule length: the Exact paths need a priority over the web app's /.
+          yq ea -e '[select(.kind == "Ingress" and .metadata.name == "app-exact")] | .[0].metadata.annotations."traefik.ingress.kubernetes.io/router.priority" == "1000"' "$RUNNER_TEMP/app-single-node.yaml"
           # Traefik names a router after its Ingress and path without the
           # punctuation: /health and /health/ in one Ingress would be one router.
           yq ea -e '[select(.kind == "Ingress") | [.spec.rules[0].http.paths[].path | sub("/$"; "")] | length == (unique | length)] | all' "$RUNNER_TEMP/app-single-node.yaml"
