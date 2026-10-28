@@ -110,3 +110,24 @@ export const incomingEventSchema = z.object({
   data: z.unknown(),
 });
 export type IncomingEvent = z.infer<typeof incomingEventSchema>;
+
+/** `GET /v1/webhook-incoming-event-types`: what a sender may send, generated from the handlers. */
+export const incomingEventTypesSchema = z
+  .object({
+    items: z.array(
+      z.object({
+        type: z.string().meta({ example: 'note.publish-requested' }),
+        description: z.string(),
+        dataSchema: z
+          .record(z.string(), z.unknown())
+          .describe("JSON Schema of the envelope's `data`."),
+        example: z
+          .object({ type: z.string(), data: z.unknown() })
+          .describe('A complete, safe request body.'),
+        delivery: z
+          .string()
+          .describe('Deduplication and acknowledgement semantics.'),
+      }),
+    ),
+  })
+  .meta({ id: 'IncomingWebhookEventTypes' });
