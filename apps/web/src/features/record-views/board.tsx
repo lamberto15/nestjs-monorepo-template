@@ -12,10 +12,10 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { changeField, withConditions, withFields } from './api';
 import { RecordSummary, titleOf, useRecordRows, type ViewProps } from './rows';
-import { fetchPage } from '@/lib/list-query';
 import {
-  listFilters,
   DEFAULT_PER_PAGE,
+  fetchPage,
+  listFilters,
   type ListPageData,
 } from '@/lib/list-query';
 import { recordKeys, useInvalidateRecords, useRecordCan } from '@/lib/records';
