@@ -235,7 +235,12 @@ export async function deleteUnit(id: string) {
 
 export async function addUnitMember(
   id: string,
-  body: { userId: string; role: UnitMember['role'] },
+  body: {
+    userId: string;
+    role: UnitMember['role'];
+    validFrom?: string;
+    validTo?: string;
+  },
 ) {
   return unwrap(
     api.POST('/v1/access/organizational-units/{id}/members', {

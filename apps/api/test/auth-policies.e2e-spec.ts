@@ -39,9 +39,9 @@ describe('auth policies (e2e)', () => {
       .send({ type: 'team', name: `unit-${randomBytes(4).toString('hex')}` })
       .expect(201);
     await admin
-      .patch(`/v1/access/users/${userId}`)
-      .send({ unitIds: [unit.body.id] })
-      .expect(204);
+      .post(`/v1/access/organizational-units/${unit.body.id}/members`)
+      .send({ userId: userId })
+      .expect(201);
     return unit.body.id as string;
   }
 
@@ -161,9 +161,9 @@ describe('auth policies (e2e)', () => {
         .send({ type: 'team', name: 'Exempt?' })
         .expect(201);
       await tenant.admin
-        .patch(`/v1/access/users/${user.id}`)
-        .send({ unitIds: [unit.body.id] })
-        .expect(204);
+        .post(`/v1/access/organizational-units/${unit.body.id}/members`)
+        .send({ userId: user.id })
+        .expect(201);
       await tenant.admin
         .put('/v1/settings/auth.requireMfa')
         .send({ scope: 'unit', scopeId: unit.body.id, value: false })

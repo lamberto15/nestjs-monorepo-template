@@ -21148,8 +21148,6 @@ export interface operations {
                     roleExpiresAt?: {
                         [key: string]: string;
                     };
-                    /** @description Replaces the units they belong to: a unit left ends its membership, a new one starts as a member. */
-                    unitIds?: string[];
                 };
             };
         };
@@ -22397,6 +22395,9 @@ export interface operations {
                             createdAt: string;
                             /** Format: date-time */
                             updatedAt: string;
+                            /** @description The name on their account. */
+                            name: string;
+                            email: string;
                         }[];
                     };
                 };

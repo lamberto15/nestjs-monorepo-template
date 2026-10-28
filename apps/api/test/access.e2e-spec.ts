@@ -252,9 +252,9 @@ describe('access control (e2e)', () => {
       const writer = async (unitId: string, title: string) => {
         const created = await node.user(['editor']);
         await admin
-          .patch(`/v1/access/users/${created.id}`)
-          .send({ unitIds: [unitId] })
-          .expect(204);
+          .post(`/v1/access/organizational-units/${unitId}/members`)
+          .send({ userId: created.id })
+          .expect(201);
         const item = await node
           .writeItem(created.agent, { title, body: 'x' })
           .expect(201);
@@ -299,9 +299,9 @@ describe('access control (e2e)', () => {
       const memberOf = async (key: string, unitId: string) => {
         const created = await node.user([await readingWith(key)]);
         await admin
-          .patch(`/v1/access/users/${created.id}`)
-          .send({ unitIds: [unitId] })
-          .expect(204);
+          .post(`/v1/access/organizational-units/${unitId}/members`)
+          .send({ userId: created.id })
+          .expect(201);
         return titles(created.agent);
       };
       expect(await memberOf('inMyUnits', sales)).toEqual(['From Sales']);
@@ -391,14 +391,14 @@ describe('access control (e2e)', () => {
         ).body.unitId as string | null;
       expect(await item()).toBeNull();
       await admin
-        .patch(`/v1/access/users/${created.id}`)
-        .send({ unitIds: [south] })
-        .expect(204);
+        .post(`/v1/access/organizational-units/${south}/members`)
+        .send({ userId: created.id })
+        .expect(201);
       expect(await item()).toBe(south);
       await admin
-        .patch(`/v1/access/users/${created.id}`)
-        .send({ unitIds: [south, sales] })
-        .expect(204);
+        .post(`/v1/access/organizational-units/${sales}/members`)
+        .send({ userId: created.id })
+        .expect(201);
       expect(await item()).toBeNull();
     });
 

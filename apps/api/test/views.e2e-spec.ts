@@ -53,9 +53,9 @@ describe('saved views (e2e)', () => {
     for (const member of members) {
       await node
         .admin()
-        .patch(`/v1/access/users/${member.id}`)
-        .send({ unitIds: [created.body.id] })
-        .expect(204);
+        .post(`/v1/access/organizational-units/${created.body.id}/members`)
+        .send({ userId: member.id })
+        .expect(201);
     }
     return created.body.id as string;
   }

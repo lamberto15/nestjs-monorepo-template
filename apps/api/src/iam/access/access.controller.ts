@@ -135,12 +135,6 @@ const updateUserSchema = z.strictObject({
     .describe('The membership in this tenant, not the account.'),
   roleIds: z.array(z.uuid()).optional(),
   roleExpiresAt,
-  unitIds: z
-    .array(z.uuid())
-    .optional()
-    .describe(
-      'Replaces the units they belong to: a unit left ends its membership, a new one starts as a member.',
-    ),
 });
 
 const invitationSchema = z.object({

@@ -114,8 +114,8 @@ describe('security (e2e)', () => {
       .send({ type: 'team', name: 'Sales' })
       .expect(201);
     await support.agent
-      .patch(`/v1/access/users/${support.id}`)
-      .send({ unitIds: [unit.body.id] })
+      .post(`/v1/access/organizational-units/${unit.body.id}/members`)
+      .send({ userId: support.id })
       .expect(403);
     // Units are their own permission.
     await support.agent
@@ -152,8 +152,8 @@ describe('security (e2e)', () => {
       .expect(403);
     expect(refused.body.code).toBe('unit_authority_required');
     await support.agent
-      .patch(`/v1/access/users/${helper.id}`)
-      .send({ unitIds: [foreign] })
+      .post(`/v1/access/organizational-units/${foreign}/members`)
+      .send({ userId: helper.id })
       .expect(403);
     // Their own unit and the units under it: as a member, yes.
     await support.agent
@@ -176,9 +176,9 @@ describe('security (e2e)', () => {
       .send({ role: 'lead' })
       .expect(200);
     await support.agent
-      .patch(`/v1/access/users/${helper.id}`)
-      .send({ unitIds: [own] })
-      .expect(204);
+      .post(`/v1/access/organizational-units/${own}/members`)
+      .send({ userId: helper.id })
+      .expect(201);
   });
 
   it('keeps a grant’s end when the roles are sent again', async () => {
@@ -918,9 +918,9 @@ describe('security (e2e)', () => {
       .send({ type: 'team', name: 'Theirs' })
       .expect(201);
     await other.admin
-      .patch(`/v1/access/users/${theirUser.id}`)
-      .send({ unitIds: [theirTeam.body.id] })
-      .expect(204);
+      .post(`/v1/access/organizational-units/${theirTeam.body.id}/members`)
+      .send({ userId: theirUser.id })
+      .expect(201);
     const filtered = await admin
       .get(`/v1/access/users?unitId=${theirTeam.body.id}`)
       .expect(200);
@@ -1220,9 +1220,9 @@ describe('security (e2e)', () => {
       const created = await node.user([conditional.body.id]);
       await node
         .admin()
-        .patch(`/v1/access/users/${created.id}`)
-        .send({ unitIds: [unit.body.id] })
-        .expect(204);
+        .post(`/v1/access/organizational-units/${unit.body.id}/members`)
+        .send({ userId: created.id })
+        .expect(201);
       return created;
     };
     const [caller, teammate] = [await member(), await member()];
@@ -1415,9 +1415,9 @@ describe('security (e2e)', () => {
       const created = await node.user([roleId]);
       await node
         .admin()
-        .patch(`/v1/access/users/${created.id}`)
-        .send({ unitIds: [group.body.id] })
-        .expect(204);
+        .post(`/v1/access/organizational-units/${group.body.id}/members`)
+        .send({ userId: created.id })
+        .expect(201);
       return created;
     };
     const caller = await member(wider);

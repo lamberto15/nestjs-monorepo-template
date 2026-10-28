@@ -437,11 +437,14 @@ describe('approvals (e2e)', () => {
         await node.user(['unit-lead']),
         await node.user(['unit-lead']),
       ];
-      const unitsOf = (user: User, ids: string[]) =>
-        admin
-          .patch(`/v1/access/users/${user.id}`)
-          .send({ unitIds: ids })
-          .expect(204);
+      const unitsOf = async (user: User, ids: string[]) => {
+        for (const id of ids) {
+          await admin
+            .post(`/v1/access/organizational-units/${id}/members`)
+            .send({ userId: user.id })
+            .expect(201);
+        }
+      };
       await unitsOf(requester, [north.id]);
       await unitsOf(salesLead, [sales.id]);
       await unitsOf(northLead, [north.id]);
