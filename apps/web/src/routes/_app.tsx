@@ -14,6 +14,7 @@ import {
   SkipToContent,
 } from '@/components/route-accessibility';
 import { AppSidebar } from '@/components/app-sidebar';
+import { BannerStrip } from '@/components/banner-strip';
 import { BottomNav } from '@/components/bottom-nav';
 import { HeaderBreadcrumb } from '@/components/header-breadcrumb';
 import { BreachedPasswordBanner } from '@/components/breached-password-banner';
@@ -106,12 +107,15 @@ function AppLayout() {
               table would widen the page past the window instead of scrolling
               in its own box. */}
           <SidebarInset className="min-w-0">
-            <OfflineBanner />
-            <ImpersonationBanner />
-            <ModeBanner />
             <SessionIdleWarning />
-            <UnverifiedBanner />
-            <BreachedPasswordBanner />
+            {/* Most urgent first: the strip shows the first one present. */}
+            <BannerStrip>
+              <OfflineBanner />
+              <BreachedPasswordBanner />
+              <ImpersonationBanner />
+              <ModeBanner />
+              <UnverifiedBanner />
+            </BannerStrip>
             <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
               <SidebarTrigger className="-ms-1" />
               <Separator

@@ -262,11 +262,15 @@ function LogoSection(props: { branding: Branding; version: number }) {
           <FileUploadDropzone>
             <div className="flex flex-col items-center gap-1 text-center">
               <UploadIcon className="size-6 text-muted-foreground" />
-              <p className="text-sm font-medium">{t('logo.drop')}</p>
+              <p className="text-sm font-medium pointer-coarse:hidden">
+                {t('logo.drop')}
+              </p>
               <p className="text-xs text-muted-foreground">{t('logo.limit')}</p>
             </div>
             <FileUploadTrigger
               render={<Button variant="outline" size="sm" type="button" />}
+              // A touch screen has nothing to drag: the button comes first, thumb-sized.
+              className="pointer-coarse:order-first pointer-coarse:h-11 pointer-coarse:w-full"
             >
               {t('logo.choose')}
             </FileUploadTrigger>

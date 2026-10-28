@@ -183,6 +183,8 @@
     }
   },
   "account": {
+    "title": "Account",
+    "tabs": "Account pages",
     "save": "Save",
     "cancel": "Cancel",
     "impersonating": "While acting as someone, their account settings stay theirs.",
@@ -329,6 +331,7 @@
     "loading": "Loading",
     "search": "Search",
     "tools": "Filter & sort",
+    "loadMore": "Load more",
     "empty": {
       "title": "Nothing here yet",
       "description": "Records will appear here once they exist."
@@ -510,5 +513,9 @@
     "unchanged": "{{item}} dropped. Nothing changed.",
     "cancelled": "Moving cancelled. {{item}} is back at position {{position}} of {{count}}.",
     "instructions": "To pick up an item, press Space or Enter. Move it with the up and down arrow keys. Press Space or Enter again to drop it, or Escape to cancel."
+  },
+  "banners": {
+    "more": "+{{count}} more",
+    "fewer": "Show less"
   }
 }

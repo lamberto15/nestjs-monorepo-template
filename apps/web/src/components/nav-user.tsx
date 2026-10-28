@@ -23,16 +23,11 @@ import {
 } from '@nestjs-monorepo-template/ui/components/sidebar';
 import { useTheme } from '@nestjs-monorepo-template/ui/components/theme-provider';
 import {
-  BellIcon,
   DownloadIcon,
   ChevronsUpDownIcon,
-  EyeIcon,
   LanguagesIcon,
   LogOutIcon,
   PaletteIcon,
-  ShieldCheckIcon,
-  ShieldUserIcon,
-  SlidersHorizontalIcon,
   UserIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -51,8 +46,6 @@ const themes = ['light', 'dark', 'system'] as const;
 export function NavUser() {
   const { isMobile, setOpenMobile } = useSidebar();
   const { t, i18n } = useTranslation();
-  const { t: tn } = useTranslation('notifications');
-  const { t: tw } = useTranslation('watching');
   const { t: tp } = useTranslation('pwa');
   const install = useInstallPrompt();
   const { theme, setTheme } = useTheme();
@@ -113,29 +106,10 @@ export function NavUser() {
             {/* On a phone the menu is in the sidebar's sheet: a page of the
                 account closes it, as the menu entries do (nav-main.tsx). */}
             <DropdownMenuGroup onClick={() => setOpenMobile(false)}>
+              {/* One entry: the account's pages are tabs of its own (account/route.tsx). */}
               <DropdownMenuItem render={<Link to="/account/profile" />}>
                 <UserIcon />
-                {t('account.profile.title')}
-              </DropdownMenuItem>
-              <DropdownMenuItem render={<Link to="/account/preferences" />}>
-                <SlidersHorizontalIcon />
-                {t('settings:preferences.title')}
-              </DropdownMenuItem>
-              <DropdownMenuItem render={<Link to="/account/security" />}>
-                <ShieldCheckIcon />
-                {t('account.security.title')}
-              </DropdownMenuItem>
-              <DropdownMenuItem render={<Link to="/account/notifications" />}>
-                <BellIcon />
-                {tn('preferences.title')}
-              </DropdownMenuItem>
-              <DropdownMenuItem render={<Link to="/account/watching" />}>
-                <EyeIcon />
-                {tw('title')}
-              </DropdownMenuItem>
-              <DropdownMenuItem render={<Link to="/account/privacy" />}>
-                <ShieldUserIcon />
-                {t('privacy:title')}
+                {t('account.title')}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

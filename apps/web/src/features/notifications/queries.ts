@@ -195,8 +195,12 @@ export function refreshNotificationLists(queryClient: QueryClient) {
   return queryClient.invalidateQueries({ queryKey: [...root, 'list'] });
 }
 
-export function setUnread(queryClient: QueryClient, unread: number) {
-  queryClient.setQueryData(unreadKey, { unread });
+export function setUnread(
+  queryClient: QueryClient,
+  unread: number,
+  unreadCapped: boolean,
+) {
+  queryClient.setQueryData(unreadKey, { unread, unreadCapped });
 }
 
 /** Refetch what the cache can't know: the count, the filtered lists. */

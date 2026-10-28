@@ -38,6 +38,7 @@
     "error": "The attachments could not be loaded.",
     "drop": "Drop files here, or choose them",
     "choose": "Choose files",
+    "dropAnywhere": "Drop to attach to this record",
     "limit": "At most {{max}} each. Accepted: {{types}}.",
     "rejected": "{{name}}: {{reason}}",
     "tooLarge": "the file is larger than {{max}}",

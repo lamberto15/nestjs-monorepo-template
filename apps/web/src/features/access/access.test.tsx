@@ -792,7 +792,7 @@ describe('gating', () => {
     );
     const sheet = await screen.findByRole('dialog');
     expect(
-      await within(sheet).findByText(/needs the permission to manage users/),
+      await within(sheet).findByText(/needs the permission to manage members/),
     ).toBeVisible();
     expect(
       within(sheet).getByRole('checkbox', { name: /Editor/ }),

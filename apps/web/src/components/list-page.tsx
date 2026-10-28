@@ -272,6 +272,12 @@ function ListTable<P extends ListPath>({
               : undefined
           }
           className={query.isPlaceholderData ? 'opacity-60' : undefined}
+          {...(phone && {
+            loadMore: {
+              step: DEFAULT_PER_PAGE,
+              max: description.limits.maxLimit,
+            },
+          })}
           actionBar={
             bulkActions ? (
               <ListBulkBar

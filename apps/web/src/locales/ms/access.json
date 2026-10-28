@@ -2,7 +2,7 @@
   "nav": {
     "users": "Ahli",
     "roles": "Peranan & kebenaran",
-    "units": "Pasukan"
+    "units": "Struktur organisasi"
   },
   "actions": "Tindakan",
   "cancel": "Batal",
@@ -47,7 +47,7 @@
       "description": "Sesi anda menjadi sesi mereka untuk tempoh terhad, dan segala yang anda lakukan direkodkan sebagai anda bertindak sebagai mereka. Hentikan daripada sepanduk untuk mendapatkan semula sesi anda sendiri.",
       "confirm": "Bertindak sebagai mereka"
     },
-    "readOnly": "Anda boleh melihat ahli ini. Mengubah peranan, unit atau akses mereka memerlukan kebenaran untuk mengurus pengguna.",
+    "readOnly": "Anda boleh melihat ahli ini. Mengubah peranan, unit atau akses mereka memerlukan kebenaran untuk mengurus ahli.",
     "open": "Buka"
   },
   "grants": {
@@ -150,7 +150,7 @@
     }
   },
   "units": {
-    "title": "Pasukan",
+    "title": "Struktur organisasi",
     "new": "Unit baharu",
     "none": "Belum ada unit.",
     "newTitle": "Unit baharu",
@@ -197,7 +197,7 @@
     },
     "notFound": "Unit ini tidak wujud (lagi).",
     "back": "Kembali ke struktur organisasi",
-    "needsManageUsers": "Menambah, mengubah dan membuang ahli memerlukan kebenaran untuk mengurus pengguna.",
+    "needsManageUsers": "Menambah, mengubah dan membuang ahli memerlukan kebenaran untuk mengurus ahli.",
     "addMember": "Tambah ahli",
     "pickMember": "Pilih ahli",
     "add": "Tambah",

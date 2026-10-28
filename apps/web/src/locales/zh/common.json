@@ -183,6 +183,8 @@
     }
   },
   "account": {
+    "title": "账户",
+    "tabs": "账户页面",
     "save": "保存",
     "cancel": "取消",
     "impersonating": "以他人身份操作时，对方的账户设置保持不变。",
@@ -328,6 +330,7 @@
     "loading": "加载中",
     "search": "搜索",
     "tools": "筛选与排序",
+    "loadMore": "加载更多",
     "empty": {
       "title": "暂无内容",
       "description": "有记录后会显示在这里。"
@@ -505,5 +508,9 @@
     "unchanged": "{{item}} 已放下，没有变化。",
     "cancelled": "已取消移动。{{item}} 回到位置 {{position}}/{{count}}。",
     "instructions": "按空格键或回车键拿起项目，用上下方向键移动，再按空格键或回车键放下，按 Esc 取消。"
+  },
+  "banners": {
+    "more": "另有 {{count}} 条",
+    "fewer": "收起"
   }
 }

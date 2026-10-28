@@ -7,6 +7,7 @@
   "bell": {
     "label_one": "Notifications, {{count}} unread",
     "label_other": "Notifications, {{count}} unread",
+    "labelCapped": "Notifications, 1,000+ unread",
     "title": "Notifications",
     "empty": "You're all caught up.",
     "viewAll": "Open the inbox"
@@ -20,6 +21,7 @@
     "title": "Inbox",
     "unread_one": "{{count}} unread",
     "unread_other": "{{count}} unread",
+    "unreadCapped": "1,000+ unread",
     "empty": "No notifications here.",
     "loadMore": "Load more",
     "filters": {
@@ -105,6 +107,7 @@
   "dashboard": {
     "title": "Unread notifications",
     "count": "Unread: {{count}}",
+    "countCapped": "Unread: 1,000+",
     "empty": "You are all caught up."
   }
 }

@@ -2,7 +2,7 @@
   "nav": {
     "users": "Mitglieder",
     "roles": "Rollen & Berechtigungen",
-    "units": "Teams"
+    "units": "Organisationsstruktur"
   },
   "actions": "Aktionen",
   "cancel": "Abbrechen",
@@ -47,7 +47,7 @@
       "description": "Ihre Sitzung wird für begrenzte Zeit zu deren Sitzung, und alles, was Sie tun, wird als Handlung von Ihnen in deren Namen aufgezeichnet. Beenden Sie dies über das Banner, um Ihre eigene Sitzung zurückzuerhalten.",
       "confirm": "Identität übernehmen"
     },
-    "readOnly": "Sie können dieses Mitglied sehen. Um dessen Rollen, Einheiten oder Zugriff zu ändern, brauchen Sie die Berechtigung, Benutzer zu verwalten.",
+    "readOnly": "Sie können dieses Mitglied sehen. Um dessen Rollen, Einheiten oder Zugriff zu ändern, brauchen Sie die Berechtigung, Mitglieder zu verwalten.",
     "open": "Öffnen"
   },
   "grants": {
@@ -152,7 +152,7 @@
     }
   },
   "units": {
-    "title": "Teams",
+    "title": "Organisationsstruktur",
     "new": "Neue Einheit",
     "none": "Noch keine Einheiten.",
     "newTitle": "Neue Einheit",
@@ -199,7 +199,7 @@
     },
     "notFound": "Diese Einheit gibt es (nicht mehr).",
     "back": "Zurück zur Organisationsstruktur",
-    "needsManageUsers": "Das Hinzufügen, Ändern und Entfernen von Mitgliedern erfordert die Berechtigung, Benutzer zu verwalten.",
+    "needsManageUsers": "Das Hinzufügen, Ändern und Entfernen von Mitgliedern erfordert die Berechtigung, Mitglieder zu verwalten.",
     "addMember": "Mitglied hinzufügen",
     "pickMember": "Mitglied auswählen",
     "add": "Hinzufügen",

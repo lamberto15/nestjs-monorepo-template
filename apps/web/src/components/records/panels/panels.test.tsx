@@ -545,6 +545,37 @@ describe('attachments', () => {
     );
   });
 
+  it('takes a file dropped anywhere on the page, saying so while it is dragged', async () => {
+    const calls = usePanelsApi();
+    await mountPanels(ALL);
+    const user = await open('Attachments');
+    // A real FileList (jsdom has no DataTransfer to build one).
+    const picker = document.createElement('input');
+    picker.type = 'file';
+    await user.upload(
+      picker,
+      new File(['hello'], 'plan.txt', { type: 'text/plain' }),
+    );
+    const dataTransfer = { types: ['Files'], files: picker.files };
+    fireEvent.dragOver(document.body, { dataTransfer });
+    expect(
+      await screen.findByText('Drop to attach to this record'),
+    ).toBeVisible();
+    // jsdom's input takes only its own FileList; a browser takes the drop's.
+    Object.defineProperty(
+      document.querySelector('input[type="file"]')!,
+      'files',
+      { value: null, writable: true, configurable: true },
+    );
+    fireEvent.drop(document.body, { dataTransfer });
+    await waitFor(() =>
+      expect(calls.uploaded).toEqual([
+        { name: 'plan.txt', type: 'text/plain', size: 5 },
+      ]),
+    );
+    expect(screen.queryByText('Drop to attach to this record')).toBeNull();
+  });
+
   describe('direct uploads (the API offers presignedUploads: STORAGE_DRIVER=s3)', () => {
     const direct = { presignedUploads: true };
     const plan = () => new File(['hello'], 'plan.txt', { type: 'text/plain' });

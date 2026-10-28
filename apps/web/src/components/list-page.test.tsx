@@ -935,6 +935,21 @@ describe('ListPage on a phone', () => {
     expect(screen.queryByRole('table')).toBeNull();
   });
 
+  it('loads more rows on the same page instead of paging, up to the limit', async () => {
+    mocks.fetch.mockImplementation(async (request?: Request) =>
+      request?.url.includes('/v1/lists/')
+        ? json(description)
+        : json(
+            listPage([{ id: '1', title: 'First item', status: 'draft' }], 1, 3),
+          ),
+    );
+    await renderList();
+    await screen.findByText('First item');
+    await userEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    await waitFor(() => expect(listed('limit').at(-1)).toBe('40'));
+    expect(listed('page').at(-1)).toBe('1');
+  });
+
   it('keeps the views, filters and sort in a sheet', async () => {
     await renderList();
     await screen.findByText('First item');
