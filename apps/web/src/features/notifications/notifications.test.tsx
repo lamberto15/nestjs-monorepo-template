@@ -295,6 +295,22 @@ describe('without realtime', () => {
 });
 
 describe('the inbox', () => {
+  it('shows when each was sent, not when it was last read', async () => {
+    const state = api();
+    state.items = [
+      item('a', {
+        read: true,
+        readAt: '2026-10-28T05:00:00.000Z',
+        updatedAt: '2026-10-28T05:00:00.000Z',
+      }),
+    ];
+    await renderApp('/notifications');
+    const row = (await screen.findByText('Title a')).closest('li')!;
+    expect(row.querySelector('time')?.getAttribute('dateTime')).toBe(
+      '2026-10-17T08:00:00.000Z',
+    );
+  });
+
   it('removes one', async () => {
     const state = api();
     server.use(
