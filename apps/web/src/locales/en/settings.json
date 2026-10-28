@@ -181,5 +181,24 @@
   "noLimit": "No limit",
   "notSet": "Not set",
   "layoutSummary": "Custom layout: {{ordered}} cards ordered, {{hidden}} hidden",
-  "layoutDefault": "Standard layout"
+  "layoutDefault": "Standard layout",
+  "bundle": {
+    "title": "Promote configuration",
+    "description": "Carry this tenant's settings and custom roles to another environment: export a bundle here, load it there, check what it changes, then apply it. No secrets, users or records are in it.",
+    "export": "Export bundle",
+    "load": "Load a bundle",
+    "notJson": "This file is not a configuration bundle (JSON).",
+    "nothing": "Nothing to change: the target already matches.",
+    "apply": "Apply",
+    "applied": "Applied: {{created}} created, {{updated}} updated, {{unchanged}} unchanged.",
+    "actions": {
+      "create": "New",
+      "update": "Changed",
+      "unchanged": "Unchanged"
+    },
+    "types": {
+      "setting": "Setting",
+      "role": "Role"
+    }
+  }
 }

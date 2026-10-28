@@ -15,9 +15,16 @@ import { AuditService } from '../../iam/audit/audit.service.js';
 import type { SystemPrincipal } from '../../iam/auth/principal.js';
 import { renditionKeys } from '../images/renditions.js';
 import { ATTACHMENT_SWEEP_JOB } from '../platform.jobs.js';
-import { UPLOAD_GRACE_MS } from './attachment-uploads.service.js';
+import {
+  UPLOAD_GRACE_MS,
+  uploadObjects,
+} from './attachment-uploads.service.js';
 import { AttachmentsRegistry } from './attachments.registry.js';
-import { attachments, attachmentUploads } from './attachments.tables.js';
+import {
+  attachments,
+  attachmentUploads,
+  attachmentVersions,
+} from './attachments.tables.js';
 
 /** Attachments looked at per round. */
 const BATCH = 1000;
@@ -110,12 +117,22 @@ export class AttachmentSweepJob {
             if (orphans.length === 0) break;
             cursor = orphans[orphans.length - 1]!.id;
             // The files first: a failure leaves the rows, and the next night tries again.
-            await this.disk.delete(
-              orphans.flatMap((row) => [
+            const versions = await this.db
+              .select({ key: attachmentVersions.key })
+              .from(attachmentVersions)
+              .where(
+                inArray(
+                  attachmentVersions.attachmentId,
+                  orphans.map((row) => row.id),
+                ),
+              );
+            await this.disk.delete([
+              ...orphans.flatMap((row) => [
                 row.key,
                 ...renditionKeys(row.renditions),
               ]),
-            );
+              ...versions.map((version) => version.key),
+            ]);
             await inTransaction(this.txHost, async (tx) => {
               await tx.delete(attachments).where(
                 inArray(
@@ -169,6 +186,7 @@ export class AttachmentSweepJob {
         .select({
           id: attachmentUploads.id,
           key: attachmentUploads.key,
+          resumable: attachmentUploads.resumable,
           completedAt: attachmentUploads.completedAt,
         })
         .from(attachmentUploads)
@@ -198,7 +216,14 @@ export class AttachmentSweepJob {
       const abandoned = expired.filter((row) => !row.completedAt);
       // The objects first: a failure leaves the rows, and the next night tries again.
       await this.disk.delete(
-        expired.map((row) => row.key).filter((key) => !used.has(key)),
+        (
+          await Promise.all(
+            // The parts of a resumable session go with it.
+            expired.map((row) => uploadObjects(this.disk, row)),
+          )
+        )
+          .flat()
+          .filter((key) => !used.has(key)),
       );
       await inTransaction(this.txHost, async (tx) => {
         await tx.delete(attachmentUploads).where(

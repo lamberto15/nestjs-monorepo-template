@@ -5,7 +5,8 @@
   "tabs": {
     "queues": "Warteschlangen",
     "outbox": "Outbox",
-    "events": "Live-Ereignisse"
+    "events": "Live-Ereignisse",
+    "diagnostics": "Diagnose"
   },
   "queues": {
     "empty": "Keine Warteschlangen.",
@@ -83,5 +84,30 @@
       "closed": "Getrennt"
     },
     "reconnect": "Neu verbinden"
+  },
+  "diagnostics": {
+    "check": "Integration",
+    "state": "Zustand",
+    "driver": "Treiber",
+    "details": "Details",
+    "actions": "Aktionen",
+    "test": "Testen",
+    "passed": "{{check}}: Test bestanden ({{ms}} ms).",
+    "failed": "{{check}}: Test fehlgeschlagen.",
+    "checks": {
+      "database": "Datenbank",
+      "redis": "Redis",
+      "workers": "Worker",
+      "mail": "E-Mail",
+      "storage": "Dateispeicher",
+      "realtime": "Echtzeit"
+    },
+    "states": {
+      "ok": "OK",
+      "configured": "Eingerichtet",
+      "disabled": "Deaktiviert",
+      "unconfigured": "Nicht eingerichtet",
+      "unavailable": "Nicht erreichbar"
+    }
   }
 }
