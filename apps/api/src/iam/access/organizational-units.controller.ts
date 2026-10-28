@@ -84,6 +84,10 @@ const membershipSchema = z.object({
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
+const unitMemberSchema = membershipSchema.extend({
+  name: z.string().describe('The name on their account.'),
+  email: z.string(),
+});
 const addMemberSchema = z.object({
   userId: z.uuid(),
   role: z.enum(UNIT_ROLES).optional().describe('Default: member.'),
@@ -103,7 +107,8 @@ const changeMemberSchema = z.object({ role: z.enum(UNIT_ROLES) });
  * The tenant's organizational units (one tree of divisions, departments
  * and teams), what the unit conditions (`inMyUnits`, `inMyUnitsAndBelow`,
  * `inUnitsILeadAndBelow`) read, and who belongs to them. Users also join
- * units as members with `unitIds` on /access/users.
+ * units as members with `unitIds` when a user is created or invited; after
+ * that, these routes are the one way to change a membership.
  */
 @ApiTags('access')
 @ApiCookieAuth('user-session')
@@ -185,7 +190,7 @@ export class OrganizationalUnitsController {
   @ApiOperation({
     summary: "A unit's memberships, current and ended, latest first",
   })
-  @ApiOkResponse({ standardSchema: listSchema(membershipSchema) })
+  @ApiOkResponse({ standardSchema: listSchema(unitMemberSchema) })
   @ApiNotFoundResponse()
   async members(@Param('id', ParseUUIDPipe) id: string) {
     return { items: await this.units.members(id) };

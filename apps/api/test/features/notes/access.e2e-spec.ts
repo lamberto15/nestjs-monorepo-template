@@ -69,9 +69,9 @@ describe('notes access control (e2e)', () => {
     const member = async (unitId: string) => {
       const created = await node.user(['editor']);
       await admin
-        .patch(`/v1/access/users/${created.id}`)
-        .send({ unitIds: [unitId] })
-        .expect(204);
+        .post(`/v1/access/organizational-units/${unitId}/members`)
+        .send({ userId: created.id })
+        .expect(201);
       return created.agent;
     };
     await writeNote(node, await member(northEast), {

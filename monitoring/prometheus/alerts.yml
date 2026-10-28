@@ -229,6 +229,15 @@ groups:
           summary: A tenant has used {{ $value | humanizePercentage }} of its monthly SMS budget
           description: At 100% (SMS_MONTHLY_BUDGET_MINOR) the tenant's SMS stop until next month (sms_blocked_today{reason="budget_exceeded"}). Check the spend is real (a pumping attack looks like this), then raise the budget or wait for the month to end.
 
+      - alert: MailBudgetNearCap
+        expr: max(mail_budget_used_ratio) >= 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: The deployment has queued {{ $value | humanizePercentage }} of today's mail budget
+          description: 'Past mail.essentialOnlyPercent of mail.dailyLimit (90% by default) only essential mail is queued (mail_withheld_total{reason="budget"}). Check whether it is a mail storm (docs/notifications.md, "Stopping a mail storm"), or raise mail.dailyLimit if the provider allows.'
+
       - alert: WebhookDeliveriesFailing
         expr: delta(state:webhook_deliveries:max{state="failed"}[1h]) > 0
         labels:

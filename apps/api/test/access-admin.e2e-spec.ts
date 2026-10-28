@@ -161,14 +161,14 @@ describe('access administration (e2e)', () => {
       ];
       await node
         .admin()
-        .patch(`/v1/access/users/${a.id}`)
-        .send({ unitIds: [parent] })
-        .expect(204);
+        .post(`/v1/access/organizational-units/${parent}/members`)
+        .send({ userId: a.id })
+        .expect(201);
       await node
         .admin()
-        .patch(`/v1/access/users/${b.id}`)
-        .send({ unitIds: [child.body.id] })
-        .expect(204);
+        .post(`/v1/access/organizational-units/${child.body.id}/members`)
+        .send({ userId: b.id })
+        .expect(201);
 
       const ids = async (query: string) =>
         (
@@ -187,35 +187,37 @@ describe('access administration (e2e)', () => {
       await node.admin().get('/v1/access/users?unitId=nope').expect(400);
     });
 
-    it("keeps a membership dated ahead when the user's units are saved", async () => {
-      const [current, scheduled] = [await unit(), await unit()];
+    it("lists a unit's members with their name and email, and changes memberships only on the unit", async () => {
+      const scheduled = await unit();
       const user = await node.user([]);
-      await node
-        .admin()
-        .patch(`/v1/access/users/${user.id}`)
-        .send({ unitIds: [current] })
-        .expect(204);
       const validFrom = new Date(Date.now() + 86_400_000).toISOString();
       await node
         .admin()
         .post(`/v1/access/organizational-units/${scheduled}/members`)
         .send({ userId: user.id, validFrom })
         .expect(201);
-      // The users view lists started memberships only; sending it back keeps the scheduled one.
-      await node
-        .admin()
-        .patch(`/v1/access/users/${user.id}`)
-        .send({ unitIds: [current] })
-        .expect(204);
       const members = (
         await node
           .admin()
           .get(`/v1/access/organizational-units/${scheduled}/members`)
           .expect(200)
-      ).body.items as { userId: string; validFrom: string }[];
-      expect(members.find((row) => row.userId === user.id)?.validFrom).toBe(
+      ).body.items as {
+        userId: string;
+        validFrom: string;
+        name: string;
+        email: string;
+      }[];
+      expect(members.find((row) => row.userId === user.id)).toMatchObject({
         validFrom,
-      );
+        name: expect.any(String),
+        email: user.email,
+      });
+      // The user's own route no longer takes units.
+      await node
+        .admin()
+        .patch(`/v1/access/users/${user.id}`)
+        .send({ unitIds: [scheduled] })
+        .expect(400);
     });
 
     it('describes the users list at GET /v1/lists/User, to whoever may list them', async () => {

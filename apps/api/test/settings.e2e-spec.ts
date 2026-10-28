@@ -299,9 +299,9 @@ describe('settings (e2e)', () => {
     ).body as { id: string };
     await node
       .admin()
-      .patch(`/v1/access/users/${editor.id}`)
-      .send({ unitIds: [unit.id] })
-      .expect(204);
+      .post(`/v1/access/organizational-units/${unit.id}/members`)
+      .send({ userId: editor.id })
+      .expect(201);
     await manager.agent
       .put(`/v1/settings/${FLAG}`)
       .send({ scope: 'unit', scopeId: unit.id, value: true })

@@ -404,6 +404,27 @@ tests:
               summary: A tenant has used 85% of its monthly SMS budget
               description: At 100% (SMS_MONTHLY_BUDGET_MINOR) the tenant's SMS stop until next month (sms_blocked_today{reason="budget_exceeded"}). Check the spend is real (a pumping attack looks like this), then raise the budget or wait for the month to end.
 
+  - name: mail budget
+    interval: 1m
+    input_series:
+      # Every process reports the same share: 50 %, then 85 % from the 10th minute.
+      - series: 'mail_budget_used_ratio{job="api",instance="10.0.0.2:3000"}'
+        values: '0.5x9 0.85x20'
+      - series: 'mail_budget_used_ratio{job="worker",instance="10.0.0.4:3000"}'
+        values: '0.5x9 0.85x20'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: MailBudgetNearCap
+        exp_alerts: []
+      - eval_time: 16m
+        alertname: MailBudgetNearCap
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: The deployment has queued 85% of today's mail budget
+              description: 'Past mail.essentialOnlyPercent of mail.dailyLimit (90% by default) only essential mail is queued (mail_withheld_total{reason="budget"}). Check whether it is a mail storm (docs/notifications.md, "Stopping a mail storm"), or raise mail.dailyLimit if the provider allows.'
+
   - name: outbox and webhooks
     interval: 1m
     input_series:

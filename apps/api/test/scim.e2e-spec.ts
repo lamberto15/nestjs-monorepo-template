@@ -607,8 +607,8 @@ describe('SCIM provisioning (e2e)', () => {
       .expect(409);
     const joined = await node
       .admin()
-      .patch(`/v1/access/users/${outsider.id}`)
-      .send({ unitIds: [group.id] })
+      .post(`/v1/access/organizational-units/${group.id}/members`)
+      .send({ userId: outsider.id })
       .expect(409);
     expect(joined.body.code).toBe('unit_managed_by_scim');
     // PATCH: add one, remove one (by filter), rename.

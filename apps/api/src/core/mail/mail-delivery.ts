@@ -102,6 +102,18 @@ export class MailDeliveryGate {
     for (const reason of WITHHELD_REASONS) {
       this.withheld.labels(reason).inc(0);
     }
+    // How near the provider's quota today is, before mail is withheld (MailBudgetNearCap).
+    metrics.collect(
+      'mail_budget_used_ratio',
+      "Share of the deployment's daily mail budget (mail.dailyLimit) queued today (UTC); absent without one.",
+      async () => {
+        const { daily } = await this.budget();
+        if (!daily) return [];
+        const queued =
+          Number(await this.redis.get(mailCountKey(new Date()))) || 0;
+        return [{ value: queued / daily }];
+      },
+    );
   }
 
   /** Whether `mail` may be queued now; a withheld one is logged and counted. */
