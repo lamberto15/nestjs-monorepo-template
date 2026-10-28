@@ -78,13 +78,14 @@ describe('automatic database incidents on PostgreSQL', () => {
       await expect(pool.query('select 1')).rejects.toThrow(
         'timeout exceeded when trying to connect',
       );
-      await vi.waitFor(() =>
-        expect(events()).toContainEqual(
-          expect.objectContaining({
-            event: 'database_snapshot',
-            captureStatus: 'captured',
-          }),
-        ),
+      await vi.waitFor(
+        () =>
+          expect(events()).toContainEqual(
+            expect.objectContaining({
+              event: 'database_snapshot',
+              captureStatus: 'captured',
+            }),
+          ),
         { timeout: 3000 },
       );
       expect(events()).toContainEqual(
@@ -110,13 +111,14 @@ describe('automatic database incidents on PostgreSQL', () => {
       trigger: 'database_timeout',
       reason: 'statement_timeout',
     });
-    await vi.waitFor(() =>
-      expect(events()).toContainEqual(
-        expect.objectContaining({
-          event: 'database_snapshot',
-          captureStatus: 'captured',
-        }),
-      ),
+    await vi.waitFor(
+      () =>
+        expect(events()).toContainEqual(
+          expect.objectContaining({
+            event: 'database_snapshot',
+            captureStatus: 'captured',
+          }),
+        ),
       { timeout: 3000 },
     );
     expect(JSON.stringify(events())).not.toContain('private-note');
@@ -171,13 +173,14 @@ describe('automatic database incidents on PostgreSQL', () => {
         kind === 'application' ? database.url : database.ownerUrl,
       );
       await pool.query('select pg_sleep(1)').catch(() => undefined);
-      await vi.waitFor(() =>
-        expect(events()).toContainEqual(
-          expect.objectContaining({
-            captureStatus: 'unavailable',
-            reason: 'monitor_role_required',
-          }),
-        ),
+      await vi.waitFor(
+        () =>
+          expect(events()).toContainEqual(
+            expect.objectContaining({
+              captureStatus: 'unavailable',
+              reason: 'monitor_role_required',
+            }),
+          ),
         { timeout: 3000 },
       );
       expect((await pool.query('select 42 as n')).rows[0]).toEqual({ n: 42 });
