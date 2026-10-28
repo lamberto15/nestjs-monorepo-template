@@ -1,8 +1,12 @@
-import { eq, inArray, sql } from 'drizzle-orm';
-import { assertNoRetiredNames } from '../src/core/database/stored-renames.js';
+import { eq, inArray, like, sql } from 'drizzle-orm';
+import {
+  applyStoredRenames,
+  assertNoRetiredNames,
+} from '../src/core/database/stored-renames.js';
 import { rolePermissions, roles } from '../src/iam/iam.tables.js';
 import { settingOverrides } from '../src/platform/settings/settings.tables.js';
-import { RETIRED_NAMES } from '../src/stored-renames.js';
+import { savedViews } from '../src/platform/views/views.tables.js';
+import { RETIRED_NAMES, STORED_RENAMES } from '../src/stored-renames.js';
 import { bootApp, type TestApp } from './support.js';
 
 /**
@@ -18,6 +22,43 @@ describe('retired stored names (e2e)', () => {
     node = await bootApp();
   });
   afterEach(() => node.close());
+
+  it("rewrites a view's team:<id> scope before the guard reads it, as migrate does (#836)", async () => {
+    const unit = (
+      await node
+        .admin()
+        .post('/v1/access/organizational-units')
+        .send({ type: 'team', name: 'Sales' })
+        .expect(201)
+    ).body.id as string;
+    // A view shared with a team before the units rename: its visibility was
+    // renamed by that release, its scope prefix was not.
+    await node.db.insert(savedViews).values({
+      tenantId: node.tenantId,
+      subject: 'TestItem',
+      name: 'Shared before',
+      visibility: 'unit',
+      owner: 'user:test',
+      unitId: unit,
+      scope: `team:${unit}`,
+    });
+    const lines: string[] = [];
+    await applyStoredRenames(node.database.ownerUrl, STORED_RENAMES, (line) =>
+      lines.push(line),
+    );
+    expect(lines.join('\n')).toMatch(
+      /saved_views\.scope team: → unit: in 1 rows/,
+    );
+    expect(
+      await node.db
+        .select({ scope: savedViews.scope })
+        .from(savedViews)
+        .where(like(savedViews.scope, 'team:%')),
+    ).toEqual([]);
+    await expect(
+      assertNoRetiredNames(node.database.ownerUrl, RETIRED_NAMES),
+    ).resolves.toBeUndefined();
+  });
 
   it('passes a clean database, and names every tenant and column holding a team-era name', async () => {
     const other = await node.otherTenant();

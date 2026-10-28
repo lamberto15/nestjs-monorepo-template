@@ -15,11 +15,14 @@ import { savedViews } from './platform/views/views.tables.js';
  * (core/database/stored-renames.ts) after the migrations, in this order
  * (a name renamed twice goes through both). Keep an entry while a database
  * from before it may still be migrated; the release notes say which
- * release a project must pass through (docs/releases.md). Empty since the
- * team-era renames (org units → teams → organizational units) were removed
- * (#602); the next rename goes here.
+ * release a project must pass through (docs/releases.md). The team-era renames
+ * were removed (#602), all but the saved views' `team:<id>` scopes: their
+ * rewrite (#836) shipped in the same release as that removal, so no
+ * database has run it yet. It runs before the guard below (RETIRED_NAMES).
  */
-export const STORED_RENAMES: readonly StoredRename[] = [];
+export const STORED_RENAMES: readonly StoredRename[] = [
+  { column: savedViews.scope, from: 'team:', to: 'unit:', prefix: true },
+];
 
 /**
  * Team-era names (org units → teams → organizational units, #595) that no
