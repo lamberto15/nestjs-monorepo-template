@@ -17685,6 +17685,48 @@
                       "additionalProperties": false,
                       "description": "What the subject's records take, from their declaration (`<item>.record.ts`): a client shows a record's panels (comments, attachments, tags, revisions, PDF, approvals…) only where they are true. Whether the caller may use one on a record is the record's `can` (`?include=can`) and the routes' answers."
                     },
+                    "related": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "subject": {
+                            "type": "string",
+                            "description": "The referring records: their own list is GET /v1/lists/{subject}.",
+                            "example": "InvoiceLine"
+                          },
+                          "path": {
+                            "type": "string",
+                            "description": "Their list, under /v1: a record's related ones are `GET /v1/<path>?<field>=<id>` (paginated, newest first, only those the caller may read).",
+                            "example": "invoice-lines"
+                          },
+                          "field": {
+                            "type": "string",
+                            "description": "Their field holding the record's id.",
+                            "example": "invoiceId"
+                          },
+                          "title": {
+                            "nullable": true,
+                            "description": "The field a client names each one by (their first text field); null when none.",
+                            "example": "title",
+                            "type": "string"
+                          },
+                          "required": {
+                            "type": "boolean",
+                            "description": "Required: a record they refer to cannot be deleted (409 `record_referenced`). Optional: the field empties when it is deleted for good."
+                          }
+                        },
+                        "required": [
+                          "subject",
+                          "path",
+                          "field",
+                          "title",
+                          "required"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The records that refer to this subject's (a `ref` field of theirs), which the caller may list and filter by that field: a record's related panels."
+                    },
                     "views": {
                       "nullable": true,
                       "description": "The views besides the table that this subject declares and this caller can use: a field they may not filter by leaves its view out. Null when none. Fetch their records with the list route, bounded by `filter` on the fields named here.",
@@ -17828,6 +17870,7 @@
                     "defaultSort",
                     "limits",
                     "capabilities",
+                    "related",
                     "views",
                     "attachmentLimits",
                     "documentTemplates"
