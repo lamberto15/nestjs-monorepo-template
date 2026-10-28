@@ -72,6 +72,11 @@ export const ACCESS_PERMISSIONS = definePermissions({
             'Create, change and delete the number formats of numbered records, and set their counters (platform/sequences)',
           conditions: [],
         },
+        manageCalendars: {
+          label:
+            'Create, change and delete the business calendars (working hours, time zone, holidays) that deadlines count in (platform/calendars)',
+          conditions: [],
+        },
         manageViews: {
           label:
             'Share saved views of lists with the whole tenant, and change or delete shared views (platform/views)',
