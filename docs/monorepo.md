@@ -378,6 +378,16 @@ web app needs the API, so `dev:web` alone suits an API already running.
   (`/v1/notes` with `count=true` per week, as there is no aggregate route), its
   failures are quiet (no toast), and its texts are the feature's own namespace
   (`dashboard.*`). The frame, rows and spinner are `features/dashboard/card.tsx`.
+- **The organization setup checklist** (`features/setup`, a dashboard card): the
+  setup screens an administrator may open (invite the team, a custom role,
+  organizational units, branding, tags, custom fields), each ticked from what the
+  tenant actually has: the card reads the same routes the screens do
+  (`steps.ts`: a step is a link, a permission or switch, and a read that says if
+  it is done). Nothing is stored, so every administrator of the tenant sees the
+  same progress, and a step they may not open is not shown (a person with none
+  sees no card). It is separate from the first administrator's
+  [onboarding](auth.md) (email, password, two-factor), which is the account's.
+  A new step is one entry in `steps.ts` and its `setup:steps.<id>` text.
 
 - **Lists** (`components/list-page.tsx`): `<ListPage subject path columns
 title …>` is a server-paginated, filterable, sortable list of any subject;

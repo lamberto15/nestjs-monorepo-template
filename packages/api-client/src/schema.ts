@@ -2151,172 +2151,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/templates/subjects": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The records that take templates
-         * @description The subjects whose records you may create, with the create fields you may set in a template.
-         */
-        get: operations["TemplatesController_subjects_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/templates": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The record templates you see
-         * @description Yours, those shared with your units and the tenant-wide ones, of the records you may create. `?subject=Note`, `?visibility=unit`, `?name.contains=`, `?sort=name`; newest first; cursor pages.
-         */
-        get: operations["TemplatesController_list_v1"];
-        put?: never;
-        /**
-         * Save a record template
-         * @description Values to prefill the subject's create body (`values`), checked against that body as it is now and your own field permissions. System-set values (ids, numbers, owners, dates) are not fields of it and are refused. `visibility`: `private` (default), `unit` (with `unitId`: an organizational unit you belong to) or `tenant` (`Access.manageTemplates`). The name is unique per subject and place, whatever its case. Audited (`recordTemplate.created`).
-         */
-        post: operations["TemplatesController_create_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/templates/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** One record template you see */
-        get: operations["TemplatesController_get_v1"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete a record template
-         * @description Its owner; a shared one, a template manager too. Audited (`recordTemplate.deleted`).
-         */
-        delete: operations["TemplatesController_remove_v1"];
-        options?: never;
-        head?: never;
-        /**
-         * Change a record template
-         * @description Only what is sent changes (never the subject; `values` replaces all values). Its owner changes it; a shared one, a template manager too (`Access.manageTemplates`). Audited (`recordTemplate.updated`, with what changed).
-         */
-        patch: operations["TemplatesController_update_v1"];
-        trace?: never;
-    };
-    "/v1/templates/{id}/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * A record template, ready to prefill a create
-         * @description The template checked again against the subject's create body as it is now and your permissions: `values` is what still holds, `dropped` what the schema or your permissions no longer allow. Create the record with `POST` on the subject's own route, which validates and authorizes it as any create; a template never creates or bypasses anything.
-         */
-        get: operations["TemplatesController_preview_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/choices": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The sets of dependent choices
-         * @description Each set’s fields (parents first) that you may use, and what each depends on.
-         */
-        get: operations["ChoicesController_list_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/choices/{set}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** One set of dependent choices */
-        get: operations["ChoicesController_one_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/choices/{set}/{field}/options": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The choices of a field, for its parents’ values
-         * @description At most `limit` (50) matching `q`, for the values of the fields it depends on (`parent.<field>=<value>`, all required). The answer echoes `parents`: ignore it when the form’s parents have changed since. Only what you may see.
-         */
-        get: operations["ChoicesController_options_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/choices/{set}/validate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Check a set’s values
-         * @description Each value must be one of the choices you could pick for the values of its parents sent with it (the check a write repeats). A parent changed under a child that no longer fits is refused for the child. Nothing is stored.
-         */
-        post: operations["ChoicesController_validate_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/favorites": {
         parameters: {
             query?: never;
@@ -2373,6 +2207,50 @@ export interface paths {
         post?: never;
         /** Unpin a favorite */
         delete: operations["FavoritesController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/data/imports/{name}/mappings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The saved column mappings of an import
+         * @description The tenant’s, by name. `stale` lists the targets you may no longer import (the schema or your permissions changed since): use the mapping only after changing them.
+         */
+        get: operations["ImportMappingsController_list_v1"];
+        put?: never;
+        /**
+         * Save a column mapping
+         * @description Checked as an import would be: every target a column you may fill, none twice. At most 50 per import. Audited (`importMapping.created`).
+         */
+        post: operations["ImportMappingsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/data/imports/{name}/mappings/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a saved column mapping
+         * @description Audited (`importMapping.deleted`).
+         */
+        delete: operations["ImportMappingsController_remove_v1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5435,107 +5313,25 @@ export interface components {
             /** @description Columns of the view your field permissions hide: left out, not an error. */
             hiddenColumns: string[];
         };
-        RecordTemplateSubjects: {
-            items: {
-                /** @example Note */
-                subject: string;
-                /** @description The create fields a template may hold and you may set. */
-                fields: string[];
-            }[];
-        };
-        RecordTemplatePage: {
-            items: components["schemas"]["RecordTemplate"][];
-            /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
-            nextCursor: string | null;
-            /** @description With `page`: this page. */
-            page?: number;
-            /** @description With `page`: the next page; null: no more. */
-            nextPage?: number | null;
-            /** @description With `page` and `count=true`: ceil(total / limit). */
-            pageCount?: number;
-            /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
-            total?: number;
-            /** @description true: there are more than `total` (show "10,000+"). */
-            totalCapped?: boolean;
-        };
-        RecordTemplate: {
+        ImportMapping: {
             id: string;
-            /** @example Note */
-            subject: string;
-            /** @example Weekly status */
+            /** @example notes */
+            importer: string;
             name: string;
-            /** @enum {string} */
-            visibility: "private" | "unit" | "tenant";
-            /** @description Set for a `unit` template. */
-            unitId: string | null;
-            /** @description `user:<id>` or `client:<id>`; `anonymous` once its owner’s account is gone. */
-            owner: string;
-            /** @description You own it. */
-            mine: boolean;
-            /** @description You may change and delete it (its owner, or a template manager). */
-            editable: boolean;
             /**
-             * @description Values of the subject's create body (`POST /v1/<path>`), as that route takes them. Only fields it declares and you may set: no ids, numbers, owners or dates the system sets. Required fields may be left out.
+             * @description The file's headers to the template's columns: `{ "Surname": "lastName", "Notes": null }` (null: ignore the column). A header not named keeps its own name. A date-time column takes the zone of the file's times as the template's header does: `{ "When": "dueAt (Asia/Dubai)" }`.
              * @example {
-             *       "title": "Weekly status",
-             *       "body": "Done:\nNext:"
+             *       "Title": "title",
+             *       "Internal": null
              *     }
              */
-            values: {
-                [key: string]: unknown;
+            mapping: {
+                [key: string]: string | null;
             };
+            /** @description Targets that are no longer columns you may import (the schema changed, or your permissions did): saving or using the mapping as it is would be refused; change them first. */
+            stale: string[];
             /** Format: date-time */
             createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
-        RecordTemplatePreview: {
-            template: components["schemas"]["RecordTemplate"];
-            /** @description The values that still hold: send them (with what the user adds) as the body of the subject's create route, which validates and authorizes them as any create. */
-            values: {
-                [key: string]: unknown;
-            };
-            /** @description Values left out because the schema or your permissions changed since: `unknown` (no longer a create field), `invalid` (the schema refuses it now), `forbidden` (you may not set that field). */
-            dropped: {
-                field: string;
-                /** @enum {string} */
-                reason: "unknown" | "invalid" | "forbidden";
-                message: string;
-            }[];
-        };
-        ChoiceSets: {
-            items: components["schemas"]["ChoiceSet"][];
-        };
-        ChoiceSet: {
-            /** @example unit-member */
-            key: string;
-            label: string;
-            /** @description Parents before the fields that depend on them. Only the fields whose provider you may use. */
-            fields: {
-                /** @example member */
-                name: string;
-                /** @example unit-members */
-                provider: string;
-                label: string;
-                /** @description The fields whose values this one’s choices depend on: ask for its options with `parent.<field>=<value>` for each. When one changes, drop this field’s value and ignore answers still in flight. */
-                dependsOn: string[];
-            }[];
-        };
-        ChoiceOptions: {
-            set: string;
-            field: string;
-            /** @description The parent values this answer is for, echoed: show it only while they are still the form’s (an answer for an earlier parent is stale). */
-            parents: {
-                [key: string]: string;
-            };
-            items: {
-                /** @description What the form stores and the server checks. */
-                value: string;
-                /** @description For display only: never sent back or trusted. */
-                label: string;
-            }[];
-            /** @description More match: narrow with `q` (answers hold at most `limit`). */
-            hasMore: boolean;
         };
         RetentionRuleList: {
             items: components["schemas"]["RetentionRule"][];
@@ -9072,6 +8868,8 @@ export interface operations {
                     name: string;
                     /** @description Update existing rows by this declared match key. */
                     matchOn?: string;
+                    /** @description A JSON object: the file's headers to the template's columns (`{"Surname": "lastName", "Notes": null}`; null ignores a column). Checked as a saved mapping is; the import then runs as usual (`dryRun` included). A date-time target takes the file's zone: `"dueAt (Asia/Dubai)"`. */
+                    mapping?: string;
                     /**
                      * @description true: check every row, write nothing.
                      * @default false
@@ -15269,554 +15067,6 @@ export interface operations {
             };
         };
     };
-    TemplatesController_subjects_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecordTemplateSubjects"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    TemplatesController_list_v1: {
-        parameters: {
-            query?: {
-                limit?: number;
-                /** @description `nextCursor` of the previous page (the same `sort`). */
-                cursor?: string;
-                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
-                page?: number;
-                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
-                count?: "true" | "false";
-                lang?: string;
-                /** @description Filter: subject = */
-                subject?: string;
-                /** @description Filter: subject in */
-                "subject.in"?: string;
-                /** @description Filter: visibility = */
-                visibility?: "private" | "unit" | "tenant";
-                /** @description Filter: visibility in */
-                "visibility.in"?: string;
-                /** @description Filter: unitId = */
-                unitId?: string;
-                /** @description Filter: name = */
-                name?: string;
-                /** @description Filter: name contains */
-                "name.contains"?: string;
-                /** @description Filter: createdAt gt */
-                "createdAt.gt"?: string;
-                /** @description Filter: createdAt gte */
-                "createdAt.gte"?: string;
-                /** @description Filter: createdAt lt */
-                "createdAt.lt"?: string;
-                /** @description Filter: createdAt lte */
-                "createdAt.lte"?: string;
-                /** @description Filter: createdAt between */
-                "createdAt.between"?: string;
-                /** @description Filter: updatedAt gt */
-                "updatedAt.gt"?: string;
-                /** @description Filter: updatedAt gte */
-                "updatedAt.gte"?: string;
-                /** @description Filter: updatedAt lt */
-                "updatedAt.lt"?: string;
-                /** @description Filter: updatedAt lte */
-                "updatedAt.lte"?: string;
-                /** @description Filter: updatedAt between */
-                "updatedAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"subject","op":"eq","value":…},{…}]}. Fields and operators: subject (eq, in); visibility (eq, in); unitId (eq); name (eq, contains); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
-                filter?: string;
-                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, createdAt, updatedAt. */
-                sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,name. Fields: id, subject, name, visibility, unitId, owner, mine, editable, values, createdAt, updatedAt. */
-                fields?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecordTemplatePage"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    TemplatesController_create_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /**
-                     * @description The records: a subject `GET /v1/templates/subjects` names.
-                     * @example Note
-                     */
-                    subject: string;
-                    /** @example Weekly status */
-                    name: string;
-                    /**
-                     * @default private
-                     * @enum {string}
-                     */
-                    visibility?: "private" | "unit" | "tenant";
-                    /**
-                     * Format: uuid
-                     * @description For `visibility: "unit"`: an organizational unit you belong to.
-                     */
-                    unitId?: string;
-                    /**
-                     * @description Values of the subject's create body (`POST /v1/<path>`), as that route takes them. Only fields it declares and you may set: no ids, numbers, owners or dates the system sets. Required fields may be left out.
-                     * @default {}
-                     * @example {
-                     *       "title": "Weekly status",
-                     *       "body": "Done:\nNext:"
-                     *     }
-                     */
-                    values?: {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecordTemplate"];
-                };
-            };
-            /** @description An unknown subject, a value the subject’s create body refuses or does not have (`values.<field>`), a unit that does not exist, more than 100 templates (validation_failed). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description You may not create the subject; not allowed to share it so; A value sets a field your permissions do not let you set (field_forbidden, naming it). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The name is taken (conflict). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    TemplatesController_get_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecordTemplate"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    TemplatesController_remove_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not yours to delete. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    TemplatesController_update_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @example Weekly status */
-                    name?: string;
-                    /** @enum {string} */
-                    visibility?: "private" | "unit" | "tenant";
-                    /**
-                     * Format: uuid
-                     * @description For `visibility: "unit"`: an organizational unit you belong to.
-                     */
-                    unitId?: string | null;
-                    /**
-                     * @description Values of the subject's create body (`POST /v1/<path>`), as that route takes them. Only fields it declares and you may set: no ids, numbers, owners or dates the system sets. Required fields may be left out.
-                     * @example {
-                     *       "title": "Weekly status",
-                     *       "body": "Done:\nNext:"
-                     *     }
-                     */
-                    values?: {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecordTemplate"];
-                };
-            };
-            /** @description An unknown subject, a value the subject’s create body refuses or does not have (`values.<field>`), a unit that does not exist, more than 100 templates (validation_failed). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not yours to change or to share so; A value sets a field your permissions do not let you set (field_forbidden, naming it). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The name is taken (conflict). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    TemplatesController_preview_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecordTemplatePreview"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description You may not create the subject. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ChoicesController_list_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChoiceSets"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ChoicesController_one_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                set: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChoiceSet"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ChoicesController_options_v1: {
-        parameters: {
-            query?: {
-                q?: string;
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                set: string;
-                field: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChoiceOptions"];
-                };
-            };
-            /** @description A parent value is missing, malformed, or not a parameter of the field (validation_failed, `parent.<field>`). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description You may not use its provider. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ChoicesController_validate_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                set: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /**
-                     * @description The set’s fields as the form holds them, `null` or absent for none. A field’s value is checked among its choices for its parents’ values here.
-                     * @example {
-                     *       "unit": "…",
-                     *       "member": "…"
-                     *     }
-                     */
-                    values: {
-                        [key: string]: string | null;
-                    };
-                };
-            };
-        };
-        responses: {
-            /** @description Every value is a valid choice. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description A value is not an available choice, or its parent is missing or invalid (validation_failed, `path` the field). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description You may not use a field’s provider. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     FavoritesController_list_v1: {
         parameters: {
             query?: never;
@@ -16015,6 +15265,121 @@ export interface operations {
                 content?: never;
             };
             /** @description Not one of your favorites. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ImportMappingsController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["ImportMapping"][];
+                    };
+                };
+            };
+            /** @description Nothing to import by that name. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ImportMappingsController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example CRM export */
+                    name: string;
+                    /**
+                     * @description The file's headers to the template's columns: `{ "Surname": "lastName", "Notes": null }` (null: ignore the column). A header not named keeps its own name. A date-time column takes the zone of the file's times as the template's header does: `{ "When": "dueAt (Asia/Dubai)" }`.
+                     * @example {
+                     *       "Title": "title",
+                     *       "Internal": null
+                     *     }
+                     */
+                    mapping: {
+                        [key: string]: string | null;
+                    };
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportMapping"];
+                };
+            };
+            /** @description A target you cannot import, a target twice, or too many saved. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Nothing to import by that name. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The name is taken (conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ImportMappingsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             404: {
                 headers: {
                     [name: string]: unknown;

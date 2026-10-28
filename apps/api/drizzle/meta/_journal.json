@@ -586,8 +586,15 @@
     {
       "idx": 83,
       "version": "7",
-      "when": 1793208876113,
-      "tag": "0083_keen_dagger",
+      "when": 1793207479601,
+      "tag": "0083_silent_angel",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1793209678852,
+      "tag": "0084_curly_giant_girl",
       "breakpoints": true
     }
   ]

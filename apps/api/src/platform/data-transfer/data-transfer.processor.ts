@@ -40,6 +40,7 @@ import {
 import { CONTENT_TYPES, createWriter, readRecords } from './formats.js';
 import { columnsOf } from './import-columns.js';
 import { LEGACY_IMPORT_LIMITS } from './import-limits.js';
+import { MappingError } from './import-mapping.js';
 
 /** BullMQ's reason for a job it fails itself: stalled past `maxStalledCount` (the worker died mid-run). */
 export const STALLED_REASON = 'job stalled more than allowable limit';
@@ -459,7 +460,7 @@ export class DataTransferProcessor extends TenantWorkerHost<
       for await (const { row, record } of readRecords(
         job.data.format,
         sizeLimit,
-        { dateColumns },
+        { dateColumns, mapping: job.data.mapping },
       )) {
         if (row > limits.maxRows) {
           throw new TransferRefused(
@@ -576,6 +577,11 @@ export class DataTransferProcessor extends TenantWorkerHost<
         }
       }
       await flush();
+    } catch (error) {
+      // A mapping the file doesn't fit (two columns with one name): the reason, not a generic failure.
+      throw error instanceof MappingError
+        ? new TransferRefused(error.message)
+        : error;
     } finally {
       // The upload was only a means: it goes, whatever happened.
       await this.disk.delete(job.data.key).catch(() => undefined);
