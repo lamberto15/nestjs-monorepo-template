@@ -18,7 +18,7 @@ import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DownloadIcon, LockIcon, UploadIcon, XIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ConfirmButton } from '@/components/confirm-button';
@@ -105,6 +105,57 @@ const WORKER_POLL = { live: 10_000, offline: 5_000 } as const;
 /** Why the browser refuses a file before the upload: `onFileValidate`'s answer. */
 const TYPE_REFUSED = 'type';
 
+/**
+ * Files dragged anywhere over the record's page drop into the upload zone:
+ * onto its file input, as the zone's own drop does (Dice UI's FileUpload),
+ * so the same checks and messages apply. True while files are over the page.
+ */
+function usePageDrop(zone: RefObject<HTMLElement | null>) {
+  const [over, setOver] = useState(false);
+  useEffect(() => {
+    const hasFiles = (event: DragEvent) =>
+      event.dataTransfer?.types.includes('Files') ?? false;
+    const onOver = (event: DragEvent) => {
+      if (!hasFiles(event)) {
+        return;
+      }
+      // Lets the drop land here instead of the browser opening the file.
+      event.preventDefault();
+      setOver(true);
+    };
+    const onLeave = (event: DragEvent) => {
+      // Left the window (not just moved between elements).
+      if (event.relatedTarget === null) {
+        setOver(false);
+      }
+    };
+    const onDrop = (event: DragEvent) => {
+      setOver(false);
+      // Dropped on the zone itself: it took the files already.
+      if (!hasFiles(event) || event.defaultPrevented || !event.dataTransfer) {
+        return;
+      }
+      const input =
+        zone.current?.querySelector<HTMLInputElement>('input[type="file"]');
+      if (!input) {
+        return;
+      }
+      event.preventDefault();
+      input.files = event.dataTransfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    window.addEventListener('dragover', onOver);
+    window.addEventListener('dragleave', onLeave);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('dragover', onOver);
+      window.removeEventListener('dragleave', onLeave);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, [zone]);
+  return over;
+}
+
 function UploadZone(props: {
   base: string;
   id: string;
@@ -117,103 +168,121 @@ function UploadZone(props: {
   const direct = useFeature('presignedUploads');
   const { maxBytes, types } = props.limits;
   const max = formatSize(maxBytes, i18n.language);
+  const zone = useRef<HTMLDivElement>(null);
+  const pageDrag = usePageDrop(zone);
   return (
-    <FileUpload
-      value={files}
-      onValueChange={setFiles}
-      maxSize={maxBytes}
-      multiple
-      // The API recognizes the type from the bytes; the browser guesses it
-      // from the name. A file the browser names a type the API refuses is
-      // refused here; one it can't name (empty type) goes to the API, which
-      // decides (415). `accept` would refuse those too, so it's not used.
-      onFileValidate={(file) =>
-        file.type && types.length > 0 && !types.includes(file.type)
-          ? TYPE_REFUSED
-          : null
-      }
-      onFileReject={(file, message) =>
-        toast.error(
-          t('attachments.rejected', {
-            name: file.name,
-            reason:
-              message === TYPE_REFUSED
-                ? t('attachments.typeRefused')
-                : message === 'File too large'
-                  ? t('attachments.tooLarge', { max })
-                  : message,
-          }),
-        )
-      }
-      onUpload={async (batch, { onProgress, onSuccess, onError }) => {
-        await Promise.all(
-          batch.map(async (file) => {
-            try {
-              await uploadAttachment(
-                props.base,
-                props.id,
-                file,
-                (percent) => onProgress(file, percent),
-                direct,
-              );
-              onSuccess(file);
-              // Listed below now: the row leaves the upload list.
-              setFiles((current) => current.filter((f) => f !== file));
-            } catch (error) {
-              toast.error(
-                error instanceof StoreRefusedError
-                  ? t('attachments.storageFailed')
-                  : errorMessage(error),
-              );
-              onError(file, error instanceof Error ? error : new Error());
-            }
-          }),
-        );
-        props.onDone();
-      }}
-    >
-      <FileUploadDropzone>
-        <div className="flex flex-col items-center gap-1 text-center">
-          <UploadIcon className="size-6 text-muted-foreground" />
-          <p className="text-sm font-medium">{t('attachments.drop')}</p>
-          <p className="text-xs text-muted-foreground">
-            {t('attachments.limit', {
-              max,
-              types: [...new Set(types.map(typeLabel))].join(', '),
-            })}
-          </p>
-        </div>
-        <FileUploadTrigger
-          render={<Button variant="outline" size="sm" type="button" />}
+    <div ref={zone}>
+      {pageDrag && (
+        // What a drop anywhere does; a picture for the one dragging (the
+        // zone and its button say the same to everyone else).
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-4 z-50 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-background/80 text-sm font-medium"
         >
-          {t('attachments.choose')}
-        </FileUploadTrigger>
-      </FileUploadDropzone>
-      <FileUploadList>
-        {files.map((file) => (
-          <FileUploadItem
-            key={`${file.name}-${file.size}-${file.lastModified}`}
-            value={file}
-          >
-            <FileUploadItemPreview />
-            <FileUploadItemMetadata />
-            <FileUploadItemProgress />
-            <FileUploadItemDelete
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  type="button"
-                  aria-label={t('attachments.dismiss')}
-                />
+          {t('attachments.dropAnywhere')}
+        </div>
+      )}
+      <FileUpload
+        value={files}
+        onValueChange={setFiles}
+        maxSize={maxBytes}
+        multiple
+        // The API recognizes the type from the bytes; the browser guesses it
+        // from the name. A file the browser names a type the API refuses is
+        // refused here; one it can't name (empty type) goes to the API, which
+        // decides (415). `accept` would refuse those too, so it's not used.
+        onFileValidate={(file) =>
+          file.type && types.length > 0 && !types.includes(file.type)
+            ? TYPE_REFUSED
+            : null
+        }
+        onFileReject={(file, message) =>
+          toast.error(
+            t('attachments.rejected', {
+              name: file.name,
+              reason:
+                message === TYPE_REFUSED
+                  ? t('attachments.typeRefused')
+                  : message === 'File too large'
+                    ? t('attachments.tooLarge', { max })
+                    : message,
+            }),
+          )
+        }
+        onUpload={async (batch, { onProgress, onSuccess, onError }) => {
+          await Promise.all(
+            batch.map(async (file) => {
+              try {
+                await uploadAttachment(
+                  props.base,
+                  props.id,
+                  file,
+                  (percent) => onProgress(file, percent),
+                  direct,
+                );
+                onSuccess(file);
+                // Listed below now: the row leaves the upload list.
+                setFiles((current) => current.filter((f) => f !== file));
+              } catch (error) {
+                toast.error(
+                  error instanceof StoreRefusedError
+                    ? t('attachments.storageFailed')
+                    : errorMessage(error),
+                );
+                onError(file, error instanceof Error ? error : new Error());
               }
+            }),
+          );
+          props.onDone();
+        }}
+      >
+        <FileUploadDropzone>
+          <div className="flex flex-col items-center gap-1 text-center">
+            <UploadIcon className="size-6 text-muted-foreground" />
+            <p className="text-sm font-medium pointer-coarse:hidden">
+              {t('attachments.drop')}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t('attachments.limit', {
+                max,
+                types: [...new Set(types.map(typeLabel))].join(', '),
+              })}
+            </p>
+          </div>
+          <FileUploadTrigger
+            render={<Button variant="outline" size="sm" type="button" />}
+            // A touch screen has nothing to drag: the button comes first, thumb-sized.
+            className="pointer-coarse:order-first pointer-coarse:h-11 pointer-coarse:w-full"
+          >
+            {t('attachments.choose')}
+          </FileUploadTrigger>
+        </FileUploadDropzone>
+        <FileUploadList>
+          {files.map((file) => (
+            <FileUploadItem
+              key={`${file.name}-${file.size}-${file.lastModified}`}
+              value={file}
             >
-              <XIcon />
-            </FileUploadItemDelete>
-          </FileUploadItem>
-        ))}
-      </FileUploadList>
-    </FileUpload>
+              <FileUploadItemPreview />
+              <FileUploadItemMetadata />
+              <FileUploadItemProgress />
+              <FileUploadItemDelete
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    type="button"
+                    aria-label={t('attachments.dismiss')}
+                  />
+                }
+              >
+                <XIcon />
+              </FileUploadItemDelete>
+            </FileUploadItem>
+          ))}
+        </FileUploadList>
+      </FileUpload>
+    </div>
   );
 }
 

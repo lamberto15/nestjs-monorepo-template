@@ -1,10 +1,10 @@
 {
   "nav": {
-    "title": "Kunci API",
+    "title": "Klien API",
     "usage": "Penggunaan API"
   },
   "list": {
-    "title": "Kunci API",
+    "title": "Klien API",
     "description": "Sistem yang memanggil API dengan kunci. Kunci dipaparkan sekali sahaja, apabila ia dibuat.",
     "empty": "Belum ada klien API.",
     "create": "Klien baharu",

@@ -2,7 +2,7 @@
   "nav": {
     "users": "Members",
     "roles": "Roles & permissions",
-    "units": "Teams"
+    "units": "Organization structure"
   },
   "actions": "Actions",
   "cancel": "Cancel",
@@ -47,7 +47,7 @@
       "description": "Your session becomes theirs for a limited time, and everything you do is recorded as you acting as them. Stop from the banner to get your own session back.",
       "confirm": "Impersonate"
     },
-    "readOnly": "You can see this member. Changing their roles, units or access needs the permission to manage users.",
+    "readOnly": "You can see this member. Changing their roles, units or access needs the permission to manage members.",
     "open": "Open"
   },
   "grants": {
@@ -152,7 +152,7 @@
     }
   },
   "units": {
-    "title": "Teams",
+    "title": "Organization structure",
     "new": "New unit",
     "none": "No units yet.",
     "newTitle": "New unit",
@@ -199,7 +199,7 @@
     },
     "notFound": "This unit doesn't exist (any more).",
     "back": "Back to the organization structure",
-    "needsManageUsers": "Adding, changing and removing members needs the permission to manage users.",
+    "needsManageUsers": "Adding, changing and removing members needs the permission to manage members.",
     "addMember": "Add a member",
     "pickMember": "Choose a member",
     "add": "Add",

@@ -136,7 +136,7 @@ describe('the sidebar on a phone', () => {
   it('closes the sheet when the user menu opens an account page', async () => {
     const { router, user, sheet } = await openOnPhone();
     await user.click(sheet.getByRole('button', { name: /Ada Lovelace/ }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Profile' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Account' }));
     await waitFor(() =>
       expect(router.state.location.pathname).toBe('/account/profile'),
     );
@@ -185,6 +185,24 @@ describe('the bottom bar', () => {
     expect(
       screen.queryByRole('navigation', { name: 'Quick navigation' }),
     ).toBeNull();
+  });
+});
+
+describe('the account pages', () => {
+  it('are tabs of one page, the current one marked', async () => {
+    signedInWith({});
+    const { router } = await renderApp('/account/preferences');
+    const tabs = within(
+      await screen.findByRole('navigation', { name: 'Account pages' }),
+    );
+    expect(tabs.getByRole('link', { name: 'Preferences' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    await userEvent.setup().click(tabs.getByRole('link', { name: 'Privacy' }));
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/account/privacy'),
+    );
   });
 });
 

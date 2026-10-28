@@ -37,7 +37,8 @@ export function Inbox() {
     ...(type !== any && { type }),
   };
   const list = useInfiniteQuery(inboxQuery(filter, poll));
-  const unread = useQuery(unreadQuery(poll)).data?.unread ?? 0;
+  const count = useQuery(unreadQuery(poll)).data;
+  const unread = count?.unread ?? 0;
   const types = useQuery(typesQuery).data?.items ?? [];
   const markRead = useMarkRead();
   const markAll = useMarkAllRead();
@@ -58,7 +59,11 @@ export function Inbox() {
     <Page>
       <PageHeader
         title={t('inbox.title')}
-        description={t('inbox.unread', { count: unread })}
+        description={
+          count?.unreadCapped
+            ? t('inbox.unreadCapped')
+            : t('inbox.unread', { count: unread })
+        }
         actions={
           canChange && (
             <Button

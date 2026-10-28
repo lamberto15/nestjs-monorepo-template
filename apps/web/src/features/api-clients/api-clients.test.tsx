@@ -554,7 +554,7 @@ describe('gating', () => {
     api();
     await renderApp('/api-clients');
     expect(
-      await (await menu()).findByRole('link', { name: 'API keys' }),
+      await (await menu()).findByRole('link', { name: 'API clients' }),
     ).toBeVisible();
     expect(
       (await menu()).getByRole('link', { name: 'API usage' }),
@@ -565,7 +565,7 @@ describe('gating', () => {
     api({ features: { apiClients: false } });
     await renderApp('/api-clients');
     expect(await screen.findByText('Page not found')).toBeVisible();
-    expect(screen.queryByRole('link', { name: 'API keys' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'API clients' })).toBeNull();
   });
 
   it('has no usage entry and no usage route with usage off', async () => {
@@ -578,7 +578,7 @@ describe('gating', () => {
     api({ features: { usage: false } });
     await renderApp('/api-clients');
     expect(
-      await (await menu()).findByRole('link', { name: 'API keys' }),
+      await (await menu()).findByRole('link', { name: 'API clients' }),
     ).toBeVisible();
     expect(
       (await menu()).queryByRole('link', { name: 'API usage' }),
@@ -594,7 +594,7 @@ describe('gating', () => {
   it('hides the entries from a user without the permission', async () => {
     api({ can: false });
     await renderApp('/api-clients');
-    await screen.findByRole('heading', { name: 'API keys' });
+    await screen.findByRole('heading', { name: 'API clients' });
     expect(screen.queryByRole('link', { name: 'API usage' })).toBeNull();
   });
 });

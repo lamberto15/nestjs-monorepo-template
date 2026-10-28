@@ -148,6 +148,23 @@ describe('the bell and realtime', () => {
     expect(await bellWith(7)).toBeVisible();
   });
 
+  it('says 1,000+ when the count stopped at its limit', async () => {
+    api();
+    await renderApp('/approvals');
+    expect(await bellWith(2)).toBeVisible();
+    act(() =>
+      connections[0]!.emit('notifications.unread-count', {
+        unread: 1000,
+        unreadCapped: true,
+      }),
+    );
+    expect(
+      await screen.findByRole('button', {
+        name: 'Notifications, 1,000+ unread',
+      }),
+    ).toBeVisible();
+  });
+
   it('puts a new notification on top of the popover', async () => {
     api();
     const user = userEvent.setup();

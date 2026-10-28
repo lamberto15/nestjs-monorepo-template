@@ -6,6 +6,7 @@
   "markAllRead": "Tandakan semua sebagai dibaca",
   "bell": {
     "label_other": "Pemberitahuan, {{count}} belum dibaca",
+    "labelCapped": "Pemberitahuan, 1,000+ belum dibaca",
     "title": "Pemberitahuan",
     "empty": "Tiada yang baharu.",
     "viewAll": "Buka peti masuk"
@@ -18,6 +19,7 @@
   "inbox": {
     "title": "Peti masuk",
     "unread_other": "{{count}} belum dibaca",
+    "unreadCapped": "1,000+ belum dibaca",
     "empty": "Tiada pemberitahuan di sini.",
     "loadMore": "Muat lagi",
     "filters": {
@@ -103,6 +105,7 @@
   "dashboard": {
     "title": "Pemberitahuan belum dibaca",
     "count": "Belum dibaca: {{count}}",
+    "countCapped": "Belum dibaca: 1,000+",
     "empty": "Semuanya sudah dibaca."
   }
 }

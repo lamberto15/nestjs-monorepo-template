@@ -183,6 +183,8 @@
     }
   },
   "account": {
+    "title": "Konto",
+    "tabs": "Kontoseiten",
     "save": "Speichern",
     "cancel": "Abbrechen",
     "impersonating": "Solange Sie als jemand anderes handeln, bleiben dessen Kontoeinstellungen unberührt.",
@@ -329,6 +331,7 @@
     "loading": "Wird geladen",
     "search": "Suchen",
     "tools": "Filtern & sortieren",
+    "loadMore": "Mehr laden",
     "empty": {
       "title": "Noch nichts vorhanden",
       "description": "Einträge erscheinen hier, sobald es welche gibt."
@@ -510,5 +513,9 @@
     "unchanged": "{{item}} abgelegt. Nichts geändert.",
     "cancelled": "Verschieben abgebrochen. {{item}} ist wieder auf Position {{position}} von {{count}}.",
     "instructions": "Leertaste oder Eingabe nimmt ein Element auf. Die Pfeiltasten nach oben und unten verschieben es. Leertaste oder Eingabe legt es ab, Escape bricht ab."
+  },
+  "banners": {
+    "more": "+{{count}} weitere",
+    "fewer": "Weniger anzeigen"
   }
 }

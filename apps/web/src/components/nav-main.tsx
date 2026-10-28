@@ -149,5 +149,8 @@ export function NavMain() {
 /** The count of an entry (`NavItem.badge`); a component, since it calls a hook. */
 function NavBadge(props: { useCount: NonNullable<NavItem['badge']> }) {
   const count = props.useCount();
-  return count ? <SidebarMenuBadge>{count}</SidebarMenuBadge> : null;
+  // As the bell: past 99 the exact number stops helping (and a capped one is 1,000).
+  return count ? (
+    <SidebarMenuBadge>{count > 99 ? '99+' : count}</SidebarMenuBadge>
+  ) : null;
 }

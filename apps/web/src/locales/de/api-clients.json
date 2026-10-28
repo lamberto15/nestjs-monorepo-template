@@ -1,10 +1,10 @@
 {
   "nav": {
-    "title": "API-Schlüssel",
+    "title": "API-Clients",
     "usage": "API-Nutzung"
   },
   "list": {
-    "title": "API-Schlüssel",
+    "title": "API-Clients",
     "description": "Systeme, die die API mit einem Schlüssel aufrufen. Ein Schlüssel wird nur einmal angezeigt, wenn er erstellt wird.",
     "empty": "Noch keine API-Clients.",
     "create": "Neuer Client",

@@ -183,6 +183,8 @@
     }
   },
   "account": {
+    "title": "Akaun",
+    "tabs": "Halaman akaun",
     "save": "Simpan",
     "cancel": "Batal",
     "impersonating": "Semasa bertindak sebagai orang lain, tetapan akaun mereka kekal milik mereka.",
@@ -328,6 +330,7 @@
     "loading": "Memuatkan",
     "search": "Cari",
     "tools": "Tapis & isih",
+    "loadMore": "Muat lagi",
     "empty": {
       "title": "Belum ada apa-apa",
       "description": "Rekod akan muncul di sini setelah wujud."
@@ -505,5 +508,9 @@
     "unchanged": "{{item}} dilepaskan. Tiada perubahan.",
     "cancelled": "Pemindahan dibatalkan. {{item}} kembali ke kedudukan {{position}} daripada {{count}}.",
     "instructions": "Untuk mengambil item, tekan Space atau Enter. Gerakkan dengan kekunci anak panah atas dan bawah. Tekan Space atau Enter sekali lagi untuk melepaskannya, atau Escape untuk membatalkan."
+  },
+  "banners": {
+    "more": "+{{count}} lagi",
+    "fewer": "Tunjuk kurang"
   }
 }

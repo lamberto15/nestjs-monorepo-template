@@ -15,9 +15,11 @@ export function UnreadNotificationsCard() {
     <DashboardListCard
       title={t('dashboard.title')}
       description={
-        unread.data
-          ? t('dashboard.count', { count: unread.data.unread })
-          : undefined
+        unread.data?.unreadCapped
+          ? t('dashboard.countCapped')
+          : unread.data
+            ? t('dashboard.count', { count: unread.data.unread })
+            : undefined
       }
       viewAll={<Link to="/notifications" />}
       pending={list.isPending}

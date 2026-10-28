@@ -146,8 +146,11 @@ export function createRealtime(options: RealtimeOptions): Realtime {
 export interface NotificationHandlers {
   /** A new notification: add it to the top of the list. */
   onItem?: (item: NotificationItem) => void;
-  /** The unread count changed: the bell's badge. */
-  onUnread?: (unread: number) => void;
+  /**
+   * The unread count changed: the bell's badge. `capped`: the count stopped
+   * at its limit (1,000), so there are at least that many (show `1,000+`).
+   */
+  onUnread?: (unread: number, capped: boolean) => void;
   onRead?: (event: { id: string; readAt: string | null }) => void;
   onReadAll?: (event: { before: string | null; updated: number }) => void;
   onRemoved?: (id: string) => void;
@@ -165,8 +168,8 @@ export function watchNotifications(
   const stops = [
     handlers.onItem && realtime.on('notification', handlers.onItem),
     handlers.onUnread &&
-      realtime.on('notifications.unread-count', ({ unread }) =>
-        handlers.onUnread!(unread),
+      realtime.on('notifications.unread-count', ({ unread, unreadCapped }) =>
+        handlers.onUnread!(unread, unreadCapped),
       ),
     handlers.onRead && realtime.on('notification.read', handlers.onRead),
     handlers.onReadAll &&

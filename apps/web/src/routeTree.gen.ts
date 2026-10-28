@@ -20,6 +20,7 @@ import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppAccountRouteRouteImport } from './routes/_app/account/route'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppBrandingRouteImport } from './routes/_app/branding'
 import { Route as AppCustomFieldsRouteImport } from './routes/_app/custom-fields'
@@ -123,6 +124,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAccountRouteRoute = AppAccountRouteRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAuditRoute = AppAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -199,39 +205,39 @@ const AppAccessUsersRoute = AppAccessUsersRouteImport.update({
   getParentRoute: () => AppRoute,
 } as any)
 const AppAccountIndexRoute = AppAccountIndexRouteImport.update({
-  id: '/account/',
-  path: '/account/',
-  getParentRoute: () => AppRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppAccountRouteRoute,
 } as any)
 const AppAccountNotificationsRoute = AppAccountNotificationsRouteImport.update({
-  id: '/account/notifications',
-  path: '/account/notifications',
-  getParentRoute: () => AppRoute,
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AppAccountRouteRoute,
 } as any)
 const AppAccountPreferencesRoute = AppAccountPreferencesRouteImport.update({
-  id: '/account/preferences',
-  path: '/account/preferences',
-  getParentRoute: () => AppRoute,
+  id: '/preferences',
+  path: '/preferences',
+  getParentRoute: () => AppAccountRouteRoute,
 } as any)
 const AppAccountPrivacyRoute = AppAccountPrivacyRouteImport.update({
-  id: '/account/privacy',
-  path: '/account/privacy',
-  getParentRoute: () => AppRoute,
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => AppAccountRouteRoute,
 } as any)
 const AppAccountProfileRoute = AppAccountProfileRouteImport.update({
-  id: '/account/profile',
-  path: '/account/profile',
-  getParentRoute: () => AppRoute,
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppAccountRouteRoute,
 } as any)
 const AppAccountSecurityRoute = AppAccountSecurityRouteImport.update({
-  id: '/account/security',
-  path: '/account/security',
-  getParentRoute: () => AppRoute,
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => AppAccountRouteRoute,
 } as any)
 const AppAccountWatchingRoute = AppAccountWatchingRouteImport.update({
-  id: '/account/watching',
-  path: '/account/watching',
-  getParentRoute: () => AppRoute,
+  id: '/watching',
+  path: '/watching',
+  getParentRoute: () => AppAccountRouteRoute,
 } as any)
 const AppApiClientsIndexRoute = AppApiClientsIndexRouteImport.update({
   id: '/api-clients/',
@@ -379,6 +385,7 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof SignUpRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/account': typeof AppAccountRouteRouteWithChildren
   '/audit': typeof AppAuditRoute
   '/branding': typeof AppBrandingRoute
   '/custom-fields': typeof AppCustomFieldsRoute
@@ -500,6 +507,7 @@ export interface FileRoutesById {
   '/sign-up': typeof SignUpRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/_app/account': typeof AppAccountRouteRouteWithChildren
   '/_app/audit': typeof AppAuditRoute
   '/_app/branding': typeof AppBrandingRoute
   '/_app/custom-fields': typeof AppCustomFieldsRoute
@@ -563,6 +571,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/unsubscribe'
     | '/verify-email'
+    | '/account'
     | '/audit'
     | '/branding'
     | '/custom-fields'
@@ -683,6 +692,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/unsubscribe'
     | '/verify-email'
+    | '/_app/account'
     | '/_app/audit'
     | '/_app/branding'
     | '/_app/custom-fields'
@@ -826,6 +836,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/account': {
+      id: '/_app/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AppAccountRouteRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/audit': {
       id: '/_app/audit'
       path: '/audit'
@@ -933,52 +950,52 @@ declare module '@tanstack/react-router' {
     }
     '/_app/account/': {
       id: '/_app/account/'
-      path: '/account'
+      path: '/'
       fullPath: '/account/'
       preLoaderRoute: typeof AppAccountIndexRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppAccountRouteRoute
     }
     '/_app/account/notifications': {
       id: '/_app/account/notifications'
-      path: '/account/notifications'
+      path: '/notifications'
       fullPath: '/account/notifications'
       preLoaderRoute: typeof AppAccountNotificationsRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppAccountRouteRoute
     }
     '/_app/account/preferences': {
       id: '/_app/account/preferences'
-      path: '/account/preferences'
+      path: '/preferences'
       fullPath: '/account/preferences'
       preLoaderRoute: typeof AppAccountPreferencesRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppAccountRouteRoute
     }
     '/_app/account/privacy': {
       id: '/_app/account/privacy'
-      path: '/account/privacy'
+      path: '/privacy'
       fullPath: '/account/privacy'
       preLoaderRoute: typeof AppAccountPrivacyRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppAccountRouteRoute
     }
     '/_app/account/profile': {
       id: '/_app/account/profile'
-      path: '/account/profile'
+      path: '/profile'
       fullPath: '/account/profile'
       preLoaderRoute: typeof AppAccountProfileRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppAccountRouteRoute
     }
     '/_app/account/security': {
       id: '/_app/account/security'
-      path: '/account/security'
+      path: '/security'
       fullPath: '/account/security'
       preLoaderRoute: typeof AppAccountSecurityRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppAccountRouteRoute
     }
     '/_app/account/watching': {
       id: '/_app/account/watching'
-      path: '/account/watching'
+      path: '/watching'
       fullPath: '/account/watching'
       preLoaderRoute: typeof AppAccountWatchingRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppAccountRouteRoute
     }
     '/_app/api-clients/': {
       id: '/_app/api-clients/'
@@ -1165,7 +1182,32 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppAccountRouteRouteChildren {
+  AppAccountNotificationsRoute: typeof AppAccountNotificationsRoute
+  AppAccountPreferencesRoute: typeof AppAccountPreferencesRoute
+  AppAccountPrivacyRoute: typeof AppAccountPrivacyRoute
+  AppAccountProfileRoute: typeof AppAccountProfileRoute
+  AppAccountSecurityRoute: typeof AppAccountSecurityRoute
+  AppAccountWatchingRoute: typeof AppAccountWatchingRoute
+  AppAccountIndexRoute: typeof AppAccountIndexRoute
+}
+
+const AppAccountRouteRouteChildren: AppAccountRouteRouteChildren = {
+  AppAccountNotificationsRoute: AppAccountNotificationsRoute,
+  AppAccountPreferencesRoute: AppAccountPreferencesRoute,
+  AppAccountPrivacyRoute: AppAccountPrivacyRoute,
+  AppAccountProfileRoute: AppAccountProfileRoute,
+  AppAccountSecurityRoute: AppAccountSecurityRoute,
+  AppAccountWatchingRoute: AppAccountWatchingRoute,
+  AppAccountIndexRoute: AppAccountIndexRoute,
+}
+
+const AppAccountRouteRouteWithChildren = AppAccountRouteRoute._addFileChildren(
+  AppAccountRouteRouteChildren,
+)
+
 interface AppRouteChildren {
+  AppAccountRouteRoute: typeof AppAccountRouteRouteWithChildren
   AppAuditRoute: typeof AppAuditRoute
   AppBrandingRoute: typeof AppBrandingRoute
   AppCustomFieldsRoute: typeof AppCustomFieldsRoute
@@ -1182,12 +1224,6 @@ interface AppRouteChildren {
   AppTagsRoute: typeof AppTagsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAccessUsersRoute: typeof AppAccessUsersRoute
-  AppAccountNotificationsRoute: typeof AppAccountNotificationsRoute
-  AppAccountPreferencesRoute: typeof AppAccountPreferencesRoute
-  AppAccountPrivacyRoute: typeof AppAccountPrivacyRoute
-  AppAccountProfileRoute: typeof AppAccountProfileRoute
-  AppAccountSecurityRoute: typeof AppAccountSecurityRoute
-  AppAccountWatchingRoute: typeof AppAccountWatchingRoute
   AppApiClientsIdRoute: typeof AppApiClientsIdRoute
   AppApiClientsUsageRoute: typeof AppApiClientsUsageRoute
   AppApprovalPoliciesKeyRoute: typeof AppApprovalPoliciesKeyRoute
@@ -1196,7 +1232,6 @@ interface AppRouteChildren {
   AppTenantsIdRoute: typeof AppTenantsIdRoute
   AppTransfersImportRoute: typeof AppTransfersImportRoute
   AppWebhooksSendersRoute: typeof AppWebhooksSendersRoute
-  AppAccountIndexRoute: typeof AppAccountIndexRoute
   AppApiClientsIndexRoute: typeof AppApiClientsIndexRoute
   AppApprovalPoliciesIndexRoute: typeof AppApprovalPoliciesIndexRoute
   AppApprovalsIndexRoute: typeof AppApprovalsIndexRoute
@@ -1218,6 +1253,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAccountRouteRoute: AppAccountRouteRouteWithChildren,
   AppAuditRoute: AppAuditRoute,
   AppBrandingRoute: AppBrandingRoute,
   AppCustomFieldsRoute: AppCustomFieldsRoute,
@@ -1234,12 +1270,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppTagsRoute: AppTagsRoute,
   AppIndexRoute: AppIndexRoute,
   AppAccessUsersRoute: AppAccessUsersRoute,
-  AppAccountNotificationsRoute: AppAccountNotificationsRoute,
-  AppAccountPreferencesRoute: AppAccountPreferencesRoute,
-  AppAccountPrivacyRoute: AppAccountPrivacyRoute,
-  AppAccountProfileRoute: AppAccountProfileRoute,
-  AppAccountSecurityRoute: AppAccountSecurityRoute,
-  AppAccountWatchingRoute: AppAccountWatchingRoute,
   AppApiClientsIdRoute: AppApiClientsIdRoute,
   AppApiClientsUsageRoute: AppApiClientsUsageRoute,
   AppApprovalPoliciesKeyRoute: AppApprovalPoliciesKeyRoute,
@@ -1248,7 +1278,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppTenantsIdRoute: AppTenantsIdRoute,
   AppTransfersImportRoute: AppTransfersImportRoute,
   AppWebhooksSendersRoute: AppWebhooksSendersRoute,
-  AppAccountIndexRoute: AppAccountIndexRoute,
   AppApiClientsIndexRoute: AppApiClientsIndexRoute,
   AppApprovalPoliciesIndexRoute: AppApprovalPoliciesIndexRoute,
   AppApprovalsIndexRoute: AppApprovalsIndexRoute,

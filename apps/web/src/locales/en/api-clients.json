@@ -1,10 +1,10 @@
 {
   "nav": {
-    "title": "API keys",
+    "title": "API clients",
     "usage": "API usage"
   },
   "list": {
-    "title": "API keys",
+    "title": "API clients",
     "description": "Systems that call the API with a key. A key is shown once, when it is made.",
     "empty": "No API clients yet.",
     "create": "New client",

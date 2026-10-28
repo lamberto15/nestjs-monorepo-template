@@ -38,7 +38,8 @@ function Bell() {
   const { canChange } = useNotificationAccess();
   const [open, setOpen] = useState(false);
   useLiveNotifications();
-  const unread = useQuery(unreadQuery(false)).data?.unread ?? 0;
+  const count = useQuery(unreadQuery(false)).data;
+  const unread = count?.unread ?? 0;
   const latest = useQuery({ ...latestQuery, enabled: open });
   const markRead = useMarkRead();
   const markAll = useMarkAllRead();
@@ -52,7 +53,11 @@ function Bell() {
             variant="ghost"
             size="icon"
             className="relative"
-            aria-label={t('bell.label', { count: unread })}
+            aria-label={
+              count?.unreadCapped
+                ? t('bell.labelCapped')
+                : t('bell.label', { count: unread })
+            }
           />
         }
       >

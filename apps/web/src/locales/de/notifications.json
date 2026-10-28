@@ -7,6 +7,7 @@
   "bell": {
     "label_one": "Benachrichtigungen, {{count}} ungelesen",
     "label_other": "Benachrichtigungen, {{count}} ungelesen",
+    "labelCapped": "Benachrichtigungen, 1.000+ ungelesen",
     "title": "Benachrichtigungen",
     "empty": "Alles gelesen.",
     "viewAll": "Posteingang öffnen"
@@ -20,6 +21,7 @@
     "title": "Posteingang",
     "unread_one": "{{count}} ungelesen",
     "unread_other": "{{count}} ungelesen",
+    "unreadCapped": "1.000+ ungelesen",
     "empty": "Hier gibt es keine Benachrichtigungen.",
     "loadMore": "Mehr laden",
     "filters": {
@@ -105,6 +107,7 @@
   "dashboard": {
     "title": "Ungelesene Benachrichtigungen",
     "count": "Ungelesen: {{count}}",
+    "countCapped": "Ungelesen: 1.000+",
     "empty": "Alles gelesen."
   }
 }
