@@ -147,6 +147,15 @@ describe('the page', () => {
     expect(calls.put).toEqual([{ primaryColor: null, mailFromName: 'Acme' }]);
   });
 
+  it('names the hue slider and the logo input for assistive technology', async () => {
+    useBrandingApi(branding({ primaryColor: '#112233' }));
+    await renderApp('/branding');
+    expect(await screen.findByRole('slider', { name: 'Hue' })).toBeVisible();
+    expect(
+      screen.getByLabelText('Logo', { selector: 'input[type="file"]' }),
+    ).toBeTruthy();
+  });
+
   it('uploads a logo, and removes it', async () => {
     const calls = useBrandingApi(branding());
     const user = userEvent.setup();

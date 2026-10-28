@@ -218,6 +218,7 @@ function LogoSection(props: { branding: Branding; version: number }) {
       )}
       {branding.canEdit && (
         <FileUpload
+          label={t('logo.label')}
           value={files}
           onValueChange={setFiles}
           maxFiles={1}
