@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { signWebhook } from '@nestjs/webhooks/testing';
 import { eq } from 'drizzle-orm';
+import { z } from 'zod';
 import { requireTenantId } from '../src/core/tenancy/tenant-scope.js';
 import { IncomingEventHandlers } from '../src/platform/webhooks/incoming-event-handlers.js';
 import { incomingWebhookSenders } from '../src/platform/webhooks/incoming-senders.tables.js';
@@ -30,16 +31,25 @@ describe('incoming webhook senders of a tenant (e2e)', () => {
     node = await bootApp();
     other = await node.otherTenant();
     seen = [];
-    node.app.get(IncomingEventHandlers).register('test.echo', async (ctx) => {
-      seen.push({
-        tenantId: ctx.tenantId,
-        // The tenant the work really runs in: the request's scope.
-        scope: requireTenantId(),
-        sender: ctx.sender,
-        id: ctx.webhook.id,
-      });
-      return { duplicate: false };
-    });
+    node.app.get(IncomingEventHandlers).register(
+      'test.echo',
+      {
+        description: 'Echo.',
+        dataSchema: z.object({ n: z.number() }),
+        example: { n: 1 },
+        delivery: 'Deduplicated by the webhook-id.',
+      },
+      async (ctx) => {
+        seen.push({
+          tenantId: ctx.tenantId,
+          // The tenant the work really runs in: the request's scope.
+          scope: requireTenantId(),
+          sender: ctx.sender,
+          id: ctx.webhook.id,
+        });
+        return { duplicate: false };
+      },
+    );
   });
   afterEach(() => node.close());
 
@@ -107,6 +117,12 @@ describe('incoming webhook senders of a tenant (e2e)', () => {
       payload: { type: 'nobody.handles', data: {} },
     }).expect(200);
     expect(ignored.body).toMatchObject({ received: true, handled: false });
+    // A `data` that does not match the type's schema is a 400, before the handler.
+    const invalid = await call(sender.path, sender.secret, {
+      payload: { type: 'test.echo', data: { n: 'x' } },
+    }).expect(400);
+    expect(invalid.body.errors[0].path).toBe('data.n');
+    expect(seen).toHaveLength(1);
     // A body that is not an event is a 400, signed or not.
     await call(sender.path, sender.secret, { payload: { data: 1 } }).expect(
       400,
@@ -345,6 +361,34 @@ describe('incoming webhook senders of a tenant (e2e)', () => {
       audit.body.items.map((entry: { action: string }) => entry.action).sort(),
     ).toEqual(['webhookSender.created', 'webhookSender.secret-rotated']);
     expect(JSON.stringify(audit.body)).not.toContain('whsec_');
+  });
+
+  it('lists the incoming event types, generated from the handlers, for administrators only', async () => {
+    const catalog = await node
+      .admin()
+      .get('/v1/webhook-incoming-event-types')
+      .expect(200);
+    const types = catalog.body.items.map((i: { type: string }) => i.type);
+    expect(types).toEqual(['note.publish-requested', 'test.echo']);
+    const publish = catalog.body.items[0];
+    expect(publish.dataSchema).toMatchObject({
+      type: 'object',
+      required: ['noteId'],
+    });
+    expect(publish.example.type).toBe('note.publish-requested');
+    // Not the outgoing catalog.
+    const outgoing = await node.admin().get('/v1/webhook-event-types');
+    expect(JSON.stringify(outgoing.body)).not.toContain('publish-requested');
+
+    const editor = await node.user(['editor']);
+    await editor.agent.get('/v1/webhook-incoming-event-types').expect(403);
+    await node.http().get('/v1/webhook-incoming-event-types').expect(401);
+    const client = await node.client();
+    await node
+      .http()
+      .get('/v1/webhook-incoming-event-types')
+      .set('Authorization', client.auth)
+      .expect(401);
   });
 
   it('stores the secret sealed, bound to its sender', async () => {

@@ -404,6 +404,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/webhook-incoming-event-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The event types a sender may send in, with their data schemas
+         * @description Incoming events only; the events an endpoint receives are `GET /v1/webhook-event-types`. Generated from the registered handlers, so it matches what the receiver validates. A listed type is not a permission. A type not listed is acknowledged and ignored (`handled: false`).
+         */
+        get: operations["IncomingEventTypesController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/webhooks/tenants/{tenantId}/senders/{name}": {
         parameters: {
             query?: never;
@@ -1701,6 +1721,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/attachments/{id}/acknowledgment-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask people to acknowledge a document
+         * @description Whoever may change the document's record. Each person is asked about its current version (`version`; 1 while attachments are unversioned); those already asked keep their answer. They must be members who may read the record. They are told (`acknowledgment.requested`). Audited. An acknowledgment records that the person confirmed reading that version, and when; it is not a signature.
+         */
+        post: operations["AttachmentAcknowledgmentsController_request_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attachments/{id}/acknowledgments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A document's acknowledgments (completion dashboard)
+         * @description Whoever may change the document's record: counts and each person's state for a version (`?version=`, default the current).
+         */
+        get: operations["AttachmentAcknowledgmentsController_status_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attachments/{id}/acknowledgments/remind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remind those who have not acknowledged
+         * @description Whoever may change the record. Everyone still waiting, or the named `recipients`; nobody twice within 24 hours (`skipped`). Told with `acknowledgment.reminder`. Audited.
+         */
+        post: operations["AttachmentAcknowledgmentsController_remind_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attachments/{id}/acknowledgments/{acknowledgmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Withdraw a request
+         * @description Whoever may change the record. Only one nobody has answered; an answer stays. Audited.
+         */
+        delete: operations["AttachmentAcknowledgmentsController_withdraw_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attachments/{id}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Acknowledge a document
+         * @description The person asked, for the document's current version; acknowledging again changes nothing. A 404 for anyone nobody asked. Audited (`acknowledgment.acknowledged`).
+         */
+        post: operations["AttachmentAcknowledgmentsController_acknowledge_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/acknowledgments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Acknowledgments asked of me
+         * @description Newest first, at most 100, for documents whose record you may read: `?status=pending` (default) or `acknowledged`.
+         */
+        get: operations["MyAcknowledgmentsController_mine_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/documents/{id}": {
         parameters: {
             query?: never;
@@ -2072,27 +2212,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/shared/open": {
+    "/v1/data/imports/{name}/mappings": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * The saved column mappings of an import
+         * @description The tenant’s, by name. `stale` lists the targets you may no longer import (the schema or your permissions changed since): use the mapping only after changing them.
+         */
+        get: operations["ImportMappingsController_list_v1"];
         put?: never;
         /**
-         * Open a shared link
-         * @description No sign-in. The record's shared fields, as its maker may read them now, and its files when the link shares them. A link to a recipient needs `code` (POST /v1/shared/code mails one). Audited `share.opened`.
+         * Save a column mapping
+         * @description Checked as an import would be: every target a column you may fill, none twice. At most 50 per import. Audited (`importMapping.created`).
          */
-        post: operations["SharedController_open_v1"];
+        post: operations["ImportMappingsController_create_v1"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/shared/code": {
+    "/v1/data/imports/{name}/mappings/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2101,32 +2245,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        post?: never;
         /**
-         * Mail a code to a shared link's recipient
-         * @description The code opens the link for 10 minutes, 5 tries; a new one replaces it. The same answer whether or not the link has a recipient.
+         * Delete a saved column mapping
+         * @description Audited (`importMapping.deleted`).
          */
-        post: operations["SharedController_code_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/shared/files/{attachmentId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * A shared record's file
-         * @description A signed link to one of the files the link lists, valid for 5 minutes, handed out only while the link works. Audited `share.opened` with the file.
-         */
-        post: operations["SharedController_file_v1"];
-        delete?: never;
+        delete: operations["ImportMappingsController_remove_v1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4538,15 +4662,55 @@ export interface paths {
         };
         /**
          * A note's comments, oldest first
-         * @description Cursor pages; `?sort=-createdAt` for newest first, `?author=user:<id>`, `?createdAt.gte=`.
+         * @description Cursor pages, replies included (each has `parentId`); `?sort=-createdAt` for newest first, `?author=user:<id>`, `?createdAt.gte=`, `?parentId=<comment id>` (one thread's replies) or `?parentId.isNull=true` (the threads), `?resolvedAt.isNull=true` (open) or `=false` (resolved).
          */
         get: operations["NoteCommentsController_list_v1"];
         put?: never;
         /**
          * Comment on a note
-         * @description Mention people with `@<email>` or `@user:<id>`: those who may read the note are told (`comment.mentioned`); the note's watchers hear `note.commented`. Your first comment on a note makes you watch it. Audited.
+         * @description Mention people with `@<email>` or `@user:<id>`: those who may read the note are told (`comment.mentioned`); the note's watchers hear `note.commented`. Your first comment on a note makes you watch it. `parentId` answers a top-level comment (one level of replies; its author is told, `comment.replied`). Audited.
          */
         post: operations["NoteCommentsController_add_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/comments/{commentId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve a thread
+         * @description The thread's author, or whoever may change the note (`Note.update`). Sets `resolvedAt`/`resolvedBy` on the top-level comment; repeating it changes nothing. Audited (`comment.resolved`).
+         */
+        post: operations["NoteCommentsController_resolve_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/comments/{commentId}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reopen a resolved thread
+         * @description As resolving it. Audited (`comment.reopened`).
+         */
+        post: operations["NoteCommentsController_reopen_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4565,7 +4729,7 @@ export interface paths {
         post?: never;
         /**
          * Remove a comment
-         * @description Its author, or whoever may change the note (`Note.update`). For good; audited.
+         * @description Its author, or whoever may change the note (`Note.update`). For good; audited. Removing a thread's top-level comment removes its replies too.
          */
         delete: operations["NoteCommentsController_remove_v1"];
         options?: never;
@@ -4826,50 +4990,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/notes/{id}/shares": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * A note's links, newest first
-         * @description Revoked and expired ones too (`active: false`); never their tokens.
-         */
-        get: operations["NoteSharesController_list_v1"];
-        put?: never;
-        /**
-         * Share a note by a read-only link
-         * @description A link that shows the chosen fields (and the files, with `files`) to whoever holds it, or only to `recipientEmail` with a mailed code, until `expiresAt` (within 30 days) or until revoked. Only a person (not an API client, not while impersonating), and only fields you may read; it never shows more than you still may when it is opened. The token is in this answer only. At most 20 working links per note. Audited `share.created`.
-         */
-        post: operations["NoteSharesController_create_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/notes/{id}/shares/{shareId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Revoke a link
-         * @description It stops opening at once; a file link it gave ends within 5 minutes. Its maker, or whoever may share the note. Audited `share.revoked`.
-         */
-        delete: operations["NoteSharesController_revoke_v1"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4913,12 +5033,90 @@ export interface components {
             /** @description The `whsec_…` signing secret (Standard Webhooks). Shown this once. */
             secret: string;
         };
+        IncomingWebhookEventTypes: {
+            items: {
+                /** @example note.publish-requested */
+                type: string;
+                description: string;
+                /** @description JSON Schema of the envelope's `data`. */
+                dataSchema: {
+                    [key: string]: unknown;
+                };
+                /** @description A complete, safe request body. */
+                example: {
+                    type: string;
+                    data: unknown;
+                };
+                /** @description Deduplication and acknowledgement semantics. */
+                delivery: string;
+            }[];
+        };
         IncomingWebhookResult: {
             /** @enum {boolean} */
             received: true;
             duplicate: boolean;
             /** @description false: no handler is registered for the event type (acknowledged and ignored, so the sender does not retry). */
             handled: boolean;
+        };
+        DocumentAcknowledgment: {
+            id: string;
+            attachmentId: string;
+            version: number;
+            recipient: string;
+            recipientName: string | null;
+            requestedBy: string;
+            /** Format: date-time */
+            dueAt: string | null;
+            /** @description Not acknowledged, and past `dueAt`. */
+            overdue: boolean;
+            reminders: number;
+            /** Format: date-time */
+            lastRemindedAt: string | null;
+            /** Format: date-time */
+            acknowledgedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        DocumentAcknowledgmentStatus: {
+            attachmentId: string;
+            version: number;
+            total: number;
+            acknowledged: number;
+            pending: number;
+            overdue: number;
+            items: components["schemas"]["DocumentAcknowledgment"][];
+        };
+        DocumentAcknowledgmentReminders: {
+            reminded: number;
+            /** @description Reminded in the last 24 hours already. */
+            skipped: number;
+        };
+        MyDocumentAcknowledgmentList: {
+            items: components["schemas"]["MyDocumentAcknowledgment"][];
+        };
+        MyDocumentAcknowledgment: {
+            id: string;
+            attachmentId: string;
+            version: number;
+            recipient: string;
+            recipientName: string | null;
+            requestedBy: string;
+            /** Format: date-time */
+            dueAt: string | null;
+            /** @description Not acknowledged, and past `dueAt`. */
+            overdue: boolean;
+            reminders: number;
+            /** Format: date-time */
+            lastRemindedAt: string | null;
+            /** Format: date-time */
+            acknowledgedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            document: {
+                name: string;
+                subject: string;
+                recordId: string;
+            };
         };
         TagPage: {
             items: components["schemas"]["Tag"][];
@@ -5115,6 +5313,26 @@ export interface components {
             /** @description Columns of the view your field permissions hide: left out, not an error. */
             hiddenColumns: string[];
         };
+        ImportMapping: {
+            id: string;
+            /** @example notes */
+            importer: string;
+            name: string;
+            /**
+             * @description The file's headers to the template's columns: `{ "Surname": "lastName", "Notes": null }` (null: ignore the column). A header not named keeps its own name. A date-time column takes the zone of the file's times as the template's header does: `{ "When": "dueAt (Asia/Dubai)" }`.
+             * @example {
+             *       "Title": "title",
+             *       "Internal": null
+             *     }
+             */
+            mapping: {
+                [key: string]: string | null;
+            };
+            /** @description Targets that are no longer columns you may import (the schema changed, or your permissions did): saving or using the mapping as it is would be refused; change them first. */
+            stale: string[];
+            /** Format: date-time */
+            createdAt: string;
+        };
         RetentionRuleList: {
             items: components["schemas"]["RetentionRule"][];
         };
@@ -5304,6 +5522,15 @@ export interface components {
             };
             /** Format: date-time */
             editedAt: string | null;
+            /** @description The top-level comment this one answers; null for a top-level comment. */
+            parentId: string | null;
+            /**
+             * Format: date-time
+             * @description When its thread was resolved; null if open (always null on a reply).
+             */
+            resolvedAt: string | null;
+            /** @description Who resolved the thread: `user:<id>` or `client:<id>`. */
+            resolvedBy: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -5538,69 +5765,6 @@ export interface components {
             attachmentId: string | null;
             /** @description Why it failed, written for people. */
             error: string | null;
-        };
-        ShareList: {
-            items: components["schemas"]["Share"][];
-        };
-        Share: {
-            id: string;
-            /** @example Note */
-            subject: string;
-            recordId: string;
-            /**
-             * @example [
-             *       "title",
-             *       "body"
-             *     ]
-             */
-            fields: string[];
-            files: boolean;
-            /** @description Set: the link opens only with a code mailed to this address. */
-            recipientEmail: string | null;
-            /** @description `user:<id>` of who made it. */
-            createdBy: string;
-            /** Format: date-time */
-            expiresAt: string;
-            /** Format: date-time */
-            revokedAt: string | null;
-            active: boolean;
-            views: number;
-            /** Format: date-time */
-            lastViewedAt: string | null;
-            /** Format: date-time */
-            createdAt: string;
-        };
-        CreatedShare: {
-            id: string;
-            /** @example Note */
-            subject: string;
-            recordId: string;
-            /**
-             * @example [
-             *       "title",
-             *       "body"
-             *     ]
-             */
-            fields: string[];
-            files: boolean;
-            /** @description Set: the link opens only with a code mailed to this address. */
-            recipientEmail: string | null;
-            /** @description `user:<id>` of who made it. */
-            createdBy: string;
-            /** Format: date-time */
-            expiresAt: string;
-            /** Format: date-time */
-            revokedAt: string | null;
-            active: boolean;
-            views: number;
-            /** Format: date-time */
-            lastViewedAt: string | null;
-            /** Format: date-time */
-            createdAt: string;
-            /** @description Shown once: only its hash is kept. */
-            token: string;
-            /** @description The web app's page that opens it: `<WEB_URL>/shared#<token>`. */
-            url: string;
         };
         RealtimeNotificationEvent: {
             /** Format: uuid */
@@ -7496,6 +7660,39 @@ export interface operations {
             };
         };
     };
+    IncomingEventTypesController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncomingWebhookEventTypes"];
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     TenantWebhookReceiverController_handle_v1: {
         parameters: {
             query?: never;
@@ -8671,6 +8868,8 @@ export interface operations {
                     name: string;
                     /** @description Update existing rows by this declared match key. */
                     matchOn?: string;
+                    /** @description A JSON object: the file's headers to the template's columns (`{"Surname": "lastName", "Notes": null}`; null ignores a column). Checked as a saved mapping is; the import then runs as usual (`dryRun` included). A date-time target takes the file's zone: `"dueAt (Asia/Dubai)"`. */
+                    mapping?: string;
                     /**
                      * @description true: check every row, write nothing.
                      * @default false
@@ -12903,8 +13102,6 @@ export interface operations {
                             events: boolean;
                             /** @description A human-readable number (`number`, `INV-2026-00042`). */
                             numbered: boolean;
-                            /** @description Read-only links to a record (`…/{id}/shares`), opened without a sign-in (POST /v1/shared/open). */
-                            share: boolean;
                             /** @description An action on the records may need approval (GET /v1/approvals). */
                             approvals: boolean;
                         };
@@ -13232,6 +13429,271 @@ export interface operations {
             };
             /** @description An issued document (attachment_locked): it stays with its record. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentAcknowledgmentsController_request_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The people asked, as `user:<id>` (GET /v1/people). */
+                    recipients: string[];
+                    /**
+                     * Format: date-time
+                     * @description The deadline; in the future. Asking again replaces it.
+                     */
+                    dueAt?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentAcknowledgment"][];
+                };
+            };
+            /** @description A recipient is not a member who may read it (acknowledgment_recipient_invalid), or the deadline is past (acknowledgment_due_in_past). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change its record. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document, or its record may not be read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description More than 500 people for one version (acknowledgment_limit). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentAcknowledgmentsController_status_v1: {
+        parameters: {
+            query?: {
+                version?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentAcknowledgmentStatus"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change its record. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document, or its record may not be read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentAcknowledgmentsController_remind_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Only these; default: everyone who has not acknowledged. */
+                    recipients?: string[];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentAcknowledgmentReminders"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change its record. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document, or its record may not be read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentAcknowledgmentsController_withdraw_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                acknowledgmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document, or its record may not be read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Already acknowledged (acknowledgment_answered). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentAcknowledgmentsController_acknowledge_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentAcknowledgment"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document, or its record may not be read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MyAcknowledgmentsController_mine_v1: {
+        parameters: {
+            query?: {
+                status?: "pending" | "acknowledged";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyDocumentAcknowledgmentList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -14811,23 +15273,16 @@ export interface operations {
             };
         };
     };
-    SharedController_open_v1: {
+    ImportMappingsController_list_v1: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                name: string;
+            };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description The link's token: the part of the link after `#`. Sent in the body, never in a URL, so no log or `Referer` carries it. */
-                    token: string;
-                    /** @description The code mailed to the recipient, for a link that has one. */
-                    code?: string;
-                };
-            };
-        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
@@ -14835,32 +15290,11 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @example Note */
-                        subject: string;
-                        /** @description The shared fields, as reading the record shows them: one its maker may no longer read is left out. */
-                        fields: {
-                            [key: string]: unknown;
-                        };
-                        /** @description Its files, when the link shares them (else empty). */
-                        files: {
-                            id: string;
-                            name: string;
-                            size: number;
-                            contentType: string;
-                        }[];
-                        /** Format: date-time */
-                        expiresAt: string;
+                        items: components["schemas"]["ImportMapping"][];
                     };
                 };
             };
-            /** @description The link needs the mailed code (`share_code_required`), or the code is wrong, used up or expired (`share_code_invalid`). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The link is invalid, expired or revoked (`share_not_found`). */
+            /** @description Nothing to import by that name. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -14869,21 +15303,76 @@ export interface operations {
             };
         };
     };
-    SharedController_code_v1: {
+    ImportMappingsController_create_v1: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                name: string;
+            };
             cookie?: never;
         };
         requestBody: {
             content: {
                 "application/json": {
-                    /** @description The link's token: the part of the link after `#`. Sent in the body, never in a URL, so no log or `Referer` carries it. */
-                    token: string;
+                    /** @example CRM export */
+                    name: string;
+                    /**
+                     * @description The file's headers to the template's columns: `{ "Surname": "lastName", "Notes": null }` (null: ignore the column). A header not named keeps its own name. A date-time column takes the zone of the file's times as the template's header does: `{ "When": "dueAt (Asia/Dubai)" }`.
+                     * @example {
+                     *       "Title": "title",
+                     *       "Internal": null
+                     *     }
+                     */
+                    mapping: {
+                        [key: string]: string | null;
+                    };
                 };
             };
         };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportMapping"];
+                };
+            };
+            /** @description A target you cannot import, a target twice, or too many saved. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Nothing to import by that name. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The name is taken (conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ImportMappingsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             204: {
                 headers: {
@@ -14891,54 +15380,6 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The link is invalid, expired or revoked (`share_not_found`). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    SharedController_file_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                attachmentId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description The link's token: the part of the link after `#`. Sent in the body, never in a URL, so no log or `Referer` carries it. */
-                    token: string;
-                    /** @description The code mailed to the recipient, for a link that has one. */
-                    code?: string;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description A signed link to the file, valid for 5 minutes. */
-                        url: string;
-                    };
-                };
-            };
-            /** @description The link needs its code. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The link does not work, or does not share this file. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -26731,6 +27172,16 @@ export interface operations {
                 author?: string;
                 /** @description Filter: author in */
                 "author.in"?: string;
+                /** @description Filter: parentId = */
+                parentId?: string;
+                /** @description Filter: parentId isNull */
+                "parentId.isNull"?: "true" | "false";
+                /** @description Filter: resolvedAt isNull */
+                "resolvedAt.isNull"?: "true" | "false";
+                /** @description Filter: resolvedAt gte */
+                "resolvedAt.gte"?: string;
+                /** @description Filter: resolvedAt lte */
+                "resolvedAt.lte"?: string;
                 /** @description Filter: createdAt gt */
                 "createdAt.gt"?: string;
                 /** @description Filter: createdAt gte */
@@ -26751,11 +27202,11 @@ export interface operations {
                 "updatedAt.lte"?: string;
                 /** @description Filter: updatedAt between */
                 "updatedAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"author","op":"eq","value":…},{…}]}. Fields and operators: author (eq, in); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"author","op":"eq","value":…},{…}]}. Fields and operators: author (eq, in); parentId (eq, isNull); resolvedAt (isNull, gte, lte); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, authorName, body, mentions, mentionNames, editedAt, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, authorName, body, mentions, mentionNames, editedAt, parentId, resolvedAt, resolvedBy, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -26811,6 +27262,11 @@ export interface operations {
                 "application/json": {
                     /** @example Looks good to me, @ada@example.com: can you check the numbers? */
                     body: string;
+                    /**
+                     * Format: uuid
+                     * @description Answer this top-level comment of the same record (a reply to a reply is refused: threads are one level deep).
+                     */
+                    parentId?: string;
                 };
             };
         };
@@ -26823,7 +27279,114 @@ export interface operations {
                     "application/json": components["schemas"]["Comment"];
                 };
             };
-            /** @description An empty body, or longer than 10 000 characters. */
+            /** @description An empty body, or longer than 10 000 characters; or `parentId` is itself a reply (comment_reply_too_deep). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not read the note. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note (or comment). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The thread is resolved (comment_thread_resolved) or holds 200 replies (comment_thread_full). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteCommentsController_resolve_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                commentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Comment"];
+                };
+            };
+            /** @description A reply, not a thread (comment_not_thread). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not read the note. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note (or comment). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteCommentsController_reopen_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                commentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Comment"];
+                };
+            };
+            /** @description A reply, not a thread (comment_not_thread). */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -27931,160 +28494,6 @@ export interface operations {
                 content?: never;
             };
             /** @description You were not watching it. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    NoteSharesController_list_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ShareList"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description You may not share the note. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such note (or link). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    NoteSharesController_create_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description The record's fields the link shows: fields you may read, never a reference to another record. */
-                    fields: string[];
-                    /**
-                     * @description List the record's files, and hand out their download links: only files that show no field outside `fields`.
-                     * @default false
-                     */
-                    files?: boolean;
-                    /**
-                     * Format: date-time
-                     * @description When the link stops: within 30 days.
-                     */
-                    expiresAt: string;
-                    /**
-                     * Format: email
-                     * @description Only this address opens it: a code is mailed to it each time (POST /v1/shared/code).
-                     */
-                    recipientEmail?: string;
-                };
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CreatedShare"];
-                };
-            };
-            /** @description A field a link does not share, an expiry out of range, or too many links (validation_failed). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description You may not share the note. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such note (or link). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    NoteSharesController_revoke_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-                shareId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description You may not share the note. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such note (or link). */
             404: {
                 headers: {
                     [name: string]: unknown;
