@@ -6,7 +6,9 @@
 // match this one.) The real Caddyfile is used with four edits
 // that make it runnable without TLS, DNS or Docker: the `tls` block goes, the
 // site address becomes a local http one, the `/srv` directories become temp
-// directories, and `api:3000` becomes a stub server. Every edit must match, or
+// directories, and `api:3000` becomes a stub server (the tenants' custom
+// domains' site, `https://`, becomes a local http one on a port of its own,
+// any host). Every edit must match, or
 // the test fails (a Caddyfile that changed shape must not pass by testing
 // nothing). Caddy runs as it is, or through caddy/entrypoint.sh, as the image
 // starts it, where a suite tests what the entrypoint hands it.
@@ -62,6 +64,8 @@ const NOTE = JSON.stringify({
   body: 'compressible '.repeat(60),
 });
 const NOTE_ETAG = '"mZ1kQ0bH5d1Yh9xVv2u3q8r7s6t"';
+// The one custom domain the stub API says is verified.
+const VERIFIED_DOMAIN = 'tenant.example.com';
 
 /** Runs apps/web/scripts/precompress.mjs on `dir`, as the image's build does. */
 function precompress(dir) {
@@ -98,8 +102,12 @@ function freePort() {
 }
 
 /** The Caddyfile as this test can run it. */
-function testable({ port, apiPort, dirs }) {
+function testable({ port, customPort, apiPort, dirs }) {
   let text = caddyfile;
+  // Certificates on demand need a public hostname and an ACME CA.
+  text = replace(text, '\ttls {\n\t\ton_demand\n\t}\n', '');
+  text = replace(text, 'https:// {', `http://:${customPort} {`);
+  text = replace(text, 'api:3000', `127.0.0.1:${apiPort}`);
   // The ACME DNS challenge needs the Cloudflare module and a token.
   text = replace(text, /^\ttls \{\n(?:\t\t.*\n|\n)*?\t\}\n/m, '');
   text = replace(text, '{$APP_DOMAIN}', `http://127.0.0.1:${port}`);
@@ -141,6 +149,22 @@ async function startCaddy(env, { viaEntrypoint = false } = {}) {
   );
 
   const api = createServer((request, response) => {
+    // The custom domains' question (the TLS ask, the per-request check):
+    // one verified domain, as the API would answer it.
+    if (request.url.startsWith('/v1/internal/domains/allowed')) {
+      const domain = new URL(request.url, 'http://api').searchParams.get(
+        'domain',
+      );
+      response.writeHead(domain === VERIFIED_DOMAIN ? 200 : 404);
+      response.end();
+      return;
+    }
+    // Which Host the API was sent.
+    if (request.url === '/v1/host') {
+      response.setHeader('content-type', 'text/plain');
+      response.end(`host ${request.headers.host}`);
+      return;
+    }
     if (request.url === '/v1/ops/events') {
       // The first event, then nothing until the client goes: a proxy that
       // held the response back would never pass it on.
@@ -165,8 +189,12 @@ async function startCaddy(env, { viaEntrypoint = false } = {}) {
   });
   await new Promise((resolve) => api.listen(0, '127.0.0.1', resolve));
   const port = await freePort();
+  const customPort = await freePort();
   const file = join(root, 'Caddyfile');
-  writeFileSync(file, testable({ port, apiPort: api.address().port, dirs }));
+  writeFileSync(
+    file,
+    testable({ port, customPort, apiPort: api.address().port, dirs }),
+  );
 
   const run = [caddyBin, 'run', '--config', file, '--adapter', 'caddyfile'];
   const [command, ...args] = viaEntrypoint ? ['sh', entrypoint, ...run] : run;
@@ -203,6 +231,7 @@ async function startCaddy(env, { viaEntrypoint = false } = {}) {
   }
   return {
     base,
+    customPort,
     async stop() {
       child.kill('SIGTERM');
       await new Promise((resolve) =>
@@ -339,6 +368,64 @@ describe('the web app, MAINTENANCE_PAGE unset', { skip }, () => {
     }
     assert.equal((await get(caddy, '/metrics')).status, 404);
     assert.equal((await get(caddy, '/.well-known/security.txt')).status, 200);
+  });
+});
+
+/** A request to the custom domains' site, as a browser on `host` sends it. */
+function onHost(caddy, host, path) {
+  return new Promise((resolve, reject) => {
+    const sent = request(
+      { host: '127.0.0.1', port: caddy.customPort, path, headers: { host } },
+      (response) => {
+        const chunks = [];
+        response.on('data', (chunk) => chunks.push(chunk));
+        response.on('end', () =>
+          resolve({
+            status: response.statusCode,
+            headers: response.headers,
+            body: Buffer.concat(chunks).toString(),
+          }),
+        );
+        response.on('error', reject);
+      },
+    );
+    sent.on('error', reject);
+    sent.end();
+  });
+}
+
+describe("the tenants' custom domains", { skip }, () => {
+  let caddy;
+  before(async () => (caddy = await startCaddy({})));
+  after(() => caddy.stop());
+
+  it('serves a verified domain the app and the API, its Host passed on', async () => {
+    const shell = await onHost(caddy, VERIFIED_DOMAIN, '/sign-in');
+    assert.equal(shell.status, 200);
+    assert.match(shell.body, new RegExp(APP));
+    assertSecurityHeaders(shell);
+    const api = await onHost(caddy, VERIFIED_DOMAIN, '/v1/host');
+    assert.equal(api.status, 200);
+    assert.equal(api.body, `host ${VERIFIED_DOMAIN}`);
+  });
+
+  it('serves any other host nothing: the API said 404', async () => {
+    for (const path of ['/', '/sign-in', '/v1/host', '/assets/app.js']) {
+      const response = await onHost(caddy, 'other.example.com', path);
+      assert.equal(response.status, 404, path);
+      assert.doesNotMatch(response.body, new RegExp(APP), path);
+      assert.doesNotMatch(response.body, /^host /, path);
+    }
+  });
+
+  it("refuses the edge's questions from outside, on every site", async () => {
+    const path = `/v1/internal/domains/allowed?domain=${VERIFIED_DOMAIN}`;
+    assert.equal((await get(caddy, path)).status, 404);
+    assert.equal((await get(caddy, path)).body, '');
+    const custom = await onHost(caddy, VERIFIED_DOMAIN, path);
+    assert.equal(custom.status, 404);
+    assert.equal(custom.body, '');
+    assert.equal((await onHost(caddy, VERIFIED_DOMAIN, '/metrics')).status, 404);
   });
 });
 
@@ -965,7 +1052,7 @@ describe("the Helm chart's web Caddy (deploy/helm/app/templates/web-configmap.ya
   // The web app's half of each: the Caddyfile's web `handle` (the one with
   // the root), the chart's only site.
   const web = directive(
-    directive(directives(caddyfile), '{$APP_DOMAIN}').block,
+    directive(directives(caddyfile), '(app)').block,
     'handle',
   ).block;
   const chart = directive(directives(chartCaddyfile ?? ''), ':8080').block;
