@@ -51,6 +51,7 @@ import { ClientWebhooksController } from './webhooks/client-webhooks.controller.
 import { WebhookManagementService } from './webhooks/webhook-management.service.js';
 import { IncomingEventHandlers } from './webhooks/incoming-event-handlers.js';
 import { IncomingSendersController } from './webhooks/incoming-senders.controller.js';
+import { IncomingEventTypesController } from './webhooks/incoming-event-types.controller.js';
 import { IncomingSendersService } from './webhooks/incoming-senders.service.js';
 import { TenantSenderGuard } from './webhooks/tenant-sender.guard.js';
 import { TenantWebhookReceiverController } from './webhooks/tenant-webhook-receiver.controller.js';
@@ -191,6 +192,12 @@ import { NamingSeriesService } from './sequences/naming-series.service.js';
 import { NamingVariables } from './sequences/naming-variables.js';
 import { NUMBERING_SETTINGS } from './sequences/numbering-settings.js';
 import { SequencesService } from './sequences/sequences.service.js';
+import {
+  AttachmentAcknowledgmentsController,
+  MyAcknowledgmentsController,
+} from './acknowledgments/acknowledgments.controller.js';
+import { AcknowledgmentsService } from './acknowledgments/acknowledgments.service.js';
+import { ACKNOWLEDGMENT_NOTIFICATIONS } from './acknowledgments/acknowledgment-notifications.js';
 import { AttachmentImagesProcessor } from './attachments/attachment-images.processor.js';
 import { AttachmentImagesRetryJob } from './attachments/attachment-images-retry.job.js';
 import { AttachmentImagesQueue } from './attachments/attachment-images.queue.js';
@@ -444,6 +451,7 @@ export class PlatformModule {
         ),
         // Incoming webhooks of a tenant's own senders: not behind WEBHOOKS (that switch is for the outgoing ones).
         IncomingSendersController,
+        IncomingEventTypesController,
         TenantWebhookReceiverController,
         OpsController,
         FeaturesController,
@@ -479,6 +487,8 @@ export class PlatformModule {
         PeopleController,
         UnitDirectoryController,
         AttachmentsController,
+        AttachmentAcknowledgmentsController,
+        MyAcknowledgmentsController,
         DocumentsController,
         AiController,
         TagsController,
@@ -506,6 +516,7 @@ export class PlatformModule {
             ...options,
             notifications: [
               ...COMMENT_NOTIFICATIONS,
+              ...ACKNOWLEDGMENT_NOTIFICATIONS,
               ...APPROVAL_NOTIFICATIONS,
               ...ATTACHMENT_NOTIFICATIONS,
               // Development only, with the route that sends it.
@@ -730,6 +741,8 @@ export class PlatformModule {
         // Comments and mentions: features register a CommentTarget and call CommentsService.
         CommentsRegistry,
         CommentsService,
+        // Acknowledgments of an attachment's version.
+        AcknowledgmentsService,
         // Tags: features register a TagTarget and call TagsService.
         TagsRegistry,
         TagsService,
@@ -835,6 +848,7 @@ export class PlatformModule {
         AttachmentsService,
         AttachmentUploadsService,
         AttachmentVersionsService,
+        AcknowledgmentsService,
         DocumentsRegistry,
         DocumentsService,
         AiRegistry,

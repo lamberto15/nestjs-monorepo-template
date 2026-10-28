@@ -529,7 +529,7 @@ export class AttachmentsService implements PersonalDataSource {
       .where(eq(attachmentUploads.uploadedBy, principalKey(user)));
   }
 
-  /** An attachment of a record the principal may read, or a 404. */
+  /** An attachment of a record the principal may read, or a 404 (the acknowledgments use it too). */
   async findReadable(principal: Principal, id: string) {
     const [row] = await this.db
       .select()

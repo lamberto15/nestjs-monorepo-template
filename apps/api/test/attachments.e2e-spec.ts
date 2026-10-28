@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { StorageDisk } from '@nestjs/storage';
 import { eq, inArray } from 'drizzle-orm';
 import type { Database } from '../src/core/database/drizzle.js';
@@ -661,6 +662,136 @@ describe('attachments (e2e)', () => {
       await editor.agent.delete(`/v1/attachments/${file.id}`).expect(204);
       expect(await count(disk)).toBe(before - 2);
     });
+  });
+
+  it('asks people to acknowledge a version of a document, reminds them, and records who confirmed', async () => {
+    const { editor, note } = await noteOfEditor();
+    const reader = await node.user(['viewer']);
+    const other = await node.user(['viewer']);
+    const outsider = await node.user(['editor']);
+    const attached = (
+      await editor.agent
+        .post(`/v1/test-items/${note.id}/attachments`)
+        .attach('file', PDF, {
+          filename: 'policy.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(201)
+    ).body as { id: string };
+    const base = `/v1/attachments/${attached.id}`;
+    const soon = new Date(Date.now() + 3_600_000).toISOString();
+
+    // Only whoever may change the record asks; recipients must be members who may read it.
+    await reader.agent
+      .post(`${base}/acknowledgment-requests`)
+      .send({ recipients: [`user:${other.id}`] })
+      .expect(403);
+    await outsider.agent
+      .post(`${base}/acknowledgment-requests`)
+      .send({ recipients: [`user:${other.id}`] })
+      .expect(404);
+    await editor.agent
+      .post(`${base}/acknowledgment-requests`)
+      .send({ recipients: [`user:${randomUUID()}`] })
+      .expect(400);
+    await editor.agent
+      .post(`${base}/acknowledgment-requests`)
+      .send({
+        recipients: [`user:${reader.id}`],
+        dueAt: '2020-01-01T00:00:00Z',
+      })
+      .expect(400);
+    const asked = await editor.agent
+      .post(`${base}/acknowledgment-requests`)
+      .send({
+        recipients: [`user:${reader.id}`, `user:${other.id}`],
+        dueAt: soon,
+      })
+      .expect(201);
+    expect(asked.body).toHaveLength(2);
+    expect(asked.body[0]).toMatchObject({
+      attachmentId: attached.id,
+      version: 1,
+      acknowledgedAt: null,
+      overdue: false,
+    });
+    // Asking again adds nobody.
+    await editor.agent
+      .post(`${base}/acknowledgment-requests`)
+      .send({ recipients: [`user:${reader.id}`] })
+      .expect(201);
+
+    // The person asked sees it; nobody else can acknowledge.
+    const mine = await reader.agent.get('/v1/acknowledgments').expect(200);
+    expect(mine.body.items).toEqual([
+      expect.objectContaining({
+        version: 1,
+        document: expect.objectContaining({ name: 'policy.pdf' }),
+      }),
+    ]);
+    await outsider.agent.post(`${base}/acknowledge`).expect(404);
+    await editor.agent.post(`${base}/acknowledge`).expect(404);
+
+    // Acknowledging twice records it once.
+    const first = await reader.agent.post(`${base}/acknowledge`).expect(200);
+    expect(first.body.acknowledgedAt).toEqual(expect.any(String));
+    const again = await reader.agent.post(`${base}/acknowledge`).expect(200);
+    expect(again.body.acknowledgedAt).toBe(first.body.acknowledgedAt);
+    const audit = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.action, 'acknowledgment.acknowledged'));
+    expect(audit.filter((e) => e.targetId === attached.id)).toHaveLength(1);
+    expect(
+      (await reader.agent.get('/v1/acknowledgments').expect(200)).body.items,
+    ).toEqual([]);
+
+    // The dashboard (for whoever may change the record only), and reminders to those still waiting, once a day.
+    await reader.agent.get(`${base}/acknowledgments`).expect(403);
+    const board = await editor.agent.get(`${base}/acknowledgments`).expect(200);
+    expect(board.body).toMatchObject({
+      version: 1,
+      total: 2,
+      acknowledged: 1,
+      pending: 1,
+      overdue: 0,
+    });
+    expect(
+      await editor.agent
+        .post(`${base}/acknowledgments/remind`)
+        .send({})
+        .expect(200),
+    ).toMatchObject({ body: { reminded: 1, skipped: 0 } });
+    expect(
+      (
+        await editor.agent
+          .post(`${base}/acknowledgments/remind`)
+          .send({})
+          .expect(200)
+      ).body,
+    ).toEqual({ reminded: 0, skipped: 1 });
+    const waiting = (
+      await editor.agent.get(`${base}/acknowledgments`).expect(200)
+    ).body.items.find(
+      (i: { recipient: string }) => i.recipient === `user:${other.id}`,
+    );
+    expect(waiting.reminders).toBe(1);
+
+    // An answer stays; an unanswered request can be withdrawn.
+    const answered = board.body.items.find(
+      (i: { acknowledgedAt: string | null }) => i.acknowledgedAt,
+    );
+    await editor.agent
+      .delete(`${base}/acknowledgments/${answered.id}`)
+      .expect(409);
+    await editor.agent
+      .delete(`${base}/acknowledgments/${waiting.id}`)
+      .expect(204);
+    await other.agent.post(`${base}/acknowledge`).expect(404);
+
+    // A removed document takes its requests with it.
+    await editor.agent.delete(base).expect(204);
+    await editor.agent.get(`${base}/acknowledgments`).expect(404);
   });
 });
 
