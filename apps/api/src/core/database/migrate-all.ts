@@ -11,6 +11,7 @@ import type { Database } from './drizzle.js';
 import {
   type DatabaseUrls,
   ensureAppRole,
+  ensureLeakproofFilters,
   ensureMonitorRole,
   ensureReportingRole,
   type MonitorRole,
@@ -77,6 +78,7 @@ export async function migrateAll(
   }
   log('Store migrations applied.');
   await ensureAppRole(urls, log);
+  await ensureLeakproofFilters(url, log);
   if (urls.monitor) {
     await ensureMonitorRole(urls, urls.monitor, log);
   }

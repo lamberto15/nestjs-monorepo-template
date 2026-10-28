@@ -713,6 +713,14 @@ table's owner, and the postgres image's `POSTGRES_USER` is both.
   (`DATABASE_OWNER_URL`) needs only `CREATE` on the database, which an owner
   has. A managed PostgreSQL must offer `pg_trgm`; the common ones do (RDS,
   Cloud SQL, Azure, Supabase, Neon).
+- **Leakproof filters:** under row-level security PostgreSQL uses an index
+  for a condition only when its function is `LEAKPROOF`, and `ILIKE`
+  (`texticlike`) and full-text `@@` (`ts_match_vq`) are not by default: a
+  `?title.contains=` or `?q=` then reads the whole table. Each migrate marks
+  them when the owner is a superuser (Compose); any other owner (managed
+  PostgreSQL) logs the two `ALTER FUNCTION … LEAKPROOF` statements for one
+  to run, or for the provider's support. The filters work either way, only
+  slower without (#851).
 
 `node dist/migrate` (`apps/api/src/core/database/roles.ts`) makes it so on
 every deploy, after the migrations, as the owner: it creates the app role

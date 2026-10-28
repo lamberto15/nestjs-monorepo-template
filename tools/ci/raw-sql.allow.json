@@ -12,8 +12,8 @@
     "why": "keep: SET LOCAL statement_timeout and an advisory lock (no Drizzle API)"
   },
   "apps/api/src/core/database/roles.ts": {
-    "count": 55,
-    "why": "keep: runtime roles, grants, FORCE ROW LEVEL SECURITY and the tenant-wall probe (drizzle-kit can't emit them)"
+    "count": 58,
+    "why": "keep: runtime roles, grants, FORCE ROW LEVEL SECURITY, the tenant-wall probe and LEAKPROOF filter functions (catalogs and ALTER FUNCTION: drizzle-kit can't emit them)"
   },
   "apps/api/src/core/database/search.ts": {
     "count": 4,
