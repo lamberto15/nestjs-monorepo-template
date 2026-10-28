@@ -20,7 +20,7 @@ import { SystemContext } from '../../iam/access/system-context.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { UsersRepository } from '../../iam/auth/users.repository.js';
 import { apiClients } from '../../iam/iam.tables.js';
-import { NotificationCatalog } from './notification-catalog.js';
+import { isBulkSummary, NotificationCatalog } from './notification-catalog.js';
 import { NotificationChannelRegistry } from './notification-channel.registry.js';
 import { same } from './notification-preferences.js';
 import { quietUntil } from './quiet-hours.js';
@@ -114,6 +114,15 @@ export class NotificationDeliveryHandler {
           overrides[row.type],
           recipient,
         );
+        // A bulk summary (#618) is never mailed at once, whatever the
+        // preference: the next hourly digest carries it, counted up by then.
+        if (
+          declaration.bulk === 'digest' &&
+          isBulkSummary(row.data) &&
+          settings.email === 'immediate'
+        ) {
+          settings.email = 'hourly';
+        }
         // Which mail leaves (mail.delivery): checked here too, so a held-back
         // notification mail is never queued nor flagged as sent.
         const mailMode = await this.settingsService.get(MAIL_DELIVERY_SETTING);
