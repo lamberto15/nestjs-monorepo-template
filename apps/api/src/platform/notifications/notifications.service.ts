@@ -502,7 +502,7 @@ export class NotificationsService {
     const [unsettled] = await tx
       .select({ count: count() })
       .from(notifications)
-      .where(this.undelivered(recipient, before));
+      .where(this.backlogOf(recipient, before));
     return {
       messages: pending?.count ?? 0,
       notifications: unsettled?.count ?? 0,
@@ -528,7 +528,7 @@ export class NotificationsService {
         digest: null,
         digestDueAt: null,
       })
-      .where(this.undelivered(recipient, before));
+      .where(this.backlogOf(recipient, before));
     // Database's portable result type is unknown; node-postgres reports rowCount.
     const rows = (result: unknown) =>
       (result as { rowCount?: number | null }).rowCount ?? 0;
@@ -558,7 +558,7 @@ export class NotificationsService {
     );
   }
 
-  private undelivered(recipient: string, before?: Date) {
+  private backlogOf(recipient: string, before?: Date) {
     const mandatory = this.mandatoryTypes();
     return and(
       eq(notifications.recipient, recipient),
