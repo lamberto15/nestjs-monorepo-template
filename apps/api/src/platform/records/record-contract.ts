@@ -1,6 +1,13 @@
-import { Inject, Injectable, type Type } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  type Type,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { AuthorizationService } from '@nestjs/authorization';
 import { Webhooks } from '@nestjs/webhooks';
+import { and, eq } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { withoutEncrypted } from '../../core/encryption/encrypted-columns.js';
@@ -35,6 +42,7 @@ import {
   withIncluded,
 } from './record-can.js';
 import { RECORD_DECLARATION } from './record-declaration.token.js';
+import { relationsFrom, relationsTo } from './record-relations.js';
 import type { RecordSchemas } from './record.schemas.js';
 
 export { RECORD_DECLARATION } from './record-declaration.token.js';
@@ -250,6 +258,7 @@ export class RecordLifecycle {
     tx: Transaction,
     { row, owner, by }: { row: RecordRow; owner: Principal; by: Principal },
   ) {
+    await this.assertReferences(tx, by, row);
     const subject = this.declaration.subject;
     if (takes(this.declaration, 'watch')) {
       // Its owner watches it: told of changes others make.
@@ -297,6 +306,71 @@ export class RecordLifecycle {
     { row, by }: { row: RecordRow; by: Principal },
   ) {
     await this.waiting(tx, by, row.id);
+    await this.assertNotReferred(tx, row);
+  }
+
+  /**
+   * Each reference the write set or changed (a `ref` field,
+   * record-relations.ts) names a live record `by` may read: else a 422
+   * `reference_not_found`, the same for one that doesn't exist, is in the
+   * recycle bin or is hidden from them (the key alone only keeps it in the
+   * tenant). One left as it was isn't checked again.
+   */
+  private async assertReferences(
+    tx: Transaction,
+    by: Principal,
+    row: RecordRow,
+    before?: RecordRow,
+  ) {
+    for (const relation of relationsFrom(this.declaration)) {
+      const id = row[relation.field] as string | null | undefined;
+      const subject = relation.target();
+      if (id == null || before?.[relation.field] === id || !subject) continue;
+      const target = relation.targetTable();
+      const [found] = await tx
+        .select({ id: target.id })
+        .from(target)
+        .where(
+          and(
+            eq(target.id, id),
+            await this.access.sqlFilter(by, subject, 'read'),
+          ),
+        )
+        .limit(1);
+      if (!found) {
+        throw new UnprocessableEntityException({
+          code: 'reference_not_found',
+          message: `${relation.field}: no ${subject} ${id} that you may read.`,
+          field: relation.field,
+        });
+      }
+    }
+  }
+
+  /**
+   * A record a required reference still points at can't go (409
+   * `record_referenced`): neither for good (the key would refuse it) nor to
+   * the recycle bin (its purge would). Referring records in the recycle bin
+   * count too, until purged. Optional references empty when the record is
+   * deleted for good (the key's `set null`) and stay while it is in the bin.
+   */
+  private async assertNotReferred(tx: Transaction, row: RecordRow) {
+    for (const relation of relationsTo(this.declaration.subject)) {
+      if (!relation.required) continue;
+      const [referring] = await tx
+        .select({ id: relation.table.id! })
+        .from(relation.table)
+        .where(eq(relation.column, row.id))
+        .limit(1);
+      if (referring) {
+        throw new ConflictException({
+          code: 'record_referenced',
+          message: `${relation.from.path} still refer to this ${this.declaration.noun} (${relation.field}): change or delete them first.`,
+          subject: relation.from.subject,
+          field: relation.field,
+        });
+      }
+    }
   }
 
   async updated(
@@ -314,6 +388,7 @@ export class RecordLifecycle {
     },
   ) {
     await this.waiting(tx, null, after.id);
+    await this.assertReferences(tx, by, after, before);
     if (takes(this.declaration, 'revisions')) {
       await this.revisions.record(tx, this.declaration.subject, after.id, {
         snapshot: this.snapshot(after),
