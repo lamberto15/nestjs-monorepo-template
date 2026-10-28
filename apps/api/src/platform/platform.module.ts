@@ -217,6 +217,8 @@ import { CommentsService } from './comments/comments.service.js';
 import { TagsController } from './tags/tags.controller.js';
 import { TagsRegistry } from './tags/tags.registry.js';
 import { TagsService } from './tags/tags.service.js';
+import { FavoritesController } from './favorites/favorites.controller.js';
+import { FavoritesService } from './favorites/favorites.service.js';
 import { ViewsController } from './views/views.controller.js';
 import { ViewsService } from './views/views.service.js';
 import { ReportRunnerJob } from './reports/report-runner.job.js';
@@ -481,6 +483,7 @@ export class PlatformModule {
         TagsController,
         NamingSeriesController,
         ViewsController,
+        FavoritesController,
         RetentionController,
         ...whenOn('REPORTS', ReportsController),
         ...whenOn('USAGE', UsageController),
@@ -730,6 +733,8 @@ export class PlatformModule {
         TagsService,
         // Saved views: a list's filters, sort and columns under a name (private, unit, tenant).
         ViewsService,
+        // Favorites: a person's pinned records, pages and saved views, in their order.
+        FavoritesService,
         // Scheduled reports: exports run on a schedule, mailed to their recipients.
         ...whenOn<Provider>(
           'REPORTS',
