@@ -681,11 +681,11 @@ directory `GET /v1/organizational-units` for every member.
   `/access/organization`.
 - **Existing data is kept:** migrations 0065 to 0067 rename the tables and
   columns; `stored-renames.ts` rewrote the team-era names in rows at
-  migrate. #602 removed those renames and the saved-views `team` visibility:
+  migrate. #602 removed those renames and the saved-views `team` visibility,
+  keeping only the `team:<id>` scope rewrite until every database has run it:
   a database must pass through the organizational-units release first, and
   migrate fails if a team-era name is left (`RETIRED_NAMES`).
-- **Removed, not deferred:** parent and sub-organizations (#601, done on this
-  branch): tenants are independent, no read spans two.
+- **Removed, not deferred:** parent and sub-organizations (#601): tenants are independent, no read spans two.
 - **Deferred:** cross-functional project groups (several trees per tenant,
   extra groups a record is shared with).
 - **Kept in permissions, not RLS:** memberships overlap and change often.
