@@ -1,0 +1,14 @@
+{
+  "title": "Organisation einrichten",
+  "progress": "{{done}} von {{total}} Schritten erledigt",
+  "done": "Erledigt",
+  "todo": "Offen",
+  "steps": {
+    "invite": "Team einladen",
+    "roles": "Eigene Rolle anlegen",
+    "units": "Organisationseinheiten einrichten",
+    "branding": "Branding hinzufügen",
+    "tags": "Tags anlegen",
+    "customFields": "Eigene Felder festlegen"
+  }
+}

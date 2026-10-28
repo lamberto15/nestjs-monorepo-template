@@ -1,0 +1,14 @@
+{
+  "title": "Sediakan organisasi anda",
+  "progress": "{{done}} daripada {{total}} langkah selesai",
+  "done": "Selesai",
+  "todo": "Belum",
+  "steps": {
+    "invite": "Jemput pasukan anda",
+    "roles": "Cipta peranan tersuai",
+    "units": "Sediakan unit organisasi",
+    "branding": "Tambah penjenamaan",
+    "tags": "Cipta tag",
+    "customFields": "Tentukan medan tersuai"
+  }
+}
