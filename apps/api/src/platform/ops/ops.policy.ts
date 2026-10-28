@@ -4,6 +4,7 @@ import { definePermissions } from '../../iam/access/permissions.js';
 import { userOnly } from '../../iam/access/policies.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { APPROVAL_SUBJECT } from '../approvals/approval.policy.js';
+import { AUTOMATION_RULE_SUBJECT } from '../automations/automation.policy.js';
 import { MAIL_SUPPRESSION_SUBJECT } from '../deliverability/suppression.policy.js';
 import { PLATFORM_SYSTEM_JOBS } from '../platform.jobs.js';
 
@@ -11,6 +12,7 @@ import { PLATFORM_SYSTEM_JOBS } from '../platform.jobs.js';
 export const PLATFORM_PERMISSIONS = definePermissions({
   subjects: {
     Approval: APPROVAL_SUBJECT,
+    AutomationRule: AUTOMATION_RULE_SUBJECT,
     Ops: {
       label: 'Operations',
       conditions: {},

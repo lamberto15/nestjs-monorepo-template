@@ -33,6 +33,7 @@ import {
   recordKey,
   RecordAccessFinder,
   RecordAttachments,
+  RecordAutomation,
   RecordBulk,
   RecordComments,
   RecordDocuments,
@@ -59,6 +60,7 @@ const TARGETS: Partial<Record<Capability, Type>> = {
   search: RecordSearch,
   transfer: RecordTransfer,
   share: RecordShares,
+  automation: RecordAutomation,
 };
 
 /**

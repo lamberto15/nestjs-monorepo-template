@@ -33,6 +33,7 @@ export const NOTE_CAPABILITIES: readonly Capability[] = [
   'events',
   'numbered',
   'share',
+  'automation',
 ];
 
 /** What notes' bulk operation offers (NoteBulk, note.bulk.ts). */

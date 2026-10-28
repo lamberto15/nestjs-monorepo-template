@@ -20,6 +20,7 @@ export const CAPABILITIES = [
   'events',
   'numbered',
   'share',
+  'automation',
 ];
 
 /** `--with tags,comments`: the capabilities, checked; pdf brings attachments (a PDF is one). */

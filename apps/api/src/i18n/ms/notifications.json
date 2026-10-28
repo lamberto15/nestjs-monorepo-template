@@ -163,5 +163,12 @@
       "title": "Pemberitahuan ujian",
       "body": "Ini ialah pemberitahuan ujian, dihantar pada {at}. Ia melalui setiap saluran yang anda hidupkan."
     }
+  },
+  "automation": {
+    "notified": {
+      "label": "Peraturan automasi",
+      "title": "Automasi: {rule}",
+      "body": "\"{title}\" memenuhi peraturan \"{rule}\"."
+    }
   }
 }

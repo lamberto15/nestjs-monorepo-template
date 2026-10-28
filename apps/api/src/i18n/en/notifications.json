@@ -168,5 +168,12 @@
       "title": "Test notification",
       "body": "This is a test notification, sent at {at}. It went through every channel you have on."
     }
+  },
+  "automation": {
+    "notified": {
+      "label": "Automation rule",
+      "title": "Automation: {rule}",
+      "body": "\"{title}\" matched the rule \"{rule}\"."
+    }
   }
 }

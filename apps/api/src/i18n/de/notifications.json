@@ -168,5 +168,12 @@
       "title": "Testbenachrichtigung",
       "body": "Dies ist eine Testbenachrichtigung, gesendet um {at}. Sie ging über alle Kanäle, die Sie eingeschaltet haben."
     }
+  },
+  "automation": {
+    "notified": {
+      "label": "Automatisierungsregel",
+      "title": "Automatisierung: {rule}",
+      "body": "„{title}“ erfüllt die Regel „{rule}“."
+    }
   }
 }

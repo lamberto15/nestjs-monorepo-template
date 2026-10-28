@@ -163,5 +163,12 @@
       "title": "测试通知",
       "body": "这是一条测试通知，发送于 {at}。它已通过您开启的所有渠道发送。"
     }
+  },
+  "automation": {
+    "notified": {
+      "label": "自动化规则",
+      "title": "自动化：{rule}",
+      "body": "“{title}”符合规则“{rule}”。"
+    }
   }
 }
