@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   GoneException,
   HttpException,
@@ -11,6 +12,8 @@ import {
   UnsupportedMediaTypeException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'node:crypto';
+import type { Readable } from 'node:stream';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { StorageDisk, StorageFileNotFoundError } from '@nestjs/storage';
 import { and, count, eq, gt, isNull, lt, or } from 'drizzle-orm';
@@ -35,6 +38,7 @@ import {
 import type {
   AttachmentView,
   PresignedUploadView,
+  UploadSessionView,
 } from './attachment.schemas.js';
 import { attachmentKey, AttachmentsService } from './attachments.service.js';
 import {
@@ -54,6 +58,37 @@ export const UPLOAD_GRACE_MS = 60 * 60 * 1000;
 
 /** A request completing an upload holds it this long; a request that died no longer does. */
 const CLAIM_MS = 5 * 60 * 1000;
+
+/** How long a resumable session stays open (the sweep removes it an hour later). */
+export const UPLOAD_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** The most a chunk of a resumable session may carry: a larger one is a 413. */
+export const UPLOAD_CHUNK_BYTES = 8 * 1024 * 1024;
+
+/** Where the chunks of a resumable session are kept: next to its key, never a key an attachment uses. */
+export const partsPrefix = (key: string) => `${key}.parts/`;
+const partKey = (key: string, offset: number) =>
+  `${partsPrefix(key)}${String(offset).padStart(15, '0')}`;
+
+/**
+ * Every object a session or announced upload may have left: its key and, for
+ * a resumable one, its parts (and chunks that never got a place). Shared with
+ * the sweep.
+ */
+export async function uploadObjects(
+  disk: StorageDisk,
+  upload: { key: string; resumable: boolean },
+) {
+  const keys = [upload.key];
+  if (upload.resumable) {
+    for await (const entry of disk.listAll({
+      prefix: partsPrefix(upload.key),
+    })) {
+      keys.push(entry.key);
+    }
+  }
+  return keys;
+}
 
 /** The most uploads one uploader may have announced and not completed, whose URL still works: the objects they leave are not counted by the storage quota. */
 export const MAX_PENDING_UPLOADS = 100;
@@ -120,26 +155,7 @@ export class AttachmentUploadsService {
     request: { name: string; size: number; contentType: string },
   ): Promise<PresignedUploadView> {
     this.assertEnabled();
-    await this.attachments.assertCanUpload(principal, record);
-    const limits = attachmentLimits(this.config);
-    if (request.size > limits.maxBytes) {
-      throw new PayloadTooLargeException('File too large');
-    }
-    // The type the URL is signed for. The bytes are read again on completion;
-    // this keeps the store from serving what we would not accept.
-    const contentType = directUploadType(request.contentType);
-    if (!contentType) {
-      throw new UnsupportedMediaTypeException(
-        "Declare the file's type (contentType): a direct upload is signed for it.",
-      );
-    }
-    if (!isAllowedType(contentType, limits.types)) {
-      throw new UnsupportedMediaTypeException(
-        `File type not allowed. Allowed types: ${limits.types.join(', ')}`,
-      );
-    }
-    const tenantId = requireTenantId();
-    const uploadedBy = principalKey(principal);
+    const contentType = await this.check(principal, record, request);
     // The server's key, under the tenant's prefix, the way an upload through the API gets one.
     const key = attachmentKey(principal);
     const signed = await this.disk.signedUpload(key, {
@@ -147,12 +163,77 @@ export class AttachmentUploadsService {
       contentLength: request.size,
       expiresIn: UPLOAD_LINK_TTL,
     });
-    const row = await inTransaction(this.txHost, async (tx) => {
+    const row = await this.register(principal, record, {
+      key,
+      name: request.name,
+      size: request.size,
+      contentType,
+      expiresAt: signed.expiresAt,
+      resumable: false,
+    });
+    // Content-Length is the file's size, set by the client's HTTP client (a browser forbids setting it).
+    const { 'content-length': _length, ...headers } = signed.headers;
+    return {
+      uploadId: row.id,
+      url: signed.url,
+      method: signed.method,
+      headers,
+      expiresAt: signed.expiresAt.toISOString(),
+    };
+  }
+
+  /**
+   * What an announced upload must satisfy before anything moves: the right
+   * to attach files to the record (404, 403), the size within
+   * ATTACHMENT_MAX_MB (413) and a declared type that is allowed (415).
+   * Returns the type the upload is made for. The bytes are read again on
+   * completion.
+   */
+  private async check(
+    principal: Principal,
+    record: RecordRef,
+    request: { size: number; contentType: string },
+  ) {
+    await this.attachments.assertCanUpload(principal, record);
+    const limits = attachmentLimits(this.config);
+    if (request.size > limits.maxBytes) {
+      throw new PayloadTooLargeException('File too large');
+    }
+    const contentType = directUploadType(request.contentType);
+    if (!contentType) {
+      throw new UnsupportedMediaTypeException(
+        "Declare the file's type (contentType): an announced upload is made for it.",
+      );
+    }
+    if (!isAllowedType(contentType, limits.types)) {
+      throw new UnsupportedMediaTypeException(
+        `File type not allowed. Allowed types: ${limits.types.join(', ')}`,
+      );
+    }
+    return contentType;
+  }
+
+  /** Remembers an announced upload (`attachment_uploads`): the quota and the cap on pending ones are checked here. */
+  private async register(
+    principal: Principal,
+    record: RecordRef,
+    upload: {
+      key: string;
+      name: string;
+      size: number;
+      contentType: string;
+      expiresAt: Date;
+      resumable: boolean;
+    },
+  ) {
+    const tenantId = requireTenantId();
+    const uploadedBy = principalKey(principal);
+    return inTransaction(this.txHost, async (tx) => {
       // Early, so a client does not send 25 MB to be refused on completion.
-      await this.quotas.assertRoom(tx, tenantId, 'storageBytes', request.size);
-      // Only the uploads that can still be completed through their URL: an
-      // expired one (a PUT that failed, a tab closed) frees its place, though
-      // the sweep deletes its row only at night.
+      await this.quotas.assertRoom(tx, tenantId, 'storageBytes', upload.size);
+      // Only the uploads that can still be completed: an expired one (a PUT
+      // that failed, a tab closed) frees its place, though the sweep deletes
+      // its row only at night.
       const [pending] = await tx
         .select({ pending: count() })
         .from(attachmentUploads)
@@ -177,25 +258,162 @@ export class AttachmentUploadsService {
         .values({
           subject: record.subject,
           recordId: record.recordId,
-          key,
-          name: request.name,
-          size: request.size,
-          contentType,
+          ...upload,
           uploadedBy,
-          expiresAt: signed.expiresAt,
         })
         .returning();
       return inserted!;
     });
-    // Content-Length is the file's size, set by the client's HTTP client (a browser forbids setting it).
-    const { 'content-length': _length, ...headers } = signed.headers;
-    return {
-      uploadId: row.id,
-      url: signed.url,
-      method: signed.method,
-      headers,
-      expiresAt: signed.expiresAt.toISOString(),
-    };
+  }
+
+  /**
+   * Opens a resumable session: same checks as `presign()` (right, size, type,
+   * quota, the cap on pending uploads), on every storage driver. The client
+   * then sends chunks with `append()`, asks `progress()` to resume after a
+   * failure, `cancel()`s, and finally `complete()`s.
+   */
+  async start(
+    principal: Principal,
+    record: RecordRef,
+    request: { name: string; size: number; contentType: string },
+  ): Promise<UploadSessionView> {
+    const contentType = await this.check(principal, record, request);
+    const row = await this.register(principal, record, {
+      key: attachmentKey(principal),
+      name: request.name,
+      size: request.size,
+      contentType,
+      expiresAt: new Date(Date.now() + UPLOAD_SESSION_TTL_MS),
+      resumable: true,
+    });
+    return sessionView(row);
+  }
+
+  /** How far a session got: 404 for one that is not the caller's, completed or removed. */
+  async progress(
+    principal: Principal,
+    record: RecordRef,
+    uploadId: string,
+  ): Promise<UploadSessionView> {
+    await this.attachments.assertCanUpload(principal, record);
+    return sessionView(await this.session(principal, record, uploadId));
+  }
+
+  /**
+   * Stores the next chunk of a session. `offset` must be what has been
+   * received (409 `attachment_upload_offset_mismatch` otherwise: ask
+   * `progress()` and continue from there, which also makes a retried chunk
+   * safe). A chunk is at most UPLOAD_CHUNK_BYTES and never goes past the
+   * announced size (413). The chunk is written to a name of its own and
+   * takes its place only if the offset is still the next one, so two
+   * parallel requests with one offset store one chunk.
+   */
+  async append(
+    principal: Principal,
+    record: RecordRef,
+    uploadId: string,
+    offset: number,
+    body: Readable,
+  ): Promise<UploadSessionView> {
+    // Checked again: the right may have gone since the session began.
+    await this.attachments.assertCanUpload(principal, record);
+    const upload = await this.session(principal, record, uploadId);
+    if (upload.expiresAt.getTime() < Date.now()) {
+      throw new GoneException({
+        code: 'attachment_upload_expired',
+        message: 'This upload expired: start it again.',
+      });
+    }
+    if (offset !== upload.received) {
+      throw offsetMismatch(upload.received);
+    }
+    const limit = Math.min(UPLOAD_CHUNK_BYTES, upload.size - offset);
+    if (limit <= 0) {
+      throw new BadRequestException(
+        'The whole file has been received: complete the upload.',
+      );
+    }
+    const temporary = `${partsPrefix(upload.key)}tmp-${randomUUID()}`;
+    let length = 0;
+    try {
+      await this.disk.put(
+        temporary,
+        (async function* () {
+          for await (const chunk of body) {
+            length += (chunk as Buffer).length;
+            if (length > limit) {
+              throw new PayloadTooLargeException(
+                `A chunk carries at most ${limit} bytes here.`,
+              );
+            }
+            yield chunk as Buffer;
+          }
+        })(),
+        { contentType: 'application/octet-stream' },
+      );
+      if (length === 0) {
+        throw new BadRequestException('The chunk is empty.');
+      }
+      const [advanced] = await this.db
+        .update(attachmentUploads)
+        .set({ received: offset + length })
+        .where(
+          and(
+            eq(attachmentUploads.id, upload.id),
+            eq(attachmentUploads.received, offset),
+            isNull(attachmentUploads.completingAt),
+            isNull(attachmentUploads.completedAt),
+          ),
+        )
+        .returning();
+      if (!advanced) {
+        throw offsetMismatch(
+          (await this.session(principal, record, uploadId)).received,
+        );
+      }
+      await this.disk.move(temporary, partKey(upload.key, offset));
+      return sessionView(advanced);
+    } catch (error) {
+      await this.forget(temporary);
+      throw error;
+    }
+  }
+
+  /** Cancels a session: its chunks and its row go; 404 for one that is not the caller's. */
+  async cancel(principal: Principal, record: RecordRef, uploadId: string) {
+    const upload = await this.claim(principal, record, uploadId);
+    await this.disk.delete(await uploadObjects(this.disk, upload));
+    await this.db
+      .delete(attachmentUploads)
+      .where(eq(attachmentUploads.id, upload.id));
+  }
+
+  /** The caller's own open session for this record, or a 404. */
+  private async session(
+    principal: Principal,
+    record: RecordRef,
+    uploadId: string,
+  ) {
+    const [row] = await this.db
+      .select()
+      .from(attachmentUploads)
+      .where(
+        and(
+          eq(attachmentUploads.id, uploadId),
+          eq(attachmentUploads.subject, record.subject),
+          eq(attachmentUploads.recordId, record.recordId),
+          eq(attachmentUploads.uploadedBy, principalKey(principal)),
+          eq(attachmentUploads.resumable, true),
+          isNull(attachmentUploads.completedAt),
+        ),
+      );
+    if (!row) {
+      throw new NotFoundException({
+        code: 'attachment_upload_not_found',
+        message: `Upload ${uploadId} not found.`,
+      });
+    }
+    return row;
   }
 
   /**
@@ -217,10 +435,13 @@ export class AttachmentUploadsService {
     uploadId: string,
     ip?: string,
   ): Promise<AttachmentView> {
-    this.assertEnabled();
     // Checked again: the right may have gone since the URL was signed.
     await this.attachments.assertCanUpload(principal, record);
     const upload = await this.claim(principal, record, uploadId);
+    if (!upload.resumable && !this.enabled) {
+      await this.release(upload);
+      this.assertEnabled();
+    }
     if (upload.expiresAt.getTime() + UPLOAD_GRACE_MS < Date.now()) {
       await this.discard(upload);
       throw new GoneException({
@@ -235,6 +456,10 @@ export class AttachmentUploadsService {
     const key = attachmentKey(principal);
     let verdict: UploadVerdict;
     try {
+      if (upload.resumable) {
+        // Everything arrived, in order: the parts become the one object that is checked below.
+        await this.assemble(upload);
+      }
       await this.disk.copy(upload.key, key);
       verdict = await checkUploadedObject(
         this.disk,
@@ -284,7 +509,58 @@ export class AttachmentUploadsService {
     // Not the attachment's file, and the URL may still take another PUT: the
     // row stays, so the sweep deletes the object again once the URL expired.
     await this.forget(upload.key);
+    if (upload.resumable) {
+      await this.disk
+        .delete(await uploadObjects(this.disk, upload))
+        .catch((error: unknown) =>
+          this.logger.warn('The parts of an upload were not deleted', {
+            upload: upload.id,
+            error: String(error),
+          }),
+        );
+    }
     return attachment;
+  }
+
+  /**
+   * Writes the parts of a resumable session, in offset order, to the
+   * session's key as one object of the announced type. 409
+   * `attachment_upload_incomplete` (the session stays) when bytes are still
+   * missing; parts that do not add up to the announced size are a 400
+   * `attachment_upload_mismatch` and the session is discarded.
+   */
+  private async assemble(upload: AttachmentUpload) {
+    if (upload.received < upload.size) {
+      throw uploadIncomplete();
+    }
+    const parts: string[] = [];
+    let total = 0;
+    for await (const entry of this.disk.listAll({
+      prefix: partsPrefix(upload.key),
+    })) {
+      if (entry.key !== partKey(upload.key, total)) {
+        continue; // a chunk that never got its place
+      }
+      parts.push(entry.key);
+      total += entry.size;
+    }
+    if (total !== upload.size) {
+      await this.discard(upload);
+      throw new BadRequestException({
+        code: 'attachment_upload_mismatch',
+        message: 'The chunks received are not the size that was announced.',
+      });
+    }
+    const disk = this.disk;
+    await disk.put(
+      upload.key,
+      (async function* () {
+        for (const part of parts) {
+          yield* (await disk.get(part)).body;
+        }
+      })(),
+      { contentType: upload.contentType },
+    );
   }
 
   private assertEnabled() {
@@ -378,7 +654,7 @@ export class AttachmentUploadsService {
    */
   private async discard(upload: AttachmentUpload) {
     try {
-      await this.disk.delete(upload.key);
+      await this.disk.delete(await uploadObjects(this.disk, upload));
     } catch (error) {
       this.logger.warn('A refused upload was not deleted', {
         upload: upload.id,
@@ -397,3 +673,21 @@ export class AttachmentUploadsService {
       );
   }
 }
+
+/** A resumable session as the API shows it. */
+const sessionView = (row: AttachmentUpload): UploadSessionView => ({
+  uploadId: row.id,
+  name: row.name,
+  size: row.size,
+  contentType: row.contentType,
+  received: row.received,
+  chunkSize: UPLOAD_CHUNK_BYTES,
+  expiresAt: row.expiresAt.toISOString(),
+});
+
+const offsetMismatch = (received: number) =>
+  new ConflictException({
+    code: 'attachment_upload_offset_mismatch',
+    message: `The next chunk starts at byte ${received}: send it from there.`,
+    received,
+  });

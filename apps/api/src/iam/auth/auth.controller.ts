@@ -41,7 +41,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Throttle, minutes } from '@nestjs/throttler';
-import type { Response } from 'express';
+import type { NodeResponse as Response } from '@nestjs/platform-node';
 import { z } from 'zod';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import { AccessService } from '../access/access.service.js';

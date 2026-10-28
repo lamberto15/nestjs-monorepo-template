@@ -107,6 +107,10 @@
     "count": 1,
     "why": "keep: advisory lock"
   },
+  "apps/api/src/platform/templates/templates.service.ts": {
+    "count": 1,
+    "why": "keep: advisory lock"
+  },
   "apps/api/src/platform/views/views.service.ts": {
     "count": 1,
     "why": "keep: advisory lock"

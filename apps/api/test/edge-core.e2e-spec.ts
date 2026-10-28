@@ -521,7 +521,9 @@ describe('ProblemDetailsFilter', () => {
         getResponse: () => ({}),
       }),
     } as never);
-    expect(headers['Content-Type']).toBe('application/problem+json');
+    expect(headers['Content-Type']).toBe(
+      'application/problem+json; charset=utf-8',
+    );
     expect(replies).toHaveLength(1);
     expect(replies[0].status).toBe(replies[0].body.status);
     return replies[0].body;

@@ -6,9 +6,13 @@ import {
   Injectable,
   type NestInterceptor,
 } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import type {
+  NodeRequest as Request,
+  NodeResponse as Response,
+} from '@nestjs/platform-node';
 import type { Principal } from '../../iam/auth/principal.js';
-import { routeKey, secondsToUtcMidnight } from './usage-keys.js';
+import { matchedRouteKey } from '../../core/http/route-key.js';
+import { secondsToUtcMidnight } from './usage-keys.js';
 import { UsageService } from './usage.service.js';
 
 /** Routes that are never metered: health checks and the API docs. */
@@ -42,9 +46,10 @@ export class UsageInterceptor implements NestInterceptor {
     const req = http.getRequest<Request & { user?: Principal | null }>();
     const res = http.getResponse<Response>();
     const principal = req.user;
+    const route = matchedRouteKey(req);
     if (
       principal?.kind !== 'client' ||
-      !req.route ||
+      route === undefined ||
       UNMETERED.test(req.path)
     ) {
       return next.handle();
@@ -70,10 +75,6 @@ export class UsageInterceptor implements NestInterceptor {
         res.setHeader('X-Quota-Remaining', String(Math.max(0, quota - used)));
       }
     }
-    const route = routeKey(
-      req.method,
-      `${req.baseUrl}${String(req.route.path)}`,
-    );
     // 'close', not 'finish': it also fires when the caller hangs up mid-response,
     // so closing the connection doesn't get a request off the meter.
     // The client is passed whole: the listener runs outside the request's

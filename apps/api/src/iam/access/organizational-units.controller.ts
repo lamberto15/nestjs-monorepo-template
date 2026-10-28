@@ -30,7 +30,10 @@ import type { UserPrincipal } from '../auth/principal.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
 import { UNIT_ROLES, UNIT_TYPES } from '../iam.tables.js';
 import { AccessAdminService } from './access-admin.service.js';
-import { OrganizationalUnitsService } from './organizational-units.service.js';
+import {
+  IMPACT_USERS_LIMIT,
+  OrganizationalUnitsService,
+} from './organizational-units.service.js';
 import { AccessPolicy } from './policies.js';
 
 const unitSchema = z.object({
@@ -102,6 +105,34 @@ const addMemberSchema = z.object({
     .describe('Default: open-ended.'),
 });
 const changeMemberSchema = z.object({ role: z.enum(UNIT_ROLES) });
+const reachChangeSchema = z.object({
+  gains: z.array(z.uuid()).describe('Units they would reach and do not now.'),
+  loses: z.array(z.uuid()).describe('Units they reach now and would not.'),
+});
+const impactSchema = z.object({
+  changes: z
+    .array(
+      z.object({
+        userId: z.uuid(),
+        name: z.string(),
+        email: z.string(),
+        andBelow: reachChangeSchema.describe(
+          'What `inMyUnitsAndBelow` would reach.',
+        ),
+        ledAndBelow: reachChangeSchema.describe(
+          'What `inUnitsILeadAndBelow` would reach.',
+        ),
+      }),
+    )
+    .describe('Only the users whose reach would change.'),
+  truncated: z
+    .boolean()
+    .describe(
+      `More than ${IMPACT_USERS_LIMIT} users could be affected: only the first were compared.`,
+    ),
+});
+const impactDescription =
+  'A dry run: the change runs with its checks (the same 403, 404 and 409 as the change itself) in a transaction that is rolled back, so nothing changes and nothing is audited. The units are read as the unit conditions read them.';
 
 /**
  * The tenant's organizational units (one tree of divisions, departments
@@ -165,6 +196,27 @@ export class OrganizationalUnitsController {
     @Ip() ip: string,
   ) {
     return this.units.update(user, id, body, ip);
+  }
+
+  @Post(':id/impact')
+  @Can(AccessPolicy, 'manageOrganizationalUnits')
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      'Who would gain or lose reach (my units and below, units I lead and below) if the unit changed as PATCH would change it',
+    description: impactDescription,
+  })
+  @ApiOkResponse({ standardSchema: impactSchema })
+  @ApiNotFoundResponse()
+  @ApiConflictResponse({
+    description: 'As PATCH: the change would be refused.',
+  })
+  impact(
+    @CurrentUser() user: UserPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body({ schema: updateSchema }) body: z.infer<typeof updateSchema>,
+  ) {
+    return this.units.previewUpdate(user, id, body);
   }
 
   @Delete(':id')
@@ -235,6 +287,27 @@ export class OrganizationalUnitsController {
     @Ip() ip: string,
   ) {
     return this.admin.changeUnitMemberRole(user, id, userId, body.role, ip);
+  }
+
+  @Post(':id/members/:userId/impact')
+  @Can(AccessPolicy, 'manageUsers')
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      "What a change of the member's role would change of their reach (units they lead and below)",
+    description: impactDescription,
+  })
+  @ApiOkResponse({ standardSchema: impactSchema })
+  @ApiNotFoundResponse()
+  @ApiConflictResponse({ description: '`unit_managed_by_scim`.' })
+  memberImpact(
+    @CurrentUser() user: UserPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body({ schema: changeMemberSchema })
+    body: z.infer<typeof changeMemberSchema>,
+  ) {
+    return this.admin.previewUnitMemberRole(user, id, userId, body.role);
   }
 
   @Delete(':id/members/:userId')

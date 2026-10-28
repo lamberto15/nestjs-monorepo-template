@@ -30,6 +30,7 @@ import {
   toPage,
 } from '../../core/http/pagination.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
+import { LegalHoldsService } from '../../iam/holds/legal-holds.service.js';
 import {
   type Principal,
   principalKey,
@@ -56,6 +57,7 @@ import {
   type Attachment,
   attachments,
   attachmentUploads,
+  attachmentVersions,
 } from './attachments.tables.js';
 
 /** How long a download link works. */
@@ -90,7 +92,7 @@ export function attachmentKey(principal: Principal, extension = '') {
 }
 
 /** A file of another tenant (or outside any) can't become this tenant's attachment. */
-function assertOwnFile(key: string) {
+export function assertOwnFile(key: string) {
   if (!isTenantFileKey(requireTenantId('An attachment'), key)) {
     throw new Error(`File ${key} is not under this tenant's prefix.`);
   }
@@ -133,16 +135,23 @@ export class AttachmentsService implements PersonalDataSource {
     private readonly images: AttachmentImagesQueue,
     personalData: PersonalDataRegistry,
     private readonly quotas: TenantQuotas,
+    private readonly holds: LegalHoldsService,
   ) {
     personalData.register(this);
-    // The tenant's stored bytes: uploads and issued documents (their PDFs are attachments).
+    // The tenant's stored bytes: uploads, issued documents (their PDFs are attachments) and earlier versions.
     quotas.count('storageBytes', async (db) => {
       const [row] = await db
         .select({
           bytes: sql<number>`coalesce(sum(${attachments.size}), 0)::float8`,
         })
         .from(attachments);
-      return row?.bytes ?? 0;
+      // The earlier versions of attachments are stored bytes too.
+      const [earlier] = await db
+        .select({
+          bytes: sql<number>`coalesce(sum(${attachmentVersions.size}), 0)::float8`,
+        })
+        .from(attachmentVersions);
+      return (row?.bytes ?? 0) + (earlier?.bytes ?? 0);
     });
   }
 
@@ -178,6 +187,11 @@ export class AttachmentsService implements PersonalDataSource {
         `You may not attach files to ${record.subject} ${record.recordId}.`,
       );
     }
+  }
+
+  /** One attachment, as the API shows it: whoever may read its record, else a 404. */
+  async get(principal: Principal, id: string): Promise<AttachmentView> {
+    return view(await this.findReadable(principal, id));
   }
 
   /** A page of the record's attachments, newest first. */
@@ -402,7 +416,16 @@ export class AttachmentsService implements PersonalDataSource {
     ) {
       throw new ForbiddenException('You may not remove this attachment.');
     }
+    let versionKeys: string[] = [];
     const removed = await inTransaction(this.txHost, async (tx) => {
+      // A held record keeps its files, every version of them (a 409 `legal_hold`).
+      await this.holds.assertNotHeld(row.subject, [row.recordId], tx);
+      versionKeys = (
+        await tx
+          .select({ key: attachmentVersions.key })
+          .from(attachmentVersions)
+          .where(eq(attachmentVersions.attachmentId, row.id))
+      ).map((version) => version.key);
       const [gone] = await tx
         .delete(attachments)
         .where(and(eq(attachments.id, row.id), eq(attachments.locked, false)))
@@ -428,7 +451,11 @@ export class AttachmentsService implements PersonalDataSource {
     // After the commit: a failed delete leaves a file nothing points at, never a row without its file.
     // The files of the row that was deleted, not of the one read above: an
     // image job may have replaced the original and added renditions since.
-    const keys = [removed.key, ...renditionKeys(removed.renditions)];
+    const keys = [
+      removed.key,
+      ...renditionKeys(removed.renditions),
+      ...versionKeys,
+    ];
     await this.disk.delete(keys).catch((error: unknown) =>
       this.logger.warn('An attachment file was not deleted', {
         keys,
@@ -490,6 +517,10 @@ export class AttachmentsService implements PersonalDataSource {
       .update(attachments)
       .set({ uploadedBy: ANONYMIZED_UPLOADER })
       .where(eq(attachments.uploadedBy, principalKey(user)));
+    await tx
+      .update(attachmentVersions)
+      .set({ uploadedBy: ANONYMIZED_UPLOADER })
+      .where(eq(attachmentVersions.uploadedBy, principalKey(user)));
     // Uploads announced and not completed (direct uploads): nobody can complete them now;
     // the sweep deletes them within a day, and they are not in the export.
     await tx
@@ -569,7 +600,7 @@ export class AttachmentsService implements PersonalDataSource {
 }
 
 /** An attachment as the API shows it: without its storage key. */
-const view = ({
+export const view = ({
   key: _key,
   fields: _fields,
   renditions,
@@ -577,11 +608,12 @@ const view = ({
 }: Attachment): AttachmentView => ({
   ...row,
   renditions: publicRenditions(renditions),
+  versionedAt: row.versionedAt.toISOString(),
   createdAt: row.createdAt.toISOString(),
   updatedAt: row.updatedAt.toISOString(),
 });
 
-const details = (row: Attachment) => ({
+export const details = (row: Attachment) => ({
   subject: row.subject,
   recordId: row.recordId,
   name: row.name,
@@ -590,7 +622,7 @@ const details = (row: Attachment) => ({
 });
 
 /** The last segment of a client's file name, without control characters, at most 255 characters. */
-function fileName(original: string | undefined) {
+export function fileName(original: string | undefined) {
   const name = (original ?? '')
     .split(/[/\\]/)
     .pop()!

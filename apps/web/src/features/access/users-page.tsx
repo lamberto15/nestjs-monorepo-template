@@ -1,6 +1,7 @@
 import { UserAvatar } from '@/components/user-avatar';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
+import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import { DropdownMenuItem } from '@nestjs-monorepo-template/ui/components/dropdown-menu';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import {
@@ -21,15 +22,18 @@ import { ListPage } from '@/components/list-page';
 import {
   invalidateAccess,
   invitationsQuery,
-  resendInvitation,
   revokeInvitation,
+  sendInvitation,
   rolesQuery,
   type Invitation,
   type Member,
   type Role,
 } from '@/features/access/api';
 import { isEnded } from '@/features/access/grants';
-import { InviteDialog } from '@/features/access/invite-dialog';
+import {
+  AddMemberButtons,
+  InvitationDialog,
+} from '@/features/access/invite-dialog';
 import { MemberSheet } from '@/features/access/member-sheet';
 import { formatDateTime } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
@@ -142,13 +146,18 @@ function Members() {
         accessorFn: (m) => m.active,
         ...header('status'),
         cell: ({ row }) => (
-          <Badge variant={row.original.active ? 'secondary' : 'destructive'}>
-            {t(
-              row.original.active
-                ? 'users.status.active'
-                : 'users.status.inactive',
+          <div className="flex flex-wrap gap-1">
+            <Badge variant={row.original.active ? 'secondary' : 'destructive'}>
+              {t(
+                row.original.active
+                  ? 'users.status.active'
+                  : 'users.status.inactive',
+              )}
+            </Badge>
+            {row.original.managedByScim && (
+              <Badge variant="outline">{t('users.status.scim')}</Badge>
             )}
-          </Badge>
+          </div>
         ),
       },
     ];
@@ -173,7 +182,7 @@ function Members() {
         title={t('users.title')}
         columns={columns}
         rowActions={rowActions}
-        toolbarActions={mayManage ? <InviteDialog /> : undefined}
+        toolbarActions={mayManage ? <AddMemberButtons /> : undefined}
       />
       <MemberSheet memberId={selected} onClose={() => setSelected(undefined)} />
     </>
@@ -195,7 +204,7 @@ function Invitations() {
         <TableRow>
           <TableHead>{t('invitations.columns.email')}</TableHead>
           <TableHead>{t('invitations.columns.roles')}</TableHead>
-          <TableHead>{t('invitations.columns.expires')}</TableHead>
+          <TableHead>{t('invitations.columns.status')}</TableHead>
           <TableHead>
             <span className="sr-only">{t('actions')}</span>
           </TableHead>
@@ -228,18 +237,24 @@ function InvitationRow(props: {
   const { t } = useTranslation('access');
   const { invitation } = props;
   const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const who = invitation.email ?? t('invitations.noAddress');
   const revoke = useMutation({
     mutationFn: () => revokeInvitation(invitation.id),
     onSuccess: async () => {
-      toast.success(t('invitations.revoked', { email: invitation.email }));
+      toast.success(t('invitations.revoked', { email: who }));
       await invalidateAccess(queryClient);
     },
   });
-  // A new link and expiry; the roles, their ends and the units stay.
-  const resend = useMutation({
-    mutationFn: () => resendInvitation(invitation.id),
+  // A prepared one gets its first link; a sent one a new link and expiry.
+  // The roles, their ends and the units stay.
+  const first = invitation.status === 'prepared';
+  const send = useMutation({
+    mutationFn: () => sendInvitation(invitation.id),
     onSuccess: async () => {
-      toast.success(t('invitations.resent', { email: invitation.email }));
+      toast.success(
+        t(first ? 'invitations.sent' : 'invitations.resent', { email: who }),
+      );
       await invalidateAccess(queryClient);
     },
   });
@@ -247,7 +262,14 @@ function InvitationRow(props: {
     <TableRow>
       <TableCell>
         <div className="flex flex-col">
-          <span className="font-medium">{invitation.email}</span>
+          <span className="font-medium">
+            {invitation.email ?? (
+              <span className="text-muted-foreground">{who}</span>
+            )}
+          </span>
+          {invitation.name && (
+            <span className="text-xs">{invitation.name}</span>
+          )}
           <span className="text-xs text-muted-foreground">
             {t('invitations.by', { who: invitation.invitedBy })}
           </span>
@@ -269,28 +291,57 @@ function InvitationRow(props: {
         </div>
       </TableCell>
       <TableCell>
-        {invitation.expired ? (
-          <Badge variant="destructive">{t('invitations.expired')}</Badge>
-        ) : (
-          formatDateTime(invitation.expiresAt)
-        )}
+        <div className="flex flex-col gap-1">
+          <Badge
+            className="self-start"
+            variant={
+              invitation.status === 'expired'
+                ? 'destructive'
+                : invitation.status === 'prepared'
+                  ? 'outline'
+                  : 'secondary'
+            }
+          >
+            {t(`invitations.status.${invitation.status}`)}
+          </Badge>
+          {invitation.status === 'sent' && invitation.expiresAt && (
+            <span className="text-xs text-muted-foreground">
+              {t('invitations.expires', {
+                date: formatDateTime(invitation.expiresAt),
+              })}
+            </span>
+          )}
+        </div>
       </TableCell>
       <TableCell>
         <div className="flex justify-end gap-2">
+          <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
+            {t('invitations.edit')}
+          </Button>
           <ConfirmButton
             size="sm"
             variant="ghost"
-            title={t('invitations.resendTitle', { email: invitation.email })}
-            description={t('invitations.resendDescription')}
-            confirm={t('invitations.resend')}
-            onConfirm={() => resend.mutateAsync()}
+            disabled={!invitation.email}
+            title={t(
+              first ? 'invitations.sendTitle' : 'invitations.resendTitle',
+              {
+                email: who,
+              },
+            )}
+            description={t(
+              first
+                ? 'invitations.sendDescription'
+                : 'invitations.resendDescription',
+            )}
+            confirm={t(first ? 'invitations.sendNow' : 'invitations.resend')}
+            onConfirm={() => send.mutateAsync()}
           >
-            {t('invitations.resend')}
+            {t(first ? 'invitations.sendNow' : 'invitations.resend')}
           </ConfirmButton>
           <ConfirmButton
             size="sm"
             variant="ghost"
-            title={t('invitations.revokeTitle', { email: invitation.email })}
+            title={t('invitations.revokeTitle', { email: who })}
             description={t('invitations.revokeDescription')}
             confirm={t('invitations.revoke')}
             onConfirm={() => revoke.mutateAsync()}
@@ -298,6 +349,12 @@ function InvitationRow(props: {
             {t('invitations.revoke')}
           </ConfirmButton>
         </div>
+        <InvitationDialog
+          mode="edit"
+          invitation={invitation}
+          open={editing}
+          onClose={() => setEditing(false)}
+        />
       </TableCell>
     </TableRow>
   );

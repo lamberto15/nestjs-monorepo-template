@@ -13,6 +13,7 @@
       "manageRetention": "设置租户将每种记录保留多久，之后清除或匿名化（platform/retention）",
       "manageNamingSeries": "创建、更改和删除编号记录的编号格式，并设置其计数器（platform/sequences）",
       "manageViews": "与整个租户共享列表的已保存视图，并更改或删除共享视图（platform/views）",
+      "manageTemplates": "与整个租户共享记录模板，并更改或删除共享模板（platform/templates）",
       "readAudit": "查看审计日志",
       "manageTenants": "创建租户（部署的运营者：仅在运营者租户中）",
       "impersonate": "以其他用户身份操作（支持），绝不以管理员身份",

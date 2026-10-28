@@ -9,7 +9,10 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ApiOperation } from '@nestjs/swagger';
-import type { Request, Response } from 'express';
+import type {
+  NodeRequest as Request,
+  NodeResponse as Response,
+} from '@nestjs/platform-node';
 import { MetricsService } from '../metrics/metrics.service.js';
 import { matchedRouteKey } from './route-key.js';
 

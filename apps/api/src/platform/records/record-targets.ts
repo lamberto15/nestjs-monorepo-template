@@ -18,6 +18,7 @@ import {
 import type { ListQuery } from '../../core/http/list-query.js';
 import { walkList } from '../../core/http/pagination.js';
 import { validationException } from '../../core/http/problem-details.filter.js';
+import { AccessRecordsRegistry } from '../../iam/access/access-records.registry.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import {
   type Principal,
@@ -103,6 +104,25 @@ async function find(c: RecordContract, id: string, visibleTo?: Principal) {
   } catch (error) {
     if (error instanceof NotFoundException) return null;
     throw error;
+  }
+}
+
+/** Its records, for the permission explanation (GET /v1/access/users/{id}/explanation). */
+@Injectable()
+export class RecordAccessFinder {
+  readonly subject: string;
+  constructor(
+    @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
+    registry: AccessRecordsRegistry,
+  ) {
+    this.subject = c.declaration.subject;
+    registry.register(this);
+  }
+  find(id: string, visibleTo: Principal) {
+    return find(this.c, id, visibleTo) as Promise<Record<
+      string,
+      unknown
+    > | null>;
   }
 }
 

@@ -274,6 +274,52 @@ export class NotificationsSettleCommand extends Changing {
   }
 }
 
+@Command({
+  name: 'diagnostics',
+  description:
+    'Show the integrations (database, Redis, workers, mail, storage, realtime): state, driver, hint; --test probes them safely',
+})
+@Injectable()
+export class DiagnosticsCommand extends CommandRunner {
+  constructor(private readonly ops: OpsService) {
+    super();
+  }
+  async run(_args: string[], options: { test?: boolean }) {
+    for (const item of await this.ops.diagnostics()) {
+      let line = [
+        item.check.padEnd(10),
+        item.state.padEnd(13),
+        (item.driver ?? '-').padEnd(12),
+        item.detail ?? '',
+      ]
+        .join('  ')
+        .trimEnd();
+      if (options.test && item.testable) {
+        const result = await this.ops.testDiagnostic(
+          item.check,
+          currentOperator(),
+        );
+        line += `\n  test: ${result.ok ? 'ok' : `FAILED ${result.detail}`} (${result.durationMs} ms)`;
+        if (!result.ok) process.exitCode = 1;
+      } else if (
+        item.state === 'unavailable' ||
+        item.state === 'unconfigured'
+      ) {
+        process.exitCode = 1;
+      }
+      console.log(item.hint ? `${line}\n  hint: ${item.hint}` : line);
+    }
+  }
+  @Option({
+    flags: '-t, --test',
+    description:
+      'also run the safe tests (SMTP connect and QUIT, a storage probe file written, read and deleted)',
+  })
+  parseTest() {
+    return true;
+  }
+}
+
 export const OPS_COMMANDS = [
   TenantListCommand,
   UserListCommand,
@@ -283,4 +329,5 @@ export const OPS_COMMANDS = [
   UserUnlockCommand,
   SettingDeleteCommand,
   NotificationsSettleCommand,
+  DiagnosticsCommand,
 ];

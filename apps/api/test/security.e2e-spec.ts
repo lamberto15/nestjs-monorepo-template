@@ -865,7 +865,7 @@ describe('security (e2e)', () => {
       .expect(204);
   });
 
-  it('resends only invitations whose roles the actor may grant', async () => {
+  it('sends only invitations whose roles the actor may grant', async () => {
     const manager = await node.user([await role(['Access', 'manageUsers'])]);
     const email = `${randomUUID().slice(0, 8)}@example.com`;
     await node.invite(node.admin(), {
@@ -878,7 +878,7 @@ describe('security (e2e)', () => {
     ).find((item) => item.email === email)!;
     // A fresh link to an administrator's membership is a grant of it.
     await manager.agent
-      .post(`/v1/access/invitations/${pending.id}/resend`)
+      .post(`/v1/access/invitations/${pending.id}/send`)
       .expect(403);
     const plain = `${randomUUID().slice(0, 8)}@example.com`;
     await node.invite(node.admin(), { email: plain });
@@ -887,11 +887,25 @@ describe('security (e2e)', () => {
         .items as { id: string; email: string }[]
     ).find((item) => item.email === plain)!;
     await manager.agent
-      .post(`/v1/access/invitations/${mine.id}/resend`)
+      .post(`/v1/access/invitations/${mine.id}/send`)
       .expect(202);
+    // Nor changes them: moving its address would mail the role elsewhere.
+    await manager.agent
+      .patch(`/v1/access/invitations/${pending.id}`)
+      .send({ email: `${randomUUID().slice(0, 8)}@example.com` })
+      .expect(403);
+    await manager.agent
+      .patch(`/v1/access/invitations/${mine.id}`)
+      .send({ roleIds: await node.roleIds('administrator') })
+      .expect(403);
+    // Nor prepares them.
+    await manager.agent
+      .post('/v1/access/users')
+      .send({ roleIds: await node.roleIds('administrator'), send: false })
+      .expect(403);
   });
 
-  it("never reads, deletes or resends another tenant's users, roles, clients or invitations", async () => {
+  it("never reads, deletes, sends or changes another tenant's users, roles, clients or invitations", async () => {
     const other = await node.otherTenant();
     const theirUser = await other.user([]);
     const theirClient = await other.client();
@@ -910,7 +924,11 @@ describe('security (e2e)', () => {
     await admin.get(`/v1/access/clients/${theirClient.id}`).expect(404);
     await admin.delete(`/v1/access/clients/${theirClient.id}`).expect(404);
     await admin
-      .post(`/v1/access/invitations/${theirInvitation.id}/resend`)
+      .post(`/v1/access/invitations/${theirInvitation.id}/send`)
+      .expect(404);
+    await admin
+      .patch(`/v1/access/invitations/${theirInvitation.id}`)
+      .send({ email: `${randomUUID().slice(0, 8)}@example.com` })
       .expect(404);
     // A unit id of theirs filters nothing in.
     const theirTeam = await other.admin
