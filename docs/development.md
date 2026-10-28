@@ -771,10 +771,6 @@ pages, ETags. Usage, the bell-icon recipe included:
 4. **Green CI**, then the worktree is removed
    (`git worktree remove .claude/worktrees/<name>`) and, from the main checkout,
    the PR is squash-merged (`gh pr merge <number> --squash --delete-branch`).
-   The owner's own non-draft pull requests merge themselves once `CI gate`
-   passes (`.github/workflows/auto-merge.yml`, with the `AUTO_MERGE_TOKEN`
-   secret; `CI gate` is the main ruleset's required check): open finished
-   work as a ready pull request, keep work in progress a draft.
    Remove the worktree first: Git refuses to delete a branch that a worktree
    still has checked out.
 
