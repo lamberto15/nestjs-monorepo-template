@@ -18,9 +18,11 @@ script): NestJS gives a gateway its socket server only in an HTTP app
 (the API and the worker both are one).
 
 Per API client, by design: the client is the package's tenant (`tenant` =
-its id), so a client sees and receives only its own. There are no endpoints of
-a whole tenant: what a webhook carries is what its client may read. The
-client's own routes take its API key:
+its id), so a client sees and manages only its own endpoints and deliveries.
+There are no endpoints of a whole tenant: what a webhook carries is what its
+client may read. By default a client receives events about the records it
+owns; an administrator can widen that to its tenant's records it may read
+("Subscriber scope" below). The client's own routes take its API key:
 
 | Need                                                  | Route                                                                           |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------- |
@@ -51,7 +53,11 @@ Each route wants:
 - a client of the caller's tenant (another tenant's is a 404) over which the
   caller has authority, as for rotating its key (403 `authority_required`);
 - a recent sign-in to create an endpoint or rotate its secret: both return a
-  secret (403 `reauthentication_required`, [auth](auth.md)).
+  secret, and to set the client's subscriber scope (403
+  `reauthentication_required`, [auth](auth.md)).
+
+The client's subscriber scope is set here alone, never with its own key:
+`GET/PUT /v1/access/clients/{clientId}/webhook-scope` (`{ "scope": "own" | "tenant" }`).
 
 A chooser of clients needs no request per client: `GET /v1/access/clients` (and
 `GET /v1/access/clients/{id}`) carry `webhookEndpoints`, how many endpoints the
@@ -73,27 +79,43 @@ change succeeded, not in one transaction with it.
   declares a description with `{ type, description, group? }` in
   `PlatformModule.forRoot({ eventTypes })` (a plain string still works);
   records' `events` declare theirs. It is the same list for every caller
-  and every client: there is no `?clientId=`. Nothing narrows what a client
-  receives by its roles. An endpoint gets every message of its client that
-  it subscribed to (`dispatch()` picks endpoints by tenant and type only),
-  and the roles act on the content: a record's `data` is redacted by what the
-  client may read (its hidden fields are left out), and only the client that
-  owns the record (and the one an approval or a notification is for) is
-  sent anything.
-- **Who produces an event, and who receives it:** a subscription belongs to
-  one API client and receives only that client's own records. A record
-  feature dispatches by the owner of the record (`note-publisher.service.ts`):
-  a note created through a client's API key (`ownerId` `client:<id>`)
-  is delivered as `note.created` to that client's endpoints; a note created
-  by a signed-in user is saved and notified in-app as usual, but **no outgoing
-  webhook is enqueued**, and no other client receives it. This is deliberate:
-  the dispatch key is the client, so routing a user's note to a client (or to
-  every client of the tenant) would disclose records the client may not read.
-  An integration that must see user-created records needs its own explicit
-  grant (a subscription entitled to those records, redacted by what it may
-  read); that security model is not decided ([#652](https://github.com/lamberto15/nestjs-monorepo-template/issues/652)),
-  so today the catalog's `note.created` means "created by the subscribing
-  client". Covered by `test/features/notes/notes.e2e-spec.ts`.
+  and every client: there is no `?clientId=`. An endpoint gets every message
+  addressed to its client that it subscribed to (`dispatch()` picks endpoints
+  by tenant and type only); who a record's message is addressed to, and what
+  it carries, is the subscriber scope below. An approval or a notification
+  goes to the client it is for.
+- **Subscriber scope: who receives a record's event, and what.** A record
+  event (`note.created`, `note.published`, `note.deleted`, a generated
+  feature's `<item>.created|updated|deleted|restored`) is produced whoever
+  made the change: a signed-in user, an API client, a workflow. It is then
+  addressed by `RecordWebhooks` (`platform/webhooks/record-webhooks.service.ts`,
+  used by the records' `events` and by `note-publisher.service.ts`), in the
+  write's transaction (the outbox: sent if and only if it commits, with the
+  package's retries and per-endpoint idempotency), one message per receiver:
+
+  | Receiver                                                                     | Gets it when                                                                                 |
+  | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+  | The client that owns the record (`ownerId` `client:<id>`)                    | always (scope `own`, the default, and `tenant`)                                              |
+  | Another active client of the **record's tenant** with scope `tenant`         | its own ability may `read` that record (roles, conditions, units; for a deletion, as it was) |
+  | Any other client: scope `own`, without `read` on that record, another tenant | never                                                                                        |
+
+  Each message's `data` is redacted by its receiver's field-level `read`
+  (`AccessService.redact`: the fields it may not read are left out), and
+  never carries an encrypted column. So a note a user writes in the web app
+  reaches no client by default; it reaches a `tenant`-scope client that may
+  read it. The scope is per client, not per endpoint: the package fans a
+  message out to every subscribed endpoint of its client, so all of a
+  client's endpoints see what the client sees. It lives in
+  `webhook_client_scopes` (a tenant table: row-level security, a composite
+  key to the client, which takes it along when deleted) and is set only by an
+  administrator with `Access.manageClients`, authority over the client (they
+  hold every permission it has) and a recent sign-in, audited as
+  `webhook-scope.updated`; a client can't widen its own. Routing never uses a
+  broad tenant id: the candidates are read in the record's tenant only, and
+  each is checked against that one record. Covered by
+  `test/features/notes/notes.e2e-spec.ts` and the records' capability tests
+  (`test/record-capabilities.ts`).
+
 - **Test event:** the reserved `webhook.test` (`data`: `{ endpointId, test: true }`)
   goes to that endpoint alone, whatever it subscribed to, signed and retried
   as any delivery. Subscribing to it is a 400, as any unknown type.
