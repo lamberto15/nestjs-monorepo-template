@@ -95,8 +95,32 @@ GET  /v1/forms/{id}/submissions/{sid}
 row-level security, with keys within the tenant ([tenancy](tenancy.md)):
 another tenant's form or submission is a 404, even by id.
 
+## The web app
+
+`apps/web/src/features/forms`, under **Workspace → Forms** (`Form.read`):
+
+- **The list** (`/forms`): each form's status, published version and
+  unpublished changes. `Form.edit` creates one (name, and a slug made from
+  it) and opens its builder. A tenant with `forms.enabled` off sees that
+  forms are off.
+- **The builder** (`/forms/{id}`): sections and their fields (type, label,
+  key, help, required, options as `value = Label` lines), fields reordered by
+  drag and drop or the keyboard, and a live preview drawn by the same
+  renderer people fill in. **Save draft** sends the whole draft under the
+  revision it was read at; a 409 says someone else saved meanwhile, and the
+  server's problems are listed at their paths. **Publish** is offered once
+  the changes are saved.
+- **Filling in** (`/forms/{id}/fill`, `Form.submit`): the published
+  version's fields, each of its type (radio buttons, checkboxes, a select,
+  number, date, text). Required answers and numbers are checked in the
+  browser first, then the server's errors show at their fields; a newer
+  version published meanwhile (409 `form_version_outdated`) is loaded again.
+- **Submissions** (`/forms/{id}/submissions`): everyone's with
+  `Form.readResponses`, one's own otherwise, each with its version and
+  answers.
+
 ## Not yet
 
-The web renderer and builder (#545, #546), conditional rules (#547), pages
+Conditional rules (#547), pages
 and repeatable groups (#548) and choice sources (#549) build on this.
 Public, anonymous forms are #583.
