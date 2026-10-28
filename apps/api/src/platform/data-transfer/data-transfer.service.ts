@@ -47,6 +47,7 @@ import {
   type TemplateGuide,
 } from './formats.js';
 import { columnsOf } from './import-columns.js';
+import { type ImportMapping, mappingProblems } from './import-mapping.js';
 import { importLimits, restrictImportLimits } from './import-limits.js';
 import { SettingsService } from '../settings/settings.service.js';
 
@@ -309,6 +310,7 @@ export class DataTransferService implements OnModuleInit {
       format: TransferFormat;
       dryRun: boolean;
       matchOn?: string;
+      mapping?: ImportMapping;
       limits?: { maxBytes: number; maxRows: number };
     },
   ) {
@@ -326,6 +328,18 @@ export class DataTransferService implements OnModuleInit {
         throw new NotFoundException(`Nothing to import named "${input.name}".`);
       }
       throw new ForbiddenException();
+    }
+    if (input.mapping) {
+      // The columns this caller may fill now: a saved mapping is checked
+      // again against the schema and their field permissions.
+      const problems = mappingProblems(
+        input.mapping,
+        await this.importColumns(principal, importer),
+      );
+      if (problems.length) {
+        await this.disk.delete(input.key).catch(() => undefined);
+        throw new BadRequestException(problems.join(' '));
+      }
     }
     if (input.matchOn && !importer.matchKeys?.includes(input.matchOn)) {
       await this.disk.delete(input.key).catch(() => undefined);
@@ -379,6 +393,25 @@ export class DataTransferService implements OnModuleInit {
       Object.fromEntries(columns.map((column) => [field(column), true])),
     );
     return columns.filter((column) => !forbidden.includes(field(column)));
+  }
+
+  /**
+   * The columns the principal may fill when importing `name` (the template's),
+   * or a 404 as for the template: what a saved mapping is checked against.
+   */
+  async mappableColumns(principal: Principal, name: string) {
+    const importer = this.registry.importer(name);
+    if (
+      !importer ||
+      !(await this.access.can(
+        principal,
+        importer.action ?? 'create',
+        importer.subject,
+      ))
+    ) {
+      throw new NotFoundException(`Nothing to import named "${name}".`);
+    }
+    return this.importColumns(principal, importer);
   }
 
   /**

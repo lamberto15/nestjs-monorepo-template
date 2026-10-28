@@ -80,6 +80,20 @@ change succeeded, not in one transaction with it.
   client may read (its hidden fields are left out), and only the client that
   owns the record (and the one an approval or a notification is for) is
   sent anything.
+- **Who produces an event, and who receives it:** a subscription belongs to
+  one API client and receives only that client's own records. A record
+  feature dispatches by the owner of the record (`note-publisher.service.ts`):
+  a note created through a client's API key (`ownerId` `client:<id>`)
+  is delivered as `note.created` to that client's endpoints; a note created
+  by a signed-in user is saved and notified in-app as usual, but **no outgoing
+  webhook is enqueued**, and no other client receives it. This is deliberate:
+  the dispatch key is the client, so routing a user's note to a client (or to
+  every client of the tenant) would disclose records the client may not read.
+  An integration that must see user-created records needs its own explicit
+  grant (a subscription entitled to those records, redacted by what it may
+  read); that security model is not decided ([#652](https://github.com/lamberto15/nestjs-monorepo-template/issues/652)),
+  so today the catalog's `note.created` means "created by the subscribing
+  client". Covered by `test/features/notes/notes.e2e-spec.ts`.
 - **Test event:** the reserved `webhook.test` (`data`: `{ endpointId, test: true }`)
   goes to that endpoint alone, whatever it subscribed to, signed and retried
   as any delivery. Subscribing to it is a 400, as any unknown type.
@@ -237,11 +251,11 @@ registers its own senders** (a CRM, a payment provider), each with its own
 secret, so the receiver knows the tenant of the work
 (`platform/webhooks/incoming-senders.*`, `tenant-webhook-receiver.controller.ts`).
 
-| Need | Route |
-| --- | --- |
-| Register, list, read, describe or disable, remove | `POST/GET /v1/webhook-senders`, `GET/PATCH/DELETE /v1/webhook-senders/{id}` |
-| A new secret (the old one keeps verifying for `graceSeconds`, default 24 hours) | `POST /v1/webhook-senders/{id}/rotate-secret` |
-| The sender's calls | `POST /v1/webhooks/tenants/{tenantId}/senders/{name}` (public, signed) |
+| Need                                                                            | Route                                                                       |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Register, list, read, describe or disable, remove                               | `POST/GET /v1/webhook-senders`, `GET/PATCH/DELETE /v1/webhook-senders/{id}` |
+| A new secret (the old one keeps verifying for `graceSeconds`, default 24 hours) | `POST /v1/webhook-senders/{id}/rotate-secret`                               |
+| The sender's calls                                                              | `POST /v1/webhooks/tenants/{tenantId}/senders/{name}` (public, signed)      |
 
 - **Who manages:** a user (a session or a user token; an API key is a 401) with
   `Access.manageClients`, in the tenant they act in (a sender is a system, as an API
@@ -279,6 +293,29 @@ secret, so the receiver knows the tenant of the work
   (`handled: false`) so the sender doesn't retry; a body that is not an event is a 400.
 - **Not behind `WEBHOOKS=off`** (that switch is for the outgoing webhooks), like the
   deployment-wide senders.
+
+**The incoming event catalog** is the counterpart of
+`GET /v1/webhook-event-types` (the _outgoing_ events an endpoint receives): the
+events a sender may _send in_. `GET /v1/webhook-incoming-event-types` lists, for
+users with `Access.manageClients` (an API key is a 401), each registered type with
+its `description`, `dataSchema` (JSON Schema of `data`), a complete `example` body
+and the `delivery` semantics. A feature declares all of it once, next to its
+handler: `IncomingEventHandlers.register(type, { description, dataSchema,
+example, delivery }, handler)`. The receiver validates `data` with the same
+`dataSchema` (a mismatch is a 400 `validation_failed`, paths under `data.`, before the
+handler runs), and the catalog is generated from the registry, so neither drifts from
+the handler. A type in the catalog is documentation, **not a permission**: the
+signature of a registered sender is what lets it call, there is no per-sender
+allowlist yet, and each handler authorizes its work in the sender's tenant. A type
+nobody handles stays `200 { received: true, duplicate: false, handled: false }`.
+
+A complete call, signed per Standard Webhooks with the sender's `whsec_…` secret:
+
+```http
+POST /v1/webhooks/tenants/{tenantId}/senders/crm
+webhook-id: msg_2Lt…   webhook-timestamp: 1735689600   webhook-signature: v1,…
+{ "type": "note.publish-requested", "data": { "noteId": "<note uuid>" } }
+```
 
 A sender that doesn't sign with an HMAC scheme keeps a route of its own:
 SES's bounces and complaints arrive as SNS notifications, RSA-signed with
@@ -461,9 +498,9 @@ no event lines of their own.
 A record page reloads a panel when it hears of a change on it, instead of
 polling (`RecordActivity`, `platform/realtime/record-activity.ts`):
 
-| Event                        | When                                             | Data                                                                      |
-| ---------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------- |
-| `record.commented`           | a comment added, edited or removed               | `{ subject, recordId, commentId, action }` (`added`, `edited`, `removed`) |
+| Event                        | When                                                                                                                            | Data                                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `record.commented`           | a comment added, edited or removed                                                                                              | `{ subject, recordId, commentId, action }` (`added`, `edited`, `removed`)                  |
 | `record.attachments.changed` | an attachment uploaded, removed, scanned clean, processed (an image's renditions are made, or it could not be), or a PDF issued | `{ subject, recordId, attachmentId, action }` (`added`, `removed`, `scanned`, `processed`) |
 | `record.presence`            | someone arrived on, left or changed mode on a record you are on (docs/work-surfaces.md) | `{ subject, recordId }` (ids only; `GET /v1/presence/{subject}/{recordId}`) |
 
