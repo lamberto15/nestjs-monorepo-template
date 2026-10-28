@@ -6,60 +6,61 @@ This index organizes the **existing deep technical references** by task. The lin
 
 ## 1. Learn, run and extend
 
-| Goal | Guide |
-| --- | --- |
-| Run API, web app and local services | [Quickstart](quickstart.md), [development](../development.md) |
-| Understand services, packages and dependency boundaries | [System map](system-map.md), [architecture](../architecture.md), [monorepo](../monorepo.md) |
-| Configure first-run options and environment | [Configuration](../configuration.md), [settings and flags](../settings.md) |
-| Generate a business feature and sync it later | [Adding a feature](../adding-a-feature.md) |
-| Work with errors, lists, versioning and the client | [API conventions](../api-conventions.md), [typed client](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/packages/api-client/README.md) |
-| Run tests, worktrees, lint and load tests | [Development workflow](../development.md) |
-| Avoid known mistakes | [Pitfalls](../pitfalls.md) |
-| See what was cross-checked against source code | [Implementation audit](implementation-audit.md) |
+| Goal                                                    | Guide                                                                                                                                                    |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Run API, web app and local services                     | [Quickstart](quickstart.md), [development](../development.md)                                                                                            |
+| Understand services, packages and dependency boundaries | [System map](system-map.md), [architecture](../architecture.md), [monorepo](../monorepo.md)                                                              |
+| Configure first-run options and environment             | [Configuration](../configuration.md), [settings and flags](../settings.md)                                                                               |
+| Generate a business feature and sync it later           | [Adding a feature](../adding-a-feature.md)                                                                                                               |
+| Work with errors, lists, versioning and the client      | [API conventions](../api-conventions.md), [typed client](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/packages/api-client/README.md) |
+| Run tests, worktrees, lint and load tests               | [Development workflow](../development.md)                                                                                                                |
+| Avoid known mistakes                                    | [Pitfalls](../pitfalls.md)                                                                                                                               |
+| See what was cross-checked against source code          | [Implementation audit](implementation-audit.md)                                                                                                          |
 
 ## 2. Identity, data and access
 
-| Topic | Guide |
-| --- | --- |
-| Users, sessions, OAuth, passkeys, SSO, SCIM, MFA | [Authentication](../auth.md) |
-| Roles, grants, CASL, field access, organizational units and audit | [Permissions](../permissions.md) |
-| Tenant context and PostgreSQL row-level security | [Tenancy](../tenancy.md) |
-| Encryption, blind indexes and key rotation | [Encryption](../encryption.md) |
-| Retention rules and legal holds | [Retention](../retention.md) |
-| Localization, dates and time zones | [i18n and time](../i18n-and-time.md) |
-| Currency-safe calculations | [Money](../money.md) |
-| Usage tracking and client quotas | [Usage](../usage.md) |
+| Topic                                                             | Guide                                |
+| ----------------------------------------------------------------- | ------------------------------------ |
+| Users, sessions, OAuth, passkeys, SSO, SCIM, MFA                  | [Authentication](../auth.md)         |
+| Roles, grants, CASL, field access, organizational units and audit | [Permissions](../permissions.md)     |
+| Tenant context and PostgreSQL row-level security                  | [Tenancy](../tenancy.md)             |
+| Encryption, blind indexes and key rotation                        | [Encryption](../encryption.md)       |
+| Retention rules and legal holds                                   | [Retention](../retention.md)         |
+| Localization, dates and time zones                                | [i18n and time](../i18n-and-time.md) |
+| Currency-safe calculations                                        | [Money](../money.md)                 |
+| Usage tracking and client quotas                                  | [Usage](../usage.md)                 |
 
 ## 3. Platform extension
 
-| Topic | Guide |
-| --- | --- |
-| Background jobs, workflows, outbox and cron | [Background work](../background-work.md) |
-| Webhooks and realtime events | [Webhooks and realtime](../webhooks-and-realtime.md) |
-| Approval policies | [Approvals](../approvals.md) |
-| Notifications and channels | [Notifications](../notifications.md) |
-| Tags, comments, attachments and revisions | [Tags](../tags.md), [comments](../comments.md), [attachments](../attachments.md), [revisions](../revisions.md), [document acknowledgments](../acknowledgments.md) |
-| Runtime record fields and custom user views | [Custom fields](../custom-fields.md), [saved views](../saved-views.md) |
-| Sequences and numbering | [Sequences](../sequences.md) |
-| Imports, exports, bulk changes and reports | [Data transfer](../data-transfer.md), [bulk operations](../bulk-operations.md), [reports](../reports.md) |
-| PDF rendering | [Documents](../documents.md) |
-| AI processing | [AI](../ai.md) |
-| Email delivery and suppression | [Deliverability](../deliverability.md) |
-| Tenant appearance settings | [Branding](../branding.md) |
+| Topic                                       | Guide                                                                                                                                                             |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Background jobs, workflows, outbox and cron | [Background work](../background-work.md)                                                                                                                          |
+| Webhooks and realtime events                | [Webhooks and realtime](../webhooks-and-realtime.md)                                                                                                              |
+| Approval policies                           | [Approvals](../approvals.md)                                                                                                                                      |
+| Notifications and channels                  | [Notifications](../notifications.md)                                                                                                                              |
+| Tags, comments, attachments and revisions   | [Tags](../tags.md), [comments](../comments.md), [attachments](../attachments.md), [revisions](../revisions.md), [document acknowledgments](../acknowledgments.md) |
+| Runtime record fields and custom user views | [Custom fields](../custom-fields.md), [saved views](../saved-views.md)                                                                                            |
+| Sequences and numbering                     | [Sequences](../sequences.md)                                                                                                                                      |
+| Imports, exports, bulk changes and reports  | [Data transfer](../data-transfer.md), [bulk operations](../bulk-operations.md), [reports](../reports.md)                                                          |
+| Duplicate records and merging them          | [Duplicates and merging](../merging.md)                                                                                                                           |
+| PDF rendering                               | [Documents](../documents.md)                                                                                                                                      |
+| AI processing                               | [AI](../ai.md)                                                                                                                                                    |
+| Email delivery and suppression              | [Deliverability](../deliverability.md)                                                                                                                            |
+| Tenant appearance settings                  | [Branding](../branding.md)                                                                                                                                        |
 
 ## 4. Deploy, protect and upgrade
 
-| Goal | Guide |
-| --- | --- |
-| Prepare a release and a deployment | [Operations checklist](release-and-operations-checklist.md), [deployment](../deployment.md) |
-| Docker Compose updates | [Rolling](../deploy-rolling.md), [blue-green](../deploy-blue-green.md) |
-| Other orchestrators | [Swarm](../deploy-swarm.md), [Kubernetes / Helm](../deploy-kubernetes.md) |
-| Migrations, backups, monitoring, secrets, CI | [Deployment](../deployment.md) |
-| Cut versions and publish images | [Releases](../releases.md) |
-| Merge template changes into adopted projects | [Upgrading](../upgrading.md) |
-| Know what's delivered or planned | [Roadmap](../roadmap.md) |
-| Report security issues privately | [Security policy](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/SECURITY.md) |
-| Contribute code or documentation | [Contributing](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/CONTRIBUTING.md), [docs maintenance](../documentation-maintenance.md) |
+| Goal                                         | Guide                                                                                                                                                 |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Prepare a release and a deployment           | [Operations checklist](release-and-operations-checklist.md), [deployment](../deployment.md)                                                           |
+| Docker Compose updates                       | [Rolling](../deploy-rolling.md), [blue-green](../deploy-blue-green.md)                                                                                |
+| Other orchestrators                          | [Swarm](../deploy-swarm.md), [Kubernetes / Helm](../deploy-kubernetes.md)                                                                             |
+| Migrations, backups, monitoring, secrets, CI | [Deployment](../deployment.md)                                                                                                                        |
+| Cut versions and publish images              | [Releases](../releases.md)                                                                                                                            |
+| Merge template changes into adopted projects | [Upgrading](../upgrading.md)                                                                                                                          |
+| Know what's delivered or planned             | [Roadmap](../roadmap.md)                                                                                                                              |
+| Report security issues privately             | [Security policy](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/SECURITY.md)                                                       |
+| Contribute code or documentation             | [Contributing](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/CONTRIBUTING.md), [docs maintenance](../documentation-maintenance.md) |
 
 ## Usage
 

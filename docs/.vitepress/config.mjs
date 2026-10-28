@@ -60,6 +60,7 @@ const technical = [
     ['Data transfer', '/data-transfer'],
     ['Import limits', '/import-limits'],
     ['Bulk operations', '/bulk-operations'],
+    ['Duplicates and merging', '/merging'],
     ['Reports', '/reports'],
     ['Documents', '/documents'],
     ['AI', '/ai'],
