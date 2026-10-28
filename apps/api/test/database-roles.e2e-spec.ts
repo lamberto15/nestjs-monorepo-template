@@ -3,6 +3,7 @@ import { Client } from 'pg';
 import { inject } from 'vitest';
 import {
   ensureAppRole,
+  ensureLeakproofFilters,
   ensureMonitorRole,
   ensureReportingRole,
 } from '../src/core/database/roles.js';
@@ -208,6 +209,31 @@ describe('the app role', () => {
   const bootstrap = (appUrl = database.url) =>
     ensureAppRole({ ownerUrl: database.ownerUrl, appUrl });
   const appRole = () => decodeURIComponent(new URL(database.url).username);
+
+  it('marks the indexed text filters leakproof from a superuser, and names the statements otherwise (#851)', async () => {
+    const leakproof = async () =>
+      (
+        await app.query<{ marked: boolean }>(
+          `select bool_and(proleakproof) as marked from pg_proc
+           where oid in ('texticlike(text,text)'::regprocedure, 'ts_match_vq(tsvector,tsquery)'::regprocedure)`,
+        )
+      ).rows[0]!.marked;
+    // The owner is no superuser (managed PostgreSQL): it names the statements.
+    const lines: string[] = [];
+    await ensureLeakproofFilters(database.ownerUrl, (line) => lines.push(line));
+    expect(lines.join('\n')).toContain(
+      'alter function texticlike(text,text) leakproof',
+    );
+    expect(await leakproof()).toBe(false);
+    // A superuser's migrate marks them.
+    await ensureLeakproofFilters(
+      databaseUrl(
+        inject('postgresUrl'),
+        new URL(database.url).pathname.slice(1),
+      ),
+    );
+    expect(await leakproof()).toBe(true);
+  });
 
   it('refuses the role once it is a member of another (that role’s rights would be its own)', async () => {
     // A role of the owner's making (CREATEROLE gives ADMIN on it), as

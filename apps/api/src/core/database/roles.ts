@@ -155,6 +155,67 @@ export async function ensureAppRole(
   }
 }
 
+/**
+ * The built-in functions behind the lists' indexed text filters: ILIKE
+ * (`texticlike`: contains, startsWith, endsWith, on the trigram indexes)
+ * and full-text `@@` (`ts_match_vq`: `?q=`, on the search indexes).
+ */
+const FILTER_FUNCTIONS = [
+  'texticlike(text,text)',
+  'ts_match_vq(tsvector,tsquery)',
+] as const;
+
+/**
+ * Marks FILTER_FUNCTIONS `LEAKPROOF`, so PostgreSQL may use the trigram and
+ * search indexes under the tenants' row-level security: it evaluates a
+ * condition below a policy's only when its function is leakproof, and
+ * otherwise walks the primary key and filters every row, which on a large
+ * table turns a filter that matches nothing into a scan of the whole table
+ * (#851). Neither function reveals a row through an error. Only a superuser
+ * may alter a built-in function: from any other owner (managed
+ * PostgreSQL) this names the statements for one to run and goes on; the
+ * filters stay correct, only slower. Idempotent.
+ */
+export async function ensureLeakproofFilters(
+  url: string,
+  log: (line: string) => void = () => {},
+) {
+  const client = new Client({
+    connectionString: url,
+    application_name: 'migrate:leakproof',
+  });
+  await client.connect();
+  try {
+    const { rows } = await client.query<{ fn: string; leakproof: boolean }>(
+      `select oid::regprocedure::text as fn, proleakproof as leakproof
+       from pg_proc where oid = any($1::regprocedure[])`,
+      [FILTER_FUNCTIONS],
+    );
+    const missing = rows.filter((row) => !row.leakproof).map((row) => row.fn);
+    if (missing.length === 0) {
+      return;
+    }
+    const { rows: role } = await client.query<{ superuser: boolean }>(
+      `select rolsuper as superuser from pg_roles where rolname = current_user`,
+    );
+    const statements = missing.map((fn) => `alter function ${fn} leakproof`);
+    if (!role[0]?.superuser) {
+      log(
+        `Text filters under row-level security can't use their indexes until a superuser runs: ${statements.join('; ')} (docs/deployment.md, "Database roles").`,
+      );
+      return;
+    }
+    for (const statement of statements) {
+      await client.query(statement);
+    }
+    log(
+      `Marked leakproof for the indexed text filters: ${missing.join(', ')}.`,
+    );
+  } finally {
+    await client.end().catch(() => undefined);
+  }
+}
+
 type Credentials = { role: string; password: string; database: string };
 
 /** The monitoring role: its name and password (POSTGRES_MONITOR_USER, POSTGRES_MONITOR_PASSWORD). */
