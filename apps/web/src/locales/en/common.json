@@ -183,6 +183,8 @@
     }
   },
   "account": {
+    "title": "Account",
+    "tabs": "Account pages",
     "save": "Save",
     "cancel": "Cancel",
     "impersonating": "While acting as someone, their account settings stay theirs.",

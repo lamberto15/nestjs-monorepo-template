@@ -183,6 +183,8 @@
     }
   },
   "account": {
+    "title": "Akaun",
+    "tabs": "Halaman akaun",
     "save": "Simpan",
     "cancel": "Batal",
     "impersonating": "Semasa bertindak sebagai orang lain, tetapan akaun mereka kekal milik mereka.",

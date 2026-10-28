@@ -183,6 +183,8 @@
     }
   },
   "account": {
+    "title": "Konto",
+    "tabs": "Kontoseiten",
     "save": "Speichern",
     "cancel": "Abbrechen",
     "impersonating": "Solange Sie als jemand anderes handeln, bleiben dessen Kontoeinstellungen unberührt.",

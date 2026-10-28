@@ -245,7 +245,9 @@ describe('the breached-password banner', () => {
       await findToast(/breach alert could not be marked as read/),
     ).toBeVisible();
     expect(state.readCalls).toEqual(['breach-1']);
-    expect(banner()).not.toBeNull();
+    // Hidden at once (the cache marks it read first), back after the failed
+    // read's refetch: the alert stays.
+    await waitFor(() => expect(banner()).not.toBeNull());
   });
 
   it('is not shown while an administrator acts as the user', async () => {

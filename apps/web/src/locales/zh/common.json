@@ -183,6 +183,8 @@
     }
   },
   "account": {
+    "title": "账户",
+    "tabs": "账户页面",
     "save": "保存",
     "cancel": "取消",
     "impersonating": "以他人身份操作时，对方的账户设置保持不变。",
