@@ -713,6 +713,8 @@ describe('the example feature: notes (e2e)', () => {
         expect(endpoint.body.secret).toMatch(/^whsec_/);
 
         await writeNote(node, b.auth).expect(201); // not a's: no webhook to a
+        // A signed-in user's note is nobody's webhook either (docs/webhooks-and-realtime.md).
+        await writeNote(node, node.admin()).expect(201);
         const note = (await writeNote(node, a.auth).expect(201)).body;
         await node.deliverWebhooks();
         await node.worker.drain();
