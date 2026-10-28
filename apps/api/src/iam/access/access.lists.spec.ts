@@ -1,6 +1,8 @@
-import { PgDialect } from 'drizzle-orm/pg-core';
+import type { SQL } from 'drizzle-orm';
+import { getTableConfig, PgDialect } from 'drizzle-orm/pg-core';
 import type { ListQuery } from '../../core/http/list-query.js';
-import { AUDIT_LIST } from './access.lists.js';
+import { auditLog } from '../iam.tables.js';
+import { AUDIT_LIST, SIGN_IN_ENTRIES } from './access.lists.js';
 
 const dialect = new PgDialect();
 const where = (query: Record<string, string>) =>
@@ -41,5 +43,24 @@ describe('AUDIT_LIST: actorLabel', () => {
     expect(() =>
       AUDIT_LIST.schema.parse({ 'actorLabel.endsWith': 'x' }),
     ).toThrow();
+  });
+});
+
+describe('SIGN_IN_ENTRIES', () => {
+  // A partial index serves a query only when its predicate is implied: the
+  // sign-in list reads the few sign-ins among millions of entries through them.
+  it('is the predicate of the sign-in partial indexes', () => {
+    const literals = (query: SQL) =>
+      dialect.sqlToQuery(query).sql.match(/'[^']+'/g) ?? [];
+    const { params } = dialect.sqlToQuery(SIGN_IN_ENTRIES);
+    const indexes = getTableConfig(auditLog).indexes.filter((item) =>
+      item.config.name?.startsWith('audit_log_sign_ins_'),
+    );
+    expect(indexes).toHaveLength(2);
+    for (const index of indexes) {
+      expect(literals(index.config.where as SQL)).toEqual(
+        params.map((action) => `'${String(action)}'`),
+      );
+    }
   });
 });
