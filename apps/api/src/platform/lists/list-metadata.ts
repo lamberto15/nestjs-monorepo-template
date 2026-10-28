@@ -61,7 +61,7 @@ export function listMetadata(
   } = {},
 ): Omit<
   ListMetadata,
-  'capabilities' | 'attachmentLimits' | 'documentTemplates'
+  'capabilities' | 'attachmentLimits' | 'documentTemplates' | 'related'
 > {
   // `q` reads the search document's fields: off with any of them hidden, or
   // shown on some records only.

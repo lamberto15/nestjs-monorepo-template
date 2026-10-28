@@ -6,7 +6,7 @@ import {
   type NotNull,
 } from 'drizzle-orm';
 import { bigint, char, index, uniqueIndex } from 'drizzle-orm/pg-core';
-import type { AnyPgColumn } from 'drizzle-orm/pg-core';
+import type { ExtraConfigColumn } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import { tenantReference } from '../../core/tenancy/tenant-scope.js';
 import {
@@ -105,7 +105,7 @@ export function fieldColumns<F extends Fields>(fields: F): FieldColumns<F> {
  */
 export function fieldExtras(
   tableName: string,
-  table: Record<string, AnyPgColumn>,
+  table: Record<string, ExtraConfigColumn>,
   fields: Fields,
   softDelete = false,
 ) {

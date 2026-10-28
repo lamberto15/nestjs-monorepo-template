@@ -13105,6 +13105,31 @@ export interface operations {
                             /** @description An action on the records may need approval (GET /v1/approvals). */
                             approvals: boolean;
                         };
+                        /** @description The records that refer to this subject's (a `ref` field of theirs), which the caller may list and filter by that field: a record's related panels. */
+                        related: {
+                            /**
+                             * @description The referring records: their own list is GET /v1/lists/{subject}.
+                             * @example InvoiceLine
+                             */
+                            subject: string;
+                            /**
+                             * @description Their list, under /v1: a record's related ones are `GET /v1/<path>?<field>=<id>` (paginated, newest first, only those the caller may read).
+                             * @example invoice-lines
+                             */
+                            path: string;
+                            /**
+                             * @description Their field holding the record's id.
+                             * @example invoiceId
+                             */
+                            field: string;
+                            /**
+                             * @description The field a client names each one by (their first text field); null when none.
+                             * @example title
+                             */
+                            title: string | null;
+                            /** @description Required: a record they refer to cannot be deleted (409 `record_referenced`). Optional: the field empties when it is deleted for good. */
+                            required: boolean;
+                        }[];
                         /** @description What a record's attachment may be, as the upload route enforces it; null when the subject takes no attachments. */
                         attachmentLimits: {
                             /**

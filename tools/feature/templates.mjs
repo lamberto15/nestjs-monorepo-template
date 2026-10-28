@@ -660,7 +660,7 @@ export function approvals({ t, approvals: actions }) {
     ` * What approval does to ${t.nouns}: one entry for each action \`${t.singular}.record.ts\``,
     ` * declares under \`approvals\` (a missing one fails the build). The policy, the flag, the`,
     ` * route and the handler are the platform's; this is the business logic.`,
-    ` * ${GENERATED('\`pnpm feature:sync\` adds an entry for an action added to the declaration.')}`,
+    ` * ${GENERATED('`pnpm feature:sync` adds an entry for an action added to the declaration.')}`,
     ` */`,
     `export const ${t.SINGULAR}_APPROVALS = recordApprovalEffects(${t.SINGULAR}, {`,
     ...actions.map((action) => approvalEntry(action, t)),
