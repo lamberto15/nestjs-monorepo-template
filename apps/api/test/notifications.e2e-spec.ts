@@ -304,6 +304,62 @@ describe('notifications (e2e)', () => {
     await node.waitForMail({ to: email, subject: /password/i });
   });
 
+  it('the daily budgets, the deployment’s and the tenant’s, withhold notification mail but not inbox delivery or essential mail', async () => {
+    const editor = await node.user(['editor']);
+    const email = await emailOf(editor.agent);
+    await editor.agent
+      .put('/v1/notifications/preferences')
+      .send({ 'testItem.commented': { email: 'immediate' } })
+      .expect(200);
+    const mailed = async () => {
+      const id = await notify(`user:${editor.id}`);
+      await deliver();
+      expect((await row(id)).deliveredAt).toBeTruthy();
+    };
+
+    // The deployment's: 0 leaves only essential mail.
+    await node
+      .admin()
+      .put('/v1/settings/mail.dailyLimit/platform')
+      .send({ value: 0 })
+      .expect(200);
+    await mailed();
+    await node
+      .admin()
+      .delete('/v1/settings/mail.dailyLimit/platform')
+      .expect(204);
+    // The tenant's quota, while the deployment's has no limit.
+    await node
+      .admin()
+      .put(`/v1/tenants/${node.tenantId}/quotas`)
+      .send({ maxMailsPerDay: 0 })
+      .expect(200);
+    await mailed();
+    const usage = (
+      await node.admin().get(`/v1/tenants/${node.tenantId}/usage`).expect(200)
+    ).body;
+    expect(usage.mailsPerDay).toMatchObject({ limit: 0 });
+    expect(usage.limits).toMatchObject({ maxMailsPerDay: 0 });
+
+    // Essential mail still goes, and the notices never went.
+    const mandatory = await notify(`user:${editor.id}`, {
+      type: 'security.passwordChanged' as NotificationType,
+      data: { via: 'change', ip: '192.0.2.10' },
+      key: randomUUID(),
+    });
+    await deliver();
+    expect((await row(mandatory)).deliveredAt).toBeTruthy();
+    await node.waitForMail({ to: email, subject: /password/i });
+    expect(
+      (await editor.agent.get('/v1/notifications').expect(200)).body.items,
+    ).toHaveLength(3);
+    expect(
+      noticesTo(email).filter(
+        (mail) => !/password/i.test(mail.message.subject),
+      ),
+    ).toEqual([]);
+  });
+
   it('tells an API client live and by webhook, which it may switch off', async () => {
     const receiver = await webhookReceiver();
     try {

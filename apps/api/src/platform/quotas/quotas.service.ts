@@ -23,6 +23,7 @@ import type { SettingDeclaration } from '../settings/setting.types.js';
 import type { TenantUsage, UpdateQuotas } from './quota.schemas.js';
 import {
   QUOTA_MAX_API_CLIENTS,
+  QUOTA_MAX_MAILS_PER_DAY,
   QUOTA_MAX_MEMBERS,
   QUOTA_MAX_RECORDS,
   QUOTA_MAX_STORAGE_BYTES,
@@ -78,6 +79,7 @@ export class QuotasService {
         members: await meter('members'),
         apiClients: await meter('apiClients'),
         storageBytes: await meter('storageBytes'),
+        mailsPerDay: await meter('mailsPerDay'),
         records,
         limits: row.quotas,
       };
@@ -132,6 +134,7 @@ export class QuotasService {
       'members',
       'apiClients',
       'storageBytes',
+      'mailsPerDay',
       ...Object.keys(quotas.maxRecords ?? {}).map(
         (subject): QuotaResource => `records:${subject}`,
       ),
@@ -143,6 +146,7 @@ function defaultOf(resource: QuotaResource): SettingDeclaration<number | null> {
   if (resource === 'members') return QUOTA_MAX_MEMBERS;
   if (resource === 'apiClients') return QUOTA_MAX_API_CLIENTS;
   if (resource === 'storageBytes') return QUOTA_MAX_STORAGE_BYTES;
+  if (resource === 'mailsPerDay') return QUOTA_MAX_MAILS_PER_DAY;
   return QUOTA_MAX_RECORDS;
 }
 
@@ -153,6 +157,7 @@ function merge(current: TenantQuotaLimits, changes: UpdateQuotas) {
     'maxMembers',
     'maxApiClients',
     'maxStorageBytes',
+    'maxMailsPerDay',
   ] as const) {
     const value = changes[key];
     if (value === null) delete next[key];

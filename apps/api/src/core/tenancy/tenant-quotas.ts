@@ -10,11 +10,16 @@ import { type TenantQuotaLimits, tenants } from './tenancy.tables.js';
 
 /**
  * What a tenant's limits cap (docs/tenancy.md, "Quotas"): its active
- * members, API clients, stored bytes, and the records of a feature
- * (`records:Note`, the permission subject).
+ * members, API clients, stored bytes, the records of a feature
+ * (`records:Note`, the permission subject), and the mail it queues a day
+ * (`mailsPerDay`, enforced by the mail budget, not `assertRoom()`).
  */
 export type QuotaResource =
-  'members' | 'apiClients' | 'storageBytes' | `records:${string}`;
+  | 'members'
+  | 'apiClients'
+  | 'storageBytes'
+  | 'mailsPerDay'
+  | `records:${string}`;
 
 /** How much of a resource a tenant uses; `db` reads in the tenant's scope. */
 export type QuotaCounter = (
@@ -36,6 +41,7 @@ export const quotaOverride = (
   if (resource === 'members') return quotas.maxMembers;
   if (resource === 'apiClients') return quotas.maxApiClients;
   if (resource === 'storageBytes') return quotas.maxStorageBytes;
+  if (resource === 'mailsPerDay') return quotas.maxMailsPerDay;
   return quotas.maxRecords?.[resource.slice('records:'.length)];
 };
 

@@ -409,8 +409,8 @@ type is a mail each: 100,000 notes published at once once queued 78,000
 mails, filled Redis (OOM) and used a provider's daily quota many times over
 (#618). Two limits apply before a mail is queued (`MailDeliveryGate`, in
 `MailQueue.send()`); a mail they keep back is neither rendered nor queued,
-is logged, and counts in `mail_withheld_total{reason}` (`policy` or
-`budget`). The notification itself, in-app and realtime, is unaffected,
+is logged, and counts in `mail_withheld_total{reason}` (`policy`,
+`budget` or `tenant_budget`). The notification itself, in-app and realtime, is unaffected,
 and its delivery completes: the outbox does not retry the mail later.
 
 - **The `mail.delivery` setting**: `all` (default), `essential` (only
@@ -426,11 +426,19 @@ and its delivery completes: the outbox does not retry the mail later.
   A tenant administrator may restrict their own tenant's. A settings read
   that fails lets the mail through: sign-in mail is never kept back by an
   outage.
-- **The daily budget**: with `MAIL_DAILY_LIMIT` set (the provider's quota),
-  the mails queued each UTC day are counted in Redis across every replica;
-  past `MAIL_DAILY_LIMIT` − `MAIL_DAILY_ESSENTIAL_RESERVE` (10) only
-  essential mail is queued. Essential mail is counted but never kept back by
-  the budget (the provider's quota decides). A withheld mail uses none of it.
+- **The daily budgets**, settings changed at runtime, no deploy: the mails
+  queued each UTC day are counted in Redis across every replica, for the
+  deployment and for each tenant.
+  - The deployment's: `mail.dailyLimit` (the provider's quota; empty: none),
+    `PUT /v1/settings/mail.dailyLimit/platform { "value": 100 }`.
+  - A tenant's: its `maxMailsPerDay` quota (`PUT /v1/tenants/{id}/quotas`,
+    default `quotas.maxMailsPerDay`; [tenancy](tenancy.md), "Quotas"), so one
+    tenant can't use the deployment's allowance. Its usage shows today's count.
+  - Past `mail.essentialOnlyPercent` (90) of either, only essential mail is
+    queued. Essential mail is counted but never kept back by a budget (the
+    provider's quota decides). A withheld mail uses none of it. All three are
+    the operators' (no tenant scope); a budget that can't be read keeps
+    nothing back.
 
 Both act when a mail is queued: mail already waiting in the `mail` queue
 still goes. Failed jobs are kept 7 days and at most 5,000 per queue.

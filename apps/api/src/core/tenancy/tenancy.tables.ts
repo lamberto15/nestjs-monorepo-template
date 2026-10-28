@@ -11,6 +11,8 @@ export interface TenantQuotaLimits {
   maxApiClients?: number;
   maxStorageBytes?: number;
   maxRecords?: Record<string, number>;
+  /** Mails queued per UTC day (the mail budget, core/mail/mail-delivery.ts). */
+  maxMailsPerDay?: number;
 }
 
 /**
