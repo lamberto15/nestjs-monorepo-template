@@ -9,7 +9,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-node';
-import { uploadToDisk } from '@nestjs/storage';
+import { StorageDisk, uploadToDisk } from '@nestjs/storage';
 import type { NodeRequest as Request } from '@nestjs/platform-node';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import type { RequestPrincipal } from '../../iam/auth/principal.js';
@@ -24,6 +24,7 @@ class ImportUploadInterceptor implements NestInterceptor {
   constructor(
     private readonly settings: SettingsService,
     private readonly config: ConfigService<CoreEnv, true>,
+    private readonly disk: StorageDisk,
   ) {}
 
   async intercept(context: ExecutionContext, next: CallHandler) {
@@ -38,6 +39,9 @@ class ImportUploadInterceptor implements NestInterceptor {
     const Upload = FileInterceptor('file');
     const upload = new Upload({
       storage: uploadToDisk({
+        // The disk itself, not its name: uploadToDisk() finds a disk by name
+        // through Express's or Fastify's request only, not the native adapter's.
+        disk: this.disk,
         key: (_file, req) =>
           transferKey(
             principalTenant((req as Request & { user: RequestPrincipal }).user),

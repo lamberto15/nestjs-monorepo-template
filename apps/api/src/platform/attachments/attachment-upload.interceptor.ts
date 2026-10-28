@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-node';
-import { uploadToDisk } from '@nestjs/storage';
+import { StorageDisk, uploadToDisk } from '@nestjs/storage';
 import type { NodeRequest as Request } from '@nestjs/platform-node';
 import { z } from 'zod';
 import type { Principal } from '../../iam/auth/principal.js';
@@ -50,11 +50,15 @@ export function AttachmentUpload(
     constructor(
       config: ConfigService<PlatformEnv, true>,
       private readonly attachments: AttachmentsService,
+      disk: StorageDisk,
     ) {
       const limits = attachmentLimits(config);
       const Upload = FileInterceptor('file');
       this.multer = new Upload({
         storage: uploadToDisk({
+          // The disk itself, not its name: uploadToDisk() finds a disk by name
+          // through Express's or Fastify's request only, not the native adapter's.
+          disk,
           // Under the uploader's tenant (`tenants/<id>/…`): the request's
           // principal, authenticated before any interceptor runs.
           key: (file, req) => {
