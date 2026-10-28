@@ -3,7 +3,6 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { Outbox, type NewOutboxMessage } from '@nestjs/outbox';
@@ -287,31 +286,34 @@ export class NotificationsService {
     const counts = new Map(
       old.map((row) => [`${row.recipient}\u0000${row.key}`, row.count]),
     );
+    const owners = prepared.flatMap((item) => item.recipients.map(() => item));
     const values = prepared.flatMap((item) =>
-      item.recipients.map((recipient) => {
-        const id = randomUUID();
-        item.ids.push(id);
-        return {
-          id,
-          recipient,
-          type: item.input.type,
-          data: item.data,
-          key: item.key,
-          count: item.key
-            ? (counts.get(`${recipient}\u0000${item.key}`) ?? 0) + 1
-            : 1,
-          link: item.input.link ?? null,
-        };
-      }),
+      item.recipients.map((recipient) => ({
+        recipient,
+        type: item.input.type,
+        data: item.data,
+        key: item.key,
+        count: item.key
+          ? (counts.get(`${recipient}\u0000${item.key}`) ?? 0) + 1
+          : 1,
+        link: item.input.link ?? null,
+      })),
     );
     if (!values.length) return prepared.map((item) => item.ids);
-    await tx.insert(notifications).values(values);
+    // The ids are the column's uuidv7(), time-ordered: the list is newest
+    // first by id (#849). A multi-row INSERT returns its rows in the order
+    // of its VALUES.
+    const rows = await tx
+      .insert(notifications)
+      .values(values)
+      .returning({ id: notifications.id });
+    rows.forEach((row, index) => owners[index]!.ids.push(row.id));
     const messages: NewOutboxMessage<NotificationMessage>[] = values.map(
-      (row) => ({
+      (row, index) => ({
         topic: NOTIFICATIONS_TOPIC,
         key: null, // no ordering key, as in notify()
         payload: {
-          notificationId: row.id,
+          notificationId: rows[index]!.id,
           recipient: row.recipient,
           type: row.type,
           tenantId,
