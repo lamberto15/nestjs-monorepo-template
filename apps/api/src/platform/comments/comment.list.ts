@@ -11,6 +11,16 @@ export const COMMENT_LIST = listQuery(
       ops: ['eq', 'in'],
       ref: 'principal',
     },
+    parentId: {
+      column: comments.parentId,
+      type: 'uuid',
+      ops: ['eq', 'isNull'],
+    },
+    resolvedAt: {
+      column: comments.resolvedAt,
+      type: 'datetime',
+      ops: ['isNull', 'gte', 'lte'],
+    },
     createdAt: {
       column: comments.createdAt,
       type: 'datetime',

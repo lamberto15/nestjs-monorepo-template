@@ -51,6 +51,7 @@ import { ClientWebhooksController } from './webhooks/client-webhooks.controller.
 import { WebhookManagementService } from './webhooks/webhook-management.service.js';
 import { IncomingEventHandlers } from './webhooks/incoming-event-handlers.js';
 import { IncomingSendersController } from './webhooks/incoming-senders.controller.js';
+import { IncomingEventTypesController } from './webhooks/incoming-event-types.controller.js';
 import { IncomingSendersService } from './webhooks/incoming-senders.service.js';
 import { TenantSenderGuard } from './webhooks/tenant-sender.guard.js';
 import { TenantWebhookReceiverController } from './webhooks/tenant-webhook-receiver.controller.js';
@@ -191,6 +192,12 @@ import { NamingSeriesService } from './sequences/naming-series.service.js';
 import { NamingVariables } from './sequences/naming-variables.js';
 import { NUMBERING_SETTINGS } from './sequences/numbering-settings.js';
 import { SequencesService } from './sequences/sequences.service.js';
+import {
+  AttachmentAcknowledgmentsController,
+  MyAcknowledgmentsController,
+} from './acknowledgments/acknowledgments.controller.js';
+import { AcknowledgmentsService } from './acknowledgments/acknowledgments.service.js';
+import { ACKNOWLEDGMENT_NOTIFICATIONS } from './acknowledgments/acknowledgment-notifications.js';
 import { AttachmentImagesProcessor } from './attachments/attachment-images.processor.js';
 import { AttachmentImagesRetryJob } from './attachments/attachment-images-retry.job.js';
 import { AttachmentImagesQueue } from './attachments/attachment-images.queue.js';
@@ -217,6 +224,8 @@ import { CommentsService } from './comments/comments.service.js';
 import { TagsController } from './tags/tags.controller.js';
 import { TagsRegistry } from './tags/tags.registry.js';
 import { TagsService } from './tags/tags.service.js';
+import { ImportMappingsController } from './data-transfer/import-mappings.controller.js';
+import { ImportMappingsService } from './data-transfer/import-mappings.service.js';
 import { FavoritesController } from './favorites/favorites.controller.js';
 import { FavoritesService } from './favorites/favorites.service.js';
 import { ViewsController } from './views/views.controller.js';
@@ -448,6 +457,7 @@ export class PlatformModule {
         ),
         // Incoming webhooks of a tenant's own senders: not behind WEBHOOKS (that switch is for the outgoing ones).
         IncomingSendersController,
+        IncomingEventTypesController,
         TenantWebhookReceiverController,
         OpsController,
         FeaturesController,
@@ -483,6 +493,8 @@ export class PlatformModule {
         PeopleController,
         UnitDirectoryController,
         AttachmentsController,
+        AttachmentAcknowledgmentsController,
+        MyAcknowledgmentsController,
         DocumentsController,
         AiController,
         TagsController,
@@ -491,6 +503,7 @@ export class PlatformModule {
         RecordSchedulesController,
         ViewsController,
         FavoritesController,
+        ImportMappingsController,
         RetentionController,
         ...whenOn('REPORTS', ReportsController),
         ...whenOn('USAGE', UsageController),
@@ -512,6 +525,7 @@ export class PlatformModule {
             ...options,
             notifications: [
               ...COMMENT_NOTIFICATIONS,
+              ...ACKNOWLEDGMENT_NOTIFICATIONS,
               ...APPROVAL_NOTIFICATIONS,
               ...ATTACHMENT_NOTIFICATIONS,
               // Development only, with the route that sends it.
@@ -735,6 +749,8 @@ export class PlatformModule {
         // Comments and mentions: features register a CommentTarget and call CommentsService.
         CommentsRegistry,
         CommentsService,
+        // Acknowledgments of an attachment's version.
+        AcknowledgmentsService,
         // Tags: features register a TagTarget and call TagsService.
         TagsRegistry,
         TagsService,
@@ -747,6 +763,8 @@ export class PlatformModule {
         // Recurring record schedules: records created from a template at each occurrence of a rule.
         RecordSchedulesService,
         RecordScheduleRunnerJob,
+        // Saved column mappings of an import (docs/data-transfer.md).
+        ImportMappingsService,
         // Scheduled reports: exports run on a schedule, mailed to their recipients.
         ...whenOn<Provider>(
           'REPORTS',
@@ -844,6 +862,7 @@ export class PlatformModule {
         AttachmentsRegistry,
         AttachmentsService,
         AttachmentUploadsService,
+        AcknowledgmentsService,
         DocumentsRegistry,
         DocumentsService,
         AiRegistry,

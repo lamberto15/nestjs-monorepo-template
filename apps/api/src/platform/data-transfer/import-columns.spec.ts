@@ -10,6 +10,7 @@ import { refusal, valuesSet } from './data-transfer.processor.js';
 import type { ImportColumn } from './data-transfer.types.js';
 import { createTemplate, readRecords, type TemplateGuide } from './formats.js';
 import { columnsOf, exampleOf } from './import-columns.js';
+import { mappingProblems, staleTargets } from './import-mapping.js';
 
 const row = z.object({
   title: z.string().trim().min(1).max(200).meta({ example: 'Hello' }),
@@ -198,5 +199,57 @@ describe('a row as a write route sees it', () => {
 
   it('fails the import on anything else', () => {
     expect(refusal(new Error('connection lost'), 1)).toBeUndefined();
+  });
+});
+
+describe('import mappings', () => {
+  const columns: ImportColumn[] = [
+    { name: 'title', type: 'text', required: true },
+    { name: 'dueAt', type: 'datetime', required: false },
+    { name: 'custom.region', type: 'text', required: false },
+  ];
+
+  it('accepts renamed, ignored and custom-field targets, with a zone on a date-time', () => {
+    expect(
+      mappingProblems(
+        {
+          Name: 'title',
+          When: 'dueAt (Asia/Dubai)',
+          Area: 'custom.region',
+          Internal: null,
+        },
+        columns,
+      ),
+    ).toEqual([]);
+  });
+
+  it('refuses a target twice, with or without the zone', () => {
+    expect(
+      mappingProblems(
+        { A: 'title', B: 'title', C: 'dueAt', D: 'dueAt (UTC)' },
+        columns,
+      ),
+    ).toEqual([
+      '"A" and "B" both map to "title".',
+      '"C" and "D" both map to "dueAt".',
+    ]);
+  });
+
+  it('refuses a target that is not a column the caller may fill, or a zone on a text', () => {
+    expect(
+      mappingProblems({ A: 'ownerId', B: 'title (UTC)' }, columns),
+    ).toEqual([
+      '"A" maps to "ownerId", which you cannot import.',
+      '"title" is not a date-time column: it takes no zone.',
+    ]);
+  });
+
+  it('names the targets a changed schema or permission no longer allows', () => {
+    expect(
+      staleTargets(
+        { A: 'title', B: 'custom.gone', C: 'dueAt (UTC)', D: null },
+        columns.filter((column) => column.name !== 'dueAt'),
+      ),
+    ).toEqual(['custom.gone', 'dueAt']);
   });
 });

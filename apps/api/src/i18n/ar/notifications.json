@@ -61,11 +61,28 @@
       }
     }
   },
+  "acknowledgment": {
+    "requested": {
+      "label": "مستند بانتظار الإقرار",
+      "title": "يرجى الإقرار بمستند",
+      "body": "طلب منك {by} الإقرار بـ \"{name}\" (الإصدار {version})."
+    },
+    "reminder": {
+      "label": "تذكير بالإقرار",
+      "title": "تذكير: يرجى الإقرار بمستند",
+      "body": "ذكّرك {by} بالإقرار بـ \"{name}\" (الإصدار {version})."
+    }
+  },
   "comment": {
     "mentioned": {
       "label": "إشارة إليك في تعليق",
       "title": "تمت الإشارة إليك",
       "body": "أشار إليك {by} في \"{title}\": {excerpt}"
+    },
+    "replied": {
+      "label": "رد على تعليقك",
+      "title": "رد {by} على تعليقك",
+      "body": "رد {by} على تعليقك في \"{title}\": {excerpt}"
     }
   },
   "from": " (من {ip})",
