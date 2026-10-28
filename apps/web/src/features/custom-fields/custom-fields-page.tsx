@@ -18,6 +18,7 @@ import {
   SortableItem,
   SortableItemHandle,
 } from '@nestjs-monorepo-template/ui/components/sortable';
+import { useSortableProps } from '@/lib/sortable';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowDownIcon,
@@ -94,6 +95,10 @@ function SubjectFields(props: { subjects: CustomFieldSubject[] }) {
 
   const active = (fields.data ?? []).filter((f) => f.active);
   const inactive = (fields.data ?? []).filter((f) => !f.active);
+  const sortable = useSortableProps(
+    active.length,
+    (id) => active.find((f) => f.id === id)?.label ?? String(id),
+  );
 
   const move = (field: CustomField, by: -1 | 1) => {
     const ids = active.map((f) => f.id);
@@ -159,6 +164,7 @@ function SubjectFields(props: { subjects: CustomFieldSubject[] }) {
               </h2>
               <p className="text-xs text-muted-foreground">{t('orderHint')}</p>
               <Sortable
+                {...sortable}
                 value={active}
                 getItemValue={(f) => f.id}
                 onValueChange={(next) => reorder.mutate(next.map((f) => f.id))}
@@ -189,7 +195,8 @@ function SubjectFields(props: { subjects: CustomFieldSubject[] }) {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="shrink-0"
+                            // A thumb's target on a phone.
+                            className="shrink-0 max-md:size-11"
                           />
                         }
                       >

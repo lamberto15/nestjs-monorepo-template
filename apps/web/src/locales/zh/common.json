@@ -496,5 +496,14 @@
     "checking": "检查中…",
     "reload": "重新加载",
     "copy": "复制详情"
+  },
+  "sortable": {
+    "picked": "已拿起 {{item}}，位置 {{position}}/{{count}}。用方向键移动，按空格键放下。",
+    "moved": "{{item}} 已移到位置 {{position}}/{{count}}。",
+    "outside": "{{item}} 已不在列表上方。按 Esc 取消。",
+    "dropped": "{{item}} 已放在位置 {{position}}/{{count}}。",
+    "unchanged": "{{item}} 已放下，没有变化。",
+    "cancelled": "已取消移动。{{item}} 回到位置 {{position}}/{{count}}。",
+    "instructions": "按空格键或回车键拿起项目，用上下方向键移动，再按空格键或回车键放下，按 Esc 取消。"
   }
 }

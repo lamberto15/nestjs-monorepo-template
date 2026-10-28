@@ -501,5 +501,14 @@
     "checking": "Checking…",
     "reload": "Reload",
     "copy": "Copy details"
+  },
+  "sortable": {
+    "picked": "Picked up {{item}}, position {{position}} of {{count}}. Move it with the arrow keys; press Space to drop it.",
+    "moved": "{{item}} moved to position {{position}} of {{count}}.",
+    "outside": "{{item}} is no longer over the list. Press Escape to cancel.",
+    "dropped": "{{item}} dropped at position {{position}} of {{count}}.",
+    "unchanged": "{{item}} dropped. Nothing changed.",
+    "cancelled": "Moving cancelled. {{item}} is back at position {{position}} of {{count}}.",
+    "instructions": "To pick up an item, press Space or Enter. Move it with the up and down arrow keys. Press Space or Enter again to drop it, or Escape to cancel."
   }
 }

@@ -446,6 +446,27 @@ describe('ordering, deactivating and reactivating', () => {
     expect(handle).toHaveAttribute('aria-roledescription', 'sortable');
   });
 
+  it("tells a screen reader the field's name and place, in the user's language", async () => {
+    useCustomFieldsApi({ can: ADMIN, fields: [field(), AMOUNT] });
+    const user = userEvent.setup();
+    await renderApp('/custom-fields');
+    const handle = await screen.findByRole('button', {
+      name: 'Reorder Region',
+    });
+    const describedBy = handle.getAttribute('aria-describedby') ?? '';
+    expect(document.getElementById(describedBy)).toHaveTextContent(
+      /To pick up an item, press Space or Enter/,
+    );
+    handle.focus();
+    await user.keyboard(' ');
+    // Picked up: the item is over its own place at once (dnd-kit says so).
+    await screen.findByText('Region moved to position 1 of 2.');
+    await user.keyboard('{Escape}');
+    await screen.findByText(
+      'Moving cancelled. Region is back at position 1 of 2.',
+    );
+  });
+
   it('deactivates after a confirmation that says the values are kept, then brings it back', async () => {
     const { calls } = useCustomFieldsApi({ can: ADMIN, fields: [field()] });
     const user = userEvent.setup();
