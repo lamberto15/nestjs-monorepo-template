@@ -128,15 +128,34 @@ instrumented sixth 103 s), `image` with the hardened stack 3.0, `caddy-image`
 2.3, `feature-smoke` 3.0. With a warm Turbo cache, `check` and `unit (web)`
 replayed (1.2 and 0.6 min). Cold, they took 3.2 and 4.8 min on the first run.
 
-What that gives the ordinary shapes, from those measured job times (they
-were not run separately, so they are estimates):
+Ordinary pull requests, measured: the 10 latest merged pull requests after
+#682 that touched only `apps/api` (and docs), and the 10 that touched only
+`apps/web` or `packages/ui` (and docs). Each is its last `CI / CD` run on the
+head commit (all 20 passed on the first attempt), collected as above. Median
+(range):
 
-- **API:** `changes` (10 s) and the heavier e2e shard (5.1–6.9 min over
-  three runs): about 5.5–7 min, against 8.7 at the median. 6 CI / CD
-  runners, against 14 jobs and a peak of 8.
-- **Web:** `changes` and `unit (web)` cold (4.8 min): about 5 min, against
-  5.2 at the median and 6.9 at most. `caddy-image` (2.3–2.6 min) is off the
-  critical path. 6 CI / CD runners and no `web.yml` jobs, against 9 + 5.
+| Shape | Runs | Wall | Runner-min | Jobs | Peak concurrent | Scheduling, all jobs |
+| --- | --- | --- | --- | --- | --- | --- |
+| API | 10 | 7.7 (6.1–8.9) min | 28.6 (25.9–33.5) | 9 | 7 (7–7) | 34 s (17–106 s) |
+| web | 10 | 5.6 (4.2–8.6) min | 13.3 (10.2–14.9) | 7 | 5 (4–5) | 48 s (13–454 s) |
+
+Against "Before": API wall 8.7 to 7.7 min, runner-minutes 31.1 to 28.6, jobs
+14 to 9, peak 8 to 7; web wall 5.2 to 5.6 min, runner-minutes 13.9 to 13.3,
+jobs 9 + 5 workflow jobs to 7. The API is a modest gain on time, the web
+app none: it is already bounded by `unit (web)` and `check`. The wall time
+equals the time to `CI gate` in all 20 runs. Runs: API 40626243652,
+40626400711, 40628072329, 40630076913, 40630787230, 40633393176,
+40633646100, 40633864668, 40634883985, 40643293479; web 40500169840,
+40501140242, 40525774034, 40531077248, 40537655334, 40539138319,
+40546913100, 40552526730, 40639441189, 40641979869.
+
+Scheduling is the tail: the longest wait for any one job was 9 s at the
+median for the API (42 s at most) and 20 s for web (133 s at most; the
+slowest web run, 8.6 min, lost 454 s to it in total). Cold and warm Turbo
+runs are not separated: the logs count task replays (API 20 hits and 7
+misses at the median, web 9 and 5), but a pull request's cache state
+depends on which `main` tasks it shares, so one run mixes both. Read the
+range, not a split.
 
 The Playwright tail: `playwright install-deps` (apt, from the runner's
 Ubuntu mirror) took 20 s at the median and 47 s at p95 over 97 runs, but 6–8
