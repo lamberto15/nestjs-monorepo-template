@@ -5,6 +5,7 @@ import { bulkRoutes } from '../bulk/bulk.routes.js';
 import { commentRoutes } from '../comments/comment.routes.js';
 import { documentRoutes } from '../documents/document.routes.js';
 import { revisionRoutes } from '../revisions/revision.routes.js';
+import { shareRoutes } from '../shares/share.routes.js';
 import { watchRoutes } from '../subscriptions/subscription.routes.js';
 import { listSource } from '../lists/lists.registry.js';
 import { tagRoutes } from '../tags/tag.routes.js';
@@ -35,6 +36,7 @@ import {
   RecordDocuments,
   RecordRevisions,
   RecordSearch,
+  RecordShares,
   RecordSubscriptions,
   RecordTags,
   RecordTransfer,
@@ -54,6 +56,7 @@ const TARGETS: Partial<Record<Capability, Type>> = {
   watch: RecordSubscriptions,
   search: RecordSearch,
   transfer: RecordTransfer,
+  share: RecordShares,
 };
 
 /**
@@ -121,6 +124,7 @@ export function recordParts(
         ]
       : []),
     ...(has('watch') ? [watchRoutes(declaration)] : []),
+    ...(has('share') ? [shareRoutes(declaration)] : []),
     // The approvable actions' routes (declaration.approvals): POST /<path>/{id}/<action>.
     ...recordApprovalRoutes(declaration, {
       policy: options.policy,

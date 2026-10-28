@@ -67,7 +67,8 @@
       "create": "Tulis nota",
       "update": "Ubah nota",
       "delete": "Padam nota",
-      "restore": "Lihat nota yang dipadam dan pulihkannya"
+      "restore": "Lihat nota yang dipadam dan pulihkannya",
+      "share": "Kongsi nota melalui pautan"
     },
     "fields": {
       "body": "Teks nota",

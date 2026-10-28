@@ -67,7 +67,8 @@
       "create": "Write notes",
       "update": "Change notes",
       "delete": "Delete notes",
-      "restore": "See deleted notes and restore them"
+      "restore": "See deleted notes and restore them",
+      "share": "Share notes by link"
     },
     "fields": {
       "body": "The note's text",

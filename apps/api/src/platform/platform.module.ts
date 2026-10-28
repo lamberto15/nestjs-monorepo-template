@@ -219,6 +219,10 @@ import { TagsRegistry } from './tags/tags.registry.js';
 import { TagsService } from './tags/tags.service.js';
 import { FavoritesController } from './favorites/favorites.controller.js';
 import { FavoritesService } from './favorites/favorites.service.js';
+import { SharedController } from './shares/shared.controller.js';
+import { ShareCodeMail } from './shares/share.mails.js';
+import { SharesRegistry } from './shares/shares.registry.js';
+import { SharesService } from './shares/shares.service.js';
 import { ViewsController } from './views/views.controller.js';
 import { ViewsService } from './views/views.service.js';
 import { ReportRunnerJob } from './reports/report-runner.job.js';
@@ -484,6 +488,8 @@ export class PlatformModule {
         NamingSeriesController,
         ViewsController,
         FavoritesController,
+        // Opening a record's read-only link, without a sign-in (POST /v1/shared/open).
+        SharedController,
         RetentionController,
         ...whenOn('REPORTS', ReportsController),
         ...whenOn('USAGE', UsageController),
@@ -735,6 +741,10 @@ export class PlatformModule {
         ViewsService,
         // Favorites: a person's pinned records, pages and saved views, in their order.
         FavoritesService,
+        // Read-only links to records: features register a ShareTarget (the `share` capability).
+        SharesRegistry,
+        SharesService,
+        ShareCodeMail,
         // Scheduled reports: exports run on a schedule, mailed to their recipients.
         ...whenOn<Provider>(
           'REPORTS',
@@ -825,6 +835,8 @@ export class PlatformModule {
         PersonalDataRegistry,
         SubscriptionsService,
         SubscriptionsRegistry,
+        SharesRegistry,
+        SharesService,
         SearchRegistry,
         ListsRegistry,
         SequencesService,

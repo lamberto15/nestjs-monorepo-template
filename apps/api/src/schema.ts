@@ -26,6 +26,7 @@ export * from './platform/reports/reports.tables.js';
 export * from './platform/retention/retention.tables.js';
 export * from './platform/views/views.tables.js';
 export * from './platform/favorites/favorites.tables.js';
+export * from './platform/shares/shares.tables.js';
 export * from './platform/usage/usage.tables.js';
 export * from './platform/revisions/revisions.tables.js';
 export * from './platform/approvals/approvals.tables.js';
