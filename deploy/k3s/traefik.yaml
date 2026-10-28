@@ -1,0 +1,23 @@
+# Apply as an administrator (k3s's packaged Traefik lives in kube-system,
+# beyond the deployer's namespace). Traefik keeps an incoming
+# X-Forwarded-For only from trustedIPs and otherwise replaces it with its
+# peer: here cloudflared's pod, so the API logged that pod's address for
+# every user (audit log, rate limits, sign-in history). Trusting the pod
+# network keeps Cloudflare's chain; the API reads it from the right and
+# stops at the first public address (trust proxy: private networks), so a
+# client's own X-Forwarded-For can't name another address. 10.42.0.0/16 is
+# k3s's default cluster CIDR: change it with --cluster-cidr.
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    ports:
+      web:
+        forwardedHeaders:
+          trustedIPs: [10.42.0.0/16]
+      websecure:
+        forwardedHeaders:
+          trustedIPs: [10.42.0.0/16]
