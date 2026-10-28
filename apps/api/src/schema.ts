@@ -28,6 +28,7 @@ export * from './platform/calendars/calendars.tables.js';
 export * from './platform/recurrence/record-schedules.tables.js';
 export * from './platform/retention/retention.tables.js';
 export * from './platform/views/views.tables.js';
+export * from './platform/forms/forms.tables.js';
 export * from './platform/templates/templates.tables.js';
 export * from './platform/favorites/favorites.tables.js';
 export * from './platform/shares/shares.tables.js';

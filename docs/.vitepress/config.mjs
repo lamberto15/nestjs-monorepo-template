@@ -54,6 +54,7 @@ const technical = [
     ['Attachments', '/attachments'],
     ['Revisions', '/revisions'],
     ['Custom fields', '/custom-fields'],
+    ['Forms', '/forms'],
     ['Saved views', '/saved-views'],
     ['Record templates', '/templates'],
     ['Dependent choices', '/choices'],
