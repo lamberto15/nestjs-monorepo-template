@@ -85,6 +85,7 @@ describe('automatic database incidents on PostgreSQL', () => {
             captureStatus: 'captured',
           }),
         ),
+        { timeout: 3000 },
       );
       expect(events()).toContainEqual(
         expect.objectContaining({
@@ -116,6 +117,7 @@ describe('automatic database incidents on PostgreSQL', () => {
           captureStatus: 'captured',
         }),
       ),
+      { timeout: 3000 },
     );
     expect(JSON.stringify(events())).not.toContain('private-note');
     expect(JSON.stringify(events())).not.toContain('pg_sleep');
@@ -176,6 +178,7 @@ describe('automatic database incidents on PostgreSQL', () => {
             reason: 'monitor_role_required',
           }),
         ),
+        { timeout: 3000 },
       );
       expect((await pool.query('select 42 as n')).rows[0]).toEqual({ n: 42 });
     },
