@@ -156,6 +156,7 @@ Platform modules
 - [Scheduled reports](docs/reports.md): an export on a schedule, mailed with a link
 - [PDF documents](docs/documents.md): templates, languages and right to left, Gotenberg, issued attachments
 - [Approvals](docs/approvals.md): policies, stages, approver rules, delegation, escalation
+- [Automation rules](docs/automations.md): a tenant's own triggers, conditions and actions, simulated before activation
 - [Notifications](docs/notifications.md): in-app, realtime, mail, webhook, push and SMS; preferences, digests
 - [Settings and feature flags](docs/settings.md): runtime values, scopes, rollouts
 - [Custom fields](docs/custom-fields.md): fields administrators add at runtime, stored in JSONB
