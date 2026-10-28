@@ -431,9 +431,6 @@ importers:
       '@types/inquirer':
         specifier: 8.2.13
         version: 8.2.13
-      '@types/multer':
-        specifier: 2.3.0
-        version: 2.3.0
       '@types/node':
         specifier: 24.19.2
         version: 24.19.2
@@ -5892,9 +5889,6 @@ packages:
 
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
-
-  '@types/multer@2.3.0':
-    resolution: {integrity: sha512-i7STIm9V4K2MPH4ZYMtrZAwNxs3kglk2LgleaTuB9pUXgADBcQYQuYMd7+6xgTIxfoggIkFA/DkkvycdZpIARA==}
 
   '@types/node@14.18.63':
     resolution: {integrity: sha512-fAtCfv4jJg+ExtXhvCkCqUKZ+4ok/JQk01qDKhL5BDDoS3AxKXhV5/MAVUZyQnSEd2GT92fkgZl0pz0Q0AzcIQ==}
@@ -16416,10 +16410,6 @@ snapshots:
   '@types/methods@1.1.4': {}
 
   '@types/ms@2.1.0': {}
-
-  '@types/multer@2.3.0':
-    dependencies:
-      '@types/express': 5.0.6
 
   '@types/node@14.18.63': {}
 

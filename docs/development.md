@@ -360,9 +360,8 @@ knip checks this repository's own code.
   Dice UI's data table (`components/data-table/`, `lib/data-table-*.ts`:
   registry output the CLI writes, left whole so `shadcn add` updates apply),
   `react-day-picker` and `tailwindcss` (used by that registry code and the
-  stylesheet's `@import`), `@types/multer` (the global `Express.Multer`
-  types), `k6` (the load test runs in k6's container) and `redis-server` (the
-  e2e tests start it).
+  stylesheet's `@import`), `k6` (the load test runs in k6's container) and
+  `redis-server` (the e2e tests start it).
 - Ignoring is the last resort: prefer removing the dead code.
 
 ## Browser tests

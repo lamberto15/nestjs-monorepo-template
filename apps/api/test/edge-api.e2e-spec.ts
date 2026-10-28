@@ -204,10 +204,13 @@ describe('API conventions, edge cases (e2e)', () => {
       expect(JSON.stringify(res.body)).not.toMatch(/secret-in-the-body/);
     });
 
-    // The native adapter adds no `; charset=utf-8` to a type set on the response.
-    it('answers problems as application/problem+json, without a charset', async () => {
+    // The native adapter adds no `; charset=utf-8` to a type set on the
+    // response, as Express did: the filter spells it out.
+    it('answers problems as application/problem+json with the charset Express sent', async () => {
       const res = await node.http().get('/v1/nowhere').expect(404);
-      expect(res.headers['content-type']).toBe('application/problem+json');
+      expect(res.headers['content-type']).toBe(
+        'application/problem+json; charset=utf-8',
+      );
     });
 
     // The native adapter matches paths case-sensitively, unlike Express.
