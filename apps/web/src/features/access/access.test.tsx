@@ -46,6 +46,7 @@ function capture(
             {
               id: ids.invitation,
               email: 'new@example.com',
+              status: 'sent',
               expiresAt: '2026-10-20T00:00:00Z',
             },
             { status },
@@ -192,7 +193,9 @@ describe('users: invitations', () => {
     await renderApp('/access/users');
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'Invite' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Invite member' }),
+    );
     const dialog = await screen.findByRole('dialog');
     await user.type(within(dialog).getByLabelText('Email'), 'new@example.com');
     await user.click(within(dialog).getByRole('checkbox', { name: /Editor/ }));
@@ -206,6 +209,7 @@ describe('users: invitations', () => {
       roleIds: [ids.editor],
       roleExpiresAt: {},
       unitIds: [ids.north],
+      send: true,
     });
 
     const revoked = capture('delete', '/v1/access/invitations/:id');
@@ -221,6 +225,69 @@ describe('users: invitations', () => {
   });
 });
 
+describe('users: preparing a member', () => {
+  it('saves roles without an address and sends nothing; the prepared one is sent from its row', async () => {
+    signedInWith(everything);
+    const prepared = capture('post', '/v1/access/users', 202);
+    server.use(
+      http.get('/v1/access/invitations', () =>
+        HttpResponse.json({
+          items: [
+            {
+              ...invitation,
+              email: null,
+              status: 'prepared',
+              sentAt: null,
+              expiresAt: null,
+            },
+          ],
+        }),
+      ),
+    );
+    await renderApp('/access/users');
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Prepare member' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('checkbox', { name: /Editor/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(prepared).toHaveLength(1));
+    expect(prepared[0]!.body).toEqual({
+      roleIds: [ids.editor],
+      roleExpiresAt: {},
+      send: false,
+    });
+
+    // Listed as prepared; without an address it can't be sent yet.
+    const row = (await screen.findByText('No address yet')).closest('tr')!;
+    expect(row).toHaveTextContent('Prepared');
+    expect(within(row).getByRole('button', { name: 'Send' })).toBeDisabled();
+  });
+
+  it('changes only what was edited', async () => {
+    signedInWith(everything);
+    const changed = capture('patch', '/v1/access/invitations/:id', 200);
+    server.use(
+      http.get('/v1/access/invitations', () =>
+        HttpResponse.json({ items: [invitation] }),
+      ),
+    );
+    await renderApp('/access/users');
+    const user = userEvent.setup();
+    const row = (await screen.findByText('new@example.com')).closest('tr')!;
+    await user.click(within(row).getByRole('button', { name: 'Edit' }));
+    const dialog = await screen.findByRole('dialog');
+    const email = within(dialog).getByLabelText(/Email/);
+    await user.clear(email);
+    await user.type(email, 'other@example.com');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(changed).toHaveLength(1));
+    expect(changed[0]!.body).toEqual({ email: 'other@example.com' });
+  });
+});
+
 describe('a name over 120 characters', () => {
   it.each([
     {
@@ -228,7 +295,7 @@ describe('a name over 120 characters', () => {
       page: '/access/users',
       post: '/v1/access/users',
       status: 202,
-      open: 'Invite',
+      open: 'Invite member',
       email: true,
       field: 'Name (optional)',
       submit: 'Send invitation',
@@ -281,7 +348,7 @@ describe('users: resending an invitation', () => {
     let tries = 0;
     const resent: string[] = [];
     server.use(
-      http.post('/v1/access/invitations/:id/resend', ({ request }) => {
+      http.post('/v1/access/invitations/:id/send', ({ request }) => {
         tries += 1;
         if (tries === 1) {
           return HttpResponse.json(
@@ -302,6 +369,7 @@ describe('users: resending an invitation', () => {
           {
             id: ids.invitation,
             email: invitation.email,
+            status: 'sent',
             expiresAt: '2026-10-25T00:00:00.000Z',
           },
           { status: 202 },
@@ -331,9 +399,7 @@ describe('users: resending an invitation', () => {
 
     await findToast('A new link was sent to new@example.com.');
     expect(resent).toHaveLength(1);
-    expect(resent[0]).toMatch(
-      `/v1/access/invitations/${ids.invitation}/resend`,
-    );
+    expect(resent[0]).toMatch(`/v1/access/invitations/${ids.invitation}/send`);
     // Never a second invitation in its place.
     expect(invited).toHaveLength(0);
   });

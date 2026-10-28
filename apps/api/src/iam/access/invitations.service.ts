@@ -270,7 +270,7 @@ export class InvitationsService {
         roleExpiresAt: invitations.roleExpiresAt,
         unitIds: invitations.unitIds,
         invitedBy: invitations.invitedBy,
-        sent: isNotNull(invitations.tokenHash),
+        tokenHash: invitations.tokenHash,
         sentAt: invitations.sentAt,
         expiresAt: invitations.expiresAt,
         createdAt: invitations.createdAt,
@@ -278,9 +278,9 @@ export class InvitationsService {
       .from(invitations)
       .where(isNull(invitations.acceptedAt))
       .orderBy(desc(invitations.id));
-    return rows.map(({ sent, ...row }) => ({
+    return rows.map(({ tokenHash, ...row }) => ({
       ...row,
-      status: invitationStatus(sent, row.expiresAt),
+      status: invitationStatus(tokenHash !== null, row.expiresAt),
     }));
   }
 
@@ -434,7 +434,10 @@ export class InvitationsService {
           message: t('auth.invitationMembershipInactive'),
         });
       }
-      // Taken once: a second accept of the same link finds nothing.
+      // Taken once, with this link and its address still current: a second
+      // accept of the same link, or one an administrator's change
+      // withdrew meanwhile (a new address, PATCH), finds nothing. What is
+      // granted is what the invitation holds now.
       const [taken] = await tx
         .update(invitations)
         .set({ acceptedAt: new Date(), acceptedBy: user.id })
@@ -442,9 +445,11 @@ export class InvitationsService {
           and(
             eq(invitations.id, invitation.id),
             isNull(invitations.acceptedAt),
+            eq(invitations.tokenHash, hashOf(token)),
+            eq(invitations.email, email),
           ),
         )
-        .returning({ id: invitations.id });
+        .returning();
       if (!taken) {
         throw invalid();
       }
@@ -452,7 +457,7 @@ export class InvitationsService {
       if (account && !account.emailVerified) {
         await this.accounts.markEmailVerified(user.id, email, tx);
       }
-      await this.grant(tx, user.id, invitation);
+      await this.grant(tx, user.id, taken);
       const member = {
         ...(account ?? user),
         kind: 'user' as const,
@@ -466,8 +471,8 @@ export class InvitationsService {
           targetId: user.id,
           details: {
             invitation: invitation.id,
-            invitedBy: invitation.invitedBy,
-            roleIds: invitation.roleIds,
+            invitedBy: taken.invitedBy,
+            roleIds: taken.roleIds,
             ...(account ? {} : { accountCreated: true }),
           },
           ip,
