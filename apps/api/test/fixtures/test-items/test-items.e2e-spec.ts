@@ -126,6 +126,46 @@ describe('test items (e2e)', () => {
     expect(page.body.items).toHaveLength(2);
   });
 
+  it('shows its computed fields, without those reading a field the reader may not see', async () => {
+    const admin = node.admin();
+    const id = (
+      await create(admin, randomUUID(), {
+        ...samples.body(),
+        title: 'Hello',
+        body: 'World',
+      }).expect(201)
+    ).body.id as string;
+    const shown = await admin.get(`/v1/test-items/${id}`).expect(200);
+    expect(shown.body).toMatchObject({
+      titleLength: 5,
+      summary: 'Hello: World',
+      published: false,
+    });
+
+    // `summary` reads `body`: a reader whose permissions hide the text gets neither.
+    const role = await admin
+      .post('/v1/access/roles')
+      .send({
+        name: `Titles only ${Date.now()}`,
+        permissions: [
+          { subject: 'TestItem', action: 'read', conditions: [], fields: [] },
+        ],
+      })
+      .expect(201);
+    const reader = await node.user([role.body.id]);
+    const read = await reader.agent.get(`/v1/test-items/${id}`).expect(200);
+    expect(read.body).not.toHaveProperty('body');
+    expect(read.body).not.toHaveProperty('summary');
+    expect(read.body).toMatchObject({ titleLength: 5, published: false });
+    const listed = await reader.agent
+      .get('/v1/test-items')
+      .query({ fields: 'summary,titleLength' })
+      .expect(200);
+    for (const item of listed.body.items) {
+      expect(item).not.toHaveProperty('summary');
+    }
+  });
+
   // Each capability test-item.record.ts declares, its recycle bin and units (record-capabilities.ts).
   describeCapabilities(() => node, TEST_ITEM);
 });

@@ -26,6 +26,7 @@ import {
   recordView,
   takes,
 } from './record.js';
+import { hideComputed, withComputed } from './record-computed.js';
 import type { RecordList } from './record-list.js';
 import {
   recordCan,
@@ -338,7 +339,9 @@ export class RecordLifecycle {
 
 /**
  * Records as a caller reads them: the API's view (money as objects), their
- * tags (tags), their active custom values (custom), less the fields the caller may not see,
+ * tags (tags), their active custom values (custom), their computed fields
+ * (record-computed.ts), less the fields the caller may not see (and the
+ * computed ones that read them),
  * and with `?include=can` what the caller may do with each (record-can.ts), with
  * `?include=watching` whether they watch each (one query on the page's ids). The controller
  * always calls it (and its ETags cover what it returns, `can` aside).
@@ -504,6 +507,14 @@ export class RecordPresenter {
       // Only the values of the fields active now (a deactivated one's stay stored).
       views = await this.customFields.visible(this.declaration.subject, views);
     }
-    return this.access.redactAll(user, 'read', this.declaration.subject, views);
+    views = withComputed(this.declaration, views);
+    const shown = await this.access.redactAll(
+      user,
+      'read',
+      this.declaration.subject,
+      views,
+    );
+    // A computed field reading a field this reader may not see would tell it.
+    return hideComputed(this.declaration, views, shown);
   }
 }

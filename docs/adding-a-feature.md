@@ -92,6 +92,10 @@ export const INVOICE = defineRecord({
   `idempotency` only when chosen. The notes example is hand-written and
   keeps granting its clients.
 
+- **Computed fields (`computed` in the declaration):** values derived from
+  the fields on read, never stored: `total: computed.money('quantity * unitPrice')`
+  ([computed fields](computed-fields.md)). No column, so no migration and
+  nothing for sync to do.
 - **Capabilities (`--with a,b,…`, or `capabilities` in the declaration):** each
   is a platform module, wired by `recordParts` with a generic target;
   `recordParts(…, { override: { revisions: MyRevisions } })` replaces one
@@ -412,7 +416,7 @@ the controller (`notes.*`); singular for what describes one record
    - Declare only what's indexed on a large table; nothing undeclared can be
      filtered, sorted or selected (400).
    - A `contains`/`endsWith` text filter on a large table wants a trigram index:
-     ``index('<x>_<col>_trgm_idx').using('gin', t.<col>.op('gin_trgm_ops'))``.
+     `index('<x>_<col>_trgm_idx').using('gin', t.<col>.op('gin_trgm_ops'))`.
    - A field may sort by another expression than its column, ``sort:
 sql`lower(${t.name})` `` (an order that ignores case; index that
      expression). The page then selects `list.sortSelect(query)` next to the
