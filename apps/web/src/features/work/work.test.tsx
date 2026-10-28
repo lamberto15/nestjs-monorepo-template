@@ -73,7 +73,10 @@ describe('record presence', () => {
       http.get('/v1/presence/:subject/:recordId', () =>
         HttpResponse.json({ items: [] }),
       ),
-      http.delete('/v1/presence/:subject/:recordId', () => new HttpResponse(null, { status: 204 })),
+      http.delete(
+        '/v1/presence/:subject/:recordId',
+        () => new HttpResponse(null, { status: 204 }),
+      ),
     );
     await renderComponent(
       <PresenceIndicator subject="Note" recordId="n1" mode="viewing" />,
@@ -89,7 +92,10 @@ describe('record presence', () => {
       http.get('/v1/presence/:subject/:recordId', () =>
         HttpResponse.json({ items: [] }),
       ),
-      http.delete('/v1/presence/:subject/:recordId', () => new HttpResponse(null, { status: 204 })),
+      http.delete(
+        '/v1/presence/:subject/:recordId',
+        () => new HttpResponse(null, { status: 204 }),
+      ),
     );
     await renderComponent(
       <PresenceIndicator subject="Note" recordId="n1" mode="viewing" />,

@@ -12,8 +12,6 @@ import { useRealtimeEvent } from '@/lib/realtime';
 
 /** What waits on the person (docs/work-surfaces.md): `GET /v1/inbox`. */
 export type WorkItem = GetResponse<'/v1/inbox'>['items'][number];
-export type Recent = GetResponse<'/v1/recents'>['items'][number];
-export type Present = GetResponse<'/v1/presence/{subject}/{recordId}'>['items'][number];
 
 export const workQuery = infiniteQueryOptions({
   queryKey: ['work', 'inbox'],

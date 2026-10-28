@@ -35,6 +35,7 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppSignInsRouteImport } from './routes/_app/sign-ins'
 import { Route as AppSsoRouteImport } from './routes/_app/sso'
 import { Route as AppTagsRouteImport } from './routes/_app/tags'
+import { Route as AppWorkRouteImport } from './routes/_app/work'
 import { Route as AppAccessUsersRouteImport } from './routes/_app/access/users'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
 import { Route as AppAccountNotificationsRouteImport } from './routes/_app/account/notifications'
@@ -197,6 +198,11 @@ const AppSsoRoute = AppSsoRouteImport.update({
 const AppTagsRoute = AppTagsRouteImport.update({
   id: '/tags',
   path: '/tags',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppWorkRoute = AppWorkRouteImport.update({
+  id: '/work',
+  path: '/work',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAccessUsersRoute = AppAccessUsersRouteImport.update({
@@ -400,6 +406,7 @@ export interface FileRoutesByFullPath {
   '/sign-ins': typeof AppSignInsRoute
   '/sso': typeof AppSsoRoute
   '/tags': typeof AppTagsRoute
+  '/work': typeof AppWorkRoute
   '/access/users': typeof AppAccessUsersRoute
   '/account/notifications': typeof AppAccountNotificationsRoute
   '/account/preferences': typeof AppAccountPreferencesRoute
@@ -459,6 +466,7 @@ export interface FileRoutesByTo {
   '/sign-ins': typeof AppSignInsRoute
   '/sso': typeof AppSsoRoute
   '/tags': typeof AppTagsRoute
+  '/work': typeof AppWorkRoute
   '/': typeof AppIndexRoute
   '/access/users': typeof AppAccessUsersRoute
   '/account/notifications': typeof AppAccountNotificationsRoute
@@ -522,6 +530,7 @@ export interface FileRoutesById {
   '/_app/sign-ins': typeof AppSignInsRoute
   '/_app/sso': typeof AppSsoRoute
   '/_app/tags': typeof AppTagsRoute
+  '/_app/work': typeof AppWorkRoute
   '/_app/': typeof AppIndexRoute
   '/_app/access/users': typeof AppAccessUsersRoute
   '/_app/account/notifications': typeof AppAccountNotificationsRoute
@@ -586,6 +595,7 @@ export interface FileRouteTypes {
     | '/sign-ins'
     | '/sso'
     | '/tags'
+    | '/work'
     | '/access/users'
     | '/account/notifications'
     | '/account/preferences'
@@ -645,6 +655,7 @@ export interface FileRouteTypes {
     | '/sign-ins'
     | '/sso'
     | '/tags'
+    | '/work'
     | '/'
     | '/access/users'
     | '/account/notifications'
@@ -707,6 +718,7 @@ export interface FileRouteTypes {
     | '/_app/sign-ins'
     | '/_app/sso'
     | '/_app/tags'
+    | '/_app/work'
     | '/_app/'
     | '/_app/access/users'
     | '/_app/account/notifications'
@@ -939,6 +951,13 @@ declare module '@tanstack/react-router' {
       path: '/tags'
       fullPath: '/tags'
       preLoaderRoute: typeof AppTagsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/work': {
+      id: '/_app/work'
+      path: '/work'
+      fullPath: '/work'
+      preLoaderRoute: typeof AppWorkRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/access/users': {
@@ -1222,6 +1241,7 @@ interface AppRouteChildren {
   AppSignInsRoute: typeof AppSignInsRoute
   AppSsoRoute: typeof AppSsoRoute
   AppTagsRoute: typeof AppTagsRoute
+  AppWorkRoute: typeof AppWorkRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAccessUsersRoute: typeof AppAccessUsersRoute
   AppApiClientsIdRoute: typeof AppApiClientsIdRoute
@@ -1268,6 +1288,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSignInsRoute: AppSignInsRoute,
   AppSsoRoute: AppSsoRoute,
   AppTagsRoute: AppTagsRoute,
+  AppWorkRoute: AppWorkRoute,
   AppIndexRoute: AppIndexRoute,
   AppAccessUsersRoute: AppAccessUsersRoute,
   AppApiClientsIdRoute: AppApiClientsIdRoute,
