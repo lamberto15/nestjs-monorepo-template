@@ -269,7 +269,7 @@ export function computedSchemas<C extends ComputedFields | undefined>(
   declared: C,
 ): ComputedShape<NonNullable<C>> {
   return Object.fromEntries(
-    Object.entries(declared ?? {}).map(([name, f]) => [
+    Object.entries((declared ?? {}) as ComputedFields).map(([name, f]) => [
       name,
       f.output
         .nullable()
