@@ -636,6 +636,68 @@ export function describeCapabilities(
         await receiver.close();
       }
     });
+
+    it("sends a tenant-scope client a user's record it may read, without the fields it may not", async () => {
+      const receiver = await webhookReceiver();
+      try {
+        const admin = node().admin();
+        const role = await admin
+          .post('/v1/access/roles')
+          .send({
+            name: `Read ${record.path} ${randomUUID().slice(0, 8)}`,
+            permissions: [
+              {
+                subject: record.subject,
+                action: 'read',
+                conditions: [],
+                fields: [],
+              },
+            ],
+          })
+          .expect(201);
+        const client = await admin
+          .post('/v1/access/clients')
+          .send({
+            name: `client-${randomUUID().slice(0, 8)}`,
+            roleIds: [role.body.id],
+          })
+          .expect(201);
+        const auth = `Bearer ${client.body.key}`;
+        await node()
+          .http()
+          .post('/v1/webhook-endpoints')
+          .set('Authorization', auth)
+          .send({
+            url: receiver.url,
+            eventTypes: [`${recordKey(record)}.created`],
+          })
+          .expect(201);
+        await admin
+          .put(`/v1/access/clients/${client.body.id}/webhook-scope`)
+          .send({ scope: 'tenant' })
+          .expect(200);
+        const id = await make();
+        const full = (await admin.get(`${path}/${id}`).expect(200)).body;
+        const seen = (
+          await node()
+            .http()
+            .get(`${path}/${id}`)
+            .set('Authorization', auth)
+            .expect(200)
+        ).body;
+        await node().deliverWebhooks();
+
+        expect(receiver.received).toHaveLength(1);
+        const data = receiver.received[0]!.body.data;
+        expect(data).toMatchObject({ id, ownerId: full.ownerId });
+        // What the client's own read leaves out, the webhook leaves out too.
+        for (const field of Object.keys(full).filter((f) => !(f in seen))) {
+          expect(data).not.toHaveProperty(field);
+        }
+      } finally {
+        await receiver.close();
+      }
+    });
   }
 
   if (has('numbered')) {
