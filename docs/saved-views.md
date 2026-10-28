@@ -108,3 +108,65 @@ and a forbidden field (403 `field_forbidden`) are toasts, a name taken (409) is 
 the name field. Column order is not applied (the table keeps its own).
 
 Tests: `apps/api/test/views.e2e-spec.ts`, `apps/web/src/features/views/`.
+
+## Record views: board, calendar, timeline
+
+A subject can offer its list besides the table as a **board** (a column per
+value of an enum field, such as a status), a **calendar** (month, week and
+agenda of date fields) and a **timeline** (bars from a start field to an end
+field). They are declared, not computed: `views` in the record declaration
+(`<item>.record.ts`), or `listSource(subject, list, capabilities, views)` in a
+hand-written feature (notes does, `NOTE_VIEWS`); the names are fields of the
+feature's `<item>.list.ts`, checked at startup (board: an enum; the others:
+`date` or `datetime`).
+
+```ts
+views: {
+  board: { field: 'status', readOnly: false },
+  calendar: { fields: ['dueDate'] },
+  timeline: { start: 'startsOn', end: 'dueDate' },
+},
+```
+
+`GET /v1/lists/{subject}` answers them as `views` ([api-conventions](api-conventions.md),
+"List metadata"), for this caller: a view whose field they may not read, or
+may read on some records only, is left out, as is one whose field lacks the
+operators its query needs (`eq`; `gte` and `lt`; for the timeline `lt` on the
+start, `gte` and `isNull` on the end). There is no new route: every view reads
+the list route and changes a record through its update route, so permissions,
+tenant isolation, field-level redaction, validations and approvals are the
+list's and the update's own. `readOnly` is for a feature whose update does not
+change that field (notes: a status is published, not set).
+
+In the web app `ListPage` shows a **Show as** switch beside the search when a
+subject declares views (`?view=board|calendar|timeline`, the table without it;
+`features/record-views`). Each view starts from the table's own filters and
+search (the table's `filter` and `q`, joined with the view's bounds) and shows
+the cells of the columns left visible:
+
+- **Board**: a column per option, each its own query, "Load more" growing it
+  up to the list's `maxLimit`. A card moves from its menu (a button, so a
+  keyboard and a phone reach it): the app reads the record for its ETag and
+  sends `PATCH` with `If-Match`. The card moves at once and **goes back with a
+  message** if the update is refused (403, 409, 412, validation, an approval
+  that holds the change) or answers without changing the field. Only offered
+  where the record's `can.update` is true and writes are not paused.
+- **Calendar**: month, week or agenda, asking only for the visible range
+  (`field gte start` and `field lt end`, one page of up to `maxLimit`, a notice
+  when there are more). A `date` field is an **all-day** entry on its day; a
+  `datetime` is on the day it falls on in the user's time zone, with its time,
+  and the range is bounded by the zone's midnights (so a daylight-saving day
+  is 23 or 25 hours long). Rescheduling is a dialog with a date input,
+  validated (a real date, a different one); a moment keeps its time of day in
+  the zone. The agenda is the list a keyboard and screen reader walk.
+- **Timeline**: read-only bars in a window of days, weeks or months (zoom),
+  asking for records that start before the window ends and end after it
+  starts or have no end yet (drawn to the window's end). A record whose end
+  is before its start is listed apart, not drawn. "Show as list" swaps the
+  chart for a table of the same records, the accessible alternative.
+
+Not in this version: **dependencies between records** (the issue's second
+part: a relationship stored per record, its cycle check and arrows between
+bars), drag and drop (moves and reschedules use buttons), several pages of
+one calendar range, the views in saved views (a saved view keeps the table's
+filters, sort and columns; the shown kind is the URL's `view`).

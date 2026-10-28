@@ -9,6 +9,7 @@ import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import de from '@/locales/de/common.json';
 import en from '@/locales/en/common.json';
+import enRecordViews from '@/locales/en/record-views.json';
 import enTransfer from '@/locales/en/transfer.json';
 import { recordKeys } from '@/lib/records';
 import { EmptyState } from './empty-state';
@@ -127,7 +128,11 @@ async function renderList(
   await i18n.use(initReactI18next).init({
     lng,
     resources: {
-      en: { common: en, transfer: enTransfer },
+      en: {
+        common: en,
+        transfer: enTransfer,
+        'record-views': enRecordViews,
+      },
       de: { common: de },
     },
     defaultNS: 'common',
@@ -961,5 +966,232 @@ describe('ListPage on a phone', () => {
       sheet.getByRole('heading', { name: 'Filter & sort' }),
     ).toBeInTheDocument();
     expect(sheet.getAllByRole('button').length).toBeGreaterThan(1);
+  });
+});
+
+describe('ListPage record views', () => {
+  const views = {
+    board: { field: 'status', readOnly: false },
+    calendar: { fields: ['dueOn'], readOnly: false },
+    timeline: { start: 'startsOn', end: 'dueOn' },
+  };
+  const described = {
+    ...description,
+    fields: [
+      ...description.fields,
+      ...['startsOn', 'dueOn'].map((name) => ({
+        name,
+        type: 'date',
+        operators: ['gte', 'lt', 'isNull'],
+        sortable: true,
+        custom: false,
+      })),
+    ],
+    select: ['title', 'status', 'startsOn', 'dueOn'],
+    views,
+  };
+  const draft = {
+    id: '1',
+    title: 'First item',
+    status: 'draft',
+    startsOn: '2026-03-02',
+    dueOn: '2026-03-05',
+    can: { update: true },
+  };
+  let patch: Request | undefined;
+  let patchStatus = 200;
+
+  /** The list answers by the board column's status; the record route has an ETag. */
+  const answer =
+    (rows: Record<string, unknown>[]) => async (request?: Request) => {
+      const url = new URL(request!.url);
+      if (url.pathname === '/v1/auth/me') {
+        return json({ user: { timezone: 'UTC' }, can: {} });
+      }
+      if (url.pathname.startsWith('/v1/lists/')) return json(described);
+      if (url.pathname === `${PATH}/1`) {
+        if (request!.method === 'PATCH') {
+          patch = request!.clone();
+          return patchStatus === 200
+            ? json({ ...draft, status: 'published' })
+            : json(
+                {
+                  title: 'Precondition failed',
+                  status: 412,
+                  code: 'precondition_failed',
+                },
+                412,
+              );
+        }
+        return new Response(JSON.stringify(draft), {
+          headers: { 'content-type': 'application/json', etag: '"v1"' },
+        });
+      }
+      const filter = JSON.parse(url.searchParams.get('filter') ?? '{"and":[]}');
+      const status = filter.and.find(
+        (c: { field: string }) => c.field === 'status',
+      )?.value;
+      return json(
+        listPage(
+          rows.filter((row) => status === undefined || row.status === status),
+        ),
+      );
+    };
+
+  beforeEach(() => {
+    mocks.fetch.mockReset();
+    mocks.exports = [];
+    patch = undefined;
+    patchStatus = 200;
+  });
+
+  it('offers a board of the status, one query a column, and moves a card with its ETag', async () => {
+    mocks.fetch.mockImplementation(answer([draft]));
+    await renderList('?view=board');
+
+    const column = await screen.findByRole('region', { name: /^draft/ });
+    expect(within(column).getByText('First item')).toBeInTheDocument();
+    // A column is a query of the list: the status equal to it, nothing else.
+    const filters = urls()
+      .filter((url) => url.pathname === PATH && url.searchParams.has('filter'))
+      .map((url) => JSON.parse(url.searchParams.get('filter')!));
+    expect(filters).toContainEqual({
+      and: [{ field: 'status', op: 'eq', value: 'published' }],
+    });
+
+    await userEvent.click(
+      within(column).getByRole('button', { name: 'Move First item' }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: 'Move to published' }),
+    );
+    await waitFor(() => expect(patch).toBeDefined());
+    expect(patch!.method).toBe('PATCH');
+    expect(patch!.headers.get('if-match')).toBe('"v1"');
+    expect(await patch!.json()).toEqual({ status: 'published' });
+  });
+
+  it('puts the card back when the update is refused', async () => {
+    patchStatus = 412;
+    mocks.fetch.mockImplementation(answer([draft]));
+    await renderList('?view=board');
+
+    const column = await screen.findByRole('region', { name: /^draft/ });
+    await userEvent.click(
+      within(column).getByRole('button', { name: 'Move First item' }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: 'Move to published' }),
+    );
+    await waitFor(() => expect(patch).toBeDefined());
+    // Back in its column, and not left in the other one.
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole('region', { name: /^draft/ })).getByText(
+          'First item',
+        ),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      within(screen.getByRole('region', { name: /^published/ })).queryByText(
+        'First item',
+      ),
+    ).toBeNull();
+  });
+
+  it('offers no move for a record the user may not change', async () => {
+    mocks.fetch.mockImplementation(
+      answer([{ ...draft, can: { update: false } }]),
+    );
+    await renderList('?view=board');
+    await screen.findByText('First item');
+    expect(screen.queryByRole('button', { name: /^Move / })).toBeNull();
+  });
+
+  it('asks the calendar for the visible range only, and shows a date as all day', async () => {
+    mocks.fetch.mockImplementation(answer([draft]));
+    await renderList('?view=calendar&title=first');
+
+    await screen.findByRole('button', { name: 'Reschedule First item' });
+    const calendar = urls()
+      .filter(
+        (url) =>
+          url.pathname === PATH &&
+          url.searchParams.get('filter')?.includes('dueOn'),
+      )
+      .map((url) => JSON.parse(url.searchParams.get('filter')!).and);
+    const [gte, lt] = calendar.at(-1);
+    expect([gte.field, gte.op, lt.field, lt.op]).toEqual([
+      'dueOn',
+      'gte',
+      'dueOn',
+      'lt',
+    ]);
+    // Six whole weeks, and the table's own filter still applies.
+    expect((Date.parse(lt.value) - Date.parse(gte.value)) / 86_400_000).toBe(
+      42,
+    );
+    expect(calendar.at(-1)).toContainEqual({
+      field: 'title',
+      op: 'contains',
+      value: 'first',
+    });
+    expect(screen.getAllByText('All day').length).toBeGreaterThan(0);
+  });
+
+  it('reschedules to a valid, different day through the update route', async () => {
+    mocks.fetch.mockImplementation(answer([draft]));
+    await renderList('?view=calendar');
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Reschedule First item' }),
+    );
+    const dialog = within(await screen.findByRole('dialog'));
+    await userEvent.click(dialog.getByRole('button', { name: 'Reschedule' }));
+    expect(await dialog.findByRole('alert')).toHaveTextContent(
+      'Choose a different date.',
+    );
+    expect(patch).toBeUndefined();
+    const input = dialog.getByLabelText('New date');
+    await userEvent.clear(input);
+    await userEvent.type(input, '2026-03-09');
+    await userEvent.click(dialog.getByRole('button', { name: 'Reschedule' }));
+    await waitFor(() => expect(patch).toBeDefined());
+    expect(patch!.headers.get('if-match')).toBe('"v1"');
+    expect(await patch!.json()).toEqual({ dueOn: '2026-03-09' });
+  });
+
+  it('draws the timeline within a window, lists a bad range apart, and has a list alternative', async () => {
+    mocks.fetch.mockImplementation(
+      answer([
+        { ...draft, startsOn: '2026-03-02', dueOn: '2026-03-05' },
+        {
+          ...draft,
+          id: '2',
+          title: 'Backwards',
+          startsOn: '2026-03-09',
+          dueOn: '2026-03-03',
+        },
+      ]),
+    );
+    await renderList('?view=timeline');
+
+    expect(
+      await screen.findByText(/end is before the start/),
+    ).toBeInTheDocument();
+    const filter = JSON.parse(
+      urls()
+        .filter((url) => url.pathname === PATH)
+        .at(-1)!
+        .searchParams.get('filter')!,
+    );
+    expect(filter.and[0]).toMatchObject({ field: 'startsOn', op: 'lt' });
+    expect(filter.and[1].or).toEqual([
+      expect.objectContaining({ field: 'dueOn', op: 'gte' }),
+      { field: 'dueOn', op: 'isNull', value: true },
+    ]);
+    await userEvent.click(screen.getByRole('button', { name: 'Show as list' }));
+    const table = within(await screen.findByRole('table'));
+    expect(table.getByText('First item')).toBeInTheDocument();
+    expect(table.queryByText('Backwards')).toBeNull();
   });
 });
