@@ -36,7 +36,9 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { minutes } from '@nestjs/throttler';
 import { z } from 'zod';
+import { Deprecated } from '../../core/http/deprecated.js';
 import type { ListQuery } from '../../core/http/list-query.js';
 import { listSchema, pageSchema } from '../../core/http/pagination.js';
 import {
@@ -67,6 +69,7 @@ import {
 import { PrincipalsService } from './principals.service.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { RecentAuthentication } from '../auth/recent-authentication.js';
+import { UserThrottle } from '../auth/user-throttle.guard.js';
 import { SessionOnly, UserOnly } from '../auth/user-only.decorator.js';
 import { RequiresSwitch } from '../auth/deployment-switch.js';
 import { ImpersonationService } from '../account/impersonation.service.js';
@@ -114,21 +117,45 @@ const roleExpiresAt = z
 
 // Strict: a `password` (or `name` on a change) is refused, not ignored:
 // administrators never set another person's account (docs/tenancy.md).
+const invitationName = z
+  .string()
+  .trim()
+  .min(1)
+  .max(120)
+  .describe('The name a new account starts with; its owner changes it.');
+const invitationUnitIds = z
+  .array(z.uuid())
+  .describe('The organizational units the user belongs to, as a member.');
+
 const createUserSchema = z.strictObject({
-  email: z.email(),
-  name: z
-    .string()
-    .trim()
-    .min(1)
-    .max(120)
+  email: z
+    .email()
     .optional()
-    .describe('The name a new account starts with; its owner changes it.'),
+    .describe(
+      'Where the link goes; a prepared member (`send: false`) may get it later.',
+    ),
+  name: invitationName.optional(),
   roleIds: z.array(z.uuid()).default([]),
   roleExpiresAt,
-  unitIds: z
-    .array(z.uuid())
+  unitIds: invitationUnitIds.optional(),
+  send: z
+    .boolean()
+    .default(true)
+    .describe(
+      'true (invite): the link is mailed now. false (prepare): no link until POST /access/invitations/{id}/send.',
+    ),
+});
+
+const updateInvitationSchema = z.strictObject({
+  email: z
+    .email()
+    .nullable()
     .optional()
-    .describe('The organizational units the user belongs to, as a member.'),
+    .describe('A new address withdraws a sent link: send again.'),
+  name: invitationName.nullable().optional(),
+  roleIds: z.array(z.uuid()).optional(),
+  roleExpiresAt,
+  unitIds: invitationUnitIds.optional(),
 });
 
 const updateUserSchema = z.strictObject({
@@ -142,8 +169,16 @@ const updateUserSchema = z.strictObject({
 
 const invitationSchema = z.object({
   id: z.uuid(),
-  email: z.string(),
-  expiresAt: z.iso.datetime(),
+  email: z.string().nullable().describe('null: prepared without one.'),
+  status: z
+    .enum(['prepared', 'sent', 'expired'])
+    .describe(
+      '`prepared`: no link yet (send it); `sent`: its link works until `expiresAt`; `expired`: send it again.',
+    ),
+  expiresAt: z.iso
+    .datetime()
+    .nullable()
+    .describe("The link's end; null: prepared."),
 });
 
 const pendingInvitationSchema = invitationSchema.extend({
@@ -156,7 +191,16 @@ const pendingInvitationSchema = invitationSchema.extend({
     ),
   unitIds: z.array(z.uuid()),
   invitedBy: z.string(),
-  expired: z.boolean(),
+  expired: z
+    .boolean()
+    .meta({ deprecated: true })
+    .describe('`status` is `expired`: kept for the clients that read it.'),
+  sentAt: z.iso
+    .datetime()
+    .nullable()
+    .describe(
+      'When its current link was sent; null: prepared (or sent before this was recorded).',
+    ),
   createdAt: z.iso.datetime(),
 });
 
@@ -469,18 +513,18 @@ export class AccessController {
   })
   @HttpCode(202)
   @ApiOperation({
-    summary: 'Invite someone to this tenant',
+    summary: 'Invite or prepare a member of this tenant',
     description:
-      "The address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). A new address chooses its password with it; an existing account accepts while signed in (POST /auth/invitations/accept). The membership, with these roles and units, comes then. The answer is the same whether or not the address has an account; nobody sets another person's password.",
+      "An invitation with the membership's roles and units. `send: true` (invite, the default): the address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). `send: false` (prepare): no link and no access until POST /access/invitations/{id}/send; the address may come later (PATCH /access/invitations/{id}). A new address chooses its password with the link; an existing account accepts while signed in (POST /auth/invitations/accept). The membership comes then. The answer is the same whether or not the address has an account; nobody sets another person's password. 400 `email_required`: sending without an address.",
   })
   @ApiAcceptedResponse({ standardSchema: invitationSchema })
-  createUser(
+  addMember(
     @CurrentUser() user: UserPrincipal,
     @Body({ schema: createUserSchema })
     body: z.infer<typeof createUserSchema>,
     @Ip() ip: string,
   ) {
-    return this.admin.createUser(user, body, ip);
+    return this.admin.addMember(user, body, ip);
   }
 
   @Patch('users/:id')
@@ -519,16 +563,62 @@ export class AccessController {
     return { items: await this.invitationsService.pending() };
   }
 
-  @Post('invitations/:id/resend')
+  @Patch('invitations/:id')
+  @Can(AccessPolicy, 'manageUsers')
+  // Roles are privileges, and a new address sends them to another mailbox.
+  @RecentAuthentication({
+    when: ({ body }) =>
+      body?.roleIds !== undefined || body?.email !== undefined,
+  })
+  @ApiOperation({
+    summary: 'Change a pending invitation; only what is sent changes',
+    description:
+      'Prepared or sent: its address, the name a new account starts with, roles, their ends and units. You must be able to grant its roles and place people in its units, those it has and those it gets. A new address withdraws a sent link (`status: prepared`: send it again).',
+  })
+  @ApiOkResponse({ standardSchema: invitationSchema })
+  @ApiNotFoundResponse({ description: 'No pending invitation of this id.' })
+  updateInvitation(
+    @CurrentUser() user: UserPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body({ schema: updateInvitationSchema })
+    body: z.infer<typeof updateInvitationSchema>,
+    @Ip() ip: string,
+  ) {
+    return this.admin.updateInvitation(user, id, body, ip);
+  }
+
+  @Post('invitations/:id/send')
   @Can(AccessPolicy, 'manageUsers')
   // A new link that hands out the invitation's roles: as inviting with roles.
   @RecentAuthentication()
+  // Each one mails an address.
+  @UserThrottle({ limit: 30, ttl: minutes(15) })
   @HttpCode(202)
   @ApiOperation({
-    summary: 'Send a pending invitation again: a new link and expiry',
+    summary: 'Send a pending invitation: its link, or a new one',
     description:
-      'Expired or not. The previous link stops working; the roles, their ends (`roleExpiresAt`) and the units stay as they were. You must be able to grant its roles, as when inviting.',
+      'Prepared, sent or expired. A new link and expiry; a previous link stops working; the roles, their ends (`roleExpiresAt`) and the units stay as they are. You must be able to grant its roles and place people in its units, as when inviting. 400 `email_required`: it has no address yet.',
   })
+  @ApiAcceptedResponse({ standardSchema: invitationSchema })
+  @ApiNotFoundResponse({ description: 'No pending invitation of this id.' })
+  sendInvitation(
+    @CurrentUser() user: UserPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Ip() ip: string,
+  ) {
+    return this.admin.sendInvitation(user, id, ip);
+  }
+
+  @Post('invitations/:id/resend')
+  @Deprecated({
+    since: '2026-10-28',
+    successor: '/v1/access/invitations/{id}/send',
+  })
+  @Can(AccessPolicy, 'manageUsers')
+  @RecentAuthentication()
+  @UserThrottle({ limit: 30, ttl: minutes(15) })
+  @HttpCode(202)
+  @ApiOperation({ summary: 'Send a pending invitation again (use `…/send`)' })
   @ApiAcceptedResponse({ standardSchema: invitationSchema })
   @ApiNotFoundResponse({ description: 'No pending invitation of this id.' })
   resendInvitation(
@@ -536,7 +626,7 @@ export class AccessController {
     @Param('id', ParseUUIDPipe) id: string,
     @Ip() ip: string,
   ) {
-    return this.admin.resendInvitation(user, id, ip);
+    return this.admin.sendInvitation(user, id, ip);
   }
 
   @Delete('invitations/:id')

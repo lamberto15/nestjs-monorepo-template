@@ -3739,10 +3739,10 @@ export interface paths {
         get: operations["AccessController_users_v1"];
         put?: never;
         /**
-         * Invite someone to this tenant
-         * @description The address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). A new address chooses its password with it; an existing account accepts while signed in (POST /auth/invitations/accept). The membership, with these roles and units, comes then. The answer is the same whether or not the address has an account; nobody sets another person's password.
+         * Invite or prepare a member of this tenant
+         * @description An invitation with the membership's roles and units. `send: true` (invite, the default): the address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). `send: false` (prepare): no link and no access until POST /access/invitations/{id}/send; the address may come later (PATCH /access/invitations/{id}). A new address chooses its password with the link; an existing account accepts while signed in (POST /auth/invitations/accept). The membership comes then. The answer is the same whether or not the address has an account; nobody sets another person's password. 400 `email_required`: sending without an address.
          */
-        post: operations["AccessController_createUser_v1"];
+        post: operations["AccessController_addMember_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3807,26 +3807,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/access/invitations/{id}/resend": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Send a pending invitation again: a new link and expiry
-         * @description Expired or not. The previous link stops working; the roles, their ends (`roleExpiresAt`) and the units stay as they were. You must be able to grant its roles, as when inviting.
-         */
-        post: operations["AccessController_resendInvitation_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/access/invitations/{id}": {
         parameters: {
             query?: never;
@@ -3839,6 +3819,47 @@ export interface paths {
         post?: never;
         /** Withdraw an invitation: its link stops working */
         delete: operations["AccessController_revokeInvitation_v1"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a pending invitation; only what is sent changes
+         * @description Prepared or sent: its address, the name a new account starts with, roles, their ends and units. You must be able to grant its roles and place people in its units, those it has and those it gets. A new address withdraws a sent link (`status: prepared`: send it again).
+         */
+        patch: operations["AccessController_updateInvitation_v1"];
+        trace?: never;
+    };
+    "/v1/access/invitations/{id}/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a pending invitation: its link, or a new one
+         * @description Prepared, sent or expired. A new link and expiry; a previous link stops working; the roles, their ends (`roleExpiresAt`) and the units stay as they are. You must be able to grant its roles and place people in its units, as when inviting. 400 `email_required`: it has no address yet.
+         */
+        post: operations["AccessController_sendInvitation_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/invitations/{id}/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @deprecated */
+        post: operations["AccessController_resendInvitation_v1"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -22591,6 +22612,8 @@ export interface operations {
                             }[];
                             /** @description The organizational units they are a current member of. */
                             unitIds: string[];
+                            /** @description Provisioned over SCIM: the tenant's identity provider is its source of truth (docs/identity.md). */
+                            managedByScim: boolean;
                         }[];
                         /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
                         nextCursor: string | null;
@@ -22623,7 +22646,7 @@ export interface operations {
             };
         };
     };
-    AccessController_createUser_v1: {
+    AccessController_addMember_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -22633,8 +22656,11 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** Format: email */
-                    email: string;
+                    /**
+                     * Format: email
+                     * @description Where the link goes; a prepared member (`send: false`) may get it later.
+                     */
+                    email?: string;
                     /** @description The name a new account starts with; its owner changes it. */
                     name?: string;
                     /** @default [] */
@@ -22645,6 +22671,11 @@ export interface operations {
                     };
                     /** @description The organizational units the user belongs to, as a member. */
                     unitIds?: string[];
+                    /**
+                     * @description true (invite): the link is mailed now. false (prepare): no link until POST /access/invitations/{id}/send.
+                     * @default true
+                     */
+                    send?: boolean;
                 };
             };
         };
@@ -22657,9 +22688,18 @@ export interface operations {
                     "application/json": {
                         /** Format: uuid */
                         id: string;
-                        email: string;
-                        /** Format: date-time */
-                        expiresAt: string;
+                        /** @description null: prepared without one. */
+                        email: string | null;
+                        /**
+                         * @description `prepared`: no link yet (send it); `sent`: its link works until `expiresAt`; `expired`: send it again.
+                         * @enum {string}
+                         */
+                        status: "prepared" | "sent" | "expired";
+                        /**
+                         * Format: date-time
+                         * @description The link's end; null: prepared.
+                         */
+                        expiresAt: string | null;
                     };
                 };
             };
@@ -22729,6 +22769,8 @@ export interface operations {
                         }[];
                         /** @description The organizational units they are a current member of. */
                         unitIds: string[];
+                        /** @description Provisioned over SCIM: the tenant's identity provider is its source of truth (docs/identity.md). */
+                        managedByScim: boolean;
                     };
                 };
             };
@@ -22935,9 +22977,18 @@ export interface operations {
                         items: {
                             /** Format: uuid */
                             id: string;
-                            email: string;
-                            /** Format: date-time */
-                            expiresAt: string;
+                            /** @description null: prepared without one. */
+                            email: string | null;
+                            /**
+                             * @description `prepared`: no link yet (send it); `sent`: its link works until `expiresAt`; `expired`: send it again.
+                             * @enum {string}
+                             */
+                            status: "prepared" | "sent" | "expired";
+                            /**
+                             * Format: date-time
+                             * @description The link's end; null: prepared.
+                             */
+                            expiresAt: string | null;
                             name: string | null;
                             roleIds: string[];
                             /** @description When each grant ends once accepted, by role id; the others never do. */
@@ -22946,7 +22997,16 @@ export interface operations {
                             };
                             unitIds: string[];
                             invitedBy: string;
+                            /**
+                             * @deprecated
+                             * @description `status` is `expired`: kept for the clients that read it.
+                             */
                             expired: boolean;
+                            /**
+                             * Format: date-time
+                             * @description When its current link was sent; null: prepared (or sent before this was recorded).
+                             */
+                            sentAt: string | null;
                             /** Format: date-time */
                             createdAt: string;
                         }[];
@@ -22962,54 +23022,6 @@ export interface operations {
             };
             /** @description Not allowed by your permissions. */
             403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AccessController_resendInvitation_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        email: string;
-                        /** Format: date-time */
-                        expiresAt: string;
-                    };
-                };
-            };
-            /** @description No session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No pending invitation of this id. */
-            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -23048,6 +23060,196 @@ export interface operations {
                 };
                 content?: never;
             };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccessController_updateInvitation_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: email
+                     * @description A new address withdraws a sent link: send again.
+                     */
+                    email?: string | null;
+                    /** @description The name a new account starts with; its owner changes it. */
+                    name?: string | null;
+                    roleIds?: string[];
+                    /** @description When each grant ends, by role id (temporary access); the others never do. */
+                    roleExpiresAt?: {
+                        [key: string]: string;
+                    };
+                    /** @description The organizational units the user belongs to, as a member. */
+                    unitIds?: string[];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @description null: prepared without one. */
+                        email: string | null;
+                        /**
+                         * @description `prepared`: no link yet (send it); `sent`: its link works until `expiresAt`; `expired`: send it again.
+                         * @enum {string}
+                         */
+                        status: "prepared" | "sent" | "expired";
+                        /**
+                         * Format: date-time
+                         * @description The link's end; null: prepared.
+                         */
+                        expiresAt: string | null;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No pending invitation of this id. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccessController_sendInvitation_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @description null: prepared without one. */
+                        email: string | null;
+                        /**
+                         * @description `prepared`: no link yet (send it); `sent`: its link works until `expiresAt`; `expired`: send it again.
+                         * @enum {string}
+                         */
+                        status: "prepared" | "sent" | "expired";
+                        /**
+                         * Format: date-time
+                         * @description The link's end; null: prepared.
+                         */
+                        expiresAt: string | null;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No pending invitation of this id. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccessController_resendInvitation_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @description null: prepared without one. */
+                        email: string | null;
+                        /**
+                         * @description `prepared`: no link yet (send it); `sent`: its link works until `expiresAt`; `expired`: send it again.
+                         * @enum {string}
+                         */
+                        status: "prepared" | "sent" | "expired";
+                        /**
+                         * Format: date-time
+                         * @description The link's end; null: prepared.
+                         */
+                        expiresAt: string | null;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No pending invitation of this id. */
             404: {
                 headers: {
                     [name: string]: unknown;

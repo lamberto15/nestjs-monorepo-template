@@ -21,7 +21,8 @@
     "status": {
       "active": "Aktif",
       "inactive": "Dibuang",
-      "unverified": "E-mel belum disahkan"
+      "unverified": "E-mel belum disahkan",
+      "scim": "Diurus oleh pembekal identiti"
     },
     "you": "Anda",
     "since": "Ahli sejak {{date}}",
@@ -84,13 +85,15 @@
     "ended": "Pemberian yang telah tamat (tidak lagi dikira): {{roles}}"
   },
   "invitations": {
-    "invite": "Jemput",
-    "inviteTitle": "Jemput seseorang",
+    "invite": "Jemput ahli",
+    "inviteTitle": "Jemput ahli",
     "inviteDescription": "Mereka menerima e-mel dengan pautan. Keahlian mereka, dengan peranan dan unit ini, bermula apabila mereka menerima.",
     "fields": {
       "email": "E-mel",
       "name": "Nama (pilihan)",
-      "nameHint": "Hanya untuk akaun baharu; pemiliknya boleh mengubahnya."
+      "nameHint": "Hanya untuk akaun baharu; pemiliknya boleh mengubahnya.",
+      "emailOptional": "E-mel (pilihan sehingga dihantar)",
+      "emailHint": "Diperlukan untuk menghantar pautan. Tiada apa-apa tentang akaun di alamat ini disemak atau ditunjukkan."
     },
     "errors": {
       "email": "Masukkan alamat e-mel yang sah.",
@@ -102,10 +105,9 @@
     "columns": {
       "email": "Dijemput",
       "roles": "Peranan",
-      "expires": "Tamat tempoh"
+      "status": "Status"
     },
     "by": "Dijemput oleh {{who}}",
-    "expired": "Tamat tempoh",
     "resend": "Hantar semula",
     "resendTitle": "Hantar pautan baharu kepada {{email}}?",
     "resendDescription": "Pautan semasa berhenti berfungsi dan pautan baharu dihantar melalui e-mel. Peranan, tarikh tamatnya dan unit kekal seperti sedia ada.",
@@ -113,7 +115,26 @@
     "revoke": "Batalkan",
     "revokeTitle": "Batalkan jemputan kepada {{email}}?",
     "revokeDescription": "Pautannya berhenti berfungsi.",
-    "revoked": "Jemputan kepada {{email}} dibatalkan."
+    "revoked": "Jemputan kepada {{email}} dibatalkan.",
+    "prepare": "Sediakan ahli",
+    "prepareTitle": "Sediakan ahli",
+    "prepareDescription": "Tetapkan peranan dan unit mereka sekarang dan hantar pautan kemudian. Mereka tiada akses sehingga menerimanya.",
+    "editTitle": "Ubah jemputan",
+    "editDescription": "Alamat baharu menghentikan pautan yang telah dihantar: hantar semula selepas itu.",
+    "save": "Simpan",
+    "saved": "Jemputan untuk {{email}} disimpan.",
+    "linkWithdrawn": "Disimpan. Pautan yang dihantar sebelum ini tidak lagi berfungsi: hantar semula jemputan kepada {{email}}.",
+    "noAddress": "Belum ada alamat",
+    "expires": "Pautan sah hingga {{date}}",
+    "edit": "Sunting",
+    "sendNow": "Hantar",
+    "sendTitle": "Hantar jemputan kepada {{email}}?",
+    "sendDescription": "Pautan dihantar melalui e-mel. Keahlian mereka, dengan peranan dan unit ini, bermula apabila mereka menerimanya.",
+    "status": {
+      "prepared": "Disediakan",
+      "sent": "Dihantar",
+      "expired": "Tamat tempoh"
+    }
   },
   "roles": {
     "title": "Peranan & kebenaran",

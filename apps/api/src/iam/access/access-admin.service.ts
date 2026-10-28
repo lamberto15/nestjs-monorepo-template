@@ -44,6 +44,7 @@ import type { Transaction } from '../../core/database/drizzle.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import {
   apiClientRoles,
+  invitations,
   memberships,
   organizationalUnitMemberships,
   rolePermissions,
@@ -54,7 +55,12 @@ import {
 } from '../iam.tables.js';
 import { ApiClientLifecycleRegistry } from './api-client-lifecycle.registry.js';
 import { ApiClientsService } from './api-clients.service.js';
-import { InvitationsService } from './invitations.service.js';
+import { scimUsers } from '../sso/sso.tables.js';
+import {
+  type InvitationChanges,
+  invitationStatus,
+  InvitationsService,
+} from './invitations.service.js';
 import { OrganizationalUnitsService } from './organizational-units.service.js';
 import { AccessService } from './access.service.js';
 import { PermissionCatalog } from './permission-catalog.js';
@@ -71,7 +77,8 @@ export interface RoleInput {
 }
 
 export interface UserInput {
-  email: string;
+  /** Needed to send; a prepared member may wait for it. */
+  email?: string;
   /** The name a new account starts with (its owner changes it). */
   name?: string;
   roleIds: string[];
@@ -80,6 +87,14 @@ export interface UserInput {
   /** The organizational units the user belongs to (as a member). */
   unitIds?: string[];
 }
+
+/** An invitation as the routes that add, change or send one answer. */
+const invitationView = (invitation: typeof invitations.$inferSelect) => ({
+  id: invitation.id,
+  email: invitation.email,
+  status: invitationStatus(invitation.tokenHash !== null, invitation.expiresAt),
+  expiresAt: invitation.expiresAt,
+});
 
 /** What an administrator changes of a membership: never the account (its name, its password). */
 export interface UserChanges {
@@ -355,7 +370,7 @@ export class AccessAdminService {
     items: T[],
   ) {
     const ids = items.map((user) => user.id);
-    const [assignments, unitMemberships] = ids.length
+    const [assignments, unitMemberships, scimManaged] = ids.length
       ? await Promise.all([
           // An ended grant is gone: never reported, so never echoed back (#114).
           this.db
@@ -374,8 +389,13 @@ export class AccessAdminService {
                 currentMembership(),
               ),
             ),
+          this.db
+            .select({ userId: scimUsers.userId })
+            .from(scimUsers)
+            .where(inArray(scimUsers.userId, ids)),
         ])
-      : [[], []];
+      : [[], [], []];
+    const scim = new Set(scimManaged.map((row) => row.userId));
     // A view's `tenantId` (the principal's, always null here) says nothing in a tenant's list.
     return items.map(({ tenantId: _tenantId, ...user }) => ({
       ...user,
@@ -388,17 +408,24 @@ export class AccessAdminService {
       unitIds: unitMemberships
         .filter((membership) => membership.userId === user.id)
         .map((membership) => membership.unitId),
+      managedByScim: scim.has(user.id),
     }));
   }
 
   /**
-   * Invites someone to the tenant (docs/tenancy.md, "Invitations"): the
-   * address gets a link; the membership, with these roles and units, comes
+   * Adds someone to the tenant (docs/identity.md, "Getting people in"): an
+   * invitation with the roles and units the membership will have. `send`:
+   * the address gets its link now (invite); otherwise the member is
+   * prepared, and `sendInvitation()` sends it later. The membership comes
    * when its owner accepts. Nothing about an account is read, changed or
    * returned here, so the answer is the same whether or not the address
    * has one, and no administrator sets anyone's password.
    */
-  async createUser(actor: UserPrincipal, input: UserInput, ip?: string) {
+  async addMember(
+    actor: UserPrincipal,
+    input: UserInput & { send: boolean },
+    ip?: string,
+  ) {
     await this.checkRoleGrant(actor, input.roleIds);
     await this.units.assertExist(input.unitIds ?? []);
     await this.assertAuthorityOverUnits(actor, input.unitIds ?? []);
@@ -406,16 +433,22 @@ export class AccessAdminService {
     const { invitation, token } = await inTransaction(
       this.txHost,
       async (tx) => {
-        const created = await this.invitations.create(tx, input, actor);
+        const created = await this.invitations.create(
+          tx,
+          input,
+          actor,
+          input.send,
+        );
         await this.audit.record(
           actor,
           {
-            action: 'user.invited',
+            action: input.send ? 'user.invited' : 'invitation.prepared',
             targetType: 'invitation',
             targetId: created.invitation.id,
             details: {
               email: created.invitation.email,
               roleIds: created.invitation.roleIds,
+              unitIds: created.invitation.unitIds,
               ...(input.roleExpiresAt && {
                 roleExpiresAt: input.roleExpiresAt,
               }),
@@ -427,54 +460,127 @@ export class AccessAdminService {
         return created;
       },
     );
-    await this.invitations.send(invitation, token, actor);
-    return {
-      id: invitation.id,
-      email: invitation.email,
-      expiresAt: invitation.expiresAt,
-    };
+    if (token) {
+      await this.invitations.send(invitation, token, actor);
+    }
+    return invitationView(invitation);
   }
 
   /**
-   * Sends a pending invitation again (expired or not): a new link (the old
-   * one stops working: only its hash was kept), a new expiry, the same
-   * roles, their ends and units. Resending hands out the roles again, so
-   * the grant rule holds as when inviting: the resender must be able to
-   * grant every role it carries (one deleted since is left out, as the
-   * acceptance does).
+   * Changes a pending invitation (prepared or sent): its address, the name
+   * a new account starts with, roles, their ends and units; only what is
+   * sent changes. Who changes it must be able to hand out what it carries
+   * and what it will (the grant and unit rules, as when inviting):
+   * otherwise moving its address would hand another administrator's roles
+   * to any mailbox. A new address withdraws the link (prepared again, sent
+   * with `sendInvitation()`). Under the invitation's lock: an acceptance or
+   * another change waits, or ran first (404 once accepted).
    */
-  async resendInvitation(actor: UserPrincipal, id: string, ip?: string) {
-    const pending = await this.invitations.findPending(id);
-    if (!pending) {
-      throw new NotFoundException(`Invitation ${id} not found.`);
-    }
-    const existing = pending.roleIds.length
-      ? await this.db
-          .select({ id: roles.id })
-          .from(roles)
-          .where(inArray(roles.id, pending.roleIds))
-      : [];
-    await this.checkRoleGrant(
-      actor,
-      existing.map((role) => role.id),
-    );
+  async updateInvitation(
+    actor: UserPrincipal,
+    id: string,
+    changes: InvitationChanges,
+    ip?: string,
+  ) {
+    const updated = await inTransaction(this.txHost, async (tx) => {
+      const current = await this.invitations.lockPending(tx, id);
+      if (!current) {
+        throw new NotFoundException(`Invitation ${id} not found.`);
+      }
+      await this.assertAuthorityOverInvitation(actor, current);
+      const roleIds = changes.roleIds ?? current.roleIds;
+      if (changes.roleIds) {
+        await this.checkRoleGrant(actor, changes.roleIds);
+      }
+      if (changes.unitIds) {
+        await this.units.assertExist(changes.unitIds);
+        await this.assertAuthorityOverUnits(actor, changes.unitIds);
+      }
+      // The ends of roles taken away go with them; one passed meanwhile is gone.
+      const roleExpiresAt =
+        changes.roleExpiresAt ??
+        Object.fromEntries(
+          Object.entries(current.roleExpiresAt).filter(
+            ([roleId, end]) =>
+              roleIds.includes(roleId) && Date.parse(end) > Date.now(),
+          ),
+        );
+      this.checkExpiries(roleIds, roleExpiresAt);
+      const result = await this.invitations.update(tx, current, {
+        ...changes,
+        roleExpiresAt,
+      });
+      const { invitation } = result;
+      await this.audit.record(
+        actor,
+        {
+          action: 'invitation.updated',
+          targetType: 'invitation',
+          targetId: id,
+          details: {
+            email: invitation.email,
+            ...(invitation.email !== current.email && {
+              emailFrom: current.email,
+            }),
+            ...(changes.roleIds && {
+              roleIds: { from: current.roleIds, to: invitation.roleIds },
+            }),
+            ...(changes.roleExpiresAt && {
+              roleExpiresAt: invitation.roleExpiresAt,
+            }),
+            ...(changes.unitIds && {
+              unitIds: { from: current.unitIds, to: invitation.unitIds },
+            }),
+            ...(result.linkWithdrawn && { linkWithdrawn: true }),
+          },
+          ip,
+        },
+        tx,
+      );
+      return invitation;
+    });
+    return invitationView(updated);
+  }
+
+  /**
+   * Sends a pending invitation: a prepared one its first link, a sent one
+   * (expired or not) a new link (the old one stops working: only its hash
+   * was kept) and expiry, with the same roles, their ends and units.
+   * Sending hands out the roles, so the rules are checked again, as when
+   * inviting: the sender must be able to grant every role it carries and
+   * place people in its units (one deleted since is left out, as the
+   * acceptance does). 400 `email_required` without an address.
+   */
+  async sendInvitation(actor: UserPrincipal, id: string, ip?: string) {
     const { invitation, token } = await inTransaction(
       this.txHost,
       async (tx) => {
+        const current = await this.invitations.lockPending(tx, id);
+        if (!current) {
+          throw new NotFoundException(`Invitation ${id} not found.`);
+        }
+        if (!current.email) {
+          throw new BadRequestException({
+            code: 'email_required',
+            message: 'Give the invitation an address before sending it.',
+            errors: [{ path: 'email', message: 'Required.' }],
+          });
+        }
+        await this.assertAuthorityOverInvitation(actor, current);
         const renewed = await this.invitations.renew(tx, id);
         if (!renewed) {
-          // Accepted or withdrawn meanwhile.
           throw new NotFoundException(`Invitation ${id} not found.`);
         }
         await this.audit.record(
           actor,
           {
-            action: 'invitation.resent',
+            action: current.tokenHash ? 'invitation.resent' : 'invitation.sent',
             targetType: 'invitation',
             targetId: id,
             details: {
               email: renewed.invitation.email,
               roleIds: renewed.invitation.roleIds,
+              unitIds: renewed.invitation.unitIds,
             },
             ip,
           },
@@ -484,11 +590,32 @@ export class AccessAdminService {
       },
     );
     await this.invitations.send(invitation, token, actor);
-    return {
-      id: invitation.id,
-      email: invitation.email,
-      expiresAt: invitation.expiresAt,
-    };
+    return invitationView(invitation);
+  }
+
+  /**
+   * The actor may hand out what a pending invitation carries, as when
+   * inviting: grant its roles and place people in its units (those still
+   * there; deleted ones are left out, as the acceptance does).
+   */
+  private async assertAuthorityOverInvitation(
+    actor: UserPrincipal,
+    invitation: typeof invitations.$inferSelect,
+  ) {
+    const existing = invitation.roleIds.length
+      ? await this.db
+          .select({ id: roles.id })
+          .from(roles)
+          .where(inArray(roles.id, invitation.roleIds))
+      : [];
+    await this.checkRoleGrant(
+      actor,
+      existing.map((role) => role.id),
+    );
+    await this.assertAuthorityOverUnits(
+      actor,
+      await this.units.existing(this.db, invitation.unitIds),
+    );
   }
 
   /**

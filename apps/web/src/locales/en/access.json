@@ -21,7 +21,8 @@
     "status": {
       "active": "Active",
       "inactive": "Removed",
-      "unverified": "Email not verified"
+      "unverified": "Email not verified",
+      "scim": "Managed by the identity provider"
     },
     "you": "You",
     "since": "Member since {{date}}",
@@ -84,13 +85,15 @@
     "ended": "Ended grants (no longer count): {{roles}}"
   },
   "invitations": {
-    "invite": "Invite",
-    "inviteTitle": "Invite someone",
+    "invite": "Invite member",
+    "inviteTitle": "Invite a member",
     "inviteDescription": "They get an email with a link. Their membership, with these roles and units, starts when they accept.",
     "fields": {
       "email": "Email",
       "name": "Name (optional)",
-      "nameHint": "Only for a new account; its owner can change it."
+      "nameHint": "Only for a new account; its owner can change it.",
+      "emailOptional": "Email (optional until sending)",
+      "emailHint": "Needed to send the link. Nothing is checked or shown about an account at this address."
     },
     "errors": {
       "email": "Enter a valid email address.",
@@ -102,10 +105,9 @@
     "columns": {
       "email": "Invited",
       "roles": "Roles",
-      "expires": "Expires"
+      "status": "Status"
     },
     "by": "Invited by {{who}}",
-    "expired": "Expired",
     "resend": "Resend",
     "resendTitle": "Send {{email}} a new link?",
     "resendDescription": "The current link stops working and a new one is emailed. The roles, their end dates and the units stay as they were.",
@@ -113,7 +115,26 @@
     "revoke": "Revoke",
     "revokeTitle": "Revoke the invitation to {{email}}?",
     "revokeDescription": "Its link stops working.",
-    "revoked": "Invitation to {{email}} revoked."
+    "revoked": "Invitation to {{email}} revoked.",
+    "prepare": "Prepare member",
+    "prepareTitle": "Prepare a member",
+    "prepareDescription": "Set their roles and units now and send the link later. They get no access until they accept it.",
+    "editTitle": "Change the invitation",
+    "editDescription": "A new address stops a link already sent: send it again afterwards.",
+    "save": "Save",
+    "saved": "Invitation for {{email}} saved.",
+    "linkWithdrawn": "Saved. The link sent earlier stopped working: send the invitation to {{email}} again.",
+    "noAddress": "No address yet",
+    "expires": "Link valid until {{date}}",
+    "edit": "Edit",
+    "sendNow": "Send",
+    "sendTitle": "Send {{email}} the invitation?",
+    "sendDescription": "A link is emailed. Their membership, with these roles and units, starts when they accept.",
+    "status": {
+      "prepared": "Prepared",
+      "sent": "Sent",
+      "expired": "Expired"
+    }
   },
   "roles": {
     "title": "Roles & permissions",

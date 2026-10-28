@@ -199,9 +199,12 @@ export const memberships = pgTable(
 );
 
 /**
- * Invitations to a tenant (docs/tenancy.md, "Invitations"): an address, the
- * roles and units its membership will have, and the link's token (only its
- * SHA-256). Nothing about an account is read or changed until the person
+ * Invitations to a tenant (docs/tenancy.md, "Invitations"): the one
+ * pending-member record (docs/identity.md, "Getting people in"). The roles
+ * and units the membership will have, an address, and the link's token
+ * (only its SHA-256). Prepared (no link yet, maybe no address), sent (a
+ * link until `expiresAt`), expired, then accepted; a withdrawn one is
+ * deleted. Nothing about an account is read or changed until the person
  * accepts: a new address chooses a password with the link; an existing
  * account accepts while signed in. A tenant table: the token names its
  * tenant, so it is looked up in that tenant's scope.
@@ -211,8 +214,8 @@ export const invitations = pgTable(
   {
     id: uuidPk(),
     tenantId: tenantColumn(),
-    /** Normalized, as `users.email`. */
-    email: text('email').notNull(),
+    /** Normalized, as `users.email`; null: prepared without one (sending needs it). */
+    email: text('email'),
     /** The name a new account starts with (its owner changes it). */
     name: text('name'),
     roleIds: jsonb('role_ids').$type<string[]>().notNull().default([]),
@@ -222,11 +225,14 @@ export const invitations = pgTable(
       .notNull()
       .default({}),
     unitIds: jsonb('unit_ids').$type<string[]>().notNull().default([]),
-    /** The SHA-256 of the link's secret, base64url. */
-    tokenHash: text('token_hash').notNull(),
+    /** The SHA-256 of the link's secret, base64url; null: prepared, not sent. */
+    tokenHash: text('token_hash'),
     /** `user:<id>` of who invited. */
     invitedBy: text('invited_by').notNull(),
-    expiresAt: at('expires_at').notNull(),
+    /** When the current link was sent; null: prepared, not sent. */
+    sentAt: at('sent_at'),
+    /** When the current link stops working; null: prepared, not sent. */
+    expiresAt: at('expires_at'),
     acceptedAt: at('accepted_at'),
     acceptedBy: uuid('accepted_by'),
     ...timestamps(),

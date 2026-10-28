@@ -182,20 +182,41 @@ export const INVITATION_LIMITS = { name: 120 } as const;
 export const UNIT_LIMITS = { name: 120 } as const;
 
 export type InvitationBody = JsonBody<paths['/v1/access/users']['post']>;
+export type InvitationChanges = JsonBody<
+  paths['/v1/access/invitations/{id}']['patch']
+>;
 
-/** Invites someone; a pending invitation to the same address is replaced. */
+/**
+ * Invites (`send: true`, the link is mailed now) or prepares (`send: false`,
+ * no link until `sendInvitation()`) a member; a pending invitation to the
+ * same address is replaced.
+ */
 export async function invite(body: InvitationBody) {
   return unwrap(api.POST('/v1/access/users', { body }));
 }
 
 /**
- * Sends a pending invitation again (expired or not): a new link and expiry,
- * its roles, their ends and its units unchanged. Asks for a recent sign-in,
- * which the client's step-up middleware answers (lib/api.ts).
+ * Changes a pending invitation; a new address withdraws a sent link (it is
+ * prepared again). With roles or an address, asks for a recent sign-in.
  */
-export async function resendInvitation(id: string) {
+export async function updateInvitation(id: string, body: InvitationChanges) {
   return unwrap(
-    api.POST('/v1/access/invitations/{id}/resend', {
+    api.PATCH('/v1/access/invitations/{id}', {
+      params: { path: { id } },
+      body,
+    }),
+  );
+}
+
+/**
+ * Sends a pending invitation: a prepared one its first link, a sent or
+ * expired one a new link and expiry (the old one stops), its roles, their
+ * ends and its units unchanged. Asks for a recent sign-in, which the
+ * client's step-up middleware answers (lib/api.ts).
+ */
+export async function sendInvitation(id: string) {
+  return unwrap(
+    api.POST('/v1/access/invitations/{id}/send', {
       params: { path: { id } },
     }),
   );

@@ -48,6 +48,11 @@ export const userViewSchema = z.object({
   unitIds: z
     .array(z.uuid())
     .describe('The organizational units they are a current member of.'),
+  managedByScim: z
+    .boolean()
+    .describe(
+      "Provisioned over SCIM: the tenant's identity provider is its source of truth (docs/identity.md).",
+    ),
 });
 
 /** A role of the tenant, with its permissions and how many users hold it. */
