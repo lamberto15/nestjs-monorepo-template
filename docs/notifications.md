@@ -410,7 +410,9 @@ mails, filled Redis (OOM) and used a provider's daily quota many times over
 (#618). Two limits apply before a mail is queued (`MailDeliveryGate`, in
 `MailQueue.send()`); a mail they keep back is neither rendered nor queued,
 is logged, and counts in `mail_withheld_total{reason}` (`policy`,
-`budget` or `tenant_budget`). The notification itself, in-app and realtime, is unaffected,
+`budget` or `tenant_budget`). Before that, `mail_budget_used_ratio` gauges
+the share of `mail.dailyLimit` queued today, and `MailBudgetNearCap` alerts
+at 80 % ([deployment.md](deployment.md), "Alerting"). The notification itself, in-app and realtime, is unaffected,
 and its delivery completes: the outbox does not retry the mail later.
 
 - **A backlog already queued** (notifications published before the

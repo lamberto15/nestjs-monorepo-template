@@ -73,9 +73,14 @@ function gateWith(
                 }),
         };
   const counters = new Map<string, QuotaCounter>();
+  const gauges = new Map<string, () => Promise<unknown>>();
   const gate = new MailDeliveryGate(
     redis,
-    { registry } as unknown as MetricsService,
+    {
+      registry,
+      collect: (name: string, _help: string, read: () => Promise<unknown>) =>
+        gauges.set(name, read),
+    } as unknown as MetricsService,
     {
       count: (resource: string, counter: QuotaCounter) =>
         counters.set(resource, counter),
@@ -86,7 +91,7 @@ function gateWith(
     (await registry.getSingleMetric('mail_withheld_total')!.get()).values.find(
       (v) => v.labels.reason === reason,
     )?.value;
-  return { gate, store, withheld, counters };
+  return { gate, store, withheld, counters, gauges };
 }
 
 describe('MailDeliveryGate', () => {
@@ -97,6 +102,19 @@ describe('MailDeliveryGate', () => {
     vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
   });
   afterEach(() => vi.restoreAllMocks());
+
+  it("gauges today's share of the deployment's budget, absent without one", async () => {
+    vi.useFakeTimers({ now: day, toFake: ['Date'] });
+    const { gate, gauges } = gateWith({ budget: { daily: 4 } });
+    await gate.admit(NoticeMail, { now: day });
+    expect(await gauges.get('mail_budget_used_ratio')!()).toEqual([
+      { value: 0.25 },
+    ]);
+    expect(await gateWith().gauges.get('mail_budget_used_ratio')!()).toEqual(
+      [],
+    );
+    vi.useRealTimers();
+  });
 
   it('lets every mail through with no mode and no budget, counting it', async () => {
     const { gate, store } = gateWith();
