@@ -1,4 +1,9 @@
 import type { EventEmitter } from 'node:events';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { mkdtemp, open, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { pipeline as pipelineAsync } from 'node:stream/promises';
 import { PassThrough, pipeline, type Readable } from 'node:stream';
 import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify';
@@ -553,28 +558,77 @@ async function* records(
     }
     return;
   }
-  // The whole workbook in memory (uploads are capped at 50 MB): exceljs's
-  // streaming reader breaks on files whose zip entries come in another order
-  // (exceljs's own, among them). Exports stream.
-  const chunks: Buffer[] = [];
-  for await (const chunk of input) {
-    chunks.push(chunk as Buffer);
+  yield* xlsxRecords(input, dateColumns, mapping);
+}
+
+/**
+ * A spreadsheet's first sheet, one row at a time (#618). The upload is
+ * spooled to a temporary file first (never held whole in memory), its zip
+ * directory checked (a zip bomb is refused before anything is unpacked),
+ * then exceljs's streaming reader reads it, unless the file's entry order
+ * would make that reader wrong: see `streamable()`. Such a file (and one
+ * with several sheets) is read whole as before, still checked first.
+ */
+async function* xlsxRecords(
+  input: Readable,
+  dateColumns: ReadonlySet<string>,
+  mapping: ImportMapping | undefined,
+): AsyncGenerator<{ row: number; record: Record<string, unknown> }> {
+  const dir = await mkdtemp(join(tmpdir(), 'import-xlsx-'));
+  try {
+    const path = join(dir, 'upload.xlsx');
+    await pipelineAsync(input, createWriteStream(path));
+    const entries = await zipEntries(path);
+    if (streamable(entries)) {
+      const reader = new ExcelJS.stream.xlsx.WorkbookReader(
+        createReadStream(path),
+        {
+          sharedStrings: 'cache',
+          styles: 'cache',
+          hyperlinks: 'ignore',
+          worksheets: 'emit',
+          entries: 'ignore',
+        },
+      );
+      for await (const sheet of reader) {
+        yield* sheetRecords(
+          sheet as AsyncIterable<ExcelJS.Row>,
+          dateColumns,
+          mapping,
+        );
+        // The first sheet only, as a loaded workbook's worksheets[0].
+        return;
+      }
+      return;
+    }
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load((await readFile(path)) as unknown as ArrayBuffer);
+    const sheet = workbook.worksheets[0];
+    if (!sheet) return;
+    yield* sheetRecords(loadedRows(sheet), dateColumns, mapping);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
   }
-  const file = Buffer.concat(chunks);
-  // A 50 MB zip can unpack to gigabytes: check what it claims before opening it.
-  assertSmallZip(file);
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(file as unknown as ArrayBuffer);
-  const sheet = workbook.worksheets[0];
-  if (!sheet) {
-    return;
-  }
-  let headers: (string | null)[] | undefined;
-  // Row by row, as eachRow() (the rows with values), without a second copy
-  // of every row next to the workbook (#618).
+}
+
+/** A loaded sheet's rows, as eachRow() (the rows with values), without a second copy of them. */
+function* loadedRows(sheet: ExcelJS.Worksheet) {
   for (let number = 1; number <= sheet.rowCount; number++) {
     const line = sheet.findRow(number);
-    if (!line?.hasValues) continue;
+    if (line) yield line;
+  }
+}
+
+/** The records of a sheet's rows: the first row with values is the header. */
+async function* sheetRecords(
+  rows: Iterable<ExcelJS.Row> | AsyncIterable<ExcelJS.Row>,
+  dateColumns: ReadonlySet<string>,
+  mapping: ImportMapping | undefined,
+): AsyncGenerator<{ row: number; record: Record<string, unknown> }> {
+  let row = 0;
+  let headers: (string | null)[] | undefined;
+  for await (const line of rows) {
+    if (!line.hasValues) continue;
     const cells = (line.values as unknown[]).slice(1);
     if (!headers) {
       headers = renameHeaders(
@@ -729,34 +783,100 @@ export function formatOf(contentType: string): TransferFormat | undefined {
 const MAX_UNZIPPED_BYTES = 300 * 1024 * 1024;
 const MAX_ZIP_ENTRIES = 2_000;
 
+/** A zip entry as its central directory lists it. */
+export interface ZipEntry {
+  name: string;
+  /** Where its local header starts: the order a streaming reader meets it in. */
+  offset: number;
+}
+
+/** The end-of-central-directory record is in the last 22 bytes plus a comment of at most 65,535. */
+const ZIP_TAIL = 22 + 0xffff;
+/** A directory of MAX_ZIP_ENTRIES entries with long names stays far below this. */
+const MAX_DIRECTORY_BYTES = 4 * 1024 * 1024;
+
 /**
- * Refuses a zip (an .xlsx) whose central directory declares more than
- * MAX_UNZIPPED_BYTES or MAX_ZIP_ENTRIES: a zip bomb would fill the worker's
- * memory. Reads only the directory at the end of the file.
+ * The entries of a zip file (an .xlsx) on disk, from its central directory
+ * alone (the end of the file), refusing one that declares more than
+ * MAX_UNZIPPED_BYTES or MAX_ZIP_ENTRIES: a zip bomb would fill the
+ * worker's memory or disk.
  */
-export function assertSmallZip(file: Buffer) {
-  const end = file.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
-  if (end < 0 || end + 22 > file.length) {
-    throw new FormatError('The spreadsheet is not a valid .xlsx file.');
-  }
-  const entries = file.readUInt16LE(end + 10);
-  let offset = file.readUInt32LE(end + 16);
-  if (entries > MAX_ZIP_ENTRIES) {
-    throw new FormatError('The spreadsheet is too large to import.');
-  }
-  let total = 0;
-  for (let i = 0; i < entries; i++) {
-    if (offset + 46 > file.length || file.readUInt32LE(offset) !== 0x02014b50) {
-      throw new FormatError('The spreadsheet is not a valid .xlsx file.');
-    }
-    total += file.readUInt32LE(offset + 24);
-    if (total > MAX_UNZIPPED_BYTES) {
+export async function zipEntries(path: string): Promise<ZipEntry[]> {
+  const invalid = () =>
+    new FormatError('The spreadsheet is not a valid .xlsx file.');
+  const file = await open(path, 'r');
+  try {
+    const { size } = await file.stat();
+    const tailLength = Math.min(size, ZIP_TAIL);
+    const tail = Buffer.alloc(tailLength);
+    await file.read(tail, 0, tailLength, size - tailLength);
+    const end = tail.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+    if (end < 0 || end + 22 > tail.length) throw invalid();
+    const count = tail.readUInt16LE(end + 10);
+    const length = tail.readUInt32LE(end + 12);
+    const start = tail.readUInt32LE(end + 16);
+    if (count > MAX_ZIP_ENTRIES || length > MAX_DIRECTORY_BYTES) {
       throw new FormatError('The spreadsheet is too large to import.');
     }
-    offset +=
-      46 +
-      file.readUInt16LE(offset + 28) +
-      file.readUInt16LE(offset + 30) +
-      file.readUInt16LE(offset + 32);
+    if (start + length > size) throw invalid();
+    const directory = Buffer.alloc(length);
+    await file.read(directory, 0, length, start);
+    const entries: ZipEntry[] = [];
+    let total = 0;
+    for (let i = 0, at = 0; i < count; i++) {
+      if (
+        at + 46 > directory.length ||
+        directory.readUInt32LE(at) !== 0x02014b50
+      ) {
+        throw invalid();
+      }
+      total += directory.readUInt32LE(at + 24);
+      if (total > MAX_UNZIPPED_BYTES) {
+        throw new FormatError('The spreadsheet is too large to import.');
+      }
+      const nameLength = directory.readUInt16LE(at + 28);
+      entries.push({
+        name: directory.toString('utf8', at + 46, at + 46 + nameLength),
+        offset: directory.readUInt32LE(at + 42),
+      });
+      at +=
+        46 +
+        nameLength +
+        directory.readUInt16LE(at + 30) +
+        directory.readUInt16LE(at + 32);
+    }
+    return entries;
+  } finally {
+    await file.close();
   }
+}
+
+const SHEET_ENTRY = /^xl\/worksheets\/sheet\d+\.xml$/;
+
+/**
+ * Whether exceljs's streaming reader (4.4) reads this file right, from the
+ * order of its entries (the documented entry-order problem, #618). The
+ * reader parses a sheet as it meets it once it has the shared strings and
+ * the workbook's relationships, else it spools the sheet to a temporary
+ * file and parses it at the end: both right. But a sheet it parses at once
+ * before `xl/styles.xml` has no number formats yet, so its date cells come
+ * out as serial numbers (46310, not 2026-10-15), silently. That order, and
+ * a workbook of several sheets (the reader's first could be another than
+ * the workbook's first), are read whole instead.
+ */
+export function streamable(entries: readonly ZipEntry[]): boolean {
+  const at = (name: string) =>
+    entries.find((entry) => entry.name === name)?.offset;
+  const sheets = entries.filter((entry) => SHEET_ENTRY.test(entry.name));
+  if (sheets.length !== 1) return false;
+  const sheet = sheets[0]!.offset;
+  const strings = at('xl/sharedStrings.xml');
+  const rels = at('xl/_rels/workbook.xml.rels');
+  const styles = at('xl/styles.xml');
+  const parsedAtOnce =
+    strings !== undefined &&
+    strings < sheet &&
+    rels !== undefined &&
+    rels < sheet;
+  return !parsedAtOnce || styles === undefined || styles < sheet;
 }

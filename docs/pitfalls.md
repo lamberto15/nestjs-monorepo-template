@@ -63,8 +63,10 @@ set …`, `organizational_unit_closure`, `deleted_at is null`), which no type ch
 - **Empty env values:** `skipProcessEnv: true` makes `FOO=` read as unset.
 - **Queued mail carries no mail class:** tests find mails by recipient and
   subject (`node.waitForMail({ to, subject })`).
-- **exceljs' streaming reader** fails on some valid files: imports read the
-  workbook whole.
+- **exceljs' streaming reader** reads dates as serial numbers when a sheet
+  comes before `xl/styles.xml` (after the shared strings and the
+  relationships): imports check the zip's entry order (`streamable()`,
+  `formats.ts`) and read such a file, or one of several sheets, whole.
 - **`Intl.DateTimeFormat`** refuses `timeZoneName` together with
   `dateStyle`/`timeStyle`.
 - **Duplicate incoming webhooks** are answered 200 by the package, empty,
