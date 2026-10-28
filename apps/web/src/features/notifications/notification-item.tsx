@@ -67,7 +67,9 @@ export function NotificationRow(props: {
           {t('breach.action')}
         </span>
       )}
-      <RelativeTime value={item.updatedAt} />
+      {/* When it was sent: a repeat replaces the row, so this is the latest;
+          updatedAt moves with every read and delivery. */}
+      <RelativeTime value={item.createdAt} />
     </>
   );
 
