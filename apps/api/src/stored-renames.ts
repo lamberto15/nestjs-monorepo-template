@@ -1,4 +1,7 @@
-import type { StoredRename } from './core/database/stored-renames.js';
+import type {
+  RetiredName,
+  StoredRename,
+} from './core/database/stored-renames.js';
 import { rolePermissions, roles } from './iam/iam.tables.js';
 import {
   approvalPolicies,
@@ -12,68 +15,30 @@ import { savedViews } from './platform/views/views.tables.js';
  * (core/database/stored-renames.ts) after the migrations, in this order
  * (a name renamed twice goes through both). Keep an entry while a database
  * from before it may still be migrated; the release notes say which
- * release a project must pass through (docs/releases.md).
+ * release a project must pass through (docs/releases.md). Empty since the
+ * team-era renames (org units → teams → organizational units) were removed
+ * (#602); the next rename goes here.
  */
-export const STORED_RENAMES: readonly StoredRename[] = [
-  // Org units became teams (owner, 2026-10-17). Its `inMyUnits` → `inMyTeams`
-  // is gone: `inMyUnits` is a condition again (direct units only), and a
-  // database still holding the old one must pass through the release that
-  // had it.
-  { column: rolePermissions.action, from: 'manageOrgUnits', to: 'manageTeams' },
-  { column: settingOverrides.scope, from: 'orgUnit', to: 'team' },
-  {
-    column: approvalPolicies.definition,
-    from: 'orgUnitRole',
-    to: 'teamRole',
-    json: true,
-  },
-  {
-    column: approvalRequests.policy,
-    from: 'orgUnitRole',
-    to: 'teamRole',
-    json: true,
-  },
-  // Teams became organizational units (#595). `inMyTeams` covered a
-  // user's teams and every team below them: `inMyUnitsAndBelow`.
-  {
-    column: rolePermissions.action,
-    from: 'manageTeams',
-    to: 'manageOrganizationalUnits',
-  },
-  {
-    column: rolePermissions.conditions,
-    from: 'inMyTeams',
-    to: 'inMyUnitsAndBelow',
-    json: true,
-  },
-  { column: settingOverrides.scope, from: 'team', to: 'unit' },
-  { column: savedViews.visibility, from: 'team', to: 'unit' },
-  // A view shared with a team: its scope `team:<id>` (#836).
-  { column: savedViews.scope, from: 'team:', to: 'unit:', prefix: true },
-  {
-    column: approvalPolicies.definition,
-    from: 'teamRole',
-    to: 'unitRole',
-    json: true,
-  },
-  {
-    column: approvalRequests.policy,
-    from: 'teamRole',
-    to: 'unitRole',
-    json: true,
-  },
-  { column: roles.key, from: 'team-lead', to: 'unit-lead' },
-  // The seeded lead role's key, where approval rules name it.
-  {
-    column: approvalPolicies.definition,
-    from: 'team-lead',
-    to: 'unit-lead',
-    json: true,
-  },
-  {
-    column: approvalRequests.policy,
-    from: 'team-lead',
-    to: 'unit-lead',
-    json: true,
-  },
+export const STORED_RENAMES: readonly StoredRename[] = [];
+
+/**
+ * Team-era names (org units → teams → organizational units, #595) that no
+ * code reads and no rename rewrites any more. Migrate fails when a row
+ * still holds one: the database skipped the organizational-units release.
+ */
+export const RETIRED_NAMES: readonly RetiredName[] = [
+  { column: rolePermissions.action, name: 'manageTeams' },
+  { column: rolePermissions.action, name: 'manageOrgUnits' },
+  { column: rolePermissions.conditions, name: 'inMyTeams', json: true },
+  { column: settingOverrides.scope, name: 'team' },
+  { column: settingOverrides.scope, name: 'orgUnit' },
+  { column: savedViews.visibility, name: 'team' },
+  { column: savedViews.scope, name: 'team:', prefix: true },
+  { column: approvalPolicies.definition, name: 'teamRole', json: true },
+  { column: approvalPolicies.definition, name: 'orgUnitRole', json: true },
+  { column: approvalPolicies.definition, name: 'team-lead', json: true },
+  { column: approvalRequests.policy, name: 'teamRole', json: true },
+  { column: approvalRequests.policy, name: 'orgUnitRole', json: true },
+  { column: approvalRequests.policy, name: 'team-lead', json: true },
+  { column: roles.key, name: 'team-lead' },
 ];

@@ -2,10 +2,10 @@
 
 Two things are released, each with its own version:
 
-| What | Version | Who takes it | How |
-| --- | --- | --- | --- |
-| **The template** | `v*` tags on `main`, GitHub releases with notes; the images on GHCR by the same version | Projects built on it (they merge the tag: [upgrading](upgrading.md)) and deployments (`APP_IMAGE`) | The owner pushes a tag; CI publishes the images, then the release |
-| **The typed client** (`packages/api-client`) | its `package.json` version and `CHANGELOG.md`, from [Changesets](https://changesets.dev) | Frontends, mobile apps and scripts that install it | Changesets in pull requests; a version pull request on `main`; publishing to npm is off until the owner turns it on |
+| What                                         | Version                                                                                  | Who takes it                                                                                       | How                                                                                                                 |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **The template**                             | `v*` tags on `main`, GitHub releases with notes; the images on GHCR by the same version  | Projects built on it (they merge the tag: [upgrading](upgrading.md)) and deployments (`APP_IMAGE`) | The owner pushes a tag; CI publishes the images, then the release                                                   |
+| **The typed client** (`packages/api-client`) | its `package.json` version and `CHANGELOG.md`, from [Changesets](https://changesets.dev) | Frontends, mobile apps and scripts that install it                                                 | Changesets in pull requests; a version pull request on `main`; publishing to npm is off until the owner turns it on |
 
 ## Template releases
 
@@ -58,15 +58,15 @@ release before it (the nearest `v*` tag among its ancestors, pre-releases
 skipped for a final release), then appends GitHub's generated list of pull
 requests:
 
-| Section | From |
-| --- | --- |
-| Breaking changes | commits whose subject has `!` (`feat(iam)!: …`) or whose body has `BREAKING CHANGE:` |
-| Upgrading | the merge, and [upgrading](upgrading.md) |
-| Images | the app's, Gotenberg's and Caddy's tags and digests, as the publish jobs pushed them |
-| Migrations | the files added under `apps/api/drizzle/` since the previous release, each linked; the expand/contract lint's findings (squawk, as CI's `migration-lint`); a merged migration edited or deleted, which drizzle never re-applies |
-| Rolling back | the previous release's `APP_IMAGE`, `GOTENBERG_IMAGE` and `CADDY_IMAGE`; whether the previous release runs on this schema; the Compose files to check out with them |
-| Configuration | variables added to or removed from `env.example` |
-| Typed client | its version, when it changed, with a link to its changelog |
+| Section          | From                                                                                                                                                                                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Breaking changes | commits whose subject has `!` (`feat(iam)!: …`) or whose body has `BREAKING CHANGE:`                                                                                                                                            |
+| Upgrading        | the merge, and [upgrading](upgrading.md)                                                                                                                                                                                        |
+| Images           | the app's, Gotenberg's and Caddy's tags and digests, as the publish jobs pushed them                                                                                                                                            |
+| Migrations       | the files added under `apps/api/drizzle/` since the previous release, each linked; the expand/contract lint's findings (squawk, as CI's `migration-lint`); a merged migration edited or deleted, which drizzle never re-applies |
+| Rolling back     | the previous release's `APP_IMAGE`, `GOTENBERG_IMAGE` and `CADDY_IMAGE`; whether the previous release runs on this schema; the Compose files to check out with them                                                             |
+| Configuration    | variables added to or removed from `env.example`                                                                                                                                                                                |
+| Typed client     | its version, when it changed, with a link to its changelog                                                                                                                                                                      |
 
 Locally (the tags fetched; the lint needs Docker, `--no-lint` skips it):
 
@@ -85,6 +85,21 @@ A route marked `@Deprecated()` ([api-conventions](api-conventions.md),
 and its sunset date has passed. Check `deprecated_route_calls_total{route}`
 first: calls still arriving mean clients still depend on it. The release that
 removes it lists it in the notes as a breaking change.
+
+### Upgrading across a removed rename
+
+Names that rows store (a role's condition key, a settings scope, an approval
+rule's type) are rewritten at migrate by `apps/api/src/stored-renames.ts`;
+a release that drops an entry says so in its notes. The team-era renames
+(org units → teams → organizational units, #595) are gone, and so is the
+saved-views `team` visibility. A database must pass through the
+organizational-units release first, migrate included. A release without
+the renames fails its migrate when a row still holds `manageTeams`,
+`manageOrgUnits`, `inMyTeams`, a settings scope or view visibility `team` or
+`orgUnit`, a view scope `team:<id>`, `teamRole`, `orgUnitRole` or `team-lead`
+(`RETIRED_NAMES` in the same file), naming the tenant and column. Nothing is
+rewritten or deleted by the failure: migrate with the earlier release, then
+this one.
 
 ### Rolling back
 
@@ -165,7 +180,7 @@ owner's decision:
    package's settings, Trusted publishing, GitHub Actions: this repository
    and the workflow `api-client.yml`. npm sets it up on an existing package,
    so the first version is published by hand (`npm login`, then `pnpm
-   client:publish`).
+client:publish`).
 4. **The variable:** Settings, Secrets and variables, Actions, Variables:
    `API_CLIENT_PUBLISH` = `on`.
 
@@ -183,8 +198,8 @@ client's notes are its changelog.
   `PR_TITLE`, the title is the only subject `main` gets (Settings, General,
   Pull Requests, "Allow squash merging", default message "Pull request
   title", or `gh api -X PATCH repos/lamberto15/nestjs-monorepo-template -f
-  squash_merge_commit_title=PR_TITLE -f
-  squash_merge_commit_message=COMMIT_MESSAGES`). `main`'s subjects, which
+squash_merge_commit_title=PR_TITLE -f
+squash_merge_commit_message=COMMIT_MESSAGES`). `main`'s subjects, which
   the release notes read for breaking changes, are then always the reviewed
   titles, and the single-commit check in `commit-messages.yml` can go.
 - **Pull requests from Actions:** see [the version pull request](#the-version-pull-request).

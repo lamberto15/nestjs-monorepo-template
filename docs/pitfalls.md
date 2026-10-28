@@ -423,7 +423,10 @@ Learned renaming org units to teams (#23, 2026-10-17):
 - **Names stored in rows** (a role's condition key, a settings scope, an
   approval rule's type) are data, not schema: list them in
   `apps/api/src/stored-renames.ts`, which every migrate rewrites
-  (`core/database/stored-renames.ts`), tenant by tenant.
+  (`core/database/stored-renames.ts`), tenant by tenant. Drop an entry only
+  after every database has migrated with it, and list the old name in
+  `RETIRED_NAMES` there: migrate fails if a row still holds it
+  ([releases](releases.md), "Upgrading across a removed rename").
 - **It drops a table before the policies that read it.** Removing a table
   that other tables' policies name (`tenant_closure`, #601) while those
   policies change in the same generation puts the table's drop, with

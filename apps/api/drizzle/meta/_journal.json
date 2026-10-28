@@ -547,6 +547,13 @@
       "when": 1793141484188,
       "tag": "0077_remove_tenant_tree",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1793159926522,
+      "tag": "0078_wise_human_torch",
+      "breakpoints": true
     }
   ]
 }

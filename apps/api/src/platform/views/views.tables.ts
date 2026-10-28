@@ -42,8 +42,7 @@ export const savedViews = pgTable(
     unitId: uuid('unit_id'),
     /**
      * What the name is unique within (case-insensitively, per subject): the
-     * owner's key for a private view, `unit:<id>` (`team:<id>` for a view
-     * shared before units), or `tenant`.
+     * owner's key for a private view, `unit:<id>`, or `tenant`.
      */
     scope: text('scope').notNull(),
     /** The list's query parameters, as its route takes them. */
@@ -61,16 +60,13 @@ export const savedViews = pgTable(
     ),
     index('saved_views_owner_idx').on(table.owner, table.subject),
     index('saved_views_unit_idx').on(table.unitId),
-    // 'team' too, for this release only: the stored renames (stored-renames.ts)
-    // turn 'team' rows into 'unit' after the migrations run. A later release
-    // removes 'team' from both checks.
     check(
       'saved_views_unit_check',
-      sql`(${table.visibility} in ('unit', 'team')) = (${table.unitId} is not null)`,
+      sql`(${table.visibility} = 'unit') = (${table.unitId} is not null)`,
     ),
     check(
       'saved_views_visibility_check',
-      sql`${table.visibility} in ('private', 'unit', 'team', 'tenant')`,
+      sql`${table.visibility} in ('private', 'unit', 'tenant')`,
     ),
     ...tenantTable('saved_views', table),
     // A unit with views shared with it can't be deleted (409 `unit_not_empty`).
