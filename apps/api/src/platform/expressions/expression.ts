@@ -769,9 +769,14 @@ function extreme(name: string, sign: 1 | -1): Fn {
     return {
       type,
       run: strict(args, (values) =>
-        values.reduce((best, value) =>
-          order(type, value, best) * sign > 0 ? value : best,
-        ),
+        // At least two (arity): the first is where the comparison starts.
+        values
+          .slice(1)
+          .reduce(
+            (best, value) =>
+              order(type, value, best) * sign > 0 ? value : best,
+            values[0],
+          ),
       ),
     };
   };

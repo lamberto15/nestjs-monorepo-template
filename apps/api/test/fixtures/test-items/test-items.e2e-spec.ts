@@ -128,9 +128,11 @@ describe('test items (e2e)', () => {
 
   it('shows its computed fields, without those reading a field the reader may not see', async () => {
     const admin = node.admin();
+    // Not published: the samples fill `publishedAt` too.
+    const { publishedAt: _, ...unpublished } = samples.body();
     const id = (
       await create(admin, randomUUID(), {
-        ...samples.body(),
+        ...unpublished,
         title: 'Hello',
         body: 'World',
       }).expect(201)
