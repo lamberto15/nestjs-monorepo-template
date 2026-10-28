@@ -737,6 +737,8 @@ export class PlatformModule {
         // Comments and mentions: features register a CommentTarget and call CommentsService.
         CommentsRegistry,
         CommentsService,
+        // Acknowledgments of an attachment's version.
+        AcknowledgmentsService,
         // Tags: features register a TagTarget and call TagsService.
         TagsRegistry,
         TagsService,
