@@ -53,6 +53,15 @@ export const NOTIFICATION_RETENTION_JOB = defineSystemJob({
   permissions: [],
 });
 
+/** RecentsRetentionJob: old recently opened records. */
+export const RECENTS_RETENTION_JOB = defineSystemJob({
+  key: 'recents-retention',
+  label: 'Recent records retention',
+  description:
+    'Deletes recently opened records older than 30 days, every night.',
+  permissions: [],
+});
+
 /** NotificationDigestJob: the digests that are due. */
 export const NOTIFICATION_DIGEST_JOB = defineSystemJob({
   key: 'notification-digests',
@@ -223,6 +232,7 @@ export const PLATFORM_SYSTEM_JOBS = [
   ATTACHMENT_IMAGES_JOB,
   REVISION_RETENTION_JOB,
   NOTIFICATION_RETENTION_JOB,
+  RECENTS_RETENTION_JOB,
   NOTIFICATION_DIGEST_JOB,
   NOTIFICATION_DELIVERY_JOB,
   REPORT_RUNNER_JOB,

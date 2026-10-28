@@ -157,6 +157,10 @@
       "label": "Notification retention",
       "description": "Deletes read notifications past NOTIFICATIONS_RETENTION_DAYS and any past NOTIFICATIONS_MAX_AGE_DAYS, every night."
     },
+    "recents-retention": {
+      "label": "Recent records retention",
+      "description": "Deletes recently opened records older than 30 days, every night."
+    },
     "notification-digests": {
       "label": "Notification digests",
       "description": "Mails the notification digests that are due, every hour."

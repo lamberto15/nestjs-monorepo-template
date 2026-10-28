@@ -219,6 +219,16 @@ import { TagsRegistry } from './tags/tags.registry.js';
 import { TagsService } from './tags/tags.service.js';
 import { FavoritesController } from './favorites/favorites.controller.js';
 import { FavoritesService } from './favorites/favorites.service.js';
+import { InboxController } from './inbox/inbox.controller.js';
+import { InboxRegistry } from './inbox/inbox.registry.js';
+import { InboxService } from './inbox/inbox.service.js';
+import { ApprovalInboxSource } from './approvals/approval.inbox.js';
+import { MentionInboxSource } from './comments/mention.inbox.js';
+import { PresenceController } from './presence/presence.controller.js';
+import { PresenceService } from './presence/presence.service.js';
+import { RecentsController } from './recents/recents.controller.js';
+import { RecentsRetentionJob } from './recents/recents-retention.job.js';
+import { RecentsService } from './recents/recents.service.js';
 import { ViewsController } from './views/views.controller.js';
 import { ViewsService } from './views/views.service.js';
 import { ReportRunnerJob } from './reports/report-runner.job.js';
@@ -484,6 +494,9 @@ export class PlatformModule {
         NamingSeriesController,
         ViewsController,
         FavoritesController,
+        RecentsController,
+        PresenceController,
+        InboxController,
         RetentionController,
         ...whenOn('REPORTS', ReportsController),
         ...whenOn('USAGE', UsageController),
@@ -735,6 +748,16 @@ export class PlatformModule {
         ViewsService,
         // Favorites: a person's pinned records, pages and saved views, in their order.
         FavoritesService,
+        // Recently opened records: a person's bounded, expiring history.
+        RecentsService,
+        // Record presence: who is viewing or editing a record, ephemeral and advisory.
+        PresenceService,
+        // The work inbox: sources (approvals, mentions) register, one list merges them.
+        InboxRegistry,
+        InboxService,
+        ApprovalInboxSource,
+        MentionInboxSource,
+        RecentsRetentionJob,
         // Scheduled reports: exports run on a schedule, mailed to their recipients.
         ...whenOn<Provider>(
           'REPORTS',

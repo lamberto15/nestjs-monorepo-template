@@ -465,6 +465,7 @@ polling (`RecordActivity`, `platform/realtime/record-activity.ts`):
 | ---------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------- |
 | `record.commented`           | a comment added, edited or removed               | `{ subject, recordId, commentId, action }` (`added`, `edited`, `removed`) |
 | `record.attachments.changed` | an attachment uploaded, removed, scanned clean, processed (an image's renditions are made, or it could not be), or a PDF issued | `{ subject, recordId, attachmentId, action }` (`added`, `removed`, `scanned`, `processed`) |
+| `record.presence`            | someone arrived on, left or changed mode on a record you are on (docs/work-surfaces.md) | `{ subject, recordId }` (ids only; `GET /v1/presence/{subject}/{recordId}`) |
 
 - **To whom:** the record's watchers (`…/{id}/watch`, the creator and
   commenters watch by default) and the one who made the change (their
