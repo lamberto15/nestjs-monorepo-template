@@ -1721,6 +1721,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/attachments/{id}/acknowledgment-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask people to acknowledge a document
+         * @description Whoever may change the document's record. Each person is asked about its current version (`version`; 1 while attachments are unversioned); those already asked keep their answer. They must be members who may read the record. They are told (`acknowledgment.requested`). Audited. An acknowledgment records that the person confirmed reading that version, and when; it is not a signature.
+         */
+        post: operations["AttachmentAcknowledgmentsController_request_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attachments/{id}/acknowledgments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A document's acknowledgments (completion dashboard)
+         * @description Whoever may change the document's record: counts and each person's state for a version (`?version=`, default the current).
+         */
+        get: operations["AttachmentAcknowledgmentsController_status_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attachments/{id}/acknowledgments/remind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remind those who have not acknowledged
+         * @description Whoever may change the record. Everyone still waiting, or the named `recipients`; nobody twice within 24 hours (`skipped`). Told with `acknowledgment.reminder`. Audited.
+         */
+        post: operations["AttachmentAcknowledgmentsController_remind_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attachments/{id}/acknowledgments/{acknowledgmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Withdraw a request
+         * @description Whoever may change the record. Only one nobody has answered; an answer stays. Audited.
+         */
+        delete: operations["AttachmentAcknowledgmentsController_withdraw_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attachments/{id}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Acknowledge a document
+         * @description The person asked, for the document's current version; acknowledging again changes nothing. A 404 for anyone nobody asked. Audited (`acknowledgment.acknowledged`).
+         */
+        post: operations["AttachmentAcknowledgmentsController_acknowledge_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/acknowledgments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Acknowledgments asked of me
+         * @description Newest first, at most 100, for documents whose record you may read: `?status=pending` (default) or `acknowledged`.
+         */
+        get: operations["MyAcknowledgmentsController_mine_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/documents/{id}": {
         parameters: {
             query?: never;
@@ -4498,15 +4618,55 @@ export interface paths {
         };
         /**
          * A note's comments, oldest first
-         * @description Cursor pages; `?sort=-createdAt` for newest first, `?author=user:<id>`, `?createdAt.gte=`.
+         * @description Cursor pages, replies included (each has `parentId`); `?sort=-createdAt` for newest first, `?author=user:<id>`, `?createdAt.gte=`, `?parentId=<comment id>` (one thread's replies) or `?parentId.isNull=true` (the threads), `?resolvedAt.isNull=true` (open) or `=false` (resolved).
          */
         get: operations["NoteCommentsController_list_v1"];
         put?: never;
         /**
          * Comment on a note
-         * @description Mention people with `@<email>` or `@user:<id>`: those who may read the note are told (`comment.mentioned`); the note's watchers hear `note.commented`. Your first comment on a note makes you watch it. Audited.
+         * @description Mention people with `@<email>` or `@user:<id>`: those who may read the note are told (`comment.mentioned`); the note's watchers hear `note.commented`. Your first comment on a note makes you watch it. `parentId` answers a top-level comment (one level of replies; its author is told, `comment.replied`). Audited.
          */
         post: operations["NoteCommentsController_add_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/comments/{commentId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve a thread
+         * @description The thread's author, or whoever may change the note (`Note.update`). Sets `resolvedAt`/`resolvedBy` on the top-level comment; repeating it changes nothing. Audited (`comment.resolved`).
+         */
+        post: operations["NoteCommentsController_resolve_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/comments/{commentId}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reopen a resolved thread
+         * @description As resolving it. Audited (`comment.reopened`).
+         */
+        post: operations["NoteCommentsController_reopen_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4525,7 +4685,7 @@ export interface paths {
         post?: never;
         /**
          * Remove a comment
-         * @description Its author, or whoever may change the note (`Note.update`). For good; audited.
+         * @description Its author, or whoever may change the note (`Note.update`). For good; audited. Removing a thread's top-level comment removes its replies too.
          */
         delete: operations["NoteCommentsController_remove_v1"];
         options?: never;
@@ -4853,6 +5013,66 @@ export interface components {
             duplicate: boolean;
             /** @description false: no handler is registered for the event type (acknowledged and ignored, so the sender does not retry). */
             handled: boolean;
+        };
+        DocumentAcknowledgment: {
+            id: string;
+            attachmentId: string;
+            version: number;
+            recipient: string;
+            recipientName: string | null;
+            requestedBy: string;
+            /** Format: date-time */
+            dueAt: string | null;
+            /** @description Not acknowledged, and past `dueAt`. */
+            overdue: boolean;
+            reminders: number;
+            /** Format: date-time */
+            lastRemindedAt: string | null;
+            /** Format: date-time */
+            acknowledgedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        DocumentAcknowledgmentStatus: {
+            attachmentId: string;
+            version: number;
+            total: number;
+            acknowledged: number;
+            pending: number;
+            overdue: number;
+            items: components["schemas"]["DocumentAcknowledgment"][];
+        };
+        DocumentAcknowledgmentReminders: {
+            reminded: number;
+            /** @description Reminded in the last 24 hours already. */
+            skipped: number;
+        };
+        MyDocumentAcknowledgmentList: {
+            items: components["schemas"]["MyDocumentAcknowledgment"][];
+        };
+        MyDocumentAcknowledgment: {
+            id: string;
+            attachmentId: string;
+            version: number;
+            recipient: string;
+            recipientName: string | null;
+            requestedBy: string;
+            /** Format: date-time */
+            dueAt: string | null;
+            /** @description Not acknowledged, and past `dueAt`. */
+            overdue: boolean;
+            reminders: number;
+            /** Format: date-time */
+            lastRemindedAt: string | null;
+            /** Format: date-time */
+            acknowledgedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            document: {
+                name: string;
+                subject: string;
+                recordId: string;
+            };
         };
         TagPage: {
             items: components["schemas"]["Tag"][];
@@ -5238,6 +5458,15 @@ export interface components {
             };
             /** Format: date-time */
             editedAt: string | null;
+            /** @description The top-level comment this one answers; null for a top-level comment. */
+            parentId: string | null;
+            /**
+             * Format: date-time
+             * @description When its thread was resolved; null if open (always null on a reply).
+             */
+            resolvedAt: string | null;
+            /** @description Who resolved the thread: `user:<id>` or `client:<id>`. */
+            resolvedBy: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -13134,6 +13363,271 @@ export interface operations {
             };
             /** @description An issued document (attachment_locked): it stays with its record. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentAcknowledgmentsController_request_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The people asked, as `user:<id>` (GET /v1/people). */
+                    recipients: string[];
+                    /**
+                     * Format: date-time
+                     * @description The deadline; in the future. Asking again replaces it.
+                     */
+                    dueAt?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentAcknowledgment"][];
+                };
+            };
+            /** @description A recipient is not a member who may read it (acknowledgment_recipient_invalid), or the deadline is past (acknowledgment_due_in_past). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change its record. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document, or its record may not be read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description More than 500 people for one version (acknowledgment_limit). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentAcknowledgmentsController_status_v1: {
+        parameters: {
+            query?: {
+                version?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentAcknowledgmentStatus"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change its record. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document, or its record may not be read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentAcknowledgmentsController_remind_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Only these; default: everyone who has not acknowledged. */
+                    recipients?: string[];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentAcknowledgmentReminders"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change its record. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document, or its record may not be read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentAcknowledgmentsController_withdraw_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                acknowledgmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document, or its record may not be read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Already acknowledged (acknowledgment_answered). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentAcknowledgmentsController_acknowledge_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentAcknowledgment"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document, or its record may not be read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MyAcknowledgmentsController_mine_v1: {
+        parameters: {
+            query?: {
+                status?: "pending" | "acknowledged";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyDocumentAcknowledgmentList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -26497,6 +26991,16 @@ export interface operations {
                 author?: string;
                 /** @description Filter: author in */
                 "author.in"?: string;
+                /** @description Filter: parentId = */
+                parentId?: string;
+                /** @description Filter: parentId isNull */
+                "parentId.isNull"?: "true" | "false";
+                /** @description Filter: resolvedAt isNull */
+                "resolvedAt.isNull"?: "true" | "false";
+                /** @description Filter: resolvedAt gte */
+                "resolvedAt.gte"?: string;
+                /** @description Filter: resolvedAt lte */
+                "resolvedAt.lte"?: string;
                 /** @description Filter: createdAt gt */
                 "createdAt.gt"?: string;
                 /** @description Filter: createdAt gte */
@@ -26517,11 +27021,11 @@ export interface operations {
                 "updatedAt.lte"?: string;
                 /** @description Filter: updatedAt between */
                 "updatedAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"author","op":"eq","value":…},{…}]}. Fields and operators: author (eq, in); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"author","op":"eq","value":…},{…}]}. Fields and operators: author (eq, in); parentId (eq, isNull); resolvedAt (isNull, gte, lte); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, authorName, body, mentions, mentionNames, editedAt, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, authorName, body, mentions, mentionNames, editedAt, parentId, resolvedAt, resolvedBy, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -26577,6 +27081,11 @@ export interface operations {
                 "application/json": {
                     /** @example Looks good to me, @ada@example.com: can you check the numbers? */
                     body: string;
+                    /**
+                     * Format: uuid
+                     * @description Answer this top-level comment of the same record (a reply to a reply is refused: threads are one level deep).
+                     */
+                    parentId?: string;
                 };
             };
         };
@@ -26589,7 +27098,114 @@ export interface operations {
                     "application/json": components["schemas"]["Comment"];
                 };
             };
-            /** @description An empty body, or longer than 10 000 characters. */
+            /** @description An empty body, or longer than 10 000 characters; or `parentId` is itself a reply (comment_reply_too_deep). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not read the note. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note (or comment). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The thread is resolved (comment_thread_resolved) or holds 200 replies (comment_thread_full). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteCommentsController_resolve_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                commentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Comment"];
+                };
+            };
+            /** @description A reply, not a thread (comment_not_thread). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not read the note. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note (or comment). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteCommentsController_reopen_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                commentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Comment"];
+                };
+            };
+            /** @description A reply, not a thread (comment_not_thread). */
             400: {
                 headers: {
                     [name: string]: unknown;
