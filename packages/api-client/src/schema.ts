@@ -2542,6 +2542,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/shared/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open a shared link
+         * @description No sign-in. The record's shared fields, as its maker may read them now, and its files when the link shares them. A link to a recipient needs `code` (POST /v1/shared/code mails one). Audited `share.opened`.
+         */
+        post: operations["SharedController_open_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/shared/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mail a code to a shared link's recipient
+         * @description The code opens the link for 10 minutes, 5 tries; a new one replaces it. The same answer whether or not the link has a recipient.
+         */
+        post: operations["SharedController_code_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/shared/files/{attachmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A shared record's file
+         * @description A signed link to one of the files the link lists, valid for 5 minutes, handed out only while the link works. Audited `share.opened` with the file.
+         */
+        post: operations["SharedController_file_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/data/imports/{name}/mappings": {
         parameters: {
             query?: never;
@@ -5469,6 +5529,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notes/{id}/shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A note's links, newest first
+         * @description Revoked and expired ones too (`active: false`); never their tokens.
+         */
+        get: operations["NoteSharesController_list_v1"];
+        put?: never;
+        /**
+         * Share a note by a read-only link
+         * @description A link that shows the chosen fields (and the files, with `files`) to whoever holds it, or only to `recipientEmail` with a mailed code, until `expiresAt` (within 30 days) or until revoked. Only a person (not an API client, not while impersonating), and only fields you may read; it never shows more than you still may when it is opened. The token is in this answer only. At most 20 working links per note. Audited `share.created`.
+         */
+        post: operations["NoteSharesController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/shares/{shareId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke a link
+         * @description It stops opening at once; a file link it gave ends within 5 minutes. Its maker, or whoever may share the note. Audited `share.revoked`.
+         */
+        delete: operations["NoteSharesController_revoke_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -6396,6 +6500,69 @@ export interface components {
             attachmentId: string | null;
             /** @description Why it failed, written for people. */
             error: string | null;
+        };
+        ShareList: {
+            items: components["schemas"]["Share"][];
+        };
+        Share: {
+            id: string;
+            /** @example Note */
+            subject: string;
+            recordId: string;
+            /**
+             * @example [
+             *       "title",
+             *       "body"
+             *     ]
+             */
+            fields: string[];
+            files: boolean;
+            /** @description Set: the link opens only with a code mailed to this address. */
+            recipientEmail: string | null;
+            /** @description `user:<id>` of who made it. */
+            createdBy: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            revokedAt: string | null;
+            active: boolean;
+            views: number;
+            /** Format: date-time */
+            lastViewedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CreatedShare: {
+            id: string;
+            /** @example Note */
+            subject: string;
+            recordId: string;
+            /**
+             * @example [
+             *       "title",
+             *       "body"
+             *     ]
+             */
+            fields: string[];
+            files: boolean;
+            /** @description Set: the link opens only with a code mailed to this address. */
+            recipientEmail: string | null;
+            /** @description `user:<id>` of who made it. */
+            createdBy: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            revokedAt: string | null;
+            active: boolean;
+            views: number;
+            /** Format: date-time */
+            lastViewedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description Shown once: only its hash is kept. */
+            token: string;
+            /** @description The web app's page that opens it: `<WEB_URL>/shared#<token>`. */
+            url: string;
         };
         RealtimeNotificationEvent: {
             /** Format: uuid */
@@ -14072,9 +14239,36 @@ export interface operations {
                             events: boolean;
                             /** @description A human-readable number (`number`, `INV-2026-00042`). */
                             numbered: boolean;
+                            /** @description Read-only links to a record (`…/{id}/shares`), opened without a sign-in (POST /v1/shared/open). */
+                            share: boolean;
                             /** @description An action on the records may need approval (GET /v1/approvals). */
                             approvals: boolean;
                         };
+                        /** @description The records that refer to this subject's (a `ref` field of theirs), which the caller may list and filter by that field: a record's related panels. */
+                        related: {
+                            /**
+                             * @description The referring records: their own list is GET /v1/lists/{subject}.
+                             * @example InvoiceLine
+                             */
+                            subject: string;
+                            /**
+                             * @description Their list, under /v1: a record's related ones are `GET /v1/<path>?<field>=<id>` (paginated, newest first, only those the caller may read).
+                             * @example invoice-lines
+                             */
+                            path: string;
+                            /**
+                             * @description Their field holding the record's id.
+                             * @example invoiceId
+                             */
+                            field: string;
+                            /**
+                             * @description The field a client names each one by (their first text field); null when none.
+                             * @example title
+                             */
+                            title: string | null;
+                            /** @description Required: a record they refer to cannot be deleted (409 `record_referenced`). Optional: the field empties when it is deleted for good. */
+                            required: boolean;
+                        }[];
                         /** @description The views besides the table that this subject declares and this caller can use: a field they may not filter by leaves its view out. Null when none. Fetch their records with the list route, bounded by `filter` on the fields named here. */
                         views: {
                             board?: {
@@ -16982,6 +17176,142 @@ export interface operations {
                 content?: never;
             };
             /** @description Not one of your favorites. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SharedController_open_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The link's token: the part of the link after `#`. Sent in the body, never in a URL, so no log or `Referer` carries it. */
+                    token: string;
+                    /** @description The code mailed to the recipient, for a link that has one. */
+                    code?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example Note */
+                        subject: string;
+                        /** @description The shared fields, as reading the record shows them: one its maker may no longer read is left out. */
+                        fields: {
+                            [key: string]: unknown;
+                        };
+                        /** @description Its files, when the link shares them (else empty). */
+                        files: {
+                            id: string;
+                            name: string;
+                            size: number;
+                            contentType: string;
+                        }[];
+                        /** Format: date-time */
+                        expiresAt: string;
+                    };
+                };
+            };
+            /** @description The link needs the mailed code (`share_code_required`), or the code is wrong, used up or expired (`share_code_invalid`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The link is invalid, expired or revoked (`share_not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SharedController_code_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The link's token: the part of the link after `#`. Sent in the body, never in a URL, so no log or `Referer` carries it. */
+                    token: string;
+                };
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The link is invalid, expired or revoked (`share_not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SharedController_file_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attachmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The link's token: the part of the link after `#`. Sent in the body, never in a URL, so no log or `Referer` carries it. */
+                    token: string;
+                    /** @description The code mailed to the recipient, for a link that has one. */
+                    code?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description A signed link to the file, valid for 5 minutes. */
+                        url: string;
+                    };
+                };
+            };
+            /** @description The link needs its code. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The link does not work, or does not share this file. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -30945,6 +31275,160 @@ export interface operations {
                 content?: never;
             };
             /** @description You were not watching it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteSharesController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not share the note. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note (or link). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteSharesController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The record's fields the link shows: fields you may read, never a reference to another record. */
+                    fields: string[];
+                    /**
+                     * @description List the record's files, and hand out their download links: only files that show no field outside `fields`.
+                     * @default false
+                     */
+                    files?: boolean;
+                    /**
+                     * Format: date-time
+                     * @description When the link stops: within 30 days.
+                     */
+                    expiresAt: string;
+                    /**
+                     * Format: email
+                     * @description Only this address opens it: a code is mailed to it each time (POST /v1/shared/code).
+                     */
+                    recipientEmail?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedShare"];
+                };
+            };
+            /** @description A field a link does not share, an expiry out of range, or too many links (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not share the note. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note (or link). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteSharesController_revoke_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                shareId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not share the note. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note (or link). */
             404: {
                 headers: {
                     [name: string]: unknown;

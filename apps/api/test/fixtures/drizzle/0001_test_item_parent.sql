@@ -1,0 +1,3 @@
+ALTER TABLE "test_items" ADD COLUMN "parent_id" uuid;--> statement-breakpoint
+ALTER TABLE "test_items" ADD CONSTRAINT "test_items_parent_id_fk" FOREIGN KEY ("tenant_id","parent_id") REFERENCES "public"."test_items"("tenant_id","id") ON DELETE set null ("parent_id") ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "test_items_parent_id_idx" ON "test_items" USING btree ("tenant_id","parent_id","id" DESC NULLS FIRST);
