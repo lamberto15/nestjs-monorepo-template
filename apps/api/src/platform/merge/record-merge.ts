@@ -12,6 +12,7 @@ import {
   desc,
   eq,
   inArray,
+  isNotNull,
   isNull,
   ne,
   or,
@@ -246,8 +247,8 @@ export class RecordMerge {
    * The checks, and what the merge would change: both records readable,
    * the survivor changeable and the duplicate deletable by the principal,
    * the duplicate under no legal hold, each chosen field one they may read
-   * on both and change on the survivor, every live record referring to the
-   * duplicate one they may change, and no reference of the survivor's to
+   * on both and change on the survivor, every record referring to the
+   * duplicate (in the recycle bin too) one they may change, and no reference of the survivor's to
    * the duplicate left.
    */
   private async plan(
@@ -376,10 +377,11 @@ export class RecordMerge {
   }
 
   /**
-   * The relations whose records refer to the duplicate, with how many live
-   * ones do: refused (403) when any of those is one the principal may not
-   * change. Records in the recycle bin are repointed too (unchecked), so a
-   * restore brings them back pointing at the survivor.
+   * The relations whose records refer to the duplicate, with how many do:
+   * refused (403) when any of them, live or in the recycle bin, is one the
+   * principal may not change. Those in the bin are repointed too, so a
+   * restore brings them back pointing at the survivor: the same check, as
+   * the bin's rows (an update permission's conditions on deleted records).
    */
   private async references(
     principal: Principal,
@@ -389,28 +391,41 @@ export class RecordMerge {
     const found = [];
     for (const relation of relationsTo(this.subject)) {
       const table = relation.table;
-      const live = relation.from.softDelete
-        ? isNull(table.deletedAt!)
-        : undefined;
-      const referring = (where?: SQL) =>
-        db
-          .select({ n: count() })
-          .from(table)
-          .where(and(eq(relation.column, duplicateId), live, where))
-          .then(([row]) => row?.n ?? 0);
-      const total = await referring();
-      if (total === 0) continue;
-      const changeable = await referring(
-        await this.access.sqlFilter(principal, relation.from.subject, 'update'),
-      );
-      if (changeable < total) {
-        throw new ForbiddenException({
-          code: 'merge_references_forbidden',
-          message: `Some ${relation.from.path.replace(/-/g, ' ')} refer to the duplicate (${relation.field}) that you may not change.`,
-          subject: relation.from.subject,
-          field: relation.field,
-        });
+      const soft = relation.from.softDelete;
+      let total = 0;
+      for (const deleted of soft ? [false, true] : [false]) {
+        const state = soft
+          ? deleted
+            ? isNotNull(table.deletedAt!)
+            : isNull(table.deletedAt!)
+          : undefined;
+        const referring = (where?: SQL) =>
+          db
+            .select({ n: count() })
+            .from(table)
+            .where(and(eq(relation.column, duplicateId), state, where))
+            .then(([row]) => row?.n ?? 0);
+        const n = await referring();
+        if (n === 0) continue;
+        const changeable = await referring(
+          await this.access.sqlFilter(
+            principal,
+            relation.from.subject,
+            'update',
+            { deleted },
+          ),
+        );
+        if (changeable < n) {
+          throw new ForbiddenException({
+            code: 'merge_references_forbidden',
+            message: `Some ${relation.from.path.replace(/-/g, ' ')} refer to the duplicate (${relation.field}) that you may not change.`,
+            subject: relation.from.subject,
+            field: relation.field,
+          });
+        }
+        total += n;
       }
+      if (total === 0) continue;
       found.push({
         relation,
         subject: relation.from.subject,

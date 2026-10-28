@@ -182,6 +182,34 @@ describe('merge: duplicates found and merged into one record (e2e)', () => {
     await node.admin().get(`/v1/test-items/${duplicate.id}`).expect(200);
   });
 
+  it('takes changing every record referring to the duplicate, in the recycle bin too', async () => {
+    const editor = await node.user(['editor']);
+    const own = async (title: string) =>
+      (await node.writeItem(editor.agent, { title }).expect(201)).body as {
+        id: string;
+      };
+    const survivor = await own('Acme');
+    const duplicate = await own('Acme');
+    // Someone else's record refers to the duplicate, then goes to the bin.
+    const child = await item({ title: 'Child', parentId: duplicate.id });
+    await node.admin().delete(`/v1/test-items/${child.id}`).expect(204);
+
+    const refused = await editor.agent
+      .post(`/v1/test-items/${survivor.id}/merge`)
+      .send({ duplicateId: duplicate.id })
+      .expect(403);
+    expect(refused.body.code).toBe('merge_references_forbidden');
+    await editor.agent.get(`/v1/test-items/${duplicate.id}`).expect(200);
+
+    // Whoever may change it merges, and the binned child follows the survivor.
+    await merge(survivor.id, { duplicateId: duplicate.id }).expect(200);
+    const restored = await node
+      .admin()
+      .post(`/v1/test-items/${child.id}/restore`)
+      .expect(200);
+    expect(restored.body.parentId).toBe(survivor.id);
+  });
+
   it('refuses what it should, changing nothing', async () => {
     const survivor = await item({ title: 'Acme' });
     const duplicate = await item({ title: 'Acme', body: 'Kept' });

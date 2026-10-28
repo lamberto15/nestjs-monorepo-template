@@ -59,8 +59,8 @@ and referring records move).
   `field_forbidden`).
 - **Who may merge:** whoever may change the survivor and delete the
   duplicate (`<Subject>.update`, `<Subject>.delete`, with their conditions).
-  Every live record referring to the duplicate must be one you may change
-  (403 `merge_references_forbidden`).
+  Every record referring to the duplicate, in the recycle bin too, must be
+  one you may change (403 `merge_references_forbidden`).
 - **Constraints:** a duplicate under a legal hold stays (409 `legal_hold`,
   [retention](retention.md)); an approval pending on either record refuses
   it (409 `approval_pending`); a unique value is free for the survivor once
