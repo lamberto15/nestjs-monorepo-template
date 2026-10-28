@@ -118,6 +118,7 @@
     "take": "{{field}}：“{{value}}”而不是“{{current}}”",
     "moves": "移到这里：{{tags}} 个标签、{{comments}} 条评论、{{attachments}} 个附件、{{references}} 个引用。",
     "confirm": "合并",
-    "merged": "已合并：重复记录已移入回收站。"
+    "merged": "已合并：重复记录已移入回收站。",
+    "warning": "这可能已经存在："
   }
 }

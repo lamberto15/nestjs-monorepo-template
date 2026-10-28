@@ -97,7 +97,12 @@ back by hand. There is no automatic unmerge.
 
 ## In the web app
 
-A record's page shows a **Duplicates** tab when its subject takes `merge`
-(`RecordPanels`): the likely duplicates, and to whoever may change the
-record, a merge into it: the fields that differ (ticked ones take the
-duplicate's value) and what moves, then **Merge**.
+- **Forms:** `<DuplicatesWarning subject listPath values excludeId>`
+  (`components/records/duplicates-warning.tsx`) sends the form's values,
+  once they settle, to `POST <list>/duplicates` and lists the likely
+  duplicates as links: a warning that never blocks the save. The note form
+  checks its title; a feature's form passes the fields of its rules.
+- **Record pages:** a **Duplicates** tab when the subject takes `merge`
+  (`RecordPanels`): the likely duplicates, and to whoever may change the
+  record, a merge into it: the fields that differ (ticked ones take the
+  duplicate's value) and what moves, then **Merge**.

@@ -118,6 +118,7 @@
     "take": "{{field}}: „{{value}}“ statt „{{current}}“",
     "moves": "Wandert hierher: {{tags}} Tags, {{comments}} Kommentare, {{attachments}} Anhänge, {{references}} Verweise.",
     "confirm": "Zusammenführen",
-    "merged": "Zusammengeführt: das Duplikat ist im Papierkorb."
+    "merged": "Zusammengeführt: das Duplikat ist im Papierkorb.",
+    "warning": "Das gibt es vielleicht schon:"
   }
 }

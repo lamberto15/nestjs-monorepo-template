@@ -118,6 +118,7 @@
     "take": "{{field}}: “{{value}}” instead of “{{current}}”",
     "moves": "Moves here: {{tags}} tags, {{comments}} comments, {{attachments}} attachments, {{references}} references.",
     "confirm": "Merge",
-    "merged": "Merged: the duplicate is in the recycle bin."
+    "merged": "Merged: the duplicate is in the recycle bin.",
+    "warning": "This may already exist:"
   }
 }

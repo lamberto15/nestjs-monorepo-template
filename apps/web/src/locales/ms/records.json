@@ -118,6 +118,7 @@
     "take": "{{field}}: “{{value}}” dan bukan “{{current}}”",
     "moves": "Berpindah ke sini: {{tags}} tag, {{comments}} ulasan, {{attachments}} lampiran, {{references}} rujukan.",
     "confirm": "Gabungkan",
-    "merged": "Digabungkan: pendua berada dalam tong kitar semula."
+    "merged": "Digabungkan: pendua berada dalam tong kitar semula.",
+    "warning": "Ini mungkin sudah wujud:"
   }
 }

@@ -215,6 +215,25 @@ export const listDuplicates = (base: string, id: string) =>
     }),
   );
 
+/**
+ * The records a create or edit would duplicate (`POST <list>/duplicates`),
+ * before it is saved: `listPath` is `/v1/<plural>`, `excludeId` the record
+ * being edited.
+ */
+export const findDuplicates = (
+  listPath: string,
+  body: { values: Record<string, unknown>; excludeId?: string },
+) =>
+  unwrap(
+    client.POST(`${listPath}/duplicates`, {
+      params: { path: {} },
+      body,
+    }) as Promise<{
+      data?: components['schemas']['DuplicateList'];
+      response: Response;
+    }>,
+  );
+
 /** Whose value each field keeps: the duplicate's where `duplicate`. */
 export type MergeBody = {
   duplicateId: string;

@@ -33,7 +33,7 @@ const shown = (value: unknown) =>
       : String(value);
 
 /** What a duplicate is called: the values it matched by. */
-const nameOf = (duplicate: Duplicate) =>
+export const nameOf = (duplicate: Duplicate) =>
   duplicate.matched[0]
     ?.map((field) => shown(duplicate.record[field]))
     .join(' · ') ?? duplicate.id;
