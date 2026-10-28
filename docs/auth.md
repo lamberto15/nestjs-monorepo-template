@@ -51,7 +51,8 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
   membership, never the account) and never set or change anyone's password
   or name.
 - **Invitations (the default way in; [identity](identity.md) lists the other modes):** `POST /v1/access/users` (202) mails the
-  address a link (`WEB_URL/accept-invitation`); nothing about an account is
+  address a link (`WEB_URL/accept-invitation`), or with `send: false`
+  prepares the member and mails nothing until `POST /v1/access/invitations/{id}/send`; nothing about an account is
   read, changed or returned until its owner accepts at
   `POST /v1/auth/invitations/accept`: a new address chooses its password
   there, an existing account accepts signed in as itself
@@ -454,7 +455,8 @@ with the password (and with a token client's passkey).
 | `POST /v1/access/clients`, `POST /v1/access/clients/{id}/rotate` | a new API key is a new credential |
 | `PATCH /v1/access/clients/{id}`, only with `roleIds` or `active: true` | roles are privileges; reactivating brings its keys back (revoking, a quota aren't asked) |
 | `POST /v1/access/users`, only with non-empty `roleIds` | an invitation with privileges (one without roles isn't asked) |
-| `POST /v1/access/invitations/{id}/resend` | a new link to a membership with the invitation's roles (the route can't tell from its request whether it has any, so it always asks) |
+| `POST /v1/access/invitations/{id}/send` | a link to a membership with the invitation's roles (the route can't tell from its request whether it has any, so it always asks) |
+| `PATCH /v1/access/invitations/{id}`, only with `roleIds` or `email` | roles are privileges; a new address sends them to another mailbox |
 | `PATCH /v1/access/users/{id}`, only with `roleIds` or `active: true` | roles are privileges; reactivating brings their access back (a deactivation isn't asked) |
 | `POST /v1/access/users/{id}/impersonate` | acting as someone |
 | `POST /v1/tenants/{id}/export`, `POST /v1/tenants/{id}/deletion` | the operators' copy of every record of a tenant; a tenant erased after its grace period ([tenancy](tenancy.md)) |

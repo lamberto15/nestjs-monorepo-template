@@ -10,7 +10,7 @@ import { bootApp, connect, type TestApp, webhookReceiver } from './support.js';
 
 /**
  * The access API's single-record routes, the users list's unit filter, the
- * invitations' resend, the clients' quota on create and their deletion,
+ * invitations' lifecycle (prepare, change, send), the clients' quota on create and their deletion,
  * who may read (AccessPolicy.open), the list description of users and the
  * catalog's texts in the request's language (#115, #122).
  */
@@ -57,8 +57,27 @@ describe('access administration (e2e)', () => {
       email: string;
       roleIds: string[];
       roleExpiresAt: Record<string, string>;
-      expiresAt: string;
+      expiresAt: string | null;
+      status: 'prepared' | 'sent' | 'expired';
     }[];
+
+  /** The token of the newest invitation mailed to `email` once more than `before` were. */
+  const nextLink = async (email: string, before = 0) => {
+    for (let tries = 0; tries < 100; tries++) {
+      const mails = node.mailbox.filter({
+        to: email,
+        subject: /invited you to/,
+      });
+      if (mails.length > before) {
+        return mails
+          .at(-1)!
+          .link('/accept-invitation')
+          .searchParams.get('token')!;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    throw new Error(`No invitation reached ${email}`);
+  };
 
   describe('reading', () => {
     it('lets whoever manages units, or impersonates, list what they work with', async () => {
@@ -282,6 +301,117 @@ describe('access administration (e2e)', () => {
   });
 
   describe('invitations', () => {
+    it('prepares a member without a link, changes it, then sends it: the link joins with its roles and units', async () => {
+      const [editorRole] = await node.roleIds('editor');
+      const team = await unit();
+      const prepared = await node
+        .admin()
+        .post('/v1/access/users')
+        .send({ roleIds: [editorRole], unitIds: [team], send: false })
+        .expect(202);
+      expect(prepared.body).toMatchObject({
+        email: null,
+        status: 'prepared',
+        expiresAt: null,
+      });
+      const id = prepared.body.id as string;
+      expect(
+        (await pendingInvitations()).find((item) => item.id === id),
+      ).toMatchObject({ status: 'prepared', expiresAt: null });
+      // No address yet: nothing to send.
+      const noAddress = await node
+        .admin()
+        .post(`/v1/access/invitations/${id}/send`)
+        .expect(400);
+      expect(noAddress.body.code).toBe('email_required');
+      // Sending now needs one too.
+      await node
+        .admin()
+        .post('/v1/access/users')
+        .send({ roleIds: [], send: true })
+        .expect(400);
+
+      const first = `${randomUUID().slice(0, 8)}@example.com`;
+      const changed = await node
+        .admin()
+        .patch(`/v1/access/invitations/${id}`)
+        .send({ email: first })
+        .expect(200);
+      expect(changed.body).toMatchObject({ email: first, status: 'prepared' });
+      expect(node.mailbox.filter({ to: first })).toHaveLength(0);
+
+      const sent = await node
+        .admin()
+        .post(`/v1/access/invitations/${id}/send`)
+        .expect(202);
+      expect(sent.body).toMatchObject({ email: first, status: 'sent' });
+      const firstLink = await nextLink(first);
+
+      // A new address withdraws the link that went to the old one.
+      const second = `${randomUUID().slice(0, 8)}@example.com`;
+      const moved = await node
+        .admin()
+        .patch(`/v1/access/invitations/${id}`)
+        .send({ email: second })
+        .expect(200);
+      expect(moved.body).toMatchObject({ email: second, status: 'prepared' });
+      const stale = await node
+        .http()
+        .post('/v1/auth/invitations/accept')
+        .send({ token: firstLink, password: 'Kq8#fresh-pass-1' })
+        .expect(400);
+      expect(stale.body.code).toBe('invitation_invalid');
+
+      await node.admin().post(`/v1/access/invitations/${id}/send`).expect(202);
+      await node.acceptAsNew(await nextLink(second));
+      const joined = (
+        (await node.admin().get('/v1/access/users?limit=100').expect(200)).body
+          .items as { email: string; roleIds: string[]; unitIds: string[] }[]
+      ).find((user) => user.email === second)!;
+      expect(joined).toMatchObject({ roleIds: [editorRole], unitIds: [team] });
+
+      for (const action of [
+        'invitation.prepared',
+        'invitation.updated',
+        'invitation.sent',
+        'invitation.resent',
+      ]) {
+        expect(
+          await node.auditEntries({ action, targetId: id }),
+        ).not.toHaveLength(0);
+      }
+    });
+
+    it('never turns a deactivated membership back on by an acceptance', async () => {
+      const member = await node.user([]);
+      await node
+        .admin()
+        .patch(`/v1/access/users/${member.id}`)
+        .send({ active: false })
+        .expect(204);
+      const before = node.mailbox.filter({
+        to: member.email,
+        subject: /invited you to/,
+      }).length;
+      await node
+        .admin()
+        .post('/v1/access/users')
+        .send({ email: member.email, roleIds: [] })
+        .expect(202);
+      const token = await nextLink(member.email, before);
+      const agent = await node.signIn(member.email, member.password);
+      const refused = await agent
+        .post('/v1/auth/invitations/accept')
+        .send({ token })
+        .expect(403);
+      expect(refused.body.code).toBe('membership_inactive');
+      const listed = (
+        (await node.admin().get('/v1/access/users?limit=100').expect(200)).body
+          .items as { id: string; active: boolean }[]
+      ).find((user) => user.id === member.id)!;
+      expect(listed.active).toBe(false);
+    });
+
     it('lists the role ends, and resends with a new link that keeps them', async () => {
       const email = `${randomUUID().slice(0, 8)}@example.com`;
       const [editorRole] = await node.roleIds('editor');
@@ -305,7 +435,7 @@ describe('access administration (e2e)', () => {
       }).length;
       const resent = await node
         .admin()
-        .post(`/v1/access/invitations/${pending.id}/resend`)
+        .post(`/v1/access/invitations/${pending.id}/send`)
         .expect(202);
       expect(resent.body).toMatchObject({ id: pending.id, email });
       expect(Date.parse(resent.body.expiresAt)).toBeGreaterThanOrEqual(
@@ -355,11 +485,11 @@ describe('access administration (e2e)', () => {
       // Accepted: nothing to resend.
       await node
         .admin()
-        .post(`/v1/access/invitations/${pending.id}/resend`)
+        .post(`/v1/access/invitations/${pending.id}/send`)
         .expect(404);
       await node
         .admin()
-        .post(`/v1/access/invitations/${randomUUID()}/resend`)
+        .post(`/v1/access/invitations/${randomUUID()}/send`)
         .expect(404);
     });
   });

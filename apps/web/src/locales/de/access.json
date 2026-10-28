@@ -21,7 +21,8 @@
     "status": {
       "active": "Aktiv",
       "inactive": "Entfernt",
-      "unverified": "E-Mail nicht bestätigt"
+      "unverified": "E-Mail nicht bestätigt",
+      "scim": "Vom Identitätsanbieter verwaltet"
     },
     "you": "Sie",
     "since": "Mitglied seit {{date}}",
@@ -58,13 +59,15 @@
     "ended": "Abgelaufene Zuweisungen (zählen nicht mehr): {{roles}}"
   },
   "invitations": {
-    "invite": "Einladen",
-    "inviteTitle": "Jemanden einladen",
+    "invite": "Mitglied einladen",
+    "inviteTitle": "Mitglied einladen",
     "inviteDescription": "Die Person erhält eine E-Mail mit einem Link. Die Mitgliedschaft mit diesen Rollen und Einheiten beginnt, sobald sie die Einladung annimmt.",
     "fields": {
       "email": "E-Mail",
       "name": "Name (optional)",
-      "nameHint": "Nur für ein neues Konto; dessen Inhaber kann ihn ändern."
+      "nameHint": "Nur für ein neues Konto; dessen Inhaber kann ihn ändern.",
+      "emailOptional": "E-Mail (bis zum Senden optional)",
+      "emailHint": "Zum Senden des Links nötig. Über ein Konto mit dieser Adresse wird nichts geprüft oder angezeigt."
     },
     "errors": {
       "email": "Geben Sie eine gültige E-Mail-Adresse ein.",
@@ -76,10 +79,9 @@
     "columns": {
       "email": "Eingeladen",
       "roles": "Rollen",
-      "expires": "Läuft ab"
+      "status": "Status"
     },
     "by": "Eingeladen von {{who}}",
-    "expired": "Abgelaufen",
     "resend": "Erneut senden",
     "resendTitle": "{{email}} einen neuen Link senden?",
     "resendDescription": "Der aktuelle Link funktioniert nicht mehr, und ein neuer wird per E-Mail gesendet. Die Rollen, ihre Enddaten und die Einheiten bleiben unverändert.",
@@ -87,7 +89,26 @@
     "revoke": "Widerrufen",
     "revokeTitle": "Die Einladung an {{email}} widerrufen?",
     "revokeDescription": "Der Link funktioniert dann nicht mehr.",
-    "revoked": "Einladung an {{email}} widerrufen."
+    "revoked": "Einladung an {{email}} widerrufen.",
+    "prepare": "Mitglied vorbereiten",
+    "prepareTitle": "Mitglied vorbereiten",
+    "prepareDescription": "Legen Sie Rollen und Einheiten jetzt fest und senden Sie den Link später. Bis zur Annahme erhält die Person keinen Zugriff.",
+    "editTitle": "Einladung ändern",
+    "editDescription": "Eine neue Adresse macht einen bereits gesendeten Link ungültig: senden Sie ihn danach erneut.",
+    "save": "Speichern",
+    "saved": "Einladung für {{email}} gespeichert.",
+    "linkWithdrawn": "Gespeichert. Der zuvor gesendete Link funktioniert nicht mehr: senden Sie die Einladung an {{email}} erneut.",
+    "noAddress": "Noch keine Adresse",
+    "expires": "Link gültig bis {{date}}",
+    "edit": "Bearbeiten",
+    "sendNow": "Senden",
+    "sendTitle": "Einladung an {{email}} senden?",
+    "sendDescription": "Ein Link wird per E-Mail gesendet. Die Mitgliedschaft mit diesen Rollen und Einheiten beginnt mit der Annahme.",
+    "status": {
+      "prepared": "Vorbereitet",
+      "sent": "Gesendet",
+      "expired": "Abgelaufen"
+    }
   },
   "roles": {
     "title": "Rollen & Berechtigungen",

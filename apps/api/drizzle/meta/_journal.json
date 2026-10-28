@@ -568,6 +568,13 @@
       "when": 1793168380842,
       "tag": "0080_condemned_tinkerer",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1793202851335,
+      "tag": "0081_strange_rage",
+      "breakpoints": true
     }
   ]
 }
