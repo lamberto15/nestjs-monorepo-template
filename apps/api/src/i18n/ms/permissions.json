@@ -149,6 +149,10 @@
       "label": "Pemprosesan imej lampiran",
       "description": "Menjana imej kecil dan pratonton imej yang dimuat naik serta membuang metadata (EXIF, GPS) imej asal."
     },
+    "attachment-text": {
+      "label": "Pengekstrakan teks lampiran",
+      "description": "Mengekstrak teks dokumen yang dimuat naik (ATTACHMENT_TEXT_SEARCH) supaya carian dapat menemuinya."
+    },
     "revisions-retention": {
       "label": "Penyimpanan semakan",
       "description": "Memadam semakan rekod yang lebih lama daripada REVISIONS_RETENTION_DAYS (tidak sekali-kali yang terkini bagi sesuatu rekod), setiap malam."

@@ -149,6 +149,10 @@
       "label": "Attachment image processing",
       "description": "Makes thumbnails and previews of uploaded images and removes the metadata (EXIF, GPS) of the originals."
     },
+    "attachment-text": {
+      "label": "Attachment text extraction",
+      "description": "Extracts the text of uploaded documents (ATTACHMENT_TEXT_SEARCH) so that the search finds them."
+    },
     "revisions-retention": {
       "label": "Revision retention",
       "description": "Deletes record revisions older than REVISIONS_RETENTION_DAYS (never a record's latest), every night."

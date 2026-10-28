@@ -193,6 +193,12 @@ import { NUMBERING_SETTINGS } from './sequences/numbering-settings.js';
 import { SequencesService } from './sequences/sequences.service.js';
 import { AttachmentImagesProcessor } from './attachments/attachment-images.processor.js';
 import { AttachmentImagesRetryJob } from './attachments/attachment-images-retry.job.js';
+import { AttachmentSearch } from './attachments/attachment.search.js';
+import { AttachmentTextProcessor } from './attachments/attachment-text.processor.js';
+import { AttachmentTextQueue } from './attachments/attachment-text.queue.js';
+import { AttachmentTextRetryJob } from './attachments/attachment-text-retry.job.js';
+import { AttachmentTextService } from './attachments/attachment-text.service.js';
+import { TextExtractor } from './attachments/text-extractor.js';
 import { AttachmentImagesQueue } from './attachments/attachment-images.queue.js';
 import { AttachmentImagesService } from './attachments/attachment-images.service.js';
 import { AttachmentScanProcessor } from './attachments/attachment-scan.processor.js';
@@ -698,6 +704,26 @@ export class PlatformModule {
         AttachmentImagesService,
         AttachmentImagesProcessor,
         AttachmentImagesRetryJob,
+        // Search inside files (ATTACHMENT_TEXT_SEARCH, off by default): a queue job extracts a clean upload's text in a sandboxed thread.
+        {
+          provide: TextExtractor,
+          inject: [ConfigService],
+          useFactory: (config: ConfigService<PlatformEnv, true>) =>
+            new TextExtractor({
+              maxBytes:
+                config.get('ATTACHMENT_TEXT_MAX_MB', { infer: true }) *
+                1024 *
+                1024,
+              timeoutMs: config.get('ATTACHMENT_TEXT_TIMEOUT_MS', {
+                infer: true,
+              }),
+            }),
+        },
+        AttachmentTextQueue,
+        AttachmentTextService,
+        AttachmentTextProcessor,
+        AttachmentTextRetryJob,
+        AttachmentSearch,
         AttachmentsService,
         // Uploads straight to the object store (STORAGE_DRIVER=s3): presign, then complete through AttachmentsService.upload().
         AttachmentUploadsService,
