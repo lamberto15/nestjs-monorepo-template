@@ -170,6 +170,10 @@
       "label": "Laporan berjadual",
       "description": "Memulakan laporan berjadual yang tiba masanya (sebagai pemiliknya), menjeda yang tidak lagi boleh dijalankan, dan merekodkan bagaimana setiap larian berakhir."
     },
+    "record-schedules": {
+      "label": "Jadual rekod berulang",
+      "description": "Mencipta rekod bagi jadual berulang yang telah tiba masanya (sebagai pemiliknya), menamatkan jadual yang tidak lagi boleh dijalankan, dan merekodkan kejadian yang dilangkau."
+    },
     "approvals": {
       "label": "Kelulusan",
       "description": "Menjalankan aliran kerja permintaan kelulusan: memulakan peringkat, memberi peringatan, meningkatkan, menamatkan tempoh dan menggunakan hasilnya."

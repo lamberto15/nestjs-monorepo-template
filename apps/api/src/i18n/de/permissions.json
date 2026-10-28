@@ -170,6 +170,10 @@
       "label": "Geplante Berichte",
       "description": "Startet die fälligen geplanten Berichte (als ihre Eigentümer), pausiert die, die nicht mehr laufen können, und hält fest, wie jeder Lauf endete."
     },
+    "record-schedules": {
+      "label": "Wiederkehrende Datensatzpläne",
+      "description": "Legt die Datensätze der fälligen wiederkehrenden Pläne an (als deren Eigentümer), beendet Pläne, die nicht mehr laufen können, und vermerkt übersprungene Termine."
+    },
     "approvals": {
       "label": "Genehmigungen",
       "description": "Führt die Abläufe der Genehmigungsanfragen aus: startet Stufen, erinnert, eskaliert, lässt ablaufen und wendet das Ergebnis an."

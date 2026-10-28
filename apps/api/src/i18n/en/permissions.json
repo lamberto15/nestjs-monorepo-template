@@ -170,6 +170,10 @@
       "label": "Scheduled reports",
       "description": "Starts the scheduled reports that are due (as their owners), pauses the ones that can no longer run, and records how each run ended."
     },
+    "record-schedules": {
+      "label": "Recurring record schedules",
+      "description": "Creates the records of the recurring schedules that are due (as their owners), ends the schedules that can no longer run, and records the occurrences it skips."
+    },
     "approvals": {
       "label": "Approvals",
       "description": "Runs approval requests' workflows: starts stages, reminds, escalates, expires, and applies the outcome."

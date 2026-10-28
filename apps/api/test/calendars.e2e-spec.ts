@@ -110,9 +110,10 @@ describe('business calendars (e2e)', () => {
       .send({ exceptions: [] })
       .expect(200);
     expect(changed.body.version).toBe(2);
+    // The rename and the exceptions: sending the same hours changed nothing to audit.
     expect(
       (await audit('businessCalendar.updated', id)).map((e) => e.details),
-    ).toHaveLength(3);
+    ).toHaveLength(2);
   });
 
   it('computes a deadline in working time across a daylight-saving change, with the version', async () => {

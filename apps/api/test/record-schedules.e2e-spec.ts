@@ -41,13 +41,18 @@ describe('recurring record schedules (e2e)', () => {
         .expect(200)
     ).body.items as { details: Record<string, unknown> }[];
 
+  // A title is matched by `contains` only: the exact ones are kept here.
   const notesNamed = async (title: string) =>
     (
-      await node
-        .admin()
-        .get(`/v1/notes?title=${encodeURIComponent(title)}`)
-        .expect(200)
-    ).body.items as { id: string }[];
+      (
+        await node
+          .admin()
+          .get(
+            `/v1/notes?title.contains=${encodeURIComponent(title)}&limit=100`,
+          )
+          .expect(200)
+      ).body.items as { id: string; title: string }[]
+    ).filter((note) => note.title === title);
 
   /** Makes the schedule's next occurrence due `ago` ms before the returned `now`. */
   async function due(id: string, ago = 0) {
@@ -118,12 +123,15 @@ describe('recurring record schedules (e2e)', () => {
         ...daily,
         importer: 'nothing',
         template: { title: '' },
-        rrule: 'FREQ=HOURLY',
       })
       .expect(400);
-    expect(paths(bad.body)).toEqual(
-      expect.arrayContaining(['importer', 'rrule']),
-    );
+    expect(paths(bad.body)).toContain('importer');
+    // A rule the body's schema refuses: before anything else is checked.
+    const hourly = await ada.agent
+      .post('/v1/record-schedules')
+      .send({ ...daily, rrule: 'FREQ=HOURLY' })
+      .expect(400);
+    expect(paths(hourly.body)).toEqual(['rrule']);
     const template = await ada.agent
       .post('/v1/record-schedules')
       .send({ ...daily, template: { title: '' } })
