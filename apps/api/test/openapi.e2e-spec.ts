@@ -385,6 +385,7 @@ describe('OpenAPI document (e2e)', () => {
     expect(Object.keys(body.properties)).toEqual([
       'name',
       'matchOn',
+      'mapping',
       'dryRun',
       'file',
     ]);
