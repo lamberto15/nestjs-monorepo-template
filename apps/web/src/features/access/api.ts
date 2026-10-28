@@ -263,6 +263,57 @@ export async function changeUnitMember(
   );
 }
 
+/**
+ * Who would gain or lose reach (my units and below, units I lead and below)
+ * if a unit changed, or a member's role did: a dry run, nothing changes
+ * (docs/permissions.md, "Organization structure").
+ */
+export async function previewUnitChange(
+  id: string,
+  body: { type?: UnitType; name?: string; parentId?: string | null },
+) {
+  return unwrap(
+    api.POST('/v1/access/organizational-units/{id}/impact', {
+      params: { path: { id } },
+      body,
+    }),
+  );
+}
+
+export async function previewUnitMemberChange(
+  id: string,
+  userId: string,
+  role: UnitMember['role'],
+) {
+  return unwrap(
+    api.POST('/v1/access/organizational-units/{id}/members/{userId}/impact', {
+      params: { path: { id, userId } },
+      body: { role },
+    }),
+  );
+}
+
+export type AccessImpact = Awaited<ReturnType<typeof previewUnitChange>>;
+
+/** Why a member may or may not act on a subject or one of its records (docs/permissions.md, "Explaining access"). */
+export type Explanation = GetResponse<'/v1/access/users/{id}/explanation'>;
+
+export function explanationQuery(
+  id: string,
+  subject: string,
+  recordId?: string,
+) {
+  return queryOptions({
+    queryKey: [...accessKeys.members, 'explanation', id, subject, recordId],
+    queryFn: () =>
+      unwrap(
+        api.GET('/v1/access/users/{id}/explanation', {
+          params: { path: { id }, query: { subject, recordId } },
+        }),
+      ),
+  });
+}
+
 /** Ends the membership (the API keeps it as history). */
 export async function removeUnitMember(id: string, userId: string) {
   await api.DELETE('/v1/access/organizational-units/{id}/members/{userId}', {

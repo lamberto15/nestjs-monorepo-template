@@ -691,6 +691,12 @@ describe('units: a unit’s members', () => {
         }),
       ),
     );
+    server.use(
+      http.post(
+        '/v1/access/organizational-units/:id/members/:userId/impact',
+        () => HttpResponse.json({ changes: [], truncated: false }),
+      ),
+    );
     const changed = capture(
       'patch',
       '/v1/access/organizational-units/:id/members/:userId',
@@ -710,6 +716,13 @@ describe('units: a unit’s members', () => {
     // The first is the one that picks the role of a new member.
     await user.click(screen.getAllByRole('combobox', { name: 'Role' })[1]!);
     await user.click(await screen.findByRole('option', { name: 'Lead' }));
+    // What the change would do to people's reach, then confirmed.
+    expect(
+      await screen.findByText(
+        'No one would gain or lose access through their units.',
+      ),
+    ).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Change role' }));
     await findToast('Role changed.');
     expect(changed[0]!.body).toEqual({ role: 'lead' });
     expect(changed[0]!.url).toMatch(`/members/${ids.carol}`);

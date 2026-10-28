@@ -135,6 +135,59 @@ export const listRelatedSchema = z.object({
       'Required: a record they refer to cannot be deleted (409 `record_referenced`). Optional: the field empties when it is deleted for good.',
     ),
 });
+/**
+ * The record views a subject declares (`views` of its record or list
+ * source), each naming list fields: a board of an enum field's values, a
+ * calendar of date fields, a timeline of a start and an end.
+ */
+export const listViewsSchema = z
+  .object({
+    board: z
+      .object({
+        field: z
+          .string()
+          .describe("The enum field whose values are the board's columns.")
+          .meta({ example: 'status' }),
+        readOnly: z
+          .boolean()
+          .describe(
+            'The cards are not moved: the field is not changed through `PATCH`.',
+          ),
+      })
+      .optional(),
+    calendar: z
+      .object({
+        fields: z
+          .array(z.string())
+          .describe(
+            'The `date` (all-day) and `datetime` fields to plan by, one at a time.',
+          )
+          .meta({ example: ['dueAt'] }),
+        readOnly: z
+          .boolean()
+          .describe('The dates are not changed through `PATCH`.'),
+      })
+      .optional(),
+    timeline: z
+      .object({
+        start: z.string().describe('The field a bar starts at.'),
+        end: z
+          .string()
+          .describe('The field a bar ends at; empty: the bar is still open.'),
+      })
+      .optional(),
+  })
+  .nullable()
+  .describe(
+    'The views besides the table that this subject declares and this caller can use: a field they may not filter by leaves its view out. Null when none. Fetch their records with the list route, bounded by `filter` on the fields named here.',
+  );
+
+/** What a record or list source declares as `views` (readOnly defaults to false). */
+export interface ListViewsDeclaration {
+  board?: { field: string; readOnly?: boolean };
+  calendar?: { fields: readonly string[]; readOnly?: boolean };
+  timeline?: { start: string; end: string };
+}
 
 /** What GET /v1/lists/{subject} answers. */
 export const listMetadataSchema = z.object({
@@ -192,6 +245,7 @@ export const listMetadataSchema = z.object({
     .describe(
       "The records that refer to this subject's (a `ref` field of theirs), which the caller may list and filter by that field: a record's related panels.",
     ),
+  views: listViewsSchema,
   attachmentLimits: attachmentLimitsSchema,
   documentTemplates: z
     .array(documentTemplateSchema)

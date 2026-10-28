@@ -114,7 +114,11 @@ function accessWith(...permissions: PermissionInput[]) {
     { permissions: [] } as never,
   );
   vi.spyOn(access as never, 'loadPermissions').mockResolvedValue({
-    permissions,
+    held: permissions.map((permission, i) => ({
+      permission,
+      roleId: `role-${i}`,
+      expiresAt: null,
+    })),
   } as never);
   vi.spyOn(access as never, 'loadContext').mockResolvedValue({
     context: {
@@ -289,5 +293,76 @@ describe('AccessService: fields shown on some records only', () => {
         restore(['inMyUnitsAndBelow']),
       ).conditionalFields(sam, 'read', 'Note', 'restore'),
     ).toEqual([]);
+  });
+});
+
+describe('AccessService: explaining access', () => {
+  const draftRead: PermissionInput = {
+    subject: 'Note',
+    action: 'read',
+    conditions: [{ key: 'draft' }],
+    fields: [],
+  };
+  const othersDraft = { ownerId: 'user:ana', status: 'draft', body: 'b' };
+
+  it('answers as can() and redact() do, and says which overlapping grant reaches the record', async () => {
+    const access = accessWith(read(['mine']), draftRead);
+    const [explained] = (
+      await access.explain(sam, 'Note', ['read'], othersDraft)
+    ).actions;
+    expect(explained).toEqual({
+      action: 'read',
+      allowed: await access.can(sam, 'read', 'Note', othersDraft),
+      fields: [],
+      grants: [
+        {
+          index: 0,
+          matches: false,
+          conditions: [{ key: 'mine', matches: false }],
+        },
+        {
+          index: 1,
+          matches: true,
+          conditions: [{ key: 'draft', matches: true }],
+        },
+      ],
+    });
+    expect(explained!.allowed).toBe(true);
+    // Their own draft: every field, through the grant of their own notes.
+    const own = { ...othersDraft, ownerId: 'user:sam' };
+    const [mine] = (await access.explain(sam, 'Note', ['read'], own)).actions;
+    expect(mine!.fields).toEqual(['body', 'custom']);
+    // A deleted record can only be restored, as can() says.
+    const [deleted] = (
+      await access.explain(sam, 'Note', ['read'], {
+        ...own,
+        deletedAt: new Date(),
+      })
+    ).actions;
+    expect(deleted!.allowed).toBe(
+      await access.can(sam, 'read', 'Note', { ...own, deletedAt: new Date() }),
+    );
+  });
+
+  it('withholds an answer that a field hidden from the asker decides', async () => {
+    const access = accessWith(read(['mine']), draftRead);
+    const [explained] = (
+      await access.explain(sam, 'Note', ['read'], othersDraft, ['status'])
+    ).actions;
+    expect(explained).toMatchObject({
+      allowed: null,
+      fields: null,
+      grants: [
+        { matches: false },
+        { matches: null, conditions: [{ key: 'draft', matches: null }] },
+      ],
+    });
+  });
+
+  it('answers on some records without one', async () => {
+    const [explained] = (
+      await accessWith(draftRead).explain(sam, 'Note', ['read', 'restore'])
+    ).actions;
+    expect(explained).toMatchObject({ allowed: true, fields: [] });
   });
 });

@@ -337,6 +337,45 @@ DELETE /v1/settings/{key}?scope=&scopeId=          204, no body
 - Every change is audited (`setting.updated` with from → to,
   `setting.reset`).
 
+## Promoting configuration (staging to production)
+
+Set a tenant up in staging, then carry its settings and custom roles to
+another environment's tenant without retyping them
+(`platform/config-bundles`; `Access.manageSettings` and
+`Access.manageRoles`, a user acting as themselves):
+
+```
+GET  /v1/config-bundles/export     the bundle: { format, version, exportedAt, checksum, contents: { settings, roles } }
+POST /v1/config-bundles/preview    { bundle }                 → { valid, errors, warnings, changes, targetVersion }
+POST /v1/config-bundles/apply      { bundle, targetVersion }  → { created, updated, unchanged }
+```
+
+- **What is in it:** the tenant-scope value of each setting (a flag's
+  rollout and targeting rules too) and the custom roles with their
+  permissions. Stable references only: settings by key, roles by name; a
+  flag rule's `role` condition carries `roleNames`, mapped to the target's
+  role ids. **What is not:** unit and user values (that environment's
+  units and people), the built-in Administrator role, users, grants, API
+  clients, secrets of any kind (settings hold none; SSO, webhooks and API
+  keys are not settings) and records.
+- **Checksum:** `sha256:` of the canonical JSON of `contents` (keys
+  sorted). A bundle edited by hand must be exported again, or the preview
+  refuses it: it is a guard against damage and mistakes, not a signature.
+- **Preview (dry run):** validates against the target's own declarations
+  (a setting not declared there: its feature is not deployed or is off; a
+  value its schema refuses; a rollout on what is not a flag; a role name
+  neither side has; a permission the catalog does not know; a built-in
+  role) and diffs each item: `create`, `update` or `unchanged`. A
+  condition holding an id of the source's records (a unit) is applied as
+  is, with a warning.
+- **Apply:** all or nothing, in one transaction: roles first, then
+  settings, through their own services (their checks, locks and audit
+  entries), plus one `config-bundle.applied` entry. `targetVersion` is the
+  preview's: when the target's values for what the bundle touches changed
+  since, 409 `config_changed` (preview again). Additive: nothing the bundle
+  lacks is removed. A newer bundle `version` than the deployment reads is
+  refused.
+
 ## What each setting takes, and who may set it
 
 `GET /v1/settings` and `GET /v1/settings/{key}` describe each value, so a

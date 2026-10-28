@@ -444,7 +444,7 @@ describe('attachments (e2e)', () => {
     ).toEqual([]);
   });
 
-  it('offers no direct uploads on a disk that is not S3: the flag is off and both routes answer 503 (presigned_uploads_unavailable)', async () => {
+  it('offers no direct uploads on a disk that is not S3: the flag is off and presign answers 503 (presigned_uploads_unavailable)', async () => {
     const features = (await node.admin().get('/v1/features').expect(200)).body;
     expect(features.presignedUploads).toBe(false);
     const { editor, note } = await noteOfEditor();
@@ -453,11 +453,11 @@ describe('attachments (e2e)', () => {
       .send({ name: 'dot.png', size: PNG.length, contentType: 'image/png' })
       .expect(503);
     expect(presign.body.code).toBe('presigned_uploads_unavailable');
-    const complete = await editor.agent
+    // Complete also finishes resumable sessions, which work on any disk: an unknown one is a 404.
+    await editor.agent
       .post(`/v1/test-items/${note.id}/attachments/complete`)
       .send({ uploadId: crypto.randomUUID() })
-      .expect(503);
-    expect(complete.body.code).toBe('presigned_uploads_unavailable');
+      .expect(404);
     // Uploading through the API is what works here.
     await editor.agent
       .post(`/v1/test-items/${note.id}/attachments`)
@@ -553,6 +553,115 @@ describe('attachments (e2e)', () => {
       recordId: note.id,
     });
     expect(uploads[0]!.data).not.toHaveProperty('key');
+  });
+
+  describe('versions', () => {
+    async function withFile() {
+      const { editor, note } = await noteOfEditor();
+      const file = (
+        await editor.agent
+          .post(`/v1/test-items/${note.id}/attachments`)
+          .attach('file', PDF, {
+            filename: 'v1.pdf',
+            contentType: 'application/pdf',
+          })
+          .expect(201)
+      ).body as { id: string };
+      const replace = (etag: string | undefined, bytes = PNG) => {
+        const request = editor.agent
+          .post(`/v1/test-items/${note.id}/attachments/${file.id}/versions`)
+          .field('note', 'second')
+          .attach('file', bytes, {
+            filename: 'v2.png',
+            contentType: 'image/png',
+          });
+        return etag ? request.set('If-Match', etag) : request;
+      };
+      const etag = async () =>
+        (await editor.agent.get(`/v1/attachments/${file.id}`).expect(200))
+          .headers.etag as string;
+      return { editor, note, file, replace, etag };
+    }
+
+    it('replaces under the ETag, keeps the old bytes, downloads and restores them, audited', async () => {
+      const { editor, file, replace, etag } = await withFile();
+      const tag = await etag();
+      const replaced = await replace(tag).expect(201);
+      expect(replaced.body).toMatchObject({
+        version: 2,
+        name: 'v2.png',
+        revisionNote: 'second',
+        contentType: 'image/png',
+      });
+      // The same tag again: it is stale now.
+      await replace(tag).expect(412);
+      const versions = (
+        await editor.agent
+          .get(`/v1/attachments/${file.id}/versions`)
+          .expect(200)
+      ).body.items as { version: number; current: boolean; name: string }[];
+      expect(versions.map((v) => [v.version, v.current, v.name])).toEqual([
+        [2, true, 'v2.png'],
+        [1, false, 'v1.pdf'],
+      ]);
+      const old = await editor.agent
+        .get(`/v1/attachments/${file.id}/versions/1/download`)
+        .expect(302);
+      const bytes = (
+        await node.http().get(local(old.headers.location!)).expect(200)
+      ).body;
+      expect(Buffer.compare(Buffer.from(bytes), PDF)).toBe(0);
+      const restored = await editor.agent
+        .post(`/v1/attachments/${file.id}/versions/1/restore`)
+        .set('If-Match', await etag())
+        .send({})
+        .expect(200);
+      expect(restored.body).toMatchObject({
+        version: 3,
+        name: 'v1.pdf',
+        contentType: 'application/pdf',
+      });
+      await editor.agent
+        .post(`/v1/attachments/${file.id}/versions/3/restore`)
+        .send({})
+        .expect(400);
+      await editor.agent
+        .post(`/v1/attachments/${file.id}/versions/9/restore`)
+        .send({})
+        .expect(404);
+      const actions = (
+        await db.select().from(auditLog).where(eq(auditLog.targetId, file.id))
+      ).map((entry) => entry.action);
+      expect(actions).toEqual(
+        expect.arrayContaining([
+          'attachment.replaced',
+          'attachment.version-restored',
+        ]),
+      );
+    });
+
+    it('lets one of two concurrent replacements win, and a reader neither replace nor restore', async () => {
+      const { file, replace, etag } = await withFile();
+      const tag = await etag();
+      const codes = (await Promise.all([replace(tag), replace(tag)])).map(
+        (r) => r.status,
+      );
+      expect(codes.sort((a, b) => a - b)).toEqual([201, 412]);
+      const viewer = await node.user(['viewer']);
+      await viewer.agent
+        .post(`/v1/attachments/${file.id}/versions/1/restore`)
+        .send({})
+        .expect((res) => expect([403, 404]).toContain(res.status));
+    });
+
+    it('deletes every version with the attachment', async () => {
+      const { editor, file, replace, etag } = await withFile();
+      await replace(await etag()).expect(201);
+      const disk = node.app.get(StorageDisk);
+      const before = await count(disk);
+      await editor.agent.delete(`/v1/attachments/${file.id}`).expect(204);
+      expect(await count(disk)).toBe(before - 2);
+    });
   });
 
   it('asks people to acknowledge a version of a document, reminds them, and records who confirmed', async () => {

@@ -51,7 +51,7 @@ export class WellKnownController {
   }
 
   @Get('apple-app-site-association')
-  @Header('Content-Type', 'application/json')
+  @Header('Content-Type', 'application/json; charset=utf-8')
   @Header('Cache-Control', 'public, max-age=3600')
   appleAppSiteAssociation() {
     const apps = this.settings.enabled ? this.settings.appleApps : [];

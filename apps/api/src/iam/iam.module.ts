@@ -86,6 +86,8 @@ import { UserLifecycleRegistry } from './auth/user-lifecycle.registry.js';
 import { SessionLifecycleRegistry } from './auth/session-lifecycle.registry.js';
 import { ApiClientLifecycleRegistry } from './access/api-client-lifecycle.registry.js';
 import { ApiClientCountsRegistry } from './access/api-client-counts.registry.js';
+import { AccessRecordsRegistry } from './access/access-records.registry.js';
+import { AccessExplanationService } from './access/access-explanation.service.js';
 import { TenantLifecycleRegistry } from './access/tenant-lifecycle.registry.js';
 import { SignInContext, signInMetadata } from './auth/sign-in-context.js';
 import { ProviderReauthentications } from './account/oidc-reauthentication.js';
@@ -185,6 +187,7 @@ export class IamModule {
       SessionLifecycleRegistry,
       ApiClientLifecycleRegistry,
       ApiClientCountsRegistry,
+      AccessRecordsRegistry,
       TenantLifecycleRegistry,
       // Work without a user runs as the system principal (seeds, cron jobs, workflows).
       SystemContext,
@@ -448,6 +451,8 @@ export class IamModule {
         SessionLifecycleRegistry,
         ApiClientLifecycleRegistry,
         ApiClientCountsRegistry,
+        AccessRecordsRegistry,
+        AccessExplanationService,
         TenantLifecycleRegistry,
         AccessPolicy,
         // Enterprise SSO (SAML, OpenID Connect) per tenant, and SCIM provisioning.
