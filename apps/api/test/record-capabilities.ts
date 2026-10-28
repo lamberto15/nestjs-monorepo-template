@@ -277,9 +277,9 @@ export function describeCapabilities(
       ).body.id as string;
       const writer = await node().user(['editor']);
       await admin
-        .patch(`/v1/access/users/${writer.id}`)
-        .send({ unitIds: [unit] })
-        .expect(204);
+        .post(`/v1/access/organizational-units/${unit}/members`)
+        .send({ userId: writer.id })
+        .expect(201);
       const created = await writer.agent
         .post(path)
         .set('Idempotency-Key', randomUUID())

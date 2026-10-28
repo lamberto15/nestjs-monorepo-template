@@ -683,9 +683,9 @@ describe('identity and access, edge cases (e2e)', () => {
       const other = await newUnit('Other');
       const writer = await node.user(['editor']);
       await admin
-        .patch(`/v1/access/users/${writer.id}`)
-        .send({ unitIds: [unit] })
-        .expect(204);
+        .post(`/v1/access/organizational-units/${unit}/members`)
+        .send({ userId: writer.id })
+        .expect(201);
       await node
         .writeItem(writer.agent, { title: 'Unit note', body: 'x' })
         .expect(201);

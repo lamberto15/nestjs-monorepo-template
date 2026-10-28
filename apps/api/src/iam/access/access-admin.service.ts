@@ -86,7 +86,6 @@ export interface UserChanges {
   active?: boolean;
   roleIds?: string[];
   roleExpiresAt?: Record<string, string>;
-  unitIds?: string[];
 }
 
 export interface ClientInput {
@@ -570,16 +569,6 @@ export class AccessAdminService {
         await this.permissionsOfHolder('user', id),
         before.email,
       );
-    } else if (changes.unitIds) {
-      throw new ForbiddenException('You can’t change your own units.');
-    }
-    if (changes.unitIds) {
-      // Units joined or left: what stays the same needs no authority.
-      const current = await this.units.unitsOf(id);
-      await this.assertAuthorityOverUnits(actor, [
-        ...changes.unitIds.filter((unit) => !current.includes(unit)),
-        ...current.filter((unit) => !changes.unitIds!.includes(unit)),
-      ]);
     }
     // On oneself too: every role given (an ended one sent back included),
     // taken away or with a moved end goes through the grant rule.
@@ -631,9 +620,6 @@ export class AccessAdminService {
           grants.expiries,
         );
       }
-      if (changes.unitIds) {
-        await this.units.setUserUnits(tx, id, changes.unitIds);
-      }
       await this.assertAnAdministratorRemains(tx);
       if (changes.active === false && before.active) {
         // What waits on them (approvals, delegations) moves on, in this transaction.
@@ -656,7 +642,6 @@ export class AccessAdminService {
                 roleExpiresAt: changes.roleExpiresAt,
               }),
             }),
-            ...(changes.unitIds && { unitIds: changes.unitIds }),
           },
           ip,
         },

@@ -17,6 +17,7 @@ import {
   count,
   desc,
   eq,
+  getTableColumns,
   gt,
   inArray,
   isNull,
@@ -39,6 +40,7 @@ import {
   organizationalUnits,
   type UnitRole,
   type UnitType,
+  users,
 } from '../iam.tables.js';
 import { scimGroups } from '../sso/sso.tables.js';
 import { AccessService } from './access.service.js';
@@ -307,12 +309,17 @@ export class OrganizationalUnitsService {
     return ids.length === 1 ? ids[0]! : null;
   }
 
-  /** A unit's memberships, current and past, latest first. */
+  /** A unit's memberships, current and past, latest first, with each member's name and email. */
   async members(unitId: string) {
     await this.find(this.db, unitId);
     return this.db
-      .select()
+      .select({
+        ...getTableColumns(organizationalUnitMemberships),
+        name: users.name,
+        email: users.email,
+      })
       .from(organizationalUnitMemberships)
+      .innerJoin(users, eq(users.id, organizationalUnitMemberships.userId))
       .where(eq(organizationalUnitMemberships.unitId, unitId))
       .orderBy(
         desc(organizationalUnitMemberships.validFrom),

@@ -233,8 +233,8 @@ The built-in `Access` permissions (`ACCESS_PERMISSIONS`,
   `manageUsers`, `manageClients`, `manageOrganizationalUnits`, `impersonate` or
   `readAudit`): whoever manages units lists them and their members, whoever
   impersonates finds whom. Changing takes the matching permission.
-  Placing a user in a unit or taking them out (`unitIds` on /access/users,
-  the unit's members routes) takes authority over the unit as well:
+  Placing a user in a unit or taking them out (the unit's members routes;
+  `unitIds` on create and invite) takes authority over the unit as well:
   `manageOrganizationalUnits`, or a current membership of it or of a unit
   above it (403 `unit_authority_required`), so `manageUsers` alone can't
   put an account in any unit to read what "my units and below" opens.
@@ -388,8 +388,10 @@ everything under it. A unit with members or units below it is not deleted
 Users belong to units through **memberships** with a role (`member` or
 `lead`) and dates (`validFrom`, `validTo`: a re-org can be dated ahead; the
 history is kept). `/v1/access/organizational-units/{id}/members` manages
-them, and `unitIds` on `/v1/access/users` and invitations joins a user as a
-member. A lead's role grants nothing by itself either: only the conditions
+them (each member comes with their `name` and `email`), and `unitIds` on
+user creation and invitations joins a user as a member; afterwards the
+members routes are the one way to change a membership
+(`PATCH /v1/access/users/{id}` takes no `unitIds`). A lead's role grants nothing by itself either: only the conditions
 and the roles an administrator gives do. A child's membership never implies
 the parent's.
 

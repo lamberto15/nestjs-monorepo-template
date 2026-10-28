@@ -231,7 +231,7 @@ Built in the platform code, never at call sites (`tenantKey()`):
   the resender must be able to grant its roles, and signed in recently;
   audited `invitation.resent`). Administrators never set or change anyone's
   password or name: `PATCH /v1/access/users/{id}` changes the membership
-  (`active`, roles, units) only, and a `password` or `name` is refused (400).
+  (`active`, roles) only; units change on the unit’s members routes, and a `password` or `name` is refused (400).
   Linking a provider and enrolling two-factor want a proved address (403
   `email_unverified`). The only accounts made with a password are made by
   system jobs, never a request: the first start's administrator
