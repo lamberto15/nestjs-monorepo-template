@@ -28,7 +28,7 @@ export function useLiveNotifications() {
       return;
     }
     const stop = watchNotifications(realtime, {
-      onUnread: (unread) => setUnread(queryClient, unread),
+      onUnread: (unread, capped) => setUnread(queryClient, unread, capped),
       onItem: (item) => {
         addCached(queryClient, item);
         clearTimeout(refreshTimer.current);
