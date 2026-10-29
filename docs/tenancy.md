@@ -19,6 +19,7 @@ is a tenant. A way one customer organizes itself is a group.
 | `memberships` | global, with `tenant_id` | which tenants a user belongs to, `active`, `selected_at` |
 | `api_keys` | global, with `tenant_id` | keys are looked up by id before the tenant is known |
 | `sso_domain_routes` | global, with `tenant_id` | which tenants verified an email domain: the sign-in page finds an address's SSO connection before there is a tenant (docs/auth.md) |
+| `tenant_domain_routes` | global, with `tenant_id` | which tenant a verified custom domain routes to: the brand before sign-in, the session's tenant on that host, the edge's TLS check (docs/branding.md) |
 | `sessions`, `refresh_tokens`, two-factor, links | global | the person's; a session's tenant is `metadata.tenantId` |
 | `notification_preferences`, `consents`, `account_deletions`, `password_history` | global | the person's |
 | `idempotency_keys`, `locks`, `app_secrets`, `exchange_rates`, `mail_*`, `webhook_delivery_requests` | global | infrastructure (an idempotency key carries the tenant; a delivery's request is read only after its tenant-scoped delivery) |
@@ -67,7 +68,7 @@ nothing and writes nothing. `FORCE ROW LEVEL SECURITY` (which drizzle-kit
 can't emit) is set by the role bootstrap (`core/database/roles.ts`, every
 migrate), which also refuses to finish when a table with a `tenant_id` lacks
 RLS, FORCE, or exactly its declared policies with no other permissive one (the
-three global tables with a `tenant_id` excepted: `memberships`, `api_keys`, `sso_domain_routes`;
+four global tables with a `tenant_id` excepted: `memberships`, `api_keys`, `sso_domain_routes`, `tenant_domain_routes`;
 `core/tenancy/global-tables.ts`). Each policy is
 compared with its declaration (`tenantTable()`; the default four for a table
 the schema doesn't declare): its command, permissive, its roles, and its `USING`

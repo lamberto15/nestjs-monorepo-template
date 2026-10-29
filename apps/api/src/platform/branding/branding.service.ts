@@ -31,7 +31,11 @@ import { AuditService } from '../../iam/audit/audit.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { tenantFileKey } from '../storage/storage.config.js';
-import type { Branding, UpdateBranding } from './branding.schemas.js';
+import type {
+  Branding,
+  PublicBrand,
+  UpdateBranding,
+} from './branding.schemas.js';
 import {
   BRANDING_DARK_PRIMARY_COLOR,
   BRANDING_LOCKED,
@@ -153,12 +157,27 @@ export class BrandingService implements MailBranding {
         canEdit: false,
       };
     }
-    const [primaryColor, darkColor, mailFromName, locked, logo, darkLogo] =
+    const [brand, locked] = await Promise.all([
+      this.brand(tenantId),
+      this.settings.enabled(BRANDING_LOCKED, principal),
+    ]);
+    return {
+      ...brand,
+      locked,
+      canEdit: !locked && (await this.settings.canEdit(principal)),
+    };
+  }
+
+  /**
+   * The brand of `tenantId`, the tenant in scope: what the web app shows,
+   * before sign-in too (a verified custom domain's, BrandingDomainsService).
+   */
+  async brand(tenantId: string): Promise<PublicBrand> {
+    const [primaryColor, darkColor, mailFromName, logo, darkLogo] =
       await Promise.all([
         this.settings.get(BRANDING_PRIMARY_COLOR),
         this.settings.get(BRANDING_DARK_PRIMARY_COLOR),
         this.settings.get(BRANDING_MAIL_FROM_NAME),
-        this.settings.enabled(BRANDING_LOCKED, principal),
         this.logo(tenantId, 'light'),
         this.logo(tenantId, 'dark'),
       ]);
@@ -168,8 +187,6 @@ export class BrandingService implements MailBranding {
       mailFromName: safeName(mailFromName),
       logoUrl: logo ? this.logoPath(tenantId) : null,
       darkLogoUrl: darkLogo ? this.logoPath(tenantId, 'dark') : null,
-      locked,
-      canEdit: !locked && (await this.settings.canEdit(principal)),
     };
   }
 

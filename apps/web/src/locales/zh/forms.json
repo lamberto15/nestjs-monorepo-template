@@ -80,5 +80,36 @@
   "mySubmissions": "您的提交。",
   "noSubmissions": "还没有提交。",
   "submittedAt": "提交时间",
-  "answers": "答案"
+  "answers": "答案",
+  "rules": {
+    "visibleWhen": "仅在以下情况显示",
+    "requiredWhen": "在以下情况必填",
+    "sectionVisibleWhen": "仅在以下情况显示此部分",
+    "always": "始终。",
+    "add": "添加条件",
+    "remove": "删除条件",
+    "join": "组合",
+    "all": "全部满足",
+    "any": "任一满足",
+    "field": "字段",
+    "operator": "条件",
+    "value": "值",
+    "values": "值（以逗号分隔）",
+    "checked": "已勾选",
+    "unchecked": "未勾选",
+    "noEarlier": "条件只读取此字段之前的字段：请先在上方添加一个字段。",
+    "nested": "嵌套条件，保持原样（通过 API 编辑）。",
+    "clear": "删除",
+    "ops": {
+      "eq": "等于",
+      "ne": "不等于",
+      "gt": "大于",
+      "gte": "至少",
+      "lt": "小于",
+      "lte": "至多",
+      "in": "属于",
+      "contains": "包含",
+      "isEmpty": "为空"
+    }
+  }
 }

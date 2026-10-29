@@ -49,6 +49,26 @@
     "tooLarge": "文件超过 {{max}} KB。",
     "typeRefused": "请使用 PNG、JPEG 或 WebP 图片。"
   },
+  "domains": {
+    "title": "自定义域名",
+    "description": "您自己的主机名（app.example.com），您的成员通过它访问应用，从登录页起即显示您的徽标和颜色。将其指向应用（CNAME），发布下方显示的 TXT 记录，然后进行检查。",
+    "hostname": "主机名",
+    "add": "添加域名",
+    "none": "尚无自定义域名。",
+    "verified": "已验证",
+    "unverified": "未验证",
+    "verify": "检查记录",
+    "checking": "正在查询记录。请稍后刷新以查看结果。",
+    "remove": "移除",
+    "removeLabel": "移除 {{hostname}}",
+    "removed": "已移除 {{hostname}}，它不再提供应用服务。",
+    "publish": "发布此 DNS 记录，然后进行检查。",
+    "keep": "请保持此 DNS 记录已发布：域名每晚都会检查，缺少该记录将停止工作。",
+    "recordName": "{{type}} 记录名称",
+    "recordValue": "记录值",
+    "lastError": "上次检查 {{date}}：{{error}}",
+    "verifiedAt": "已于 {{date}} 验证"
+  },
   "error": {
     "title": "无法加载品牌设置",
     "generic": "出了点问题。请重试。",

@@ -80,5 +80,36 @@
   "mySubmissions": "Ihre Einsendungen.",
   "noSubmissions": "Noch keine Einsendungen.",
   "submittedAt": "Gesendet",
-  "answers": "Antworten"
+  "answers": "Antworten",
+  "rules": {
+    "visibleWhen": "Nur anzeigen, wenn",
+    "requiredWhen": "Pflichtfeld, wenn",
+    "sectionVisibleWhen": "Diesen Abschnitt nur anzeigen, wenn",
+    "always": "Immer.",
+    "add": "Bedingung hinzufügen",
+    "remove": "Bedingung entfernen",
+    "join": "Verknüpfen",
+    "all": "Alle davon",
+    "any": "Eine davon",
+    "field": "Feld",
+    "operator": "Ist",
+    "value": "Wert",
+    "values": "Werte (durch Kommas getrennt)",
+    "checked": "Angehakt",
+    "unchecked": "Nicht angehakt",
+    "noEarlier": "Eine Bedingung liest die Felder vor diesem: füge zuerst oben eines hinzu.",
+    "nested": "verschachtelte Bedingungen, unverändert behalten (über die API bearbeitet).",
+    "clear": "Entfernen",
+    "ops": {
+      "eq": "gleich",
+      "ne": "ungleich",
+      "gt": "größer als",
+      "gte": "mindestens",
+      "lt": "kleiner als",
+      "lte": "höchstens",
+      "in": "eines von",
+      "contains": "enthält",
+      "isEmpty": "leer"
+    }
+  }
 }

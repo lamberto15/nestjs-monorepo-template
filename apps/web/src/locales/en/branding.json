@@ -49,6 +49,26 @@
     "tooLarge": "The file is over {{max}} KB.",
     "typeRefused": "Use a PNG, JPEG or WebP image."
   },
+  "domains": {
+    "title": "Custom domains",
+    "description": "A hostname of your own (app.example.com) your people reach the app on, with your logo and colour from the sign-in page on. Point it at the app (a CNAME), publish the TXT record shown, then check it.",
+    "hostname": "Hostname",
+    "add": "Add domain",
+    "none": "No custom domains yet.",
+    "verified": "Verified",
+    "unverified": "Not verified",
+    "verify": "Check the record",
+    "checking": "Looking the record up. Reload in a moment to see the result.",
+    "remove": "Remove",
+    "removeLabel": "Remove {{hostname}}",
+    "removed": "Removed {{hostname}}. It no longer serves the app.",
+    "publish": "Publish this DNS record, then check it.",
+    "keep": "Keep this DNS record published: the domain is checked every night and stops working without it.",
+    "recordName": "{{type}} record name",
+    "recordValue": "Record value",
+    "lastError": "Last check {{date}}: {{error}}",
+    "verifiedAt": "Verified {{date}}"
+  },
   "error": {
     "title": "The branding could not be loaded",
     "generic": "Something went wrong. Try again.",

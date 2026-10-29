@@ -10,6 +10,7 @@ import {
   type FormField,
   type SchemaIssue,
 } from './form-schema.js';
+import { walkForm } from './form-rules.js';
 
 /**
  * How a submission's answers are checked: on the server, against the
@@ -22,6 +23,10 @@ import {
  *   default, else is refused when required, else left out.
  * - Normalized: text trimmed, numbers given as numeric strings read as
  *   numbers; the stored answer holds the version's keys alone.
+ * - Conditions (format 2) decide in form order which fields show and which
+ *   are required (form-rules.ts). A hidden field's answer is stripped,
+ *   deterministically: neither checked, nor stored, nor filled with its
+ *   default, whatever the client sent; it is never required.
  */
 
 /** The answers as JSON, in bytes, at most (under the request's own 100 KiB). */
@@ -196,34 +201,34 @@ export function checkAnswers(
       });
     }
   }
-  const answers: Record<string, unknown> = {};
-  for (const field of fields) {
+  const { answers } = walkForm(definition.sections, (field, required) => {
     const value = Object.hasOwn(given, field.key)
       ? given[field.key]
       : undefined;
     if (isEmpty(value) && field.default === undefined) {
-      if (field.required) {
+      if (required) {
         issues.push({
           path: `answers.${field.key}`,
           message: 'This field is required.',
         });
       }
-      continue;
+      return undefined;
     }
     // A default is checked as an answer (a required checkbox's `false` is refused).
-    const checked = checkValue(field, isEmpty(value) ? field.default : value);
-    if (checked.ok) {
-      answers[field.key] = checked.value;
-    } else {
-      issues.push({
-        path:
-          checked.index === undefined
-            ? `answers.${field.key}`
-            : `answers.${field.key}.${checked.index}`,
-        message: checked.message,
-      });
-    }
-  }
+    const checked = checkValue(
+      { ...field, required },
+      isEmpty(value) ? field.default : value,
+    );
+    if (checked.ok) return checked.value;
+    issues.push({
+      path:
+        checked.index === undefined
+          ? `answers.${field.key}`
+          : `answers.${field.key}.${checked.index}`,
+      message: checked.message,
+    });
+    return undefined;
+  });
   if (issues.length > 0) return { ok: false, issues };
   const bytes = Buffer.byteLength(JSON.stringify(answers));
   if (bytes > MAX_ANSWERS_BYTES) {

@@ -121,6 +121,16 @@ export const handlers = [
       canEdit: false,
     }),
   ),
+  // The brand of the host, read on every page before sign-in: the app's own (none), unless a test says so.
+  http.get('/v1/branding/host', () =>
+    HttpResponse.json({
+      primaryColor: null,
+      darkPrimaryColor: null,
+      mailFromName: null,
+      logoUrl: null,
+      darkLogoUrl: null,
+    }),
+  ),
   // The dashboard's unread-notifications card asks on the home page.
   http.get('/v1/notifications', () =>
     HttpResponse.json({ items: [], nextCursor: null }),

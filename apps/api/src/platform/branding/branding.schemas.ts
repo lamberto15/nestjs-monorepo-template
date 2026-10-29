@@ -53,3 +53,56 @@ export const updateBrandingSchema = z
     'A value sets it, `null` removes it (the default holds again), an absent key stays.',
   );
 export type UpdateBranding = z.infer<typeof updateBrandingSchema>;
+
+/** The brand anyone may read before signing in: the branding without the caller's part. */
+export const publicBrandSchema = brandingSchema
+  .omit({ locked: true, canEdit: true })
+  .describe(
+    'The brand of the tenant whose verified custom domain the request came to; on any other host, every field null.',
+  );
+export type PublicBrand = z.infer<typeof publicBrandSchema>;
+
+/** A custom domain to add: checked by the service (a public FQDN, not the app's own). */
+export const addDomainSchema = z
+  .object({
+    hostname: z
+      .string()
+      .min(1)
+      .max(300)
+      .describe(
+        'A hostname such as app.example.com: no scheme, port or path; an internationalized name is stored in punycode.',
+      ),
+  })
+  .strict();
+
+export const domainViewSchema = z.object({
+  id: z.uuid(),
+  hostname: z.string().describe('Lower case, ASCII (punycode).'),
+  verified: z
+    .boolean()
+    .describe(
+      'Its TXT record was found at the last check: the host routes to the tenant.',
+    ),
+  verifiedAt: z.iso.datetime().nullable(),
+  lastCheckedAt: z.iso.datetime().nullable(),
+  lastError: z.string().nullable(),
+  record: z
+    .object({
+      type: z.literal('TXT'),
+      name: z.string(),
+      value: z.string(),
+    })
+    .describe(
+      'The DNS record that proves the domain is the tenant’s; keep it published.',
+    ),
+  createdAt: z.iso.datetime(),
+});
+
+export const domainListSchema = z.object({
+  enabled: z
+    .boolean()
+    .describe(
+      'Whether this deployment serves custom domains (CUSTOM_DOMAINS).',
+    ),
+  domains: z.array(domainViewSchema),
+});

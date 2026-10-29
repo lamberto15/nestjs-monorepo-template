@@ -47,6 +47,7 @@ import {
   FormRenderer,
   initialDrafts,
 } from './form-renderer';
+import { RuleEditor } from './rule-editor';
 
 /** A section or field as the builder edits it: a stable id while its key changes. */
 type Item<T> = { uid: string; value: T };
@@ -66,8 +67,9 @@ const toBuilder = (definition: FormDefinition): BuilderSection[] =>
     fields: fields.map((field) => ({ uid: uid(), value: field })),
   }));
 
+/** Saved as the latest format (2: conditions), which reads every format-1 draft as it was. */
 const toDefinition = (sections: BuilderSection[]): FormDefinition => ({
-  format: 1,
+  format: 2,
   sections: sections.map((section) => ({
     ...section.value,
     fields: section.fields.map((field) => field.value),
@@ -233,6 +235,9 @@ function Builder(props: {
             <SectionEditor
               key={section.uid}
               section={section}
+              before={sections
+                .slice(0, index)
+                .flatMap((s) => s.fields.map((f) => f.value))}
               keys={keys}
               onChange={(next) => changeSection(index, next)}
               onRemove={() => change(sections.filter((_, i) => i !== index))}
@@ -282,6 +287,8 @@ function Builder(props: {
 
 function SectionEditor(props: {
   section: BuilderSection;
+  /** The fields of the sections before: what its conditions may read. */
+  before: readonly FormField[];
   keys: readonly string[];
   onChange: (section: BuilderSection) => void;
   onRemove: () => void;
@@ -331,6 +338,18 @@ function SectionEditor(props: {
           <TrashIcon />
         </Button>
       </div>
+      <RuleEditor
+        id={`${section.uid}-visible`}
+        label={t('rules.sectionVisibleWhen')}
+        condition={section.value.visibleWhen}
+        earlier={props.before}
+        onChange={(visibleWhen) =>
+          props.onChange({
+            ...section,
+            value: { ...section.value, visibleWhen },
+          })
+        }
+      />
       <Sortable
         {...sortable}
         value={section.fields}
@@ -365,6 +384,10 @@ function SectionEditor(props: {
                 field={field.value}
                 uid={field.uid}
                 keys={props.keys}
+                earlier={[
+                  ...props.before,
+                  ...section.fields.slice(0, index).map((f) => f.value),
+                ]}
                 onChange={(value) =>
                   setFields(
                     section.fields.map((f, i) =>
@@ -439,6 +462,8 @@ function FieldEditor(props: {
   field: FormField;
   uid: string;
   keys: readonly string[];
+  /** The fields before it: what its conditions may read. */
+  earlier: readonly FormField[];
   onChange: (field: FormField) => void;
   onRemove: () => void;
 }) {
@@ -501,7 +526,11 @@ function FieldEditor(props: {
             id={`${id}-required`}
             checked={field.required === true}
             onCheckedChange={(checked) =>
-              set({ required: checked === true || undefined })
+              set({
+                required: checked === true || undefined,
+                // Always required takes no condition (the API refuses both).
+                ...(checked === true && { requiredWhen: undefined }),
+              })
             }
           />
           <FieldLabel htmlFor={`${id}-required`}>
@@ -516,6 +545,24 @@ function FieldEditor(props: {
         >
           <TrashIcon />
         </Button>
+      </div>
+      <div className="flex flex-col gap-2 sm:col-span-2">
+        <RuleEditor
+          id={`${id}-visible`}
+          label={t('rules.visibleWhen')}
+          condition={field.visibleWhen}
+          earlier={props.earlier}
+          onChange={(visibleWhen) => set({ visibleWhen })}
+        />
+        {!field.required && (
+          <RuleEditor
+            id={`${id}-required-when`}
+            label={t('rules.requiredWhen')}
+            condition={field.requiredWhen}
+            earlier={props.earlier}
+            onChange={(requiredWhen) => set({ requiredWhen })}
+          />
+        )}
       </div>
     </div>
   );

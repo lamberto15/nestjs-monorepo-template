@@ -4,6 +4,7 @@ import {
   type FormDefinition,
   type FormField,
 } from './form-schema.js';
+import type { RuleCondition } from './form-rules.js';
 
 const field = (extra: Partial<FormField> & Pick<FormField, 'type'>) =>
   ({ key: 'f', label: 'F', ...extra }) as FormField;
@@ -85,5 +86,147 @@ describe('definitionIssues', () => {
     expect(
       definitionIssues(form(field({ key: 'a', type: 'text' })), { a: 'text' }),
     ).toEqual([]);
+  });
+});
+
+describe('conditions', () => {
+  const topic = field({
+    key: 'topic',
+    type: 'select',
+    options: [
+      { value: 'billing', label: 'Billing' },
+      { value: 'other', label: 'Other' },
+    ],
+  });
+  const other = { field: 'topic', op: 'eq', value: 'other' } as const;
+  const definition: FormDefinition = {
+    format: 2,
+    sections: [
+      {
+        key: 'main',
+        fields: [
+          topic,
+          field({
+            key: 'details',
+            type: 'text',
+            visibleWhen: other,
+            requiredWhen: other,
+          }),
+          field({ key: 'seats', type: 'integer', default: 1 }),
+          field({
+            key: 'note',
+            type: 'text',
+            visibleWhen: { field: 'details', op: 'isEmpty' },
+          }),
+        ],
+      },
+      {
+        key: 'invoice',
+        visibleWhen: { field: 'topic', op: 'eq', value: 'billing' },
+        fields: [field({ key: 'number', type: 'text', required: true })],
+      },
+    ],
+  };
+
+  it('requires a field only when its condition holds and it shows', () => {
+    const refused = checkAnswers(definition, { topic: 'other' });
+    expect(!refused.ok && refused.issues.map((issue) => issue.path)).toEqual([
+      'answers.details',
+    ]);
+    expect(checkAnswers(definition, { topic: 'other', details: 'x' })).toEqual({
+      ok: true,
+      answers: { topic: 'other', details: 'x', seats: 1 },
+    });
+  });
+
+  it('strips the answers of hidden fields and sections, whatever was sent, and reads them as empty', () => {
+    // details is hidden (topic is billing): stripped, so note shows.
+    expect(
+      checkAnswers(definition, {
+        topic: 'billing',
+        details: 12,
+        number: 'A-1',
+        note: 'n',
+      }),
+    ).toEqual({
+      ok: true,
+      answers: { topic: 'billing', seats: 1, number: 'A-1', note: 'n' },
+    });
+    // The invoice section is hidden: its required field is not, and its answer goes.
+    expect(checkAnswers(definition, { number: 'A-1' })).toEqual({
+      ok: true,
+      answers: { seats: 1 },
+    });
+  });
+
+  it('refuses at save a later or unknown field, a wrong operator or value, and conditions in format 1', () => {
+    const bad: FormDefinition = {
+      format: 2,
+      sections: [
+        {
+          key: 'main',
+          fields: [
+            field({
+              key: 'a',
+              type: 'text',
+              visibleWhen: { field: 'b', op: 'isEmpty' },
+            }),
+            field({
+              key: 'b',
+              type: 'text',
+              visibleWhen: { field: 'a', op: 'isEmpty' },
+              requiredWhen: {
+                all: [
+                  { field: 'a', op: 'gt', value: 3 },
+                  { field: 'nope', op: 'isEmpty' },
+                ],
+              },
+            }),
+            { ...topic, visibleWhen: { field: 'topic', op: 'isEmpty' } },
+            field({
+              key: 'c',
+              type: 'text',
+              visibleWhen: { field: 'topic', op: 'eq', value: 'missing' },
+            }),
+          ],
+        },
+      ],
+    };
+    expect(definitionIssues(bad).map((issue) => issue.path)).toEqual([
+      'sections.0.fields.0.visibleWhen.field',
+      'sections.0.fields.1.requiredWhen.all.0.op',
+      'sections.0.fields.1.requiredWhen.all.1.field',
+      'sections.0.fields.2.visibleWhen.field',
+      'sections.0.fields.3.visibleWhen.value',
+    ]);
+    expect(
+      definitionIssues({ ...definition, format: 1 }).map((issue) => issue.path),
+    ).toEqual([
+      'sections.0.fields.1.visibleWhen',
+      'sections.0.fields.1.requiredWhen',
+      'sections.0.fields.3.visibleWhen',
+      'sections.1.visibleWhen',
+    ]);
+    expect(definitionIssues(definition)).toEqual([]);
+  });
+
+  it('bounds the nesting of a condition', () => {
+    let deep: RuleCondition = { field: 'a', op: 'isEmpty' };
+    for (let i = 0; i < 5; i++) deep = { not: deep };
+    const issues = definitionIssues({
+      format: 2,
+      sections: [
+        {
+          key: 'main',
+          fields: [
+            field({ key: 'a', type: 'text' }),
+            field({ key: 'b', type: 'text', visibleWhen: deep }),
+          ],
+        },
+      ],
+    });
+    expect(issues.map((issue) => issue.message)).toEqual([
+      'At most 4 groups inside each other.',
+    ]);
   });
 });

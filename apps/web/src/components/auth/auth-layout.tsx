@@ -10,11 +10,13 @@ import { GalleryVerticalEndIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MAIN_CONTENT_ID } from '@/components/route-accessibility';
+import { useHostBrand } from '@/lib/branding';
 
 /**
  * The pages before signing in: shadcn's login-03 block (muted page, one
  * card). The page is the `<main>` landmark and its card's title the page's
- * heading (the generated CardTitle is a div).
+ * heading (the generated CardTitle is a div). On a tenant's custom domain,
+ * the tenant's logo, name and colour (useHostBrand).
  */
 export function AuthLayout(props: {
   title: ReactNode;
@@ -23,6 +25,7 @@ export function AuthLayout(props: {
   footer?: ReactNode;
 }) {
   const { t } = useTranslation();
+  const brand = useHostBrand();
   return (
     <main
       id={MAIN_CONTENT_ID}
@@ -33,10 +36,14 @@ export function AuthLayout(props: {
           to="/"
           className="flex items-center gap-2 self-center font-medium"
         >
-          <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <GalleryVerticalEndIcon className="size-4" />
-          </div>
-          {t('app.name')}
+          {brand.logoUrl ? (
+            <img src={brand.logoUrl} alt="" className="h-6 w-auto" />
+          ) : (
+            <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <GalleryVerticalEndIcon className="size-4" />
+            </div>
+          )}
+          {brand.name ?? t('app.name')}
         </Link>
         <Card>
           <CardHeader className="text-center">
