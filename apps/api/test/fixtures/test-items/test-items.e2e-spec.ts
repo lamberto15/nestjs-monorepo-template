@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { getDrizzleToken } from '@nestjs/drizzle';
 import type request from 'supertest';
+import type { Database } from '../../../src/core/database/drizzle.js';
 import { testItems } from './test-items.tables.js';
 import { TEST_ITEM } from './test-item.record.js';
 import { fieldSamples } from '../../../src/platform/fields/fields.js';
@@ -279,10 +281,12 @@ describe('test items (e2e)', () => {
       await admin
         .get(`/v1/test-items?parentId=${parent}&limit=101`)
         .expect(400);
-      // The related panel's query (RecordStore.findPage, `?parentId=`, newest first):
-      // planned on the index the field declares, the tenant and the parent in its condition.
+      // The related panel's query (RecordStore.findPage, `?parentId=`, newest
+      // first) on the app's pool, row-level security and all: planned on the
+      // index the field declares, the tenant and the parent in its condition.
+      const db = node.app.get<Database>(getDrizzleToken());
       const plan = await node.inTenant(() =>
-        node.db.transaction(async (tx) => {
+        db.transaction(async (tx) => {
           // A tiny table must not flip the plan to a sequential scan.
           await tx.execute(sql`set local enable_seqscan = off`);
           const statement = tx

@@ -4,6 +4,7 @@ import { defineRecord } from './record.js';
 import { actionPath, recordApprovalActions } from './record-approvals.js';
 import { recordApprovalRoutes } from './record-approval-routes.js';
 import { recordSetting, recordSettings } from './record-settings.js';
+import { relate } from './record-relations.js';
 
 const PATH_METADATA = 'path';
 const METHOD_METADATA = 'method';
@@ -127,5 +128,22 @@ describe('a record declaration', () => {
         settings: { payApproval: recordSetting.flag() },
       }),
     ).toThrow(/can't be a setting's name/);
+  });
+
+  it('refuses `keep` on a required reference: its key would refuse purging the record it kept', () => {
+    const required = defineRecord({
+      ...INVOICE,
+      className: 'InvoiceLineRefSpec',
+      approvals: {},
+      settings: {},
+      fields: {
+        invoiceId: field
+          .ref(() => ({ tenantId: {}, id: {} }) as never)
+          .onDelete('keep'),
+      },
+    });
+    expect(() => relate(required, { invoiceId: {} } as never)).toThrow(
+      /onDelete\('keep'\) needs an optional reference/,
+    );
   });
 });

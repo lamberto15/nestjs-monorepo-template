@@ -201,12 +201,28 @@ else is written by hand, `feature:sync` included:
   `reference_not_found` (`field` names it), the same for one that doesn't
   exist, is in the recycle bin or is hidden by their permissions. A
   reference left as it was isn't checked again.
-- **Delete and restore:** a record a **required** reference points at can't
-  be deleted, to the bin or for good (409 `record_referenced`; referring
-  records in the bin count until purged), so the purge never meets the key.
-  An **optional** one stays while its record is in the recycle bin (a restore
-  brings the relation back) and empties when it is deleted for good (the key's
-  `set null`).
+- **Delete and restore,** declared per relation with `.onDelete()` on the
+  field:
+  - `restrict` (the default): a record live records refer to can't be
+    deleted, to the bin or for good (409 `record_referenced`, naming the
+    referring `subject` and `field`, never a record). A **required**
+    reference counts referring records in the bin too, until purged, so the
+    purge never meets the key.
+  - `keep` (optional references only; a required one refuses to start): the
+    record goes to the bin and the references stay, pointing at it, so
+    restoring it simply makes them live again.
+
+  ```ts
+  linkedId: field.ref(() => tasks).optional().onDelete('keep'),
+  ```
+
+  Restoring a referring record whose `restrict` reference points at one in
+  the bin is refused (409 `reference_deleted`, `field` names it): restore
+  that one first. An optional reference empties when its record is deleted
+  for good (the key's `set null`), so a referring record restored after the
+  purge comes back without it; a required one's record can't be purged
+  while referred to. `related` in the list metadata says each relation's
+  `onDelete`.
 - **Related panels:** `GET /v1/lists/<Subject>` answers `related`, the
   relations that refer to the subject's records which the caller may list and
   filter by (`subject`, `path`, `field`, `title`, `required`). A record's related records are
@@ -215,6 +231,17 @@ else is written by hand, `feature:sync` included:
   as always. The web app's `RecordPanels` shows a **Related** tab with the
   newest ten of each (and how many in all), each opening its page when its
   feature registers a `record-link.ts`.
+- **Picking one:** a form's control for a `ref` field is `RecordPicker`
+  (`apps/web/src/components/records/record-picker.tsx`): it searches the
+  target's own list as one types (`GET /v1/<path>?q=`, the `search`
+  capability; 20 at a time), so it offers only what the user may read, and
+  the API refuses any other id (422 above).
+- **Bounded, indexed queries:** a related list is one range of the field's
+  index (tenant, reference, id), with the page size every list has
+  (`limit` at most 100); the picker's search is the target's search index,
+  20 rows. The test item's e2e test checks the related list's plan
+  (`EXPLAIN`: an index scan of `test_items_parent_id_idx`, the tenant and
+  the reference in its condition).
 
 The declarations are queryable (`platform/records/record-relations.ts`):
 `relationsTo('<Subject>')` names each table and column that refers to a

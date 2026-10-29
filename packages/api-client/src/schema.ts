@@ -14807,8 +14807,13 @@ export interface operations {
                              * @example title
                              */
                             title: string | null;
-                            /** @description Required: a record they refer to cannot be deleted (409 `record_referenced`). Optional: the field empties when it is deleted for good. */
+                            /** @description Required: the field is never empty, and a record they refer to stays until they go (409 `record_referenced`, those in the recycle bin included). Optional: the field empties when its record is deleted for good. */
                             required: boolean;
+                            /**
+                             * @description Deleting a record they refer to: `restrict` refuses it while live ones do (409 `record_referenced`); `keep` moves it to the recycle bin with their field kept, so a restore brings the relation back.
+                             * @enum {string}
+                             */
+                            onDelete: "restrict" | "keep";
                         }[];
                         /** @description The views besides the table that this subject declares and this caller can use: a field they may not filter by leaves its view out. Null when none. Fetch their records with the list route, bounded by `filter` on the fields named here. */
                         views: {
