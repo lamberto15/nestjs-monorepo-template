@@ -39,42 +39,78 @@ import {
   type FormDefinition,
   type FormField,
   formQuery,
+  type GroupField,
   usePublish,
   useSaveDraft,
 } from './api';
 import {
   type AnswerDrafts,
   FormRenderer,
+  GROUP_ITEMS_LIMIT,
   initialDrafts,
 } from './form-renderer';
 import { RuleEditor } from './rule-editor';
 
 /** A section or field as the builder edits it: a stable id while its key changes. */
 type Item<T> = { uid: string; value: T };
+/** A field, a group's own fields (`fields`) as items of their own. */
+type BuilderField = Item<FormField> & { fields: Item<GroupField>[] };
 type BuilderSection = Item<
   Omit<FormDefinition['sections'][number], 'fields'>
 > & {
-  fields: Item<FormField>[];
+  fields: BuilderField[];
 };
 
 let counter = 0;
 const uid = () => `item-${++counter}`;
 
+const toBuilderField = (field: FormField): BuilderField => ({
+  uid: uid(),
+  value: field,
+  fields: (field.fields ?? []).map((sub) => ({ uid: uid(), value: sub })),
+});
+
 const toBuilder = (definition: FormDefinition): BuilderSection[] =>
   definition.sections.map(({ fields, ...section }) => ({
     uid: uid(),
     value: section,
-    fields: fields.map((field) => ({ uid: uid(), value: field })),
+    fields: fields.map(toBuilderField),
   }));
 
-/** Saved as the latest format (2: conditions), which reads every format-1 draft as it was. */
+/** Saved as the latest format (3: pages and groups), which reads every earlier draft as it was. */
 const toDefinition = (sections: BuilderSection[]): FormDefinition => ({
-  format: 2,
+  format: 3,
   sections: sections.map((section) => ({
     ...section.value,
-    fields: section.fields.map((field) => field.value),
+    fields: section.fields.map((field) =>
+      field.value.type === 'group'
+        ? { ...field.value, fields: field.fields.map((sub) => sub.value) }
+        : field.value,
+    ),
   })),
 });
+
+/** A new field of a type: a fresh key, its type as its label, two options for a choice, one field in a group. */
+function newField(
+  type: FieldType,
+  key: string,
+  label: (type: FieldType) => string,
+): FormField {
+  return {
+    key,
+    type,
+    label: label(type),
+    ...(CHOICE_TYPES.includes(type) && {
+      options: [
+        { value: 'a', label: 'A' },
+        { value: 'b', label: 'B' },
+      ],
+    }),
+    ...(type === 'group' && {
+      fields: [{ key: 'item_1', type: 'text', label: label('text') }],
+    }),
+  };
+}
 
 /** A key no field of the form has yet: `field_<n>`. */
 function freshKey(prefix: string, taken: readonly string[]) {
@@ -295,13 +331,12 @@ function SectionEditor(props: {
 }) {
   const { t } = useTranslation('forms');
   const { section } = props;
-  const [type, setType] = useState<FieldType>('text');
   const sortable = useSortableProps(
     section.fields.length,
     (id) => section.fields.find((f) => f.uid === id)?.value.label ?? String(id),
   );
   const title = section.value.title ?? section.value.key;
-  const setFields = (fields: Item<FormField>[]) =>
+  const setFields = (fields: BuilderField[]) =>
     props.onChange({ ...section, fields });
 
   return (
@@ -338,6 +373,24 @@ function SectionEditor(props: {
           <TrashIcon />
         </Button>
       </div>
+      <Field orientation="horizontal">
+        <Checkbox
+          id={`${section.uid}-page`}
+          checked={section.value.startsPage === true}
+          onCheckedChange={(checked) =>
+            props.onChange({
+              ...section,
+              value: {
+                ...section.value,
+                startsPage: checked === true || undefined,
+              },
+            })
+          }
+        />
+        <FieldLabel htmlFor={`${section.uid}-page`}>
+          {t('builder.startsPage')}
+        </FieldLabel>
+      </Field>
       <RuleEditor
         id={`${section.uid}-visible`}
         label={t('rules.sectionVisibleWhen')}
@@ -383,6 +436,14 @@ function SectionEditor(props: {
               <FieldEditor
                 field={field.value}
                 uid={field.uid}
+                groupFields={field.fields}
+                onGroupFields={(fields) =>
+                  setFields(
+                    section.fields.map((f, i) =>
+                      i === index ? { ...f, fields } : f,
+                    ),
+                  )
+                }
                 keys={props.keys}
                 earlier={[
                   ...props.before,
@@ -403,64 +464,161 @@ function SectionEditor(props: {
           ))}
         </SortableContent>
       </Sortable>
-      <div className="flex items-end gap-2">
-        <Field className="flex-1">
-          <FieldLabel htmlFor={`${section.uid}-type`}>
-            {t('builder.newFieldType')}
-          </FieldLabel>
-          <Select
-            items={FIELD_TYPES.map((value) => ({
-              value,
-              label: t(`types.${value}`),
-            }))}
-            value={type}
-            onValueChange={(value) => value && setType(value as FieldType)}
-          >
-            <SelectTrigger id={`${section.uid}-type`} className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {FIELD_TYPES.map((value) => (
-                <SelectItem key={value} value={value}>
-                  {t(`types.${value}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Button
-          variant="outline"
-          onClick={() =>
-            setFields([
-              ...section.fields,
-              {
-                uid: uid(),
-                value: {
-                  key: freshKey('field', props.keys),
-                  type,
-                  label: t(`types.${type}`),
-                  ...(CHOICE_TYPES.includes(type) && {
-                    options: [
-                      { value: 'a', label: 'A' },
-                      { value: 'b', label: 'B' },
-                    ],
-                  }),
-                },
-              },
-            ])
-          }
-        >
-          <PlusIcon />
-          {t('builder.addField')}
-        </Button>
-      </div>
+      <AddField
+        id={`${section.uid}-type`}
+        types={FIELD_TYPES}
+        onAdd={(type) =>
+          setFields([
+            ...section.fields,
+            toBuilderField(
+              newField(type, freshKey('field', props.keys), (value) =>
+                t(`types.${value}`),
+              ),
+            ),
+          ])
+        }
+      />
     </section>
+  );
+}
+
+/** A new field's type, and the button that adds it. */
+function AddField(props: {
+  id: string;
+  types: readonly FieldType[];
+  label?: string;
+  onAdd: (type: FieldType) => void;
+}) {
+  const { t } = useTranslation('forms');
+  const [type, setType] = useState<FieldType>('text');
+  return (
+    <div className="flex items-end gap-2">
+      <Field className="flex-1">
+        <FieldLabel htmlFor={props.id}>{t('builder.newFieldType')}</FieldLabel>
+        <Select
+          items={props.types.map((value) => ({
+            value,
+            label: t(`types.${value}`),
+          }))}
+          value={type}
+          onValueChange={(value) => value && setType(value as FieldType)}
+        >
+          <SelectTrigger id={props.id} className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {props.types.map((value) => (
+              <SelectItem key={value} value={value}>
+                {t(`types.${value}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+      <Button variant="outline" onClick={() => props.onAdd(type)}>
+        <PlusIcon />
+        {props.label ?? t('builder.addField')}
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * A group's own fields (one level: no group, no conditions in them) and
+ * its bounds: `minItems`, `maxItems`, at most GROUP_ITEMS_LIMIT.
+ */
+function GroupEditor(props: {
+  field: FormField;
+  uid: string;
+  fields: Item<GroupField>[];
+  onChange: (field: FormField) => void;
+  onFields: (fields: Item<GroupField>[]) => void;
+}) {
+  const { t } = useTranslation('forms');
+  const { field, uid: id } = props;
+  const keys = props.fields.map((sub) => sub.value.key);
+  const bound = (name: 'minItems' | 'maxItems', text: string) => {
+    const validation = {
+      ...field.validation,
+      [name]: text === '' ? undefined : Number(text),
+    };
+    props.onChange({ ...field, validation });
+  };
+  return (
+    <div className="flex flex-col gap-3 sm:col-span-2">
+      <div className="grid gap-2 sm:grid-cols-2">
+        {(['minItems', 'maxItems'] as const).map((name) => (
+          <Field key={name}>
+            <FieldLabel htmlFor={`${id}-${name}`}>
+              {t(`builder.${name}`)}
+            </FieldLabel>
+            <Input
+              id={`${id}-${name}`}
+              type="number"
+              min={name === 'minItems' ? 0 : 1}
+              max={GROUP_ITEMS_LIMIT}
+              value={field.validation?.[name] ?? ''}
+              onChange={(event) => bound(name, event.target.value)}
+            />
+          </Field>
+        ))}
+      </div>
+      <ul
+        aria-label={t('builder.groupFields', { label: field.label })}
+        className="flex flex-col gap-2 border-s-2 ps-3"
+      >
+        {props.fields.map((sub, index) => (
+          <li key={sub.uid}>
+            <FieldEditor
+              field={sub.value}
+              uid={sub.uid}
+              keys={keys}
+              earlier={[]}
+              nested
+              onChange={(value) =>
+                props.onFields(
+                  props.fields.map((other, i) =>
+                    i === index
+                      ? { ...other, value: value as GroupField }
+                      : other,
+                  ),
+                )
+              }
+              onRemove={() =>
+                props.onFields(props.fields.filter((_, i) => i !== index))
+              }
+            />
+          </li>
+        ))}
+      </ul>
+      <AddField
+        id={`${id}-group-type`}
+        types={FIELD_TYPES.filter((type) => type !== 'group')}
+        label={t('builder.addGroupField')}
+        onAdd={(type) =>
+          props.onFields([
+            ...props.fields,
+            {
+              uid: uid(),
+              value: newField(type, freshKey('item', keys), (value) =>
+                t(`types.${value}`),
+              ) as GroupField,
+            },
+          ])
+        }
+      />
+    </div>
   );
 }
 
 function FieldEditor(props: {
   field: FormField;
   uid: string;
+  /** A group's own fields, and their change. */
+  groupFields?: Item<GroupField>[];
+  onGroupFields?: (fields: Item<GroupField>[]) => void;
+  /** A field of a group: no conditions of its own. */
+  nested?: boolean;
   keys: readonly string[];
   /** The fields before it: what its conditions may read. */
   earlier: readonly FormField[];
@@ -546,24 +704,35 @@ function FieldEditor(props: {
           <TrashIcon />
         </Button>
       </div>
-      <div className="flex flex-col gap-2 sm:col-span-2">
-        <RuleEditor
-          id={`${id}-visible`}
-          label={t('rules.visibleWhen')}
-          condition={field.visibleWhen}
-          earlier={props.earlier}
-          onChange={(visibleWhen) => set({ visibleWhen })}
+      {field.type === 'group' && props.onGroupFields && (
+        <GroupEditor
+          field={field}
+          uid={id}
+          fields={props.groupFields ?? []}
+          onChange={props.onChange}
+          onFields={props.onGroupFields}
         />
-        {!field.required && (
+      )}
+      {!props.nested && (
+        <div className="flex flex-col gap-2 sm:col-span-2">
           <RuleEditor
-            id={`${id}-required-when`}
-            label={t('rules.requiredWhen')}
-            condition={field.requiredWhen}
+            id={`${id}-visible`}
+            label={t('rules.visibleWhen')}
+            condition={field.visibleWhen}
             earlier={props.earlier}
-            onChange={(requiredWhen) => set({ requiredWhen })}
+            onChange={(visibleWhen) => set({ visibleWhen })}
           />
-        )}
-      </div>
+          {!field.required && (
+            <RuleEditor
+              id={`${id}-required-when`}
+              label={t('rules.requiredWhen')}
+              condition={field.requiredWhen}
+              earlier={props.earlier}
+              onChange={(requiredWhen) => set({ requiredWhen })}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -34,10 +34,12 @@ const INVALID_CONTROL = [
  * A frame later: the form's state changes before React renders the errors.
  */
 export function focusFirstInvalid(form: object) {
-  requestAnimationFrame(() => {
-    const element = formElements.get(form);
-    if (element?.isConnected) {
-      element.querySelector<HTMLElement>(INVALID_CONTROL)?.focus();
-    }
-  });
+  requestAnimationFrame(() => focusFirstInvalidIn(formElements.get(form)));
+}
+
+/** Moves the focus to the first invalid control in `element`, a form not of TanStack Form's. */
+export function focusFirstInvalidIn(element: HTMLElement | null | undefined) {
+  if (element?.isConnected) {
+    element.querySelector<HTMLElement>(INVALID_CONTROL)?.focus();
+  }
 }

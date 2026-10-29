@@ -53,7 +53,12 @@
     "options": "Pilihan",
     "optionsHint": "Satu setiap baris: nilai = Label (atau nilai sahaja).",
     "required": "Wajib",
-    "removeField": "Buang {{label}}"
+    "removeField": "Buang {{label}}",
+    "startsPage": "Memulakan halaman baharu",
+    "minItems": "Bilangan item paling sedikit",
+    "maxItems": "Bilangan item paling banyak",
+    "groupFields": "Medan setiap item {{label}}",
+    "addGroupField": "Tambah medan pada kumpulan"
   },
   "types": {
     "text": "Teks pendek",
@@ -66,7 +71,8 @@
     "checkbox": "Kotak semak",
     "select": "Senarai juntai",
     "radio": "Pilihan tunggal",
-    "multiSelect": "Pilihan berbilang"
+    "multiSelect": "Pilihan berbilang",
+    "group": "Kumpulan berulang"
   },
   "fillTitle": "Isi borang",
   "notPublished": "Borang ini belum diterbitkan.",
@@ -111,5 +117,18 @@
       "contains": "mengandungi",
       "isEmpty": "kosong"
     }
+  },
+  "group": {
+    "item": "{{label}} {{n}}",
+    "remove": "Buang {{label}} {{n}}",
+    "add": "Tambah {{label}}",
+    "minItems": "Item paling sedikit: {{count}}.",
+    "maxItems": "Item paling banyak: {{count}}."
+  },
+  "wizard": {
+    "progress": "Kemajuan",
+    "step": "Langkah {{n}} daripada {{total}}",
+    "next": "Seterusnya",
+    "previous": "Sebelumnya"
   }
 }

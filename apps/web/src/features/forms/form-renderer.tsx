@@ -15,26 +15,67 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@nestjs-monorepo-template/ui/components/select';
+import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import { Textarea } from '@nestjs-monorepo-template/ui/components/textarea';
+import { PlusIcon, TrashIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDescribedBy } from '@/lib/form';
-import type { FormDefinition, FormField } from './api';
+import type { FormDefinition, FormField, FormSection, GroupField } from './api';
 import { walkForm } from './rules';
 
 /** What an input holds while the person types: text, a checkbox, choices. */
-export type AnswerDraft = string | boolean | string[] | undefined;
+type FieldDraft = string | boolean | string[] | undefined;
+/**
+ * One item of a repeatable group as it is filled in: a stable `id` (its
+ * inputs' key, so removing an item never moves another's answers) and its
+ * fields' drafts.
+ */
+export interface GroupItemDraft {
+  id: string;
+  drafts: Record<string, FieldDraft>;
+}
+export type AnswerDraft = FieldDraft | GroupItemDraft[];
 export type AnswerDrafts = Record<string, AnswerDraft>;
 
-/** The drafts a definition starts with: its fields' defaults. */
+/** The most items of a group, whatever its `maxItems` (the API's FORM_LIMITS.groupItems). */
+export const GROUP_ITEMS_LIMIT = 50;
+
+/** The pages of a definition: runs of sections, a new one at each `startsPage` (form-schema.ts, pagesOf). */
+export function pagesOf(sections: readonly FormSection[]): FormSection[][] {
+  const pages: FormSection[][] = [];
+  for (const section of sections) {
+    if (pages.length === 0 || section.startsPage) pages.push([]);
+    pages.at(-1)!.push(section);
+  }
+  return pages;
+}
+
+let items = 0;
+/** A group's new item: its fields' defaults. */
+export const newItem = (field: FormField): GroupItemDraft => ({
+  id: `item-${++items}`,
+  drafts: Object.fromEntries(
+    (field.fields ?? []).map((sub) => [sub.key, draftOf(sub, sub.default)]),
+  ),
+});
+
+/** The drafts a definition starts with: its fields' defaults, a group's `minItems` items. */
 export function initialDrafts(definition: FormDefinition): AnswerDrafts {
   return Object.fromEntries(
     definition.sections.flatMap((section) =>
-      section.fields.map((field) => [field.key, draftOf(field, field.default)]),
+      section.fields.map((field) => [
+        field.key,
+        field.type === 'group'
+          ? Array.from({ length: field.validation?.minItems ?? 0 }, () =>
+              newItem(field),
+            )
+          : draftOf(field, field.default),
+      ]),
     ),
   );
 }
 
-const draftOf = (field: FormField, value: unknown): AnswerDraft => {
+function draftOf(field: FormField | GroupField, value: unknown): FieldDraft {
   if (value === undefined || value === null) {
     return field.type === 'checkbox' ? false : undefined;
   }
@@ -43,7 +84,7 @@ const draftOf = (field: FormField, value: unknown): AnswerDraft => {
     return Array.isArray(value) ? value.map(String) : [];
   }
   return String(value);
-};
+}
 
 const isEmpty = (draft: AnswerDraft) =>
   draft === undefined ||
@@ -54,7 +95,23 @@ const isEmpty = (draft: AnswerDraft) =>
  * A draft as the server reads it (numbers as numbers, text trimmed, the
  * default when left empty); undefined: none, or not valid.
  */
-const valueOf = (field: FormField, given: AnswerDraft): unknown => {
+const valueOf = (
+  field: FormField | GroupField,
+  given: AnswerDraft,
+): unknown => {
+  if (field.type === 'group') {
+    const list = Array.isArray(given) ? (given as GroupItemDraft[]) : [];
+    return list.length === 0
+      ? undefined
+      : list.map((item) =>
+          Object.fromEntries(
+            (field.fields ?? []).map((sub) => [
+              sub.key,
+              valueOf(sub, item.drafts[sub.key]),
+            ]),
+          ),
+        );
+  }
   const draft =
     isEmpty(given) && field.default !== undefined
       ? draftOf(field, field.default)
@@ -84,39 +141,93 @@ export function stateOf(definition: FormDefinition, drafts: AnswerDrafts) {
   return { visible, required };
 }
 
+export interface AnswerMessages {
+  required: string;
+  number: string;
+  minItems: (count: number) => string;
+  maxItems: (count: number) => string;
+}
+
+/**
+ * One field's answer to send (undefined: none), its problem at `path` in
+ * `errors`. A group's is its items', each checked at `<path>.<index>.<key>`.
+ */
+function answerOf(
+  field: FormField | GroupField,
+  draft: AnswerDraft,
+  required: boolean,
+  path: string,
+  errors: Record<string, string>,
+  messages: AnswerMessages,
+): unknown {
+  if (field.type === 'group') {
+    const list = Array.isArray(draft) ? (draft as GroupItemDraft[]) : [];
+    const min = field.validation?.minItems ?? 0;
+    const max = Math.min(
+      field.validation?.maxItems ?? GROUP_ITEMS_LIMIT,
+      GROUP_ITEMS_LIMIT,
+    );
+    if (list.length === 0) {
+      if (required) errors[path] = messages.required;
+      return undefined;
+    }
+    if (list.length < min) errors[path] = messages.minItems(min);
+    if (list.length > max) errors[path] = messages.maxItems(max);
+    return list.map((item, index) => {
+      const answer: Record<string, unknown> = {};
+      for (const sub of field.fields ?? []) {
+        const value = answerOf(
+          sub,
+          item.drafts[sub.key],
+          sub.required === true,
+          `${path}.${index}.${sub.key}`,
+          errors,
+          messages,
+        );
+        if (value !== undefined) answer[sub.key] = value;
+      }
+      return answer;
+    });
+  }
+  const value = valueOf(field, draft);
+  if (field.type === 'checkbox') {
+    if (required && draft !== true) errors[path] = messages.required;
+    return value;
+  }
+  if (isEmpty(draft)) {
+    if (required) errors[path] = messages.required;
+    return undefined;
+  }
+  if (value === undefined) errors[path] = messages.number;
+  return value;
+}
+
 /**
  * The answers to send, and the problems the browser can tell already
- * (a required answer missing, a number that isn't one), by `answers.<key>`:
+ * (a required answer missing, a number that isn't one, a group's number of
+ * items), by `answers.<key>` (`answers.<group>.<index>.<key>` in a group):
  * the server checks everything again against the published version. A
  * field its conditions hide is left out (the server would strip it).
  */
 export function answersOf(
   definition: FormDefinition,
   drafts: AnswerDrafts,
-  messages: { required: string; number: string },
+  messages: AnswerMessages,
 ): { answers: Record<string, unknown>; errors: Record<string, string> } {
   const answers: Record<string, unknown> = {};
   const errors: Record<string, string> = {};
   walkForm(definition.sections, (field, required) => {
-    const draft = drafts[field.key];
-    const path = `answers.${field.key}`;
-    const value = valueOf(field, draft);
-    if (field.type === 'checkbox') {
-      if (required && draft !== true) errors[path] = messages.required;
-      answers[field.key] = value;
-      return value;
-    }
-    if (isEmpty(draft)) {
-      if (required) errors[path] = messages.required;
-      return undefined;
-    }
-    if (value === undefined) {
-      errors[path] = messages.number;
-      return undefined;
-    }
-    answers[field.key] =
-      field.type === 'integer' || field.type === 'decimal' ? value : draft;
-    return value;
+    const value = answerOf(
+      field,
+      drafts[field.key],
+      required,
+      `answers.${field.key}`,
+      errors,
+      messages,
+    );
+    if (value !== undefined) answers[field.key] = value;
+    // What the conditions after it read: its default too (as the server does).
+    return valueOf(field, drafts[field.key]);
   });
   return { answers, errors };
 }
@@ -125,7 +236,8 @@ export function answersOf(
  * A form's definition as inputs (docs/forms.md): its sections, each field
  * of its type, labelled, with its help and its error at `answers.<key>`.
  * Controlled: the caller holds the drafts. A preview in the builder and the
- * page people fill in draw it the same way.
+ * page people fill in draw it the same way; `page` draws one page of a
+ * wizard (pagesOf), its conditions read from every answer.
  */
 export function FormRenderer(props: {
   definition: FormDefinition;
@@ -133,11 +245,16 @@ export function FormRenderer(props: {
   onChange: (key: string, draft: AnswerDraft) => void;
   errors?: Record<string, string>;
   idPrefix?: string;
+  page?: number;
 }) {
   const { visible, required } = stateOf(props.definition, props.value);
+  const sections =
+    props.page === undefined
+      ? props.definition.sections
+      : (pagesOf(props.definition.sections)[props.page] ?? []);
   return (
     <div className="flex flex-col gap-8">
-      {props.definition.sections.map((section) => (
+      {sections.map((section) => (
         <FieldSet
           key={section.key}
           hidden={!section.fields.some((field) => visible.has(field.key))}
@@ -153,20 +270,139 @@ export function FormRenderer(props: {
           <div className="flex flex-col gap-4">
             {section.fields
               .filter((field) => visible.has(field.key))
-              .map((field) => (
-                <AnswerInput
-                  key={field.key}
-                  field={{ ...field, required: required.has(field.key) }}
-                  idPrefix={props.idPrefix ?? 'form'}
-                  draft={props.value[field.key]}
-                  onChange={(draft) => props.onChange(field.key, draft)}
-                  error={props.errors?.[`answers.${field.key}`]}
-                />
-              ))}
+              .map((field) =>
+                field.type === 'group' ? (
+                  <GroupInput
+                    key={field.key}
+                    field={{ ...field, required: required.has(field.key) }}
+                    idPrefix={props.idPrefix ?? 'form'}
+                    items={
+                      Array.isArray(props.value[field.key])
+                        ? (props.value[field.key] as GroupItemDraft[])
+                        : []
+                    }
+                    onChange={(next) => props.onChange(field.key, next)}
+                    errors={props.errors ?? {}}
+                  />
+                ) : (
+                  <AnswerInput
+                    key={field.key}
+                    field={{ ...field, required: required.has(field.key) }}
+                    idPrefix={props.idPrefix ?? 'form'}
+                    draft={props.value[field.key] as FieldDraft}
+                    onChange={(draft) => props.onChange(field.key, draft)}
+                    error={props.errors?.[`answers.${field.key}`]}
+                  />
+                ),
+              )}
           </div>
         </FieldSet>
       ))}
     </div>
+  );
+}
+
+/**
+ * A repeatable group: its items, each its fields' inputs (errors at
+ * `answers.<group>.<index>.<key>`), added up to `maxItems` and removed
+ * down to `minItems`. Removing one moves the focus to the add button.
+ */
+function GroupInput(props: {
+  field: FormField;
+  idPrefix: string;
+  items: GroupItemDraft[];
+  onChange: (items: GroupItemDraft[]) => void;
+  errors: Record<string, string>;
+}) {
+  const { t } = useTranslation('forms');
+  const { field, items } = props;
+  const path = `answers.${field.key}`;
+  const error = props.errors[path];
+  const { descriptionId, errorId, describedBy } = useDescribedBy(
+    Boolean(field.help),
+    !!error,
+  );
+  const min = field.validation?.minItems ?? 0;
+  const max = Math.min(
+    field.validation?.maxItems ?? GROUP_ITEMS_LIMIT,
+    GROUP_ITEMS_LIMIT,
+  );
+  const addId = `${props.idPrefix}-${field.key}-add`;
+  return (
+    <FieldSet data-invalid={!!error} aria-describedby={describedBy}>
+      <FieldLegend variant="label">{`${field.label}${field.required ? ' *' : ''}`}</FieldLegend>
+      {field.help && (
+        <FieldDescription id={descriptionId}>{field.help}</FieldDescription>
+      )}
+      <ol className="flex flex-col gap-3">
+        {items.map((item, index) => {
+          const n = index + 1;
+          return (
+            <li key={item.id}>
+              <FieldSet className="gap-3 rounded-md border p-3">
+                <FieldLegend variant="label">
+                  {t('group.item', { label: field.label, n })}
+                </FieldLegend>
+                {(field.fields ?? []).map((sub) => (
+                  <AnswerInput
+                    key={sub.key}
+                    field={sub}
+                    idPrefix={`${props.idPrefix}-${item.id}`}
+                    draft={item.drafts[sub.key]}
+                    onChange={(draft) =>
+                      props.onChange(
+                        items.map((other) =>
+                          other.id === item.id
+                            ? {
+                                ...other,
+                                drafts: { ...other.drafts, [sub.key]: draft },
+                              }
+                            : other,
+                        ),
+                      )
+                    }
+                    error={props.errors[`${path}.${index}.${sub.key}`]}
+                  />
+                ))}
+                <div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={items.length <= min}
+                    onClick={() => {
+                      props.onChange(items.filter((other) => other !== item));
+                      // After the render: the add button may be enabled only then.
+                      requestAnimationFrame(() =>
+                        document.getElementById(addId)?.focus(),
+                      );
+                    }}
+                  >
+                    <TrashIcon />
+                    {t('group.remove', { label: field.label, n })}
+                  </Button>
+                </div>
+              </FieldSet>
+            </li>
+          );
+        })}
+      </ol>
+      <div>
+        <Button
+          id={addId}
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={items.length >= max}
+          aria-invalid={!!error}
+          onClick={() => props.onChange([...items, newItem(field)])}
+        >
+          <PlusIcon />
+          {t('group.add', { label: field.label })}
+        </Button>
+      </div>
+      {error && <FieldError id={errorId} errors={[{ message: error }]} />}
+    </FieldSet>
   );
 }
 
@@ -180,10 +416,10 @@ const inputType: Partial<Record<FormField['type'], string>> = {
 };
 
 function AnswerInput(props: {
-  field: FormField;
+  field: FormField | GroupField;
   idPrefix: string;
-  draft: AnswerDraft;
-  onChange: (draft: AnswerDraft) => void;
+  draft: FieldDraft;
+  onChange: (draft: FieldDraft) => void;
   error?: string;
 }) {
   const { t } = useTranslation('forms');
@@ -226,6 +462,7 @@ function AnswerInput(props: {
                   id={`${id}-${option.value}`}
                   name={id}
                   className="size-4 accent-primary"
+                  aria-invalid={invalid}
                   checked={chosen.includes(option.value)}
                   onChange={() => props.onChange(option.value)}
                 />

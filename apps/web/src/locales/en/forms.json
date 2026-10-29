@@ -53,7 +53,12 @@
     "options": "Options",
     "optionsHint": "One per line: value = Label (or just value).",
     "required": "Required",
-    "removeField": "Remove {{label}}"
+    "removeField": "Remove {{label}}",
+    "startsPage": "Starts a new page",
+    "minItems": "Fewest items",
+    "maxItems": "Most items",
+    "groupFields": "Fields of each {{label}} item",
+    "addGroupField": "Add a field to the group"
   },
   "types": {
     "text": "Short text",
@@ -66,7 +71,8 @@
     "checkbox": "Checkbox",
     "select": "Dropdown",
     "radio": "Single choice",
-    "multiSelect": "Multiple choice"
+    "multiSelect": "Multiple choice",
+    "group": "Repeatable group"
   },
   "fillTitle": "Fill in a form",
   "notPublished": "This form isn't published.",
@@ -111,5 +117,18 @@
       "contains": "includes",
       "isEmpty": "empty"
     }
+  },
+  "group": {
+    "item": "{{label}} {{n}}",
+    "remove": "Remove {{label}} {{n}}",
+    "add": "Add {{label}}",
+    "minItems": "Fewest items: {{count}}.",
+    "maxItems": "Most items: {{count}}."
+  },
+  "wizard": {
+    "progress": "Progress",
+    "step": "Step {{n}} of {{total}}",
+    "next": "Next",
+    "previous": "Previous"
   }
 }

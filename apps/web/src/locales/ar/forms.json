@@ -53,7 +53,12 @@
     "options": "الخيارات",
     "optionsHint": "خيار في كل سطر: القيمة = التسمية (أو القيمة فقط).",
     "required": "إلزامي",
-    "removeField": "إزالة {{label}}"
+    "removeField": "إزالة {{label}}",
+    "startsPage": "يبدأ صفحة جديدة",
+    "minItems": "أقل عدد من العناصر",
+    "maxItems": "أكبر عدد من العناصر",
+    "groupFields": "حقول كل عنصر من {{label}}",
+    "addGroupField": "إضافة حقل إلى المجموعة"
   },
   "types": {
     "text": "نص قصير",
@@ -66,7 +71,8 @@
     "checkbox": "خانة اختيار",
     "select": "قائمة منسدلة",
     "radio": "اختيار واحد",
-    "multiSelect": "اختيار متعدد"
+    "multiSelect": "اختيار متعدد",
+    "group": "مجموعة قابلة للتكرار"
   },
   "fillTitle": "تعبئة نموذج",
   "notPublished": "هذا النموذج غير منشور.",
@@ -111,5 +117,18 @@
       "contains": "يتضمن",
       "isEmpty": "فارغ"
     }
+  },
+  "group": {
+    "item": "{{label}} {{n}}",
+    "remove": "إزالة {{label}} {{n}}",
+    "add": "إضافة {{label}}",
+    "minItems": "أقل عدد من العناصر: {{count}}.",
+    "maxItems": "أكبر عدد من العناصر: {{count}}."
+  },
+  "wizard": {
+    "progress": "التقدم",
+    "step": "الخطوة {{n}} من {{total}}",
+    "next": "التالي",
+    "previous": "السابق"
   }
 }
