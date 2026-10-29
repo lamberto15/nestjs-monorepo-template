@@ -203,7 +203,8 @@ else is written by hand, `feature:sync` included:
   reference left as it was isn't checked again.
 - **Delete and restore,** declared per relation with `.onDelete()` on the
   field:
-  - `restrict` (the default): a record live records refer to can't be
+  - `restrict` (the default, optional references included; until #567 an
+    optional one let its record go to the bin): a record live records refer to can't be
     deleted, to the bin or for good (409 `record_referenced`, naming the
     referring `subject` and `field`, never a record). A **required**
     reference counts referring records in the bin too, until purged, so the
@@ -223,6 +224,7 @@ else is written by hand, `feature:sync` included:
   purge comes back without it; a required one's record can't be purged
   while referred to. `related` in the list metadata says each relation's
   `onDelete`.
+
 - **Related panels:** `GET /v1/lists/<Subject>` answers `related`, the
   relations that refer to the subject's records which the caller may list and
   filter by (`subject`, `path`, `field`, `title`, `required`). A record's related records are
