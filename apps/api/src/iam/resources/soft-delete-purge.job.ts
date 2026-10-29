@@ -27,7 +27,7 @@ const BATCH = 1000;
  * resources (`softDelete` on their resource) deleted longer ago than their
  * `retentionDays` (default SOFT_DELETE_RETENTION_DAYS). Every night at 03:45
  * in APP_TIMEZONE, on one instance, in batches. Foreign keys decide what
- * goes with them (cascade, set null) as for any delete; the platform's
+ * goes with them (cascade) as for any delete; the platform's
  * data about them (comments, tags, watchers, revisions: RecordPurgeRegistry)
  * goes in the same transaction, just before. It runs as the system
  * principal (`system:soft-delete-purge`), once per tenant in that tenant's

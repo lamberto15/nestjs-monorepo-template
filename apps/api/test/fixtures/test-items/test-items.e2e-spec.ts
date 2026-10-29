@@ -3,6 +3,7 @@ import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { getDrizzleToken } from '@nestjs/drizzle';
 import type request from 'supertest';
 import type { Database } from '../../../src/core/database/drizzle.js';
+import { SoftDeletePurgeJob } from '../../../src/iam/resources/soft-delete-purge.job.js';
 import { testItems } from './test-items.tables.js';
 import { TEST_ITEM } from './test-item.record.js';
 import { fieldSamples } from '../../../src/platform/fields/fields.js';
@@ -283,6 +284,29 @@ describe('test items (e2e)', () => {
         (await admin.get(`/v1/test-items?linkedId=${linked}`).expect(200)).body
           .items,
       ).toMatchObject([{ id: kid }]);
+    });
+
+    it('empties an optional reference when its record is purged (emptyReferences: the key is `no action`)', async () => {
+      const admin = node.admin();
+      const linked = (await create(admin).expect(201)).body.id as string;
+      const kid = (
+        await create(admin, randomUUID(), {
+          ...samples.body(),
+          linkedId: linked,
+        }).expect(201)
+      ).body.id as string;
+      await admin.delete(`/v1/test-items/${linked}`).expect(204);
+      await node.db
+        .update(testItems)
+        .set({ deletedAt: new Date(Date.now() - 31 * 86_400_000) })
+        .where(eq(testItems.id, linked));
+
+      expect(await node.app.get(SoftDeletePurgeJob).run()).toMatchObject({
+        TestItem: 1,
+      });
+      expect(
+        (await admin.get(`/v1/test-items/${kid}`).expect(200)).body.linkedId,
+      ).toBeNull();
     });
 
     it('refuses deleting a record live ones refer to (`restrict`), and restoring one onto a record in the recycle bin', async () => {

@@ -226,7 +226,8 @@ else is written by hand, `feature:sync` included:
   Restoring a referring record whose `restrict` reference points at one in
   the bin is refused (409 `reference_deleted`, `field` names it): restore
   that one first. An optional reference empties when its record is deleted
-  for good (the key's `set null`), so a referring record restored after the
+  for good (the platform empties it in the delete's transaction, its key
+  being `no action`), so a referring record restored after the
   purge comes back without it; a required one's record can't be purged
   while referred to. `related` in the list metadata says each relation's
   `onDelete`.
