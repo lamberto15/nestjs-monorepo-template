@@ -91,6 +91,9 @@ tenant is the unit the owner removes; the data is exported before. Revisions,
 audit entries, exports and report files already stored are not reached by
 retention rules yet (roadmap item 5).
 
+Recently opened records (a person's own history) are not a tenant rule: they
+keep a fixed 30 days and are cleared by their owner ([work-surfaces.md](work-surfaces.md)).
+
 ## Tenancy
 
 Both tables are tenant tables (RLS, [tenancy.md](tenancy.md)): a hold and a

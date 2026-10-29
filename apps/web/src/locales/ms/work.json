@@ -1,0 +1,31 @@
+{
+  "nav": {
+    "title": "Kerja saya"
+  },
+  "page": {
+    "title": "Kerja saya",
+    "description": "Apa yang menunggu anda dalam ruang kerja ini.",
+    "empty": "Tiada apa yang menunggu anda.",
+    "more": "Papar lagi"
+  },
+  "kind": {
+    "approval.decide": "Untuk diluluskan",
+    "approval.revise": "Perubahan diminta",
+    "mention": "Sebutan"
+  },
+  "item": {
+    "approval": "Dimohon oleh {{requester}}",
+    "mention": "{{by}} menyebut anda",
+    "due": "tarikh akhir {{date}}",
+    "dismiss": "Ketepikan"
+  },
+  "recents": {
+    "group": "Terkini",
+    "clear": "Kosongkan sejarah"
+  },
+  "presence": {
+    "viewing": "{{name}} sedang melihat",
+    "editing": "{{name}} sedang menyunting",
+    "warning": "Seseorang sedang menyunting rekod ini. Simpanan anda masih disemak dengan versi terkini."
+  }
+}
