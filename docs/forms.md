@@ -43,18 +43,21 @@ DELETE /v1/forms/{id}                     only a form never published
 ```
 
 - **The definition** is `{ format, sections[] }`, a section
-  `{ key, title?, description?, visibleWhen?, fields[] }`, a field
-  `{ key, type, label, help?, placeholder?, required?, default?, options?, validation?, visibleWhen?, requiredWhen?, translations? }`.
+  `{ key, title?, description?, visibleWhen?, startsPage?, fields[] }`, a field
+  `{ key, type, label, help?, placeholder?, required?, default?, options?, validation?, visibleWhen?, requiredWhen?, fields?, translations? }`.
   **Formats**: 1 is fields and sections; 2 adds conditions
-  ([Conditions](#conditions)). A definition sent without `format` takes the
-  latest; a stored format-1 version keeps meaning what it meant, and a
-  condition in a format-1 definition is refused.
+  ([Conditions](#conditions)); 3 adds pages and repeatable groups
+  ([Pages and repeatable groups](#pages-and-repeatable-groups)). A
+  definition sent without `format` takes the latest; a stored version keeps
+  meaning what it meant, and what a later format adds is refused in an
+  earlier one (a condition in format 1, a page or a group before 3).
   Types: `text`, `textarea`, `email`, `url`, `integer`, `decimal`, `date`,
-  `checkbox`, `select`, `multiSelect`, `radio`. Texts are plain (no HTML);
+  `checkbox`, `select`, `multiSelect`, `radio`, `group`. Texts are plain (no HTML);
   patterns run on RE2. A key is a slug (`^[a-z][a-z0-9_]{0,49}$`), unique in
   the form.
-- **Limits**, whatever an administrator asks: 50 sections, 200 fields,
-  200 options a field, 10 translations, 64 KiB as JSON. A refused definition
+- **Limits**, whatever an administrator asks: 50 sections, 200 fields
+  (a group's own fields counted), 200 options a field, 20 fields and
+  50 items a group, 10 translations, 64 KiB as JSON. A refused definition
   answers 400 with each problem at its path (`definition.sections.0.fields.2.options`).
 - **Concurrency**: every draft save and publish sends the `revision` it
   edited; a stale one is 409 `form_conflict`, never an overwrite.
@@ -109,6 +112,37 @@ eval, no pattern from an administrator. The code is
   generated cases, so what the page shows and requires is what the server
   checks. The server stays the authority.
 
+## Pages and repeatable groups
+
+Format 3 (`apps/api/src/platform/forms/form-schema.ts`):
+
+- **Pages**: a section with `startsPage: true` starts a new page, so the
+  form becomes a wizard (the sections before the first one are page 1).
+  Pages are layout only: the answers are one flat object, checked as a whole
+  when the form is sent, whatever page a client shows. A page whose fields
+  its conditions all hide is skipped.
+- **A repeatable group** is a field of type `group` with its own `fields`
+  (one level: no group in a group, no conditions inside it, no
+  attachments), and `validation.minItems` / `maxItems`, at most 50 items
+  whatever `maxItems` says. Its answer is a list of items, each an object of
+  its fields' answers by key:
+
+  ```json
+  { "people": [{ "who": "Bo", "age": 4 }, { "who": "Cy" }] }
+  ```
+
+  Each item is checked as a field would be, at `answers.<group>.<index>.<key>`
+  (`answers.people.1.age`); an unknown key in an item is refused there; the
+  number of items at `answers.<group>`. An empty list is no answer: refused
+  only when the group is required (or `requiredWhen`). A group's field's key
+  is unique in its group, and once published keeps its type
+  (`keyTypes` has it as `<group>.<key>`). A condition reads a group as a
+  whole: `isEmpty` only.
+
+- **Compatibility**: versions 1 and 2 have neither, so their
+  submissions read as they did; a draft is saved as format 3 by the
+  builder.
+
 ## Submissions
 
 ```text
@@ -158,7 +192,9 @@ another tenant's form or submission is a 404, even by id.
   field (only those before it), operator and value, joined by all or any
   of them; the preview follows them as the page will. A deeper condition
   (`not`, groups in groups) made through the API shows as such and can be
-  removed, not edited. Saved drafts are format 2. **Save draft** sends the whole draft under the
+  removed, not edited. A section can **start a new page**; a
+  **Repeatable group** field has its own fields (added, edited and removed
+  under it) and its fewest and most items. Saved drafts are format 3. **Save draft** sends the whole draft under the
   revision it was read at; a 409 says someone else saved meanwhile, and the
   server's problems are listed at their paths. **Publish** is offered once
   the changes are saved.
@@ -167,12 +203,18 @@ another tenant's form or submission is a 404, even by id.
   number, date, text). Required answers and numbers are checked in the
   browser first, then the server's errors show at their fields; a newer
   version published meanwhile (409 `form_version_outdated`) is loaded again.
+  A form with pages is a wizard: "Step n of m" and a progress bar, **Next**
+  (or Enter) checks that page's answers before moving on, **Previous** keeps
+  every answer, and the last page sends; the server's errors open the first
+  page that has one. The focus goes to the first invalid input, or to the
+  new page's heading. A group's items each have their inputs and a remove
+  button (down to the fewest), and **Add** adds one (up to the most); each
+  item keeps a stable id, so removing one never moves another's answers.
 - **Submissions** (`/forms/{id}/submissions`): everyone's with
   `Form.readResponses`, one's own otherwise, each with its version and
   answers.
 
 ## Not yet
 
-Pages and repeatable groups (#548) and choice sources (#549) build on
-this.
+Choice sources (#549) build on this.
 Public, anonymous forms are #583.

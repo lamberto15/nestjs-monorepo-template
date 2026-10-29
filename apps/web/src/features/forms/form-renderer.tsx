@@ -462,7 +462,6 @@ function AnswerInput(props: {
                   id={`${id}-${option.value}`}
                   name={id}
                   className="size-4 accent-primary"
-                  aria-invalid={invalid}
                   checked={chosen.includes(option.value)}
                   onChange={() => props.onChange(option.value)}
                 />
