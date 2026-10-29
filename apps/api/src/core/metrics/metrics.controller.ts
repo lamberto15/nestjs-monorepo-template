@@ -13,7 +13,7 @@ import { ConfigService } from '@nestjs/config';
 import { Public } from '@nestjs/authentication';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
-import type { Response } from 'express';
+import type { NodeResponse as Response } from '@nestjs/platform-node';
 import type { CoreEnv } from '../config/core.env.js';
 import { MetricsService } from './metrics.service.js';
 

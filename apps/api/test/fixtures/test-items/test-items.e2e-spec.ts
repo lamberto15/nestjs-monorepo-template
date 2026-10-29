@@ -126,6 +126,145 @@ describe('test items (e2e)', () => {
     expect(page.body.items).toHaveLength(2);
   });
 
+  it('shows its computed fields, without those reading a field the reader may not see', async () => {
+    const admin = node.admin();
+    // Not published: the samples fill `publishedAt` too.
+    const { publishedAt: _, ...unpublished } = samples.body();
+    const id = (
+      await create(admin, randomUUID(), {
+        ...unpublished,
+        title: 'Hello',
+        body: 'World',
+      }).expect(201)
+    ).body.id as string;
+    const shown = await admin.get(`/v1/test-items/${id}`).expect(200);
+    expect(shown.body).toMatchObject({
+      titleLength: 5,
+      summary: 'Hello: World',
+      published: false,
+    });
+
+    // `summary` reads `body`: a reader whose permissions hide the text gets neither.
+    const role = await admin
+      .post('/v1/access/roles')
+      .send({
+        name: `Titles only ${Date.now()}`,
+        permissions: [
+          { subject: 'TestItem', action: 'read', conditions: [], fields: [] },
+        ],
+      })
+      .expect(201);
+    const reader = await node.user([role.body.id]);
+    const read = await reader.agent.get(`/v1/test-items/${id}`).expect(200);
+    expect(read.body).not.toHaveProperty('body');
+    expect(read.body).not.toHaveProperty('summary');
+    expect(read.body).toMatchObject({ titleLength: 5, published: false });
+    const listed = await reader.agent
+      .get('/v1/test-items')
+      .query({ fields: 'summary,titleLength' })
+      .expect(200);
+    for (const item of listed.body.items) {
+      expect(item).not.toHaveProperty('summary');
+    }
+  });
+
+  describe('relationships (parentId, record-relations.ts)', () => {
+    const child = (agent: request.Agent, parentId: string | null) =>
+      create(agent, randomUUID(), { ...samples.body(), parentId });
+
+    it('describes the records that refer to a subject as its related panels', async () => {
+      const described = await node
+        .admin()
+        .get('/v1/lists/TestItem')
+        .expect(200);
+      expect(described.body.related).toEqual([
+        {
+          subject: 'TestItem',
+          path: 'test-items',
+          field: 'parentId',
+          title: 'title',
+          required: false,
+        },
+      ]);
+    });
+
+    it("lists a record's related ones by the reference, only those the caller may read", async () => {
+      const writer = await node.user(['editor']);
+      const other = await node.user(['editor']);
+      const viewer = await node.user(['viewer']);
+      const parent = (await create(writer.agent).expect(201)).body.id as string;
+      const mine = (await child(writer.agent, parent).expect(201)).body
+        .id as string;
+      await create(node.admin()).expect(201); // no parent: not related
+      const related = (agent: request.Agent) =>
+        agent
+          .get(`/v1/test-items?parentId=${parent}&count=true`)
+          .expect(200)
+          .then(
+            (page) => page.body as { items: { id: string }[]; total: number },
+          );
+      expect(await related(viewer.agent)).toMatchObject({
+        items: [{ id: mine }],
+        total: 1,
+      });
+      // Editors read their own only: someone else's children aren't theirs.
+      expect((await related(other.agent)).items).toEqual([]);
+    });
+
+    it('refuses a reference to a record the writer may not read, in the recycle bin or of another tenant', async () => {
+      const writer = await node.user(['editor']);
+      const other = await node.user(['editor']);
+      const theirs = (await create(other.agent).expect(201)).body.id as string;
+      const refused = await child(writer.agent, theirs).expect(422);
+      expect(refused.body).toMatchObject({
+        code: 'reference_not_found',
+        field: 'parentId',
+      });
+      await child(writer.agent, randomUUID()).expect(422);
+
+      const mine = (await create(writer.agent).expect(201)).body.id as string;
+      const kid = (await child(writer.agent, null).expect(201)).body
+        .id as string;
+      const etag = (await writer.agent.get(`/v1/test-items/${kid}`)).headers
+        .etag as string;
+      await writer.agent
+        .patch(`/v1/test-items/${kid}`)
+        .set('If-Match', etag)
+        .send({ parentId: theirs })
+        .expect(422);
+      await writer.agent.delete(`/v1/test-items/${mine}`).expect(204);
+      await child(writer.agent, mine).expect(422);
+
+      const tenant = await node.otherTenant();
+      const foreign = (await create(tenant.admin).expect(201)).body
+        .id as string;
+      await child(node.admin(), foreign).expect(422);
+    });
+
+    it('keeps an optional reference while its record is in the recycle bin, and after a restore', async () => {
+      const admin = node.admin();
+      const parent = (await create(admin).expect(201)).body.id as string;
+      const kid = (await child(admin, parent).expect(201)).body.id as string;
+      await admin.delete(`/v1/test-items/${parent}`).expect(204);
+      expect(
+        (await admin.get(`/v1/test-items/${kid}`).expect(200)).body.parentId,
+      ).toBe(parent);
+      // Changing another field doesn't check the reference again.
+      const etag = (await admin.get(`/v1/test-items/${kid}`)).headers
+        .etag as string;
+      await admin
+        .patch(`/v1/test-items/${kid}`)
+        .set('If-Match', etag)
+        .send(changed)
+        .expect(200);
+      await admin.post(`/v1/test-items/${parent}/restore`).expect(200);
+      expect(
+        (await admin.get(`/v1/test-items?parentId=${parent}`).expect(200)).body
+          .items,
+      ).toMatchObject([{ id: kid }]);
+    });
+  });
+
   // Each capability test-item.record.ts declares, its recycle bin and units (record-capabilities.ts).
   describeCapabilities(() => node, TEST_ITEM);
 });

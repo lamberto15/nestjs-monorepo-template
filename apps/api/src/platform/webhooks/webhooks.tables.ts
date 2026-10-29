@@ -1,5 +1,18 @@
-import { integer, jsonb, pgTable, text } from 'drizzle-orm/pg-core';
-import { at } from '../../core/database/columns.js';
+import {
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
+import { at, timestamps, uuidPk } from '../../core/database/columns.js';
+import {
+  tenantColumn,
+  tenantReference,
+  tenantTable,
+} from '../../core/tenancy/tenant-scope.js';
+import { apiClients } from '../../iam/iam.tables.js';
 
 /** A signing secret as recorded: when it was made (its identifier) and when it stops signing. */
 export interface SigningSecret {
@@ -36,3 +49,42 @@ export const webhookDeliveryRequests = pgTable('webhook_delivery_requests', {
   signedWith: jsonb('signed_with').$type<SigningSecret[]>(),
   sentAt: at('sent_at').notNull().defaultNow(),
 });
+
+/**
+ * Which records' events an API client's endpoints receive
+ * (docs/webhooks-and-realtime.md, "Subscriber scope"): `own`, the default
+ * (no row), only the records the client owns; `tenant`, also the records
+ * users and other clients of its tenant own, each only when the client may
+ * `read` that record, redacted to what it may read (record-webhooks.service.ts).
+ * Per client, not per endpoint: the package fans a message out to every
+ * subscribed endpoint of its tenant (the client), so all of a client's
+ * endpoints see what the client sees. Set by an administrator with
+ * `Access.manageClients` and authority over the client; the client's
+ * deletion takes it along.
+ */
+export const webhookClientScopes = pgTable(
+  'webhook_client_scopes',
+  {
+    id: uuidPk(),
+    tenantId: tenantColumn(),
+    clientId: uuid('client_id').notNull(),
+    scope: text('scope').$type<WebhookScope>().notNull(),
+    ...timestamps(),
+  },
+  (table) => [
+    uniqueIndex('webhook_client_scopes_client_idx').on(
+      table.tenantId,
+      table.clientId,
+    ),
+    ...tenantTable('webhook_client_scopes', table),
+    tenantReference(
+      'webhook_client_scopes_client_fk',
+      [table.tenantId, table.clientId],
+      [apiClients.tenantId, apiClients.id],
+    ),
+  ],
+).enableRLS();
+
+/** `own`: the client's own records; `tenant`: every record of its tenant it may read. */
+export const WEBHOOK_SCOPES = ['own', 'tenant'] as const;
+export type WebhookScope = (typeof WEBHOOK_SCOPES)[number];

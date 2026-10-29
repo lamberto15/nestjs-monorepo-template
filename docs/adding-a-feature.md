@@ -70,7 +70,7 @@ export const INVOICE = defineRecord({
 - **Field types:** `string`, `text`, `int`, `decimal`, `money` (minor units and
   currency, `{ amount, currency }` in the API: [money](money.md)), `bool`,
   `date`, `datetime`, `enum(a|b)`, `json`, `ref(<feature>)` (optional, named `<x>Id`, a key
-  within the tenant; its list filter is `ref: '<Subject>'` in the list metadata). `?` makes a field optional, `!unique` (string, int)
+  within the tenant; its list filter is `ref: '<Subject>'` in the list metadata; a relationship: see "Relationships" below). `?` makes a field optional, `!unique` (string, int)
   unique per tenant (a duplicate is a 409 `<x>_taken`). In the declaration:
   `.optional()`, `.unique()`, `.default(v)`, `.searchable()`.
 - **Options:** `--unit` (records carry their creator's organizational unit: `unit: true`),
@@ -92,6 +92,10 @@ export const INVOICE = defineRecord({
   `idempotency` only when chosen. The notes example is hand-written and
   keeps granting its clients.
 
+- **Computed fields (`computed` in the declaration):** values derived from
+  the fields on read, never stored: `total: computed.money('quantity * unitPrice')`
+  ([computed fields](computed-fields.md)). No column, so no migration and
+  nothing for sync to do.
 - **Capabilities (`--with a,b,…`, or `capabilities` in the declaration):** each
   is a platform module, wired by `recordParts` with a generic target;
   `recordParts(…, { override: { revisions: MyRevisions } })` replaces one
@@ -114,9 +118,9 @@ export const INVOICE = defineRecord({
 
   `events`: the data of each webhook is the record as the API shows it
   (less the fields its receiver may not read), sent to the API client that
-  owns the record (endpoints belong to clients, so a user's records send
-  none: [webhooks](webhooks-and-realtime.md)); it needs no endpoint to
-  exist. `numbered`: the format is the declaration's `number: { prefix: 'INV',
+  owns the record and to the `tenant`-scope clients of its tenant that may
+  read it (a user's records reach only those: [webhooks](webhooks-and-realtime.md),
+  "Subscriber scope"); it needs no endpoint to exist. `numbered`: the format is the declaration's `number: { prefix: 'INV',
 perYear: true, width: 5 }` (default: the subject's initials, per year, 5
   digits; one counter per tenant, [sequences](sequences.md)); the column is
   nullable, so the capability can be added to a table with rows (those
@@ -137,6 +141,19 @@ perYear: true, width: 5 }` (default: the subject's initials, per year, 5
   declaration)** and **settings (`--settings "paymentDays:int=30,autoSend:flag"`,
   or `settings`)** are declared in the same file, one line each, and are
   not capabilities: they bring no table and no column, so no migration.
+
+- **Views (`views` in the declaration, or the 4th argument of `listSource()`
+  in a hand-written feature)** add a board, a calendar and a timeline to the
+  feature's list page, from fields the list already has; nothing else to
+  write ([saved-views](saved-views.md), "Record views"):
+
+  ```ts
+  views: {
+    board: { field: 'status' },                 // an enum field
+    calendar: { fields: ['dueDate'] },          // date or datetime fields
+    timeline: { start: 'startsOn', end: 'dueDate' },
+  },
+  ```
 
   ```ts
   approvals: {
@@ -159,6 +176,57 @@ perYear: true, width: 5 }` (default: the subject's initials, per year, 5
   declared action fails the build. A project can still declare approvals and
   settings by hand, as notes does ([approvals](approvals.md),
   [settings](settings.md)); the two ways may live side by side.
+
+## Relationships
+
+A relationship is a `ref` field of the records that refer (the many side),
+declared in their `<item>.record.ts`; the referred records declare nothing.
+
+```ts
+// features/invoice-lines/invoice-line.record.ts
+invoiceId: field.ref(() => invoices).optional(),
+// a parent of the same feature: its table through the declaration
+parentId: field.ref((): Referenced => recordTableOf(TASK)).optional(),
+```
+
+`pnpm feature:add tasks --fields "title:string,parentId:ref(tasks)?"` writes
+either form (another feature's table is imported; the feature's own can't be,
+its tables file imports the record file). Then `pnpm db:generate`; nothing
+else is written by hand, `feature:sync` included:
+
+- **The key and its index** (`recordTable`): the composite key within the
+  tenant (`<table>_<x>_id_fk`, never another tenant's record) and the index
+  `(tenant_id, <x>_id, id desc)`, which serves the related list as one
+  bounded range and the key's checks on delete.
+- **The list filter** `?<x>Id=` (`eq`, `in`), `ref: '<Subject>'` in the list
+  metadata (a picker of those records).
+- **Target visibility** (`RecordLifecycle`): a create or a change that sets a
+  reference must name a live record the writer may read, else 422
+  `reference_not_found` (`field` names it), the same for one that doesn't
+  exist, is in the recycle bin or is hidden by their permissions. A
+  reference left as it was isn't checked again.
+- **Delete and restore:** a record a **required** reference points at can't
+  be deleted, to the bin or for good (409 `record_referenced`; referring
+  records in the bin count until purged), so the purge never meets the key.
+  An **optional** one stays while its record is in the recycle bin (a restore
+  brings the relation back) and empties when it is deleted for good (the key's
+  `set null`).
+- **Related panels:** `GET /v1/lists/<Subject>` answers `related`, the
+  relations that refer to the subject's records which the caller may list and
+  filter by (`subject`, `path`, `field`, `title`, `required`). A record's related records are
+  the referring list filtered by the field, `GET /v1/<path>?<field>=<id>`:
+  paginated, newest first, only what the caller may read, row-level security
+  as always. The web app's `RecordPanels` shows a **Related** tab with the
+  newest ten of each (and how many in all), each opening its page when its
+  feature registers a `record-link.ts`.
+
+The declarations are queryable (`platform/records/record-relations.ts`):
+`relationsTo('<Subject>')` names each table and column that refers to a
+subject's records, `relationsFrom(declaration)` a record's own references (what
+merging duplicates repoints). A reference generated by `--fields` is optional;
+make it required by hand once both features have records (the migration
+guard refuses a new required field without a default). The platform's tests
+run on the test item's `parentId` (test/fixtures/test-items).
 
 ## Changing a feature
 
@@ -412,7 +480,7 @@ the controller (`notes.*`); singular for what describes one record
    - Declare only what's indexed on a large table; nothing undeclared can be
      filtered, sorted or selected (400).
    - A `contains`/`endsWith` text filter on a large table wants a trigram index:
-     ``index('<x>_<col>_trgm_idx').using('gin', t.<col>.op('gin_trgm_ops'))``.
+     `index('<x>_<col>_trgm_idx').using('gin', t.<col>.op('gin_trgm_ops'))`.
    - A field may sort by another expression than its column, ``sort:
 sql`lower(${t.name})` `` (an order that ignores case; index that
      expression). The page then selects `list.sortSelect(query)` next to the

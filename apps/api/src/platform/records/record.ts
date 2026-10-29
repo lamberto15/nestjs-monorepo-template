@@ -39,7 +39,10 @@ import {
   type RecordApproval,
   RESERVED_ACTIONS,
 } from './record-approvals.js';
+import { type ComputedFields, planComputed } from './record-computed.js';
+import type { ListViewsDeclaration } from '../lists/list-metadata.schemas.js';
 import type { RecordRouteSpec } from './record-routes.js';
+import { relate } from './record-relations.js';
 import type { RecordSettingSpec } from './record-settings.js';
 
 /**
@@ -66,6 +69,7 @@ export const CAPABILITIES = [
   'custom',
   'events',
   'numbered',
+  'share',
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 
@@ -123,7 +127,19 @@ export interface RecordDeclaration<
    * (`<path>.<name>` is the key): see record-settings.ts.
    */
   settings?: Record<string, RecordSettingSpec>;
+  /**
+   * Views besides the table, on the same list: a board of an enum field's
+   * values, a calendar of date fields, a timeline of a start and an end
+   * (docs/saved-views.md, "Record views"). Fields are list fields; a view
+   * of dates or a status the feature does not let `PATCH` change is `readOnly`.
+   */
+  views?: ListViewsDeclaration;
   fields: F;
+  /**
+   * Values computed from the fields on read, never stored
+   * (`total: computed.money('quantity * unitPrice')`): see record-computed.ts.
+   */
+  computed?: ComputedFields;
   capabilities: C;
 }
 
@@ -173,6 +189,7 @@ export function defineRecord<
       );
     }
   }
+  planComputed(declaration);
   return declaration;
 }
 
@@ -342,6 +359,11 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
   }).enableRLS();
   TABLES.set(declaration, built as unknown as PgTable);
   tableHolds(built, declaration.subject);
+  // Its `ref` fields' relations (record-relations.ts): what refers to what.
+  relate(
+    declaration,
+    built as unknown as PgTable & Record<string, AnyPgColumn>,
+  );
   return built;
 }
 

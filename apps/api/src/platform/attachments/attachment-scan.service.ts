@@ -18,6 +18,7 @@ import {
   type AttachmentScanJob,
   AttachmentScanQueue,
 } from './attachment-scan.queue.js';
+import { AttachmentVersionsService } from './attachment-versions.service.js';
 import { AttachmentsService } from './attachments.service.js';
 import { type Attachment, attachments } from './attachments.tables.js';
 import { MalwareScanner } from './malware-scanner.js';
@@ -66,6 +67,7 @@ export class AttachmentScanService {
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly attachments: AttachmentsService,
+    private readonly versions: AttachmentVersionsService,
     private readonly queue: AttachmentScanQueue,
     private readonly images: AttachmentImagesQueue,
     metrics: MetricsService,
@@ -233,16 +235,23 @@ export class AttachmentScanService {
     signature: string,
     system: Parameters<AttachmentsService['changed']>[0],
   ) {
+    let reverted: Attachment | null = null;
     const removed = await inTransaction(this.txHost, async (tx) => {
-      const [gone] = await tx
-        .delete(attachments)
-        .where(
-          and(
-            eq(attachments.id, row.id),
-            eq(attachments.scanStatus, 'pending'),
-          ),
-        )
-        .returning({ id: attachments.id });
+      // A replacement that is infected gives the attachment back its previous
+      // version (docs/attachments.md, "Versions"); only a first file is deleted.
+      reverted =
+        row.version > 1 ? await this.versions.revertRejected(tx, row) : null;
+      const [gone] = reverted
+        ? [reverted]
+        : await tx
+            .delete(attachments)
+            .where(
+              and(
+                eq(attachments.id, row.id),
+                eq(attachments.scanStatus, 'pending'),
+              ),
+            )
+            .returning({ id: attachments.id });
       if (!gone) {
         return false; // removed by its uploader meanwhile: nothing to audit
       }
@@ -285,7 +294,16 @@ export class AttachmentScanService {
         attachment: row.id,
         signature,
       });
-      this.attachments.changed(system, row, row.id, 'removed');
+      const back = reverted as Attachment | null;
+      this.attachments.changed(
+        system,
+        row,
+        row.id,
+        back ? 'processed' : 'removed',
+      );
+      if (back?.renditionStatus === 'pending') {
+        await this.images.enqueue(back.id);
+      }
     }
   }
 }

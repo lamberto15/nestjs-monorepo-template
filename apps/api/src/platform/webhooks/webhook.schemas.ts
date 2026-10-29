@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { WEBHOOK_SCOPES } from './webhooks.tables.js';
 
 const eventTypes = z
   .array(z.string())
@@ -193,3 +194,13 @@ export const webhookEventTypesSchema = z.object({
 export const retriedSchema = z.object({
   retried: z.int().describe('How many deliveries were sent again.'),
 });
+
+/** `GET`/`PUT /access/clients/{clientId}/webhook-scope`: which records' events the client's endpoints receive. */
+export const webhookScopeSchema = z.object({
+  scope: z
+    .enum(WEBHOOK_SCOPES)
+    .describe(
+      "own (the default): only the records the client owns. tenant: also its tenant's records owned by users and other clients, each only when the client may read it, without the fields it may not read.",
+    ),
+});
+export type WebhookScopeDto = z.infer<typeof webhookScopeSchema>;

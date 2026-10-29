@@ -90,3 +90,25 @@ export function usePurgeDeadLetters() {
       queryClient.invalidateQueries({ queryKey: opsOutboxQuery.queryKey }),
   });
 }
+
+export type Diagnostic = GetResponse<'/v1/ops/diagnostics'>['items'][number];
+
+export const opsDiagnosticsQuery = queryOptions({
+  queryKey: ['ops', 'diagnostics'],
+  queryFn: () => unwrap(api.GET('/v1/ops/diagnostics')),
+  retry: false,
+  // The panel shows the error itself.
+  meta: { errorToast: false },
+});
+
+/** A safe connection test of one integration: its result, never a thrown failure. */
+export function useTestDiagnostic() {
+  return useMutation({
+    mutationFn: (check: Diagnostic['check']) =>
+      unwrap(
+        api.POST('/v1/ops/diagnostics/{check}/test', {
+          params: { path: { check } },
+        }),
+      ),
+  });
+}

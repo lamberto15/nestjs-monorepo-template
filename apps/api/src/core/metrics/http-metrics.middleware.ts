@@ -1,7 +1,13 @@
 import { Injectable, type NestMiddleware } from '@nestjs/common';
-import type { NextFunction, Request, Response } from 'express';
+import type {
+  NodeRequest as Request,
+  NodeResponse as Response,
+} from '@nestjs/platform-node';
 import { matchedRouteKey } from '../http/route-key.js';
 import { MetricsService } from './metrics.service.js';
+
+/** Hands the request on, or an error to the error handlers (connect-style). */
+type NextFunction = (error?: unknown) => void;
 
 /** Not measured: the scrape itself and the health checks (polled every few seconds). */
 const UNMEASURED = /^\/(metrics|health)(\/|\?|$)/;

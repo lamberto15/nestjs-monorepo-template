@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DIAGNOSTIC_CHECKS } from './ops-diagnostics.service.js';
 
 /**
  * What the operations API answers (`ops.controller.ts`). The routes send
@@ -104,6 +105,42 @@ export const queueOverviewSchema = z.object({
 export const retriedSchema = z.object({ retried: count });
 export const requeuedSchema = z.object({ requeued: count });
 export const purgedSchema = z.object({ purged: count });
+
+// ---- GET /v1/ops/diagnostics, POST /v1/ops/diagnostics/{check}/test ----
+
+const diagnosticCheck = z.enum(DIAGNOSTIC_CHECKS);
+
+export const diagnosticsSchema = z.object({
+  items: z.array(
+    z.object({
+      check: diagnosticCheck,
+      /** ok: answered now; configured: set up, not probed (run its test); disabled, unconfigured, unavailable. */
+      state: z.enum([
+        'ok',
+        'configured',
+        'disabled',
+        'unconfigured',
+        'unavailable',
+      ]),
+      /** The driver or transport's name (`smtp`, `s3`), never a URL or a credential. */
+      driver: z.string().nullable(),
+      /** What went wrong, masked as in the logs and cut. */
+      detail: z.string().nullable(),
+      /** What to do about it. */
+      hint: z.string().nullable(),
+      testable: z.boolean(),
+    }),
+  ),
+  canTest: z.boolean(),
+});
+
+export const diagnosticTestSchema = z.object({
+  check: diagnosticCheck,
+  ok: z.boolean(),
+  durationMs: count,
+  detail: z.string().nullable(),
+  hint: z.string().nullable(),
+});
 
 // ---- GET /v1/ops/events (Server-Sent Events) ----
 

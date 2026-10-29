@@ -5,8 +5,10 @@ import { bulkRoutes } from '../bulk/bulk.routes.js';
 import { commentRoutes } from '../comments/comment.routes.js';
 import { documentRoutes } from '../documents/document.routes.js';
 import { revisionRoutes } from '../revisions/revision.routes.js';
+import { shareRoutes } from '../shares/share.routes.js';
 import { watchRoutes } from '../subscriptions/subscription.routes.js';
 import { listSource } from '../lists/lists.registry.js';
+import { templateSource } from '../templates/templates.registry.js';
 import { tagRoutes } from '../tags/tag.routes.js';
 import { type Capability, type RecordDeclaration, takes } from './record.js';
 import {
@@ -29,12 +31,14 @@ import { RecordStore } from './record-store.js';
 import type { RecordSchemas } from './record.schemas.js';
 import {
   recordKey,
+  RecordAccessFinder,
   RecordAttachments,
   RecordBulk,
   RecordComments,
   RecordDocuments,
   RecordRevisions,
   RecordSearch,
+  RecordShares,
   RecordSubscriptions,
   RecordTags,
   RecordTransfer,
@@ -54,6 +58,7 @@ const TARGETS: Partial<Record<Capability, Type>> = {
   watch: RecordSubscriptions,
   search: RecordSearch,
   transfer: RecordTransfer,
+  share: RecordShares,
 };
 
 /**
@@ -121,6 +126,7 @@ export function recordParts(
         ]
       : []),
     ...(has('watch') ? [watchRoutes(declaration)] : []),
+    ...(has('share') ? [shareRoutes(declaration)] : []),
     // The approvable actions' routes (declaration.approvals): POST /<path>/{id}/<action>.
     ...recordApprovalRoutes(declaration, {
       policy: options.policy,
@@ -152,8 +158,21 @@ export function recordParts(
     RecordStore,
     RecordLifecycle,
     RecordPresenter,
+    // GET /v1/access/users/{id}/explanation finds its records.
+    RecordAccessFinder,
     // GET /v1/lists/{subject}: its list described, and its capabilities.
-    listSource(declaration.subject, options.list, declaration.capabilities),
+    listSource(
+      declaration.subject,
+      options.list,
+      declaration.capabilities,
+      declaration.views,
+    ),
+    // GET /v1/templates: values to prefill a create, checked against its schema.
+    templateSource({
+      subject: declaration.subject,
+      create: options.schemas.create,
+      custom: has('custom'),
+    }),
     ...declaration.capabilities.flatMap((capability) => {
       const target = options.override?.[capability] ?? TARGETS[capability];
       return target ? [target] : [];
