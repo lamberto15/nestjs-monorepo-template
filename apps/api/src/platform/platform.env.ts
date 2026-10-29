@@ -341,6 +341,19 @@ export const platformEnv = z.object({
   IMAGE_STRIP_ORIGINALS: flag('on'),
 
   /**
+   * Search inside attachments (docs/attachments.md, "Search inside files"):
+   * `on`: a queue job extracts the text of each clean plain-text, CSV, PDF
+   * and DOCX upload, in a sandboxed thread, and the global search finds files
+   * by it (only those whose record the caller may read). `off`: nothing is
+   * extracted and the search shows no files.
+   */
+  ATTACHMENT_TEXT_SEARCH: flag('off'),
+  /** The largest file whose text is extracted, in MB; a larger one is not searchable. */
+  ATTACHMENT_TEXT_MAX_MB: z.coerce.number().int().min(1).max(500).default(20),
+  /** One extraction's limit, in milliseconds; a file that takes longer is not searchable. */
+  ATTACHMENT_TEXT_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30_000),
+
+  /**
    * PDF documents (platform/documents): Gotenberg's URL, `http://gotenberg:3000`
    * in Compose. Unset: documents are off, and asking for one answers 503
    * `documents_unavailable`; nothing else needs it.

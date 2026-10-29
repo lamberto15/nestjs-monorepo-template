@@ -30,6 +30,10 @@ export class NoteAttachments implements AttachmentTarget {
     registry.register(this);
   }
 
+  link(id: string) {
+    return `/notes/${id}`;
+  }
+
   async canRead(principal: Principal, id: string) {
     const note = await this.find(id, principal);
     return note !== null && this.policy.read(principal, note);
