@@ -33,6 +33,7 @@ import {
   recordView,
   takes,
 } from './record.js';
+import { hideComputed, withComputed } from './record-computed.js';
 import type { RecordList } from './record-list.js';
 import {
   recordCan,
@@ -52,7 +53,9 @@ export { RECORD_DECLARATION } from './record-declaration.token.js';
  * redaction: without the tenant (the request's own, docs/tenancy.md) and
  * with only the values of the custom fields active now (a deactivated
  * one's stay stored). Reads and webhooks share it, so a webhook never
- * carries what a read of the record would not.
+ * carries what a read of the record would not. Reads then add the
+ * computed fields (hidden per reader, hideComputed()); webhooks don't
+ * carry them.
  */
 async function representations(
   declaration: RecordDeclaration,
@@ -430,7 +433,9 @@ export class RecordLifecycle {
 
 /**
  * Records as a caller reads them: the API's view (money as objects), their
- * tags (tags), their active custom values (custom), less the fields the caller may not see,
+ * tags (tags), their active custom values (custom), their computed fields
+ * (record-computed.ts), less the fields the caller may not see (and the
+ * computed ones that read them),
  * and with `?include=can` what the caller may do with each (record-can.ts), with
  * `?include=watching` whether they watch each (one query on the page's ids). The controller
  * always calls it (and its ETags cover what it returns, `can` aside).
@@ -589,6 +594,14 @@ export class RecordPresenter {
         tags: tags.get(view.id as string) ?? [],
       }));
     }
-    return this.access.redactAll(user, 'read', this.declaration.subject, views);
+    views = withComputed(this.declaration, views);
+    const shown = await this.access.redactAll(
+      user,
+      'read',
+      this.declaration.subject,
+      views,
+    );
+    // A computed field reading a field this reader may not see would tell it.
+    return hideComputed(this.declaration, views, shown);
   }
 }

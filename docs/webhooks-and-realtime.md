@@ -100,7 +100,8 @@ change succeeded, not in one transaction with it.
   | Any other client: scope `own`, without `read` on that record, another tenant | never                                                                                        |
 
   A record's `data` is what a read of it shows (no tenant id, only the
-  active custom fields' values: one function for both), then each
+  active custom fields' values: one function for both; no computed
+  fields), then each
   message's is redacted by its receiver's field-level `read`
   (`AccessService.redact`: the fields it may not read are left out), and
   never carries an encrypted column. So a note a user writes in the web app
