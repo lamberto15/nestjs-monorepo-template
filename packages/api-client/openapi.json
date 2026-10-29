@@ -26762,11 +26762,21 @@
                     "type": "object",
                     "properties": {
                       "format": {
-                        "default": 1,
-                        "description": "The descriptor format: 1.",
-                        "type": "number",
-                        "enum": [
-                          1
+                        "default": 2,
+                        "description": "The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.",
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "enum": [
+                              1
+                            ]
+                          },
+                          {
+                            "type": "number",
+                            "enum": [
+                              2
+                            ]
+                          }
                         ]
                       },
                       "sections": {
@@ -26786,6 +26796,14 @@
                             "description": {
                               "type": "string",
                               "maxLength": 2000
+                            },
+                            "visibleWhen": {
+                              "description": "Shown only when this holds (format 2): its fields too.",
+                              "allOf": [
+                                {
+                                  "$ref": "#/components/schemas/FormCondition"
+                                }
+                              ]
                             },
                             "fields": {
                               "maxItems": 200,
@@ -26924,6 +26942,22 @@
                                     },
                                     "additionalProperties": false
                                   },
+                                  "visibleWhen": {
+                                    "description": "Shown only when this holds (format 2); a hidden field has no answer.",
+                                    "allOf": [
+                                      {
+                                        "$ref": "#/components/schemas/FormCondition"
+                                      }
+                                    ]
+                                  },
+                                  "requiredWhen": {
+                                    "description": "Required, when shown, whenever this holds (format 2).",
+                                    "allOf": [
+                                      {
+                                        "$ref": "#/components/schemas/FormCondition"
+                                      }
+                                    ]
+                                  },
                                   "translations": {
                                     "type": "object",
                                     "additionalProperties": {
@@ -26985,7 +27019,7 @@
                     ],
                     "additionalProperties": false,
                     "example": {
-                      "format": 1,
+                      "format": 2,
                       "sections": [
                         {
                           "key": "contact",
@@ -27011,6 +27045,21 @@
                                   "label": "Something else"
                                 }
                               ]
+                            },
+                            {
+                              "key": "details",
+                              "type": "textarea",
+                              "label": "What is it about?",
+                              "visibleWhen": {
+                                "field": "topic",
+                                "op": "eq",
+                                "value": "other"
+                              },
+                              "requiredWhen": {
+                                "field": "topic",
+                                "op": "eq",
+                                "value": "other"
+                              }
                             }
                           ]
                         }
@@ -27473,11 +27522,21 @@
                       "type": "object",
                       "properties": {
                         "format": {
-                          "default": 1,
-                          "description": "The descriptor format: 1.",
-                          "type": "number",
-                          "enum": [
-                            1
+                          "default": 2,
+                          "description": "The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.",
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "enum": [
+                                1
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "enum": [
+                                2
+                              ]
+                            }
                           ]
                         },
                         "sections": {
@@ -27497,6 +27556,14 @@
                               "description": {
                                 "type": "string",
                                 "maxLength": 2000
+                              },
+                              "visibleWhen": {
+                                "description": "Shown only when this holds (format 2): its fields too.",
+                                "allOf": [
+                                  {
+                                    "$ref": "#/components/schemas/FormCondition"
+                                  }
+                                ]
                               },
                               "fields": {
                                 "maxItems": 200,
@@ -27635,6 +27702,22 @@
                                       },
                                       "additionalProperties": false
                                     },
+                                    "visibleWhen": {
+                                      "description": "Shown only when this holds (format 2); a hidden field has no answer.",
+                                      "allOf": [
+                                        {
+                                          "$ref": "#/components/schemas/FormCondition"
+                                        }
+                                      ]
+                                    },
+                                    "requiredWhen": {
+                                      "description": "Required, when shown, whenever this holds (format 2).",
+                                      "allOf": [
+                                        {
+                                          "$ref": "#/components/schemas/FormCondition"
+                                        }
+                                      ]
+                                    },
                                     "translations": {
                                       "type": "object",
                                       "additionalProperties": {
@@ -27697,7 +27780,7 @@
                       ],
                       "additionalProperties": false,
                       "example": {
-                        "format": 1,
+                        "format": 2,
                         "sections": [
                           {
                             "key": "contact",
@@ -27723,6 +27806,21 @@
                                     "label": "Something else"
                                   }
                                 ]
+                              },
+                              {
+                                "key": "details",
+                                "type": "textarea",
+                                "label": "What is it about?",
+                                "visibleWhen": {
+                                  "field": "topic",
+                                  "op": "eq",
+                                  "value": "other"
+                                },
+                                "requiredWhen": {
+                                  "field": "topic",
+                                  "op": "eq",
+                                  "value": "other"
+                                }
                               }
                             ]
                           }
@@ -27796,11 +27894,21 @@
                     "type": "object",
                     "properties": {
                       "format": {
-                        "default": 1,
-                        "description": "The descriptor format: 1.",
-                        "type": "number",
-                        "enum": [
-                          1
+                        "default": 2,
+                        "description": "The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.",
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "enum": [
+                              1
+                            ]
+                          },
+                          {
+                            "type": "number",
+                            "enum": [
+                              2
+                            ]
+                          }
                         ]
                       },
                       "sections": {
@@ -27820,6 +27928,14 @@
                             "description": {
                               "type": "string",
                               "maxLength": 2000
+                            },
+                            "visibleWhen": {
+                              "description": "Shown only when this holds (format 2): its fields too.",
+                              "allOf": [
+                                {
+                                  "$ref": "#/components/schemas/FormCondition"
+                                }
+                              ]
                             },
                             "fields": {
                               "maxItems": 200,
@@ -27958,6 +28074,22 @@
                                     },
                                     "additionalProperties": false
                                   },
+                                  "visibleWhen": {
+                                    "description": "Shown only when this holds (format 2); a hidden field has no answer.",
+                                    "allOf": [
+                                      {
+                                        "$ref": "#/components/schemas/FormCondition"
+                                      }
+                                    ]
+                                  },
+                                  "requiredWhen": {
+                                    "description": "Required, when shown, whenever this holds (format 2).",
+                                    "allOf": [
+                                      {
+                                        "$ref": "#/components/schemas/FormCondition"
+                                      }
+                                    ]
+                                  },
                                   "translations": {
                                     "type": "object",
                                     "additionalProperties": {
@@ -28019,7 +28151,7 @@
                     ],
                     "additionalProperties": false,
                     "example": {
-                      "format": 1,
+                      "format": 2,
                       "sections": [
                         {
                           "key": "contact",
@@ -28045,6 +28177,21 @@
                                   "label": "Something else"
                                 }
                               ]
+                            },
+                            {
+                              "key": "details",
+                              "type": "textarea",
+                              "label": "What is it about?",
+                              "visibleWhen": {
+                                "field": "topic",
+                                "op": "eq",
+                                "value": "other"
+                              },
+                              "requiredWhen": {
+                                "field": "topic",
+                                "op": "eq",
+                                "value": "other"
+                              }
                             }
                           ]
                         }
@@ -28083,11 +28230,21 @@
                       "type": "object",
                       "properties": {
                         "format": {
-                          "default": 1,
-                          "description": "The descriptor format: 1.",
-                          "type": "number",
-                          "enum": [
-                            1
+                          "default": 2,
+                          "description": "The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.",
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "enum": [
+                                1
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "enum": [
+                                2
+                              ]
+                            }
                           ]
                         },
                         "sections": {
@@ -28107,6 +28264,14 @@
                               "description": {
                                 "type": "string",
                                 "maxLength": 2000
+                              },
+                              "visibleWhen": {
+                                "description": "Shown only when this holds (format 2): its fields too.",
+                                "allOf": [
+                                  {
+                                    "$ref": "#/components/schemas/FormCondition"
+                                  }
+                                ]
                               },
                               "fields": {
                                 "maxItems": 200,
@@ -28245,6 +28410,22 @@
                                       },
                                       "additionalProperties": false
                                     },
+                                    "visibleWhen": {
+                                      "description": "Shown only when this holds (format 2); a hidden field has no answer.",
+                                      "allOf": [
+                                        {
+                                          "$ref": "#/components/schemas/FormCondition"
+                                        }
+                                      ]
+                                    },
+                                    "requiredWhen": {
+                                      "description": "Required, when shown, whenever this holds (format 2).",
+                                      "allOf": [
+                                        {
+                                          "$ref": "#/components/schemas/FormCondition"
+                                        }
+                                      ]
+                                    },
                                     "translations": {
                                       "type": "object",
                                       "additionalProperties": {
@@ -28307,7 +28488,7 @@
                       ],
                       "additionalProperties": false,
                       "example": {
-                        "format": 1,
+                        "format": 2,
                         "sections": [
                           {
                             "key": "contact",
@@ -28333,6 +28514,21 @@
                                     "label": "Something else"
                                   }
                                 ]
+                              },
+                              {
+                                "key": "details",
+                                "type": "textarea",
+                                "label": "What is it about?",
+                                "visibleWhen": {
+                                  "field": "topic",
+                                  "op": "eq",
+                                  "value": "other"
+                                },
+                                "requiredWhen": {
+                                  "field": "topic",
+                                  "op": "eq",
+                                  "value": "other"
+                                }
                               }
                             ]
                           }
@@ -28446,11 +28642,21 @@
                       "type": "object",
                       "properties": {
                         "format": {
-                          "default": 1,
-                          "description": "The descriptor format: 1.",
-                          "type": "number",
-                          "enum": [
-                            1
+                          "default": 2,
+                          "description": "The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.",
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "enum": [
+                                1
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "enum": [
+                                2
+                              ]
+                            }
                           ]
                         },
                         "sections": {
@@ -28470,6 +28676,14 @@
                               "description": {
                                 "type": "string",
                                 "maxLength": 2000
+                              },
+                              "visibleWhen": {
+                                "description": "Shown only when this holds (format 2): its fields too.",
+                                "allOf": [
+                                  {
+                                    "$ref": "#/components/schemas/FormCondition"
+                                  }
+                                ]
                               },
                               "fields": {
                                 "maxItems": 200,
@@ -28608,6 +28822,22 @@
                                       },
                                       "additionalProperties": false
                                     },
+                                    "visibleWhen": {
+                                      "description": "Shown only when this holds (format 2); a hidden field has no answer.",
+                                      "allOf": [
+                                        {
+                                          "$ref": "#/components/schemas/FormCondition"
+                                        }
+                                      ]
+                                    },
+                                    "requiredWhen": {
+                                      "description": "Required, when shown, whenever this holds (format 2).",
+                                      "allOf": [
+                                        {
+                                          "$ref": "#/components/schemas/FormCondition"
+                                        }
+                                      ]
+                                    },
                                     "translations": {
                                       "type": "object",
                                       "additionalProperties": {
@@ -28670,7 +28900,7 @@
                       ],
                       "additionalProperties": false,
                       "example": {
-                        "format": 1,
+                        "format": 2,
                         "sections": [
                           {
                             "key": "contact",
@@ -28696,6 +28926,21 @@
                                     "label": "Something else"
                                   }
                                 ]
+                              },
+                              {
+                                "key": "details",
+                                "type": "textarea",
+                                "label": "What is it about?",
+                                "visibleWhen": {
+                                  "field": "topic",
+                                  "op": "eq",
+                                  "value": "other"
+                                },
+                                "requiredWhen": {
+                                  "field": "topic",
+                                  "op": "eq",
+                                  "value": "other"
+                                }
                               }
                             ]
                           }
@@ -29033,11 +29278,21 @@
                       "type": "object",
                       "properties": {
                         "format": {
-                          "default": 1,
-                          "description": "The descriptor format: 1.",
-                          "type": "number",
-                          "enum": [
-                            1
+                          "default": 2,
+                          "description": "The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.",
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "enum": [
+                                1
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "enum": [
+                                2
+                              ]
+                            }
                           ]
                         },
                         "sections": {
@@ -29057,6 +29312,14 @@
                               "description": {
                                 "type": "string",
                                 "maxLength": 2000
+                              },
+                              "visibleWhen": {
+                                "description": "Shown only when this holds (format 2): its fields too.",
+                                "allOf": [
+                                  {
+                                    "$ref": "#/components/schemas/FormCondition"
+                                  }
+                                ]
                               },
                               "fields": {
                                 "maxItems": 200,
@@ -29195,6 +29458,22 @@
                                       },
                                       "additionalProperties": false
                                     },
+                                    "visibleWhen": {
+                                      "description": "Shown only when this holds (format 2); a hidden field has no answer.",
+                                      "allOf": [
+                                        {
+                                          "$ref": "#/components/schemas/FormCondition"
+                                        }
+                                      ]
+                                    },
+                                    "requiredWhen": {
+                                      "description": "Required, when shown, whenever this holds (format 2).",
+                                      "allOf": [
+                                        {
+                                          "$ref": "#/components/schemas/FormCondition"
+                                        }
+                                      ]
+                                    },
                                     "translations": {
                                       "type": "object",
                                       "additionalProperties": {
@@ -29257,7 +29536,7 @@
                       ],
                       "additionalProperties": false,
                       "example": {
-                        "format": 1,
+                        "format": 2,
                         "sections": [
                           {
                             "key": "contact",
@@ -29283,6 +29562,21 @@
                                     "label": "Something else"
                                   }
                                 ]
+                              },
+                              {
+                                "key": "details",
+                                "type": "textarea",
+                                "label": "What is it about?",
+                                "visibleWhen": {
+                                  "field": "topic",
+                                  "op": "eq",
+                                  "value": "other"
+                                },
+                                "requiredWhen": {
+                                  "field": "topic",
+                                  "op": "eq",
+                                  "value": "other"
+                                }
                               }
                             ]
                           }
@@ -29484,11 +29778,21 @@
                       "type": "object",
                       "properties": {
                         "format": {
-                          "default": 1,
-                          "description": "The descriptor format: 1.",
-                          "type": "number",
-                          "enum": [
-                            1
+                          "default": 2,
+                          "description": "The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.",
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "enum": [
+                                1
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "enum": [
+                                2
+                              ]
+                            }
                           ]
                         },
                         "sections": {
@@ -29508,6 +29812,14 @@
                               "description": {
                                 "type": "string",
                                 "maxLength": 2000
+                              },
+                              "visibleWhen": {
+                                "description": "Shown only when this holds (format 2): its fields too.",
+                                "allOf": [
+                                  {
+                                    "$ref": "#/components/schemas/FormCondition"
+                                  }
+                                ]
                               },
                               "fields": {
                                 "maxItems": 200,
@@ -29646,6 +29958,22 @@
                                       },
                                       "additionalProperties": false
                                     },
+                                    "visibleWhen": {
+                                      "description": "Shown only when this holds (format 2); a hidden field has no answer.",
+                                      "allOf": [
+                                        {
+                                          "$ref": "#/components/schemas/FormCondition"
+                                        }
+                                      ]
+                                    },
+                                    "requiredWhen": {
+                                      "description": "Required, when shown, whenever this holds (format 2).",
+                                      "allOf": [
+                                        {
+                                          "$ref": "#/components/schemas/FormCondition"
+                                        }
+                                      ]
+                                    },
                                     "translations": {
                                       "type": "object",
                                       "additionalProperties": {
@@ -29708,7 +30036,7 @@
                       ],
                       "additionalProperties": false,
                       "example": {
-                        "format": 1,
+                        "format": 2,
                         "sections": [
                           {
                             "key": "contact",
@@ -29734,6 +30062,21 @@
                                     "label": "Something else"
                                   }
                                 ]
+                              },
+                              {
+                                "key": "details",
+                                "type": "textarea",
+                                "label": "What is it about?",
+                                "visibleWhen": {
+                                  "field": "topic",
+                                  "op": "eq",
+                                  "value": "other"
+                                },
+                                "requiredWhen": {
+                                  "field": "topic",
+                                  "op": "eq",
+                                  "value": "other"
+                                }
                               }
                             ]
                           }
@@ -66680,6 +67023,211 @@
           "hasMore"
         ],
         "additionalProperties": false
+      },
+      "FormCondition": {
+        "anyOf": [
+          {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,49}$"
+                  },
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "eq",
+                      "ne"
+                    ]
+                  },
+                  "value": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 1000
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "boolean"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "field",
+                  "op",
+                  "value"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,49}$"
+                  },
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "gt",
+                      "gte",
+                      "lt",
+                      "lte"
+                    ]
+                  },
+                  "value": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string",
+                        "maxLength": 10
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "field",
+                  "op",
+                  "value"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,49}$"
+                  },
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "in"
+                    ]
+                  },
+                  "value": {
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 1000
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "field",
+                  "op",
+                  "value"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,49}$"
+                  },
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "contains"
+                    ]
+                  },
+                  "value": {
+                    "type": "string",
+                    "maxLength": 100
+                  }
+                },
+                "required": [
+                  "field",
+                  "op",
+                  "value"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,49}$"
+                  },
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "isEmpty"
+                    ]
+                  }
+                },
+                "required": [
+                  "field",
+                  "op"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "all": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/FormCondition"
+                }
+              }
+            },
+            "required": [
+              "all"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "any": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/FormCondition"
+                }
+              }
+            },
+            "required": [
+              "any"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "not": {
+                "$ref": "#/components/schemas/FormCondition"
+              }
+            },
+            "required": [
+              "not"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "description": "A predicate { field, op, value } on an earlier field, or { all: [...] }, { any: [...] }, { not: ... }."
       },
       "DataQualitySummary": {
         "type": "object",

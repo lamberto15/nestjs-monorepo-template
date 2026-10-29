@@ -1,5 +1,11 @@
 import { z } from 'zod';
 import { patternProblem } from '../custom-fields/custom-field.pattern.js';
+import {
+  conditionIssues,
+  RULE_LIMITS,
+  type RuleCondition,
+  type RuleField,
+} from './form-rules.js';
 
 /**
  * A form's definition: data, never code (docs/forms.md, "The schema"). One
@@ -8,15 +14,19 @@ import { patternProblem } from '../custom-fields/custom-field.pattern.js';
  * same shape. Sections in order, each with its fields in order; every
  * field has a stable `key` (its answer's key), unique in the whole form.
  *
- * Extension points (later issues), all additive so a stored schema stays
- * valid: field `visibleWhen` / `requiredWhen` (declarative conditions),
- * `pages` and a `group` field type (repeatable, one level), `optionsSource`
- * (a server-registered provider) in place of `options`. Until then every
- * object is strict: an unknown property is refused, not stored.
+ * Formats: 1 is fields and sections; 2 adds conditions (`visibleWhen` on
+ * a section or a field, `requiredWhen` on a field, form-rules.ts). A stored
+ * format-1 definition stays valid and means what it meant; a condition in
+ * one is refused. Extension points (later issues), all additive: `pages`
+ * and a `group` field type (repeatable, one level), `optionsSource` (a
+ * server-registered provider) in place of `options`. Every object is
+ * strict: an unknown property is refused, not stored.
  */
 
-/** The descriptor format; a later format is a new number, read beside this one. */
-export const FORM_SCHEMA_FORMAT = 1;
+/** The descriptor formats read, oldest first; new definitions are the last. */
+export const FORM_SCHEMA_FORMATS = [1, 2] as const;
+/** The format a new definition takes. */
+export const FORM_SCHEMA_FORMAT = 2;
 
 /** The field types a form may have. `radio` is a single choice drawn as radio buttons. */
 export const FORM_FIELD_TYPES = [
@@ -102,6 +112,70 @@ const translations = <T extends z.ZodRawShape>(shape: T) =>
     })
     .optional();
 
+const ruleValue = z.union([z.string().max(1_000), z.number(), z.boolean()]);
+const predicateSchema = z.discriminatedUnion('op', [
+  z.object({ field: key, op: z.enum(['eq', 'ne']), value: ruleValue }).strict(),
+  z
+    .object({
+      field: key,
+      op: z.enum(['gt', 'gte', 'lt', 'lte']),
+      value: z.union([z.number(), z.string().max(10)]),
+    })
+    .strict(),
+  z
+    .object({
+      field: key,
+      op: z.literal('in'),
+      value: z
+        .array(z.union([z.string().max(1_000), z.number()]))
+        .max(RULE_LIMITS.values),
+    })
+    .strict(),
+  z
+    .object({
+      field: key,
+      op: z.literal('contains'),
+      value: z.string().max(100),
+    })
+    .strict(),
+  z.object({ field: key, op: z.literal('isEmpty') }).strict(),
+]);
+
+/**
+ * A condition (form-rules.ts): a predicate on an earlier field's answer, or
+ * a group of them (`all`, `any`, `not`), at most RULE_LIMITS deep and wide.
+ */
+export const formConditionSchema: z.ZodType<RuleCondition> = z
+  .union([
+    predicateSchema,
+    z
+      .object({
+        get all() {
+          return z.array(formConditionSchema).max(RULE_LIMITS.predicates);
+        },
+      })
+      .strict(),
+    z
+      .object({
+        get any() {
+          return z.array(formConditionSchema).max(RULE_LIMITS.predicates);
+        },
+      })
+      .strict(),
+    z
+      .object({
+        get not() {
+          return formConditionSchema;
+        },
+      })
+      .strict(),
+  ])
+  .meta({
+    id: 'FormCondition',
+    description:
+      'A predicate { field, op, value } on an earlier field, or { all: [...] }, { any: [...] }, { not: ... }.',
+  });
+
 const optionSchema = z
   .object({
     value: z.string().trim().min(1).max(100).describe('Stored in the answer.'),
@@ -177,6 +251,14 @@ export const formFieldSchema = z
       .optional()
       .describe('The choices of select, multiSelect and radio.'),
     validation: validationSchema.optional(),
+    visibleWhen: formConditionSchema
+      .optional()
+      .describe(
+        'Shown only when this holds (format 2); a hidden field has no answer.',
+      ),
+    requiredWhen: formConditionSchema
+      .optional()
+      .describe('Required, when shown, whenever this holds (format 2).'),
     translations: translations({
       label: plainText(200),
       help: plainText(1_000),
@@ -191,6 +273,9 @@ export const formSectionSchema = z
     key,
     title: plainText(200).optional(),
     description: plainText(2_000).optional(),
+    visibleWhen: formConditionSchema
+      .optional()
+      .describe('Shown only when this holds (format 2): its fields too.'),
     fields: z.array(formFieldSchema).max(FORM_LIMITS.fields),
     translations: translations({
       title: plainText(200),
@@ -203,15 +288,17 @@ export const formSectionSchema = z
 export const formDefinitionSchema = z
   .object({
     format: z
-      .literal(FORM_SCHEMA_FORMAT)
+      .union(FORM_SCHEMA_FORMATS.map((format) => z.literal(format)))
       .default(FORM_SCHEMA_FORMAT)
-      .describe('The descriptor format: 1.'),
+      .describe(
+        'The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.',
+      ),
     sections: z.array(formSectionSchema).max(FORM_LIMITS.sections),
   })
   .strict()
   .meta({
     example: {
-      format: 1,
+      format: 2,
       sections: [
         {
           key: 'contact',
@@ -226,6 +313,13 @@ export const formDefinitionSchema = z
                 { value: 'billing', label: 'Billing' },
                 { value: 'other', label: 'Something else' },
               ],
+            },
+            {
+              key: 'details',
+              type: 'textarea',
+              label: 'What is it about?',
+              visibleWhen: { field: 'topic', op: 'eq', value: 'other' },
+              requiredWhen: { field: 'topic', op: 'eq', value: 'other' },
             },
           ],
         },
@@ -285,14 +379,39 @@ export function definitionIssues(
   }
   const sectionKeys = new Set<string>();
   const fieldKeys = new Set<string>();
+  // What a condition may read: the fields before it (form-rules.ts).
+  const earlier = new Map<string, RuleField>();
+  const all = new Set(fieldsOf(definition).map((field) => field.key));
+  const rule = (condition: RuleCondition | undefined, path: string) => {
+    if (condition === undefined) return;
+    if (definition.format < 2) {
+      issues.push({ path, message: 'Conditions take format 2.' });
+      return;
+    }
+    for (const issue of conditionIssues(condition, earlier, all)) {
+      issues.push({
+        path: issue.path ? `${path}.${issue.path}` : path,
+        message: issue.message,
+      });
+    }
+  };
   for (const [s, section] of definition.sections.entries()) {
     const at = `sections.${s}`;
     if (sectionKeys.has(section.key)) {
       issues.push({ path: `${at}.key`, message: 'Section keys must differ.' });
     }
     sectionKeys.add(section.key);
+    rule(section.visibleWhen, `${at}.visibleWhen`);
     for (const [f, field] of section.fields.entries()) {
       const path = `${at}.fields.${f}`;
+      rule(field.visibleWhen, `${path}.visibleWhen`);
+      rule(field.requiredWhen, `${path}.requiredWhen`);
+      if (field.required && field.requiredWhen !== undefined) {
+        issues.push({
+          path: `${path}.requiredWhen`,
+          message: 'A field always required takes no requiredWhen.',
+        });
+      }
       if (fieldKeys.has(field.key)) {
         issues.push({
           path: `${path}.key`,
@@ -308,6 +427,7 @@ export function definitionIssues(
         });
       }
       issues.push(...fieldIssues(field, path, valueIssues));
+      if (!earlier.has(field.key)) earlier.set(field.key, field);
     }
   }
   return issues;

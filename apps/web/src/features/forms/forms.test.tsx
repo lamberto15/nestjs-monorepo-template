@@ -207,6 +207,95 @@ describe('forms', () => {
     });
   });
 
+  it('shows and requires fields by their conditions, and leaves hidden answers out', async () => {
+    const calls = useFormsApi();
+    const billing = { field: 'topic', op: 'eq', value: 'billing' };
+    const fields = definition.sections[0]!.fields;
+    server.use(
+      http.get(`/v1/forms/${FORM_ID}/published`, () =>
+        HttpResponse.json({
+          formId: FORM_ID,
+          slug: 'intake',
+          name: 'Intake',
+          description: null,
+          versionId: VERSION_ID,
+          version: 1,
+          definition: {
+            format: 2,
+            sections: [
+              {
+                key: 'contact',
+                fields: [
+                  fields[0],
+                  fields[1],
+                  { ...fields[2], visibleWhen: billing, requiredWhen: billing },
+                ],
+              },
+            ],
+          },
+          publishedAt: at,
+        }),
+      ),
+    );
+    await renderApp(`/forms/${FORM_ID}/fill`);
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('Name *'), 'Ada');
+    expect(screen.queryByLabelText(/Seats/)).toBeNull();
+
+    await user.click(screen.getByLabelText('Billing'));
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    expect(await screen.findByText('This answer is required.')).toBeVisible();
+    await user.type(screen.getByLabelText('Seats *'), '2');
+
+    // Hidden again: the typed seats are not sent.
+    await user.click(screen.getByLabelText('Something else'));
+    expect(screen.queryByLabelText(/Seats/)).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    expect(
+      await screen.findByText('Thank you: your answers were sent.'),
+    ).toBeVisible();
+    expect(calls.submitted.at(-1)!.answers).toEqual({
+      full_name: 'Ada',
+      topic: 'other',
+    });
+  });
+
+  it('edits a condition visually, and the preview follows it', async () => {
+    const calls = useFormsApi();
+    await renderApp(`/forms/${FORM_ID}`);
+    const user = userEvent.setup();
+    const preview = await screen.findByRole('region', { name: 'Preview' });
+    expect(within(preview).getByLabelText('Seats')).toBeVisible();
+
+    // The first field has nothing before it to read.
+    const rules = screen.getAllByRole('group', { name: 'Show only when' });
+    expect(
+      within(rules[0]!).getByText(/reads the fields before this one/),
+    ).toBeVisible();
+    // Seats: shown only when the topic (the field before) is Billing.
+    await user.click(
+      within(rules[2]!).getByRole('button', { name: 'Add a condition' }),
+    );
+    expect(within(preview).queryByLabelText('Seats')).toBeNull();
+    await user.click(within(preview).getByLabelText('Billing'));
+    expect(within(preview).getByLabelText('Seats')).toBeVisible();
+
+    // Then "not equal to": hidden for Billing.
+    await user.click(within(rules[2]!).getByRole('combobox', { name: 'Is' }));
+    await user.click(
+      await screen.findByRole('option', { name: 'not equal to' }),
+    );
+    expect(within(preview).queryByLabelText('Seats')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Save draft' }));
+    await findToast('Draft saved.');
+    expect(calls.drafts[0]!.definition).toMatchObject({ format: 2 });
+    expect(calls.drafts[0]!.definition.sections[0]!.fields[2]).toMatchObject({
+      key: 'seats',
+      visibleWhen: { field: 'topic', op: 'ne', value: 'billing' },
+    });
+  });
+
   it('builds the draft with a live preview, saves it under its revision, then publishes', async () => {
     const calls = useFormsApi();
     await renderApp(`/forms/${FORM_ID}`);
