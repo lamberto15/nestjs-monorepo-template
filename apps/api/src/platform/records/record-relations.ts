@@ -1,6 +1,7 @@
 import { UnprocessableEntityException } from '@nestjs/common';
-import { getTableName } from 'drizzle-orm';
+import { getTableName, inArray } from 'drizzle-orm';
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
+import type { Transaction } from '../../core/database/drizzle.js';
 import { ProblemDetailsFilter } from '../../core/http/problem-details.filter.js';
 import {
   type AnyField,
@@ -26,8 +27,8 @@ import type { RecordDeclaration } from './record.js';
  *   required field the recycle bin's too, as the key would refuse the
  *   purge); `keep` (optional fields) lets it go to the recycle bin, the
  *   references kept, so a restore brings the relation back. An optional
- *   reference empties when its record is deleted for good (the key's
- *   `set null`). Restoring a record whose `restrict` reference points at one
+ *   reference empties when its record is deleted for good
+ *   (`emptyReferences()`, its key being `no action`). Restoring a record whose `restrict` reference points at one
  *   in the recycle bin is refused (409 `reference_deleted`): restore that
  *   one first;
  * - the referred record's related panels (`related` of
@@ -46,7 +47,7 @@ export interface RecordRelation {
   /** Their table, and the field's column. */
   table: PgTable & Record<string, AnyPgColumn>;
   column: AnyPgColumn;
-  /** A required field (its key: `restrict`); optional ones empty (`set null`). */
+  /** A required field (its key: `restrict`); optional ones empty (`emptyReferences`). */
   required: boolean;
   /** Deleting the referred record: refused while referred to, or kept in the bin. */
   onDelete: OnDelete;
@@ -91,6 +92,27 @@ export function relate(
 /** The relations that refer to `subject`'s records. */
 export const relationsTo = (subject: string) =>
   RELATIONS.filter((relation) => relation.target() === subject);
+
+/**
+ * Empties the optional references to these records of `subject`, live or in
+ * the recycle bin, just before they are deleted for good, in the delete's
+ * transaction: the platform's `set null`. The key can't do it (a composite
+ * key's `set null` would empty tenant_id too), so it is `no action`, which
+ * refuses a delete that leaves one behind.
+ */
+export async function emptyReferences(
+  tx: Transaction,
+  subject: string,
+  ids: string[],
+) {
+  for (const relation of relationsTo(subject)) {
+    if (relation.required) continue;
+    await tx
+      .update(relation.table)
+      .set({ [relation.field]: null })
+      .where(inArray(relation.column, ids));
+  }
+}
 
 /** The relations of `declaration`'s own `ref` fields. */
 export const relationsFrom = (declaration: RecordDeclaration) =>

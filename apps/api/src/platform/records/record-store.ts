@@ -30,6 +30,7 @@ import {
   type RecordLookup,
   type RecordRow,
 } from './record-contract.js';
+import { emptyReferences } from './record-relations.js';
 
 type RecordTable = PgTable & Record<string, AnyPgColumn>;
 
@@ -219,6 +220,7 @@ export class RecordStore {
         .returning();
       await this.lifecycle.deleted(tx, { row: deleted as RecordRow });
     } else {
+      await emptyReferences(tx, this.declaration.subject, [row.id]);
       await tx.delete(table).where(eq(table.id!, row.id));
       await this.lifecycle.deleted(tx, { row });
     }

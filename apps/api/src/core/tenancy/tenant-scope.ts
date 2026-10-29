@@ -295,20 +295,16 @@ export function tenantReference(
   name: string,
   columns: [tenantId: AnyPgColumn, column: AnyPgColumn],
   foreign: [tenantId: AnyPgColumn, id: AnyPgColumn],
-  onDelete: 'cascade' | 'restrict' | 'set null' | 'no action' = 'cascade',
+  onDelete: 'cascade' | 'restrict' | 'no action' = 'cascade',
 ) {
-  const key = foreignKey({
+  // No `set null`: it would empty tenant_id too (NOT NULL). An optional
+  // reference is `no action`, and the platform empties it before a delete
+  // for good (emptyReferences, platform/records/record-relations.ts).
+  return foreignKey({
     name,
     columns,
     foreignColumns: foreign,
-  });
-  // `set null` names the referring column alone (PostgreSQL 15+): the
-  // tenant stays, as it is NOT NULL. drizzle-kit writes the action as given.
-  return key.onDelete(
-    onDelete === 'set null'
-      ? (`set null ("${columns[1].name}")` as 'set null')
-      : onDelete,
-  );
+  }).onDelete(onDelete);
 }
 
 /**

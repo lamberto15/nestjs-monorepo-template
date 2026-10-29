@@ -138,7 +138,9 @@ export function fieldExtras(
           `${column}_fk`,
           [table.tenantId!, table[name]!],
           [target().tenantId, target().id],
-          f.options.optional ? 'set null' : 'restrict',
+          // An optional one is emptied by the platform before its record goes
+          // for good (emptyReferences), checked at the statement's end.
+          f.options.optional ? 'no action' : 'restrict',
         ),
       );
     }

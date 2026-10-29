@@ -11,6 +11,7 @@ import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { withoutEncrypted } from '../../core/encryption/encrypted-columns.js';
 import { AccessService } from '../../iam/access/access.service.js';
+import { RecordPurgeRegistry } from '../../iam/resources/record-purge.registry.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import type { List, ListQuery } from '../../core/http/list-query.js';
 import { ApprovalsService } from '../approvals/approvals.service.js';
@@ -44,7 +45,11 @@ import {
   withIncluded,
 } from './record-can.js';
 import { RECORD_DECLARATION } from './record-declaration.token.js';
-import { relationsFrom, relationsTo } from './record-relations.js';
+import {
+  emptyReferences,
+  relationsFrom,
+  relationsTo,
+} from './record-relations.js';
 import type { RecordSchemas } from './record.schemas.js';
 
 export { RECORD_DECLARATION } from './record-declaration.token.js';
@@ -168,7 +173,15 @@ export class RecordLifecycle {
     private readonly customFields: CustomFieldsService,
     private readonly approvals: ApprovalsService,
     private readonly automations: AutomationsService,
+    purges: RecordPurgeRegistry,
   ) {
+    // Its records purged (recycle bin, retention): the optional references
+    // to them empty first, as their keys are `no action`.
+    purges.register({
+      name: `references:${declaration.subject}`,
+      subject: declaration.subject,
+      forget: emptyReferences,
+    });
     if (takes(declaration, 'numbered')) {
       // Its number formats: the declared one, or the tenant's naming series.
       namingSeries.register({
@@ -392,7 +405,7 @@ export class RecordLifecycle {
    * `record_referenced`), to the recycle bin or for good, while live records
    * refer to it. A required one counts those in the recycle bin too, until
    * purged: the key would refuse the purge. An optional one empties when the
-   * record is deleted for good (the key's `set null`) and stays while it is
+   * record is deleted for good (emptyReferences) and stays while it is
    * in the bin: always with `keep`, which never refuses.
    */
   private async assertNotReferred(tx: Transaction, row: RecordRow) {
@@ -463,7 +476,7 @@ export class RecordLifecycle {
    * A record restored while a `restrict` reference of its points at one in
    * the recycle bin would be the live referrer that rule forbids (409
    * `reference_deleted`): that one is restored first. A `keep` reference
-   * comes back as it is; one whose record was purged is empty (`set null`).
+   * comes back as it is; one whose record was purged is empty (emptyReferences).
    */
   private async assertReferencesLive(tx: Transaction, row: RecordRow) {
     for (const relation of relationsFrom(this.declaration)) {
