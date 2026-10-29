@@ -10,8 +10,10 @@ import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import type { Queue } from 'bullmq';
+import type { Redis } from 'ioredis';
 import { and, asc, eq, isNotNull } from 'drizzle-orm';
 import type { CoreEnv } from '../../core/config/core.env.js';
+import { REDIS } from '../../core/redis/redis.js';
 import { pgErrorCode, UNIQUE_VIOLATION } from '../../core/database/errors.js';
 import {
   database,
@@ -47,6 +49,16 @@ const VALUE_PREFIX = 'app-verification=';
 /** DNS answers that say the record is not there (not a lookup that failed). */
 const GONE = new Set(['ENOTFOUND', 'ENODATA']);
 
+/**
+ * A hostname no tenant routes, remembered in Redis (shared by the replicas)
+ * for 30 s: a flood of requests or TLS asks for the same unknown name reads
+ * the database once. Only the absence is cached: a removed domain still
+ * stops at once, and verifying one deletes its entry.
+ */
+const UNKNOWN_HOST_SECONDS = 30;
+const unknownHostKey = (hostname: string) =>
+  `custom-domains:unknown:${hostname}`;
+
 const REFUSALS: Record<HostnameRefusal, string> = {
   not_a_hostname: 'Not a hostname: a domain name such as app.example.com.',
   ip_address: 'An IP address, not a domain name.',
@@ -79,6 +91,7 @@ export class BrandingDomainsService implements HostTenants {
     private readonly config: ConfigService<PlatformEnv & CoreEnv, true>,
     @Inject(CUSTOM_DOMAINS_TXT_RESOLVER) private readonly dns: TxtResolver,
     @InjectQueue(CUSTOM_DOMAINS) private readonly queue: Queue<CustomDomainJob>,
+    @Inject(REDIS) private readonly redis: Redis,
   ) {}
 
   private get db() {
@@ -239,7 +252,7 @@ export class BrandingDomainsService implements HostTenants {
       error = `DNS lookup failed: ${code ?? (failure as Error).message}`;
     }
     const now = new Date();
-    await inTransaction(this.txHost, async (tx) => {
+    const routed = await inTransaction(this.txHost, async (tx) => {
       // Locked, and read again: a domain removed while the lookup ran
       // (remove() deletes it with its route) must not get a route back.
       const [current] = await tx
@@ -248,7 +261,7 @@ export class BrandingDomainsService implements HostTenants {
         .where(eq(tenantDomains.id, id))
         .for('update');
       if (!current) {
-        return;
+        return false;
       }
       let verified = current.verifiedAt !== null;
       if (outcome === 'found') {
@@ -299,7 +312,11 @@ export class BrandingDomainsService implements HostTenants {
           tx,
         );
       }
+      return verified;
     });
+    if (routed) {
+      await this.redis.del(unknownHostKey(row.hostname));
+    }
   }
 
   /** The verified domains of the current tenant: what the nightly check looks up again. */
@@ -323,8 +340,9 @@ export class BrandingDomainsService implements HostTenants {
    * The active tenant whose verified domain `hostname` is (HOST_TENANTS),
    * or null: CUSTOM_DOMAINS off, the app's own host, a name that could
    * never be a custom domain (an IP, `localhost`) or one nobody verified.
-   * Read at every request on such a host, never cached: a removed domain
-   * stops at once, on every replica.
+   * Read at every request on such a host; only a hostname nobody routes is
+   * cached (UNKNOWN_HOST_SECONDS), so a removed domain stops at once, on
+   * every replica. Redis unreachable: the database answers.
    */
   async tenantOfHost(hostname: string): Promise<string | null> {
     if (!this.enabled) {
@@ -332,6 +350,10 @@ export class BrandingDomainsService implements HostTenants {
     }
     const checked = normalizeHostname(hostname, this.appHosts());
     if ('refused' in checked) {
+      return null;
+    }
+    const key = unknownHostKey(checked.hostname);
+    if (await this.redis.exists(key).catch(() => 0)) {
       return null;
     }
     const [route] = await this.db
@@ -344,7 +366,13 @@ export class BrandingDomainsService implements HostTenants {
           eq(tenants.active, true),
         ),
       );
-    return route?.tenantId ?? null;
+    if (!route) {
+      await this.redis
+        .set(key, '1', 'EX', UNKNOWN_HOST_SECONDS)
+        .catch(() => undefined);
+      return null;
+    }
+    return route.tenantId;
   }
 
   /**

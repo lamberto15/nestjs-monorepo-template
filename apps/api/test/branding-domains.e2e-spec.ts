@@ -1,8 +1,10 @@
 import { inflateRawSync } from 'node:zlib';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
+import type { Redis } from 'ioredis';
 import type request from 'supertest';
 import { vi } from 'vitest';
+import { REDIS } from '../src/core/redis/redis.js';
 import { BrandingDomainsJob } from '../src/platform/branding/branding-domains.job.js';
 import { BrandingDomainsProcessor } from '../src/platform/branding/branding-domains.processor.js';
 import { CUSTOM_DOMAINS_TXT_RESOLVER } from '../src/platform/branding/branding-domains.queue.js';
@@ -187,6 +189,13 @@ describe('custom domains (e2e)', () => {
       lastError: expect.stringContaining('ENOTFOUND'),
     });
     await asked(hostname).expect(404);
+    // Remembered as unknown for 30 s (one database read for a flood);
+    // verifying forgets it (the 200s below).
+    const ttl = await node.app
+      .get<Redis>(REDIS)
+      .ttl(`custom-domains:unknown:${hostname}`);
+    expect(ttl).toBeGreaterThan(0);
+    expect(ttl).toBeLessThanOrEqual(30);
     expect(
       (
         await node
@@ -249,6 +258,23 @@ describe('custom domains (e2e)', () => {
     // The edge's question takes a hostname, nothing else.
     await node.http().get('/v1/internal/domains/allowed').expect(404);
     await asked('a'.repeat(400)).expect(404);
+  });
+
+  it('limits the edge’s question per address: 600 a minute, then 429', async () => {
+    // An address of its own (trusted X-Forwarded-For, as the edge's
+    // per-request check sends it), so the suite's other asks aren't counted.
+    const address = `10.59.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`;
+    const ask = () => asked(host()).set('X-Forwarded-For', address);
+    for (let batch = 0; batch < 12; batch++) {
+      const codes = await Promise.all(
+        Array.from({ length: 50 }, async () => (await ask()).status),
+      );
+      expect(new Set(codes)).toEqual(new Set([404]));
+    }
+    const limited = await ask().expect(429);
+    expect(limited.body).toMatchObject({ code: 'rate_limited' });
+    // Another address is not limited.
+    await asked(host()).set('X-Forwarded-For', '10.58.0.1').expect(404);
   });
 
   it('routes a hostname to the first tenant that proves it, not to another that lists it', async () => {

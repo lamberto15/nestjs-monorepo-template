@@ -174,7 +174,11 @@ domains away. A suspended domain is verified again by a check, once its
 record is back.
 
 **What a verified host does**, read at every request on it, never cached
-(so a domain removed or suspended stops at once, on every replica):
+(so a domain removed or suspended stops at once, on every replica). Only a
+hostname nobody routes is remembered, for 30 s in Redis
+(`custom-domains:unknown:<hostname>`): a flood of requests or TLS asks for
+the same unknown name reads the database once. Verifying a domain forgets
+its entry; a tenant reactivated waits those 30 s at most. On such a host:
 
 - **The brand before sign-in.** `GET /v1/branding/host` answers the brand
   (the colours, the sender name, the logos' paths) of the tenant whose
@@ -204,9 +208,12 @@ record is back.
   never from the `Host`: an IdP registration holds whatever host people sign
   in on. A sign-in through SSO ends on the app's own host (left out below).
 - **The edge's TLS question.** `GET /v1/internal/domains/allowed?domain=`
-  (not in the OpenAPI document, not rate limited) answers 200 for a verified
-  domain of an active tenant, else 404: Caddy's on-demand TLS `ask` and its
-  per-request check ([deployment](deployment.md#custom-domains-on-demand-tls)).
+  (not in the OpenAPI document) answers 200 for a verified domain of an
+  active tenant, else 404: Caddy's on-demand TLS `ask` and its per-request
+  check ([deployment](deployment.md#custom-domains-on-demand-tls)). Rate
+  limited per address in a bucket of its own (600 a minute, then 429): the
+  TLS asks count against the edge's address, the per-request checks against
+  the visitor's (`X-Forwarded-For` from the private network).
 
 **Removing** a domain (`DELETE …/{id}`, audited `branding.domain-removed`)
 deletes it and its route in one transaction: from the commit on, the host has

@@ -402,6 +402,12 @@ the Caddyfile's last site, `https://`, every hostname `APP_DOMAIN` isn't:
   question before every request, so a domain removed or suspended (its TXT
   record gone, the nightly check) stops serving at once, though its
   certificate is still cached: Caddy answers the API's 404 as it is.
+- **Rate limited.** The API counts the question per address (600 a minute,
+  then 429, which fails the handshake or the request): the TLS asks against
+  Caddy's address, the per-request checks against the visitor's. Unknown
+  hostnames are remembered for 30 s, so a flood of made-up names (TLS
+  handshakes with random SNI) reads the database at most that often per
+  name, and never more than the limit allows.
 - **The question stays inside.** `/v1/internal/*` answers 404 on every site
   from outside; Caddy reaches the API on the Compose network. The answer only
   says whether a hostname is a verified custom domain, which its TXT record

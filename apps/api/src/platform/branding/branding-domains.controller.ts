@@ -29,7 +29,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { SkipThrottle } from '@nestjs/throttler';
+import { minutes, Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 import { AllowInMaintenance } from '../../core/http/maintenance.js';
 import { AccessPolicy } from '../../iam/access/policies.js';
@@ -161,15 +161,21 @@ export class HostBrandingController {
  * The edge's question (Caddy's on-demand TLS `ask`, and its per-request
  * `forward_auth` on custom hosts): may it serve `domain`? 200 for a
  * verified custom domain of an active tenant, else 404; the status is
- * the answer. Not an API route: not in the OpenAPI document, not rate
- * limited (the edge asks per request), answered in maintenance too
- * (certificates still renew). The edge reaches it on the private network;
- * it refuses the path from outside (caddy/Caddyfile).
+ * the answer. Not an API route: not in the OpenAPI document, answered in
+ * maintenance too (certificates still renew). The edge reaches it on the
+ * private network; it refuses the path from outside (caddy/Caddyfile).
+ *
+ * Rate limited per address, in a bucket of its own: the edge's TLS asks
+ * come from the edge, its per-request checks carry the visitor's address
+ * (X-Forwarded-For, trusted from the private network). Past the limit, 429:
+ * no certificate and no request served. With the unknown-host cache
+ * (BrandingDomainsService.tenantOfHost), a flood of made-up hostnames can't
+ * hammer the database.
  */
 @ApiExcludeController()
 @Public()
 @AllowInMaintenance()
-@SkipThrottle()
+@Throttle({ default: { limit: 600, ttl: minutes(1) } })
 @Controller('internal/domains')
 export class DomainAskController {
   constructor(private readonly domains: BrandingDomainsService) {}
