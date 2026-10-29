@@ -210,6 +210,8 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/attachments/{id}/versions',
         '/v1/attachments/{id}/versions/{version}/download',
         '/v1/attachments/{id}/versions/{version}/restore',
+        '/v1/auth/app-attestation/challenge',
+        '/v1/auth/app-attestation/keys',
         '/v1/auth/email/change',
         '/v1/auth/email/verification',
         '/v1/auth/email/verification/resend',

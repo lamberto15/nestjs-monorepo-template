@@ -78,6 +78,12 @@ import {
   verifyEndpoint,
 } from './captcha/captcha.providers.js';
 import { CaptchaService } from './captcha/captcha.service.js';
+import { APPLE_APP_ATTESTATION_ROOT } from './captcha/app-attestation.js';
+import { AppAttestationController } from './captcha/app-attestation.controller.js';
+import {
+  APP_ATTEST_ROOTS,
+  AppAttestationService,
+} from './captcha/app-attestation.service.js';
 import { TURNSTILE_HTTP } from './captcha/turnstile.verifier.js';
 import { EmailController } from './account/email.controller.js';
 import { SoftDeletePurgeJob } from './resources/soft-delete-purge.job.js';
@@ -328,6 +334,7 @@ export class IamModule {
         SessionsController,
         MfaController,
         MagicLinkController,
+        AppAttestationController,
         OidcController,
         TokensController,
         ReauthenticationController,
@@ -404,6 +411,8 @@ export class IamModule {
         },
         CaptchaService,
         CaptchaGuard,
+        AppAttestationService,
+        { provide: APP_ATTEST_ROOTS, useValue: [APPLE_APP_ATTESTATION_ROOT] },
         // Accounts: what the package asks of the app (mail, users), and the emails.
         PasswordResetMailer,
         EmailVerificationMailer,

@@ -1316,9 +1316,10 @@ server-side with Cloudflare Turnstile. **Off by default**: without
   `after-failures` mode an app signs in without a widget until a 403
   `captcha_required` asks, then renders the Turnstile widget (its site key,
   action `sign-in`) in a web view once and retries with the token in
-  `X-Captcha-Token`; in `always` mode every token sign-in brings one. Until
-  app attestation (App Attest, Play Integrity) exists, this is what keeps a
-  bot from taking the token route around the challenge. API clients never
+  `X-Captcha-Token`; in `always` mode every token sign-in brings one. Or,
+  with `APP_ATTESTATION=on`, a genuine build proves itself instead
+  ([App attestation](#app-attestation)): what keeps a bot from taking the
+  token route around the challenge either way. API clients never
   sign in on these routes (keys go in `Authorization`), so nothing changes
   for them. `/password/reset`, `/magic-link/verify` and `/email/verify`
   take single-use tokens the attacker doesn't have, and keep their rate
@@ -1369,6 +1370,44 @@ dist/main` outside Compose must set `NODE_ENV=production` itself
 mistakes such a stack for a protected one. For a
 manual try against Cloudflare, Turnstile's documented test keys (its docs,
 "Testing") always pass, always block, or answer "already spent".
+
+### App attestation
+
+With `APP_ATTESTATION=on`, wherever a challenge token is asked for (every
+`@Captcha()` route: `/auth/token`, `/mfa/verify`, `/sign-up`,
+`/password/forgot`, `/email/verification/resend`, `/passkeys/token`…), a
+native app may send `X-App-Attestation` instead of `X-Captcha-Token`: the
+same modes and counters (a proof is only read where a token would be asked
+for), verified here, with no provider to fail open or closed. A 403
+`captcha_required` says `appAttestation: true`; a refused proof is 403
+`attestation_invalid` with a `reason`.
+
+- **The challenge:** `POST /v1/auth/app-attestation/challenge` →
+  `{ challenge, expiresIn }` (one-time, five minutes, in Redis): each proof
+  is bound to one.
+- **iOS (App Attest):** once per install, `DCAppAttestService.attestKey`
+  over the challenge's SHA-256, then `POST /v1/auth/app-attestation/keys
+  { keyId, attestation, challenge }` (base64url): checked against Apple's
+  root CA, the nonce, the key id, an app of `PASSKEY_APPLE_APPS`, a zero
+  counter and the production environment (`APP_ATTEST_DEVELOPMENT=on`
+  accepts debug builds too), and stored (`app_attest_keys`). Per request,
+  `generateAssertion` over a new challenge's SHA-256:
+  `X-App-Attestation: ios <challenge> <keyId> <assertion>`; its counter
+  must go up.
+- **Android (Play Integrity):** a classic integrity request with the
+  challenge as nonce: `X-App-Attestation: android <challenge> <token>`,
+  decrypted and verified here with the Play Console's response keys
+  (`PLAY_INTEGRITY_DECRYPTION_KEY`, a secret, and
+  `PLAY_INTEGRITY_VERIFICATION_KEY`; no call to Google): the nonce, at most
+  five minutes old, `PLAY_RECOGNIZED`, a package and signing certificate of
+  `PASSKEY_ANDROID_APPS`, `MEETS_DEVICE_INTEGRITY`.
+
+Code: `iam/captcha/app-attestation.ts` (the checks: custom, since
+@simplewebauthn/server verifies WebAuthn's formats and App Attest's is not
+one; its helpers decode the CBOR and check the chain, and `jose` opens
+Play's JWE) and `app-attestation.service.ts`. Tests:
+`app-attestation.spec.ts` (with an App Attest chain made by openssl) and
+`test/app-attestation.e2e-spec.ts`.
 
 ## Switches
 

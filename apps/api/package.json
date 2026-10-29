@@ -82,6 +82,7 @@
     "drizzle-orm": "0.45.4",
     "exceljs": "4.4.0",
     "ioredis": "6.0.0",
+    "jose": "6.2.13",
     "mammoth": "1.13.0",
     "nest-commander": "3.21.0",
     "nestjs-cls": "7.0.1",

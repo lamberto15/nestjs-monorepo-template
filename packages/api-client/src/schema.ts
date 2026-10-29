@@ -4801,6 +4801,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/app-attestation/challenge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A one-time challenge for an app attestation */
+        post: operations["AppAttestationController_challenge_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/app-attestation/keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register an iOS install's App Attest key
+         * @description Once per key, with an attestation made over a challenge: Apple vouches that the key belongs to a genuine build of an app of PASSKEY_APPLE_APPS. Its assertions then go in `X-App-Attestation`.
+         */
+        post: operations["AppAttestationController_register_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/oidc/{provider}/login": {
         parameters: {
             query?: never;
@@ -23699,6 +23736,8 @@ export interface operations {
             header?: {
                 /** @description The challenge token (Cloudflare Turnstile, widget action `public-form`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one. */
                 "X-Captcha-Token"?: string;
+                /** @description A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge. */
+                "X-App-Attestation"?: string;
             };
             path?: never;
             cookie?: never;
@@ -23738,7 +23777,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
+            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -29209,6 +29248,8 @@ export interface operations {
             header?: {
                 /** @description The challenge token (Cloudflare Turnstile, widget action `sign-in`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one. */
                 "X-Captcha-Token"?: string;
+                /** @description A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge. */
+                "X-App-Attestation"?: string;
             };
             path?: never;
             cookie?: never;
@@ -29243,7 +29284,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
+            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -29265,6 +29306,8 @@ export interface operations {
             header?: {
                 /** @description The challenge token (Cloudflare Turnstile, widget action `sign-up`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one. */
                 "X-Captcha-Token"?: string;
+                /** @description A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge. */
+                "X-App-Attestation"?: string;
             };
             path?: never;
             cookie?: never;
@@ -29319,7 +29362,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
+            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -29341,6 +29384,8 @@ export interface operations {
             header?: {
                 /** @description The challenge token (Cloudflare Turnstile, widget action `sign-in`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one. */
                 "X-Captcha-Token"?: string;
+                /** @description A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge. */
+                "X-App-Attestation"?: string;
             };
             path?: never;
             cookie?: never;
@@ -29374,7 +29419,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
+            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -29606,6 +29651,8 @@ export interface operations {
             header?: {
                 /** @description The challenge token (Cloudflare Turnstile, widget action `forgot-password`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one. */
                 "X-Captcha-Token"?: string;
+                /** @description A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge. */
+                "X-App-Attestation"?: string;
             };
             path?: never;
             cookie?: never;
@@ -29630,7 +29677,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
+            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -29837,6 +29884,8 @@ export interface operations {
             header?: {
                 /** @description The challenge token (Cloudflare Turnstile, widget action `resend-verification`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one. */
                 "X-Captcha-Token"?: string;
+                /** @description A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge. */
+                "X-App-Attestation"?: string;
             };
             path?: never;
             cookie?: never;
@@ -29861,7 +29910,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
+            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -30118,6 +30167,8 @@ export interface operations {
             header?: {
                 /** @description The challenge token (Cloudflare Turnstile, widget action `magic-link`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one. */
                 "X-Captcha-Token"?: string;
+                /** @description A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge. */
+                "X-App-Attestation"?: string;
             };
             path?: never;
             cookie?: never;
@@ -30144,7 +30195,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
+            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -30220,6 +30271,78 @@ export interface operations {
             };
             /** @description Unknown, used or expired link, or asked for elsewhere. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AppAttestationController_challenge_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description One-time: bind one proof to it (App Attest: its SHA-256 as clientDataHash; Play Integrity: the nonce). */
+                        challenge: string;
+                        /** @description Seconds until it expires. */
+                        expiresIn: number;
+                    };
+                };
+            };
+            /** @description App attestation is off. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AppAttestationController_register_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description App Attest's key id (`generateKey()`), base64url. */
+                    keyId: string;
+                    /** @description `attestKey()`'s attestation object, base64url. */
+                    attestation: string;
+                    challenge: string;
+                };
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `attestation_invalid` (`reason`: `challenge`, `format`, `certificate`, `nonce`, `key`, `app`, `authenticator`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description App attestation is off. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -30348,6 +30471,8 @@ export interface operations {
             header?: {
                 /** @description The challenge token (Cloudflare Turnstile, widget action `sign-in`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one. */
                 "X-Captcha-Token"?: string;
+                /** @description A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge. */
+                "X-App-Attestation"?: string;
             };
             path?: never;
             cookie?: never;
@@ -30392,7 +30517,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
+            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -31001,6 +31126,8 @@ export interface operations {
             header?: {
                 /** @description The challenge token (Cloudflare Turnstile, widget action `sign-in`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one. */
                 "X-Captcha-Token"?: string;
+                /** @description A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge. */
+                "X-App-Attestation"?: string;
             };
             path?: never;
             cookie?: never;
@@ -31053,7 +31180,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
+            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -31075,6 +31202,8 @@ export interface operations {
             header?: {
                 /** @description The challenge token (Cloudflare Turnstile, widget action `sign-in`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one. */
                 "X-Captcha-Token"?: string;
+                /** @description A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge. */
+                "X-App-Attestation"?: string;
             };
             path?: never;
             cookie?: never;
@@ -31136,7 +31265,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
+            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
             403: {
                 headers: {
                     [name: string]: unknown;

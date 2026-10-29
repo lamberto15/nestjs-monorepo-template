@@ -34,7 +34,8 @@
         "src/platform/attachments/text-extraction.worker.ts",
       ],
       // Started by test/global-setup.ts; CI and the devcontainer install it.
-      "ignoreBinaries": ["redis-server"],
+      // openssl: app-attestation.spec.ts signs a test App Attest chain with it.
+      "ignoreBinaries": ["redis-server", "openssl"],
     },
     "apps/web": {
       // lighthouserc.json's `startServerCommand` runs it directly (not a

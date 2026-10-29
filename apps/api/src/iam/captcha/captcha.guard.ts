@@ -14,6 +14,7 @@ import type {
   NodeResponse as Response,
 } from '@nestjs/platform-node';
 import { UsersRepository } from '../auth/users.repository.js';
+import { ATTESTATION_HEADER } from './app-attestation.service.js';
 import { CaptchaService } from './captcha.service.js';
 
 /** The header the widget's token travels in. */
@@ -62,9 +63,16 @@ export const Captcha = (options: CaptchaOptions) =>
       description: `The challenge token (Cloudflare Turnstile, widget action \`${options.action}\`), when GET /auth/methods lists a captcha: always, or once a 403 \`captcha_required\` asked for one.`,
       schema: { type: 'string' },
     }),
+    ApiHeader({
+      name: ATTESTATION_HEADER,
+      required: false,
+      description:
+        "A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge.",
+      schema: { type: 'string' },
+    }),
     ApiForbiddenResponse({
       description:
-        '`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance.',
+        '`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance.',
     }),
   );
 
@@ -117,7 +125,11 @@ export class CaptchaGuard implements CanActivate {
         }
       });
     }
-    await this.captcha.check(headerValue(request, CAPTCHA_HEADER), subject);
+    await this.captcha.check(
+      headerValue(request, CAPTCHA_HEADER),
+      subject,
+      headerValue(request, ATTESTATION_HEADER),
+    );
   }
 
   /**

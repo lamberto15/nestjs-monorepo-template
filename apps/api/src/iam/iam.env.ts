@@ -259,6 +259,19 @@ export const iamEnv = z.object({
     .default(15),
   /** Fail-open: requests let through unverified per address (and per email and address) in the window. */
   CAPTCHA_DEGRADED_LIMIT: z.coerce.number().int().min(1).max(100).default(2),
+  /**
+   * App attestation (docs/auth.md, "App attestation"): where a challenge
+   * token is asked for, a genuine build of an app in PASSKEY_APPLE_APPS
+   * (App Attest) or PASSKEY_ANDROID_APPS (Play Integrity) may send
+   * `X-App-Attestation` instead. Off: only the widget's token.
+   */
+  APP_ATTESTATION: flag('off'),
+  /** App Attest's development environment too (debug builds): never in production. */
+  APP_ATTEST_DEVELOPMENT: flag('off'),
+  /** Play Integrity's response decryption key (Play Console, base64): verdicts decrypted here, no call to Google. */
+  PLAY_INTEGRITY_DECRYPTION_KEY: secret(optional()),
+  /** Play Integrity's response verification key (Play Console, base64 SPKI). */
+  PLAY_INTEGRITY_VERIFICATION_KEY: optional(),
   /** Signs access tokens for mobile apps and CLIs (HS256, 32+ bytes). Unset: created once. */
   JWT_SECRET: secret(optional()),
   /** Encrypt TOTP secrets at rest: 32+ characters, newest first. Required in production (never created in the database there; an existing app_secrets row still works, with a warning); created once elsewhere. */

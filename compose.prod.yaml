@@ -132,6 +132,13 @@ x-app: &app
     CAPTCHA_FAILURES: ${CAPTCHA_FAILURES:-3}
     CAPTCHA_FAILURES_WINDOW_MINUTES: ${CAPTCHA_FAILURES_WINDOW_MINUTES:-15}
     CAPTCHA_DEGRADED_LIMIT: ${CAPTCHA_DEGRADED_LIMIT:-2}
+    # Native apps (docs/auth.md, "Native and mobile apps", "App
+    # attestation"): their redirect URIs, and their proofs instead of the
+    # widget (off until set; never App Attest's development environment here).
+    NATIVE_REDIRECT_URIS: ${NATIVE_REDIRECT_URIS:-}
+    APP_ATTESTATION: ${APP_ATTESTATION:-off}
+    PLAY_INTEGRITY_DECRYPTION_KEY: ${PLAY_INTEGRITY_DECRYPTION_KEY:-}
+    PLAY_INTEGRITY_VERIFICATION_KEY: ${PLAY_INTEGRITY_VERIFICATION_KEY:-}
     GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
     MICROSOFT_TENANT_ID: ${MICROSOFT_TENANT_ID:-}
@@ -226,6 +233,7 @@ x-app: &app
     MICROSOFT_CLIENT_SECRET_FILE: ${MICROSOFT_CLIENT_SECRET_FILE:+/run/secrets/microsoft_client_secret}
     GITHUB_CLIENT_SECRET_FILE: ${GITHUB_CLIENT_SECRET_FILE:+/run/secrets/github_client_secret}
     TURNSTILE_SECRET_KEY_FILE: ${TURNSTILE_SECRET_KEY_FILE:+/run/secrets/turnstile_secret_key}
+    PLAY_INTEGRITY_DECRYPTION_KEY_FILE: ${PLAY_INTEGRITY_DECRYPTION_KEY_FILE:+/run/secrets/play_integrity_decryption_key}
     SMTP_URL_FILE: ${SMTP_URL_FILE:+/run/secrets/smtp_url}
     MAIL_API_KEY_FILE: ${MAIL_API_KEY_FILE:+/run/secrets/mail_api_key}
     STORAGE_SIGNING_KEYS_FILE: ${STORAGE_SIGNING_KEYS_FILE:+/run/secrets/storage_signing_keys}
@@ -250,6 +258,7 @@ x-app: &app
     - microsoft_client_secret
     - github_client_secret
     - turnstile_secret_key
+    - play_integrity_decryption_key
     - smtp_url
     - mail_api_key
     - storage_signing_keys
@@ -404,6 +413,7 @@ services:
       - microsoft_client_secret
       - github_client_secret
       - turnstile_secret_key
+      - play_integrity_decryption_key
       - smtp_url
       - mail_api_key
       - storage_signing_keys
@@ -771,6 +781,8 @@ secrets:
     file: ${GITHUB_CLIENT_SECRET_FILE:-./secret.empty}
   turnstile_secret_key:
     file: ${TURNSTILE_SECRET_KEY_FILE:-./secret.empty}
+  play_integrity_decryption_key:
+    file: ${PLAY_INTEGRITY_DECRYPTION_KEY_FILE:-./secret.empty}
   smtp_url:
     file: ${SMTP_URL_FILE:-./secret.empty}
   mail_api_key:
