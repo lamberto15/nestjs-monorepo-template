@@ -1,4 +1,4 @@
-import { getTableColumns, getTableName } from 'drizzle-orm';
+import { getColumnTable, getTableColumns, getTableName } from 'drizzle-orm';
 import { type PgColumn, type PgTable, text } from 'drizzle-orm/pg-core';
 import { logRedaction } from '../logging/redaction.js';
 import type { Normalizer } from './data-cipher.js';
@@ -86,7 +86,7 @@ export function encrypted(
   column: PgColumn,
   options: EncryptedColumnOptions = {},
 ): EncryptedColumn {
-  const table = column.table as PgTable;
+  const table = getColumnTable(column) as PgTable;
   const tableName = getTableName(table);
   const where = `${tableName}.${column.name}`;
   if (registry.has(column)) {
@@ -100,7 +100,10 @@ export function encrypted(
       `${where}: a blind index needs a normalizer (normalizers in core/encryption/data-cipher.ts).`,
     );
   }
-  if (options.blindIndex && options.blindIndex.table !== column.table) {
+  if (
+    options.blindIndex &&
+    getColumnTable(options.blindIndex) !== getColumnTable(column)
+  ) {
     throw new Error(`${where}: its blind index must be in the same table.`);
   }
   const columns = getTableColumns(table);
@@ -141,7 +144,7 @@ export function encryptedColumn(column: PgColumn): EncryptedColumn {
   const entry = registry.get(column);
   if (!entry) {
     throw new Error(
-      `${getTableName(column.table as PgTable)}.${column.name} is not declared encrypted (encrypted()).`,
+      `${getTableName(getColumnTable(column) as PgTable)}.${column.name} is not declared encrypted (encrypted()).`,
     );
   }
   return entry;

@@ -3,26 +3,21 @@ import { eq, is } from 'drizzle-orm';
 import { drizzle as drizzleNodePg } from 'drizzle-orm/node-postgres';
 import {
   getTableConfig,
-  type PgDatabase,
+  type PgAsyncDatabase,
   type PgQueryResultHKT,
   PgTable,
-  type PgTransaction,
+  type PgAsyncTransaction,
 } from 'drizzle-orm/pg-core';
-import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import * as schema from '../../schema.js';
 import { migrateAll } from './migrate-all.js';
 import { registerTenantTables, TenantPool } from '../tenancy/tenant-pool.js';
 import { DatabaseObserver } from './database-observer.js';
 
 /** A Drizzle PostgreSQL database (node-postgres). */
-export type Database = PgDatabase<PgQueryResultHKT, typeof schema>;
+export type Database = PgAsyncDatabase<PgQueryResultHKT>;
 
 /** The `tx` that `db.transaction()` hands its callback. */
-export type Transaction = PgTransaction<
-  PgQueryResultHKT,
-  typeof schema,
-  ExtractTablesWithRelations<typeof schema>
->;
+export type Transaction = PgAsyncTransaction<PgQueryResultHKT>;
 
 /** The pool of a process (core.env.ts: DATABASE_POOL_*). */
 export type PoolSettings = {
@@ -108,7 +103,7 @@ export async function createDatabase(options: {
     observer,
   );
   // Every transaction carries the tenant of its context (core/tenancy/tenant-pool.ts).
-  const db = drizzleNodePg({ client, schema });
+  const db = drizzleNodePg({ client });
   return db;
 }
 

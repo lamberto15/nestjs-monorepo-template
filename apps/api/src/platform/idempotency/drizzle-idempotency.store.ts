@@ -13,11 +13,11 @@ import {
   type IdempotencyStoredPayload,
 } from '@nestjs/idempotency';
 import { and, eq, gt, inArray, lte } from 'drizzle-orm';
-import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
+import type { PgAsyncDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import { idempotencyKeys } from './idempotency.tables.js';
 
 /** A Drizzle database on PostgreSQL (node-postgres). */
-type Database = PgDatabase<PgQueryResultHKT>;
+type Database = PgAsyncDatabase<PgQueryResultHKT>;
 
 const { keyHash, owner: ownerColumn, expiresAt } = idempotencyKeys;
 

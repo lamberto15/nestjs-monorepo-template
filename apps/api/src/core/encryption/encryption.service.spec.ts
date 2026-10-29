@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { ConfigService } from '@nestjs/config';
-import { getTableName } from 'drizzle-orm';
+import { getColumnTable, getTableName } from 'drizzle-orm';
 import { PgDialect, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import type { CoreEnv } from '../config/core.env.js';
@@ -56,10 +56,9 @@ describe('the encrypted column registry', () => {
     expect(encryptedColumnNamed('spec_settings.api_secret')?.column).toBe(
       settings.apiSecret,
     );
-    expect(encryptedColumns().map((c) => getTableName(c.table))).toEqual([
-      'spec_customers',
-      'spec_settings',
-    ]);
+    expect(
+      encryptedColumns().map((c) => getTableName(getColumnTable(c))),
+    ).toEqual(['spec_customers', 'spec_settings']);
   });
 
   it('masks the columns by name in the logs', () => {
