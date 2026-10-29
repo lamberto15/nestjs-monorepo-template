@@ -139,9 +139,14 @@ describe('the permissions catalog (i18n)', () => {
     const shipped = declared.filter(
       ({ subject }) =>
         !subject ||
-        ['Access', 'Approval', 'Ops', 'MailSuppression', 'Note'].includes(
-          subject,
-        ),
+        [
+          'Access',
+          'Approval',
+          'Ops',
+          'MailSuppression',
+          'DataQuality',
+          'Note',
+        ].includes(subject),
     );
     expect(
       shipped

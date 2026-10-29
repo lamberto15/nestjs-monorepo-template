@@ -59,6 +59,7 @@ const technical = [
     ['Dependent choices', '/choices'],
     ['Sequences', '/sequences'],
     ['Data transfer', '/data-transfer'],
+    ['Data quality', '/data-quality'],
     ['Import limits', '/import-limits'],
     ['Bulk operations', '/bulk-operations'],
     ['Duplicates and merging', '/merging'],

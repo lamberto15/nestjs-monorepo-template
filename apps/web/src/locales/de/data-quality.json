@@ -1,0 +1,42 @@
+{
+  "nav": "Datenqualität",
+  "title": "Datenqualität",
+  "description": "Datensätze, denen empfohlene Werte fehlen, die auf Datensätze im Papierkorb verweisen oder wie Duplikate aussehen. Fehler sind falsch; Vorschläge können so stimmen. Hier wird kein Datensatz geändert: Korrigieren Sie ihn an seiner Stelle, oder verwerfen Sie den Befund.",
+  "none": "Keine Art von Datensätzen hat Datenqualitätsprüfungen, die Sie sehen dürfen.",
+  "subject": "Datensätze",
+  "errors": "Fehler",
+  "suggestions": "Vorschläge",
+  "dismissed": "Verworfen",
+  "freshness": "Letzte Prüfung",
+  "neverScanned": "Noch keine Prüfung: Starten Sie eine, um Probleme zu finden.",
+  "scanning": "Prüfung läuft: {{scanned}} von {{total}} Datensätzen geprüft.",
+  "scanFailed": "Die am {{at}} gestartete Prüfung ist fehlgeschlagen. Starten Sie eine neue.",
+  "lastScan": "Beendet {{at}}: {{n}} offene Befunde.",
+  "progress": "Fortschritt der Prüfung",
+  "scan": "Jetzt prüfen",
+  "scanStarted": "Prüfung gestartet.",
+  "findingsOf": "Befunde: {{subject}}",
+  "showDismissed": "Verworfene zeigen",
+  "noneOpen": "Keine offenen Befunde.",
+  "noneDismissed": "Keine verworfenen Befunde.",
+  "severity": "Schwere",
+  "problem": "Problem",
+  "record": "Datensatz",
+  "actions": "Aktionen",
+  "severityLabel": {
+    "error": "Fehler",
+    "suggestion": "Vorschlag"
+  },
+  "check": {
+    "missing": "{{field}} ist leer",
+    "reference": "{{field}} verweist auf einen Datensatz im Papierkorb ({{other}})",
+    "duplicate": "{{field}} ist gleich wie bei einem anderen Datensatz ({{other}})"
+  },
+  "recheck": "Neu prüfen",
+  "recheckLabel": "Neu prüfen: {{problem}}",
+  "dismiss": "Verwerfen",
+  "dismissLabel": "Verwerfen: {{problem}}",
+  "resolved": "Behoben: Das Problem ist weg.",
+  "stillThere": "Besteht weiterhin.",
+  "dismissedToast": "Befund verworfen."
+}

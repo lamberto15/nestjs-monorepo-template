@@ -1,0 +1,42 @@
+{
+  "nav": "数据质量",
+  "title": "数据质量",
+  "description": "缺少推荐值、引用回收站中记录或疑似重复的记录。错误是确实有误；建议可能本身没错。这里不会修改任何记录：请在记录所在处修正，或忽略该问题。",
+  "none": "没有任何记录类型声明了你可查看的数据质量检查。",
+  "subject": "记录",
+  "errors": "错误",
+  "suggestions": "建议",
+  "dismissed": "已忽略",
+  "freshness": "上次扫描",
+  "neverScanned": "尚未扫描：开始一次扫描以发现问题。",
+  "scanning": "扫描中：已检查 {{scanned}} / {{total}} 条记录。",
+  "scanFailed": "{{at}} 开始的扫描失败。请重新开始。",
+  "lastScan": "完成于 {{at}}：{{n}} 个未处理问题。",
+  "progress": "扫描进度",
+  "scan": "立即扫描",
+  "scanStarted": "扫描已开始。",
+  "findingsOf": "问题：{{subject}}",
+  "showDismissed": "显示已忽略",
+  "noneOpen": "没有未处理的问题。",
+  "noneDismissed": "没有已忽略的问题。",
+  "severity": "严重程度",
+  "problem": "问题",
+  "record": "记录",
+  "actions": "操作",
+  "severityLabel": {
+    "error": "错误",
+    "suggestion": "建议"
+  },
+  "check": {
+    "missing": "{{field}} 为空",
+    "reference": "{{field}} 引用了回收站中的记录（{{other}}）",
+    "duplicate": "{{field}} 与另一条记录相同（{{other}}）"
+  },
+  "recheck": "重新检查",
+  "recheckLabel": "重新检查：{{problem}}",
+  "dismiss": "忽略",
+  "dismissLabel": "忽略：{{problem}}",
+  "resolved": "已解决：问题已消失。",
+  "stillThere": "问题仍然存在。",
+  "dismissedToast": "问题已忽略。"
+}

@@ -666,6 +666,13 @@
       "when": 1793237252366,
       "tag": "0094_grey_toad_men",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1793238452435,
+      "tag": "0095_familiar_madelyne_pryor",
+      "breakpoints": true
     }
   ]
 }

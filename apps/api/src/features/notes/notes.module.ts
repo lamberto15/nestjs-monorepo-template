@@ -34,6 +34,7 @@ import { bulkRoutes } from '../../platform/bulk/bulk.routes.js';
 import { watchRoutes } from '../../platform/subscriptions/subscription.routes.js';
 import { shareRoutes } from '../../platform/shares/share.routes.js';
 import { NoteShares } from './note-shares.js';
+import { NoteQuality } from './note-quality.js';
 import { mergeRoutes } from '../../platform/merge/merge.routes.js';
 import { MERGES } from '../../platform/merge/record-merge.js';
 import { NoteMerge } from './note-merge.js';
@@ -93,6 +94,7 @@ import { NOTE_LIST, NOTE_VIEWS } from './note.list.js';
     NoteAccess,
     NoteSubscriptions,
     NoteShares,
+    NoteQuality,
     NoteMerge,
     { provide: MERGES, useExisting: NoteMerge },
     NoteTags,

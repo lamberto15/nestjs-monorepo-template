@@ -84,6 +84,12 @@ export interface RecordNumber {
   width?: number;
 }
 
+/** A record's data-quality checks (platform/data-quality), by field name. */
+export interface RecordQuality {
+  recommended?: readonly string[];
+  duplicates?: readonly string[];
+}
+
 export interface RecordDeclaration<
   F extends Fields = Fields,
   C extends readonly Capability[] = readonly Capability[],
@@ -136,6 +142,13 @@ export interface RecordDeclaration<
    */
   views?: ListViewsDeclaration;
   /**
+   * What the data-quality scan checks besides its references
+   * (docs/data-quality.md): `recommended` fields left empty are suggestions,
+   * `duplicates` fields whose value (whatever its case) another record has
+   * too are duplicate candidates. Its `ref` fields are always checked.
+   */
+  quality?: RecordQuality;
+  /**
    * With `merge`: when two records are likely the same (docs/merging.md),
    * each rule a set of fields whose values all match (text without case or
    * surrounding spaces): `[['email'], ['firstName', 'lastName']]`. Default:
@@ -177,6 +190,16 @@ export function defineRecord<
     throw new Error(
       `${declaration.subject} takes pdf: add attachments too (a PDF is one of the record's attachments).`,
     );
+  }
+  for (const name of [
+    ...(declaration.quality?.recommended ?? []),
+    ...(declaration.quality?.duplicates ?? []),
+  ]) {
+    if (!(name in declaration.fields)) {
+      throw new Error(
+        `${declaration.subject}: quality names "${name}", which is none of its fields.`,
+      );
+    }
   }
   for (const action of Object.keys(declaration.approvals ?? {})) {
     if (!APPROVAL_ACTION.test(action) || RESERVED_ACTIONS.includes(action)) {
