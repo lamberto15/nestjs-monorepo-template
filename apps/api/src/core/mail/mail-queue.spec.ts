@@ -82,6 +82,18 @@ describe('MailQueue', () => {
     expect(add).not.toHaveBeenCalled();
   });
 
+  it('names the tenant on the job, and marks a mail sent as essential', async () => {
+    const { queue, add } = queueWith();
+    await queue.send(Hello, { to: 'a@example.com' } as never, {
+      essential: true,
+    });
+    expect(add).toHaveBeenCalledWith(
+      'Hello',
+      expect.objectContaining({ tenantId: null, mandatory: true }),
+      expect.anything(),
+    );
+  });
+
   it('stops waiting for Redis when the signal aborts', async () => {
     const { queue, add } = queueWith();
     add.mockImplementation(() => new Promise<undefined>(() => {}));

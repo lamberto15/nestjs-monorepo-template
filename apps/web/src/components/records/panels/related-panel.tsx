@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { recordLinkOf } from '@/features/watching/record-links';
 import type { ListDescription } from '@/lib/list-query';
+import { recordName } from '../record-picker';
 import { listRelated, panelKeys, RELATED_LIMIT } from './api';
 
 type Related = ListDescription['related'][number];
@@ -48,10 +49,7 @@ export function RelatedPanel(props: {
           <ul className="flex flex-col divide-y rounded-md border">
             {page.data.items.map((item) => {
               const id = item.id as string;
-              const name =
-                (title ? (item[title] as string | null) : null) ??
-                (item.number as string | null | undefined) ??
-                id;
+              const name = recordName(item, title);
               return (
                 <li key={id} className="p-2 text-sm">
                   {link ? (

@@ -106,6 +106,12 @@
     "error": "无法加载相关记录。",
     "more": "最新的 {{shown}} 条，共 {{total}} 条。"
   },
+  "picker": {
+    "placeholder": "按名称搜索…",
+    "searching": "正在搜索…",
+    "none": "没有您可查看的匹配项。",
+    "failed": "无法搜索记录。"
+  },
   "duplicates": {
     "title": "重复记录",
     "empty": "没有可能的重复记录。",

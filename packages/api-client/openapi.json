@@ -7488,6 +7488,592 @@
         ]
       }
     },
+    "/v1/ops/queues/{name}/pause": {
+      "post": {
+        "description": "BullMQ pause, kept in Redis: nothing is lost, and running jobs finish. Leaving maintenance mode resumes every queue. The outbox keeps queuing jobs into it: see /v1/ops/backlog. Audited.",
+        "operationId": "OpsController_pauseQueue_v1",
+        "parameters": [
+          {
+            "name": "name",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "paused": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "paused"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "operator_required: the caller does not act in the operator tenant.\n\nNot allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Pause a queue (every worker stops taking its jobs)",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/v1/ops/queues/{name}/resume": {
+      "post": {
+        "operationId": "OpsController_resumeQueue_v1",
+        "parameters": [
+          {
+            "name": "name",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "paused": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "paused"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "operator_required: the caller does not act in the operator tenant.\n\nNot allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Resume a paused queue. Audited.",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/v1/ops/backlog/preview": {
+      "post": {
+        "description": "Changes nothing. The outbox (pending messages by topic and notification type, dead letters, those being delivered) and the mail queue (jobs by state and mail class). Exactly one of tenantId and global: true. topic and type narrow the outbox, template the mail queue, before (ISO 8601) keeps to older work. Mail queued before jobs named their tenant counts under global only.",
+        "operationId": "OpsController_previewBacklog_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "global": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ]
+                  },
+                  "topic": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "type": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "template": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "before": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "outbox": {
+                      "type": "object",
+                      "properties": {
+                        "pending": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "groups": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "topic": {
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "count": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "mandatory": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "topic",
+                                  "type",
+                                  "count",
+                                  "mandatory"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "groups"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "deadLetters": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "groups": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "topic": {
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "count": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "mandatory": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "topic",
+                                  "type",
+                                  "count",
+                                  "mandatory"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "groups"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "leased": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "pending",
+                        "deadLetters",
+                        "leased"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "mail": {
+                      "type": "object",
+                      "properties": {
+                        "groups": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "state": {
+                                "type": "string"
+                              },
+                              "template": {
+                                "type": "string"
+                              },
+                              "count": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "essential": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "state",
+                              "template",
+                              "count",
+                              "essential"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "capped": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "groups",
+                        "capped"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "outbox",
+                    "mail"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "operator_required: the caller does not act in the operator tenant.\n\nNot allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Count the outbox and mail backlog of one tenant (or, explicitly, every tenant)",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/v1/ops/backlog/discard": {
+      "post": {
+        "description": "outbox: deletes pending notifications.deliver (and other) messages not being delivered, and dead letters, in batches; a discarded notification stays in the list, marked delivered, with no push, mail or webhook. mail: removes waiting, delayed and failed jobs. Never a mandatory notification type, essential mail or running work. Up to limit (10,000) per call: call again while more. Preview first. Audited.",
+        "operationId": "OpsController_discardBacklog_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scope": {
+                    "type": "object",
+                    "properties": {
+                      "tenantId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "global": {
+                        "type": "boolean",
+                        "enum": [
+                          true
+                        ]
+                      },
+                      "topic": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "type": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "template": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "before": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      }
+                    }
+                  },
+                  "target": {
+                    "type": "string",
+                    "enum": [
+                      "outbox",
+                      "mail"
+                    ]
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50000
+                  }
+                },
+                "required": [
+                  "scope",
+                  "target"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "more": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "count",
+                    "more"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "operator_required: the caller does not act in the operator tenant.\n\nNot allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Discard the outbox or mail backlog in a scope",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/v1/ops/backlog/retry": {
+      "post": {
+        "description": "outbox: requeues the dead letters with a fresh retry budget; mail: retries the failed jobs. The mail mode and the daily budgets still apply. Up to limit (10,000) per call: call again while more. Audited.",
+        "operationId": "OpsController_retryBacklog_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scope": {
+                    "type": "object",
+                    "properties": {
+                      "tenantId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "global": {
+                        "type": "boolean",
+                        "enum": [
+                          true
+                        ]
+                      },
+                      "topic": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "type": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "template": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "before": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      }
+                    }
+                  },
+                  "target": {
+                    "type": "string",
+                    "enum": [
+                      "outbox",
+                      "mail"
+                    ]
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50000
+                  }
+                },
+                "required": [
+                  "scope",
+                  "target"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "more": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "count",
+                    "more"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "operator_required: the caller does not act in the operator tenant.\n\nNot allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Retry the outbox dead letters or failed mail in a scope",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
     "/v1/ops/dead-letters/requeue": {
       "post": {
         "operationId": "OpsController_requeue_v1",
@@ -17280,6 +17866,418 @@
         ]
       }
     },
+    "/v1/branding/domains": {
+      "get": {
+        "description": "`enabled`: whether this deployment serves custom domains (CUSTOM_DOMAINS); off, adding and verifying answer 404 `custom_domains_off`.",
+        "operationId": "BrandingDomainsController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean",
+                      "description": "Whether this deployment serves custom domains (CUSTOM_DOMAINS)."
+                    },
+                    "domains": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "hostname": {
+                            "type": "string",
+                            "description": "Lower case, ASCII (punycode)."
+                          },
+                          "verified": {
+                            "type": "boolean",
+                            "description": "Its TXT record was found at the last check: the host routes to the tenant."
+                          },
+                          "verifiedAt": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "lastCheckedAt": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "lastError": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "record": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "TXT"
+                                ]
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "name",
+                              "value"
+                            ],
+                            "additionalProperties": false,
+                            "description": "The DNS record that proves the domain is the tenant’s; keep it published."
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "hostname",
+                          "verified",
+                          "verifiedAt",
+                          "lastCheckedAt",
+                          "lastError",
+                          "record",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "enabled",
+                    "domains"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "The tenant's custom domains and their verification",
+        "tags": [
+          "branding"
+        ]
+      },
+      "post": {
+        "description": "A public hostname (no IP, port or path; not the app's own domain or one under it; an internationalized name is stored in punycode). Point it at the app (a CNAME) and publish the TXT `record`. Audited (`branding.domain-added`). 409 `branding_locked` while the operators lock the branding.",
+        "operationId": "BrandingDomainsController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "hostname": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300,
+                    "description": "A hostname such as app.example.com: no scheme, port or path; an internationalized name is stored in punycode."
+                  }
+                },
+                "required": [
+                  "hostname"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "hostname": {
+                      "type": "string",
+                      "description": "Lower case, ASCII (punycode)."
+                    },
+                    "verified": {
+                      "type": "boolean",
+                      "description": "Its TXT record was found at the last check: the host routes to the tenant."
+                    },
+                    "verifiedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "lastCheckedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "lastError": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "record": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "TXT"
+                          ]
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "value": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "name",
+                        "value"
+                      ],
+                      "additionalProperties": false,
+                      "description": "The DNS record that proves the domain is the tenant’s; keep it published."
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "hostname",
+                    "verified",
+                    "verifiedAt",
+                    "lastCheckedAt",
+                    "lastError",
+                    "record",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`invalid_hostname`."
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "404": {
+            "description": "`custom_domains_off`."
+          },
+          "409": {
+            "description": "`domain_exists`, `branding_locked`."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Add a custom domain: publish its `record`, then verify",
+        "tags": [
+          "branding"
+        ]
+      }
+    },
+    "/v1/branding/domains/{id}/verify": {
+      "post": {
+        "description": "The domain routes to the tenant while its record resolves: checked again every night, a record gone stops it. 409 `branding_locked` while locked.",
+        "operationId": "BrandingDomainsController_verify_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accepted": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "accepted"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "`branding_locked`."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Look the TXT record up (on the queue): `verified` once found",
+        "tags": [
+          "branding"
+        ]
+      }
+    },
+    "/v1/branding/domains/{id}": {
+      "delete": {
+        "description": "No brand, no session and no new certificate on that host from then on. Audited (`branding.domain-removed`). Allowed while the branding is locked.",
+        "operationId": "BrandingDomainsController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Remove a custom domain: it stops routing at once",
+        "tags": [
+          "branding"
+        ]
+      }
+    },
+    "/v1/branding/host": {
+      "get": {
+        "description": "No sign-in needed. On a tenant's verified custom domain, its colours, sender name and logos; on any other host (the app's own, an unknown one, a domain removed), every field null. Never names the tenant otherwise. Not cached: a removed domain stops at once.",
+        "operationId": "HostBrandingController_host_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "primaryColor": {
+                      "nullable": true,
+                      "description": "`#rrggbb`, or null: the default theme.",
+                      "type": "string"
+                    },
+                    "darkPrimaryColor": {
+                      "nullable": true,
+                      "description": "`#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds.",
+                      "type": "string"
+                    },
+                    "mailFromName": {
+                      "nullable": true,
+                      "description": "The name mail is sent under, or null: the deployment’s.",
+                      "type": "string"
+                    },
+                    "logoUrl": {
+                      "nullable": true,
+                      "description": "The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null.",
+                      "type": "string"
+                    },
+                    "darkLogoUrl": {
+                      "nullable": true,
+                      "description": "The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "primaryColor",
+                    "darkPrimaryColor",
+                    "mailFromName",
+                    "logoUrl",
+                    "darkLogoUrl"
+                  ],
+                  "additionalProperties": false,
+                  "description": "The brand of the tenant whose verified custom domain the request came to; on any other host, every field null."
+                }
+              }
+            }
+          }
+        },
+        "summary": "The brand of the host you reached the app on",
+        "tags": [
+          "branding"
+        ]
+      }
+    },
     "/v1/subscriptions": {
       "get": {
         "description": "Filter with `?subject=Note`; newest first; cursor pages.",
@@ -18089,7 +19087,15 @@
                           },
                           "required": {
                             "type": "boolean",
-                            "description": "Required: a record they refer to cannot be deleted (409 `record_referenced`). Optional: the field empties when it is deleted for good."
+                            "description": "Required: the field is never empty, and a record they refer to stays until they go (409 `record_referenced`, those in the recycle bin included). Optional: the field empties when its record is deleted for good."
+                          },
+                          "onDelete": {
+                            "type": "string",
+                            "enum": [
+                              "restrict",
+                              "keep"
+                            ],
+                            "description": "Deleting a record they refer to: `restrict` refuses it while live ones do (409 `record_referenced`); `keep` moves it to the recycle bin with their field kept, so a restore brings the relation back."
                           }
                         },
                         "required": [
@@ -18097,7 +19103,8 @@
                           "path",
                           "field",
                           "title",
-                          "required"
+                          "required",
+                          "onDelete"
                         ],
                         "additionalProperties": false
                       },
@@ -25755,8 +26762,8 @@
                     "type": "object",
                     "properties": {
                       "format": {
-                        "default": 3,
-                        "description": "The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.",
+                        "default": 2,
+                        "description": "The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.",
                         "anyOf": [
                           {
                             "type": "number",
@@ -25768,12 +26775,6 @@
                             "type": "number",
                             "enum": [
                               2
-                            ]
-                          },
-                          {
-                            "type": "number",
-                            "enum": [
-                              3
                             ]
                           }
                         ]
@@ -25804,10 +26805,6 @@
                                 }
                               ]
                             },
-                            "startsPage": {
-                              "description": "Starts a new page (format 3): the form is then a wizard, one page at a time.",
-                              "type": "boolean"
-                            },
                             "fields": {
                               "maxItems": 200,
                               "type": "array",
@@ -25832,8 +26829,7 @@
                                       "checkbox",
                                       "select",
                                       "multiSelect",
-                                      "radio",
-                                      "group"
+                                      "radio"
                                     ]
                                   },
                                   "label": {
@@ -25982,174 +26978,6 @@
                                       },
                                       "additionalProperties": false
                                     }
-                                  },
-                                  "fields": {
-                                    "description": "A group's fields (format 3): each item answers them, as an object by key.",
-                                    "maxItems": 20,
-                                    "type": "array",
-                                    "items": {
-                                      "type": "object",
-                                      "properties": {
-                                        "key": {
-                                          "type": "string",
-                                          "pattern": "^[a-z][a-z0-9_]{0,49}$",
-                                          "description": "The answer's key: unique in the form, and once published its type never changes."
-                                        },
-                                        "type": {
-                                          "type": "string",
-                                          "enum": [
-                                            "text",
-                                            "textarea",
-                                            "email",
-                                            "url",
-                                            "integer",
-                                            "decimal",
-                                            "date",
-                                            "checkbox",
-                                            "select",
-                                            "multiSelect",
-                                            "radio"
-                                          ]
-                                        },
-                                        "label": {
-                                          "type": "string",
-                                          "maxLength": 200
-                                        },
-                                        "help": {
-                                          "type": "string",
-                                          "maxLength": 1000
-                                        },
-                                        "placeholder": {
-                                          "type": "string",
-                                          "maxLength": 200
-                                        },
-                                        "required": {
-                                          "description": "A checkbox that is required must be checked (a consent).",
-                                          "type": "boolean"
-                                        },
-                                        "default": {
-                                          "description": "Used when the answer is left out: of the field's type."
-                                        },
-                                        "options": {
-                                          "description": "The choices of select, multiSelect and radio.",
-                                          "maxItems": 200,
-                                          "type": "array",
-                                          "items": {
-                                            "type": "object",
-                                            "properties": {
-                                              "value": {
-                                                "type": "string",
-                                                "minLength": 1,
-                                                "maxLength": 100,
-                                                "description": "Stored in the answer."
-                                              },
-                                              "label": {
-                                                "type": "string",
-                                                "maxLength": 200
-                                              },
-                                              "translations": {
-                                                "type": "object",
-                                                "additionalProperties": {
-                                                  "type": "object",
-                                                  "properties": {
-                                                    "label": {
-                                                      "type": "string",
-                                                      "maxLength": 200
-                                                    }
-                                                  },
-                                                  "additionalProperties": false
-                                                }
-                                              }
-                                            },
-                                            "required": [
-                                              "value",
-                                              "label"
-                                            ],
-                                            "additionalProperties": false
-                                          }
-                                        },
-                                        "validation": {
-                                          "type": "object",
-                                          "properties": {
-                                            "minLength": {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 9007199254740991
-                                            },
-                                            "maxLength": {
-                                              "type": "integer",
-                                              "minimum": 1,
-                                              "maximum": 9007199254740991
-                                            },
-                                            "pattern": {
-                                              "description": "A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences.",
-                                              "type": "string",
-                                              "minLength": 1,
-                                              "maxLength": 200
-                                            },
-                                            "min": {
-                                              "type": "number"
-                                            },
-                                            "max": {
-                                              "type": "number"
-                                            },
-                                            "decimals": {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 10
-                                            },
-                                            "minDate": {
-                                              "type": "string",
-                                              "format": "date",
-                                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                                            },
-                                            "maxDate": {
-                                              "type": "string",
-                                              "format": "date",
-                                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                                            },
-                                            "minItems": {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 9007199254740991
-                                            },
-                                            "maxItems": {
-                                              "type": "integer",
-                                              "minimum": 1,
-                                              "maximum": 9007199254740991
-                                            }
-                                          },
-                                          "additionalProperties": false
-                                        },
-                                        "translations": {
-                                          "type": "object",
-                                          "additionalProperties": {
-                                            "type": "object",
-                                            "properties": {
-                                              "label": {
-                                                "type": "string",
-                                                "maxLength": 200
-                                              },
-                                              "help": {
-                                                "type": "string",
-                                                "maxLength": 1000
-                                              },
-                                              "placeholder": {
-                                                "type": "string",
-                                                "maxLength": 200
-                                              }
-                                            },
-                                            "additionalProperties": false
-                                          }
-                                        }
-                                      },
-                                      "required": [
-                                        "key",
-                                        "type",
-                                        "label"
-                                      ],
-                                      "additionalProperties": false
-                                    }
                                   }
                                 },
                                 "required": [
@@ -26191,7 +27019,7 @@
                     ],
                     "additionalProperties": false,
                     "example": {
-                      "format": 3,
+                      "format": 2,
                       "sections": [
                         {
                           "key": "contact",
@@ -26694,8 +27522,8 @@
                       "type": "object",
                       "properties": {
                         "format": {
-                          "default": 3,
-                          "description": "The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.",
+                          "default": 2,
+                          "description": "The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.",
                           "anyOf": [
                             {
                               "type": "number",
@@ -26707,12 +27535,6 @@
                               "type": "number",
                               "enum": [
                                 2
-                              ]
-                            },
-                            {
-                              "type": "number",
-                              "enum": [
-                                3
                               ]
                             }
                           ]
@@ -26743,10 +27565,6 @@
                                   }
                                 ]
                               },
-                              "startsPage": {
-                                "description": "Starts a new page (format 3): the form is then a wizard, one page at a time.",
-                                "type": "boolean"
-                              },
                               "fields": {
                                 "maxItems": 200,
                                 "type": "array",
@@ -26771,8 +27589,7 @@
                                         "checkbox",
                                         "select",
                                         "multiSelect",
-                                        "radio",
-                                        "group"
+                                        "radio"
                                       ]
                                     },
                                     "label": {
@@ -26921,174 +27738,6 @@
                                         },
                                         "additionalProperties": false
                                       }
-                                    },
-                                    "fields": {
-                                      "description": "A group's fields (format 3): each item answers them, as an object by key.",
-                                      "maxItems": 20,
-                                      "type": "array",
-                                      "items": {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "type": "string",
-                                            "pattern": "^[a-z][a-z0-9_]{0,49}$",
-                                            "description": "The answer's key: unique in the form, and once published its type never changes."
-                                          },
-                                          "type": {
-                                            "type": "string",
-                                            "enum": [
-                                              "text",
-                                              "textarea",
-                                              "email",
-                                              "url",
-                                              "integer",
-                                              "decimal",
-                                              "date",
-                                              "checkbox",
-                                              "select",
-                                              "multiSelect",
-                                              "radio"
-                                            ]
-                                          },
-                                          "label": {
-                                            "type": "string",
-                                            "minLength": 1
-                                          },
-                                          "help": {
-                                            "type": "string",
-                                            "maxLength": 1000
-                                          },
-                                          "placeholder": {
-                                            "type": "string",
-                                            "maxLength": 200
-                                          },
-                                          "required": {
-                                            "description": "A checkbox that is required must be checked (a consent).",
-                                            "type": "boolean"
-                                          },
-                                          "default": {
-                                            "description": "Used when the answer is left out: of the field's type."
-                                          },
-                                          "options": {
-                                            "description": "The choices of select, multiSelect and radio.",
-                                            "maxItems": 200,
-                                            "type": "array",
-                                            "items": {
-                                              "type": "object",
-                                              "properties": {
-                                                "value": {
-                                                  "type": "string",
-                                                  "minLength": 1,
-                                                  "maxLength": 100,
-                                                  "description": "Stored in the answer."
-                                                },
-                                                "label": {
-                                                  "type": "string",
-                                                  "minLength": 1
-                                                },
-                                                "translations": {
-                                                  "type": "object",
-                                                  "additionalProperties": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                      "label": {
-                                                        "type": "string",
-                                                        "maxLength": 200
-                                                      }
-                                                    },
-                                                    "additionalProperties": false
-                                                  }
-                                                }
-                                              },
-                                              "required": [
-                                                "value",
-                                                "label"
-                                              ],
-                                              "additionalProperties": false
-                                            }
-                                          },
-                                          "validation": {
-                                            "type": "object",
-                                            "properties": {
-                                              "minLength": {
-                                                "type": "integer",
-                                                "minimum": 0,
-                                                "maximum": 9007199254740991
-                                              },
-                                              "maxLength": {
-                                                "type": "integer",
-                                                "minimum": 1,
-                                                "maximum": 9007199254740991
-                                              },
-                                              "pattern": {
-                                                "description": "A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences.",
-                                                "type": "string",
-                                                "minLength": 1,
-                                                "maxLength": 200
-                                              },
-                                              "min": {
-                                                "type": "number"
-                                              },
-                                              "max": {
-                                                "type": "number"
-                                              },
-                                              "decimals": {
-                                                "type": "integer",
-                                                "minimum": 0,
-                                                "maximum": 10
-                                              },
-                                              "minDate": {
-                                                "type": "string",
-                                                "format": "date",
-                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                                              },
-                                              "maxDate": {
-                                                "type": "string",
-                                                "format": "date",
-                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                                              },
-                                              "minItems": {
-                                                "type": "integer",
-                                                "minimum": 0,
-                                                "maximum": 9007199254740991
-                                              },
-                                              "maxItems": {
-                                                "type": "integer",
-                                                "minimum": 1,
-                                                "maximum": 9007199254740991
-                                              }
-                                            },
-                                            "additionalProperties": false
-                                          },
-                                          "translations": {
-                                            "type": "object",
-                                            "additionalProperties": {
-                                              "type": "object",
-                                              "properties": {
-                                                "label": {
-                                                  "type": "string",
-                                                  "maxLength": 200
-                                                },
-                                                "help": {
-                                                  "type": "string",
-                                                  "maxLength": 1000
-                                                },
-                                                "placeholder": {
-                                                  "type": "string",
-                                                  "maxLength": 200
-                                                }
-                                              },
-                                              "additionalProperties": false
-                                            }
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "type",
-                                          "label"
-                                        ],
-                                        "additionalProperties": false
-                                      }
                                     }
                                   },
                                   "required": [
@@ -27131,7 +27780,7 @@
                       ],
                       "additionalProperties": false,
                       "example": {
-                        "format": 3,
+                        "format": 2,
                         "sections": [
                           {
                             "key": "contact",
@@ -27245,8 +27894,8 @@
                     "type": "object",
                     "properties": {
                       "format": {
-                        "default": 3,
-                        "description": "The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.",
+                        "default": 2,
+                        "description": "The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.",
                         "anyOf": [
                           {
                             "type": "number",
@@ -27258,12 +27907,6 @@
                             "type": "number",
                             "enum": [
                               2
-                            ]
-                          },
-                          {
-                            "type": "number",
-                            "enum": [
-                              3
                             ]
                           }
                         ]
@@ -27294,10 +27937,6 @@
                                 }
                               ]
                             },
-                            "startsPage": {
-                              "description": "Starts a new page (format 3): the form is then a wizard, one page at a time.",
-                              "type": "boolean"
-                            },
                             "fields": {
                               "maxItems": 200,
                               "type": "array",
@@ -27322,8 +27961,7 @@
                                       "checkbox",
                                       "select",
                                       "multiSelect",
-                                      "radio",
-                                      "group"
+                                      "radio"
                                     ]
                                   },
                                   "label": {
@@ -27472,174 +28110,6 @@
                                       },
                                       "additionalProperties": false
                                     }
-                                  },
-                                  "fields": {
-                                    "description": "A group's fields (format 3): each item answers them, as an object by key.",
-                                    "maxItems": 20,
-                                    "type": "array",
-                                    "items": {
-                                      "type": "object",
-                                      "properties": {
-                                        "key": {
-                                          "type": "string",
-                                          "pattern": "^[a-z][a-z0-9_]{0,49}$",
-                                          "description": "The answer's key: unique in the form, and once published its type never changes."
-                                        },
-                                        "type": {
-                                          "type": "string",
-                                          "enum": [
-                                            "text",
-                                            "textarea",
-                                            "email",
-                                            "url",
-                                            "integer",
-                                            "decimal",
-                                            "date",
-                                            "checkbox",
-                                            "select",
-                                            "multiSelect",
-                                            "radio"
-                                          ]
-                                        },
-                                        "label": {
-                                          "type": "string",
-                                          "maxLength": 200
-                                        },
-                                        "help": {
-                                          "type": "string",
-                                          "maxLength": 1000
-                                        },
-                                        "placeholder": {
-                                          "type": "string",
-                                          "maxLength": 200
-                                        },
-                                        "required": {
-                                          "description": "A checkbox that is required must be checked (a consent).",
-                                          "type": "boolean"
-                                        },
-                                        "default": {
-                                          "description": "Used when the answer is left out: of the field's type."
-                                        },
-                                        "options": {
-                                          "description": "The choices of select, multiSelect and radio.",
-                                          "maxItems": 200,
-                                          "type": "array",
-                                          "items": {
-                                            "type": "object",
-                                            "properties": {
-                                              "value": {
-                                                "type": "string",
-                                                "minLength": 1,
-                                                "maxLength": 100,
-                                                "description": "Stored in the answer."
-                                              },
-                                              "label": {
-                                                "type": "string",
-                                                "maxLength": 200
-                                              },
-                                              "translations": {
-                                                "type": "object",
-                                                "additionalProperties": {
-                                                  "type": "object",
-                                                  "properties": {
-                                                    "label": {
-                                                      "type": "string",
-                                                      "maxLength": 200
-                                                    }
-                                                  },
-                                                  "additionalProperties": false
-                                                }
-                                              }
-                                            },
-                                            "required": [
-                                              "value",
-                                              "label"
-                                            ],
-                                            "additionalProperties": false
-                                          }
-                                        },
-                                        "validation": {
-                                          "type": "object",
-                                          "properties": {
-                                            "minLength": {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 9007199254740991
-                                            },
-                                            "maxLength": {
-                                              "type": "integer",
-                                              "minimum": 1,
-                                              "maximum": 9007199254740991
-                                            },
-                                            "pattern": {
-                                              "description": "A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences.",
-                                              "type": "string",
-                                              "minLength": 1,
-                                              "maxLength": 200
-                                            },
-                                            "min": {
-                                              "type": "number"
-                                            },
-                                            "max": {
-                                              "type": "number"
-                                            },
-                                            "decimals": {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 10
-                                            },
-                                            "minDate": {
-                                              "type": "string",
-                                              "format": "date",
-                                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                                            },
-                                            "maxDate": {
-                                              "type": "string",
-                                              "format": "date",
-                                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                                            },
-                                            "minItems": {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 9007199254740991
-                                            },
-                                            "maxItems": {
-                                              "type": "integer",
-                                              "minimum": 1,
-                                              "maximum": 9007199254740991
-                                            }
-                                          },
-                                          "additionalProperties": false
-                                        },
-                                        "translations": {
-                                          "type": "object",
-                                          "additionalProperties": {
-                                            "type": "object",
-                                            "properties": {
-                                              "label": {
-                                                "type": "string",
-                                                "maxLength": 200
-                                              },
-                                              "help": {
-                                                "type": "string",
-                                                "maxLength": 1000
-                                              },
-                                              "placeholder": {
-                                                "type": "string",
-                                                "maxLength": 200
-                                              }
-                                            },
-                                            "additionalProperties": false
-                                          }
-                                        }
-                                      },
-                                      "required": [
-                                        "key",
-                                        "type",
-                                        "label"
-                                      ],
-                                      "additionalProperties": false
-                                    }
                                   }
                                 },
                                 "required": [
@@ -27681,7 +28151,7 @@
                     ],
                     "additionalProperties": false,
                     "example": {
-                      "format": 3,
+                      "format": 2,
                       "sections": [
                         {
                           "key": "contact",
@@ -27760,8 +28230,8 @@
                       "type": "object",
                       "properties": {
                         "format": {
-                          "default": 3,
-                          "description": "The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.",
+                          "default": 2,
+                          "description": "The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.",
                           "anyOf": [
                             {
                               "type": "number",
@@ -27773,12 +28243,6 @@
                               "type": "number",
                               "enum": [
                                 2
-                              ]
-                            },
-                            {
-                              "type": "number",
-                              "enum": [
-                                3
                               ]
                             }
                           ]
@@ -27809,10 +28273,6 @@
                                   }
                                 ]
                               },
-                              "startsPage": {
-                                "description": "Starts a new page (format 3): the form is then a wizard, one page at a time.",
-                                "type": "boolean"
-                              },
                               "fields": {
                                 "maxItems": 200,
                                 "type": "array",
@@ -27837,8 +28297,7 @@
                                         "checkbox",
                                         "select",
                                         "multiSelect",
-                                        "radio",
-                                        "group"
+                                        "radio"
                                       ]
                                     },
                                     "label": {
@@ -27987,174 +28446,6 @@
                                         },
                                         "additionalProperties": false
                                       }
-                                    },
-                                    "fields": {
-                                      "description": "A group's fields (format 3): each item answers them, as an object by key.",
-                                      "maxItems": 20,
-                                      "type": "array",
-                                      "items": {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "type": "string",
-                                            "pattern": "^[a-z][a-z0-9_]{0,49}$",
-                                            "description": "The answer's key: unique in the form, and once published its type never changes."
-                                          },
-                                          "type": {
-                                            "type": "string",
-                                            "enum": [
-                                              "text",
-                                              "textarea",
-                                              "email",
-                                              "url",
-                                              "integer",
-                                              "decimal",
-                                              "date",
-                                              "checkbox",
-                                              "select",
-                                              "multiSelect",
-                                              "radio"
-                                            ]
-                                          },
-                                          "label": {
-                                            "type": "string",
-                                            "minLength": 1
-                                          },
-                                          "help": {
-                                            "type": "string",
-                                            "maxLength": 1000
-                                          },
-                                          "placeholder": {
-                                            "type": "string",
-                                            "maxLength": 200
-                                          },
-                                          "required": {
-                                            "description": "A checkbox that is required must be checked (a consent).",
-                                            "type": "boolean"
-                                          },
-                                          "default": {
-                                            "description": "Used when the answer is left out: of the field's type."
-                                          },
-                                          "options": {
-                                            "description": "The choices of select, multiSelect and radio.",
-                                            "maxItems": 200,
-                                            "type": "array",
-                                            "items": {
-                                              "type": "object",
-                                              "properties": {
-                                                "value": {
-                                                  "type": "string",
-                                                  "minLength": 1,
-                                                  "maxLength": 100,
-                                                  "description": "Stored in the answer."
-                                                },
-                                                "label": {
-                                                  "type": "string",
-                                                  "minLength": 1
-                                                },
-                                                "translations": {
-                                                  "type": "object",
-                                                  "additionalProperties": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                      "label": {
-                                                        "type": "string",
-                                                        "maxLength": 200
-                                                      }
-                                                    },
-                                                    "additionalProperties": false
-                                                  }
-                                                }
-                                              },
-                                              "required": [
-                                                "value",
-                                                "label"
-                                              ],
-                                              "additionalProperties": false
-                                            }
-                                          },
-                                          "validation": {
-                                            "type": "object",
-                                            "properties": {
-                                              "minLength": {
-                                                "type": "integer",
-                                                "minimum": 0,
-                                                "maximum": 9007199254740991
-                                              },
-                                              "maxLength": {
-                                                "type": "integer",
-                                                "minimum": 1,
-                                                "maximum": 9007199254740991
-                                              },
-                                              "pattern": {
-                                                "description": "A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences.",
-                                                "type": "string",
-                                                "minLength": 1,
-                                                "maxLength": 200
-                                              },
-                                              "min": {
-                                                "type": "number"
-                                              },
-                                              "max": {
-                                                "type": "number"
-                                              },
-                                              "decimals": {
-                                                "type": "integer",
-                                                "minimum": 0,
-                                                "maximum": 10
-                                              },
-                                              "minDate": {
-                                                "type": "string",
-                                                "format": "date",
-                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                                              },
-                                              "maxDate": {
-                                                "type": "string",
-                                                "format": "date",
-                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                                              },
-                                              "minItems": {
-                                                "type": "integer",
-                                                "minimum": 0,
-                                                "maximum": 9007199254740991
-                                              },
-                                              "maxItems": {
-                                                "type": "integer",
-                                                "minimum": 1,
-                                                "maximum": 9007199254740991
-                                              }
-                                            },
-                                            "additionalProperties": false
-                                          },
-                                          "translations": {
-                                            "type": "object",
-                                            "additionalProperties": {
-                                              "type": "object",
-                                              "properties": {
-                                                "label": {
-                                                  "type": "string",
-                                                  "maxLength": 200
-                                                },
-                                                "help": {
-                                                  "type": "string",
-                                                  "maxLength": 1000
-                                                },
-                                                "placeholder": {
-                                                  "type": "string",
-                                                  "maxLength": 200
-                                                }
-                                              },
-                                              "additionalProperties": false
-                                            }
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "type",
-                                          "label"
-                                        ],
-                                        "additionalProperties": false
-                                      }
                                     }
                                   },
                                   "required": [
@@ -28197,7 +28488,7 @@
                       ],
                       "additionalProperties": false,
                       "example": {
-                        "format": 3,
+                        "format": 2,
                         "sections": [
                           {
                             "key": "contact",
@@ -28351,8 +28642,8 @@
                       "type": "object",
                       "properties": {
                         "format": {
-                          "default": 3,
-                          "description": "The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.",
+                          "default": 2,
+                          "description": "The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.",
                           "anyOf": [
                             {
                               "type": "number",
@@ -28364,12 +28655,6 @@
                               "type": "number",
                               "enum": [
                                 2
-                              ]
-                            },
-                            {
-                              "type": "number",
-                              "enum": [
-                                3
                               ]
                             }
                           ]
@@ -28400,10 +28685,6 @@
                                   }
                                 ]
                               },
-                              "startsPage": {
-                                "description": "Starts a new page (format 3): the form is then a wizard, one page at a time.",
-                                "type": "boolean"
-                              },
                               "fields": {
                                 "maxItems": 200,
                                 "type": "array",
@@ -28428,8 +28709,7 @@
                                         "checkbox",
                                         "select",
                                         "multiSelect",
-                                        "radio",
-                                        "group"
+                                        "radio"
                                       ]
                                     },
                                     "label": {
@@ -28578,174 +28858,6 @@
                                         },
                                         "additionalProperties": false
                                       }
-                                    },
-                                    "fields": {
-                                      "description": "A group's fields (format 3): each item answers them, as an object by key.",
-                                      "maxItems": 20,
-                                      "type": "array",
-                                      "items": {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "type": "string",
-                                            "pattern": "^[a-z][a-z0-9_]{0,49}$",
-                                            "description": "The answer's key: unique in the form, and once published its type never changes."
-                                          },
-                                          "type": {
-                                            "type": "string",
-                                            "enum": [
-                                              "text",
-                                              "textarea",
-                                              "email",
-                                              "url",
-                                              "integer",
-                                              "decimal",
-                                              "date",
-                                              "checkbox",
-                                              "select",
-                                              "multiSelect",
-                                              "radio"
-                                            ]
-                                          },
-                                          "label": {
-                                            "type": "string",
-                                            "minLength": 1
-                                          },
-                                          "help": {
-                                            "type": "string",
-                                            "maxLength": 1000
-                                          },
-                                          "placeholder": {
-                                            "type": "string",
-                                            "maxLength": 200
-                                          },
-                                          "required": {
-                                            "description": "A checkbox that is required must be checked (a consent).",
-                                            "type": "boolean"
-                                          },
-                                          "default": {
-                                            "description": "Used when the answer is left out: of the field's type."
-                                          },
-                                          "options": {
-                                            "description": "The choices of select, multiSelect and radio.",
-                                            "maxItems": 200,
-                                            "type": "array",
-                                            "items": {
-                                              "type": "object",
-                                              "properties": {
-                                                "value": {
-                                                  "type": "string",
-                                                  "minLength": 1,
-                                                  "maxLength": 100,
-                                                  "description": "Stored in the answer."
-                                                },
-                                                "label": {
-                                                  "type": "string",
-                                                  "minLength": 1
-                                                },
-                                                "translations": {
-                                                  "type": "object",
-                                                  "additionalProperties": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                      "label": {
-                                                        "type": "string",
-                                                        "maxLength": 200
-                                                      }
-                                                    },
-                                                    "additionalProperties": false
-                                                  }
-                                                }
-                                              },
-                                              "required": [
-                                                "value",
-                                                "label"
-                                              ],
-                                              "additionalProperties": false
-                                            }
-                                          },
-                                          "validation": {
-                                            "type": "object",
-                                            "properties": {
-                                              "minLength": {
-                                                "type": "integer",
-                                                "minimum": 0,
-                                                "maximum": 9007199254740991
-                                              },
-                                              "maxLength": {
-                                                "type": "integer",
-                                                "minimum": 1,
-                                                "maximum": 9007199254740991
-                                              },
-                                              "pattern": {
-                                                "description": "A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences.",
-                                                "type": "string",
-                                                "minLength": 1,
-                                                "maxLength": 200
-                                              },
-                                              "min": {
-                                                "type": "number"
-                                              },
-                                              "max": {
-                                                "type": "number"
-                                              },
-                                              "decimals": {
-                                                "type": "integer",
-                                                "minimum": 0,
-                                                "maximum": 10
-                                              },
-                                              "minDate": {
-                                                "type": "string",
-                                                "format": "date",
-                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                                              },
-                                              "maxDate": {
-                                                "type": "string",
-                                                "format": "date",
-                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                                              },
-                                              "minItems": {
-                                                "type": "integer",
-                                                "minimum": 0,
-                                                "maximum": 9007199254740991
-                                              },
-                                              "maxItems": {
-                                                "type": "integer",
-                                                "minimum": 1,
-                                                "maximum": 9007199254740991
-                                              }
-                                            },
-                                            "additionalProperties": false
-                                          },
-                                          "translations": {
-                                            "type": "object",
-                                            "additionalProperties": {
-                                              "type": "object",
-                                              "properties": {
-                                                "label": {
-                                                  "type": "string",
-                                                  "maxLength": 200
-                                                },
-                                                "help": {
-                                                  "type": "string",
-                                                  "maxLength": 1000
-                                                },
-                                                "placeholder": {
-                                                  "type": "string",
-                                                  "maxLength": 200
-                                                }
-                                              },
-                                              "additionalProperties": false
-                                            }
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "type",
-                                          "label"
-                                        ],
-                                        "additionalProperties": false
-                                      }
                                     }
                                   },
                                   "required": [
@@ -28788,7 +28900,7 @@
                       ],
                       "additionalProperties": false,
                       "example": {
-                        "format": 3,
+                        "format": 2,
                         "sections": [
                           {
                             "key": "contact",
@@ -29166,8 +29278,8 @@
                       "type": "object",
                       "properties": {
                         "format": {
-                          "default": 3,
-                          "description": "The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.",
+                          "default": 2,
+                          "description": "The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.",
                           "anyOf": [
                             {
                               "type": "number",
@@ -29179,12 +29291,6 @@
                               "type": "number",
                               "enum": [
                                 2
-                              ]
-                            },
-                            {
-                              "type": "number",
-                              "enum": [
-                                3
                               ]
                             }
                           ]
@@ -29215,10 +29321,6 @@
                                   }
                                 ]
                               },
-                              "startsPage": {
-                                "description": "Starts a new page (format 3): the form is then a wizard, one page at a time.",
-                                "type": "boolean"
-                              },
                               "fields": {
                                 "maxItems": 200,
                                 "type": "array",
@@ -29243,8 +29345,7 @@
                                         "checkbox",
                                         "select",
                                         "multiSelect",
-                                        "radio",
-                                        "group"
+                                        "radio"
                                       ]
                                     },
                                     "label": {
@@ -29393,174 +29494,6 @@
                                         },
                                         "additionalProperties": false
                                       }
-                                    },
-                                    "fields": {
-                                      "description": "A group's fields (format 3): each item answers them, as an object by key.",
-                                      "maxItems": 20,
-                                      "type": "array",
-                                      "items": {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "type": "string",
-                                            "pattern": "^[a-z][a-z0-9_]{0,49}$",
-                                            "description": "The answer's key: unique in the form, and once published its type never changes."
-                                          },
-                                          "type": {
-                                            "type": "string",
-                                            "enum": [
-                                              "text",
-                                              "textarea",
-                                              "email",
-                                              "url",
-                                              "integer",
-                                              "decimal",
-                                              "date",
-                                              "checkbox",
-                                              "select",
-                                              "multiSelect",
-                                              "radio"
-                                            ]
-                                          },
-                                          "label": {
-                                            "type": "string",
-                                            "minLength": 1
-                                          },
-                                          "help": {
-                                            "type": "string",
-                                            "maxLength": 1000
-                                          },
-                                          "placeholder": {
-                                            "type": "string",
-                                            "maxLength": 200
-                                          },
-                                          "required": {
-                                            "description": "A checkbox that is required must be checked (a consent).",
-                                            "type": "boolean"
-                                          },
-                                          "default": {
-                                            "description": "Used when the answer is left out: of the field's type."
-                                          },
-                                          "options": {
-                                            "description": "The choices of select, multiSelect and radio.",
-                                            "maxItems": 200,
-                                            "type": "array",
-                                            "items": {
-                                              "type": "object",
-                                              "properties": {
-                                                "value": {
-                                                  "type": "string",
-                                                  "minLength": 1,
-                                                  "maxLength": 100,
-                                                  "description": "Stored in the answer."
-                                                },
-                                                "label": {
-                                                  "type": "string",
-                                                  "minLength": 1
-                                                },
-                                                "translations": {
-                                                  "type": "object",
-                                                  "additionalProperties": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                      "label": {
-                                                        "type": "string",
-                                                        "maxLength": 200
-                                                      }
-                                                    },
-                                                    "additionalProperties": false
-                                                  }
-                                                }
-                                              },
-                                              "required": [
-                                                "value",
-                                                "label"
-                                              ],
-                                              "additionalProperties": false
-                                            }
-                                          },
-                                          "validation": {
-                                            "type": "object",
-                                            "properties": {
-                                              "minLength": {
-                                                "type": "integer",
-                                                "minimum": 0,
-                                                "maximum": 9007199254740991
-                                              },
-                                              "maxLength": {
-                                                "type": "integer",
-                                                "minimum": 1,
-                                                "maximum": 9007199254740991
-                                              },
-                                              "pattern": {
-                                                "description": "A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences.",
-                                                "type": "string",
-                                                "minLength": 1,
-                                                "maxLength": 200
-                                              },
-                                              "min": {
-                                                "type": "number"
-                                              },
-                                              "max": {
-                                                "type": "number"
-                                              },
-                                              "decimals": {
-                                                "type": "integer",
-                                                "minimum": 0,
-                                                "maximum": 10
-                                              },
-                                              "minDate": {
-                                                "type": "string",
-                                                "format": "date",
-                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                                              },
-                                              "maxDate": {
-                                                "type": "string",
-                                                "format": "date",
-                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                                              },
-                                              "minItems": {
-                                                "type": "integer",
-                                                "minimum": 0,
-                                                "maximum": 9007199254740991
-                                              },
-                                              "maxItems": {
-                                                "type": "integer",
-                                                "minimum": 1,
-                                                "maximum": 9007199254740991
-                                              }
-                                            },
-                                            "additionalProperties": false
-                                          },
-                                          "translations": {
-                                            "type": "object",
-                                            "additionalProperties": {
-                                              "type": "object",
-                                              "properties": {
-                                                "label": {
-                                                  "type": "string",
-                                                  "maxLength": 200
-                                                },
-                                                "help": {
-                                                  "type": "string",
-                                                  "maxLength": 1000
-                                                },
-                                                "placeholder": {
-                                                  "type": "string",
-                                                  "maxLength": 200
-                                                }
-                                              },
-                                              "additionalProperties": false
-                                            }
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "type",
-                                          "label"
-                                        ],
-                                        "additionalProperties": false
-                                      }
                                     }
                                   },
                                   "required": [
@@ -29603,7 +29536,7 @@
                       ],
                       "additionalProperties": false,
                       "example": {
-                        "format": 3,
+                        "format": 2,
                         "sections": [
                           {
                             "key": "contact",
@@ -29845,8 +29778,8 @@
                       "type": "object",
                       "properties": {
                         "format": {
-                          "default": 3,
-                          "description": "The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.",
+                          "default": 2,
+                          "description": "The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.",
                           "anyOf": [
                             {
                               "type": "number",
@@ -29858,12 +29791,6 @@
                               "type": "number",
                               "enum": [
                                 2
-                              ]
-                            },
-                            {
-                              "type": "number",
-                              "enum": [
-                                3
                               ]
                             }
                           ]
@@ -29894,10 +29821,6 @@
                                   }
                                 ]
                               },
-                              "startsPage": {
-                                "description": "Starts a new page (format 3): the form is then a wizard, one page at a time.",
-                                "type": "boolean"
-                              },
                               "fields": {
                                 "maxItems": 200,
                                 "type": "array",
@@ -29922,8 +29845,7 @@
                                         "checkbox",
                                         "select",
                                         "multiSelect",
-                                        "radio",
-                                        "group"
+                                        "radio"
                                       ]
                                     },
                                     "label": {
@@ -30072,174 +29994,6 @@
                                         },
                                         "additionalProperties": false
                                       }
-                                    },
-                                    "fields": {
-                                      "description": "A group's fields (format 3): each item answers them, as an object by key.",
-                                      "maxItems": 20,
-                                      "type": "array",
-                                      "items": {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "type": "string",
-                                            "pattern": "^[a-z][a-z0-9_]{0,49}$",
-                                            "description": "The answer's key: unique in the form, and once published its type never changes."
-                                          },
-                                          "type": {
-                                            "type": "string",
-                                            "enum": [
-                                              "text",
-                                              "textarea",
-                                              "email",
-                                              "url",
-                                              "integer",
-                                              "decimal",
-                                              "date",
-                                              "checkbox",
-                                              "select",
-                                              "multiSelect",
-                                              "radio"
-                                            ]
-                                          },
-                                          "label": {
-                                            "type": "string",
-                                            "minLength": 1
-                                          },
-                                          "help": {
-                                            "type": "string",
-                                            "maxLength": 1000
-                                          },
-                                          "placeholder": {
-                                            "type": "string",
-                                            "maxLength": 200
-                                          },
-                                          "required": {
-                                            "description": "A checkbox that is required must be checked (a consent).",
-                                            "type": "boolean"
-                                          },
-                                          "default": {
-                                            "description": "Used when the answer is left out: of the field's type."
-                                          },
-                                          "options": {
-                                            "description": "The choices of select, multiSelect and radio.",
-                                            "maxItems": 200,
-                                            "type": "array",
-                                            "items": {
-                                              "type": "object",
-                                              "properties": {
-                                                "value": {
-                                                  "type": "string",
-                                                  "minLength": 1,
-                                                  "maxLength": 100,
-                                                  "description": "Stored in the answer."
-                                                },
-                                                "label": {
-                                                  "type": "string",
-                                                  "minLength": 1
-                                                },
-                                                "translations": {
-                                                  "type": "object",
-                                                  "additionalProperties": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                      "label": {
-                                                        "type": "string",
-                                                        "maxLength": 200
-                                                      }
-                                                    },
-                                                    "additionalProperties": false
-                                                  }
-                                                }
-                                              },
-                                              "required": [
-                                                "value",
-                                                "label"
-                                              ],
-                                              "additionalProperties": false
-                                            }
-                                          },
-                                          "validation": {
-                                            "type": "object",
-                                            "properties": {
-                                              "minLength": {
-                                                "type": "integer",
-                                                "minimum": 0,
-                                                "maximum": 9007199254740991
-                                              },
-                                              "maxLength": {
-                                                "type": "integer",
-                                                "minimum": 1,
-                                                "maximum": 9007199254740991
-                                              },
-                                              "pattern": {
-                                                "description": "A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences.",
-                                                "type": "string",
-                                                "minLength": 1,
-                                                "maxLength": 200
-                                              },
-                                              "min": {
-                                                "type": "number"
-                                              },
-                                              "max": {
-                                                "type": "number"
-                                              },
-                                              "decimals": {
-                                                "type": "integer",
-                                                "minimum": 0,
-                                                "maximum": 10
-                                              },
-                                              "minDate": {
-                                                "type": "string",
-                                                "format": "date",
-                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                                              },
-                                              "maxDate": {
-                                                "type": "string",
-                                                "format": "date",
-                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                                              },
-                                              "minItems": {
-                                                "type": "integer",
-                                                "minimum": 0,
-                                                "maximum": 9007199254740991
-                                              },
-                                              "maxItems": {
-                                                "type": "integer",
-                                                "minimum": 1,
-                                                "maximum": 9007199254740991
-                                              }
-                                            },
-                                            "additionalProperties": false
-                                          },
-                                          "translations": {
-                                            "type": "object",
-                                            "additionalProperties": {
-                                              "type": "object",
-                                              "properties": {
-                                                "label": {
-                                                  "type": "string",
-                                                  "maxLength": 200
-                                                },
-                                                "help": {
-                                                  "type": "string",
-                                                  "maxLength": 1000
-                                                },
-                                                "placeholder": {
-                                                  "type": "string",
-                                                  "maxLength": 200
-                                                }
-                                              },
-                                              "additionalProperties": false
-                                            }
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "type",
-                                          "label"
-                                        ],
-                                        "additionalProperties": false
-                                      }
                                     }
                                   },
                                   "required": [
@@ -30282,7 +30036,7 @@
                       ],
                       "additionalProperties": false,
                       "example": {
-                        "format": 3,
+                        "format": 2,
                         "sections": [
                           {
                             "key": "contact",

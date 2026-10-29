@@ -4,6 +4,7 @@ import { defineRecord, duplicateRules } from './record.js';
 import { actionPath, recordApprovalActions } from './record-approvals.js';
 import { recordApprovalRoutes } from './record-approval-routes.js';
 import { recordSetting, recordSettings } from './record-settings.js';
+import { relate } from './record-relations.js';
 import { computed, hideComputed, withComputed } from './record-computed.js';
 
 const PATH_METADATA = 'path';
@@ -135,6 +136,23 @@ describe('a record declaration', () => {
     expect(() =>
       defineRecord({ ...base, quality: { recommended: ['title'] } }),
     ).not.toThrow();
+  });
+
+  it('refuses `keep` on a required reference: its key would refuse purging the record it kept', () => {
+    const required = defineRecord({
+      ...INVOICE,
+      className: 'InvoiceLineRefSpec',
+      approvals: {},
+      settings: {},
+      fields: {
+        invoiceId: field
+          .ref(() => ({ tenantId: {}, id: {} }) as never)
+          .onDelete('keep'),
+      },
+    });
+    expect(() => relate(required, { invoiceId: {} } as never)).toThrow(
+      /onDelete\('keep'\) needs an optional reference/,
+    );
   });
 
   it('finds duplicates by its declared rules, else its title field; merge needs a recycle bin', () => {

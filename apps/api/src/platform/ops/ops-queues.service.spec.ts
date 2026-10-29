@@ -30,4 +30,18 @@ describe('OpsQueues', () => {
     );
     expect(mail.recentFailures[1].reason).toBeNull();
   });
+  it('reads the oldest waiting job’s age per queue, 0 when none waits', async () => {
+    const getJobs = vi
+      .fn()
+      .mockResolvedValueOnce([{ timestamp: 1_000 }])
+      .mockResolvedValue([]);
+    const moduleRef = { get: () => ({ getJobs }) } as unknown as ModuleRef;
+    const ages = await new OpsQueues(
+      { queues: [] } as unknown as PlatformOptions,
+      moduleRef,
+    ).oldestWaiting(31_000);
+    expect(getJobs).toHaveBeenCalledWith(['waiting'], 0, 0, true);
+    expect(ages[0]).toEqual({ name: 'mail', seconds: 30 });
+    expect(ages.slice(1).every((age) => age.seconds === 0)).toBe(true);
+  });
 });

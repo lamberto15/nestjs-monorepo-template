@@ -41,7 +41,8 @@ export class OpsQueues {
     return [MAIL_QUEUE, SSO_QUEUE, ...platformQueues(this.options.queues)];
   }
 
-  private queue(name: string): Queue {
+  /** A declared queue by name; 404 for another. */
+  queue(name: string): Queue {
     if (!this.names.includes(name)) {
       throw new NotFoundException(`No queue named "${name}"`);
     }
@@ -53,7 +54,21 @@ export class OpsQueues {
     await Promise.all(this.names.map((name) => this.queue(name).pause()));
   }
 
-  /** Resumes the queues that are paused (nothing else pauses them). */
+  /**
+   * Pauses one queue for every process (BullMQ `pause()`, in Redis): its
+   * jobs wait, running ones finish. An operator's stop for a storm
+   * (`POST /v1/ops/queues/{name}/pause`, `pnpm ops queue:pause`).
+   */
+  async pause(name: string) {
+    await this.queue(name).pause();
+  }
+
+  /** Resumes one queue (whether or not it was paused). */
+  async resume(name: string) {
+    await this.queue(name).resume();
+  }
+
+  /** Resumes the queues that are paused: the app mode's, and any an operator paused. */
   async resumeAll() {
     await Promise.all(
       this.names.map(async (name) => {
@@ -72,6 +87,28 @@ export class OpsQueues {
         name,
         counts: await this.queue(name).getJobCounts(...QUEUE_GAUGE_STATES),
       })),
+    );
+  }
+
+  /**
+   * How long each queue's oldest waiting job has waited, in seconds (0
+   * when none waits): a backlog that stopped moving shows here before its
+   * size alarms anyone. One job read per queue.
+   */
+  async oldestWaiting(now = Date.now()) {
+    return Promise.all(
+      this.names.map(async (name) => {
+        const [oldest] = await this.queue(name).getJobs(
+          ['waiting'],
+          0,
+          0,
+          true,
+        );
+        return {
+          name,
+          seconds: oldest ? Math.max(0, now - oldest.timestamp) / 1000 : 0,
+        };
+      }),
     );
   }
 

@@ -133,6 +133,33 @@ groups:
           summary: 'Queue {{ $labels.queue }} backlog keeps growing'
           description: "{{ $value }} jobs wait, more than 30 minutes ago. The workers don't keep up: add workers (WORKER_REPLICAS) or find the slow jobs."
 
+      - alert: MailBacklogHigh
+        expr: sum(queue:queue_jobs:max{queue="mail", state=~"waiting|delayed"}) > 1000
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ $value }} mails are queued'
+          description: More than 1,000 mails have waited or been delayed for 10 minutes, more than a provider's daily quota usually allows, and each holds Redis memory. A notification storm? Count it with POST /v1/ops/backlog/preview (or pnpm ops backlog:count), then follow docs/notifications.md, "Stopping a mail storm".
+
+      - alert: QueueJobsWaitingLong
+        expr: max by (queue) (queue_oldest_waiting_seconds) > 1800
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'A job of queue {{ $labels.queue }} has waited {{ $value | humanizeDuration }}'
+          description: The oldest waiting job has waited more than 30 minutes. The workers are too few or too slow for this queue, or it is paused (GET /v1/ops/queues).
+
+      - alert: NotificationOutboxBacklog
+        expr: max(outbox_undelivered_by_topic{topic="notifications.deliver"}) > 5000
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $value }} notifications wait for delivery'
+          description: More than 5,000 notifications.deliver outbox messages have been pending for 15 minutes. Deleting the mail queue would not help (the outbox queues the mail again); count and discard them by tenant and type (POST /v1/ops/backlog/preview, pnpm ops backlog:count), docs/notifications.md, "Stopping a mail storm".
+
       - alert: JobsFailing
         expr: delta(queue:queue_jobs:max{state="failed"}[15m]) > 0
         labels:

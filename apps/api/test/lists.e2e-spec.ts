@@ -128,6 +128,7 @@ describe('list metadata (e2e)', () => {
       ownerId: 'principal',
       unitId: 'unit',
       parentId: 'TestItem',
+      linkedId: 'TestItem',
     });
     // `q` and `rank` are `search`, not fields.
     expect(names(fields)).not.toContain('q');

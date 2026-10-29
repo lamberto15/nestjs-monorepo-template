@@ -16,7 +16,12 @@ import { formatDateTime } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
 import { useCan } from '@/lib/features';
 import { FormAlert } from '@/lib/form';
-import { opsQueuesQuery, useRetryFailed, type QueueCounts } from './queries';
+import {
+  opsQueuesQuery,
+  usePauseQueue,
+  useRetryFailed,
+  type QueueCounts,
+} from './queries';
 
 const states = [
   'waiting',
@@ -31,6 +36,7 @@ export function QueuesPanel() {
   const { t } = useTranslation('ops');
   const queues = useQuery(opsQueuesQuery);
   const retry = useRetryFailed();
+  const pause = usePauseQueue();
   const canManage = useCan('Ops.manage');
   if (queues.isPending) {
     return <Spinner />;
@@ -74,7 +80,46 @@ export function QueuesPanel() {
                     {queue.counts[state]}
                   </TableCell>
                 ))}
-                <TableCell className="text-end">
+                <TableCell className="flex justify-end gap-2">
+                  {canManage && (
+                    <ConfirmButton
+                      size="sm"
+                      variant="outline"
+                      allowInMaintenance
+                      label={t(
+                        queue.paused
+                          ? 'queues.resumeLabel'
+                          : 'queues.pauseLabel',
+                        {
+                          name: queue.name,
+                        },
+                      )}
+                      title={t(
+                        queue.paused
+                          ? 'queues.resumeTitle'
+                          : 'queues.pauseTitle',
+                        {
+                          name: queue.name,
+                        },
+                      )}
+                      description={t(
+                        queue.paused
+                          ? 'queues.resumeDescription'
+                          : 'queues.pauseDescription',
+                      )}
+                      confirm={t(
+                        queue.paused ? 'queues.resume' : 'queues.pause',
+                      )}
+                      onConfirm={() =>
+                        pause.mutateAsync({
+                          name: queue.name,
+                          paused: !queue.paused,
+                        })
+                      }
+                    >
+                      {t(queue.paused ? 'queues.resume' : 'queues.pause')}
+                    </ConfirmButton>
+                  )}
                   {canManage && queue.counts.failed > 0 && (
                     <ConfirmButton
                       size="sm"

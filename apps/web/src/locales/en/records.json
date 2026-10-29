@@ -106,6 +106,12 @@
     "error": "The related records could not be loaded.",
     "more": "The newest {{shown}} of {{total}}."
   },
+  "picker": {
+    "placeholder": "Search by name…",
+    "searching": "Searching…",
+    "none": "No match you may read.",
+    "failed": "The records could not be searched."
+  },
   "duplicates": {
     "title": "Duplicates",
     "empty": "No likely duplicates.",

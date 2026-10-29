@@ -19,6 +19,7 @@
       "manageTenants": "Create tenants (the deployment's operators: only in the operator tenant)",
       "impersonate": "Act as another user (support), never as an administrator",
       "manageSso": "Set up the tenant's single sign-on: SAML and OpenID Connect connections, verified email domains",
+      "manageDomains": "Add, verify and remove the tenant's custom domains: hostnames of its own the app is served on (platform/branding)",
       "provisionScim": "Provision users and groups over SCIM 2.0 (API clients: the identity provider's SCIM token)"
     }
   },
@@ -228,6 +229,10 @@
       "label": "Outbox retention",
       "description": "Deletes outbox dead letters older than OUTBOX_DEAD_LETTER_RETENTION_DAYS and consumers' inbox records older than OUTBOX_INBOX_RETENTION_DAYS, every night."
     },
+    "ops-backlog": {
+      "label": "Backlog recovery",
+      "description": "Discards or retries an operator's chosen part of the outbox and mail backlog, one tenant at a time, and marks the discarded notifications delivered."
+    },
     "platform-analytics": {
       "label": "Platform analytics",
       "description": "Counts tenants, users, memberships and API use across every tenant, withholds small groups, and stores only the aggregates the reporting role reads, every night."
@@ -251,6 +256,10 @@
     "messaging-retention": {
       "label": "Messaging retention",
       "description": "Removes devices not seen for DEVICES_RETENTION_DAYS and the toll-fraud counters of past days, every night."
+    },
+    "custom-domains": {
+      "label": "Custom domain checks",
+      "description": "Looks up the DNS TXT record of a tenant's custom domains when asked and every night, and stops routing a domain whose record is gone."
     },
     "demo-seed": {
       "label": "Demo seed",

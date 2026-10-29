@@ -1,16 +1,7 @@
-import {
-  Combobox,
-  ComboboxAnchor,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxTrigger,
-} from '@nestjs-monorepo-template/ui/components/combobox';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
+import { SearchCombobox } from '@/components/search-combobox';
 import { peopleQuery, type Person } from '@/lib/people';
 
 /**
@@ -39,9 +30,7 @@ export function PersonPicker(props: {
   disabled?: boolean;
 }) {
   const { t } = useTranslation();
-  const [input, setInput] = useState(props.initialLabel ?? '');
   const [term, setTerm] = useState('');
-  const search = useDebouncedCallback((next: string) => setTerm(next), 250);
   const found = useQuery({
     ...peopleQuery(term),
     placeholderData: keepPreviousData,
@@ -58,42 +47,24 @@ export function PersonPicker(props: {
       : t('people.none');
 
   return (
-    <Combobox
+    <SearchCombobox
+      id={props.id}
+      label={props.label}
       value={props.value}
-      onValueChange={(value) => {
-        const person = items.find((p) => p.key === value);
-        if (person) {
-          setInput(person.name);
-        }
-        props.onChange(value, person);
-      }}
-      inputValue={input}
-      onInputValueChange={(next) => {
-        setInput(next);
-        search(next);
-      }}
-      manualFiltering
-      openOnFocus
+      onChange={(value) =>
+        props.onChange(
+          value,
+          items.find((person) => person.key === value),
+        )
+      }
+      onSearch={setTerm}
+      items={items.map((person) => ({ value: person.key, name: person.name }))}
+      empty={empty}
+      initialLabel={props.initialLabel}
+      placeholder={props.placeholder ?? t('people.placeholder')}
+      invalid={props.invalid}
+      describedBy={props.describedBy}
       disabled={props.disabled}
-    >
-      <ComboboxAnchor>
-        <ComboboxInput
-          id={props.id}
-          aria-label={props.label}
-          aria-invalid={props.invalid}
-          aria-describedby={props.describedBy}
-          placeholder={props.placeholder ?? t('people.placeholder')}
-        />
-        <ComboboxTrigger />
-      </ComboboxAnchor>
-      <ComboboxContent>
-        <ComboboxEmpty keepVisible={items.length === 0}>{empty}</ComboboxEmpty>
-        {items.map((person) => (
-          <ComboboxItem key={person.key} value={person.key} label={person.name}>
-            {person.name}
-          </ComboboxItem>
-        ))}
-      </ComboboxContent>
-    </Combobox>
+    />
   );
 }

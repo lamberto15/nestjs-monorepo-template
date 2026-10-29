@@ -106,6 +106,12 @@
     "error": "Rekod berkaitan tidak dapat dimuatkan.",
     "more": "{{shown}} terbaharu daripada {{total}}."
   },
+  "picker": {
+    "placeholder": "Cari mengikut nama…",
+    "searching": "Mencari…",
+    "none": "Tiada padanan yang anda boleh baca.",
+    "failed": "Rekod tidak dapat dicari."
+  },
   "duplicates": {
     "title": "Pendua",
     "empty": "Tiada kemungkinan pendua.",

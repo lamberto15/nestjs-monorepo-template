@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDrizzle } from '@nestjs/drizzle';
-import { sql } from 'drizzle-orm';
+import { count, desc, sql } from 'drizzle-orm';
+import { outboxMessages } from './outbox-store.view.js';
 import type { Database } from '../../core/database/drizzle.js';
 
 export type OutboxMetricSnapshot = {
@@ -85,5 +86,25 @@ export class OutboxMetricsReader {
       oldestDueAt:
         row.oldest_due_at === null ? null : Number(row.oldest_due_at),
     };
+  }
+
+  /**
+   * Pending messages per topic (the largest 50), for
+   * `outbox_undelivered_by_topic`: which kind of work a backlog is
+   * (`notifications.deliver` in a mail storm). Same timeout, read only.
+   */
+  async topics(): Promise<{ topic: string; count: number }[]> {
+    return this.db.transaction(
+      async (tx) => {
+        await tx.execute(sql`SET LOCAL statement_timeout = '1500ms'`);
+        return tx
+          .select({ topic: outboxMessages.topic, count: count() })
+          .from(outboxMessages)
+          .groupBy(outboxMessages.topic)
+          .orderBy(desc(count()))
+          .limit(50);
+      },
+      { accessMode: 'read only' },
+    );
   }
 }

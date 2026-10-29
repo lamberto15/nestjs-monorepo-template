@@ -49,6 +49,26 @@
     "tooLarge": "Die Datei ist größer als {{max}} KB.",
     "typeRefused": "Verwenden Sie ein PNG-, JPEG- oder WebP-Bild."
   },
+  "domains": {
+    "title": "Eigene Domains",
+    "description": "Ein eigener Hostname (app.example.com), unter dem Ihre Leute die App erreichen, mit Ihrem Logo und Ihrer Farbe schon auf der Anmeldeseite. Richten Sie ihn auf die App (ein CNAME), veröffentlichen Sie den angezeigten TXT-Eintrag und prüfen Sie ihn dann.",
+    "hostname": "Hostname",
+    "add": "Domain hinzufügen",
+    "none": "Noch keine eigenen Domains.",
+    "verified": "Verifiziert",
+    "unverified": "Nicht verifiziert",
+    "verify": "Eintrag prüfen",
+    "checking": "Der Eintrag wird abgefragt. Laden Sie gleich neu, um das Ergebnis zu sehen.",
+    "remove": "Entfernen",
+    "removeLabel": "{{hostname}} entfernen",
+    "removed": "{{hostname}} entfernt. Die App ist darunter nicht mehr erreichbar.",
+    "publish": "Veröffentlichen Sie diesen DNS-Eintrag und prüfen Sie ihn dann.",
+    "keep": "Lassen Sie diesen DNS-Eintrag veröffentlicht: Die Domain wird jede Nacht geprüft und funktioniert ohne ihn nicht mehr.",
+    "recordName": "Name des {{type}}-Eintrags",
+    "recordValue": "Wert des Eintrags",
+    "lastError": "Letzte Prüfung {{date}}: {{error}}",
+    "verifiedAt": "Verifiziert {{date}}"
+  },
   "error": {
     "title": "Das Branding konnte nicht geladen werden",
     "generic": "Etwas ist schiefgelaufen. Versuchen Sie es erneut.",

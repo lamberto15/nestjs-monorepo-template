@@ -114,6 +114,11 @@ export class AccessPolicy {
     return manager(user) && this.access.can(user, 'manageSso', 'Access');
   }
 
+  /** The tenant's custom domains (platform/branding): hostnames the app is served on. */
+  async manageDomains(user: Principal | null) {
+    return manager(user) && this.access.can(user, 'manageDomains', 'Access');
+  }
+
   /**
    * SCIM 2.0 provisioning (`/v1/scim/…`): an API client only, the identity
    * provider's, whose key is its SCIM token.

@@ -102,6 +102,11 @@ export const ACCESS_PERMISSIONS = definePermissions({
             "Set up the tenant's single sign-on: SAML and OpenID Connect connections, verified email domains",
           conditions: [],
         },
+        manageDomains: {
+          label:
+            "Add, verify and remove the tenant's custom domains: hostnames of its own the app is served on (platform/branding)",
+          conditions: [],
+        },
         provisionScim: {
           label:
             "Provision users and groups over SCIM 2.0 (API clients: the identity provider's SCIM token)",

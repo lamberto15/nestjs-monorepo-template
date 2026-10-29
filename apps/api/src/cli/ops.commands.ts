@@ -2,7 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { Command, CommandRunner, Option } from 'nest-commander';
 import { Confirmer } from './confirm.js';
 import { currentOperator } from './operator.js';
-import { OpsService, type OneTimePassword, type Plan } from './ops.service.js';
+import {
+  type BacklogOptions,
+  OpsService,
+  type OneTimePassword,
+  type Plan,
+} from './ops.service.js';
 
 /** Every changing command's options. */
 interface ChangeOptions {
@@ -320,6 +325,167 @@ export class DiagnosticsCommand extends CommandRunner {
   }
 }
 
+/** The `backlog:*` commands' scope options. */
+@Injectable()
+abstract class BacklogCommand extends Changing {
+  @Option({
+    flags: '-t, --tenant <tenant>',
+    description: "one tenant's backlog (id or slug)",
+  })
+  parseTenant(value: string) {
+    return value;
+  }
+  @Option({
+    flags: '-g, --global',
+    description: "every tenant's backlog (and the accounts' own)",
+  })
+  parseGlobal() {
+    return true;
+  }
+  @Option({
+    flags: '--topic <topic>',
+    description: 'only this outbox topic (notifications.deliver, …)',
+  })
+  parseTopic(value: string) {
+    return value;
+  }
+  @Option({
+    flags: '--type <type>',
+    description: 'only this notification type (note.published, …)',
+  })
+  parseType(value: string) {
+    return value;
+  }
+  @Option({
+    flags: '--template <mail>',
+    description: 'only this mail class (NotificationMail, …)',
+  })
+  parseTemplate(value: string) {
+    return value;
+  }
+  @Option({
+    flags: '-b, --before <date>',
+    description: 'only what was created before this date (ISO 8601)',
+  })
+  parseBefore(value: string) {
+    return value;
+  }
+}
+
+@Command({
+  name: 'backlog:count',
+  description:
+    'Count the outbox and mail backlog of --tenant or --global (a dry run: changes nothing)',
+})
+@Injectable()
+export class BacklogCountCommand extends BacklogCommand {
+  async run(_args: string[], options: BacklogOptions) {
+    const { outbox, mail } = await this.ops.backlogPreview(options);
+    console.log(
+      `Outbox: ${outbox.pending.total} pending, ${outbox.deadLetters.total} dead letter(s), ${outbox.leased} being delivered`,
+    );
+    for (const [label, part] of [
+      ['pending', outbox.pending],
+      ['dead', outbox.deadLetters],
+    ] as const) {
+      for (const group of part.groups) {
+        console.log(
+          `  ${label.padEnd(8)}  ${String(group.count).padStart(8)}  ${group.topic}${group.type ? ` ${group.type}` : ''}${group.mandatory ? '  (mandatory: kept)' : ''}`,
+        );
+      }
+    }
+    console.log(`Mail queue:${mail.capped ? ' (more than counted)' : ''}`);
+    for (const group of mail.groups) {
+      console.log(
+        `  ${group.state.padEnd(11)}  ${String(group.count).padStart(8)}  ${group.template}${group.essential ? `  (${group.essential} essential: kept)` : ''}`,
+      );
+    }
+  }
+}
+
+@Command({
+  name: 'backlog:discard',
+  arguments: '<target>',
+  description:
+    'Discard the outbox or mail backlog (target: outbox | mail) of --tenant or --global, in batches; never mandatory or essential, audited',
+})
+@Injectable()
+export class BacklogDiscardCommand extends BacklogCommand {
+  async run([target]: string[], options: BacklogOptions & ChangeOptions) {
+    const { count } = await carryOut(
+      this.confirmer,
+      await this.ops.backlogAction('discard', target!, options),
+      options,
+    );
+    console.log(`Discarded ${count}.`);
+  }
+  @Option(YES) parseYes() {
+    return true;
+  }
+}
+
+@Command({
+  name: 'backlog:retry',
+  arguments: '<target>',
+  description:
+    'Retry the failed backlog (outbox: dead letters; mail: failed jobs) of --tenant or --global, audited',
+})
+@Injectable()
+export class BacklogRetryCommand extends BacklogCommand {
+  async run([target]: string[], options: BacklogOptions & ChangeOptions) {
+    const { count } = await carryOut(
+      this.confirmer,
+      await this.ops.backlogAction('retry', target!, options),
+      options,
+    );
+    console.log(`Retried ${count}.`);
+  }
+  @Option(YES) parseYes() {
+    return true;
+  }
+}
+
+@Command({
+  name: 'queue:pause',
+  arguments: '<name>',
+  description:
+    'Pause a queue for every worker (mail, …): jobs wait in Redis, audited',
+})
+@Injectable()
+export class QueuePauseCommand extends Changing {
+  async run([name]: string[], options: ChangeOptions) {
+    await carryOut(
+      this.confirmer,
+      await this.ops.queueSwitch(name!, true),
+      options,
+    );
+    console.log(`Paused "${name}".`);
+  }
+  @Option(YES) parseYes() {
+    return true;
+  }
+}
+
+@Command({
+  name: 'queue:resume',
+  arguments: '<name>',
+  description: 'Resume a paused queue, audited',
+})
+@Injectable()
+export class QueueResumeCommand extends Changing {
+  async run([name]: string[], options: ChangeOptions) {
+    await carryOut(
+      this.confirmer,
+      await this.ops.queueSwitch(name!, false),
+      options,
+    );
+    console.log(`Resumed "${name}".`);
+  }
+  @Option(YES) parseYes() {
+    return true;
+  }
+}
+
 export const OPS_COMMANDS = [
   TenantListCommand,
   UserListCommand,
@@ -330,4 +496,9 @@ export const OPS_COMMANDS = [
   SettingDeleteCommand,
   NotificationsSettleCommand,
   DiagnosticsCommand,
+  BacklogCountCommand,
+  BacklogDiscardCommand,
+  BacklogRetryCommand,
+  QueuePauseCommand,
+  QueueResumeCommand,
 ];

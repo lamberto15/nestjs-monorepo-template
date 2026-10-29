@@ -46,8 +46,11 @@ describe('shares: read-only links to a record (e2e)', () => {
       files: [],
       expiresAt: created.body.expiresAt,
     });
-    // Forged, tampered or empty: the same 404.
-    await open(`${token.slice(0, -1)}A`).expect(404);
+    // Forged, tampered or empty: the same 404. The tampered character is one
+    // inside the secret, made different (the last one's low bits are padding).
+    const at = token.length - 5;
+    const tampered = `${token.slice(0, at)}${token[at] === 'A' ? 'B' : 'A'}${token.slice(at + 1)}`;
+    await open(tampered).expect(404);
     await open('shr_nope').expect(404);
 
     const listed = await node

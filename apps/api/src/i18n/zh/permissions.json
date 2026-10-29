@@ -19,6 +19,7 @@
       "manageTenants": "创建租户（部署的运营者：仅在运营者租户中）",
       "impersonate": "以其他用户身份操作（支持），绝不以管理员身份",
       "manageSso": "设置租户的单点登录：SAML 和 OpenID Connect 连接、已验证的电子邮件域",
+      "manageDomains": "添加、验证和移除租户的自定义域名：提供应用服务的租户自有主机名（platform/branding）",
       "provisionScim": "通过 SCIM 2.0 预配用户和组（API 客户端：身份提供方的 SCIM 令牌）"
     }
   },
@@ -228,6 +229,10 @@
       "label": "发件箱保留",
       "description": "每晚删除早于 OUTBOX_DEAD_LETTER_RETENTION_DAYS 的发件箱死信，以及早于 OUTBOX_INBOX_RETENTION_DAYS 的消费者收件箱记录。"
     },
+    "ops-backlog": {
+      "label": "积压恢复",
+      "description": "按租户逐一丢弃或重试运维人员选定的发件箱和邮件积压部分，并将被丢弃的通知标记为已送达。"
+    },
     "platform-analytics": {
       "label": "平台分析",
       "description": "每晚统计所有租户的租户、用户、成员资格和 API 使用量，隐去小群体，只存储报表角色可读取的聚合数据。"
@@ -251,6 +256,10 @@
     "messaging-retention": {
       "label": "消息数据保留",
       "description": "每晚移除超过 DEVICES_RETENTION_DAYS 未出现的设备，以及过往日期的防盗打计数器。"
+    },
+    "custom-domains": {
+      "label": "自定义域名检查",
+      "description": "按需并每晚查询租户自定义域名的 DNS TXT 记录，记录消失的域名将停止路由。"
     },
     "demo-seed": {
       "label": "演示数据",
