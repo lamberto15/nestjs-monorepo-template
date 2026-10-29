@@ -53,6 +53,98 @@ index 2da5c4937b1cba3378ad9f1204bd721c36da606c..21e507f593278fd38493ee368b3d1ac4
      /** Two parties hold the token: the family is revoked, and the theft reported. */
      async reused(record) {
          await this.storage.refreshTokens.revokeRefreshTokenFamily(record.familyId);
+diff --git a/dist/magic-link/magic-link.service.d.ts b/dist/magic-link/magic-link.service.d.ts
+index 48d87e5dd9b944e0f98cd43cf8e4eb40e518425b..933fdc7bec42550dd811047af599e45cc971b417 100644
+--- a/dist/magic-link/magic-link.service.d.ts
++++ b/dist/magic-link/magic-link.service.d.ts
+@@ -66,7 +66,15 @@ export declare class MagicLinkService {
+      * refusal is a `magic-link-refused` event with its reason. Outside an
+      * HTTP handler, pass the `request` that carries the cookie.
+      */
+-    consume(token: string, { request }?: {
++    /** Patched (lamberto15/nestjs-monorepo-template#952): `signIn: false` spends the link for the account, and signs no session in. */
++    consume(token: string, options: {
++        request?: MagicLinkRequest;
++        signIn: false;
++    }): Promise<{
++        userId: string;
++        redirectTo?: string;
++    } | null>;
++    consume(token: string, options?: {
+         request?: MagicLinkRequest;
+     }): Promise<(IssuedSession & {
+         redirectTo?: string;
+diff --git a/dist/magic-link/magic-link.service.js b/dist/magic-link/magic-link.service.js
+index bd760ddf0467d8fe0bce38fab01613e58ee24488..590a71af70e54eb61c0962c691c538093c41526c 100644
+--- a/dist/magic-link/magic-link.service.js
++++ b/dist/magic-link/magic-link.service.js
+@@ -148,7 +148,7 @@ let MagicLinkService = class MagicLinkService {
+      * refusal is a `magic-link-refused` event with its reason. Outside an
+      * HTTP handler, pass the `request` that carries the cookie.
+      */
+-    async consume(token, { request } = {}) {
++    async consume(token, { request, signIn = true } = {}) {
+         const { handler } = this.feature();
+         if (typeof token !== 'string' || !TOKEN_PATTERN.test(token)) {
+             return this.refuse('unknown');
+@@ -195,6 +195,11 @@ let MagicLinkService = class MagicLinkService {
+         if (normalizeEmail(user.email) !== record.email) {
+             return this.refuse('refused', record.email);
+         }
++        // Patched (lamberto15/nestjs-monorepo-template#952): `signIn: false` spends the link for the account and
++        // starts no session (a native app's, which gets tokens instead).
++        if (!signIn) {
++            return { userId: user.id, redirectTo: record.redirectTo };
++        }
+         const issued = await this.signIn.signIn(user.id, { method: 'magic-link' });
+         return { ...issued, redirectTo: record.redirectTo };
+     }
+diff --git a/dist/oidc/oidc.service.d.ts b/dist/oidc/oidc.service.d.ts
+index c0b9652eb1abc85a5e16af3a4901a38ccc033b37..ce57d6f1e3a5cde121131546d812d7bc8d4c206c 100644
+--- a/dist/oidc/oidc.service.d.ts
++++ b/dist/oidc/oidc.service.d.ts
+@@ -73,9 +73,13 @@ export declare class OidcService {
+      * goes through `SignInService`, which sets the session cookie on the
+      * response; the transaction cookie is cleared.
+      */
+-    finish(provider: string, query: Record<string, unknown>, { request }?: {
++    finish(provider: string, query: Record<string, unknown>, { request, signIn }?: {
+         request?: OidcRequest;
+-    }): Promise<OidcRedirect>;
++        /** Patched (lamberto15/nestjs-monorepo-template#952): `false` resolves the account (`userId`) and signs no session in. */
++        signIn?: boolean;
++    }): Promise<OidcRedirect & {
++        userId?: string;
++    }>;
+     /** Sets the cookies (and `no-store`) on the HTTP response, if there is one. */
+     private redirect;
+     /** The options and the resolver; the module refuses to start with one and not the other. */
+diff --git a/dist/oidc/oidc.service.js b/dist/oidc/oidc.service.js
+index 6fa7ad526ce08dd9fc4e3659fb771d4b24f96786..23223c1558d9898b33ecb3be5b66a7afaa556440 100644
+--- a/dist/oidc/oidc.service.js
++++ b/dist/oidc/oidc.service.js
+@@ -133,7 +133,7 @@ let OidcService = class OidcService {
+      * goes through `SignInService`, which sets the session cookie on the
+      * response; the transaction cookie is cleared.
+      */
+-    async finish(provider, query, { request } = {}) {
++    async finish(provider, query, { request, signIn = true } = {}) {
+         const { options, resolver } = this.feature();
+         const exchange = this.scope.exchange();
+         const req = request ?? exchange?.request ?? { headers: {} };
+@@ -169,6 +169,12 @@ let OidcService = class OidcService {
+         if (!user) {
+             throw new ForbiddenException('account not allowed');
+         }
++        // Patched (lamberto15/nestjs-monorepo-template#952): `signIn: false` resolves the account and starts no
++        // session (a native app's login, which gets tokens instead): the caller signs it in its own way.
++        if (!signIn) {
++            const { url } = this.redirect(exchange?.response, location, [this.txCookie('', 0)]);
++            return { url, userId: user.id };
++        }
+         const issued = await this.signIn.signIn(user.id, { method: `oidc:${provider}` });
+         // `signIn()` set the session cookie on the response itself; the caller outside HTTP needs it too.
+         const { url } = this.redirect(exchange?.response, location, [this.txCookie('', 0)]);
 diff --git a/dist/testing/index.js b/dist/testing/index.js
 index d505578d5b1671fcf8765ca346474a1a19d58d00..5e8e7c87e13e89adab100fb9f70c0827bf4c10e6 100644
 --- a/dist/testing/index.js

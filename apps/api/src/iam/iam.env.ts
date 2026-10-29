@@ -4,6 +4,7 @@ import {
   SESSION_IDLE_MINUTES_LIMIT,
   SESSION_MAX_HOURS_LIMIT,
 } from './auth/auth-policy.js';
+import { isNativeRedirectUri } from './account/native-redirect.js';
 import { TURNSTILE_VERIFY_URL } from './captcha/captcha.providers.js';
 import {
   baseUrl,
@@ -140,6 +141,17 @@ export const iamEnv = z.object({
   QUEUE_CONCURRENCY_SSO: z.coerce.number().int().min(1).default(2),
   /** Passwordless sign-in by email link (POST /auth/magic-link). */
   AUTH_MAGIC_LINK: flag('on'),
+  /**
+   * Where a native app's sign-in through the system browser (a provider,
+   * SSO) ends with a one-time code for POST /auth/token/exchange: the app's
+   * own scheme or universal / app link (`com.example.app:/auth`,
+   * `https://app.example.com/auth/native`), comma-separated, matched
+   * exactly (docs/auth.md, "Native and mobile apps"). Empty: none.
+   */
+  NATIVE_REDIRECT_URIS: list().refine(
+    (uris) => uris.every(isNativeRedirectUri),
+    'comma-separated absolute URIs (a custom scheme, or https), without a fragment',
+  ),
 
   // Passkeys (WebAuthn; docs/auth.md, "Passkeys"). The relying party is
   // the web app's host: the RP ID never changes once passkeys exist (every

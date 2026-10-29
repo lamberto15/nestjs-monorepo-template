@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Controller,
+  HttpException,
   Delete,
   Ip,
   Get,
@@ -54,6 +55,8 @@ import {
   reauthenticationCookie,
 } from './oidc-reauthentication.js';
 import { ReauthenticationService } from './reauthentication.service.js';
+import { NativeSignIn } from './native-sign-in.service.js';
+import { nativeLoginQuery } from './native-redirect.js';
 
 const identitySchema = z.object({
   provider: z.string(),
@@ -91,6 +94,7 @@ const loginQuerySchema = z.object({
     .describe(
       '`true`: re-authenticate the signed-in user through the provider (step-up), with a fresh login there.',
     ),
+  ...nativeLoginQuery,
 });
 
 /**
@@ -119,6 +123,7 @@ export class OidcController {
     private readonly account: AccountService,
     private readonly config: ConfigService<IamEnv & CoreEnv, true>,
     private readonly reauthentication: ReauthenticationService,
+    private readonly native: NativeSignIn,
   ) {}
 
   /** 404 for a provider without credentials (and when none is configured at all). */
@@ -154,9 +159,31 @@ export class OidcController {
     @CurrentSession() session: unknown,
     @Param('provider') provider: string,
     @Query({ schema: loginQuerySchema })
-    { redirectTo, link, reauthenticate }: z.infer<typeof loginQuerySchema>,
+    {
+      redirectTo,
+      link,
+      reauthenticate,
+      redirectUri,
+      codeChallenge,
+    }: z.infer<typeof loginQuerySchema>,
     @Res({ passthrough: true }) res: Response,
   ) {
+    const native = this.native.nativeLogin({ redirectUri, codeChallenge });
+    if (native) {
+      // A native app's sign-in (no session here: its code, then tokens).
+      if (link === 'true' || reauthenticate === 'true') {
+        throw new BadRequestException(
+          'A native sign-in neither links nor re-authenticates.',
+        );
+      }
+      this.configured(provider);
+      const redirect = await this.oidc.start(provider, {});
+      await this.native.remember(
+        new URL(redirect.url).searchParams.get('state')!,
+        native,
+      );
+      return redirect;
+    }
     if (reauthenticate === 'true') {
       if (link === 'true') {
         throw new BadRequestException(
@@ -222,7 +249,7 @@ export class OidcController {
   @ApiOperation({ summary: 'Where the provider sends the browser back' })
   @ApiFoundResponse({
     description:
-      'To the web app; a refused step-up (`reauthenticate=true`) with `?error=reauthentication_failed`.',
+      'To the web app; a refused step-up (`reauthenticate=true`) with `?error=reauthentication_failed`. A native login: to its `redirectUri` with `?code=`, or `?error=sign_in_failed`.',
   })
   async callback(
     @Param('provider') provider: string,
@@ -233,6 +260,20 @@ export class OidcController {
     @Res({ passthrough: true }) res: Response,
   ) {
     this.configured(provider);
+    const native = await this.native.login(query.state);
+    if (native) {
+      try {
+        return {
+          url: await this.native.finishProvider(provider, query, native),
+        };
+      } catch (error) {
+        // The app's browser lands back in the app, never on a problem page.
+        if (error instanceof HttpException) {
+          return { url: this.native.failed(native, 'sign_in_failed') };
+        }
+        throw error;
+      }
+    }
     const cookie = this.stepUpCookie();
     const stepUpExpected =
       query.state !== undefined &&

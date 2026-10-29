@@ -20,6 +20,8 @@ import { Captcha } from '../captcha/captcha.guard.js';
 import { CaptchaService } from '../captcha/captcha.service.js';
 import { email } from './account.schemas.js';
 import { AccountService } from './account.service.js';
+import { NativeSignIn } from './native-sign-in.service.js';
+import { codeVerifier } from './native-redirect.js';
 
 const issueSchema = z.object({
   email,
@@ -48,6 +50,21 @@ const refreshSchema = z.object({
     ),
 });
 const revokeSchema = z.object({ refreshToken });
+const exchangeSchema = z.object({
+  handoffCode: z
+    .string()
+    .min(1)
+    .max(128)
+    .describe(
+      "The `code` a native sign-in handed over: the `redirectUri`'s, or POST /auth/magic-link/handoff's.",
+    ),
+  codeVerifier: codeVerifier.describe(
+    'The PKCE verifier of its `codeChallenge`.',
+  ),
+  code: issueSchema.shape.code,
+  recoveryCode: issueSchema.shape.recoveryCode,
+  tenantId: issueSchema.shape.tenantId,
+});
 const tokensSchema = z.object({
   accessToken: z.string().describe('A JWT: `Authorization: Bearer …`.'),
   refreshToken: z.string().describe('Single use: POST /auth/token/refresh.'),
@@ -79,6 +96,7 @@ export class TokensController {
     private readonly captcha: CaptchaService,
     private readonly lifetime: SessionLifetime,
     private readonly switcher: TenantSwitchService,
+    private readonly native: NativeSignIn,
   ) {}
 
   @Throttle({ default: { limit: 5, ttl: minutes(15) } })
@@ -119,6 +137,37 @@ export class TokensController {
       }
       throw error;
     }
+  }
+
+  // The code is 256 random bits, bound to its verifier and spent by any
+  // wrong answer: nothing to guess, nor a bot check to ask for.
+  @Throttle({ default: { limit: 10, ttl: minutes(15) } })
+  @Post('exchange')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Sign in a native app with a sign-in's handoff code",
+    description:
+      "The code of a provider's or SSO sign-in started with `redirectUri` and `codeChallenge`, or of POST /auth/magic-link/handoff, with its PKCE verifier. Two-factor and `tenantId` as for POST /auth/token: without a code from the app, 401 `mfa_required` and the handoff code still works (for its minute); a wrong one spends it. A tenant SSO sign-in acts in its tenant.",
+  })
+  @ApiOkResponse({ standardSchema: tokensSchema })
+  @ApiUnauthorizedResponse({
+    description:
+      'Unknown, used or expired code or another verifier; a second factor required or wrong; `tenantId` not one of yours.',
+  })
+  exchange(
+    @Body({ schema: exchangeSchema }) body: z.infer<typeof exchangeSchema>,
+    @Ip() ip: string,
+    @Headers('user-agent') userAgent: string | undefined,
+  ) {
+    return this.native.exchange(
+      {
+        code: body.handoffCode,
+        codeVerifier: body.codeVerifier,
+        tenantId: body.tenantId,
+        secondFactor: { code: body.code, recoveryCode: body.recoveryCode },
+      },
+      { ip, userAgent },
+    );
   }
 
   // An unknown, expired or reused refresh token gets a 401. With `tenantId`,

@@ -70,18 +70,23 @@ export const signInOptions = (method: string) => ({
  * the family's own id (`sid`, the registered "session ID" claim): the
  * package keeps its family id to itself (the access token doesn't carry
  * it), so revoking a family finds the realtime connections its access
- * tokens opened by this one (DrizzleAuthenticationStore, Realtime).
+ * tokens opened by this one (DrizzleAuthenticationStore, Realtime). And,
+ * for a sign-in `amr` has no value for (a provider, SSO, a magic link: a
+ * native app's handoff), the package's method string (`method`:
+ * `oidc:google`, `sso:<connection>`), which "SSO required" reads.
  */
 export const tokenClaims = (
   amr: string[],
   at = new Date(),
   tenantId: string | null = null,
   sid: string = randomUUID(),
+  method?: string,
 ) => ({
   ...(amr.length > 0 && { amr }),
   auth_time: Math.floor(at.getTime() / 1000),
   ...(tenantId && { tid: tenantId }),
   sid,
+  ...(method && { method }),
 });
 
 /** The metadata without its authentication keys, and those keys apart. */
@@ -156,14 +161,18 @@ export function authenticationOf(
   ) {
     const claims = session as JwtClaims;
     const amr = Array.isArray(claims.amr) ? (claims.amr as unknown[]) : [];
+    const named =
+      typeof claims.method === 'string' ? methodMetadata(claims.method) : {};
     return {
       via: 'token',
       method: amr.includes('pwd')
         ? 'password'
         : amr.includes('pop')
           ? 'passkey'
-          : null,
-      provider: null,
+          : SIGN_IN_METHODS.includes(named.method!)
+            ? named.method!
+            : null,
+      provider: named.provider ?? null,
       mfa: amr.includes('mfa'),
       authenticatedAt: dateOf(claims.auth_time, 'seconds'),
     };

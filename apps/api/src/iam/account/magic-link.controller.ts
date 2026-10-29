@@ -22,6 +22,8 @@ import { AllowInMaintenance } from '../../core/http/maintenance.js';
 import { Captcha } from '../captcha/captcha.guard.js';
 import type { IamEnv } from '../iam.env.js';
 import { AccountService } from './account.service.js';
+import { NativeSignIn } from './native-sign-in.service.js';
+import { codeChallenge } from './native-redirect.js';
 import {
   acceptedSchema,
   email,
@@ -32,6 +34,14 @@ import {
 
 const requestSchema = z.object({ email, redirectTo });
 const consumeSchema = z.object({ token });
+const handoffSchema = z.object({ token, codeChallenge });
+const handoffCodeSchema = z.object({
+  code: z
+    .string()
+    .describe(
+      'One-time, for a minute: POST /auth/token/exchange with the `codeVerifier`.',
+    ),
+});
 
 /**
  * Passwordless sign-in (AUTH_MAGIC_LINK=on): a link by email, for accounts
@@ -46,6 +56,7 @@ export class MagicLinkController {
     private readonly magicLinks: MagicLinkService,
     private readonly account: AccountService,
     private readonly config: ConfigService<IamEnv, true>,
+    private readonly native: NativeSignIn,
   ) {}
 
   @Throttle({ default: { limit: 5, ttl: minutes(15) } })
@@ -85,6 +96,26 @@ export class MagicLinkController {
   ) {
     this.enabled();
     return this.account.signInWithMagicLink(body.token, { ip, userAgent });
+  }
+
+  @Throttle({ default: { limit: 10, ttl: minutes(15) } })
+  @AllowInMaintenance()
+  @Post('handoff')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "A native app's sign-in with the link's token: a one-time code",
+    description:
+      "For an app that opens the link itself (a universal / app link on WEB_URL/magic-link) and asked for it with POST /auth/magic-link, keeping that response's cookie (the link works only where it was asked for). Spends the link, starts no session, and answers a code for POST /auth/token/exchange, bound to `codeChallenge` (PKCE).",
+  })
+  @ApiOkResponse({ standardSchema: handoffCodeSchema })
+  @ApiUnauthorizedResponse({
+    description: 'Unknown, used or expired link, or asked for elsewhere.',
+  })
+  handoff(
+    @Body({ schema: handoffSchema }) body: z.infer<typeof handoffSchema>,
+  ) {
+    this.enabled();
+    return this.native.handOffMagicLink(body.token, body.codeChallenge);
   }
 
   private enabled() {

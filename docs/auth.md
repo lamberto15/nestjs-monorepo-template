@@ -23,7 +23,7 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
 | Magic link | `POST /v1/auth/magic-link`, `POST /v1/auth/magic-link/verify` |
 | Passkeys | `GET /v1/auth/passkeys`, `POST /v1/auth/passkeys/registration/options` → `POST /v1/auth/passkeys`, `PATCH`/`DELETE /v1/auth/passkeys/{id}`; sign in: `POST /v1/auth/passkeys/sign-in/options` → `/sign-in` (a browser) or `/token` (an app); see [Passkeys](#passkeys) |
 | Google, Microsoft, GitHub | `GET /v1/auth/oidc/{provider}/login` → `/callback`; linked: `GET /v1/auth/identities`, unlink: `DELETE /v1/auth/identities/{provider}` |
-| Mobile apps | `POST /v1/auth/token` (`tenantId`: the tenant the tokens act in), `/token/refresh` (`tenantId`: move to another of your tenants), `/token/revoke` |
+| Mobile apps | `POST /v1/auth/token` (`tenantId`: the tenant the tokens act in), `/token/refresh` (`tenantId`: move to another of your tenants), `/token/revoke`; a provider, SSO or a magic link: `POST /v1/auth/token/exchange` ([Native and mobile apps](#native-and-mobile-apps)) |
 | A tenant's own identity provider (SAML, OpenID Connect) | `POST /v1/auth/sso/discover { email }` → `loginUrl`, `GET /v1/auth/sso/{tenantId}/{connectionId}/login`; set up with `/v1/sso/…`, SCIM at `/v1/scim`: see [Enterprise SSO](#enterprise-sso) |
 | Your tenants, and acting in another | `GET /v1/auth/tenants`, `POST /v1/auth/tenant { tenantId }` (re-issues the session): [tenancy](tenancy.md) |
 
@@ -1180,6 +1180,42 @@ details.
 
 Every change is audited with the API client as actor (`scim.user-*`,
 `scim.group-*`).
+
+## Native and mobile apps
+
+Password and passkey sign-ins answer tokens directly (`POST /v1/auth/token`,
+`/passkeys/token`). The others end in a browser, so a native app gets a
+one-time **handoff code** instead (RFC 8252, with PKCE: RFC 7636 `S256`):
+
+- **Provider or tenant SSO:** open
+  `GET /v1/auth/oidc/{provider}/login` (or the SSO connection's `login`)
+  with `redirectUri` and `codeChallenge` in the system browser
+  (ASWebAuthenticationSession, Custom Tabs). `redirectUri` must be one of
+  `NATIVE_REDIRECT_URIS` (the app's scheme or a universal / app link,
+  matched exactly; empty: none, 400). The callback starts no session: it
+  redirects to `redirectUri?code=…` (or `?error=sign_in_failed` /
+  `sso_failed`). No linking or step-up this way.
+- **Magic link:** the app asks with `POST /v1/auth/magic-link` and keeps
+  that response's cookie (the link works only where it was asked for),
+  opens `WEB_URL/magic-link?token=…` as a universal / app link, and posts
+  `POST /v1/auth/magic-link/handoff { token, codeChallenge }` → `{ code }`.
+- **Exchange:** `POST /v1/auth/token/exchange { handoffCode, codeVerifier,
+  code?, recoveryCode?, tenantId? }` → `{ accessToken, refreshToken,
+  expiresIn }`. A code lives a minute, works once, and only with its
+  verifier (any wrong answer spends it). Two-factor as for `/auth/token`:
+  without a code from the app, 401 `mfa_required` and the handoff code
+  still works; a wrong one spends it. The tenant: an SSO connection's own;
+  else `tenantId` (a member, else 401) or the last chosen, with "SSO
+  required" checked as for a password. Audited (`auth.signed-in`,
+  `via: token`), in the tenant's sign-in log, and a new device is told,
+  as for any token sign-in. The tokens carry the method (`method` claim:
+  `oidc:github`, `sso:<connection>`, `magic-link`; `amr` only `mfa` when a
+  second factor was verified), which step-up and "SSO required" read.
+
+`NativeSignIn` (`iam/account/native-sign-in.service.ts`) holds the flow;
+the codes and pending logins live in Redis (`NativeHandoffs`, codes only as
+their SHA-256). Tests: `apps/api/test/native-sign-in.e2e-spec.ts`, and the
+SSO one in `sso.e2e-spec.ts`.
 
 ## Bot protection
 

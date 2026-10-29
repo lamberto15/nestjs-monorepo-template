@@ -91,6 +91,8 @@ import { AccessExplanationService } from './access/access-explanation.service.js
 import { TenantLifecycleRegistry } from './access/tenant-lifecycle.registry.js';
 import { SignInContext, signInMetadata } from './auth/sign-in-context.js';
 import { ProviderReauthentications } from './account/oidc-reauthentication.js';
+import { NativeHandoffs } from './account/native-handoff.js';
+import { NativeSignIn } from './account/native-sign-in.service.js';
 import { AccountService } from './account/account.service.js';
 import { VerificationRequests } from './account/verification-requests.service.js';
 import { ImpersonationService } from './account/impersonation.service.js';
@@ -420,6 +422,8 @@ export class IamModule {
         SignInContext,
         // Step-ups through a provider under way (prompt=login, auth_time).
         ProviderReauthentications,
+        NativeHandoffs,
+        NativeSignIn,
         ReauthenticationService,
         // Passkeys (WebAuthn): registration, sign-in, re-authentication.
         PasskeysService,
