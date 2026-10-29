@@ -257,8 +257,17 @@ export const androidApp = (entry: string) => {
 /** How old a Play Integrity verdict may be. */
 const VERDICT_MAX_AGE_MS = 5 * 60_000;
 
-const unpadded = (value: unknown) =>
-  typeof value === 'string' ? value.replace(/=+$/, '') : undefined;
+/** Base64 without its padding (at most two `=`), as Play writes it either way. */
+const unpadded = (value: unknown) => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  let end = value.length;
+  while (end > value.length - 2 && value[end - 1] === '=') {
+    end -= 1;
+  }
+  return value.slice(0, end);
+};
 
 /**
  * A Play Integrity token (classic request), decrypted and verified here
