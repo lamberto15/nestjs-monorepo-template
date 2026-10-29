@@ -1,5 +1,5 @@
 {
-  "id": "d62f5a6e-ec51-4fcc-8e62-028261dbf0ad",
+  "id": "fdec8111-b4b7-449b-ba5d-217af7e0201b",
   "prevId": "8780213a-02b3-46f3-b181-9e54261c4a31",
   "version": "7",
   "dialect": "postgresql",
@@ -11943,8 +11943,8 @@
       "checkConstraints": {},
       "isRLSEnabled": true
     },
-    "public.automation_rules": {
-      "name": "automation_rules",
+    "public.data_quality_findings": {
+      "name": "data_quality_findings",
       "schema": "",
       "columns": {
         "id": {
@@ -11960,20 +11960,20 @@
           "primaryKey": false,
           "notNull": true
         },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
         "subject": {
           "name": "subject",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "trigger": {
-          "name": "trigger",
+        "record_id": {
+          "name": "record_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "check": {
+          "name": "check",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -11982,68 +11982,35 @@
           "name": "field",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "filters": {
-          "name": "filters",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "actions": {
-          "name": "actions",
-          "type": "jsonb",
+        "severity": {
+          "name": "severity",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'draft'"
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "owner": {
-          "name": "owner",
-          "type": "text",
+        "detail": {
+          "name": "detail",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
-        "activated_at": {
-          "name": "activated_at",
+        "checked_at": {
+          "name": "checked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "dismissed_at": {
+          "name": "dismissed_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "disabled_reason": {
-          "name": "disabled_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "failures": {
-          "name": "failures",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "last_run_at": {
-          "name": "last_run_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_status": {
-          "name": "last_status",
+        "dismissed_by": {
+          "name": "dismissed_by",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -12064,8 +12031,8 @@
         }
       },
       "indexes": {
-        "automation_rules_active_idx": {
-          "name": "automation_rules_active_idx",
+        "data_quality_findings_key_idx": {
+          "name": "data_quality_findings_key_idx",
           "columns": [
             {
               "expression": "tenant_id",
@@ -12078,19 +12045,36 @@
               "isExpression": false,
               "asc": true,
               "nulls": "last"
+            },
+            {
+              "expression": "record_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "check",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "field",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
             }
           ],
-          "isUnique": false,
-          "where": "status = 'active'",
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
         }
       },
       "foreignKeys": {
-        "automation_rules_tenant_id_tenants_id_fk": {
-          "name": "automation_rules_tenant_id_tenants_id_fk",
-          "tableFrom": "automation_rules",
+        "data_quality_findings_tenant_id_tenants_id_fk": {
+          "name": "data_quality_findings_tenant_id_tenants_id_fk",
+          "tableFrom": "data_quality_findings",
           "tableTo": "tenants",
           "columnsFrom": [
             "tenant_id"
@@ -12105,49 +12089,49 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {
-        "automation_rules_tenant_select": {
-          "name": "automation_rules_tenant_select",
+        "data_quality_findings_tenant_select": {
+          "name": "data_quality_findings_tenant_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
           "to": [
             "public"
           ],
-          "using": "(\"automation_rules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+          "using": "(\"data_quality_findings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         },
-        "automation_rules_tenant_insert": {
-          "name": "automation_rules_tenant_insert",
+        "data_quality_findings_tenant_insert": {
+          "name": "data_quality_findings_tenant_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
           "to": [
             "public"
           ],
-          "withCheck": "(\"automation_rules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+          "withCheck": "(\"data_quality_findings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         },
-        "automation_rules_tenant_update": {
-          "name": "automation_rules_tenant_update",
+        "data_quality_findings_tenant_update": {
+          "name": "data_quality_findings_tenant_update",
           "as": "PERMISSIVE",
           "for": "UPDATE",
           "to": [
             "public"
           ],
-          "using": "(\"automation_rules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
-          "withCheck": "(\"automation_rules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+          "using": "(\"data_quality_findings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+          "withCheck": "(\"data_quality_findings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         },
-        "automation_rules_tenant_delete": {
-          "name": "automation_rules_tenant_delete",
+        "data_quality_findings_tenant_delete": {
+          "name": "data_quality_findings_tenant_delete",
           "as": "PERMISSIVE",
           "for": "DELETE",
           "to": [
             "public"
           ],
-          "using": "(\"automation_rules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+          "using": "(\"data_quality_findings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         }
       },
       "checkConstraints": {},
       "isRLSEnabled": true
     },
-    "public.automation_runs": {
-      "name": "automation_runs",
+    "public.data_quality_scans": {
+      "name": "data_quality_scans",
       "schema": "",
       "columns": {
         "id": {
@@ -12163,39 +12147,42 @@
           "primaryKey": false,
           "notNull": true
         },
-        "rule_id": {
-          "name": "rule_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rule_version": {
-          "name": "rule_version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "record_id": {
-          "name": "record_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
         "status": {
           "name": "status",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "'queued'"
         },
-        "actions": {
-          "name": "actions",
-          "type": "jsonb",
+        "total": {
+          "name": "total",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "scanned": {
+          "name": "scanned",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "findings": {
+          "name": "findings",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_by": {
+          "name": "started_by",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "error": {
-          "name": "error",
-          "type": "text",
+        "finished_at": {
+          "name": "finished_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
@@ -12205,20 +12192,27 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
       "indexes": {
-        "automation_runs_rule_idx": {
-          "name": "automation_runs_rule_idx",
+        "data_quality_scans_tenant_idx": {
+          "name": "data_quality_scans_tenant_idx",
           "columns": [
             {
-              "expression": "rule_id",
+              "expression": "tenant_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
-              "expression": "id",
+              "expression": "created_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -12231,25 +12225,12 @@
         }
       },
       "foreignKeys": {
-        "automation_runs_tenant_id_tenants_id_fk": {
-          "name": "automation_runs_tenant_id_tenants_id_fk",
-          "tableFrom": "automation_runs",
+        "data_quality_scans_tenant_id_tenants_id_fk": {
+          "name": "data_quality_scans_tenant_id_tenants_id_fk",
+          "tableFrom": "data_quality_scans",
           "tableTo": "tenants",
           "columnsFrom": [
             "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "automation_runs_rule_id_automation_rules_id_fk": {
-          "name": "automation_runs_rule_id_automation_rules_id_fk",
-          "tableFrom": "automation_runs",
-          "tableTo": "automation_rules",
-          "columnsFrom": [
-            "rule_id"
           ],
           "columnsTo": [
             "id"
@@ -12261,42 +12242,42 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {
-        "automation_runs_tenant_select": {
-          "name": "automation_runs_tenant_select",
+        "data_quality_scans_tenant_select": {
+          "name": "data_quality_scans_tenant_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
           "to": [
             "public"
           ],
-          "using": "(\"automation_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+          "using": "(\"data_quality_scans\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         },
-        "automation_runs_tenant_insert": {
-          "name": "automation_runs_tenant_insert",
+        "data_quality_scans_tenant_insert": {
+          "name": "data_quality_scans_tenant_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
           "to": [
             "public"
           ],
-          "withCheck": "(\"automation_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+          "withCheck": "(\"data_quality_scans\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         },
-        "automation_runs_tenant_update": {
-          "name": "automation_runs_tenant_update",
+        "data_quality_scans_tenant_update": {
+          "name": "data_quality_scans_tenant_update",
           "as": "PERMISSIVE",
           "for": "UPDATE",
           "to": [
             "public"
           ],
-          "using": "(\"automation_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
-          "withCheck": "(\"automation_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+          "using": "(\"data_quality_scans\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+          "withCheck": "(\"data_quality_scans\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         },
-        "automation_runs_tenant_delete": {
-          "name": "automation_runs_tenant_delete",
+        "data_quality_scans_tenant_delete": {
+          "name": "data_quality_scans_tenant_delete",
           "as": "PERMISSIVE",
           "for": "DELETE",
           "to": [
             "public"
           ],
-          "using": "(\"automation_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+          "using": "(\"data_quality_scans\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         }
       },
       "checkConstraints": {},

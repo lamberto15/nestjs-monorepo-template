@@ -31,6 +31,7 @@ import { AttachmentsRegistry } from '../attachments/attachments.registry.js';
 import { BulkRegistry } from '../bulk/bulk.registry.js';
 import type { BulkSelection } from '../bulk/bulk.types.js';
 import { CommentsRegistry } from '../comments/comments.registry.js';
+import { DataQualityRegistry } from '../data-quality/data-quality.registry.js';
 import { DataTransferRegistry } from '../data-transfer/data-transfer.registry.js';
 import { columnsOf } from '../data-transfer/import-columns.js';
 import type {
@@ -67,6 +68,7 @@ import {
   takes,
 } from './record.js';
 export { recordKey } from './record.js';
+import { relationsFrom } from './record-relations.js';
 import {
   RECORD_CONTRACT,
   type RecordContract,
@@ -109,6 +111,50 @@ async function find(c: RecordContract, id: string, visibleTo?: Principal) {
   } catch (error) {
     if (error instanceof NotFoundException) return null;
     throw error;
+  }
+}
+
+/**
+ * The data-quality checks of a record with `quality` (platform/data-quality):
+ * its recommended and duplicate fields as declared, and every `ref` field
+ * (record-relations.ts).
+ */
+@Injectable()
+export class RecordDataQuality {
+  constructor(
+    @Inject(RECORD_CONTRACT) c: RecordContract,
+    registry: DataQualityRegistry,
+  ) {
+    const { declaration, table } = c;
+    const columns = (names: readonly string[] = []) =>
+      Object.fromEntries(names.map((name) => [name, table[name]!]));
+    registry.register({
+      subject: declaration.subject,
+      table: table as unknown as PgTable,
+      id: table.id!,
+      deletedAt: table.deletedAt,
+      recommended: columns(declaration.quality?.recommended),
+      duplicates: columns(declaration.quality?.duplicates),
+      references: Object.fromEntries(
+        relationsFrom(declaration).map((relation) => [
+          relation.field,
+          {
+            column: relation.column,
+            to: () => {
+              const to = relation.targetTable() as unknown as Record<
+                string,
+                AnyPgColumn
+              >;
+              return {
+                table: to as unknown as PgTable,
+                id: to.id!,
+                deletedAt: to.deletedAt,
+              };
+            },
+          },
+        ]),
+      ),
+    });
   }
 }
 

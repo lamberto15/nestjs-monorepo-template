@@ -161,6 +161,7 @@ describe('PermissionCatalog', () => {
       'AutomationRule',
       'Ops',
       'MailSuppression',
+      'DataQuality',
       'Form',
       'Note',
     ]);

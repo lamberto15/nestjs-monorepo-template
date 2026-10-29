@@ -264,6 +264,11 @@ import { AutomationRunHandler } from './automations/automation-run.handler.js';
 import { AutomationsController } from './automations/automations.controller.js';
 import { AutomationsRegistry } from './automations/automations.registry.js';
 import { AutomationsService } from './automations/automations.service.js';
+import { DataQualityController } from './data-quality/data-quality.controller.js';
+import { DataQualityPolicy } from './data-quality/data-quality.policy.js';
+import { DataQualityProcessor } from './data-quality/data-quality.processor.js';
+import { DataQualityRegistry } from './data-quality/data-quality.registry.js';
+import { DataQualityService } from './data-quality/data-quality.service.js';
 import { ShareCodeMail } from './shares/share.mails.js';
 import { SharesRegistry } from './shares/shares.registry.js';
 import { SharesService } from './shares/shares.service.js';
@@ -562,6 +567,7 @@ export class PlatformModule {
         SharedController,
         // Tenant automation rules (docs/automations.md).
         AutomationsController,
+        DataQualityController,
         ImportMappingsController,
         RetentionController,
         ...whenOn('REPORTS', ReportsController),
@@ -876,6 +882,11 @@ export class PlatformModule {
         // Read-only links to records: features register a ShareTarget (the `share` capability).
         SharesRegistry,
         SharesService,
+        // Data-quality checks: records register a DataQualityTarget, scans run on the queue.
+        DataQualityRegistry,
+        DataQualityService,
+        DataQualityProcessor,
+        DataQualityPolicy,
         ShareCodeMail,
         // Automation rules: features register an AutomationTarget (the `automation` capability); runs come through the outbox.
         AutomationsRegistry,
@@ -974,6 +985,7 @@ export class PlatformModule {
         PersonalDataRegistry,
         SubscriptionsService,
         SubscriptionsRegistry,
+        DataQualityRegistry,
         SharesRegistry,
         SharesService,
         AutomationsRegistry,

@@ -230,6 +230,11 @@ make it required by hand once both features have records (the migration
 guard refuses a new required field without a default). The platform's tests
 run on the test item's `parentId` (test/fixtures/test-items).
 
+A record's references are also what the data-quality scan checks (one to a
+record in the recycle bin is an error); `quality: { recommended, duplicates }`
+in the declaration adds empty fields and duplicate candidates
+([data-quality](data-quality.md)).
+
 ## Changing a feature
 
 Edit its `<item>.record.ts`, then:
