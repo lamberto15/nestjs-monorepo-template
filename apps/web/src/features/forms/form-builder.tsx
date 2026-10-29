@@ -40,6 +40,7 @@ import {
   type FormField,
   formQuery,
   type GroupField,
+  optionSourcesQuery,
   usePublish,
   useSaveDraft,
 } from './api';
@@ -77,9 +78,9 @@ const toBuilder = (definition: FormDefinition): BuilderSection[] =>
     fields: fields.map(toBuilderField),
   }));
 
-/** Saved as the latest format (3: pages and groups), which reads every earlier draft as it was. */
+/** Saved as the latest format (4: option sources), which reads every earlier draft as it was. */
 const toDefinition = (sections: BuilderSection[]): FormDefinition => ({
-  format: 3,
+  format: 4,
   sections: sections.map((section) => ({
     ...section.value,
     fields: section.fields.map((field) =>
@@ -482,6 +483,52 @@ function SectionEditor(props: {
   );
 }
 
+/** Where a choice field's choices come from: listed here, or an option source the server offers. */
+function SourcePicker(props: {
+  id: string;
+  value: string | undefined;
+  onChange: (provider: string | undefined) => void;
+}) {
+  const { t } = useTranslation('forms');
+  const sources = useQuery(optionSourcesQuery);
+  const items = [
+    { value: LISTED, label: t('builder.listedHere') },
+    ...(sources.data?.items ?? []).map((source) => ({
+      value: source.key,
+      label: source.label,
+    })),
+  ];
+  return (
+    <Field className="sm:col-span-2">
+      <FieldLabel htmlFor={props.id}>{t('builder.choicesFrom')}</FieldLabel>
+      <Select
+        items={items}
+        value={props.value ?? LISTED}
+        onValueChange={(value) =>
+          props.onChange(value === LISTED || value === null ? undefined : value)
+        }
+      >
+        <SelectTrigger id={props.id} className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {items.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {props.value && (
+        <FieldDescription>{t('builder.sourceHint')}</FieldDescription>
+      )}
+    </Field>
+  );
+}
+
+/** The "listed here" choice of SourcePicker. */
+const LISTED = '__listed';
+
 /** A new field's type, and the button that adds it. */
 function AddField(props: {
   id: string;
@@ -661,7 +708,20 @@ function FieldEditor(props: {
           onChange={(event) => set({ help: event.target.value || undefined })}
         />
       </Field>
-      {choice && (
+      {choice && !props.nested && (
+        <SourcePicker
+          id={`${id}-source`}
+          value={field.optionsSource?.provider}
+          onChange={(provider) =>
+            set(
+              provider
+                ? { optionsSource: { provider }, options: undefined }
+                : { optionsSource: undefined, options: parseOptions(options) },
+            )
+          }
+        />
+      )}
+      {choice && !field.optionsSource && (
         <Field className="sm:col-span-2">
           <FieldLabel htmlFor={`${id}-options`}>
             {t('builder.options')}

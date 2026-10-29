@@ -58,7 +58,10 @@
     "minItems": "Fewest items",
     "maxItems": "Most items",
     "groupFields": "Fields of each {{label}} item",
-    "addGroupField": "Add a field to the group"
+    "addGroupField": "Add a field to the group",
+    "choicesFrom": "Choices from",
+    "listedHere": "Listed here",
+    "sourceHint": "The server lists them when the form is filled in, as each person may see them, and checks every answer."
   },
   "types": {
     "text": "Short text",
@@ -130,5 +133,12 @@
     "step": "Step {{n}} of {{total}}",
     "next": "Next",
     "previous": "Previous"
+  },
+  "source": {
+    "search": "Search {{label}}",
+    "error": "The choices of {{label}} could not be loaded.",
+    "retry": "Try again",
+    "more": "More match: narrow your search.",
+    "preview": "Choices from a source, listed when the form is filled in."
   }
 }

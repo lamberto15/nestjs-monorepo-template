@@ -111,6 +111,10 @@ export class ChoicesRegistry {
     return [...this.sets.values()];
   }
 
+  allProviders() {
+    return [...this.providers.values()];
+  }
+
   /** Throws when the set is not sound (see the class). */
   private check(set: ChoiceSet) {
     const fail = (message: string): never => {

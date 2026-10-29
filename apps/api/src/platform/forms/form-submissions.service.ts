@@ -32,6 +32,7 @@ import {
 } from '../account/personal-data.registry.js';
 import { RetentionRegistry } from '../retention/retention.registry.js';
 import { checkAnswers } from './form-answers.js';
+import { FormOptionSourcesService } from './form-option-sources.service.js';
 import { FORM_SUBMISSION_LIST } from './form.list.js';
 import type { SubmitFormDto } from './form.schemas.js';
 import { formSubmissions, formVersions } from './forms.tables.js';
@@ -72,6 +73,7 @@ export class FormSubmissionsService implements PersonalDataSource {
   constructor(
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly forms: FormsService,
+    private readonly sources: FormOptionSourcesService,
     private readonly audit: AuditService,
     personalData: PersonalDataRegistry,
     retention: RetentionRegistry,
@@ -146,6 +148,14 @@ export class FormSubmissionsService implements PersonalDataSource {
     const checked = checkAnswers(current.definition, dto.answers);
     if (!checked.ok) {
       throw invalid(checked.issues);
+    }
+    const sourced = await this.sources.answerIssues(
+      principal,
+      current.definition,
+      checked.answers,
+    );
+    if (sourced.length) {
+      throw invalid(sourced);
     }
     const row = await inTransaction(this.txHost, async (tx) => {
       const [created] = await tx

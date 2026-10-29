@@ -50,6 +50,7 @@ import { FORM_SETTINGS } from './forms/form-settings.js';
 import { FormPolicy } from './forms/form.policy.js';
 import { FormsController } from './forms/forms.controller.js';
 import { FormsService } from './forms/forms.service.js';
+import { FormOptionSourcesService } from './forms/form-option-sources.service.js';
 import { FormSubmissionsController } from './forms/form-submissions.controller.js';
 import { FormSubmissionsService } from './forms/form-submissions.service.js';
 import { AnthropicProvider } from './ai/anthropic.provider.js';
@@ -891,6 +892,7 @@ export class PlatformModule {
         FormPolicy,
         FormsService,
         FormSubmissionsService,
+        FormOptionSourcesService,
         // Business calendars: working hours, zone and holidays, and the deadline calculation on them.
         CalendarsService,
         // Recurring record schedules: records created from a template at each occurrence of a rule.

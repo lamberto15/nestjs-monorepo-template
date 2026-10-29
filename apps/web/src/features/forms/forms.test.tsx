@@ -80,6 +80,11 @@ function useFormsApi(options: { enabled?: boolean; can?: string[] } = {}) {
       });
     }),
     http.get(`/v1/forms/${FORM_ID}`, () => HttpResponse.json(form())),
+    http.get('/v1/forms/option-sources', () =>
+      HttpResponse.json({
+        items: [{ key: 'organizational-units', label: 'Organizational units' }],
+      }),
+    ),
     http.get(`/v1/forms/${FORM_ID}/draft`, () =>
       HttpResponse.json({ formId: FORM_ID, revision: 3, definition }),
     ),
@@ -375,7 +380,7 @@ describe('forms', () => {
     await user.click(screen.getByRole('button', { name: 'Save draft' }));
     await findToast('Draft saved.');
     const saved = calls.drafts[0]!.definition;
-    expect(saved).toMatchObject({ format: 3 });
+    expect(saved).toMatchObject({ format: 4 });
     expect(saved.sections[0]).toMatchObject({ startsPage: true });
     expect(saved.sections[0]!.fields.at(-1)).toEqual({
       key: 'field_4',
@@ -384,6 +389,102 @@ describe('forms', () => {
       validation: { maxItems: 3 },
       fields: [{ key: 'item_1', type: 'text', label: 'Short text' }],
     });
+  });
+
+  it('lists a sourced field’s choices from the server, retries a failure, and sends the value', async () => {
+    const calls = useFormsApi();
+    let failures = 1;
+    const asked: string[] = [];
+    server.use(
+      http.get(`/v1/forms/${FORM_ID}/published`, () =>
+        HttpResponse.json({
+          formId: FORM_ID,
+          slug: 'intake',
+          name: 'Intake',
+          description: null,
+          versionId: VERSION_ID,
+          version: 1,
+          definition: {
+            format: 4,
+            sections: [
+              {
+                key: 'main',
+                fields: [
+                  {
+                    key: 'unit',
+                    type: 'radio',
+                    label: 'Unit',
+                    optionsSource: { provider: 'organizational-units' },
+                  },
+                ],
+              },
+            ],
+          },
+          publishedAt: at,
+        }),
+      ),
+      http.get(`/v1/forms/${FORM_ID}/options/unit`, ({ request }) => {
+        if (failures-- > 0) {
+          return HttpResponse.json(
+            { status: 503, code: 'form_source_unavailable' },
+            {
+              status: 503,
+              headers: { 'content-type': 'application/problem+json' },
+            },
+          );
+        }
+        const q = new URL(request.url).searchParams.get('q') ?? '';
+        asked.push(q);
+        const items = [
+          { value: 'u1', label: 'Sales' },
+          { value: 'u2', label: 'Support' },
+        ].filter((item) => item.label.toLowerCase().includes(q));
+        return HttpResponse.json({ field: 'unit', items, hasMore: false });
+      }),
+    );
+    await renderApp(`/forms/${FORM_ID}/fill`);
+    const user = userEvent.setup();
+    expect(
+      await screen.findByText('The choices of Unit could not be loaded.'),
+    ).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    await user.click(await screen.findByLabelText('Support'));
+    await user.type(screen.getByLabelText('Search Unit'), 'sal');
+    expect(await screen.findByLabelText('Sales')).toBeVisible();
+    // What was chosen stays, by its label, while searching.
+    expect(screen.getByLabelText('Support')).toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    expect(
+      await screen.findByText('Thank you: your answers were sent.'),
+    ).toBeVisible();
+    expect(calls.submitted.at(-1)!.answers).toEqual({ unit: 'u2' });
+    expect(asked).toContain('sal');
+  });
+
+  it('gives a choice field an option source in the builder', async () => {
+    const calls = useFormsApi();
+    await renderApp(`/forms/${FORM_ID}`);
+    const user = userEvent.setup();
+    const pickers = await screen.findAllByRole('combobox', {
+      name: 'Choices from',
+    });
+    await user.click(pickers[0]!);
+    await user.click(
+      await screen.findByRole('option', { name: 'Organizational units' }),
+    );
+    expect(
+      screen.getAllByText(
+        'Choices from a source, listed when the form is filled in.',
+      )[0],
+    ).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Save draft' }));
+    await findToast('Draft saved.');
+    const topic = calls.drafts[0]!.definition.sections[0]!.fields[1]!;
+    expect(topic).toMatchObject({
+      key: 'topic',
+      optionsSource: { provider: 'organizational-units' },
+    });
+    expect(topic).not.toHaveProperty('options');
   });
 
   it('edits a condition visually, and the preview follows it', async () => {
@@ -415,7 +516,7 @@ describe('forms', () => {
 
     await user.click(screen.getByRole('button', { name: 'Save draft' }));
     await findToast('Draft saved.');
-    expect(calls.drafts[0]!.definition).toMatchObject({ format: 3 });
+    expect(calls.drafts[0]!.definition).toMatchObject({ format: 4 });
     expect(calls.drafts[0]!.definition.sections[0]!.fields[2]).toMatchObject({
       key: 'seats',
       visibleWhen: { field: 'topic', op: 'ne', value: 'billing' },

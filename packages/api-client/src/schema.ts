@@ -3120,6 +3120,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/forms/option-sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Option sources a choice field may name
+         * @description The providers trusted server code registered (docs/choices.md) that take no parameters and that you may use: a field names one as `optionsSource.provider` in place of `options` (format 4).
+         */
+        get: operations["FormsController_optionSources_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/forms/{id}": {
         parameters: {
             query?: never;
@@ -3238,6 +3258,26 @@ export interface paths {
          * @description Its definition and `versionId`, which a submission sends back. 404 while the form is unpublished or archived.
          */
         get: operations["FormsController_published_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/forms/{id}/options/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A published field's choices from its option source
+         * @description Of the field `key` of the published version, by its provider: what you may see, behind row-level security. `limit` (20 by default, at most 50), `q` to narrow; `hasMore` when more match. 403 form_source_forbidden when you may not use the source; 503 form_source_unavailable when it fails or is slow (5 s).
+         */
+        get: operations["FormsController_sourceOptions_v1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -20809,9 +20849,9 @@ export interface operations {
                     definition?: {
                         /**
                          * @description The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.
-                         * @default 3
+                         * @default 4
                          */
-                        format?: 1 | 2 | 3;
+                        format?: 1 | 2 | 3 | 4;
                         sections: {
                             key: string;
                             title?: string;
@@ -20843,6 +20883,11 @@ export interface operations {
                                         };
                                     };
                                 }[];
+                                /** @description In place of `options` (format 4): the choices come from the provider, filtered to what the person filling in may see, and each answer is checked against it on the server. Read them at GET /v1/forms/{id}/options/{key}. */
+                                optionsSource?: {
+                                    /** @description A provider registered by trusted server code (GET /v1/forms/option-sources), never a URL or a query. */
+                                    provider: string;
+                                };
                                 validation?: {
                                     minLength?: number;
                                     maxLength?: number;
@@ -20984,6 +21029,55 @@ export interface operations {
             };
             /** @description The slug is taken (form_slug_taken). */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormsController_optionSources_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /**
+                             * @description A field's `optionsSource.provider`.
+                             * @example organizational-units
+                             */
+                            key: string;
+                            label: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Also while the `forms.enabled` flag is off for you. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -21242,9 +21336,9 @@ export interface operations {
                         definition: {
                             /**
                              * @description The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.
-                             * @default 3
+                             * @default 4
                              */
-                            format: 1 | 2 | 3;
+                            format: 1 | 2 | 3 | 4;
                             sections: {
                                 key: string;
                                 title?: string;
@@ -21276,6 +21370,11 @@ export interface operations {
                                             };
                                         };
                                     }[];
+                                    /** @description In place of `options` (format 4): the choices come from the provider, filtered to what the person filling in may see, and each answer is checked against it on the server. Read them at GET /v1/forms/{id}/options/{key}. */
+                                    optionsSource?: {
+                                        /** @description A provider registered by trusted server code (GET /v1/forms/option-sources), never a URL or a query. */
+                                        provider: string;
+                                    };
                                     validation?: {
                                         minLength?: number;
                                         maxLength?: number;
@@ -21449,9 +21548,9 @@ export interface operations {
                     definition: {
                         /**
                          * @description The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.
-                         * @default 3
+                         * @default 4
                          */
-                        format?: 1 | 2 | 3;
+                        format?: 1 | 2 | 3 | 4;
                         sections: {
                             key: string;
                             title?: string;
@@ -21483,6 +21582,11 @@ export interface operations {
                                         };
                                     };
                                 }[];
+                                /** @description In place of `options` (format 4): the choices come from the provider, filtered to what the person filling in may see, and each answer is checked against it on the server. Read them at GET /v1/forms/{id}/options/{key}. */
+                                optionsSource?: {
+                                    /** @description A provider registered by trusted server code (GET /v1/forms/option-sources), never a URL or a query. */
+                                    provider: string;
+                                };
                                 validation?: {
                                     minLength?: number;
                                     maxLength?: number;
@@ -21630,9 +21734,9 @@ export interface operations {
                         definition: {
                             /**
                              * @description The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.
-                             * @default 3
+                             * @default 4
                              */
-                            format: 1 | 2 | 3;
+                            format: 1 | 2 | 3 | 4;
                             sections: {
                                 key: string;
                                 title?: string;
@@ -21664,6 +21768,11 @@ export interface operations {
                                             };
                                         };
                                     }[];
+                                    /** @description In place of `options` (format 4): the choices come from the provider, filtered to what the person filling in may see, and each answer is checked against it on the server. Read them at GET /v1/forms/{id}/options/{key}. */
+                                    optionsSource?: {
+                                        /** @description A provider registered by trusted server code (GET /v1/forms/option-sources), never a URL or a query. */
+                                        provider: string;
+                                    };
                                     validation?: {
                                         minLength?: number;
                                         maxLength?: number;
@@ -21866,9 +21975,9 @@ export interface operations {
                         definition: {
                             /**
                              * @description The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.
-                             * @default 3
+                             * @default 4
                              */
-                            format: 1 | 2 | 3;
+                            format: 1 | 2 | 3 | 4;
                             sections: {
                                 key: string;
                                 title?: string;
@@ -21900,6 +22009,11 @@ export interface operations {
                                             };
                                         };
                                     }[];
+                                    /** @description In place of `options` (format 4): the choices come from the provider, filtered to what the person filling in may see, and each answer is checked against it on the server. Read them at GET /v1/forms/{id}/options/{key}. */
+                                    optionsSource?: {
+                                        /** @description A provider registered by trusted server code (GET /v1/forms/option-sources), never a URL or a query. */
+                                        provider: string;
+                                    };
                                     validation?: {
                                         minLength?: number;
                                         maxLength?: number;
@@ -22219,9 +22333,9 @@ export interface operations {
                         definition: {
                             /**
                              * @description The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.
-                             * @default 3
+                             * @default 4
                              */
-                            format: 1 | 2 | 3;
+                            format: 1 | 2 | 3 | 4;
                             sections: {
                                 key: string;
                                 title?: string;
@@ -22253,6 +22367,11 @@ export interface operations {
                                             };
                                         };
                                     }[];
+                                    /** @description In place of `options` (format 4): the choices come from the provider, filtered to what the person filling in may see, and each answer is checked against it on the server. Read them at GET /v1/forms/{id}/options/{key}. */
+                                    optionsSource?: {
+                                        /** @description A provider registered by trusted server code (GET /v1/forms/option-sources), never a URL or a query. */
+                                        provider: string;
+                                    };
                                     validation?: {
                                         minLength?: number;
                                         maxLength?: number;
@@ -22355,6 +22474,69 @@ export interface operations {
                 content?: never;
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormsController_sourceOptions_v1: {
+        parameters: {
+            query?: {
+                q?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        field: string;
+                        items: {
+                            /** @description What the answer holds and the server checks. */
+                            value: string;
+                            /** @description For display only: never sent back or trusted. */
+                            label: string;
+                        }[];
+                        /** @description More match: narrow with `q` (an answer holds at most `limit`). */
+                        hasMore: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such form, or no field with an option source. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The source failed or was slow (form_source_unavailable). */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -22489,9 +22671,9 @@ export interface operations {
                         definition: {
                             /**
                              * @description The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.
-                             * @default 3
+                             * @default 4
                              */
-                            format: 1 | 2 | 3;
+                            format: 1 | 2 | 3 | 4;
                             sections: {
                                 key: string;
                                 title?: string;
@@ -22523,6 +22705,11 @@ export interface operations {
                                             };
                                         };
                                     }[];
+                                    /** @description In place of `options` (format 4): the choices come from the provider, filtered to what the person filling in may see, and each answer is checked against it on the server. Read them at GET /v1/forms/{id}/options/{key}. */
+                                    optionsSource?: {
+                                        /** @description A provider registered by trusted server code (GET /v1/forms/option-sources), never a URL or a query. */
+                                        provider: string;
+                                    };
                                     validation?: {
                                         minLength?: number;
                                         maxLength?: number;

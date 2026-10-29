@@ -29,6 +29,7 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiServiceUnavailableResponse,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -44,6 +45,10 @@ import {
   type CreateFormDto,
   createFormSchema,
   formDraftSchema,
+  type FormOptionsQuery,
+  formOptionsQuerySchema,
+  formOptionsSchema,
+  formOptionSourcesSchema,
   formSchema,
   formVersionSchema,
   formVersionSummarySchema,
@@ -111,6 +116,18 @@ export class FormsController {
     @Ip() ip: string,
   ) {
     return this.forms.create(user, dto, ip);
+  }
+
+  @Get('option-sources')
+  @Can(FormPolicy, 'edit')
+  @ApiOperation({
+    summary: 'Option sources a choice field may name',
+    description:
+      'The providers trusted server code registered (docs/choices.md) that take no parameters and that you may use: a field names one as `optionsSource.provider` in place of `options` (format 4).',
+  })
+  @ApiOkResponse({ standardSchema: formOptionSourcesSchema })
+  optionSources(@CurrentUser() user: RequestPrincipal) {
+    return this.forms.optionSources(user);
   }
 
   @Get(':id')
@@ -265,6 +282,29 @@ export class FormsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.forms.published(user, id);
+  }
+
+  @Get(':id/options/:key')
+  @Can.Anyone() // Checked by the service: any right on forms, then the provider's own.
+  @ApiOperation({
+    summary: "A published field's choices from its option source",
+    description:
+      'Of the field `key` of the published version, by its provider: what you may see, behind row-level security. `limit` (20 by default, at most 50), `q` to narrow; `hasMore` when more match. 403 form_source_forbidden when you may not use the source; 503 form_source_unavailable when it fails or is slow (5 s).',
+  })
+  @ApiOkResponse({ standardSchema: formOptionsSchema })
+  @ApiNotFoundResponse({
+    description: 'No such form, or no field with an option source.',
+  })
+  @ApiServiceUnavailableResponse({
+    description: 'The source failed or was slow (form_source_unavailable).',
+  })
+  sourceOptions(
+    @CurrentUser() user: RequestPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('key') key: string,
+    @Query({ schema: formOptionsQuerySchema }) query: FormOptionsQuery,
+  ) {
+    return this.forms.sourceOptions(user, id, key, query);
   }
 
   @Get(':id/versions')

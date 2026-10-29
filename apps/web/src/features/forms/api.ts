@@ -84,6 +84,27 @@ export const publishedQuery = (id: string) =>
       unwrap(api.GET('/v1/forms/{id}/published', { params: { path: { id } } })),
   });
 
+/** The option sources an editor may give a choice field (docs/forms.md, "Option sources"). */
+export const optionSourcesQuery = queryOptions({
+  queryKey: [...formsKey, 'option-sources'],
+  queryFn: () => unwrap(api.GET('/v1/forms/option-sources')),
+  staleTime: 5 * 60_000,
+});
+
+/** A published sourced field's choices, narrowed by `q`: the server's, filtered to the person. */
+export const sourceOptionsQuery = (id: string, key: string, q: string) =>
+  queryOptions({
+    queryKey: [...formsKey, id, 'options', key, q],
+    queryFn: () =>
+      unwrap(
+        api.GET('/v1/forms/{id}/options/{key}', {
+          params: { path: { id, key }, query: q ? { q } : {} },
+        }),
+      ),
+    staleTime: 60_000,
+    meta: { errorToast: false },
+  });
+
 export const submissionsQuery = (formId: string) =>
   queryOptions({
     queryKey: [...formsKey, formId, 'submissions'],

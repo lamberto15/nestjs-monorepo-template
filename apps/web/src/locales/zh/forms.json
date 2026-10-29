@@ -58,7 +58,10 @@
     "minItems": "最少条目数",
     "maxItems": "最多条目数",
     "groupFields": "每个{{label}}条目的字段",
-    "addGroupField": "向组中添加字段"
+    "addGroupField": "向组中添加字段",
+    "choicesFrom": "选项来自",
+    "listedHere": "在此列出",
+    "sourceHint": "填写表单时由服务器按每个人可见的范围列出，并检查每个答案。"
   },
   "types": {
     "text": "短文本",
@@ -130,5 +133,12 @@
     "step": "第 {{n}} 步，共 {{total}} 步",
     "next": "下一步",
     "previous": "上一步"
+  },
+  "source": {
+    "search": "搜索{{label}}",
+    "error": "无法加载{{label}}的选项。",
+    "retry": "重试",
+    "more": "还有更多匹配项：请缩小搜索范围。",
+    "preview": "选项来自数据源，填写表单时列出。"
   }
 }

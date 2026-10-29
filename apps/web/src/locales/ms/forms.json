@@ -58,7 +58,10 @@
     "minItems": "Bilangan item paling sedikit",
     "maxItems": "Bilangan item paling banyak",
     "groupFields": "Medan setiap item {{label}}",
-    "addGroupField": "Tambah medan pada kumpulan"
+    "addGroupField": "Tambah medan pada kumpulan",
+    "choicesFrom": "Pilihan daripada",
+    "listedHere": "Disenaraikan di sini",
+    "sourceHint": "Pelayan menyenaraikannya semasa borang diisi, seperti yang boleh dilihat oleh setiap orang, dan menyemak setiap jawapan."
   },
   "types": {
     "text": "Teks pendek",
@@ -130,5 +133,12 @@
     "step": "Langkah {{n}} daripada {{total}}",
     "next": "Seterusnya",
     "previous": "Sebelumnya"
+  },
+  "source": {
+    "search": "Cari {{label}}",
+    "error": "Pilihan {{label}} tidak dapat dimuatkan.",
+    "retry": "Cuba lagi",
+    "more": "Ada lagi padanan: kecilkan carian anda.",
+    "preview": "Pilihan daripada sumber, disenaraikan semasa borang diisi."
   }
 }

@@ -51,9 +51,13 @@ function build(
   return combinator === 'all' ? { all: predicates } : { any: predicates };
 }
 
+/** The operators a field takes: a sourced field's values aren't known when the form is saved, so only isEmpty. */
+const operatorsOf = (field: FormField): readonly ConditionOperator[] =>
+  field.optionsSource ? ['isEmpty'] : OPERATORS_BY_TYPE[field.type]!;
+
 /** A first value of the field's type, so a new predicate is valid at once. */
 function predicateFor(field: FormField): Predicate {
-  const op = OPERATORS_BY_TYPE[field.type]![0]!;
+  const op = operatorsOf(field)[0]!;
   return withOperator(field, { field: field.key, op: 'isEmpty' }, op);
 }
 
@@ -182,7 +186,7 @@ function PredicateRow(props: {
   const { t } = useTranslation('forms');
   const { predicate } = props;
   const field = props.earlier.find((f) => f.key === predicate.field);
-  const operators = field ? OPERATORS_BY_TYPE[field.type]! : [];
+  const operators = field ? operatorsOf(field) : [];
   return (
     <div className="grid items-end gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
       <Choice

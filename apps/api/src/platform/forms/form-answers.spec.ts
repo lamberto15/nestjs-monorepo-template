@@ -341,3 +341,60 @@ describe('pages and repeatable groups', () => {
     ).toEqual(['sections.1.fields.0.fields.1.type']);
   });
 });
+
+describe('option sources', () => {
+  const unit = field({
+    key: 'unit',
+    type: 'select',
+    optionsSource: { provider: 'organizational-units' },
+  });
+  const sourced = (format: number, extra: Partial<FormField> = {}) =>
+    definitionIssues({
+      format: format as FormDefinition['format'],
+      sections: [{ key: 'main', fields: [{ ...unit, ...extra }] }],
+    }).map((issue) => issue.path);
+
+  it('takes a source in place of options, on a choice field, from format 4', () => {
+    expect(sourced(4)).toEqual([]);
+    expect(sourced(3)).toEqual(['sections.0.fields.0.optionsSource']);
+    expect(
+      sourced(4, { options: [{ value: 'a', label: 'A' }], default: 'a' }),
+    ).toEqual(['sections.0.fields.0.options', 'sections.0.fields.0.default']);
+    expect(sourced(4, { type: 'text' })).toEqual([
+      'sections.0.fields.0.optionsSource',
+    ]);
+    // A group's fields take none.
+    expect(
+      formDefinitionSchema.safeParse({
+        sections: [
+          {
+            key: 'main',
+            fields: [
+              {
+                key: 'g',
+                type: 'group',
+                label: 'G',
+                fields: [{ ...unit, label: 'U' }],
+              },
+            ],
+          },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('checks only the shape of a sourced answer: the provider checks the value', () => {
+    expect(checkValue(unit, 'any-id')).toEqual({ ok: true, value: 'any-id' });
+    expect(checkValue(unit, 3).ok).toBe(false);
+    expect(checkValue(unit, 'x'.repeat(201)).ok).toBe(false);
+    const units = { ...unit, type: 'multiSelect' } as FormField;
+    expect(checkValue(units, ['a', 'b']).ok).toBe(true);
+    expect(checkValue(units, ['a', 'a']).ok).toBe(false);
+    expect(
+      checkValue(
+        units,
+        Array.from({ length: 51 }, (_, index) => `u${index}`),
+      ).ok,
+    ).toBe(false);
+  });
+});
