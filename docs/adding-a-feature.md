@@ -92,6 +92,10 @@ export const INVOICE = defineRecord({
   `idempotency` only when chosen. The notes example is hand-written and
   keeps granting its clients.
 
+- **Computed fields (`computed` in the declaration):** values derived from
+  the fields on read, never stored: `total: computed.money('quantity * unitPrice')`
+  ([computed fields](computed-fields.md)). No column, so no migration and
+  nothing for sync to do.
 - **Capabilities (`--with a,b,…`, or `capabilities` in the declaration):** each
   is a platform module, wired by `recordParts` with a generic target;
   `recordParts(…, { override: { revisions: MyRevisions } })` replaces one

@@ -2740,6 +2740,116 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/recents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your recently opened records
+         * @description Newest first, at most 20, none older than 30 days. A record you no longer see (deleted, or your access changed) is left out.
+         */
+        get: operations["RecentsController_list_v1"];
+        put?: never;
+        /**
+         * Note that you opened a record
+         * @description Puts it first (opening it again moves it up, it is not listed twice). `label` is the title the page showed; send no field content. The 21th oldest drops out.
+         */
+        post: operations["RecentsController_record_v1"];
+        /**
+         * Clear your history
+         * @description Removes every recent record of yours in this tenant.
+         */
+        delete: operations["RecentsController_clear_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/recents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove one recent record */
+        delete: operations["RecentsController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/presence/{subject}/{recordId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Who is on a record now
+         * @description The people viewing or editing it, advisory only: saving is still guarded by the record's ETag. Leaves out whoever lost access to the record.
+         */
+        get: operations["PresenceController_list_v1"];
+        /**
+         * Say you are viewing or editing a record
+         * @description Beat every 15 seconds while the page is open; you drop out 45 seconds after the last beat. Send the mode only, never what is being typed. Answers with the list, as GET does. Others on the record hear `record.presence` (ids only) when you arrive or change mode.
+         */
+        put: operations["PresenceController_beat_v1"];
+        post?: never;
+        /** Say you left a record */
+        delete: operations["PresenceController_leave_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your work inbox
+         * @description What waits on you in the current tenant, newest first, cursor pages: approval requests to decide (`approval.decide`, yours or of someone you stand in for) or to revise (`approval.revise`, changes requested on your request), and unread mentions (`mention`). Each item is read from its source now, so it is gone once the work is done, and only what you may see is listed. `?source=` narrows to one source.
+         */
+        get: operations["InboxController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inbox/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss an item
+         * @description Only for items with `canDismiss` (a mention is marked read). An approval is done by deciding it.
+         */
+        post: operations["InboxController_dismiss_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/forms": {
         parameters: {
             query?: never;
@@ -7320,6 +7430,10 @@ export interface components {
             commentId: string;
             /** @enum {string} */
             action: "added" | "edited" | "removed";
+        };
+        RealtimeRecordPresenceEvent: {
+            subject: string;
+            recordId: string;
         };
         RealtimeRecordAttachmentsChangedEvent: {
             subject: string;
@@ -18622,6 +18736,431 @@ export interface operations {
                 content?: never;
             };
             /** @description Not one of your favorites. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecentsController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            id: string;
+                            /** @example Note */
+                            subject: string;
+                            recordId: string;
+                            /** @example Q4 plan */
+                            label: string;
+                            /** Format: date-time */
+                            viewedAt: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecentsController_record_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    subject: string;
+                    /** Format: uuid */
+                    recordId: string;
+                    label: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        /** @example Note */
+                        subject: string;
+                        recordId: string;
+                        /** @example Q4 plan */
+                        label: string;
+                        /** Format: date-time */
+                        viewedAt: string;
+                    };
+                };
+            };
+            /** @description A malformed entry (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such record, or you may not see it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecentsController_clear_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecentsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not one of your recent records. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PresenceController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subject: string;
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** @description The principal key: `user:<id>`. */
+                            key: string;
+                            name: string;
+                            /** @enum {string} */
+                            mode: "viewing" | "editing";
+                            /** @description It is you (another tab of yours). */
+                            self: boolean;
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such record, or you may not see it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PresenceController_beat_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subject: string;
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    mode: "viewing" | "editing";
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** @description The principal key: `user:<id>`. */
+                            key: string;
+                            name: string;
+                            /** @enum {string} */
+                            mode: "viewing" | "editing";
+                            /** @description It is you (another tab of yours). */
+                            self: boolean;
+                        }[];
+                    };
+                };
+            };
+            /** @description A malformed mode (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such record, or you may not see it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PresenceController_leave_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subject: string;
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such record, or you may not see it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InboxController_list_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+                /** @description Only this source: `approval`, `mention`. */
+                source?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /**
+                             * @description `<source>:<id>`: the item, for dismissing it.
+                             * @example approval:0190a0a0-0000-7000-8000-000000000000
+                             */
+                            key: string;
+                            /** @example approval */
+                            source: string;
+                            /**
+                             * @description What the work is: `approval.decide`, `approval.revise`, `mention`.
+                             * @example approval.decide
+                             */
+                            kind: string;
+                            /**
+                             * Format: date-time
+                             * @description When it came to you; the list is newest first.
+                             */
+                            at: string;
+                            /** Format: date-time */
+                            dueAt: string | null;
+                            /** @description Where to do it, a path of the web app. */
+                            link: string | null;
+                            subject: string | null;
+                            recordId: string | null;
+                            /** @description What the client words the item with: a title, who asked. */
+                            data: {
+                                [key: string]: unknown;
+                            };
+                            /** @description false: it is done at its source (decide the request), not here. */
+                            canDismiss: boolean;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
+            };
+            /** @description A bad cursor (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such source. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InboxController_dismiss_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    key: string;
+                };
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The item is done at its source. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not an item of yours. */
             404: {
                 headers: {
                     [name: string]: unknown;

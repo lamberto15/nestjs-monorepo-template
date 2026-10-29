@@ -1,0 +1,31 @@
+{
+  "nav": {
+    "title": "أعمالي"
+  },
+  "page": {
+    "title": "أعمالي",
+    "description": "ما ينتظرك في مساحة العمل هذه.",
+    "empty": "لا شيء ينتظرك.",
+    "more": "عرض المزيد"
+  },
+  "kind": {
+    "approval.decide": "بانتظار موافقتك",
+    "approval.revise": "طُلبت تعديلات",
+    "mention": "إشارة"
+  },
+  "item": {
+    "approval": "بطلب من {{requester}}",
+    "mention": "أشار إليك {{by}}",
+    "due": "الاستحقاق {{date}}",
+    "dismiss": "تجاهل"
+  },
+  "recents": {
+    "group": "الأخيرة",
+    "clear": "مسح السجل"
+  },
+  "presence": {
+    "viewing": "{{name}} يطّلع الآن",
+    "editing": "{{name}} يحرّر الآن",
+    "warning": "هناك من يحرّر هذا السجل. سيظل حفظك يُقارن بآخر إصدار."
+  }
+}
