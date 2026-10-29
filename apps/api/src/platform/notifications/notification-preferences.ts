@@ -61,7 +61,9 @@ export function effectiveSettings(
  * The schema of `PUT /notifications/preferences` for this recipient: the
  * declared types, each with the channels the recipient may set (a client
  * sending `email` is refused by name); a mandatory type refuses the value
- * that means off. Errors name `<type>.<channel>`.
+ * that means off on a channel its default has on (one off by default may
+ * stay off, as `effectiveSettings()` reports it: what GET answers, PUT
+ * takes). Errors name `<type>.<channel>`.
  */
 export function preferencesSchema(
   declarations: readonly NotificationTypeDeclaration<any>[],
@@ -93,7 +95,15 @@ export function preferencesSchema(
         if (!declaration.mandatory) return;
         for (const channel of settable) {
           const given = value[channel.name];
-          if (given !== undefined && same(given, channel.settings.off)) {
+          const fallback =
+            (declaration.channels as Record<string, unknown> | undefined)?.[
+              channel.name
+            ] ?? channel.settings.off;
+          if (
+            given !== undefined &&
+            same(given, channel.settings.off) &&
+            !same(fallback, channel.settings.off)
+          ) {
             ctx.addIssue({
               code: 'custom',
               path: [channel.name],

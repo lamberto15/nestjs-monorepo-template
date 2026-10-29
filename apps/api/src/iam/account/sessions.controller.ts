@@ -10,8 +10,6 @@ import {
 import {
   CurrentSession,
   CurrentUser,
-  type SessionRecord,
-  SessionService,
   SignInService,
 } from '@nestjs/authentication';
 import { Can } from '@nestjs/authorization';
@@ -36,15 +34,31 @@ import { notWhileImpersonating } from './account.schemas.js';
 import { WithoutSso } from '../sso/sso-required.guard.js';
 
 const sessionSchema = z.object({
-  id: z.string(),
+  id: z
+    .string()
+    .describe(
+      "A browser session's id, or an app's (its token family's `sid`).",
+    ),
+  kind: z
+    .enum(['browser', 'app'])
+    .describe(
+      '`browser`: a cookie session; `app`: a token client (POST /auth/token and the other token sign-ins).',
+    ),
   createdAt: z.iso.datetime(),
-  lastActiveAt: z.iso.datetime(),
-  userAgent: z.string().nullable(),
+  lastActiveAt: z.iso
+    .datetime()
+    .describe(
+      "The last request (a browser's), or the last refresh (an app's).",
+    ),
+  userAgent: z
+    .string()
+    .nullable()
+    .describe("A browser's recorded user agent; null for an app."),
   device: z
     .string()
     .nullable()
     .describe(
-      'A readable summary of the user agent ("Chrome on macOS"); null when none was recorded.',
+      'A readable summary of the user agent ("Chrome on macOS", "NestJSMobile on iOS"); null when none was recorded.',
     ),
   method: z
     .enum(SIGN_IN_METHODS)
@@ -64,7 +78,7 @@ const sessionSchema = z.object({
   current: z.boolean(),
 });
 
-/** "Where you're signed in": the user's browser sessions, and signing out of them. */
+/** "Where you're signed in": the user's browser sessions and apps, and signing out of them. */
 @ApiTags('account')
 @ApiCookieAuth('user-session')
 @ApiBearerAuth('user-token')
@@ -74,33 +88,37 @@ const sessionSchema = z.object({
 export class SessionsController {
   constructor(
     private readonly account: AccountService,
-    private readonly sessions: SessionService,
     private readonly signInService: SignInService,
   ) {}
 
   @Get('sessions')
   @ApiOperation({
-    summary: 'Your browser sessions',
-    description: 'While an administrator acts as you: only that session.',
+    summary: 'Where you are signed in: your browser sessions and apps',
+    description:
+      'Browsers first, then apps (token clients still signed in). `current`: the session or app of this request. While an administrator acts as you: only that session.',
   })
   @ApiOkResponse({ standardSchema: listSchema(sessionSchema) })
   async list(
     @CurrentUser() user: UserPrincipal,
-    @CurrentSession() current: SessionRecord | undefined,
+    @CurrentSession() current: unknown,
   ) {
     const items = await this.account.listSessions(user, current);
     return { items };
   }
 
-  // revoke() only ends a session of this user: another user's id is a 404.
+  // Only a session or app of this user: another user's id is a 404.
   @Delete('sessions/:id')
   @HttpCode(204)
-  @ApiOperation({ summary: 'Sign one of your sessions out' })
+  @ApiOperation({
+    summary: 'Sign one of your sessions or apps out',
+    description:
+      'An app (its token family) is signed out at once: its refresh token stops working, its realtime connections end; an access token it holds lives until it expires (15 minutes).',
+  })
   @ApiNoContentResponse()
   @ApiNotFoundResponse()
   async revoke(@CurrentUser() user: UserPrincipal, @Param('id') id: string) {
     notWhileImpersonating(user);
-    if (!(await this.sessions.revoke(id, { userId: user.id }))) {
+    if (!(await this.account.revokeSession(user, id))) {
       throw new NotFoundException();
     }
   }

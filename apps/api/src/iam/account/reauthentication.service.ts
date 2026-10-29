@@ -336,6 +336,8 @@ export class ReauthenticationService {
                 : [],
             now,
             user.tenantId,
+            // The same device: the family it replaces says which.
+            { device: deviceOfClaims(session) },
           ),
           secondFactor,
         });
@@ -406,4 +408,10 @@ export class ReauthenticationService {
     const passwordHash = row?.passwordHash ?? null;
     return { passwordHash, hasPassword: passwordHash !== null, mfaOn };
   }
+}
+
+/** The `dev` claim of a token client's claims (tokenClaims()), if any. */
+function deviceOfClaims(session: unknown) {
+  const device = (session as { dev?: unknown } | undefined)?.dev;
+  return typeof device === 'string' ? device : undefined;
 }

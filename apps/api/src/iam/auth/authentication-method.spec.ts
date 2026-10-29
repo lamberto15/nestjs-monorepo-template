@@ -81,7 +81,7 @@ describe('authentication method', () => {
     expect(authenticationOf({ sub: 'user' })).toMatchObject({
       authenticatedAt: null,
     });
-    expect(tokenClaims([], at, null, 'family')).toEqual({
+    expect(tokenClaims([], at, null, { sid: 'family' })).toEqual({
       auth_time: at.getTime() / 1000,
       sid: 'family',
     });
@@ -93,7 +93,7 @@ describe('authentication method', () => {
     const at = new Date('2026-10-16T10:00:00Z');
     const claims = (method: string) => ({
       sub: 'user',
-      ...tokenClaims([], at, null, undefined, method),
+      ...tokenClaims([], at, null, { method }),
     });
     expect(authenticationOf(claims('sso:connection'))).toMatchObject({
       via: 'token',

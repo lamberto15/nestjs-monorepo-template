@@ -79,14 +79,27 @@ const SYSTEMS: [RegExp, string][] = [
   [/\bLinux\b/, 'Linux'],
 ];
 
-/** "Chrome on macOS", or the agent's first product ("curl"), or "unknown". */
+/**
+ * "Chrome on macOS"; an app's own product token on its system
+ * ("NestJSMobile/1.0.0 (iPhone 17 Pro; iOS 26.5)": "NestJSMobile on iOS");
+ * else the agent's first product ("curl"), or "unknown".
+ */
 function summarize(agent: string) {
   const browser = BROWSERS.find(([pattern]) => pattern.test(agent))?.[1];
   const system = SYSTEMS.find(([pattern]) => pattern.test(agent))?.[1];
   if (browser && system) {
     return `${browser} on ${system}`;
   }
-  return (
-    browser ?? system ?? (agent.split(/[\s/]/)[0]?.slice(0, 60) || 'unknown')
-  );
+  const product = agent.split(/[\s/]/)[0]?.slice(0, 60);
+  // Not `Mozilla/5.0 (iPhone…)` without a browser token: a web view, the system's.
+  if (
+    !browser &&
+    system &&
+    product &&
+    product !== 'Mozilla' &&
+    /^[A-Za-z][\w.-]*\//.test(agent)
+  ) {
+    return `${product} on ${system}`;
+  }
+  return browser ?? system ?? (product || 'unknown');
 }

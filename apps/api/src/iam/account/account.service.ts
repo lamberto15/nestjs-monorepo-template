@@ -35,10 +35,12 @@ import { normalizeEmail, UsersRepository } from '../auth/users.repository.js';
 import { userIdentities, users } from '../iam.tables.js';
 import {
   authenticationOf,
+  isSessionRecord,
   methodMetadata,
   tokenClaims,
 } from '../auth/authentication-method.js';
 import { SsoPolicyService } from '../sso/sso-policy.service.js';
+import { DrizzleAuthenticationStore } from '../auth/drizzle-authentication.store.js';
 import { SignInContext } from '../auth/sign-in-context.js';
 import { BreachedPasswordsService } from './breached-passwords.service.js';
 import { PasswordHistoryService } from './password-history.service.js';
@@ -104,6 +106,7 @@ export class AccountService {
     private readonly authPolicy: AuthPolicyService,
     private readonly passwordHistory: PasswordHistoryService,
     private readonly ssoPolicy: SsoPolicyService,
+    private readonly store: DrizzleAuthenticationStore,
   ) {}
 
   /** A new account with a password (not one found in data breaches), audited. */
@@ -374,7 +377,9 @@ export class AccountService {
       method: 'password',
       // How, when and where, for every token of the family (step-up reads
       // auth_time, JwtAuth the tenant).
-      claims: tokenClaims(['pwd'], new Date(), tenant),
+      claims: tokenClaims(['pwd'], new Date(), tenant, {
+        device: deviceLabel(context.userAgent),
+      }),
       secondFactor,
     });
     await this.securityAlerts.signedIn(user, {
@@ -608,21 +613,27 @@ export class AccountService {
   }
 
   /**
-   * The user's browser sessions as the sessions list shows them, with a
-   * readable `device` ("Chrome on macOS") from the recorded user agent.
-   * While an administrator acts as the user: only that session (the
-   * person's others, their devices and other tenants, are theirs).
+   * Where the user is signed in, as the sessions list shows it: their
+   * browser sessions, with a readable `device` ("Chrome on macOS") from the
+   * recorded user agent, then their apps (token families still signed in:
+   * `id` the family's `sid`, `device` the one it signed in from, the last
+   * refresh as its last activity). `current`: the caller's own session or
+   * family. While an administrator acts as the user: only that session
+   * (the person's others, their devices and other tenants, are theirs).
    */
-  async listSessions(user: UserPrincipal, current: SessionRecord | undefined) {
+  async listSessions(user: UserPrincipal, current: unknown) {
+    const currentId = isSessionRecord(current) ? current.id : undefined;
+    const currentSid = (current as { sid?: unknown } | undefined)?.sid;
     const sessions = (await this.sessions.list(user.id)).filter(
-      (session) => !user.impersonator || session.id === current?.id,
+      (session) => !user.impersonator || session.id === currentId,
     );
-    return sessions.map((session) => {
+    const browsers = sessions.map((session) => {
       const authentication = authenticationOf(session);
       const userAgent =
         (session.metadata?.userAgent as string | undefined) ?? null;
       return {
         id: session.id,
+        kind: 'browser' as const,
         createdAt: session.createdAt.toISOString(),
         lastActiveAt: session.lastActiveAt.toISOString(),
         userAgent,
@@ -631,9 +642,49 @@ export class AccountService {
         provider: authentication?.provider ?? null,
         mfa: authentication?.mfa ?? false,
         authenticatedAt: authentication?.authenticatedAt?.toISOString() ?? null,
-        current: session.id === current?.id,
+        current: session.id === currentId,
       };
     });
+    if (user.impersonator) {
+      return browsers;
+    }
+    const apps = (await this.store.liveTokenFamilies(user.id)).flatMap(
+      ({ startedAt, lastRefreshAt, claims }) => {
+        // A family signed in before `sid` existed can't be named: not listed.
+        if (typeof claims?.sid !== 'string') {
+          return [];
+        }
+        const authentication = authenticationOf({ sub: user.id, ...claims });
+        return [
+          {
+            id: claims.sid,
+            kind: 'app' as const,
+            createdAt: (startedAt ?? lastRefreshAt).toISOString(),
+            lastActiveAt: lastRefreshAt.toISOString(),
+            userAgent: null,
+            device: typeof claims.dev === 'string' ? claims.dev : null,
+            method: authentication?.method ?? null,
+            provider: authentication?.provider ?? null,
+            mfa: authentication?.mfa ?? false,
+            authenticatedAt:
+              authentication?.authenticatedAt?.toISOString() ?? null,
+            current: claims.sid === currentSid,
+          },
+        ];
+      },
+    );
+    return [...browsers, ...apps];
+  }
+
+  /**
+   * Signs one of the user's sessions out: a browser session by its id, else
+   * an app's token family by its `sid`. False when neither is the user's.
+   */
+  async revokeSession(user: UserPrincipal, id: string) {
+    return (
+      (await this.sessions.revoke(id, { userId: user.id })) ||
+      (await this.store.revokeTokenSession(user.id, id))
+    );
   }
 
   /**

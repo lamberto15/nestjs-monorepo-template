@@ -12,6 +12,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { t } from '@nestjs/i18n';
 import { tokenClaims } from '../auth/authentication-method.js';
+import { deviceLabel } from './devices.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { SignInContext } from '../auth/sign-in-context.js';
 import { UsersRepository } from '../auth/users.repository.js';
@@ -213,8 +214,7 @@ export class NativeSignIn {
             ? new Date(handoff.authenticatedAt)
             : new Date(),
           tenant,
-          undefined,
-          handoff.method,
+          { method: handoff.method, device: deviceLabel(context.userAgent) },
         ),
         secondFactor: input.secondFactor,
       });

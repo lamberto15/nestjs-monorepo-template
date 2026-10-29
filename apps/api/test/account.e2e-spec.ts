@@ -330,6 +330,47 @@ describe('accounts (e2e)', () => {
     await user.agent.get('/v1/auth/me').expect(401);
   });
 
+  it('lists the apps signed in too, named by their agent, and signs one out', async () => {
+    const user = await invitedUser();
+    const app = await node
+      .http()
+      .post('/v1/auth/token')
+      .set('User-Agent', 'NestJSMobile/1.0.0 (iPhone 17 Pro; iOS 26.5)')
+      .send({ email: user.email, password: user.password })
+      .expect(200);
+    type Item = { id: string; kind: string; device: string | null };
+    const fromBrowser = (await user.agent.get('/v1/auth/sessions').expect(200))
+      .body.items as (Item & { current: boolean })[];
+    const listed = fromBrowser.find((item) => item.kind === 'app');
+    expect(listed).toMatchObject({
+      device: 'NestJSMobile on iOS',
+      method: 'password',
+      userAgent: null,
+      current: false,
+    });
+    // The app sees itself as current.
+    const fromApp = (
+      await node
+        .http()
+        .get('/v1/auth/sessions')
+        .set('Authorization', `Bearer ${app.body.accessToken}`)
+        .expect(200)
+    ).body.items as (Item & { current: boolean })[];
+    expect(fromApp.find((item) => item.id === listed!.id)?.current).toBe(true);
+
+    await user.agent.delete(`/v1/auth/sessions/${listed!.id}`).expect(204);
+    await node
+      .http()
+      .post('/v1/auth/token/refresh')
+      .send({ refreshToken: app.body.refreshToken })
+      .expect(401);
+    const after = (await user.agent.get('/v1/auth/sessions').expect(200)).body
+      .items as Item[];
+    expect(after.some((item) => item.kind === 'app')).toBe(false);
+    // Nobody's: a 404.
+    await user.agent.delete(`/v1/auth/sessions/${randomUUID()}`).expect(404);
+  });
+
   it('issues tokens to mobile apps, rotates them, and revokes a family on reuse', async () => {
     const user = await invitedUser();
     const issued = await node

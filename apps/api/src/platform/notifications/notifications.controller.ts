@@ -146,12 +146,12 @@ export class NotificationsController {
   @ApiOperation({
     summary: 'Change how you are told',
     description:
-      'The body replaces your settings: a type or channel left out goes back to its default. A mandatory type cannot be switched off. Audited.',
+      'The body replaces your settings: a type or channel left out goes back to its default. On a mandatory type, a channel that is on by default cannot be switched off (one off by default may stay off: what GET answers, PUT takes back). Audited.',
   })
   @ApiOkResponse({ standardSchema: preferencesViewSchema })
   @ApiBadRequestResponse({
     description:
-      'An unknown type or channel, a value the channel does not take, or a mandatory type switched off (validation_failed, each error naming `<type>.<channel>`).',
+      'An unknown type or channel, a value the channel does not take, or, on a mandatory type, a channel that is on by default switched off (validation_failed, each error naming `<type>.<channel>`).',
   })
   updatePreferences(
     @CurrentUser() user: Principal,

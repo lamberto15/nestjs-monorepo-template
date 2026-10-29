@@ -73,20 +73,26 @@ export const signInOptions = (method: string) => ({
  * tokens opened by this one (DrizzleAuthenticationStore, Realtime). And,
  * for a sign-in `amr` has no value for (a provider, SSO, a magic link: a
  * native app's handoff), the package's method string (`method`:
- * `oidc:google`, `sso:<connection>`), which "SSO required" reads.
+ * `oidc:google`, `sso:<connection>`), which "SSO required" reads. And the
+ * device it signed in from (`dev`: `deviceLabel()`, "NestJSMobile on iOS"),
+ * for the sessions list: a family keeps no request of its own.
  */
 export const tokenClaims = (
   amr: string[],
   at = new Date(),
   tenantId: string | null = null,
-  sid: string = randomUUID(),
-  method?: string,
+  {
+    sid = randomUUID(),
+    method,
+    device,
+  }: { sid?: string; method?: string; device?: string | null } = {},
 ) => ({
   ...(amr.length > 0 && { amr }),
   auth_time: Math.floor(at.getTime() / 1000),
   ...(tenantId && { tid: tenantId }),
   sid,
   ...(method && { method }),
+  ...(device && { dev: device }),
 });
 
 /** The metadata without its authentication keys, and those keys apart. */
@@ -115,7 +121,8 @@ export interface CredentialAuthentication {
   authenticatedAt: Date | null;
 }
 
-const isSessionRecord = (session: unknown): session is SessionRecord =>
+/** Whether `session` is a browser session's record (not an access token's claims). */
+export const isSessionRecord = (session: unknown): session is SessionRecord =>
   typeof session === 'object' &&
   session !== null &&
   typeof (session as SessionRecord).userId === 'string' &&

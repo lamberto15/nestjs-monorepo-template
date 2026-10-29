@@ -546,6 +546,20 @@ describe('notifications (e2e)', () => {
     expect(audit.body.items[0].details).toMatchObject({
       to: { 'security.passwordChanged': { email: 'daily' } },
     });
+
+    // What GET answers, PUT takes back unchanged: a mandatory type's
+    // channel that is off by default (security.apiKeyRotated's mail) may
+    // stay off.
+    const current = await editor.agent
+      .get('/v1/notifications/preferences')
+      .expect(200);
+    expect(current.body.types['security.apiKeyRotated']).toEqual({
+      email: false,
+    });
+    await editor.agent
+      .put('/v1/notifications/preferences')
+      .send(current.body.types)
+      .expect(200);
   });
 
   it('collapses by key: one notification, counted up', async () => {
