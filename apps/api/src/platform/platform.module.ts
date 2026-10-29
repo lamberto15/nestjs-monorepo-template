@@ -258,6 +258,17 @@ import { RecentsController } from './recents/recents.controller.js';
 import { RecentsRetentionJob } from './recents/recents-retention.job.js';
 import { RecentsService } from './recents/recents.service.js';
 import { SharedController } from './shares/shared.controller.js';
+import { AutomationRulePolicy } from './automations/automation.policy.js';
+import { AUTOMATION_NOTIFICATIONS } from './automations/automation-events.js';
+import { AutomationRunHandler } from './automations/automation-run.handler.js';
+import { AutomationsController } from './automations/automations.controller.js';
+import { AutomationsRegistry } from './automations/automations.registry.js';
+import { AutomationsService } from './automations/automations.service.js';
+import { DataQualityController } from './data-quality/data-quality.controller.js';
+import { DataQualityPolicy } from './data-quality/data-quality.policy.js';
+import { DataQualityProcessor } from './data-quality/data-quality.processor.js';
+import { DataQualityRegistry } from './data-quality/data-quality.registry.js';
+import { DataQualityService } from './data-quality/data-quality.service.js';
 import { ShareCodeMail } from './shares/share.mails.js';
 import { SharesRegistry } from './shares/shares.registry.js';
 import { SharesService } from './shares/shares.service.js';
@@ -554,6 +565,9 @@ export class PlatformModule {
         FormSubmissionsController,
         // Opening a record's read-only link, without a sign-in (POST /v1/shared/open).
         SharedController,
+        // Tenant automation rules (docs/automations.md).
+        AutomationsController,
+        DataQualityController,
         ImportMappingsController,
         RetentionController,
         ...whenOn('REPORTS', ReportsController),
@@ -578,6 +592,7 @@ export class PlatformModule {
               ...COMMENT_NOTIFICATIONS,
               ...ACKNOWLEDGMENT_NOTIFICATIONS,
               ...APPROVAL_NOTIFICATIONS,
+              ...AUTOMATION_NOTIFICATIONS,
               ...ATTACHMENT_NOTIFICATIONS,
               // Development only, with the route that sends it.
               ...inDevelopment(...TEST_NOTIFICATIONS),
@@ -867,7 +882,17 @@ export class PlatformModule {
         // Read-only links to records: features register a ShareTarget (the `share` capability).
         SharesRegistry,
         SharesService,
+        // Data-quality checks: records register a DataQualityTarget, scans run on the queue.
+        DataQualityRegistry,
+        DataQualityService,
+        DataQualityProcessor,
+        DataQualityPolicy,
         ShareCodeMail,
+        // Automation rules: features register an AutomationTarget (the `automation` capability); runs come through the outbox.
+        AutomationsRegistry,
+        AutomationsService,
+        AutomationRulePolicy,
+        AutomationRunHandler,
         // Saved column mappings of an import (docs/data-transfer.md).
         ImportMappingsService,
         // Scheduled reports: exports run on a schedule, mailed to their recipients.
@@ -960,8 +985,11 @@ export class PlatformModule {
         PersonalDataRegistry,
         SubscriptionsService,
         SubscriptionsRegistry,
+        DataQualityRegistry,
         SharesRegistry,
         SharesService,
+        AutomationsRegistry,
+        AutomationsService,
         SearchRegistry,
         ListsRegistry,
         SequencesService,

@@ -120,6 +120,7 @@ describe('the system principal', () => {
         'audit-retention',
         'account-deletion',
         'report-runner',
+        'automations',
         'approvals',
       ]),
     );

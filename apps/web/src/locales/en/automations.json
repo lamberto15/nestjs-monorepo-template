@@ -1,0 +1,100 @@
+{
+  "nav": "Automations",
+  "title": "Automation rules",
+  "description": "When a record is created or changed and matches the conditions, the actions run: set a field, add a tag, tell people, or send a webhook. A rule runs as the person who activated it, with their permissions.",
+  "new": "New rule",
+  "none": "No automation rules yet.",
+  "more": "Show more",
+  "never": "Never ran",
+  "version": "v{{version}}",
+  "runs": "Runs",
+  "runsOf": "Runs of {{name}}",
+  "editButton": "Edit",
+  "edit": "Edit {{name}}",
+  "activate": "Activate",
+  "disable": "Disable",
+  "deleteButton": "Delete",
+  "delete": "Delete {{name}}",
+  "saved": "Rule saved as a draft.",
+  "newTitle": "New automation rule",
+  "editTitle": "Edit the automation rule",
+  "runsTitle": "Runs of {{name}}",
+  "runsDescription": "The latest runs, newest first: what each did, or why it failed.",
+  "noRuns": "No runs yet.",
+  "done": {
+    "activate": "{{name}} is active.",
+    "disable": "{{name}} is disabled.",
+    "delete": "{{name}} was deleted."
+  },
+  "columns": {
+    "name": "Name",
+    "subject": "When",
+    "status": "Status",
+    "lastRun": "Last run",
+    "actions": "Actions"
+  },
+  "status": {
+    "draft": "Draft",
+    "active": "Active",
+    "disabled": "Disabled"
+  },
+  "reason": {
+    "manual": "by hand",
+    "owner_inactive": "its owner left",
+    "run_limit": "ran too often",
+    "failing": "kept failing",
+    "subject_gone": "its records are gone"
+  },
+  "run": {
+    "succeeded": "Succeeded",
+    "failed": "Failed"
+  },
+  "trigger": {
+    "created": "created",
+    "updated": "changed"
+  },
+  "action": {
+    "setField": "Set a field",
+    "addTag": "Add a tag",
+    "notify": "Notify",
+    "webhook": "Webhook"
+  },
+  "refusal": {
+    "forbidden": "not allowed by the permissions",
+    "field_forbidden": "this field may not be changed",
+    "unknown_tag": "no such tag",
+    "no_recipient": "nobody to tell who may see the record",
+    "client_cannot_read": "the client may not read the record"
+  },
+  "builder": {
+    "description": "Simulate it to see what it would do now, without doing it. It is saved as a draft: activate it from the list.",
+    "name": "Name",
+    "subject": "Records",
+    "trigger": "When a record is",
+    "field": "Only when this field changes",
+    "anyField": "Any field",
+    "conditions": "Conditions",
+    "conditionsHint": "The list's filters, as in its address: a filter such as title.contains and its value.",
+    "filter": "Filter",
+    "value": "Value",
+    "addCondition": "Add a condition",
+    "removeCondition": "Remove the condition",
+    "actions": "Actions",
+    "actionType": "Action",
+    "setField": "Field",
+    "tag": "Tag",
+    "userIds": "User ids, comma-separated",
+    "clientId": "API client id",
+    "addAction": "Add an action",
+    "removeAction": "Remove the action",
+    "cancel": "Cancel",
+    "simulate": "Simulate",
+    "save": "Save the draft"
+  },
+  "simulation": {
+    "title": "Simulation",
+    "summary": "{{matched}} matching records among the latest {{limit}} you may see. Nothing was changed.",
+    "truncated": "More may match.",
+    "noTrigger": "The field change is not replayed: records are checked as they are now."
+  }
+}

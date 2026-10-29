@@ -35,8 +35,10 @@ import {
   recordKey,
   RecordAccessFinder,
   RecordAttachments,
+  RecordAutomation,
   RecordBulk,
   RecordComments,
+  RecordDataQuality,
   RecordDocuments,
   RecordRevisions,
   RecordSearch,
@@ -61,6 +63,7 @@ const TARGETS: Partial<Record<Capability, Type>> = {
   search: RecordSearch,
   transfer: RecordTransfer,
   share: RecordShares,
+  automation: RecordAutomation,
   merge: RecordMerge,
 };
 
@@ -181,6 +184,8 @@ export function recordParts(
       create: options.schemas.create,
       custom: has('custom'),
     }),
+    // The data-quality checks it declares (platform/data-quality).
+    ...(declaration.quality ? [RecordDataQuality] : []),
     ...declaration.capabilities.flatMap((capability) => {
       const target = options.override?.[capability] ?? TARGETS[capability];
       return target ? [target] : [];

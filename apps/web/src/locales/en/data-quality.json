@@ -1,0 +1,42 @@
+{
+  "nav": "Data quality",
+  "title": "Data quality",
+  "description": "Records missing recommended values, referring to records in the recycle bin, or looking like duplicates. Errors are wrong; suggestions may be right as they are. Nothing here changes a record: fix it where it lives, or dismiss the finding.",
+  "none": "No kind of record declares data-quality checks you may see.",
+  "subject": "Records",
+  "errors": "Errors",
+  "suggestions": "Suggestions",
+  "dismissed": "Dismissed",
+  "freshness": "Last scan",
+  "neverScanned": "No scan yet: start one to find problems.",
+  "scanning": "Scanning: {{scanned}} of {{total}} records checked.",
+  "scanFailed": "The scan started {{at}} failed. Start another.",
+  "lastScan": "Finished {{at}}: {{n}} open findings.",
+  "progress": "Scan progress",
+  "scan": "Scan now",
+  "scanStarted": "Scan started.",
+  "findingsOf": "Findings: {{subject}}",
+  "showDismissed": "Show dismissed",
+  "noneOpen": "No open findings.",
+  "noneDismissed": "No dismissed findings.",
+  "severity": "Severity",
+  "problem": "Problem",
+  "record": "Record",
+  "actions": "Actions",
+  "severityLabel": {
+    "error": "Error",
+    "suggestion": "Suggestion"
+  },
+  "check": {
+    "missing": "{{field}} is empty",
+    "reference": "{{field}} refers to a record in the recycle bin ({{other}})",
+    "duplicate": "{{field}} is the same as another record's ({{other}})"
+  },
+  "recheck": "Recheck",
+  "recheckLabel": "Recheck: {{problem}}",
+  "dismiss": "Dismiss",
+  "dismissLabel": "Dismiss: {{problem}}",
+  "resolved": "Resolved: the problem is gone.",
+  "stillThere": "Still there.",
+  "dismissedToast": "Finding dismissed."
+}

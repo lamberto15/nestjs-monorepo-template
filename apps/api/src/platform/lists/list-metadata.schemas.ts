@@ -62,6 +62,8 @@ const CAPABILITY_DOCS = {
   numbered: 'A human-readable number (`number`, `INV-2026-00042`).',
   share:
     'Read-only links to a record (`…/{id}/shares`), opened without a sign-in (POST /v1/shared/open).',
+  automation:
+    'Automation rules may act on its records when they are created or changed (GET /v1/automation-rules).',
   merge:
     'Duplicates found by its declared rules (`…/duplicates`) and merged into one record (`…/{id}/merge`).',
   approvals: 'An action on the records may need approval (GET /v1/approvals).',

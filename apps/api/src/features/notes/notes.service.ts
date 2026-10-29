@@ -58,6 +58,7 @@ import {
   NotePublicationWorkflow,
   publicationId,
 } from './note-publication.workflow.js';
+import { AutomationsService } from '../../platform/automations/automations.service.js';
 import { NotePublisher } from './note-publisher.service.js';
 import type { CreateNoteDto, Note, UpdateNoteDto } from './note.schemas.js';
 import { NOTE, noteSnapshot } from './note.resource.js';
@@ -88,6 +89,7 @@ export class NotesService {
     private readonly holds: LegalHoldsService,
     private readonly system: SystemContext,
     private readonly quotas: TenantQuotas,
+    private readonly automations: AutomationsService,
     incomingEvents: IncomingEventHandlers,
     retention: RetentionRegistry,
   ) {
@@ -205,6 +207,12 @@ export class NotesService {
         { id: publicationId(row.id), transaction: tx },
       );
       await this.publisher.dispatch(tx, 'note.created', row);
+      // The tenant's automation rules this note triggers run once it commits.
+      await this.automations.changed(tx, {
+        subject: 'Note',
+        event: 'created',
+        after: row,
+      });
       // The owner watches their note: told of changes others make to it.
       await this.subscriptions.subscribe(owner, {
         subject: 'Note',
@@ -512,6 +520,12 @@ export class NotesService {
         before: noteSnapshot(current),
         by,
         restoredFrom,
+      });
+      await this.automations.changed(tx, {
+        subject: 'Note',
+        event: 'updated',
+        before: current,
+        after: row!,
       });
       return row!;
     });

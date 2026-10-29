@@ -33,6 +33,7 @@ export const NOTE_CAPABILITIES: readonly Capability[] = [
   'events',
   'numbered',
   'share',
+  'automation',
   'merge',
 ];
 
