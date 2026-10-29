@@ -40,9 +40,9 @@ describe('money columns', () => {
     // v1: bigint parsing moved from column.mapFromDriverValue to the driver's codecs (covered by test/money.e2e-spec.ts).
     expect(columns.unitDiscountMinor.dataType).toBe('bigint int64');
     expect(columns.totalCurrency.dataType).toBe('string');
-    expect(columns.totalEurRate.dataType).toBe('string');
+    expect(columns.totalEurRate.dataType).toBe('string numeric');
     expect(columns.totalEurRate.notNull).toBe(false);
-    expect(columns.totalEurRateDate.dataType).toBe('string');
+    expect(columns.totalEurRateDate.dataType).toBe('string date');
   });
 
   it('writes and reads an amount and a conversion', () => {
