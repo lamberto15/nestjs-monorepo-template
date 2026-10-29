@@ -463,6 +463,61 @@ contentType }`, never a storage key. The original can be downloaded while
   (`platform/images/renditions.ts`) once the library reads it and the
   storage package recognizes it from its bytes.
 
+## Search inside files
+
+With `ATTACHMENT_TEXT_SEARCH=on` (off by default) the global search
+(`GET /v1/search`) also finds files by what they say: a hit of subject
+`Attachment`, its id the attachment's, `title` the file name, `snippet` the
+text around the match (`<b>…</b>`), `link` the record's page in the web app
+(`AttachmentTarget.link()`; without it, null). `?subject=Attachment` asks
+for files only. The code is `attachment-text.*`, `text-extractor.ts`,
+`text-extraction.worker.ts` and `attachment.search.ts` in
+`platform/attachments/`.
+
+- **What:** uploads detected as plain text, CSV, PDF (its text layer: a
+  scan without one has no text; no OCR) or DOCX. Never a generated file (an
+  issued PDF, `fields` set): its text is the record's fields, which the
+  record's own search matches under field-level permissions. At most the
+  first 200,000 characters, whitespace collapsed.
+- **When:** a queue job on a worker (`attachment-text`, one file at a time)
+  after the file may be served: queued when an upload is stored and when its
+  malware scan finds it clean (`AttachmentsService.changed()`); the job
+  skips a file that is not clean yet. `AttachmentTextRetryJob` (every five
+  minutes, one instance, each tenant in turn) queues the clean, extractable
+  files that have no text for their current file five minutes after their
+  last change: lost jobs, a replaced file, and, once you switch it on, the
+  files stored before (1,000 per tenant per round).
+- **Sandbox:** each file is read in a `worker_threads` thread of its own,
+  with no environment variables (no secrets), a 256 MB heap, a time limit
+  (`ATTACHMENT_TEXT_TIMEOUT_MS`, 30000) after which the thread is
+  terminated, and a size limit checked before the file is read
+  (`ATTACHMENT_TEXT_MAX_MB`, 20). The extractors are pinned:
+  [unpdf](https://github.com/unjs/unpdf) (Mozilla's pdf.js for servers),
+  run without `eval` and without fetching fonts, and
+  [mammoth](https://github.com/mwilliamson/mammoth.js) for DOCX, whose XML
+  parser resolves no external entity. A file over a limit, damaged or that
+  crashes its thread is stored `failed` (no text, not tried again), and
+  logged; a disk or database error is tried again.
+- **Stored:** `attachment_texts`: the text, the `key` of the file it came
+  from, `status` (`ready` or `failed`), and a generated `tsvector` with a GIN
+  index (`core/database/search.ts`). A new file of the attachment (its `key`
+  changes) makes the old text unmatchable at once, and it is extracted
+  again. The row goes with its attachment: removing it, the nightly sweep,
+  retention, deleting the tenant.
+- **Who sees a hit:** decided when searching, never stored: for each
+  attachment target, the files of the records the caller may read now (the
+  target's read filter, `AccessService.sqlFilter()`, recycle bin excluded),
+  clean ones only. A changed role or a record moved out of reach drops its
+  files from the next search. The match is counted, capped, on the text
+  table first (`rankedMatches()`, #881), so the GIN index finds a rare word
+  under row-level security (`@@` is leakproof, #858).
+- **Metric:** `attachment_texts_extracted_total{result="ready|failed|error"}`.
+- **Switching it off:** nothing is extracted and the search shows no files;
+  the stored texts stay (they go with their attachments) and serve again
+  once it is back on.
+- **Another type:** add it to `EXTRACTABLE_TYPES` (`text-extractor.ts`) and
+  its extractor to `text-extraction.worker.ts` (no relative imports there).
+
 ## Avatars: a user's picture
 
 The same storage layer (`StorageDisk`, `uploadToDisk()`, the bytes-first type

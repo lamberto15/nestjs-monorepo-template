@@ -19,6 +19,7 @@ export * from './platform/sequences/naming-series.tables.js';
 export * from './platform/sequences/sequences.tables.js';
 export * from './platform/acknowledgments/acknowledgments.tables.js';
 export * from './platform/attachments/attachments.tables.js';
+export * from './platform/attachments/attachment-text.tables.js';
 export * from './platform/documents/documents.tables.js';
 export * from './platform/ai/ai.tables.js';
 export * from './platform/comments/comments.tables.js';

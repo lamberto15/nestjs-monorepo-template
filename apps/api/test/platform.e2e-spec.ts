@@ -946,6 +946,7 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       'documents',
       'attachment-scan',
       'attachment-images',
+      'attachment-text',
       'ai',
       'mail-events',
       'reencryption',
