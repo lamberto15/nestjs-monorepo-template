@@ -177,6 +177,10 @@
       "label": "通知保留",
       "description": "每晚删除超过 NOTIFICATIONS_RETENTION_DAYS 的已读通知，以及超过 NOTIFICATIONS_MAX_AGE_DAYS 的所有通知。"
     },
+    "recents-retention": {
+      "label": "最近打开记录的保留",
+      "description": "每晚删除超过 30 天的最近打开记录。"
+    },
     "notification-digests": {
       "label": "通知摘要",
       "description": "每小时发送到期的通知摘要邮件。"

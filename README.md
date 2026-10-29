@@ -162,6 +162,7 @@ Platform modules
 - [Tags](docs/tags.md), [Comments](docs/comments.md), [Attachments](docs/attachments.md), [Revisions](docs/revisions.md): what any record can carry
 - [Sequences](docs/sequences.md): gapless human-readable numbers, naming series
 - [Saved views](docs/saved-views.md): a list's filters, sort and columns kept by name
+- [Work surfaces](docs/work-surfaces.md): the work inbox, recent records, record presence
 - [Encrypted columns](docs/encryption.md): personal data at rest, blind indexes, key rotation
 - [Retention](docs/retention.md): purge or anonymise after N days, legal holds
 - [AI helper](docs/ai.md): summarize or classify a record on a queue worker

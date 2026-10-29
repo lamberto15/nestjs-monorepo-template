@@ -113,7 +113,8 @@ Everything is in `docs/`; a name below is its file (`tags` is
   `deliverability`, `ai`, `documents` (PDFs).
 - **Record add-ons:** `tags`, `comments`, `attachments` (and avatars),
   `revisions`, `acknowledgments`, `approvals`, `saved-views`, `templates`
-  (prefill a create), `choices` (dependent dropdowns), `favorites`, `custom-fields`,
+  (prefill a create), `choices` (dependent dropdowns), `favorites`,
+  `work-surfaces` (inbox, recent records, presence), `custom-fields`,
   `computed-fields` (and the expression language),
   `forms` (runtime forms and submissions), `bulk-operations`, `sequences` (numbers, naming series), `data-transfer`
   (exports, imports), `import-limits`, `reports`.
