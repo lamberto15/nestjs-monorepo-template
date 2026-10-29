@@ -96,6 +96,11 @@ old version runs against the new schema ([deployment.md](deployment.md),
   by version) and put its URLs in the Secret and `redisUrl`.
 - **Files:** `STORAGE_DRIVER=s3` (the chart's default) needs nothing in the
   cluster. `local` needs `persistence.enabled` and a ReadWriteMany class.
+- **Heavy queues:** `heavyWorker.enabled=true` runs imports, exports, PDFs and
+  attachment processing (`heavyWorker.queues`) in a `worker-heavy`
+  Deployment (1 GiB requested, 1536 MiB limit), so its OOM kill leaves mail and
+  the outbox running in `worker` ([background work](background-work.md#splitting-the-workers)).
+  It has no Service scraped as `worker`: its queues' gauges come from `worker`.
 - **Scaling:** the HPA scales `api` on CPU (`api.autoscaling`); the Service
   uses client-IP affinity because socket.io's long-polling needs one replica
   per client (Caddy's cookie in Compose).

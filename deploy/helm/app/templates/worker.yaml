@@ -1,12 +1,30 @@
+{{- /*
+The worker, and with heavyWorker.enabled the heavy queues' own Deployment
+(docs/background-work.md, "Splitting the workers"): the worker leaves
+heavyWorker.queues out (WORKER_QUEUES_EXCLUDE), worker-heavy runs only them
+(WORKER_QUEUES), so an import, export or PDF that runs out of memory restarts
+worker-heavy while mail, the outbox relay, webhooks, workflows and cron go on.
+*/ -}}
+{{- $workers := list (dict "component" "worker" "values" .Values.worker "env" (deepCopy .Values.worker.extraEnv)) -}}
+{{- if .Values.heavyWorker.enabled -}}
+{{- $queues := required "set heavyWorker.queues" .Values.heavyWorker.queues -}}
+{{- $_ := set (index $workers 0).env "WORKER_QUEUES_EXCLUDE" $queues -}}
+{{- $workers = append $workers (dict "component" "worker-heavy" "values" .Values.heavyWorker "env" (merge (dict "WORKER_QUEUES" $queues) (deepCopy .Values.heavyWorker.extraEnv))) -}}
+{{- end -}}
+{{- range $i, $w := $workers }}
+{{- $v := $w.values }}
+{{- if $i }}
+---
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "app.fullname" . }}-worker
+  name: {{ include "app.fullname" $ }}-{{ $w.component }}
   labels:
-    {{- include "app.labels" . | nindent 4 }}
-    app.kubernetes.io/component: worker
+    {{- include "app.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $w.component }}
 spec:
-  replicas: {{ .Values.worker.replicas }}
+  replicas: {{ $v.replicas }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -14,36 +32,36 @@ spec:
       maxSurge: 1
   selector:
     matchLabels:
-      {{- include "app.selector" (dict "ctx" . "component" "worker") | nindent 6 }}
+      {{- include "app.selector" (dict "ctx" $ "component" $w.component) | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "app.selector" (dict "ctx" . "component" "worker") | nindent 8 }}
+        {{- include "app.selector" (dict "ctx" $ "component" $w.component) | nindent 8 }}
       annotations:
-        checksum/env: {{ toYaml .Values.env | sha256sum }}
-        {{- with .Values.podAnnotations }}
+        checksum/env: {{ toYaml $.Values.env | sha256sum }}
+        {{- with $.Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      serviceAccountName: {{ include "app.serviceAccountName" . }}
+      serviceAccountName: {{ include "app.serviceAccountName" $ }}
       automountServiceAccountToken: false
-      {{- with .Values.imagePullSecrets }}
+      {{- with $.Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      terminationGracePeriodSeconds: {{ .Values.worker.terminationGracePeriodSeconds }}
+        {{- toYaml $.Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: {{ $v.terminationGracePeriodSeconds }}
       containers:
         - name: worker
-          image: {{ include "app.imageRef" (dict "img" .Values.image) }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          image: {{ include "app.imageRef" (dict "img" $.Values.image) }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
           command: ["node", "dist/worker"]
           ports:
             - name: http
               containerPort: 3000
           env:
-            {{- include "app.env" (dict "ctx" . "extra" .Values.worker.extraEnv "files" (merge (deepCopy .Values.secretFiles.worker) (deepCopy .Values.secretFiles.common))) | nindent 12 }}
+            {{- include "app.env" (dict "ctx" $ "extra" $w.env "files" (merge (deepCopy $.Values.secretFiles.worker) (deepCopy $.Values.secretFiles.common))) | nindent 12 }}
           startupProbe:
             httpGet: { path: /health/live, port: http }
             periodSeconds: 3
@@ -59,62 +77,63 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 3
           resources:
-            {{- toYaml .Values.worker.resources | nindent 12 }}
+            {{- toYaml $v.resources | nindent 12 }}
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: { drop: [ALL] }
           volumeMounts:
-            {{- include "app.secretMount" . | nindent 12 }}
-            {{- if .Values.persistence.enabled }}
+            {{- include "app.secretMount" $ | nindent 12 }}
+            {{- if $.Values.persistence.enabled }}
             - name: storage
               mountPath: /app/.data/storage
             {{- end }}
       volumes:
-        {{- include "app.secretVolume" (dict "ctx" . "files" (merge (deepCopy .Values.secretFiles.worker) (deepCopy .Values.secretFiles.common))) | nindent 8 }}
-        {{- if .Values.persistence.enabled }}
+        {{- include "app.secretVolume" (dict "ctx" $ "files" (merge (deepCopy $.Values.secretFiles.worker) (deepCopy $.Values.secretFiles.common))) | nindent 8 }}
+        {{- if $.Values.persistence.enabled }}
         - name: storage
           persistentVolumeClaim:
-            claimName: {{ include "app.fullname" . }}-storage
+            claimName: {{ include "app.fullname" $ }}-storage
         {{- end }}
-      {{- with .Values.worker.nodeSelector }}
+      {{- with $v.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.worker.tolerations }}
+      {{- with $v.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.worker.affinity }}
+      {{- with $v.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-{{- if .Values.worker.podDisruptionBudget.enabled }}
+{{- if $v.podDisruptionBudget.enabled }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ include "app.fullname" . }}-worker
+  name: {{ include "app.fullname" $ }}-{{ $w.component }}
   labels:
-    {{- include "app.labels" . | nindent 4 }}
+    {{- include "app.labels" $ | nindent 4 }}
 spec:
-  minAvailable: {{ .Values.worker.podDisruptionBudget.minAvailable }}
+  minAvailable: {{ $v.podDisruptionBudget.minAvailable }}
   selector:
     matchLabels:
-      {{- include "app.selector" (dict "ctx" . "component" "worker") | nindent 6 }}
+      {{- include "app.selector" (dict "ctx" $ "component" $w.component) | nindent 6 }}
 {{- end }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "app.fullname" . }}-worker
+  name: {{ include "app.fullname" $ }}-{{ $w.component }}
   labels:
-    {{- include "app.labels" . | nindent 4 }}
-    app.kubernetes.io/component: worker
+    {{- include "app.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $w.component }}
 spec:
   type: ClusterIP
   selector:
-    {{- include "app.selector" (dict "ctx" . "component" "worker") | nindent 4 }}
+    {{- include "app.selector" (dict "ctx" $ "component" $w.component) | nindent 4 }}
   ports:
     - name: http
       port: 3000
       targetPort: http
+{{- end }}

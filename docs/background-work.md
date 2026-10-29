@@ -59,6 +59,44 @@ ops API (`/v1/ops`) sees every tenant's work: it answers only the
 deployment's operators (the operator tenant, `@OperatorOnly()`,
 [tenancy](tenancy.md)), on top of `Ops.view` / `Ops.manage`.
 
+### Splitting the workers
+
+One worker process runs every queue by default. The heavy ones (imports and
+exports `data-transfers`, PDFs `documents`, attachment processing
+`attachment-images` and `attachment-text`) each run one or two jobs at a time
+(`QUEUE_CONCURRENCY_<QUEUE>`), but a large file can still take hundreds of MB
+outside the heap (sharp's libvips, a workbook read whole), and a worker killed
+at its memory limit stops mail, the outbox relay and everything else with it
+(#618). So they can run in a worker of their own:
+
+- `WORKER_QUEUES` names the only queues a worker consumes (comma-separated;
+  unset: every one), `WORKER_QUEUES_EXCLUDE` the ones it leaves to another
+  (`consumesQueue()`, `core/queues/queues.ts`). A queue it doesn't consume is
+  never started there; producers are unaffected.
+- The heavy worker turns the rest off: `OUTBOX_RELAY=off`,
+  `WEBHOOKS_WORKER=off`, `WORKFLOWS_WORKER=off` (workflow steps) and
+  `SCHEDULER=off` (cron).
+- **Helm:** `heavyWorker.enabled=true` adds the `worker-heavy` Deployment
+  for `heavyWorker.queues` and removes them from `worker`
+  (`WORKER_QUEUES_EXCLUDE`); on in `values.single-node.yaml` (K3s). Its
+  budget: a 1024 MiB heap within a 1536 MiB limit (1 GiB requested), one job
+  per queue: [deployment](deployment.md#resource-limits).
+- **Compose:** `COMPOSE_PROFILES=heavy-worker` and `HEAVY_QUEUES` (the list):
+  `worker` leaves them out, `worker-heavy` (`HEAVY_WORKER_MEMORY`, 1536M;
+  `HEAVY_WORKER_HEAP_MB`, 1024) runs them. With the profile but no
+  `HEAVY_QUEUES`, both run the heavy queues (safe, not isolated).
+
+Name every heavy queue in both places, and keep each queue consumed by at
+least one worker: a queue nobody consumes waits in Redis (the ops view shows
+no worker for it, `GET /v1/ops/diagnostics`). An OOM kill of `worker-heavy`
+hands its running job back once (BullMQ's stalled check) and fails it if the
+retry dies too; mail, the outbox and notifications go on in `worker`.
+
+The import readers' memory has a budget, tested on 100,000-row CSV, JSON and
+XLSX files (`platform/data-transfer/formats.memory.spec.ts`): streamed, each
+keeps under 1 MB (at most 16 MB allowed) while the same JSON read whole
+keeps ~31 MB.
+
 ## Mail
 
 ```ts

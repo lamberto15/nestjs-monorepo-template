@@ -46,6 +46,8 @@ export const platformEnv = z.object({
   /** Background workers: off in tests, which drive them with runOnce(). */
   OUTBOX_RELAY: flag('on'),
   WEBHOOKS_WORKER: flag('on'),
+  /** Workflow steps: off in a worker kept for the heavy queues (WORKER_QUEUES). */
+  WORKFLOWS_WORKER: flag('on'),
 
   /**
    * Worker concurrency (docs/configuration.md, "Worker concurrency"): what
@@ -77,6 +79,7 @@ export const platformEnv = z.object({
     .int()
     .min(1)
     .default(1),
+  QUEUE_CONCURRENCY_ATTACHMENT_TEXT: z.coerce.number().int().min(1).default(1),
 
   /**
    * Deployment switches (docs/configuration.md): platform modules a project

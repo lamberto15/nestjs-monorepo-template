@@ -1,0 +1,144 @@
+{
+  "uid": "capacity",
+  "title": "Capacity",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "tags": ["redis", "memory", "restarts"],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Redis memory against maxmemory",
+      "description": "Redis runs with noeviction: at maxmemory (REDIS_MAXMEMORY) every write fails, queued jobs included. RedisMemoryHigh fires at 85%.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "redis_memory_used_bytes",
+          "legendFormat": "used"
+        },
+        {
+          "refId": "B",
+          "expr": "redis_memory_max_bytes > 0",
+          "legendFormat": "maxmemory"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Redis memory used of maxmemory",
+      "description": "The ratio RedisMemoryHigh alerts on (above 0.85).",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "redis_memory_used_bytes / (redis_memory_max_bytes > 0)",
+          "legendFormat": "used"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "API and worker restarts in the last hour",
+      "description": "Each restart of a process is a new start time; a crash loop or a container killed at its memory limit shows here (and as AppRestarting).",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "changes(process_start_time_seconds{job=~\"api|worker\"}[1h])",
+          "legendFormat": "{{job}} {{instance}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Host OOM kills in the last hour",
+      "description": "Processes the kernel killed for lack of memory (HostOomKilled).",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "increase(node_vmstat_oom_kill[1h])",
+          "legendFormat": "OOM kills"
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "prometheus",
+        "type": "datasource",
+        "query": "prometheus"
+      }
+    ]
+  }
+}

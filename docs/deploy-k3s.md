@@ -25,7 +25,13 @@ time and inspect its result before the next one.
 | Cloudflare Tunnel      | Outbound connector     | administrator      |
 | ACME certificate       | DNS-01                 | administrator      |
 
-The local-path provisioner offers `ReadWriteOnce`. The API and worker share the
+`values.single-node.yaml` runs two workers: `worker` (mail, the outbox,
+webhooks, workflows, cron and the light queues) and `worker-heavy` (imports,
+exports, PDFs and attachment processing; 1536 MiB limit), so a large import
+can't take mail and the outbox down with it
+([background work](background-work.md#splitting-the-workers)).
+
+The local-path provisioner offers `ReadWriteOnce`. The API and workers share the
 file claim on this single node. Before adding a second node, move files to an
 object store or a genuine shared-volume driver. The 100 GiB claim is a capacity
 request, not an expected backup size.
