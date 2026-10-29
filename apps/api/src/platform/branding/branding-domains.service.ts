@@ -240,7 +240,17 @@ export class BrandingDomainsService implements HostTenants {
     }
     const now = new Date();
     await inTransaction(this.txHost, async (tx) => {
-      let verified = row.verifiedAt !== null;
+      // Locked, and read again: a domain removed while the lookup ran
+      // (remove() deletes it with its route) must not get a route back.
+      const [current] = await tx
+        .select({ verifiedAt: tenantDomains.verifiedAt })
+        .from(tenantDomains)
+        .where(eq(tenantDomains.id, id))
+        .for('update');
+      if (!current) {
+        return;
+      }
+      let verified = current.verifiedAt !== null;
       if (outcome === 'found') {
         // The hostname's one tenant: the first to verify it.
         await tx
@@ -271,10 +281,10 @@ export class BrandingDomainsService implements HostTenants {
         .set({
           lastCheckedAt: now,
           lastError: error,
-          verifiedAt: verified ? (row.verifiedAt ?? now) : null,
+          verifiedAt: verified ? (current.verifiedAt ?? now) : null,
         })
         .where(eq(tenantDomains.id, id));
-      const was = row.verifiedAt !== null;
+      const was = current.verifiedAt !== null;
       if (verified !== was) {
         await this.audit.record(
           actor,
