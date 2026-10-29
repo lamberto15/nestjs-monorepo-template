@@ -1,9 +1,5 @@
 {
-<<<<<<< HEAD
-  "id": "a859a1ef-cc65-4f27-9f39-5f9cb5875f88",
-=======
   "id": "2c3e2866-ea34-4b20-be42-76fce6b6175e",
->>>>>>> feat/549-form-option-sources
   "prevId": "40add506-8821-46a4-81af-ec17e26295db",
   "version": "7",
   "dialect": "postgresql",
@@ -10597,196 +10593,6 @@
       },
       "isRLSEnabled": true
     },
-<<<<<<< HEAD
-    "public.form_public_links": {
-      "name": "form_public_links",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuidv7()"
-        },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "form_id": {
-          "name": "form_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "token_hash": {
-          "name": "token_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "revoked_at": {
-          "name": "revoked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "revoked_by": {
-          "name": "revoked_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "max_submissions": {
-          "name": "max_submissions",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "submissions": {
-          "name": "submissions",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "last_submitted_at": {
-          "name": "last_submitted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "form_public_links_form_idx": {
-          "name": "form_public_links_form_idx",
-          "columns": [
-            {
-              "expression": "form_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "form_public_links_tenant_id_tenants_id_fk": {
-          "name": "form_public_links_tenant_id_tenants_id_fk",
-          "tableFrom": "form_public_links",
-          "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "form_public_links_form_fk": {
-          "name": "form_public_links_form_fk",
-          "tableFrom": "form_public_links",
-          "tableTo": "forms",
-          "columnsFrom": [
-            "tenant_id",
-            "form_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "form_public_links_tenant_token_key": {
-          "name": "form_public_links_tenant_token_key",
-          "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "token_hash"
-          ]
-        }
-      },
-      "policies": {
-        "form_public_links_tenant_select": {
-          "name": "form_public_links_tenant_select",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "public"
-          ],
-          "using": "(\"form_public_links\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "form_public_links_tenant_insert": {
-          "name": "form_public_links_tenant_insert",
-          "as": "PERMISSIVE",
-          "for": "INSERT",
-          "to": [
-            "public"
-          ],
-          "withCheck": "(\"form_public_links\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "form_public_links_tenant_update": {
-          "name": "form_public_links_tenant_update",
-          "as": "PERMISSIVE",
-          "for": "UPDATE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"form_public_links\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
-          "withCheck": "(\"form_public_links\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "form_public_links_tenant_delete": {
-          "name": "form_public_links_tenant_delete",
-          "as": "PERMISSIVE",
-          "for": "DELETE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"form_public_links\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        }
-      },
-      "checkConstraints": {},
-      "isRLSEnabled": true
-    },
-=======
->>>>>>> feat/549-form-option-sources
     "public.form_submissions": {
       "name": "form_submissions",
       "schema": "",
@@ -14174,8 +13980,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-<<<<<<< HEAD
-=======
     "public.webhook_client_scopes": {
       "name": "webhook_client_scopes",
       "schema": "",
@@ -14317,7 +14121,6 @@
       "checkConstraints": {},
       "isRLSEnabled": true
     },
->>>>>>> feat/549-form-option-sources
     "public.webhook_delivery_requests": {
       "name": "webhook_delivery_requests",
       "schema": "",
