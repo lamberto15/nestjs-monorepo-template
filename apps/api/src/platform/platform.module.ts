@@ -61,6 +61,7 @@ import { WebhookEndpointsController } from './webhooks/webhook-endpoints.control
 import { WebhookEventTypesController } from './webhooks/webhook-event-types.controller.js';
 import { ClientWebhooksController } from './webhooks/client-webhooks.controller.js';
 import { WebhookManagementService } from './webhooks/webhook-management.service.js';
+import { RecordWebhooks } from './webhooks/record-webhooks.service.js';
 import { IncomingEventHandlers } from './webhooks/incoming-event-handlers.js';
 import { IncomingSendersController } from './webhooks/incoming-senders.controller.js';
 import { IncomingEventTypesController } from './webhooks/incoming-event-types.controller.js';
@@ -257,7 +258,28 @@ import { ImportMappingsController } from './data-transfer/import-mappings.contro
 import { ImportMappingsService } from './data-transfer/import-mappings.service.js';
 import { FavoritesController } from './favorites/favorites.controller.js';
 import { FavoritesService } from './favorites/favorites.service.js';
+import { InboxController } from './inbox/inbox.controller.js';
+import { InboxRegistry } from './inbox/inbox.registry.js';
+import { InboxService } from './inbox/inbox.service.js';
+import { ApprovalInboxSource } from './approvals/approval.inbox.js';
+import { MentionInboxSource } from './comments/mention.inbox.js';
+import { PresenceController } from './presence/presence.controller.js';
+import { PresenceService } from './presence/presence.service.js';
+import { RecentsController } from './recents/recents.controller.js';
+import { RecentsRetentionJob } from './recents/recents-retention.job.js';
+import { RecentsService } from './recents/recents.service.js';
 import { SharedController } from './shares/shared.controller.js';
+import { AutomationRulePolicy } from './automations/automation.policy.js';
+import { AUTOMATION_NOTIFICATIONS } from './automations/automation-events.js';
+import { AutomationRunHandler } from './automations/automation-run.handler.js';
+import { AutomationsController } from './automations/automations.controller.js';
+import { AutomationsRegistry } from './automations/automations.registry.js';
+import { AutomationsService } from './automations/automations.service.js';
+import { DataQualityController } from './data-quality/data-quality.controller.js';
+import { DataQualityPolicy } from './data-quality/data-quality.policy.js';
+import { DataQualityProcessor } from './data-quality/data-quality.processor.js';
+import { DataQualityRegistry } from './data-quality/data-quality.registry.js';
+import { DataQualityService } from './data-quality/data-quality.service.js';
 import { ShareCodeMail } from './shares/share.mails.js';
 import { SharesRegistry } from './shares/shares.registry.js';
 import { SharesService } from './shares/shares.service.js';
@@ -550,11 +572,17 @@ export class PlatformModule {
         TemplatesController,
         ChoicesController,
         FavoritesController,
+        RecentsController,
+        PresenceController,
+        InboxController,
         // Runtime forms (docs/forms.md): off per tenant until `forms.enabled`.
         FormsController,
         FormSubmissionsController,
         // Opening a record's read-only link, without a sign-in (POST /v1/shared/open).
         SharedController,
+        // Tenant automation rules (docs/automations.md).
+        AutomationsController,
+        DataQualityController,
         ImportMappingsController,
         RetentionController,
         ...whenOn('REPORTS', ReportsController),
@@ -579,6 +607,7 @@ export class PlatformModule {
               ...COMMENT_NOTIFICATIONS,
               ...ACKNOWLEDGMENT_NOTIFICATIONS,
               ...APPROVAL_NOTIFICATIONS,
+              ...AUTOMATION_NOTIFICATIONS,
               ...ATTACHMENT_NOTIFICATIONS,
               // Development only, with the route that sends it.
               ...inDevelopment(...TEST_NOTIFICATIONS),
@@ -643,6 +672,8 @@ export class PlatformModule {
         },
         // Both doors to a client's webhooks: its own routes and an administrator's.
         WebhookManagementService,
+        // Who receives a record's webhook (its owner, the tenant-scope clients that may read it).
+        RecordWebhooks,
         // A tenant's incoming webhook senders; features register the events they handle.
         IncomingSendersService,
         IncomingEventHandlers,
@@ -844,6 +875,16 @@ export class PlatformModule {
         ChoicesBuiltins,
         // Favorites: a person's pinned records, pages and saved views, in their order.
         FavoritesService,
+        // Recently opened records: a person's bounded, expiring history.
+        RecentsService,
+        // Record presence: who is viewing or editing a record, ephemeral and advisory.
+        PresenceService,
+        // The work inbox: sources (approvals, mentions) register, one list merges them.
+        InboxRegistry,
+        InboxService,
+        ApprovalInboxSource,
+        MentionInboxSource,
+        RecentsRetentionJob,
         // Runtime forms: definitions, published versions, submissions.
         FormPolicy,
         FormsService,
@@ -856,7 +897,17 @@ export class PlatformModule {
         // Read-only links to records: features register a ShareTarget (the `share` capability).
         SharesRegistry,
         SharesService,
+        // Data-quality checks: records register a DataQualityTarget, scans run on the queue.
+        DataQualityRegistry,
+        DataQualityService,
+        DataQualityProcessor,
+        DataQualityPolicy,
         ShareCodeMail,
+        // Automation rules: features register an AutomationTarget (the `automation` capability); runs come through the outbox.
+        AutomationsRegistry,
+        AutomationsService,
+        AutomationRulePolicy,
+        AutomationRunHandler,
         // Saved column mappings of an import (docs/data-transfer.md).
         ImportMappingsService,
         // Scheduled reports: exports run on a schedule, mailed to their recipients.
@@ -959,8 +1010,11 @@ export class PlatformModule {
         PersonalDataRegistry,
         SubscriptionsService,
         SubscriptionsRegistry,
+        DataQualityRegistry,
         SharesRegistry,
         SharesService,
+        AutomationsRegistry,
+        AutomationsService,
         SearchRegistry,
         ListsRegistry,
         SequencesService,
@@ -993,6 +1047,7 @@ export class PlatformModule {
         HOST_TENANTS,
         MailEventIntakeRegistry,
         IncomingEventHandlers,
+        RecordWebhooks,
       ],
     };
   }

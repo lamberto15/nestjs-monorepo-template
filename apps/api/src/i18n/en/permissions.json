@@ -59,6 +59,13 @@
       "manage": "Add an address to the suppression list, or remove one"
     }
   },
+  "data-quality": {
+    "label": "Data quality",
+    "actions": {
+      "read": "See the data-quality findings on the records and fields you may read",
+      "manage": "Start a data-quality scan, dismiss and recheck findings"
+    }
+  },
   "form": {
     "label": "Forms",
     "names": {
@@ -178,6 +185,10 @@
       "label": "Notification retention",
       "description": "Deletes read notifications past NOTIFICATIONS_RETENTION_DAYS and any past NOTIFICATIONS_MAX_AGE_DAYS, every night."
     },
+    "recents-retention": {
+      "label": "Recent records retention",
+      "description": "Deletes recently opened records older than 30 days, every night."
+    },
     "notification-digests": {
       "label": "Notification digests",
       "description": "Mails the notification digests that are due, every hour."
@@ -253,6 +264,17 @@
     "ops": {
       "label": "Operator CLI",
       "description": "Break-glass commands run on a server (pnpm ops): a one-time password, removing two-factor, unlocking an account, deleting a setting, creating an administrator."
+    },
+    "automations": {
+      "label": "Automation rules",
+      "description": "Runs the tenant's automation rules on the records' changes (their actions as the rule's owner), and disables a rule whose owner left, that runs too often or keeps failing."
+    }
+  },
+  "automation-rule": {
+    "label": "Automation rules",
+    "actions": {
+      "read": "See automation rules and their runs",
+      "manage": "Create, simulate, activate and disable automation rules (they run with your permissions)"
     }
   }
 }

@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from '@/lib/zod';
 import { CustomFieldInputs } from '@/components/records/custom-field-inputs';
+import { DuplicatesWarning } from '@/components/records/duplicates-warning';
 import { customFieldsQuery } from '@/lib/custom-fields';
 import {
   customBody,
@@ -622,6 +623,17 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
         <form.AppField name="title">
           {(field) => <field.TextField label={t('form.title')} autoFocus />}
         </form.AppField>
+        {/* Likely duplicates of what is typed: a hint, never a block (docs/merging.md). */}
+        <form.Subscribe selector={(state) => state.values.title}>
+          {(title) => (
+            <DuplicatesWarning
+              subject="Note"
+              listPath={NOTES_PATH}
+              values={{ title }}
+              excludeId={note?.id}
+            />
+          )}
+        </form.Subscribe>
         {showBody &&
           (settingsPending ? (
             // The flag decides the control: not the plain one for a moment first.

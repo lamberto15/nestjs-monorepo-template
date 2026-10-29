@@ -88,7 +88,7 @@ migrations): [apps/api/AGENTS.md](apps/api/AGENTS.md); `apps/web` and
 - **Newest versions, pinned** (never `:latest`); Dependabot proposes updates.
 - `.env*` files must not be written directly by agents: the owner copies the template
   (`pnpm setup` writes them, or `cp env.example .env` at the root and fills it, or `cp
-  apps/api/env.development.example apps/api/.env.development`). Keep
+apps/api/env.development.example apps/api/.env.development`). Keep
   `env.example` complete when adding variables.
 
 ## Map
@@ -110,12 +110,16 @@ Everything is in `docs/`; a name below is its file (`tags` is
   break-glass, `TENANCY=single`), `encryption`, `retention` (and legal holds).
 - **Background and integrations:** `background-work` (queues, mail, outbox,
   workflows, cron), `webhooks-and-realtime`, `notifications`,
+  `automations` (tenant rules: triggers, conditions, actions, simulation),
   `deliverability`, `ai`, `documents` (PDFs).
 - **Record add-ons:** `tags`, `comments`, `attachments` (and avatars),
   `revisions`, `acknowledgments`, `approvals`, `saved-views`, `templates`
-  (prefill a create), `choices` (dependent dropdowns), `favorites`, `custom-fields`,
-  `forms` (runtime forms and submissions), `bulk-operations`, `sequences` (numbers, naming series), `data-transfer`
-  (exports, imports), `import-limits`, `reports`.
+  (prefill a create), `choices` (dependent dropdowns), `favorites`,
+  `work-surfaces` (inbox, recent records, presence), `custom-fields`,
+  `computed-fields` (and the expression language),
+  `forms` (runtime forms and submissions), `bulk-operations`, `merging` (duplicates, merge), `sequences` (numbers, naming series), `data-transfer`
+  (exports, imports), `import-limits`, `reports`, `data-quality` (checks,
+  scans, findings).
 - **Configuration:** `configuration` (environment variables), `settings`
   (and feature flags), `branding`, `i18n-and-time`, `money`, `usage`
   (quotas), `build-version`.

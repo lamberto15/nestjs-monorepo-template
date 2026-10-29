@@ -953,6 +953,7 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       'retention',
       'messaging',
       'custom-domains',
+      'data-quality',
     ]);
   });
 });

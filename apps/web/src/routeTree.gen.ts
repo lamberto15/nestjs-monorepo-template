@@ -22,8 +22,10 @@ import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteRouteImport } from './routes/_app/account/route'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
+import { Route as AppAutomationsRouteImport } from './routes/_app/automations'
 import { Route as AppBrandingRouteImport } from './routes/_app/branding'
 import { Route as AppCustomFieldsRouteImport } from './routes/_app/custom-fields'
+import { Route as AppDataQualityRouteImport } from './routes/_app/data-quality'
 import { Route as AppExchangeRatesRouteImport } from './routes/_app/exchange-rates'
 import { Route as AppLegalHoldsRouteImport } from './routes/_app/legal-holds'
 import { Route as AppMailSuppressionsRouteImport } from './routes/_app/mail-suppressions'
@@ -35,6 +37,7 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppSignInsRouteImport } from './routes/_app/sign-ins'
 import { Route as AppSsoRouteImport } from './routes/_app/sso'
 import { Route as AppTagsRouteImport } from './routes/_app/tags'
+import { Route as AppWorkRouteImport } from './routes/_app/work'
 import { Route as AppAccessUsersRouteImport } from './routes/_app/access/users'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
 import { Route as AppAccountNotificationsRouteImport } from './routes/_app/account/notifications'
@@ -138,6 +141,11 @@ const AppAuditRoute = AppAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAutomationsRoute = AppAutomationsRouteImport.update({
+  id: '/automations',
+  path: '/automations',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppBrandingRoute = AppBrandingRouteImport.update({
   id: '/branding',
   path: '/branding',
@@ -146,6 +154,11 @@ const AppBrandingRoute = AppBrandingRouteImport.update({
 const AppCustomFieldsRoute = AppCustomFieldsRouteImport.update({
   id: '/custom-fields',
   path: '/custom-fields',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDataQualityRoute = AppDataQualityRouteImport.update({
+  id: '/data-quality',
+  path: '/data-quality',
   getParentRoute: () => AppRoute,
 } as any)
 const AppExchangeRatesRoute = AppExchangeRatesRouteImport.update({
@@ -201,6 +214,11 @@ const AppSsoRoute = AppSsoRouteImport.update({
 const AppTagsRoute = AppTagsRouteImport.update({
   id: '/tags',
   path: '/tags',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppWorkRoute = AppWorkRouteImport.update({
+  id: '/work',
+  path: '/work',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAccessUsersRoute = AppAccessUsersRouteImport.update({
@@ -412,8 +430,10 @@ export interface FileRoutesByFullPath {
   '/verify-email': typeof VerifyEmailRoute
   '/account': typeof AppAccountRouteRouteWithChildren
   '/audit': typeof AppAuditRoute
+  '/automations': typeof AppAutomationsRoute
   '/branding': typeof AppBrandingRoute
   '/custom-fields': typeof AppCustomFieldsRoute
+  '/data-quality': typeof AppDataQualityRoute
   '/exchange-rates': typeof AppExchangeRatesRoute
   '/legal-holds': typeof AppLegalHoldsRoute
   '/mail-suppressions': typeof AppMailSuppressionsRoute
@@ -425,6 +445,7 @@ export interface FileRoutesByFullPath {
   '/sign-ins': typeof AppSignInsRoute
   '/sso': typeof AppSsoRoute
   '/tags': typeof AppTagsRoute
+  '/work': typeof AppWorkRoute
   '/access/users': typeof AppAccessUsersRoute
   '/account/notifications': typeof AppAccountNotificationsRoute
   '/account/preferences': typeof AppAccountPreferencesRoute
@@ -475,8 +496,10 @@ export interface FileRoutesByTo {
   '/unsubscribe': typeof UnsubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/audit': typeof AppAuditRoute
+  '/automations': typeof AppAutomationsRoute
   '/branding': typeof AppBrandingRoute
   '/custom-fields': typeof AppCustomFieldsRoute
+  '/data-quality': typeof AppDataQualityRoute
   '/exchange-rates': typeof AppExchangeRatesRoute
   '/legal-holds': typeof AppLegalHoldsRoute
   '/mail-suppressions': typeof AppMailSuppressionsRoute
@@ -488,6 +511,7 @@ export interface FileRoutesByTo {
   '/sign-ins': typeof AppSignInsRoute
   '/sso': typeof AppSsoRoute
   '/tags': typeof AppTagsRoute
+  '/work': typeof AppWorkRoute
   '/': typeof AppIndexRoute
   '/access/users': typeof AppAccessUsersRoute
   '/account/notifications': typeof AppAccountNotificationsRoute
@@ -542,8 +566,10 @@ export interface FileRoutesById {
   '/verify-email': typeof VerifyEmailRoute
   '/_app/account': typeof AppAccountRouteRouteWithChildren
   '/_app/audit': typeof AppAuditRoute
+  '/_app/automations': typeof AppAutomationsRoute
   '/_app/branding': typeof AppBrandingRoute
   '/_app/custom-fields': typeof AppCustomFieldsRoute
+  '/_app/data-quality': typeof AppDataQualityRoute
   '/_app/exchange-rates': typeof AppExchangeRatesRoute
   '/_app/legal-holds': typeof AppLegalHoldsRoute
   '/_app/mail-suppressions': typeof AppMailSuppressionsRoute
@@ -555,6 +581,7 @@ export interface FileRoutesById {
   '/_app/sign-ins': typeof AppSignInsRoute
   '/_app/sso': typeof AppSsoRoute
   '/_app/tags': typeof AppTagsRoute
+  '/_app/work': typeof AppWorkRoute
   '/_app/': typeof AppIndexRoute
   '/_app/access/users': typeof AppAccessUsersRoute
   '/_app/account/notifications': typeof AppAccountNotificationsRoute
@@ -610,8 +637,10 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/account'
     | '/audit'
+    | '/automations'
     | '/branding'
     | '/custom-fields'
+    | '/data-quality'
     | '/exchange-rates'
     | '/legal-holds'
     | '/mail-suppressions'
@@ -623,6 +652,7 @@ export interface FileRouteTypes {
     | '/sign-ins'
     | '/sso'
     | '/tags'
+    | '/work'
     | '/access/users'
     | '/account/notifications'
     | '/account/preferences'
@@ -673,8 +703,10 @@ export interface FileRouteTypes {
     | '/unsubscribe'
     | '/verify-email'
     | '/audit'
+    | '/automations'
     | '/branding'
     | '/custom-fields'
+    | '/data-quality'
     | '/exchange-rates'
     | '/legal-holds'
     | '/mail-suppressions'
@@ -686,6 +718,7 @@ export interface FileRouteTypes {
     | '/sign-ins'
     | '/sso'
     | '/tags'
+    | '/work'
     | '/'
     | '/access/users'
     | '/account/notifications'
@@ -739,8 +772,10 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/_app/account'
     | '/_app/audit'
+    | '/_app/automations'
     | '/_app/branding'
     | '/_app/custom-fields'
+    | '/_app/data-quality'
     | '/_app/exchange-rates'
     | '/_app/legal-holds'
     | '/_app/mail-suppressions'
@@ -752,6 +787,7 @@ export interface FileRouteTypes {
     | '/_app/sign-ins'
     | '/_app/sso'
     | '/_app/tags'
+    | '/_app/work'
     | '/_app/'
     | '/_app/access/users'
     | '/_app/account/notifications'
@@ -899,6 +935,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAuditRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/automations': {
+      id: '/_app/automations'
+      path: '/automations'
+      fullPath: '/automations'
+      preLoaderRoute: typeof AppAutomationsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/branding': {
       id: '/_app/branding'
       path: '/branding'
@@ -911,6 +954,13 @@ declare module '@tanstack/react-router' {
       path: '/custom-fields'
       fullPath: '/custom-fields'
       preLoaderRoute: typeof AppCustomFieldsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/data-quality': {
+      id: '/_app/data-quality'
+      path: '/data-quality'
+      fullPath: '/data-quality'
+      preLoaderRoute: typeof AppDataQualityRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/exchange-rates': {
@@ -988,6 +1038,13 @@ declare module '@tanstack/react-router' {
       path: '/tags'
       fullPath: '/tags'
       preLoaderRoute: typeof AppTagsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/work': {
+      id: '/_app/work'
+      path: '/work'
+      fullPath: '/work'
+      preLoaderRoute: typeof AppWorkRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/access/users': {
@@ -1286,8 +1343,10 @@ const AppAccountRouteRouteWithChildren = AppAccountRouteRoute._addFileChildren(
 interface AppRouteChildren {
   AppAccountRouteRoute: typeof AppAccountRouteRouteWithChildren
   AppAuditRoute: typeof AppAuditRoute
+  AppAutomationsRoute: typeof AppAutomationsRoute
   AppBrandingRoute: typeof AppBrandingRoute
   AppCustomFieldsRoute: typeof AppCustomFieldsRoute
+  AppDataQualityRoute: typeof AppDataQualityRoute
   AppExchangeRatesRoute: typeof AppExchangeRatesRoute
   AppLegalHoldsRoute: typeof AppLegalHoldsRoute
   AppMailSuppressionsRoute: typeof AppMailSuppressionsRoute
@@ -1299,6 +1358,7 @@ interface AppRouteChildren {
   AppSignInsRoute: typeof AppSignInsRoute
   AppSsoRoute: typeof AppSsoRoute
   AppTagsRoute: typeof AppTagsRoute
+  AppWorkRoute: typeof AppWorkRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAccessUsersRoute: typeof AppAccessUsersRoute
   AppApiClientsIdRoute: typeof AppApiClientsIdRoute
@@ -1336,8 +1396,10 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRouteRoute: AppAccountRouteRouteWithChildren,
   AppAuditRoute: AppAuditRoute,
+  AppAutomationsRoute: AppAutomationsRoute,
   AppBrandingRoute: AppBrandingRoute,
   AppCustomFieldsRoute: AppCustomFieldsRoute,
+  AppDataQualityRoute: AppDataQualityRoute,
   AppExchangeRatesRoute: AppExchangeRatesRoute,
   AppLegalHoldsRoute: AppLegalHoldsRoute,
   AppMailSuppressionsRoute: AppMailSuppressionsRoute,
@@ -1349,6 +1411,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSignInsRoute: AppSignInsRoute,
   AppSsoRoute: AppSsoRoute,
   AppTagsRoute: AppTagsRoute,
+  AppWorkRoute: AppWorkRoute,
   AppIndexRoute: AppIndexRoute,
   AppAccessUsersRoute: AppAccessUsersRoute,
   AppApiClientsIdRoute: AppApiClientsIdRoute,

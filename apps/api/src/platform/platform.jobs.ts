@@ -53,6 +53,15 @@ export const NOTIFICATION_RETENTION_JOB = defineSystemJob({
   permissions: [],
 });
 
+/** RecentsRetentionJob: old recently opened records. */
+export const RECENTS_RETENTION_JOB = defineSystemJob({
+  key: 'recents-retention',
+  label: 'Recent records retention',
+  description:
+    'Deletes recently opened records older than 30 days, every night.',
+  permissions: [],
+});
+
 /** NotificationDigestJob: the digests that are due. */
 export const NOTIFICATION_DIGEST_JOB = defineSystemJob({
   key: 'notification-digests',
@@ -94,6 +103,19 @@ export const RECORD_SCHEDULE_JOB = defineSystemJob({
   label: 'Recurring record schedules',
   description:
     'Creates the records of the recurring schedules that are due (as their owners), ends the schedules that can no longer run, and records the occurrences it skips.',
+  permissions: [],
+});
+
+/**
+ * AutomationRunHandler: runs a rule on a record's change, from the outbox
+ * (the actions run as the rule's owner, with the owner's permissions);
+ * disables a rule that can no longer run.
+ */
+export const AUTOMATIONS_JOB = defineSystemJob({
+  key: 'automations',
+  label: 'Automation rules',
+  description:
+    "Runs the tenant's automation rules on the records' changes (their actions as the rule's owner), and disables a rule whose owner left, that runs too often or keeps failing.",
   permissions: [],
 });
 
@@ -256,10 +278,12 @@ export const PLATFORM_SYSTEM_JOBS = [
   ATTACHMENT_TEXT_JOB,
   REVISION_RETENTION_JOB,
   NOTIFICATION_RETENTION_JOB,
+  RECENTS_RETENTION_JOB,
   NOTIFICATION_DIGEST_JOB,
   NOTIFICATION_DELIVERY_JOB,
   REPORT_RUNNER_JOB,
   RECORD_SCHEDULE_JOB,
+  AUTOMATIONS_JOB,
   APPROVALS_JOB,
   EXCHANGE_RATES_JOB,
   MAIL_INTAKE_JOB,
