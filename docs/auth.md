@@ -23,7 +23,7 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
 | Magic link | `POST /v1/auth/magic-link`, `POST /v1/auth/magic-link/verify` |
 | Passkeys | `GET /v1/auth/passkeys`, `POST /v1/auth/passkeys/registration/options` → `POST /v1/auth/passkeys`, `PATCH`/`DELETE /v1/auth/passkeys/{id}`; sign in: `POST /v1/auth/passkeys/sign-in/options` → `/sign-in` (a browser) or `/token` (an app); see [Passkeys](#passkeys) |
 | Google, Microsoft, GitHub | `GET /v1/auth/oidc/{provider}/login` → `/callback`; linked: `GET /v1/auth/identities`, unlink: `DELETE /v1/auth/identities/{provider}` |
-| Mobile apps | `POST /v1/auth/token` (`tenantId`: the tenant the tokens act in), `/token/refresh`, `/token/revoke` |
+| Mobile apps | `POST /v1/auth/token` (`tenantId`: the tenant the tokens act in), `/token/refresh` (`tenantId`: move to another of your tenants), `/token/revoke`; a provider, SSO or a magic link: `POST /v1/auth/token/exchange` ([Native and mobile apps](#native-and-mobile-apps)) |
 | A tenant's own identity provider (SAML, OpenID Connect) | `POST /v1/auth/sso/discover { email }` → `loginUrl`, `GET /v1/auth/sso/{tenantId}/{connectionId}/login`; set up with `/v1/sso/…`, SCIM at `/v1/scim`: see [Enterprise SSO](#enterprise-sso) |
 | Your tenants, and acting in another | `GET /v1/auth/tenants`, `POST /v1/auth/tenant { tenantId }` (re-issues the session): [tenancy](tenancy.md) |
 
@@ -1181,6 +1181,43 @@ details.
 Every change is audited with the API client as actor (`scim.user-*`,
 `scim.group-*`).
 
+## Native and mobile apps
+
+Password and passkey sign-ins answer tokens directly (`POST /v1/auth/token`,
+`/passkeys/token`). The others end in a browser, so a native app gets a
+one-time **handoff code** instead (RFC 8252, with PKCE: RFC 7636 `S256`):
+
+- **Provider or tenant SSO:** open
+  `GET /v1/auth/oidc/{provider}/login` (or the SSO connection's `login`)
+  with `redirectUri` and `codeChallenge` in the system browser
+  (ASWebAuthenticationSession, Custom Tabs). `redirectUri` must be one of
+  `NATIVE_REDIRECT_URIS` (a reverse-DNS private-use scheme,
+  `com.example.app:/auth`, or an https universal / app link, matched
+  exactly; empty: none, 400). The callback starts no session: it
+  redirects to `redirectUri?code=…` (or `?error=sign_in_failed` /
+  `sso_failed`). No linking or step-up this way.
+- **Magic link:** the app asks with `POST /v1/auth/magic-link` and keeps
+  that response's cookie (the link works only where it was asked for),
+  opens `WEB_URL/magic-link?token=…` as a universal / app link, and posts
+  `POST /v1/auth/magic-link/handoff { token, codeChallenge }` → `{ code }`.
+- **Exchange:** `POST /v1/auth/token/exchange { handoffCode, codeVerifier,
+  code?, recoveryCode?, tenantId? }` → `{ accessToken, refreshToken,
+  expiresIn }`. A code lives a minute, works once, and only with its
+  verifier (any wrong answer spends it). Two-factor as for `/auth/token`:
+  without a code from the app, 401 `mfa_required` and the handoff code
+  still works; a wrong one spends it. The tenant: an SSO connection's own;
+  else `tenantId` (a member, else 401) or the last chosen, with "SSO
+  required" checked as for a password. Audited (`auth.signed-in`,
+  `via: token`), in the tenant's sign-in log, and a new device is told,
+  as for any token sign-in. The tokens carry the method (`method` claim:
+  `oidc:github`, `sso:<connection>`, `magic-link`; `amr` only `mfa` when a
+  second factor was verified), which step-up and "SSO required" read.
+
+`NativeSignIn` (`iam/account/native-sign-in.service.ts`) holds the flow;
+the codes and pending logins live in Redis (`NativeHandoffs`, codes only as
+their SHA-256). Tests: `apps/api/test/native-sign-in.e2e-spec.ts`, and the
+SSO one in `sso.e2e-spec.ts`.
+
 ## Bot protection
 
 The public routes bots go for (`POST /v1/auth/sign-in`, `/token`, the second step `/mfa/verify`, `/sign-up`,
@@ -1280,9 +1317,10 @@ server-side with Cloudflare Turnstile. **Off by default**: without
   `after-failures` mode an app signs in without a widget until a 403
   `captcha_required` asks, then renders the Turnstile widget (its site key,
   action `sign-in`) in a web view once and retries with the token in
-  `X-Captcha-Token`; in `always` mode every token sign-in brings one. Until
-  app attestation (App Attest, Play Integrity) exists, this is what keeps a
-  bot from taking the token route around the challenge. API clients never
+  `X-Captcha-Token`; in `always` mode every token sign-in brings one. Or,
+  with `APP_ATTESTATION=on`, a genuine build proves itself instead
+  ([App attestation](#app-attestation)): what keeps a bot from taking the
+  token route around the challenge either way. API clients never
   sign in on these routes (keys go in `Authorization`), so nothing changes
   for them. `/password/reset`, `/magic-link/verify` and `/email/verify`
   take single-use tokens the attacker doesn't have, and keep their rate
@@ -1333,6 +1371,44 @@ dist/main` outside Compose must set `NODE_ENV=production` itself
 mistakes such a stack for a protected one. For a
 manual try against Cloudflare, Turnstile's documented test keys (its docs,
 "Testing") always pass, always block, or answer "already spent".
+
+### App attestation
+
+With `APP_ATTESTATION=on`, wherever a challenge token is asked for (every
+`@Captcha()` route: `/auth/token`, `/mfa/verify`, `/sign-up`,
+`/password/forgot`, `/email/verification/resend`, `/passkeys/token`…), a
+native app may send `X-App-Attestation` instead of `X-Captcha-Token`: the
+same modes and counters (a proof is only read where a token would be asked
+for), verified here, with no provider to fail open or closed. A 403
+`captcha_required` says `appAttestation: true`; a refused proof is 403
+`attestation_invalid` with a `reason`.
+
+- **The challenge:** `POST /v1/auth/app-attestation/challenge` →
+  `{ challenge, expiresIn }` (one-time, five minutes, in Redis): each proof
+  is bound to one.
+- **iOS (App Attest):** once per install, `DCAppAttestService.attestKey`
+  over the challenge's SHA-256, then `POST /v1/auth/app-attestation/keys
+  { keyId, attestation, challenge }` (base64url): checked against Apple's
+  root CA, the nonce, the key id, an app of `PASSKEY_APPLE_APPS`, a zero
+  counter and the production environment (`APP_ATTEST_DEVELOPMENT=on`
+  accepts debug builds too), and stored (`app_attest_keys`). Per request,
+  `generateAssertion` over a new challenge's SHA-256:
+  `X-App-Attestation: ios <challenge> <keyId> <assertion>`; its counter
+  must go up.
+- **Android (Play Integrity):** a classic integrity request with the
+  challenge as nonce: `X-App-Attestation: android <challenge> <token>`,
+  decrypted and verified here with the Play Console's response keys
+  (`PLAY_INTEGRITY_DECRYPTION_KEY`, a secret, and
+  `PLAY_INTEGRITY_VERIFICATION_KEY`; no call to Google): the nonce, at most
+  five minutes old, `PLAY_RECOGNIZED`, a package and signing certificate of
+  `PASSKEY_ANDROID_APPS`, `MEETS_DEVICE_INTEGRITY`.
+
+Code: `iam/captcha/app-attestation.ts` (the checks: custom, since
+@simplewebauthn/server verifies WebAuthn's formats and App Attest's is not
+one; its helpers decode the CBOR and check the chain, and `jose` opens
+Play's JWE) and `app-attestation.service.ts`. Tests:
+`app-attestation.spec.ts` (with an App Attest chain made by openssl) and
+`test/app-attestation.e2e-spec.ts`.
 
 ## Switches
 

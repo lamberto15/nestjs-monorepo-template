@@ -38,11 +38,18 @@ import { type CoreEnv, webUrl } from '../../core/config/core.env.js';
 import { AllowInMaintenance } from '../../core/http/maintenance.js';
 import { redirectPath, webAppUrl } from '../../core/http/redirect-path.js';
 import { TENANT_SCOPE, tenantScope } from '../../core/tenancy/tenant-scope.js';
+import { NativeSignIn } from '../account/native-sign-in.service.js';
+import { nativeLoginQuery } from '../account/native-redirect.js';
+import type { NativeLogin } from '../account/native-handoff.js';
 import type { IamEnv } from '../iam.env.js';
 import { Oauth2Sso } from './oauth2-sso.service.js';
 import { OidcSso } from './oidc-sso.service.js';
 import { SamlSso } from './saml-sso.service.js';
-import { SsoAccounts, SsoRefused } from './sso-accounts.service.js';
+import {
+  SsoAccounts,
+  SsoRefused,
+  ssoProvider,
+} from './sso-accounts.service.js';
 import { SSO_HANDOFF_TTL_MS, ssoCookie } from './sso-browser.js';
 import {
   type SsoConnection,
@@ -95,6 +102,7 @@ const loginQuerySchema = z.object({
     .describe(
       'A path of the web app to land on (one leading `/`, printable ASCII, no `\\`); anything else is ignored.',
     ),
+  ...nativeLoginQuery,
 });
 
 /** What an OpenID Connect or OAuth 2.0 provider sends back: each a string (a repeated one is a 400, not a 500). */
@@ -132,6 +140,7 @@ export class SsoAuthController {
     private readonly saml: SamlSso,
     private readonly accounts: SsoAccounts,
     private readonly config: ConfigService<IamEnv & CoreEnv, true>,
+    private readonly native: NativeSignIn,
   ) {}
 
   @Throttle({ default: { limit: 30, ttl: minutes(1) } })
@@ -151,10 +160,16 @@ export class SsoAuthController {
   async login(
     @Req() request: Request,
     @Query({ schema: loginQuerySchema })
-    { redirectTo }: z.infer<typeof loginQuerySchema>,
+    {
+      redirectTo,
+      redirectUri,
+      codeChallenge,
+    }: z.infer<typeof loginQuerySchema>,
     @Res({ passthrough: true }) res: Response,
   ) {
     const connection = connectionOf(request);
+    // A native app's sign-in: it ends with a code for the app, no session.
+    const native = this.native.nativeLogin({ redirectUri, codeChallenge });
     try {
       const { url, binding } =
         connection.protocol === 'oidc'
@@ -163,10 +178,13 @@ export class SsoAuthController {
             ? await this.oauth2.start(connection, redirectTo)
             : await this.saml.start(connection, redirectTo);
       res.append('Set-Cookie', this.cookie().set(binding));
+      if (native) {
+        await this.native.remember(binding, native);
+      }
       return { url };
     } catch (error) {
       if (error instanceof SsoRefused) {
-        return { url: this.backToWebApp('sso_unavailable') };
+        return { url: this.failed(native, 'sso_unavailable') };
       }
       throw error;
     }
@@ -235,6 +253,8 @@ export class SsoAuthController {
     }
     const cookie = this.cookie();
     res.append('Set-Cookie', cookie.clear());
+    const binding = cookie.read(request.headers.cookie);
+    const native = await this.native.login(binding);
     let label = 'sso';
     try {
       const { identity, redirectTo } = await (
@@ -244,10 +264,16 @@ export class SsoAuthController {
         Object.fromEntries(
           Object.entries(query).filter(([, value]) => value !== undefined),
         ) as Record<string, string>,
-        cookie.read(request.headers.cookie),
+        binding,
       );
       label = identity.email ?? identity.subject;
       const userId = await this.accounts.resolve(connection, identity);
+      if (native) {
+        await this.native.forget(binding);
+        return {
+          url: await this.handOff(native, connection, userId, identity),
+        };
+      }
       await this.accounts.signIn(connection, userId, {
         ip,
         userAgent,
@@ -257,7 +283,7 @@ export class SsoAuthController {
     } catch (error) {
       if (error instanceof SsoRefused) {
         await this.accounts.refused(connection, label, error.reason, ip);
-        return { url: this.backToWebApp('sso_failed') };
+        return { url: this.failed(native, 'sso_failed') };
       }
       throw error;
     }
@@ -285,15 +311,25 @@ export class SsoAuthController {
   ) {
     const connection = connectionOf(request);
     const cookie = this.cookie();
+    const loginBinding = cookie.read(request.headers.cookie);
+    const native = await this.native.login(loginBinding);
     let label = 'sso';
     try {
       const { identity, requestId, redirectTo } = await this.saml.consume(
         connection,
         body.SAMLResponse,
-        cookie.read(request.headers.cookie),
+        loginBinding,
       );
       label = identity.email ?? identity.subject;
       const userId = await this.accounts.resolve(connection, identity);
+      if (native) {
+        // The app's code now: no hand-over to saml/complete, no session.
+        res.append('Set-Cookie', cookie.clear());
+        await this.native.forget(loginBinding);
+        return {
+          url: await this.handOff(native, connection, userId, identity),
+        };
+      }
       const { binding } = await this.saml.handOver(
         connection,
         userId,
@@ -309,7 +345,7 @@ export class SsoAuthController {
       if (error instanceof SsoRefused) {
         res.append('Set-Cookie', cookie.clear());
         await this.accounts.refused(connection, label, error.reason, ip);
-        return { url: this.backToWebApp('sso_failed') };
+        return { url: this.failed(native, 'sso_failed') };
       }
       throw error;
     }
@@ -388,6 +424,29 @@ export class SsoAuthController {
   /** `value` on the web app (a stored path checked again), else its root. */
   private webApp(value: unknown) {
     return webAppUrl(value, `${webUrl(this.config)}`);
+  }
+
+  /** A native login's code, for the connection's tenant (POST /auth/token/exchange). */
+  private handOff(
+    native: NativeLogin,
+    connection: SsoConnection,
+    userId: string,
+    identity: { authenticatedAt?: Date | null },
+  ) {
+    return this.native.handOff(native, {
+      userId,
+      method: ssoProvider(connection.id),
+      tenantId: connection.tenantId,
+      authenticatedAt: identity.authenticatedAt,
+      details: { connectionId: connection.id, protocol: connection.protocol },
+    });
+  }
+
+  /** A failure's landing: the native app's URI, else the web app. */
+  private failed(native: NativeLogin | undefined, error: string) {
+    return native
+      ? this.native.failed(native, error)
+      : this.backToWebApp(error);
   }
 
   private backToWebApp(error: string) {

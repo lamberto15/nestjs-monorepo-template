@@ -20,6 +20,7 @@ import { type CoreEnv, webUrl } from '../../core/config/core.env.js';
 import { MetricsService } from '../../core/metrics/metrics.service.js';
 import { REDIS } from '../../core/redis/redis.js';
 import type { IamEnv } from '../iam.env.js';
+import { AppAttestationService } from './app-attestation.service.js';
 import {
   CAPTCHA_VERIFIER,
   type CaptchaVerdict,
@@ -106,6 +107,7 @@ export class CaptchaService {
     private readonly resilience: ResilienceService,
     private readonly config: ConfigService<IamEnv & CoreEnv, true>,
     metrics: MetricsService,
+    private readonly attestation: AppAttestationService,
   ) {
     // One attempt within the timeout (the user waits on it); the breaker
     // opens after half of the last calls failed (5 at least), so a provider
@@ -160,12 +162,23 @@ export class CaptchaService {
    * down and CAPTCHA_ON_ERROR=reject), 429 `rate_limited` (down, fail-open,
    * and this address has used its unverified requests).
    */
-  async check(token: string | undefined, request: CaptchaRequest) {
+  async check(
+    token: string | undefined,
+    request: CaptchaRequest,
+    attestation?: string,
+  ) {
     if (this.mode === 'off') {
       return;
     }
     const trackers = this.trackers(request);
     if (this.mode === 'after-failures' && !(await this.overLimit(trackers))) {
+      return;
+    }
+    // A native app's proof instead of the widget's token (APP_ATTESTATION):
+    // verified here, no provider asked, so nothing to fail open or closed.
+    if (!token && attestation && this.attestation.enabled) {
+      await this.attestation.verify(attestation);
+      this.verifications.labels('passed').inc();
       return;
     }
     await this.verifyToken(token, request, trackers);
@@ -206,6 +219,7 @@ export class CaptchaService {
         code: 'captcha_required',
         message: t('auth.captchaRequired'),
         ...this.widget(request.action),
+        ...(this.attestation.enabled && { appAttestation: true }),
       });
     }
     if (token.length > MAX_TOKEN_LENGTH) {

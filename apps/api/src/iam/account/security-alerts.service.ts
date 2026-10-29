@@ -89,9 +89,14 @@ export class SecurityAlertsService implements OnApplicationShutdown {
     // provider's answer is turned into a session inside OidcService) has
     // no place in the app's code to call signedIn() from; its event does,
     // carrying what the session stores of the request (IamModule's
-    // `session.metadata`: user agent and address).
+    // `session.metadata`: user agent and address). Not a token family's
+    // (a native app's handoff, NativeSignIn): that one is recorded there.
     events.events$.subscribe((event) => {
-      if (event.type === 'sign-in' && event.method?.startsWith('oidc:')) {
+      if (
+        event.type === 'sign-in' &&
+        event.method?.startsWith('oidc:') &&
+        !event.tokenFamilyId
+      ) {
         this.track(
           this.heard(event.userId, event.method, {
             userAgent: event.metadata?.userAgent,

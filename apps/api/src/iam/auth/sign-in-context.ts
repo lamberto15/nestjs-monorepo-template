@@ -90,6 +90,14 @@ export class SignInContext {
     const state = this.cls.get<SignInState | undefined>(SIGN_IN);
     this.cls.set(SIGN_IN, { ...state, authenticatedAt: at });
   }
+
+  /** When the sign-in under way told the user authenticated (`authenticatedAt()`), if it did. */
+  toldAuthenticatedAt(): Date | undefined {
+    if (!this.cls.isActive()) {
+      return undefined;
+    }
+    return this.cls.get<SignInState | undefined>(SIGN_IN)?.authenticatedAt;
+  }
 }
 
 /**

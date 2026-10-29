@@ -358,6 +358,7 @@ describe('the environment (env.ts)', () => {
         'OBSERVE_APP_KEY',
         'OBSERVE_APP_SECRET',
         'OTEL_EXPORTER_OTLP_HEADERS',
+        'PLAY_INTEGRITY_DECRYPTION_KEY',
         'POSTMARK_WEBHOOK_SECRET',
         'REDIS_PASSWORD',
         'RESEND_WEBHOOK_SECRET',

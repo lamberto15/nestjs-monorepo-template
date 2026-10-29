@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { eq } from 'drizzle-orm';
@@ -21,9 +21,10 @@ import {
 import { bootApp, type TestApp } from './support.js';
 
 // Read when AppModule loads: the fake OpenID Connect provider is plain
-// HTTP on loopback.
+// HTTP on loopback; a native app's redirect URI.
 vi.hoisted(() => {
   process.env.SSO_ALLOW_LOOPBACK = 'on';
+  process.env.NATIVE_REDIRECT_URIS = 'com.example.app:/sso';
 });
 
 const DOMAIN = 'acme.test';
@@ -505,6 +506,47 @@ describe('enterprise SSO (e2e)', () => {
       const me = await browser.get('/v1/auth/me').expect(200);
       expect(me.body.user.email).toBe(email);
       expect(idp.tokenRequests.at(-1)!.get('code_verifier')).toBeTruthy();
+    });
+
+    it('hands a native app its code, for the connection’s tenant, and no session', async () => {
+      const verifier = randomBytes(32).toString('base64url');
+      const browser = request.agent(node.app.getHttpServer());
+      const login = await browser
+        .get(local(connection.loginUrl))
+        .query({
+          redirectUri: 'com.example.app:/sso',
+          codeChallenge: createHash('sha256')
+            .update(verifier)
+            .digest('base64url'),
+        })
+        .expect(302);
+      const email = `${randomUUID().slice(0, 8)}@${DOMAIN}`;
+      const landed = await callback(
+        browser,
+        idp.issue(login.headers.location, {
+          sub: randomUUID(),
+          email,
+          email_verified: true,
+        }),
+      );
+      const back = new URL(landed.headers.location);
+      expect(back.protocol).toBe('com.example.app:');
+      await browser.get('/v1/auth/me').expect(401);
+      const tokens = await node
+        .http()
+        .post('/v1/auth/token/exchange')
+        .send({
+          handoffCode: back.searchParams.get('code'),
+          codeVerifier: verifier,
+        })
+        .expect(200);
+      const me = await node
+        .http()
+        .get('/v1/auth/me')
+        .set('Authorization', `Bearer ${tokens.body.accessToken}`)
+        .expect(200);
+      expect(me.body.user.email).toBe(email);
+      expect(me.body.tenant.id).toBe(node.tenantId);
     });
 
     it('refuses a wrong nonce, another browser, an address not verified by the IdP', async () => {

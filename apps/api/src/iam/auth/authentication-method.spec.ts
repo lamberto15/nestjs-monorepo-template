@@ -89,6 +89,26 @@ describe('authentication method', () => {
     expect(tokenClaims([], at).sid).not.toBe(tokenClaims([], at).sid);
   });
 
+  it("reads a native handoff's method from a token without amr", () => {
+    const at = new Date('2026-10-16T10:00:00Z');
+    const claims = (method: string) => ({
+      sub: 'user',
+      ...tokenClaims([], at, null, undefined, method),
+    });
+    expect(authenticationOf(claims('sso:connection'))).toMatchObject({
+      via: 'token',
+      method: 'sso',
+      provider: 'connection',
+    });
+    expect(authenticationOf(claims('magic-link'))).toMatchObject({
+      method: 'magic-link',
+      provider: null,
+    });
+    expect(authenticationOf(claims('carrier-pigeon'))).toMatchObject({
+      method: null,
+    });
+  });
+
   it('is null for an API key and for nothing', () => {
     expect(authenticationOf({ keyId: 'k', clientId: 'c' })).toBeNull();
     expect(authenticationOf(null)).toBeNull();

@@ -78,6 +78,12 @@ import {
   verifyEndpoint,
 } from './captcha/captcha.providers.js';
 import { CaptchaService } from './captcha/captcha.service.js';
+import { APPLE_APP_ATTESTATION_ROOT } from './captcha/app-attestation.js';
+import { AppAttestationController } from './captcha/app-attestation.controller.js';
+import {
+  APP_ATTEST_ROOTS,
+  AppAttestationService,
+} from './captcha/app-attestation.service.js';
 import { TURNSTILE_HTTP } from './captcha/turnstile.verifier.js';
 import { EmailController } from './account/email.controller.js';
 import { SoftDeletePurgeJob } from './resources/soft-delete-purge.job.js';
@@ -91,6 +97,8 @@ import { AccessExplanationService } from './access/access-explanation.service.js
 import { TenantLifecycleRegistry } from './access/tenant-lifecycle.registry.js';
 import { SignInContext, signInMetadata } from './auth/sign-in-context.js';
 import { ProviderReauthentications } from './account/oidc-reauthentication.js';
+import { NativeHandoffs } from './account/native-handoff.js';
+import { NativeSignIn } from './account/native-sign-in.service.js';
 import { AccountService } from './account/account.service.js';
 import { VerificationRequests } from './account/verification-requests.service.js';
 import { ImpersonationService } from './account/impersonation.service.js';
@@ -326,6 +334,7 @@ export class IamModule {
         SessionsController,
         MfaController,
         MagicLinkController,
+        AppAttestationController,
         OidcController,
         TokensController,
         ReauthenticationController,
@@ -402,6 +411,8 @@ export class IamModule {
         },
         CaptchaService,
         CaptchaGuard,
+        AppAttestationService,
+        { provide: APP_ATTEST_ROOTS, useValue: [APPLE_APP_ATTESTATION_ROOT] },
         // Accounts: what the package asks of the app (mail, users), and the emails.
         PasswordResetMailer,
         EmailVerificationMailer,
@@ -420,6 +431,8 @@ export class IamModule {
         SignInContext,
         // Step-ups through a provider under way (prompt=login, auth_time).
         ProviderReauthentications,
+        NativeHandoffs,
+        NativeSignIn,
         ReauthenticationService,
         // Passkeys (WebAuthn): registration, sign-in, re-authentication.
         PasskeysService,

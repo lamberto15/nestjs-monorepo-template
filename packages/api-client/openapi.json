@@ -33366,6 +33366,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-App-Attestation",
+            "in": "header",
+            "description": "A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -33439,7 +33448,7 @@
             "description": "The answers break the form’s rules."
           },
           "403": {
-            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
+            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
           },
           "404": {
             "description": "The link does not work (`form_link_not_found`)."
@@ -46684,6 +46693,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-App-Attestation",
+            "in": "header",
+            "description": "A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -46743,7 +46761,7 @@
             "description": "Invalid email or password."
           },
           "403": {
-            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
+            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
           },
           "429": {
             "description": "More than 5 attempts for this email from this IP in 15 minutes."
@@ -46764,6 +46782,15 @@
             "name": "X-Captcha-Token",
             "in": "header",
             "description": "The challenge token (Cloudflare Turnstile, widget action `sign-up`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-App-Attestation",
+            "in": "header",
+            "description": "A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge.",
             "required": false,
             "schema": {
               "type": "string"
@@ -46899,7 +46926,7 @@
             "description": "`password_breached`: the password is in known data breaches."
           },
           "403": {
-            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
+            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
           },
           "409": {
             "description": "An account with this email exists."
@@ -46919,6 +46946,15 @@
             "name": "X-Captcha-Token",
             "in": "header",
             "description": "The challenge token (Cloudflare Turnstile, widget action `sign-in`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-App-Attestation",
+            "in": "header",
+            "description": "A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge.",
             "required": false,
             "schema": {
               "type": "string"
@@ -46978,7 +47014,7 @@
             "description": "No pending sign-in, or a wrong code."
           },
           "403": {
-            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
+            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
           }
         },
         "summary": "Finish signing in with a two-factor code",
@@ -47439,6 +47475,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-App-Attestation",
+            "in": "header",
+            "description": "A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -47484,7 +47529,7 @@
             }
           },
           "403": {
-            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
+            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
           }
         },
         "summary": "Email a reset link",
@@ -47795,6 +47840,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-App-Attestation",
+            "in": "header",
+            "description": "A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -47840,7 +47894,7 @@
             }
           },
           "403": {
-            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
+            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
           }
         },
         "summary": "Send the verification link again, without a session",
@@ -48267,6 +48321,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-App-Attestation",
+            "in": "header",
+            "description": "A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -48318,7 +48381,7 @@
             }
           },
           "403": {
-            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
+            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
           }
         },
         "summary": "Email a sign-in link",
@@ -48389,6 +48452,166 @@
         ]
       }
     },
+    "/v1/auth/magic-link/handoff": {
+      "post": {
+        "description": "For an app that opens the link itself (a universal / app link on WEB_URL/magic-link) and asked for it with POST /auth/magic-link, keeping that response's cookie (the link works only where it was asked for). Spends the link, starts no session, and answers a code for POST /auth/token/exchange, bound to `codeChallenge` (PKCE).",
+        "operationId": "MagicLinkController_handoff_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "codeChallenge": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{43}$",
+                    "description": "PKCE (RFC 7636, S256): the base64url SHA-256 of a `codeVerifier` the app keeps for POST /auth/token/exchange."
+                  }
+                },
+                "required": [
+                  "token",
+                  "codeChallenge"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "description": "One-time, for a minute: POST /auth/token/exchange with the `codeVerifier`."
+                    }
+                  },
+                  "required": [
+                    "code"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unknown, used or expired link, or asked for elsewhere."
+          }
+        },
+        "summary": "A native app's sign-in with the link's token: a one-time code",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/app-attestation/challenge": {
+      "post": {
+        "operationId": "AppAttestationController_challenge_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "challenge": {
+                      "type": "string",
+                      "description": "One-time: bind one proof to it (App Attest: its SHA-256 as clientDataHash; Play Integrity: the nonce)."
+                    },
+                    "expiresIn": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Seconds until it expires."
+                    }
+                  },
+                  "required": [
+                    "challenge",
+                    "expiresIn"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "App attestation is off."
+          }
+        },
+        "summary": "A one-time challenge for an app attestation",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/app-attestation/keys": {
+      "post": {
+        "description": "Once per key, with an attestation made over a challenge: Apple vouches that the key belongs to a genuine build of an app of PASSKEY_APPLE_APPS. Its assertions then go in `X-App-Attestation`.",
+        "operationId": "AppAttestationController_register_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "keyId": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "pattern": "^[A-Za-z0-9_-]+$",
+                    "description": "App Attest's key id (`generateKey()`), base64url."
+                  },
+                  "attestation": {
+                    "type": "string",
+                    "maxLength": 16384,
+                    "pattern": "^[A-Za-z0-9_-]+$",
+                    "description": "`attestKey()`'s attestation object, base64url."
+                  },
+                  "challenge": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "pattern": "^[A-Za-z0-9_-]+$"
+                  }
+                },
+                "required": [
+                  "keyId",
+                  "attestation",
+                  "challenge"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "description": "`attestation_invalid` (`reason`: `challenge`, `format`, `certificate`, `nonce`, `key`, `app`, `authenticator`)."
+          },
+          "404": {
+            "description": "App attestation is off."
+          }
+        },
+        "summary": "Register an iOS install's App Attest key",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/v1/auth/oidc/{provider}/login": {
       "get": {
         "description": "With `link=true`, a signed-in session that is not recent (REAUTHENTICATION_MAX_AGE_MINUTES) is redirected to the web app (`redirectTo`, else its root) with `?error=reauthentication_required`: check GET /auth/reauthenticate first. With `reauthenticate=true`, a signed-in user steps up through the provider: it is asked to authenticate them again (`prompt=login`, `max_age=0`), and the callback accepts only that user, authenticated at the provider after the start (`auth_time`, when the ID token has one); otherwise the browser lands on the web app with `?error=reauthentication_failed`, signed in as before.",
@@ -48433,6 +48656,28 @@
             "schema": {
               "description": "`true`: re-authenticate the signed-in user through the provider (step-up), with a fresh login there.",
               "type": "string"
+            }
+          },
+          {
+            "name": "redirectUri",
+            "required": false,
+            "in": "query",
+            "description": "A native app's: one of NATIVE_REDIRECT_URIS, where the sign-in ends with `?code=` (for POST /auth/token/exchange) or `?error=`, instead of a session in the browser. With `codeChallenge`.",
+            "schema": {
+              "description": "A native app's: one of NATIVE_REDIRECT_URIS, where the sign-in ends with `?code=` (for POST /auth/token/exchange) or `?error=`, instead of a session in the browser. With `codeChallenge`.",
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "codeChallenge",
+            "required": false,
+            "in": "query",
+            "description": "PKCE (RFC 7636, S256): the base64url SHA-256 of a `codeVerifier` the app keeps for POST /auth/token/exchange.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{43}$",
+              "description": "PKCE (RFC 7636, S256): the base64url SHA-256 of a `codeVerifier` the app keeps for POST /auth/token/exchange."
             }
           }
         ],
@@ -48494,7 +48739,7 @@
         ],
         "responses": {
           "302": {
-            "description": "To the web app; a refused step-up (`reauthenticate=true`) with `?error=reauthentication_failed`."
+            "description": "To the web app; a refused step-up (`reauthenticate=true`) with `?error=reauthentication_failed`. A native login: to its `redirectUri` with `?code=`, or `?error=sign_in_failed`."
           }
         },
         "summary": "Where the provider sends the browser back",
@@ -48617,6 +48862,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-App-Attestation",
+            "in": "header",
+            "description": "A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -48645,7 +48899,7 @@
                     "maxLength": 64
                   },
                   "tenantId": {
-                    "description": "The tenant the tokens act in (one of GET /auth/tenants); left out: the last one chosen. To act in another, sign in again with it.",
+                    "description": "The tenant the tokens act in (one of GET /auth/tenants); left out: the last one chosen. To act in another, refresh with it.",
                     "type": "string",
                     "format": "uuid",
                     "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
@@ -48696,7 +48950,7 @@
             "description": "Invalid credentials, or a second factor is required or wrong."
           },
           "403": {
-            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
+            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
           }
         },
         "summary": "Sign in a token client with a password",
@@ -48705,8 +48959,99 @@
         ]
       }
     },
+    "/v1/auth/token/exchange": {
+      "post": {
+        "description": "The code of a provider's or SSO sign-in started with `redirectUri` and `codeChallenge`, or of POST /auth/magic-link/handoff, with its PKCE verifier. Two-factor and `tenantId` as for POST /auth/token: without a code from the app, 401 `mfa_required` and the handoff code still works (for its minute); a wrong one spends it. A tenant SSO sign-in acts in its tenant.",
+        "operationId": "TokensController_exchange_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "handoffCode": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "The `code` a native sign-in handed over: the `redirectUri`'s, or POST /auth/magic-link/handoff's."
+                  },
+                  "codeVerifier": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9._~-]{43,128}$",
+                    "description": "The PKCE verifier of its `codeChallenge`."
+                  },
+                  "code": {
+                    "description": "With two-factor on: a code from the app.",
+                    "type": "string",
+                    "pattern": "^\\d{6}$"
+                  },
+                  "recoveryCode": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "tenantId": {
+                    "description": "The tenant the tokens act in (one of GET /auth/tenants); left out: the last one chosen. To act in another, refresh with it.",
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "handoffCode",
+                  "codeVerifier"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "A JWT: `Authorization: Bearer …`."
+                    },
+                    "refreshToken": {
+                      "type": "string",
+                      "description": "Single use: POST /auth/token/refresh."
+                    },
+                    "expiresIn": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Seconds until the access token expires."
+                    }
+                  },
+                  "required": [
+                    "accessToken",
+                    "refreshToken",
+                    "expiresIn"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unknown, used or expired code or another verifier; a second factor required or wrong; `tenantId` not one of yours."
+          }
+        },
+        "summary": "Sign in a native app with a sign-in's handoff code",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/v1/auth/token/refresh": {
       "post": {
+        "description": "With `tenantId`, the new pair acts in that tenant, as POST /auth/tenant does for a session: realtime connections reconnect, and a step-up is asked again there.",
         "operationId": "TokensController_refresh_v1",
         "parameters": [],
         "requestBody": {
@@ -48720,6 +49065,12 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 512
+                  },
+                  "tenantId": {
+                    "description": "Another of your tenants (GET /auth/tenants): the new pair, and the ones after it, act there. Not a member: 401, the refresh token unspent.",
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                   }
                 },
                 "required": [
@@ -48763,7 +49114,7 @@
             }
           },
           "401": {
-            "description": "Unknown, expired or reused refresh token."
+            "description": "Unknown, expired or reused refresh token; or `tenantId` not one of yours."
           }
         },
         "summary": "Renew the access token (rotates the refresh token)",
@@ -49824,6 +50175,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-App-Attestation",
+            "in": "header",
+            "description": "A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -49949,7 +50309,7 @@
             "description": "The challenge is unknown, used or expired; the credential is unknown; or the assertion does not verify."
           },
           "403": {
-            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
+            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
           },
           "429": {
             "description": "More than 10 attempts from this address in 15 minutes, or 30 passkey sign-in requests."
@@ -49970,6 +50330,15 @@
             "name": "X-Captcha-Token",
             "in": "header",
             "description": "The challenge token (Cloudflare Turnstile, widget action `sign-in`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-App-Attestation",
+            "in": "header",
+            "description": "A native app's proof instead (APP_ATTESTATION): `ios <challenge> <keyId> <assertion>` (App Attest) or `android <challenge> <token>` (Play Integrity), the challenge from POST /auth/app-attestation/challenge.",
             "required": false,
             "schema": {
               "type": "string"
@@ -50118,7 +50487,7 @@
             "description": "The assertion was refused, or a second factor is required or wrong (`mfa_required`)."
           },
           "403": {
-            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
+            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. `attestation_invalid`: the `X-App-Attestation` proof was refused (`reason`). Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
           },
           "429": {
             "description": "More than 10 attempts from this address in 15 minutes, or 30 passkey sign-in requests."
@@ -61299,6 +61668,28 @@
               "maxLength": 2048,
               "pattern": "^\\/(?![/\\\\])[\\x21-\\x5b\\x5d-\\x7e]*$",
               "example": "/inbox"
+            }
+          },
+          {
+            "name": "redirectUri",
+            "required": false,
+            "in": "query",
+            "description": "A native app's: one of NATIVE_REDIRECT_URIS, where the sign-in ends with `?code=` (for POST /auth/token/exchange) or `?error=`, instead of a session in the browser. With `codeChallenge`.",
+            "schema": {
+              "description": "A native app's: one of NATIVE_REDIRECT_URIS, where the sign-in ends with `?code=` (for POST /auth/token/exchange) or `?error=`, instead of a session in the browser. With `codeChallenge`.",
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "codeChallenge",
+            "required": false,
+            "in": "query",
+            "description": "PKCE (RFC 7636, S256): the base64url SHA-256 of a `codeVerifier` the app keeps for POST /auth/token/exchange.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{43}$",
+              "description": "PKCE (RFC 7636, S256): the base64url SHA-256 of a `codeVerifier` the app keeps for POST /auth/token/exchange."
             }
           }
         ],
