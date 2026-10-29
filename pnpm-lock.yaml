@@ -167,6 +167,7 @@ overrides:
   multer@^2.0.0: 2.5.0
   node-gyp@13.1.0>undici: 8.12.2
   exceljs>uuid: 14.0.3
+  systeminformation@<5.33.16: 5.33.18
 
 patchedDependencies:
   '@nestjs/authentication@0.1.1': 60f9ff139e9b2ffe1674450cf596acb69c1b6a6eef14769134ef87f658eb57d8
@@ -10578,8 +10579,8 @@ packages:
   swagger-ui-dist@5.34.0:
     resolution: {integrity: sha512-H6tAIjr3XqE31PbkZl0OFya1ziRLDfTwh3J6OHdumPtPCLfjTnyLeagl/55kFNZcTOz9a9QI9WP0FXldwiGJag==}
 
-  systeminformation@5.33.15:
-    resolution: {integrity: sha512-s5RloL0F7xhN0ZjfHtLGnbf7EW74EI0N8NFL+1xR7Oxz9QA33obNZsl7lyfnJOhN04E/kGFPoJPlvY7TZ5fzmw==}
+  systeminformation@5.33.18:
+    resolution: {integrity: sha512-SF8DBQx3ypa8zDqZlezpHQ6M2g7TrqSEWpAtC4OsHCdLmi7J2WdxaSbA8/DJyEn2l/CHPrW0VFenoqoDccrw6g==}
     engines: {node: '>=10.0.0'}
     os: [darwin, linux, win32, freebsd, openbsd, netbsd, sunos, android]
     hasBin: true
@@ -12637,7 +12638,7 @@ snapshots:
       object-treeify: 1.1.33
       open: 8.4.2
       picomatch: 4.0.7
-      systeminformation: 5.33.15
+      systeminformation: 5.33.18
       undici: 7.30.1
       which: 4.0.0
       yocto-spinner: 1.2.2
@@ -14211,7 +14212,7 @@ snapshots:
     dependencies:
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/instrumentation': 0.300.0(@opentelemetry/api@1.10.0)(supports-color@10.2.2)
-      systeminformation: 5.33.15
+      systeminformation: 5.33.18
     transitivePeerDependencies:
       - supports-color
 
@@ -21671,7 +21672,7 @@ snapshots:
     dependencies:
       '@scarf/scarf': 1.4.0
 
-  systeminformation@5.33.15: {}
+  systeminformation@5.33.18: {}
 
   tabbable@6.5.0: {}
 
