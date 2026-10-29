@@ -3,6 +3,16 @@
  * read and tested alone (docs/notifications.md, "Push and SMS").
  */
 
+/**
+ * The VAPID public key a browser subscribes with (`pushManager.subscribe`),
+ * or null when Web Push is not among PUSH_PROVIDER (the web app then offers
+ * no push).
+ */
+export const webPushKey = (
+  providers: readonly string[],
+  publicKey: string | undefined,
+) => (providers.includes('web-push') && publicKey ? publicKey : null);
+
 /** The words that opt a number out, as carriers and Twilio's default list have them. */
 const STOP_WORDS = new Set([
   'STOP',

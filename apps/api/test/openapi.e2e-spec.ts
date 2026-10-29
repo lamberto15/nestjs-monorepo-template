@@ -305,6 +305,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/data/transfers',
         '/v1/data/transfers/{id}',
         '/v1/devices',
+        '/v1/devices/web-push',
         '/v1/devices/{id}',
         '/v1/documents/{id}',
         '/v1/favorites',

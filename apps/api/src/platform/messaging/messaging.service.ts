@@ -35,7 +35,7 @@ import {
 import { MESSAGING_INBOUND_JOB } from '../platform.jobs.js';
 import type { PlatformEnv } from '../platform.env.js';
 import { MessagingLimits } from './messaging-limits.service.js';
-import { allowedPrefix, maskPhone } from './messaging.policy.js';
+import { allowedPrefix, maskPhone, webPushKey } from './messaging.policy.js';
 import { MESSAGING } from './messaging.queue.js';
 import type { DeviceView, PhoneView } from './messaging.schemas.js';
 import {
@@ -87,6 +87,16 @@ export class MessagingService implements PersonalDataSource {
   }
 
   // ---- devices ----
+
+  /** What a browser needs to subscribe to Web Push: the VAPID public key, or null when it is off. */
+  webPush() {
+    return {
+      publicKey: webPushKey(
+        this.config.get('PUSH_PROVIDER', { infer: true }),
+        this.config.get('WEB_PUSH_VAPID_PUBLIC_KEY', { infer: true }),
+      ),
+    };
+  }
 
   /**
    * Registers a device, or refreshes it: the same token again (the app

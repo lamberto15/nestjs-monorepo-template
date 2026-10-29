@@ -116,6 +116,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Web Push: the push and notification-click handlers (public/push-sw.js).
+        importScripts: ['push-sw.js'],
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         globIgnores: [
           // Only `en` (the fallback) is in the entry. The other languages are

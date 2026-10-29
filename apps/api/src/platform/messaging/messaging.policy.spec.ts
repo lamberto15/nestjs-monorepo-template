@@ -9,6 +9,7 @@ import {
   smsCost,
   smsSegments,
   utcMonthStart,
+  webPushKey,
 } from './messaging.policy.js';
 
 describe('inboundKeyword', () => {
@@ -98,5 +99,16 @@ describe('SMS cost', () => {
     expect(previousMonthStart(new Date('2026-01-05T00:00:00Z'))).toBe(
       '2025-12-01',
     );
+  });
+});
+
+describe('webPushKey', () => {
+  it('is the public key when Web Push is a provider', () =>
+    expect(webPushKey(['apns', 'web-push'], 'BKey')).toBe('BKey'));
+
+  it('is null when Web Push is off or has no key', () => {
+    expect(webPushKey(['memory'], 'BKey')).toBeNull();
+    expect(webPushKey([], 'BKey')).toBeNull();
+    expect(webPushKey(['web-push'], undefined)).toBeNull();
   });
 });

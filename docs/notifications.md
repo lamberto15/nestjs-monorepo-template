@@ -257,6 +257,7 @@ the notification's tenant. A transient provider failure is retried by the queue
 | --- | --- |
 | `PUT /v1/devices { platform, name, token }` | registers a device, or refreshes it (call it when the app opens: the last-seen time moves); a token another person had moves to the caller |
 | `GET /v1/devices`, `DELETE /v1/devices/{id}` | the caller's devices; removing deletes the token |
+| `GET /v1/devices/web-push` | `{ publicKey }`: the VAPID public key a browser subscribes with, `null` while `web-push` is not in `PUSH_PROVIDER` (any signed-in caller: the key is not a secret) |
 | `GET /v1/messaging/phone` | the number masked, `verified`, `optedOut` |
 | `PUT /v1/messaging/phone { phone }` | sets the number (E.164; only `SMS_ALLOWED_PREFIXES` countries, else 400 `phone_country_not_allowed`), texts a six-digit code; a different number starts unverified |
 | `POST /v1/messaging/phone/verify { code }` | confirms it (ten minutes, void after five wrong guesses) |
@@ -267,6 +268,18 @@ These are a person's own: an API client gets 403, and so does an administrator
 acting as the person. Registrations and number changes are audited
 (`device.registered`, `device.removed`, `phone.set`, `phone.verified`,
 `phone.removed`, `phone.optedOut`, `phone.optedIn`).
+
+**This browser, from the web app.** Settings → Devices offers "Enable on
+this browser" when the API answers a key and the browser has a service
+worker and the Push API: it asks for permission, subscribes
+(`pushManager.subscribe` with the key) and registers the subscription as a
+`web` device; "Disable" unsubscribes and removes it, as removing its row
+does (`features/notifications/web-push.ts`, the device id kept in
+`localStorage`). The service worker shows the push and opens its `link` on a
+click: `public/push-sw.js`, loaded into the generated worker with
+`workbox.importScripts`. It works on a built app over HTTPS (or localhost),
+not under `vite dev`, which registers no worker. Phones are registered by
+the native app.
 
 **Devices have their own lifecycle**, not the session's (a web session ends at
 12 hours): a device is deleted when the person removes it, when the provider says
