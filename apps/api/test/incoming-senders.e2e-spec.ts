@@ -368,7 +368,7 @@ describe('incoming webhook senders of a tenant (e2e)', () => {
       .admin()
       .get('/v1/webhook-incoming-event-types')
       .expect(200);
-    // Features add their own types (notes: test/features/notes): only the fixture's is certain.
+    // Features add their own types (each tested in its own spec): only the fixture's is certain.
     const items = catalog.body.items as {
       type: string;
       dataSchema: unknown;
