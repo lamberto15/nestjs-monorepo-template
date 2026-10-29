@@ -1,0 +1,31 @@
+{
+  "nav": {
+    "title": "我的工作"
+  },
+  "page": {
+    "title": "我的工作",
+    "description": "此工作区中等待你处理的事项。",
+    "empty": "目前没有待办事项。",
+    "more": "显示更多"
+  },
+  "kind": {
+    "approval.decide": "待审批",
+    "approval.revise": "需要修改",
+    "mention": "提及"
+  },
+  "item": {
+    "approval": "申请人：{{requester}}",
+    "mention": "{{by}} 提到了你",
+    "due": "截止 {{date}}",
+    "dismiss": "忽略"
+  },
+  "recents": {
+    "group": "最近",
+    "clear": "清除历史"
+  },
+  "presence": {
+    "viewing": "{{name}} 正在查看",
+    "editing": "{{name}} 正在编辑",
+    "warning": "有人正在编辑此记录。保存时仍会与最新版本核对。"
+  }
+}

@@ -67,8 +67,10 @@ describe('BrandingService', () => {
       await inTenantOf({ tenantId: null }, () => service.view(principal)),
     ).toEqual({
       primaryColor: null,
+      darkPrimaryColor: null,
       mailFromName: null,
       logoUrl: null,
+      darkLogoUrl: null,
       locked: false,
       canEdit: false,
     });
@@ -124,5 +126,20 @@ describe('BrandingService', () => {
       contentType: 'image/png',
       size: PNG.length,
     });
+  });
+
+  it('keeps the dark-mode logo apart from the logo', async () => {
+    const darkKey = BrandingService.logoKey(TENANT, 'current', 'dark');
+    await disk.put(darkKey, PNG, { contentType: 'image/png' });
+    expect(await service.logoFile(TENANT)).toBeNull();
+    expect(await service.logoFile(TENANT, 'dark')).toMatchObject({
+      contentType: 'image/png',
+      size: PNG.length,
+    });
+    expect((await inTenant(() => service.view(principal))).darkLogoUrl).toBe(
+      `/v1/branding/${TENANT}/logo/dark`,
+    );
+    // Mail and documents show the logo only.
+    expect((await inTenant(() => service.current()))?.logoUrl).toBeNull();
   });
 });

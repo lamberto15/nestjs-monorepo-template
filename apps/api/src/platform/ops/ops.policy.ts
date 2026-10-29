@@ -6,6 +6,7 @@ import type { Principal } from '../../iam/auth/principal.js';
 import { APPROVAL_SUBJECT } from '../approvals/approval.policy.js';
 import { DATA_QUALITY_SUBJECT } from '../data-quality/data-quality.policy.js';
 import { MAIL_SUPPRESSION_SUBJECT } from '../deliverability/suppression.policy.js';
+import { FORM_SUBJECT } from '../forms/form.policy.js';
 import { PLATFORM_SYSTEM_JOBS } from '../platform.jobs.js';
 
 /** The platform's permissions: the operations API (/ops), approvals, the suppression list; its system jobs. */
@@ -27,6 +28,8 @@ export const PLATFORM_PERMISSIONS = definePermissions({
     MailSuppression: MAIL_SUPPRESSION_SUBJECT,
     // Data-quality findings and scans (platform/data-quality).
     DataQuality: DATA_QUALITY_SUBJECT,
+    // Runtime forms (platform/forms).
+    Form: FORM_SUBJECT,
   },
   // Its cron jobs, the notification delivery and the approvals workflow (platform.jobs.ts).
   systemJobs: PLATFORM_SYSTEM_JOBS,

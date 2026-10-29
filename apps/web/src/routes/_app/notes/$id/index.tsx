@@ -22,6 +22,8 @@ import { RecordPanels } from '@/components/records/panels/record-panels';
 import { RecordState } from '@/components/records/record-state';
 import { WatchButton } from '@/components/records/watch-button';
 import { FavoriteButton } from '@/features/favorites/favorite-button';
+import { useRecordRecent } from '@/features/work/api';
+import { PresenceIndicator } from '@/features/work/presence-indicator';
 import { noteQuery, setNoteWatching, type Note } from '@/features/notes/api';
 import { useNoteDelete } from '@/features/notes/use-note-delete';
 import { useRichText } from '@/features/notes/use-rich-text';
@@ -74,6 +76,7 @@ function NoteView({ note }: { note: Note }) {
   const { update: canUpdate, delete: canDelete } = useRecordCan('Note')(note);
   // Off while the API refuses writes (read-only, maintenance); the banner says why.
   const paused = useWritesPaused();
+  useRecordRecent({ subject: 'Note', recordId: note.id, label: note.title });
   const { ask, dialog } = useNoteDelete({
     onDeleted: () => void navigate({ to: '/notes' }),
     onRestored: (restored) =>
@@ -82,6 +85,7 @@ function NoteView({ note }: { note: Note }) {
 
   return (
     <>
+      <PresenceIndicator subject="Note" recordId={note.id} mode="viewing" />
       <PageHeader
         title={note.title}
         description={note.number}

@@ -65,6 +65,19 @@
       "manage": "Start a data-quality scan, dismiss and recheck findings"
     }
   },
+  "form": {
+    "label": "Forms",
+    "names": {
+      "singular": "Form",
+      "plural": "Forms"
+    },
+    "actions": {
+      "read": "See published forms and their versions",
+      "submit": "Fill in published forms, and see their own submissions",
+      "edit": "Create forms, edit their drafts, publish and archive them",
+      "readResponses": "See everyone's submissions and their answers"
+    }
+  },
   "note": {
     "label": "Notes (example)",
     "names": {
@@ -159,6 +172,10 @@
       "label": "Attachment image processing",
       "description": "Makes thumbnails and previews of uploaded images and removes the metadata (EXIF, GPS) of the originals."
     },
+    "attachment-text": {
+      "label": "Attachment text extraction",
+      "description": "Extracts the text of uploaded documents (ATTACHMENT_TEXT_SEARCH) so that the search finds them."
+    },
     "revisions-retention": {
       "label": "Revision retention",
       "description": "Deletes record revisions older than REVISIONS_RETENTION_DAYS (never a record's latest), every night."
@@ -166,6 +183,10 @@
     "notification-retention": {
       "label": "Notification retention",
       "description": "Deletes read notifications past NOTIFICATIONS_RETENTION_DAYS and any past NOTIFICATIONS_MAX_AGE_DAYS, every night."
+    },
+    "recents-retention": {
+      "label": "Recent records retention",
+      "description": "Deletes recently opened records older than 30 days, every night."
     },
     "notification-digests": {
       "label": "Notification digests",

@@ -44,7 +44,14 @@ import {
 } from '../../iam/auth/principal.js';
 import { outboxMessages } from '../ops/outbox-store.view.js';
 import { Realtime } from '../realtime/realtime.service.js';
-import { NotificationCatalog } from './notification-catalog.js';
+import { PeopleService } from '../people/people.service.js';
+import {
+  BULK_THRESHOLD,
+  BULK_TITLES,
+  type BulkSummaryData,
+  isBulkSummary,
+  NotificationCatalog,
+} from './notification-catalog.js';
 import { NOTIFICATION_LIST } from './notification.list.js';
 import type { NotificationView } from './notification.schemas.js';
 import {
@@ -85,6 +92,20 @@ export interface NotifyInput {
   link?: string;
 }
 
+/** How `notifyMany()` sums up a `bulk: 'digest'` type past BULK_THRESHOLD (#618). */
+export interface BulkNotifyOptions {
+  /** Where a summary leads: the records' list, filtered (a path of the web app). */
+  link?: string;
+  /**
+   * Of the inputs addressed to this recipient, those about records they may
+   * read: only these are counted and named. Without it, every one is.
+   */
+  readable?: (
+    recipient: Principal,
+    inputs: readonly NotifyInput[],
+  ) => Promise<readonly NotifyInput[]>;
+}
+
 /**
  * Notifications: features call `notify()` inside the transaction of the
  * change (the stored notification and its delivery commit with it; the
@@ -110,6 +131,7 @@ export class NotificationsService {
     private readonly audit: AuditService,
     private readonly realtime: Realtime,
     private readonly config: ConfigService<CoreEnv, true>,
+    private readonly people: PeopleService,
   ) {}
 
   /**
@@ -200,10 +222,16 @@ export class NotificationsService {
     return ids;
   }
 
-  /** Stores many notifications and their outbox messages with grouped locks and multi-row writes. */
+  /**
+   * Stores many notifications and their outbox messages with grouped locks
+   * and multi-row writes. Past BULK_THRESHOLD inputs of a `bulk: 'digest'`
+   * type, each of their recipients gets one summary of them instead (`bulk`
+   * says how; the returned ids are then the summaries', last).
+   */
   async notifyMany(
     tx: Transaction,
     inputs: readonly NotifyInput[],
+    bulk: BulkNotifyOptions = {},
   ): Promise<string[][]> {
     if (!inputs.length) return [];
     const tenantId = currentTenantId();
@@ -213,8 +241,11 @@ export class NotificationsService {
       key: string | null;
       data: Record<string, unknown>;
       ids: string[];
+      /** A bulk summary's: how many records it stands for. */
+      records?: number;
     }[] = [];
-    for (const input of inputs) {
+    const { single, summaries } = await this.summarize(inputs, bulk);
+    for (const input of single) {
       const declaration = this.catalog.declaration(input.type);
       if (!declaration)
         throw new Error(`Notification type "${input.type}" is not declared.`);
@@ -239,6 +270,16 @@ export class NotificationsService {
         key: input.key ?? (declaration.collapse ? `type:${input.type}` : null),
         data,
         ids: [],
+      });
+    }
+    for (const summary of summaries) {
+      prepared.push({
+        input: summary.input,
+        recipients: [summary.recipient],
+        key: `bulk:${summary.input.type}`,
+        data: summary.input.data,
+        ids: [],
+        records: summary.records,
       });
     }
     const locks = [
@@ -284,23 +325,47 @@ export class NotificationsService {
             recipient: notifications.recipient,
             key: notifications.key,
             count: notifications.count,
+            data: notifications.data,
+            readAt: notifications.readAt,
           })
       : [];
     const counts = new Map(
-      old.map((row) => [`${row.recipient}\u0000${row.key}`, row.count]),
+      old.map((row) => [`${row.recipient}\u0000${row.key}`, row]),
     );
     const owners = prepared.flatMap((item) => item.recipients.map(() => item));
     const values = prepared.flatMap((item) =>
-      item.recipients.map((recipient) => ({
-        recipient,
-        type: item.input.type,
-        data: item.data,
-        key: item.key,
-        count: item.key
-          ? (counts.get(`${recipient}\u0000${item.key}`) ?? 0) + 1
-          : 1,
-        link: item.input.link ?? null,
-      })),
+      item.recipients.map((recipient) => {
+        const before = item.key
+          ? counts.get(`${recipient}\u0000${item.key}`)
+          : undefined;
+        if (item.records === undefined) {
+          return {
+            recipient,
+            type: item.input.type,
+            data: item.data,
+            key: item.key,
+            count: (before?.count ?? 0) + 1,
+            link: item.input.link ?? null,
+          };
+        }
+        // A bulk summary adds up with the unread one it replaces: the
+        // records of both, its first titles first.
+        const carried = before && !before.readAt ? before : undefined;
+        const titles = [
+          ...(carried && isBulkSummary(carried.data)
+            ? carried.data.titles
+            : []),
+          ...(item.data as unknown as BulkSummaryData).titles,
+        ].slice(0, BULK_TITLES);
+        return {
+          recipient,
+          type: item.input.type,
+          data: { bulk: true, titles } satisfies BulkSummaryData,
+          key: item.key,
+          count: (carried?.count ?? 0) + item.records,
+          link: item.input.link ?? null,
+        };
+      }),
     );
     if (!values.length) return prepared.map((item) => item.ids);
     // The ids are the column's uuidv7(), time-ordered: the list is newest
@@ -325,6 +390,82 @@ export class NotificationsService {
     );
     await this.outbox.add(tx, messages);
     return prepared.map((item) => item.ids);
+  }
+
+  /**
+   * Splits `inputs` into those stored one by one and, for each `bulk:
+   * 'digest'` type past BULK_THRESHOLD of them, one summary per recipient
+   * (as they are now in the tenant: one gone or deactivated gets none) of
+   * the records they may read (`bulk.readable`); none when they may read
+   * none.
+   */
+  private async summarize(
+    inputs: readonly NotifyInput[],
+    bulk: BulkNotifyOptions,
+  ) {
+    const byType = new Map<string, NotifyInput[]>();
+    for (const input of inputs) {
+      const group = byType.get(input.type) ?? [];
+      group.push(input);
+      byType.set(input.type, group);
+    }
+    const single: NotifyInput[] = [];
+    const summaries: {
+      input: NotifyInput;
+      recipient: string;
+      records: number;
+    }[] = [];
+    for (const [type, group] of byType) {
+      if (
+        this.catalog.declaration(type)?.bulk !== 'digest' ||
+        group.length <= BULK_THRESHOLD
+      ) {
+        single.push(...group);
+        continue;
+      }
+      const byRecipient = new Map<string, NotifyInput[]>();
+      for (const input of group) {
+        const to = Array.isArray(input.to) ? input.to : [input.to];
+        for (const recipient of new Set(
+          (to as (Pick<Principal, 'kind' | 'id'> | string)[]).map((each) =>
+            typeof each === 'string' ? each : principalKey(each),
+          ),
+        )) {
+          if (recipient.startsWith('system:')) continue;
+          const theirs = byRecipient.get(recipient) ?? [];
+          theirs.push(input);
+          byRecipient.set(recipient, theirs);
+        }
+      }
+      for (const [recipient, theirs] of byRecipient) {
+        let shown: readonly NotifyInput[] = theirs;
+        if (bulk.readable) {
+          const principal = await this.people.principal(recipient);
+          shown = principal ? await bulk.readable(principal, theirs) : [];
+        }
+        if (!shown.length) continue;
+        summaries.push({
+          input: {
+            type: type as NotificationType,
+            to: recipient,
+            data: {
+              bulk: true,
+              titles: shown
+                .slice(0, BULK_TITLES)
+                .flatMap((input) =>
+                  typeof input.data.title === 'string'
+                    ? [input.data.title]
+                    : [],
+                ),
+            } satisfies BulkSummaryData,
+            ...(bulk.link && { link: bulk.link }),
+          },
+          recipient,
+          records: shown.length,
+        });
+      }
+    }
+    return { single, summaries };
   }
 
   /**

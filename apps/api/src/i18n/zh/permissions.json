@@ -65,6 +65,19 @@
       "manage": "启动数据质量扫描，忽略并重新检查问题"
     }
   },
+  "form": {
+    "label": "表单",
+    "names": {
+      "singular": "表单",
+      "plural": "表单"
+    },
+    "actions": {
+      "read": "查看已发布的表单及其版本",
+      "submit": "填写已发布的表单，并查看自己的提交",
+      "edit": "创建表单、编辑草稿、发布和归档表单",
+      "readResponses": "查看所有人的提交及其答案"
+    }
+  },
   "note": {
     "label": "笔记（示例）",
     "names": {
@@ -159,6 +172,10 @@
       "label": "附件图片处理",
       "description": "为上传的图片生成缩略图和预览图，并移除原图的元数据（EXIF、GPS）。"
     },
+    "attachment-text": {
+      "label": "附件文本提取",
+      "description": "提取上传文档的文本（ATTACHMENT_TEXT_SEARCH），以便搜索能够找到它们。"
+    },
     "revisions-retention": {
       "label": "修订保留",
       "description": "每晚删除早于 REVISIONS_RETENTION_DAYS 的记录修订（绝不删除记录的最新修订）。"
@@ -166,6 +183,10 @@
     "notification-retention": {
       "label": "通知保留",
       "description": "每晚删除超过 NOTIFICATIONS_RETENTION_DAYS 的已读通知，以及超过 NOTIFICATIONS_MAX_AGE_DAYS 的所有通知。"
+    },
+    "recents-retention": {
+      "label": "最近打开记录的保留",
+      "description": "每晚删除超过 30 天的最近打开记录。"
     },
     "notification-digests": {
       "label": "通知摘要",

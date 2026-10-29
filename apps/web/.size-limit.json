@@ -17,6 +17,6 @@
   {
     "name": "Language scripts, all four besides en (brotli; a visitor loads one)",
     "path": ["dist/assets/locale-*.js"],
-    "limit": "162 kB"
+    "limit": "178 kB"
   }
 ]

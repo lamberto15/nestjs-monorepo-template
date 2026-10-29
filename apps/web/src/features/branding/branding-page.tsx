@@ -67,10 +67,11 @@ export function BrandingPage() {
             )}
             {/* Remounted by what is stored: the form starts from it. */}
             <ValuesForm
-              key={`${data.primaryColor}|${data.mailFromName}`}
+              key={`${data.primaryColor}|${data.darkPrimaryColor}|${data.mailFromName}`}
               branding={data}
             />
             <LogoSection branding={data} version={query.dataUpdatedAt} />
+            <LogoSection dark branding={data} version={query.dataUpdatedAt} />
           </>
         )}
       </RecordState>
@@ -94,15 +95,21 @@ function ValuesForm(props: { branding: Branding }) {
   const { branding } = props;
   const editable = branding.canEdit;
   const [color, setColor] = useState(branding.primaryColor ?? '');
+  const [darkColor, setDarkColor] = useState(branding.darkPrimaryColor ?? '');
   const [name, setName] = useState(branding.mailFromName ?? '');
   const staleDraftSession = useStaleDraftSession();
   const save = useBrandingMutation(
-    (body: { primaryColor: string | null; mailFromName: string | null }) =>
-      unwrap(api.PUT('/v1/branding', { body })),
+    (body: {
+      primaryColor: string | null;
+      darkPrimaryColor: string | null;
+      mailFromName: string | null;
+    }) => unwrap(api.PUT('/v1/branding', { body })),
   );
   const trimmed = name.trim();
   const changed =
     color.toLowerCase() !== (branding.primaryColor ?? '').toLowerCase() ||
+    darkColor.toLowerCase() !==
+      (branding.darkPrimaryColor ?? '').toLowerCase() ||
     trimmed !== (branding.mailFromName ?? '');
   return (
     <form
@@ -111,7 +118,11 @@ function ValuesForm(props: { branding: Branding }) {
         event.preventDefault();
         if (staleDraftSession()) return;
         save.mutate(
-          { primaryColor: color || null, mailFromName: trimmed || null },
+          {
+            primaryColor: color || null,
+            darkPrimaryColor: darkColor || null,
+            mailFromName: trimmed || null,
+          },
           { onSuccess: () => toast.success(t('saved')) },
         );
       }}
@@ -151,6 +162,40 @@ function ValuesForm(props: { branding: Branding }) {
         )}
       </Field>
       <Field>
+        <FieldLabel>{t('darkColor.label')}</FieldLabel>
+        <FieldDescription>{t('darkColor.hint')}</FieldDescription>
+        {darkColor ? (
+          <div className="flex flex-col gap-2">
+            <fieldset disabled={!editable} className="contents">
+              <HexPicker value={darkColor} onChange={setDarkColor} />
+            </fieldset>
+            {editable && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="self-start"
+                onClick={() => setDarkColor('')}
+              >
+                <XIcon />
+                {t('darkColor.remove')}
+              </Button>
+            )}
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="self-start"
+            disabled={!editable}
+            onClick={() => setDarkColor(color || START_COLOR)}
+          >
+            {t('darkColor.set')}
+          </Button>
+        )}
+      </Field>
+      <Field>
         <FieldLabel htmlFor="mail-from-name">{t('mailName.label')}</FieldLabel>
         <FieldDescription>{t('mailName.hint')}</FieldDescription>
         <Input
@@ -166,7 +211,10 @@ function ValuesForm(props: { branding: Branding }) {
           type="submit"
           className="self-start"
           disabled={
-            !changed || save.isPending || (color !== '' && !HEX.test(color))
+            !changed ||
+            save.isPending ||
+            (color !== '' && !HEX.test(color)) ||
+            (darkColor !== '' && !HEX.test(darkColor))
           }
         >
           {t('save')}
@@ -176,26 +224,37 @@ function ValuesForm(props: { branding: Branding }) {
   );
 }
 
-function LogoSection(props: { branding: Branding; version: number }) {
+/** The logo, or with `dark` the one the dark theme shows: the same checks, its own routes. */
+function LogoSection(props: {
+  branding: Branding;
+  version: number;
+  dark?: boolean;
+}) {
   const { t, i18n } = useTranslation('branding');
   const queryClient = useQueryClient();
-  const { branding } = props;
+  const { branding, dark = false } = props;
+  const prefix = dark ? 'darkLogo' : 'logo';
+  const logoUrl = dark ? branding.darkLogoUrl : branding.logoUrl;
   const [files, setFiles] = useState<File[]>([]);
   const remove = useBrandingMutation(async () => {
-    await unwrap(api.DELETE('/v1/branding/logo'));
+    await unwrap(
+      dark
+        ? api.DELETE('/v1/branding/logo/dark')
+        : api.DELETE('/v1/branding/logo'),
+    );
   });
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: brandingQuery.queryKey });
   return (
     <Field>
-      <FieldLabel>{t('logo.label')}</FieldLabel>
-      <FieldDescription>{t('logo.hint')}</FieldDescription>
-      {branding.logoUrl && (
+      <FieldLabel>{t(`${prefix}.label`)}</FieldLabel>
+      <FieldDescription>{t(`${prefix}.hint`)}</FieldDescription>
+      {logoUrl && (
         <div className="flex items-center gap-4">
           {/* Same origin: the public route redirects to the image. A new upload changes the bytes, not the path: the query string (the time it was read) busts the cache. */}
           <img
-            src={`${branding.logoUrl}?v=${props.version}`}
-            alt={t('logo.alt')}
+            src={`${logoUrl}?v=${props.version}`}
+            alt={t(`${prefix}.alt`)}
             className="max-h-16 max-w-48 rounded border bg-muted p-2"
           />
           {branding.canEdit && (
@@ -206,19 +265,19 @@ function LogoSection(props: { branding: Branding; version: number }) {
               disabled={remove.isPending}
               onClick={() =>
                 remove.mutate(undefined, {
-                  onSuccess: () => toast.success(t('logo.removed')),
+                  onSuccess: () => toast.success(t(`${prefix}.removed`)),
                 })
               }
             >
               <Trash2Icon />
-              {t('logo.remove')}
+              {t(`${prefix}.remove`)}
             </Button>
           )}
         </div>
       )}
       {branding.canEdit && (
         <FileUpload
-          label={t('logo.label')}
+          label={t(`${prefix}.label`)}
           value={files}
           onValueChange={setFiles}
           maxFiles={1}
@@ -226,16 +285,16 @@ function LogoSection(props: { branding: Branding; version: number }) {
           accept={LOGO_TYPES.join(',')}
           onFileReject={(file, message) =>
             toast.error(
-              t('logo.rejected', {
+              t(`${prefix}.rejected`, {
                 name: file.name,
                 reason:
                   message === 'File too large'
-                    ? t('logo.tooLarge', {
+                    ? t(`${prefix}.tooLarge`, {
                         max: new Intl.NumberFormat(i18n.language).format(
                           LOGO_MAX_BYTES / 1024,
                         ),
                       })
-                    : t('logo.typeRefused'),
+                    : t(`${prefix}.typeRefused`),
               }),
             )
           }
@@ -246,14 +305,14 @@ function LogoSection(props: { branding: Branding; version: number }) {
               const form = new FormData();
               form.append('file', file);
               await postMultipart<Branding>(
-                '/v1/branding/logo',
+                dark ? '/v1/branding/logo/dark' : '/v1/branding/logo',
                 form,
                 (percent) => onProgress(file, percent),
               );
               onSuccess(file);
               setFiles([]);
               await refresh();
-              toast.success(t('logo.saved'));
+              toast.success(t(`${prefix}.saved`));
             } catch (error) {
               toast.error(errorMessage(error));
               onError(file, error instanceof Error ? error : new Error());
@@ -264,16 +323,18 @@ function LogoSection(props: { branding: Branding; version: number }) {
             <div className="flex flex-col items-center gap-1 text-center">
               <UploadIcon className="size-6 text-muted-foreground" />
               <p className="text-sm font-medium pointer-coarse:hidden">
-                {t('logo.drop')}
+                {t(`${prefix}.drop`)}
               </p>
-              <p className="text-xs text-muted-foreground">{t('logo.limit')}</p>
+              <p className="text-xs text-muted-foreground">
+                {t(`${prefix}.limit`)}
+              </p>
             </div>
             <FileUploadTrigger
               render={<Button variant="outline" size="sm" type="button" />}
               // A touch screen has nothing to drag: the button comes first, thumb-sized.
               className="pointer-coarse:order-first pointer-coarse:h-11 pointer-coarse:w-full"
             >
-              {t('logo.choose')}
+              {t(`${prefix}.choose`)}
             </FileUploadTrigger>
           </FileUploadDropzone>
         </FileUpload>

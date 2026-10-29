@@ -39,7 +39,10 @@ import type { StoredUpload } from '@nestjs/storage';
 import { z } from 'zod';
 import { AccessPolicy } from '../../iam/access/policies.js';
 import type { Principal } from '../../iam/auth/principal.js';
-import { BrandingLogoUpload } from './branding-logo-upload.interceptor.js';
+import {
+  BrandingDarkLogoUpload,
+  BrandingLogoUpload,
+} from './branding-logo-upload.interceptor.js';
 import {
   brandingSchema,
   updateBrandingSchema,
@@ -134,6 +137,54 @@ export class BrandingController {
     return this.branding.logoUploaded(user, file, ip);
   }
 
+  @Post('logo/dark')
+  @Can(AccessPolicy, 'manageSettings')
+  @UseInterceptors(BrandingDarkLogoUpload)
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Set the dark-mode logo of your tenant',
+    description:
+      'Who manages settings. Like the logo (the same types, size and checks), shown by the web app in its dark theme. Replaces the dark-mode logo. Audited (`branding.logo-changed`, `variant: dark`). 409 `branding_locked` while locked.',
+  })
+  @ApiCreatedResponse({ standardSchema: brandingSchema })
+  @ApiConflictResponse({
+    description: 'Locked by the operators (branding_locked).',
+  })
+  @ApiPayloadTooLargeResponse({
+    description: 'Larger than 512 KB (payload_too_large).',
+  })
+  @ApiUnsupportedMediaTypeResponse({
+    description: 'Not a PNG, JPEG or WebP (unsupported_media_type).',
+  })
+  uploadDark(
+    @CurrentUser() user: Principal,
+    @UploadedFile() file: StoredUpload | undefined,
+    @Body({ schema: logoUploadSchema }) _body: unknown,
+    @Ip() ip: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Send the image as the "file" field.');
+    }
+    return this.branding.logoUploaded(user, file, ip, 'dark');
+  }
+
+  @Delete('logo/dark')
+  @Can(AccessPolicy, 'manageSettings')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Remove the dark-mode logo of your tenant',
+    description:
+      'Who manages settings. The file goes too; the logo is shown in the dark theme again. Audited (`branding.logo-removed`). 409 `branding_locked` while locked.',
+  })
+  @ApiNoContentResponse()
+  @ApiNotFoundResponse({ description: 'There is no dark-mode logo.' })
+  @ApiConflictResponse({
+    description: 'Locked by the operators (branding_locked).',
+  })
+  async removeDark(@CurrentUser() user: Principal, @Ip() ip: string) {
+    await this.branding.removeLogo(user, ip, 'dark');
+  }
+
   @Delete('logo')
   @Can(AccessPolicy, 'manageSettings')
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -179,7 +230,26 @@ export class PublicBrandingController {
   @Header('Cross-Origin-Resource-Policy', 'cross-origin')
   @Header('Cache-Control', 'public, max-age=300')
   async logo(@Param('tenantId', ParseUUIDPipe) tenantId: string) {
-    const file = await this.branding.logoFile(tenantId);
+    return this.serve(await this.branding.logoFile(tenantId));
+  }
+
+  @Get(':tenantId/logo/dark')
+  @ApiOperation({
+    summary: 'The dark-mode logo of a tenant',
+    description:
+      'No sign-in needed. Like the logo, with the same headers: the image the web app shows in its dark theme.',
+  })
+  @ApiProduces(...LOGO_TYPES)
+  @ApiOkResponse({ description: 'The image.' })
+  @ApiNotFoundResponse({ description: 'The tenant has no dark-mode logo.' })
+  @Header('Content-Security-Policy', FILE_CSP)
+  @Header('Cross-Origin-Resource-Policy', 'cross-origin')
+  @Header('Cache-Control', 'public, max-age=300')
+  async darkLogo(@Param('tenantId', ParseUUIDPipe) tenantId: string) {
+    return this.serve(await this.branding.logoFile(tenantId, 'dark'));
+  }
+
+  private serve(file: Awaited<ReturnType<BrandingService['logoFile']>>) {
     if (!file) {
       throw new NotFoundException('There is no logo.');
     }
