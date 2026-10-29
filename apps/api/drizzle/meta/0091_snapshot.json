@@ -1,5 +1,5 @@
 {
-  "id": "a0eccad9-00e4-4927-a5a6-e4c58cf49c15",
+  "id": "425691da-8fd1-45b5-8778-97db1d6e7bc4",
   "prevId": "950003b9-c79a-421f-ba63-433657fbe255",
   "version": "7",
   "dialect": "postgresql",
@@ -8183,6 +8183,179 @@
       "checkConstraints": {},
       "isRLSEnabled": true
     },
+    "public.attachment_texts": {
+      "name": "attachment_texts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "attachment_id": {
+          "name": "attachment_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "search": {
+          "name": "search",
+          "type": "tsvector",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "to_tsvector('simple', coalesce(\"attachment_texts\".\"text\", ''))",
+            "type": "stored"
+          }
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "attachment_texts_attachment_idx": {
+          "name": "attachment_texts_attachment_idx",
+          "columns": [
+            {
+              "expression": "attachment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "attachment_texts_search_idx": {
+          "name": "attachment_texts_search_idx",
+          "columns": [
+            {
+              "expression": "search",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "attachment_texts_tenant_id_tenants_id_fk": {
+          "name": "attachment_texts_tenant_id_tenants_id_fk",
+          "tableFrom": "attachment_texts",
+          "tableTo": "tenants",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "attachment_texts_attachment_fk": {
+          "name": "attachment_texts_attachment_fk",
+          "tableFrom": "attachment_texts",
+          "tableTo": "attachments",
+          "columnsFrom": [
+            "tenant_id",
+            "attachment_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "attachment_texts_tenant_select": {
+          "name": "attachment_texts_tenant_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "public"
+          ],
+          "using": "(\"attachment_texts\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        },
+        "attachment_texts_tenant_insert": {
+          "name": "attachment_texts_tenant_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "public"
+          ],
+          "withCheck": "(\"attachment_texts\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        },
+        "attachment_texts_tenant_update": {
+          "name": "attachment_texts_tenant_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "public"
+          ],
+          "using": "(\"attachment_texts\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+          "withCheck": "(\"attachment_texts\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        },
+        "attachment_texts_tenant_delete": {
+          "name": "attachment_texts_tenant_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": [
+            "public"
+          ],
+          "using": "(\"attachment_texts\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
     "public.documents": {
       "name": "documents",
       "schema": "",
@@ -10418,193 +10591,6 @@
           "value": "\"saved_views\".\"visibility\" in ('private', 'unit', 'tenant')"
         }
       },
-      "isRLSEnabled": true
-    },
-    "public.form_public_links": {
-      "name": "form_public_links",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuidv7()"
-        },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "form_id": {
-          "name": "form_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "token_hash": {
-          "name": "token_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "revoked_at": {
-          "name": "revoked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "revoked_by": {
-          "name": "revoked_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "max_submissions": {
-          "name": "max_submissions",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "submissions": {
-          "name": "submissions",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "last_submitted_at": {
-          "name": "last_submitted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "form_public_links_form_idx": {
-          "name": "form_public_links_form_idx",
-          "columns": [
-            {
-              "expression": "form_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "form_public_links_tenant_id_tenants_id_fk": {
-          "name": "form_public_links_tenant_id_tenants_id_fk",
-          "tableFrom": "form_public_links",
-          "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "form_public_links_form_fk": {
-          "name": "form_public_links_form_fk",
-          "tableFrom": "form_public_links",
-          "tableTo": "forms",
-          "columnsFrom": [
-            "tenant_id",
-            "form_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "form_public_links_tenant_token_key": {
-          "name": "form_public_links_tenant_token_key",
-          "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "token_hash"
-          ]
-        }
-      },
-      "policies": {
-        "form_public_links_tenant_select": {
-          "name": "form_public_links_tenant_select",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "public"
-          ],
-          "using": "(\"form_public_links\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "form_public_links_tenant_insert": {
-          "name": "form_public_links_tenant_insert",
-          "as": "PERMISSIVE",
-          "for": "INSERT",
-          "to": [
-            "public"
-          ],
-          "withCheck": "(\"form_public_links\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "form_public_links_tenant_update": {
-          "name": "form_public_links_tenant_update",
-          "as": "PERMISSIVE",
-          "for": "UPDATE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"form_public_links\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
-          "withCheck": "(\"form_public_links\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "form_public_links_tenant_delete": {
-          "name": "form_public_links_tenant_delete",
-          "as": "PERMISSIVE",
-          "for": "DELETE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"form_public_links\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        }
-      },
-      "checkConstraints": {},
       "isRLSEnabled": true
     },
     "public.form_submissions": {

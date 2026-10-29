@@ -24158,6 +24158,759 @@
         ]
       }
     },
+    "/v1/recents": {
+      "get": {
+        "description": "Newest first, at most 20, none older than 30 days. A record you no longer see (deleted, or your access changed) is left out.",
+        "operationId": "RecentsController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "subject": {
+                            "type": "string",
+                            "example": "Note"
+                          },
+                          "recordId": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string",
+                            "example": "Q4 plan"
+                          },
+                          "viewedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "subject",
+                          "recordId",
+                          "label",
+                          "viewedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Your recently opened records",
+        "tags": [
+          "recents"
+        ]
+      },
+      "post": {
+        "description": "Puts it first (opening it again moves it up, it is not listed twice). `label` is the title the page showed; send no field content. The 21th oldest drops out.",
+        "operationId": "RecentsController_record_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "subject": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "pattern": "^[A-Z]\\w*$"
+                  },
+                  "recordId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "subject",
+                  "recordId",
+                  "label"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string",
+                      "example": "Note"
+                    },
+                    "recordId": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string",
+                      "example": "Q4 plan"
+                    },
+                    "viewedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "subject",
+                    "recordId",
+                    "label",
+                    "viewedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed entry (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such record, or you may not see it."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Note that you opened a record",
+        "tags": [
+          "recents"
+        ]
+      },
+      "delete": {
+        "description": "Removes every recent record of yours in this tenant.",
+        "operationId": "RecentsController_clear_v1",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Clear your history",
+        "tags": [
+          "recents"
+        ]
+      }
+    },
+    "/v1/recents/{id}": {
+      "delete": {
+        "operationId": "RecentsController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "Not one of your recent records."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Remove one recent record",
+        "tags": [
+          "recents"
+        ]
+      }
+    },
+    "/v1/presence/{subject}/{recordId}": {
+      "get": {
+        "description": "The people viewing or editing it, advisory only: saving is still guarded by the record's ETag. Leaves out whoever lost access to the record.",
+        "operationId": "PresenceController_list_v1",
+        "parameters": [
+          {
+            "name": "subject",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recordId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "description": "The principal key: `user:<id>`."
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "viewing",
+                              "editing"
+                            ]
+                          },
+                          "self": {
+                            "type": "boolean",
+                            "description": "It is you (another tab of yours)."
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name",
+                          "mode",
+                          "self"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such record, or you may not see it."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Who is on a record now",
+        "tags": [
+          "presence"
+        ]
+      },
+      "put": {
+        "description": "Beat every 15 seconds while the page is open; you drop out 45 seconds after the last beat. Send the mode only, never what is being typed. Answers with the list, as GET does. Others on the record hear `record.presence` (ids only) when you arrive or change mode.",
+        "operationId": "PresenceController_beat_v1",
+        "parameters": [
+          {
+            "name": "subject",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recordId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "viewing",
+                      "editing"
+                    ]
+                  }
+                },
+                "required": [
+                  "mode"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "description": "The principal key: `user:<id>`."
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "viewing",
+                              "editing"
+                            ]
+                          },
+                          "self": {
+                            "type": "boolean",
+                            "description": "It is you (another tab of yours)."
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name",
+                          "mode",
+                          "self"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed mode (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such record, or you may not see it."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Say you are viewing or editing a record",
+        "tags": [
+          "presence"
+        ]
+      },
+      "delete": {
+        "operationId": "PresenceController_leave_v1",
+        "parameters": [
+          {
+            "name": "subject",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recordId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such record, or you may not see it."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Say you left a record",
+        "tags": [
+          "presence"
+        ]
+      }
+    },
+    "/v1/inbox": {
+      "get": {
+        "description": "What waits on you in the current tenant, newest first, cursor pages: approval requests to decide (`approval.decide`, yours or of someone you stand in for) or to revise (`approval.revise`, changes requested on your request), and unread mentions (`mention`). Each item is read from its source now, so it is gone once the work is done, and only what you may see is listed. `?source=` narrows to one source.",
+        "operationId": "InboxController_list_v1",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          },
+          {
+            "name": "source",
+            "required": false,
+            "in": "query",
+            "description": "Only this source: `approval`, `mention`.",
+            "schema": {
+              "description": "Only this source: `approval`, `mention`.",
+              "type": "string",
+              "maxLength": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "description": "`<source>:<id>`: the item, for dismissing it.",
+                            "example": "approval:0190a0a0-0000-7000-8000-000000000000"
+                          },
+                          "source": {
+                            "type": "string",
+                            "example": "approval"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "description": "What the work is: `approval.decide`, `approval.revise`, `mention`.",
+                            "example": "approval.decide"
+                          },
+                          "at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "description": "When it came to you; the list is newest first."
+                          },
+                          "dueAt": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "link": {
+                            "nullable": true,
+                            "description": "Where to do it, a path of the web app.",
+                            "type": "string"
+                          },
+                          "subject": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "recordId": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "data": {
+                            "type": "object",
+                            "additionalProperties": {},
+                            "description": "What the client words the item with: a title, who asked."
+                          },
+                          "canDismiss": {
+                            "type": "boolean",
+                            "description": "false: it is done at its source (decide the request), not here."
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "source",
+                          "kind",
+                          "at",
+                          "dueAt",
+                          "link",
+                          "subject",
+                          "recordId",
+                          "data",
+                          "canDismiss"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "nullable": true,
+                      "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
+                      "type": "string"
+                    },
+                    "page": {
+                      "description": "With `page`: this page.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "nextPage": {
+                      "description": "With `page`: the next page; null: no more.",
+                      "nullable": true,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageCount": {
+                      "description": "With `page` and `count=true`: ceil(total / limit).",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "total": {
+                      "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "totalCapped": {
+                      "description": "true: there are more than `total` (show \"10,000+\").",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A bad cursor (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such source."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Your work inbox",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/inbox/dismiss": {
+      "post": {
+        "description": "Only for items with `canDismiss` (a mention is marked read). An approval is done by deciding it.",
+        "operationId": "InboxController_dismiss_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "key"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "The item is done at its source."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "Not an item of yours."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Dismiss an item",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
     "/v1/forms": {
       "get": {
         "description": "Editors (and those who read responses) see every form; whoever may read or submit, the published, active ones. `?status=`, `?slug=`, `?name.contains=`; cursor pages.",
@@ -65876,6 +66629,22 @@
         ],
         "additionalProperties": false
       },
+      "RealtimeRecordPresenceEvent": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string"
+          },
+          "recordId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject",
+          "recordId"
+        ],
+        "additionalProperties": false
+      },
       "RealtimeRecordAttachmentsChangedEvent": {
         "type": "object",
         "properties": {
@@ -66027,6 +66796,12 @@
       "description": "A comment on a record you watch (or one you wrote, for your other tabs) was added, edited or removed: ids only, fetch the thread.",
       "payload": {
         "$ref": "#/components/schemas/RealtimeRecordCommentedEvent"
+      }
+    },
+    "record.presence": {
+      "description": "Someone started or stopped viewing or editing a record you are viewing (or one you are editing, for your other tabs): ids only, fetch `GET /v1/presence/{subject}/{recordId}`. Sent only to people who are present and may read the record; advisory, never a lock.",
+      "payload": {
+        "$ref": "#/components/schemas/RealtimeRecordPresenceEvent"
       }
     },
     "record.attachments.changed": {

@@ -4,6 +4,7 @@ import { defineRecord } from './record.js';
 import { actionPath, recordApprovalActions } from './record-approvals.js';
 import { recordApprovalRoutes } from './record-approval-routes.js';
 import { recordSetting, recordSettings } from './record-settings.js';
+import { computed, hideComputed, withComputed } from './record-computed.js';
 
 const PATH_METADATA = 'path';
 const METHOD_METADATA = 'method';
@@ -127,5 +128,93 @@ describe('a record declaration', () => {
         settings: { payApproval: recordSetting.flag() },
       }),
     ).toThrow(/can't be a setting's name/);
+  });
+
+  it('computes its computed fields on read, each after those it reads, hidden with what they read', () => {
+    const LINE = defineRecord({
+      subject: 'Line',
+      path: 'lines',
+      apiTag: 'lines',
+      className: 'LineSpec',
+      noun: 'line',
+      table: 'lines',
+      softDelete: false,
+      unit: false,
+      fields: {
+        quantity: field.int(),
+        unitPrice: field.money(),
+        note: field.string().optional(),
+      },
+      // Declared before what it reads: computed in the order they need.
+      computed: {
+        withTax: computed.money('total * 1.19'),
+        total: computed.money('quantity * unitPrice'),
+        perUnit: computed.decimal('quantity'),
+        labelled: computed.string("coalesce(note, 'none')"),
+      },
+      capabilities: [],
+    });
+    const views = [
+      {
+        quantity: 2,
+        unitPrice: { amount: '10.00', currency: 'EUR' },
+        note: null,
+      },
+    ];
+    const [line] = withComputed(LINE, views);
+    expect(line).toMatchObject({
+      total: { amount: '20.00', currency: 'EUR' },
+      withTax: { amount: '23.80', currency: 'EUR' },
+      perUnit: '2',
+      labelled: 'none',
+    });
+    // A reader who may not see the price sees neither total, nor what reads it.
+    const { unitPrice: _hidden, ...redacted } = line!;
+    const [shown] = hideComputed(LINE, [line!], [redacted]);
+    expect(shown).not.toHaveProperty('total');
+    expect(shown).not.toHaveProperty('withTax');
+    expect(shown).toMatchObject({ perUnit: '2', labelled: 'none' });
+  });
+
+  it('refuses computed fields that cycle, mistype, read what is not there or take a name', () => {
+    const base = {
+      subject: 'Cost',
+      path: 'costs',
+      apiTag: 'costs',
+      className: 'CostSpec',
+      noun: 'cost',
+      table: 'costs',
+      softDelete: false,
+      unit: false,
+      fields: { amount: field.int(), extra: field.json().optional() },
+      capabilities: [],
+    } as const;
+    expect(() =>
+      defineRecord({
+        ...base,
+        computed: { a: computed.int('b + 1'), b: computed.int('a + amount') },
+      }),
+    ).toThrow(/cycle: a → b → a/);
+    expect(() =>
+      defineRecord({ ...base, computed: { a: computed.int('a') } }),
+    ).toThrow(/cycle/);
+    expect(() =>
+      defineRecord({ ...base, computed: { a: computed.string('amount') } }),
+    ).toThrow(/is declared string, but `amount` is int/);
+    expect(() =>
+      defineRecord({
+        ...base,
+        computed: { a: computed.string('text(extra)') },
+      }),
+    ).toThrow(/Nothing is named "extra"/);
+    expect(() =>
+      defineRecord({ ...base, computed: { amount: computed.int('1') } }),
+    ).toThrow(/takes a name the record already shows/);
+    expect(() =>
+      defineRecord({
+        ...base,
+        computed: { a: computed.int('process.exit()') },
+      }),
+    ).toThrow(/Unexpected "\."/);
   });
 });

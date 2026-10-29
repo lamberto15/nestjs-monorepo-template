@@ -12,6 +12,7 @@ import { Page, PageHeader } from '@/components/page-header';
 import { RecordState } from '@/components/records/record-state';
 import { noteQuery } from '@/features/notes/api';
 import { NoteForm } from '@/features/notes/note-form';
+import { PresenceIndicator } from '@/features/work/presence-indicator';
 import { useRecordCan } from '@/lib/records';
 
 export const Route = createFileRoute('/_app/notes/$id/edit')({
@@ -58,7 +59,14 @@ function EditNote() {
             // marker of `watching`, so a toggle changes it, and the form
             // would remount under the user's typing. A change by someone else
             // (the reload after a 412) moves `updatedAt`, so it still remounts.
-            <NoteForm key={note.updatedAt} note={note} etag={etag} />
+            <>
+              <PresenceIndicator
+                subject="Note"
+                recordId={note.id}
+                mode="editing"
+              />
+              <NoteForm key={note.updatedAt} note={note} etag={etag} />
+            </>
           ) : (
             <Alert role="alert">
               <LockIcon />
