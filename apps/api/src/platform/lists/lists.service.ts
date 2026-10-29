@@ -149,6 +149,7 @@ export class ListsService {
         field: relation.field,
         title: relationTitle(relation.from),
         required: relation.required,
+        onDelete: relation.onDelete,
       });
     }
     return related;
