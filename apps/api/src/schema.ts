@@ -34,6 +34,8 @@ export * from './platform/templates/templates.tables.js';
 export * from './platform/favorites/favorites.tables.js';
 export * from './platform/recents/recents.tables.js';
 export * from './platform/shares/shares.tables.js';
+export * from './platform/automations/automations.tables.js';
+export * from './platform/data-quality/data-quality.tables.js';
 export * from './platform/data-transfer/import-mappings.tables.js';
 export * from './platform/usage/usage.tables.js';
 export * from './platform/revisions/revisions.tables.js';

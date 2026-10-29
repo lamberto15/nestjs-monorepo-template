@@ -105,5 +105,20 @@
     "empty": "Noch keine.",
     "error": "Die verknüpften Datensätze konnten nicht geladen werden.",
     "more": "Die neuesten {{shown}} von {{total}}."
+  },
+  "duplicates": {
+    "title": "Duplikate",
+    "empty": "Keine wahrscheinlichen Duplikate.",
+    "error": "Die Duplikate konnten nicht geladen werden.",
+    "matched": "(gleich: {{fields}})",
+    "merge": "In diesen Datensatz zusammenführen",
+    "description": "„{{name}}“ wird in diesen Datensatz zusammengeführt und kommt in den Papierkorb. Seine Tags, Kommentare, Anhänge und die Datensätze, die darauf verweisen, wandern hierher.",
+    "same": "Die Datensätze haben dieselben Werte: die dieses Datensatzes bleiben.",
+    "choose": "Den Wert des Duplikats übernehmen für",
+    "take": "{{field}}: „{{value}}“ statt „{{current}}“",
+    "moves": "Wandert hierher: {{tags}} Tags, {{comments}} Kommentare, {{attachments}} Anhänge, {{references}} Verweise.",
+    "confirm": "Zusammenführen",
+    "merged": "Zusammengeführt: das Duplikat ist im Papierkorb.",
+    "warning": "Das gibt es vielleicht schon:"
   }
 }

@@ -5,6 +5,7 @@ import type {
 import { runsWorkers } from '../../core/config/core.env.js';
 import { NOTIFICATION_WEBHOOK_EVENT } from '../notifications/notification.types.js';
 import { APPROVAL_EVENT_TYPES } from '../approvals/approval-events.js';
+import { AUTOMATION_WEBHOOK_EVENT } from '../automations/automation-events.js';
 import type {
   PlatformOptions,
   WebhookEventTypeDeclaration,
@@ -50,6 +51,11 @@ export function declaredEventTypes(
     {
       type: NOTIFICATION_WEBHOOK_EVENT,
       description: 'A notification to the API client (docs/notifications.md).',
+    },
+    {
+      type: AUTOMATION_WEBHOOK_EVENT,
+      description:
+        "An automation rule's `webhook` action named the API client: `data` is `{ subject, record }`, the record as the client may read it (docs/automations.md).",
     },
     ...APPROVAL_EVENT_TYPES.map((type) => ({
       type,

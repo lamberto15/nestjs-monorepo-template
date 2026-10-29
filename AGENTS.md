@@ -110,14 +110,16 @@ Everything is in `docs/`; a name below is its file (`tags` is
   break-glass, `TENANCY=single`), `encryption`, `retention` (and legal holds).
 - **Background and integrations:** `background-work` (queues, mail, outbox,
   workflows, cron), `webhooks-and-realtime`, `notifications`,
+  `automations` (tenant rules: triggers, conditions, actions, simulation),
   `deliverability`, `ai`, `documents` (PDFs).
 - **Record add-ons:** `tags`, `comments`, `attachments` (and avatars),
   `revisions`, `acknowledgments`, `approvals`, `saved-views`, `templates`
   (prefill a create), `choices` (dependent dropdowns), `favorites`,
   `work-surfaces` (inbox, recent records, presence), `custom-fields`,
   `computed-fields` (and the expression language),
-  `forms` (runtime forms and submissions), `bulk-operations`, `sequences` (numbers, naming series), `data-transfer`
-  (exports, imports), `import-limits`, `reports`.
+  `forms` (runtime forms and submissions), `bulk-operations`, `merging` (duplicates, merge), `sequences` (numbers, naming series), `data-transfer`
+  (exports, imports), `import-limits`, `reports`, `data-quality` (checks,
+  scans, findings).
 - **Configuration:** `configuration` (environment variables), `settings`
   (and feature flags), `branding`, `i18n-and-time`, `money`, `usage`
   (quotas), `build-version`.

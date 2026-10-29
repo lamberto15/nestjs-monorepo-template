@@ -12,6 +12,8 @@ import {
 } from '../../platform/notifications/notifications.service.js';
 import { ApprovalsService } from '../../platform/approvals/approvals.service.js';
 import { SubscriptionsService } from '../../platform/subscriptions/subscriptions.service.js';
+import { AccessService } from '../../iam/access/access.service.js';
+import { RecordWebhooks } from '../../platform/webhooks/record-webhooks.service.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
@@ -21,49 +23,25 @@ import { NOTE } from './note.resource.js';
 import type { NoteEvent, NoteEventType } from './note-events.js';
 import type { Note } from './note.schemas.js';
 
-/**
- * Past this many notes published at once (an import group), each person
- * gets one `note.publishedMany` instead of one `note.published` per note: a
- * 100,000-note import must not mean 100,000 notifications and mails (#618).
- */
-export const BULK_PUBLICATION = 20;
-
-/**
- * The notifications of a publication of `rows`: one `note.published` per
- * note, to its owner and watchers; past BULK_PUBLICATION, one
- * `note.publishedMany` per person, with how many of the notes are theirs
- * (owned or watched) and the first one's title.
- */
+/** The notifications of a publication of `rows`: one `note.published` per note, to its owner and watchers. */
 export function publicationNotices(
   rows: readonly Pick<Note, 'id' | 'title' | 'ownerId'>[],
   watchers: ReadonlyMap<string, readonly string[]>,
 ): NotifyInput[] {
-  const recipientsOf = (row: (typeof rows)[number]) => [
-    ...new Set([row.ownerId, ...(watchers.get(row.id) ?? [])]),
-  ];
-  if (rows.length <= BULK_PUBLICATION) {
-    return rows.map((row) => ({
-      type: 'note.published',
-      to: recipientsOf(row),
-      data: { noteId: row.id, title: row.title },
-      link: `/notes/${row.id}`,
-    }));
-  }
-  const byRecipient = new Map<string, { notes: number; title: string }>();
-  for (const row of rows) {
-    for (const recipient of recipientsOf(row)) {
-      const seen = byRecipient.get(recipient);
-      if (seen) seen.notes += 1;
-      else byRecipient.set(recipient, { notes: 1, title: row.title });
-    }
-  }
-  return [...byRecipient].map(([to, data]) => ({
-    type: 'note.publishedMany',
-    to,
-    data,
-    link: '/notes',
+  return rows.map((row) => ({
+    type: 'note.published',
+    to: [...new Set([row.ownerId, ...(watchers.get(row.id) ?? [])])],
+    data: { noteId: row.id, title: row.title },
+    link: `/notes/${row.id}`,
   }));
 }
+
+/**
+ * Where a bulk publication's summary leads: the published notes, the
+ * latest first.
+ */
+export const PUBLISHED_NOTES_LINK =
+  '/notes?status=published&sort=publishedAt.desc';
 
 /**
  * What the publication workflow's step does, and how note webhooks are
@@ -81,6 +59,8 @@ export class NotePublisher {
     private readonly subscriptions: SubscriptionsService,
     private readonly approvals: ApprovalsService,
     private readonly audit: AuditService,
+    private readonly access: AccessService,
+    private readonly recordWebhooks: RecordWebhooks,
   ) {}
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
@@ -193,9 +173,40 @@ export class NotePublisher {
         after.map((row) => ({ subject: 'Note', recordId: row.id })),
         tx,
       );
+      // Past BULK_THRESHOLD notes, one summary per person of the notes they
+      // may read (the catalog's `bulk: 'digest'`, #618).
       await this.notifications.notifyMany(
         tx,
         publicationNotices(after, watchers),
+        {
+          link: PUBLISHED_NOTES_LINK,
+          readable: async (principal, inputs) => {
+            const visible = await this.access.sqlFilter(
+              principal,
+              'Note',
+              'read',
+            );
+            const ids = new Set(
+              (
+                await tx
+                  .select({ id: notes.id })
+                  .from(notes)
+                  .where(
+                    and(
+                      inArray(
+                        notes.id,
+                        inputs.map((input) => input.data.noteId as string),
+                      ),
+                      visible,
+                    ),
+                  )
+              ).map((row) => row.id),
+            );
+            return inputs.filter((input) =>
+              ids.has(input.data.noteId as string),
+            );
+          },
+        },
       );
       return after.length;
     });
@@ -245,32 +256,30 @@ export class NotePublisher {
     }
   }
 
-  /** Webhooks go to the API client that owns the note; a user's notes have none. */
+  /**
+   * A note's webhook: to the API client that owns it, and to the clients of
+   * its tenant subscribed with the `tenant` scope that may read it, each
+   * redacted to what it may read (RecordWebhooks, docs/webhooks-and-realtime.md
+   * "Subscriber scope"). A user's note reaches only those.
+   */
   async dispatch(tx: Transaction, type: NoteEventType, note: Note) {
-    const tenant = note.ownerId.startsWith('client:')
-      ? note.ownerId.slice('client:'.length)
-      : null;
-    if (!tenant) {
-      return;
-    }
-    const data: NoteEvent = { noteId: note.id, title: note.title };
-    await this.webhooks.dispatch(tx, { type, tenant, data });
+    await this.dispatchMany(tx, type, [note]);
   }
 
-  /** Dispatches webhook events for many notes with the package's array API. */
+  /** Dispatches webhook events for many notes in one call. */
   async dispatchMany(
     tx: Transaction,
     type: NoteEventType,
     rows: readonly Note[],
   ) {
-    const messages = rows.flatMap((note) => {
-      const tenant = note.ownerId.startsWith('client:')
-        ? note.ownerId.slice('client:'.length)
-        : null;
-      return tenant
-        ? [{ type, tenant, data: { noteId: note.id, title: note.title } }]
-        : [];
-    });
-    if (messages.length) await this.webhooks.dispatch(tx, messages);
+    await this.recordWebhooks.dispatch(
+      tx,
+      rows.map((note) => ({
+        type,
+        subject: 'Note',
+        row: note,
+        data: { noteId: note.id, title: note.title } satisfies NoteEvent,
+      })),
+    );
   }
 }

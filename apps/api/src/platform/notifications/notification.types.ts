@@ -73,6 +73,17 @@ export interface NotificationTypeDeclaration<
   urgent?: boolean;
   /** `notify()` without a `key` collapses on the type: one row per recipient, counted up. */
   collapse?: boolean;
+  /**
+   * The bulk policy (#618). `digest`: past BULK_THRESHOLD notifications of
+   * this type in one `notifyMany()` (a bulk change, such as an import
+   * group's publication), each recipient gets one summary instead of one
+   * per record: the records they may read (`notifyMany`'s `readable`)
+   * counted, the first few titles (`data.title`), collapsed and counted up
+   * while unread, and mailed in their next digest (hourly at the soonest),
+   * never at once, whatever their preference; off stays off. Texts:
+   * `notifications.<type>.bulk.{title,body}`.
+   */
+  bulk?: 'digest';
   /** Checked by `notify()`; its keys are the placeholders of the title and body. */
   data?: z.ZodType<D>;
 }

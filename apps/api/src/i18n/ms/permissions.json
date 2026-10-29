@@ -58,6 +58,13 @@
       "manage": "Tambah alamat ke senarai sekatan, atau alih keluar satu"
     }
   },
+  "data-quality": {
+    "label": "Kualiti data",
+    "actions": {
+      "read": "Lihat dapatan kualiti data pada rekod dan medan yang anda boleh baca",
+      "manage": "Mulakan imbasan kualiti data, tolak dan semak semula dapatan"
+    }
+  },
   "form": {
     "label": "Borang",
     "names": {
@@ -252,6 +259,17 @@
     "ops": {
       "label": "CLI operator",
       "description": "Perintah kecemasan yang dijalankan pada pelayan (pnpm ops): kata laluan sekali guna, mengalih keluar dua faktor, membuka kunci akaun, memadam tetapan, mencipta pentadbir."
+    },
+    "automations": {
+      "label": "Peraturan automasi",
+      "description": "Menjalankan peraturan automasi penyewa apabila rekod berubah (tindakannya sebagai pemilik peraturan), dan menyahdayakan peraturan yang pemiliknya telah keluar, berjalan terlalu kerap atau terus gagal."
+    }
+  },
+  "automation-rule": {
+    "label": "Peraturan automasi",
+    "actions": {
+      "read": "Lihat peraturan automasi dan lariannya",
+      "manage": "Cipta, simulasi, aktifkan dan nyahdayakan peraturan automasi (ia berjalan dengan kebenaran anda)"
     }
   }
 }
