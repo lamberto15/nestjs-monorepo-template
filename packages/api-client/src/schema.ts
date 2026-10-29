@@ -7126,6 +7126,38 @@ export interface components {
             /** @description More match: narrow with `q` (answers hold at most `limit`). */
             hasMore: boolean;
         };
+        /** @description A predicate { field, op, value } on an earlier field, or { all: [...] }, { any: [...] }, { not: ... }. */
+        FormCondition: ({
+            field: string;
+            /** @enum {string} */
+            op: "eq" | "ne";
+            value: string | number | boolean;
+        } | {
+            field: string;
+            /** @enum {string} */
+            op: "gt" | "gte" | "lt" | "lte";
+            value: number | string;
+        } | {
+            field: string;
+            /** @enum {string} */
+            op: "in";
+            value: (string | number)[];
+        } | {
+            field: string;
+            /** @enum {string} */
+            op: "contains";
+            value: string;
+        } | {
+            field: string;
+            /** @enum {string} */
+            op: "isEmpty";
+        }) | {
+            all: components["schemas"]["FormCondition"][];
+        } | {
+            any: components["schemas"]["FormCondition"][];
+        } | {
+            not: components["schemas"]["FormCondition"];
+        };
         DataQualitySummary: {
             /** @description The newest scan (running or not): how fresh the findings are. */
             lastScan: components["schemas"]["DataQualityScan"] | null;
@@ -20032,7 +20064,7 @@ export interface operations {
                     /**
                      * @description The first draft; default: no sections.
                      * @example {
-                     *       "format": 1,
+                     *       "format": 2,
                      *       "sections": [
                      *         {
                      *           "key": "contact",
@@ -20058,6 +20090,21 @@ export interface operations {
                      *                   "label": "Something else"
                      *                 }
                      *               ]
+                     *             },
+                     *             {
+                     *               "key": "details",
+                     *               "type": "textarea",
+                     *               "label": "What is it about?",
+                     *               "visibleWhen": {
+                     *                 "field": "topic",
+                     *                 "op": "eq",
+                     *                 "value": "other"
+                     *               },
+                     *               "requiredWhen": {
+                     *                 "field": "topic",
+                     *                 "op": "eq",
+                     *                 "value": "other"
+                     *               }
                      *             }
                      *           ]
                      *         }
@@ -20066,15 +20113,16 @@ export interface operations {
                      */
                     definition?: {
                         /**
-                         * @description The descriptor format: 1.
-                         * @default 1
-                         * @enum {number}
+                         * @description The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.
+                         * @default 2
                          */
-                        format?: 1;
+                        format?: 1 | 2;
                         sections: {
                             key: string;
                             title?: string;
                             description?: string;
+                            /** @description Shown only when this holds (format 2): its fields too. */
+                            visibleWhen?: components["schemas"]["FormCondition"];
                             fields: {
                                 /** @description The answer's key: unique in the form, and once published its type never changes. */
                                 key: string;
@@ -20113,6 +20161,10 @@ export interface operations {
                                     minItems?: number;
                                     maxItems?: number;
                                 };
+                                /** @description Shown only when this holds (format 2); a hidden field has no answer. */
+                                visibleWhen?: components["schemas"]["FormCondition"];
+                                /** @description Required, when shown, whenever this holds (format 2). */
+                                requiredWhen?: components["schemas"]["FormCondition"];
                                 translations?: {
                                     [key: string]: {
                                         label?: string;
@@ -20396,7 +20448,7 @@ export interface operations {
                         revision: number;
                         /**
                          * @example {
-                         *       "format": 1,
+                         *       "format": 2,
                          *       "sections": [
                          *         {
                          *           "key": "contact",
@@ -20422,6 +20474,21 @@ export interface operations {
                          *                   "label": "Something else"
                          *                 }
                          *               ]
+                         *             },
+                         *             {
+                         *               "key": "details",
+                         *               "type": "textarea",
+                         *               "label": "What is it about?",
+                         *               "visibleWhen": {
+                         *                 "field": "topic",
+                         *                 "op": "eq",
+                         *                 "value": "other"
+                         *               },
+                         *               "requiredWhen": {
+                         *                 "field": "topic",
+                         *                 "op": "eq",
+                         *                 "value": "other"
+                         *               }
                          *             }
                          *           ]
                          *         }
@@ -20430,15 +20497,16 @@ export interface operations {
                          */
                         definition: {
                             /**
-                             * @description The descriptor format: 1.
-                             * @default 1
-                             * @enum {number}
+                             * @description The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.
+                             * @default 2
                              */
-                            format: 1;
+                            format: 1 | 2;
                             sections: {
                                 key: string;
                                 title?: string;
                                 description?: string;
+                                /** @description Shown only when this holds (format 2): its fields too. */
+                                visibleWhen?: components["schemas"]["FormCondition"];
                                 fields: {
                                     /** @description The answer's key: unique in the form, and once published its type never changes. */
                                     key: string;
@@ -20477,6 +20545,10 @@ export interface operations {
                                         minItems?: number;
                                         maxItems?: number;
                                     };
+                                    /** @description Shown only when this holds (format 2); a hidden field has no answer. */
+                                    visibleWhen?: components["schemas"]["FormCondition"];
+                                    /** @description Required, when shown, whenever this holds (format 2). */
+                                    requiredWhen?: components["schemas"]["FormCondition"];
                                     translations?: {
                                         [key: string]: {
                                             label?: string;
@@ -20534,7 +20606,7 @@ export interface operations {
                     revision: number;
                     /**
                      * @example {
-                     *       "format": 1,
+                     *       "format": 2,
                      *       "sections": [
                      *         {
                      *           "key": "contact",
@@ -20560,6 +20632,21 @@ export interface operations {
                      *                   "label": "Something else"
                      *                 }
                      *               ]
+                     *             },
+                     *             {
+                     *               "key": "details",
+                     *               "type": "textarea",
+                     *               "label": "What is it about?",
+                     *               "visibleWhen": {
+                     *                 "field": "topic",
+                     *                 "op": "eq",
+                     *                 "value": "other"
+                     *               },
+                     *               "requiredWhen": {
+                     *                 "field": "topic",
+                     *                 "op": "eq",
+                     *                 "value": "other"
+                     *               }
                      *             }
                      *           ]
                      *         }
@@ -20568,15 +20655,16 @@ export interface operations {
                      */
                     definition: {
                         /**
-                         * @description The descriptor format: 1.
-                         * @default 1
-                         * @enum {number}
+                         * @description The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.
+                         * @default 2
                          */
-                        format?: 1;
+                        format?: 1 | 2;
                         sections: {
                             key: string;
                             title?: string;
                             description?: string;
+                            /** @description Shown only when this holds (format 2): its fields too. */
+                            visibleWhen?: components["schemas"]["FormCondition"];
                             fields: {
                                 /** @description The answer's key: unique in the form, and once published its type never changes. */
                                 key: string;
@@ -20615,6 +20703,10 @@ export interface operations {
                                     minItems?: number;
                                     maxItems?: number;
                                 };
+                                /** @description Shown only when this holds (format 2); a hidden field has no answer. */
+                                visibleWhen?: components["schemas"]["FormCondition"];
+                                /** @description Required, when shown, whenever this holds (format 2). */
+                                requiredWhen?: components["schemas"]["FormCondition"];
                                 translations?: {
                                     [key: string]: {
                                         label?: string;
@@ -20646,7 +20738,7 @@ export interface operations {
                         revision: number;
                         /**
                          * @example {
-                         *       "format": 1,
+                         *       "format": 2,
                          *       "sections": [
                          *         {
                          *           "key": "contact",
@@ -20672,6 +20764,21 @@ export interface operations {
                          *                   "label": "Something else"
                          *                 }
                          *               ]
+                         *             },
+                         *             {
+                         *               "key": "details",
+                         *               "type": "textarea",
+                         *               "label": "What is it about?",
+                         *               "visibleWhen": {
+                         *                 "field": "topic",
+                         *                 "op": "eq",
+                         *                 "value": "other"
+                         *               },
+                         *               "requiredWhen": {
+                         *                 "field": "topic",
+                         *                 "op": "eq",
+                         *                 "value": "other"
+                         *               }
                          *             }
                          *           ]
                          *         }
@@ -20680,15 +20787,16 @@ export interface operations {
                          */
                         definition: {
                             /**
-                             * @description The descriptor format: 1.
-                             * @default 1
-                             * @enum {number}
+                             * @description The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.
+                             * @default 2
                              */
-                            format: 1;
+                            format: 1 | 2;
                             sections: {
                                 key: string;
                                 title?: string;
                                 description?: string;
+                                /** @description Shown only when this holds (format 2): its fields too. */
+                                visibleWhen?: components["schemas"]["FormCondition"];
                                 fields: {
                                     /** @description The answer's key: unique in the form, and once published its type never changes. */
                                     key: string;
@@ -20727,6 +20835,10 @@ export interface operations {
                                         minItems?: number;
                                         maxItems?: number;
                                     };
+                                    /** @description Shown only when this holds (format 2); a hidden field has no answer. */
+                                    visibleWhen?: components["schemas"]["FormCondition"];
+                                    /** @description Required, when shown, whenever this holds (format 2). */
+                                    requiredWhen?: components["schemas"]["FormCondition"];
                                     translations?: {
                                         [key: string]: {
                                             label?: string;
@@ -20813,7 +20925,7 @@ export interface operations {
                         version: number;
                         /**
                          * @example {
-                         *       "format": 1,
+                         *       "format": 2,
                          *       "sections": [
                          *         {
                          *           "key": "contact",
@@ -20839,6 +20951,21 @@ export interface operations {
                          *                   "label": "Something else"
                          *                 }
                          *               ]
+                         *             },
+                         *             {
+                         *               "key": "details",
+                         *               "type": "textarea",
+                         *               "label": "What is it about?",
+                         *               "visibleWhen": {
+                         *                 "field": "topic",
+                         *                 "op": "eq",
+                         *                 "value": "other"
+                         *               },
+                         *               "requiredWhen": {
+                         *                 "field": "topic",
+                         *                 "op": "eq",
+                         *                 "value": "other"
+                         *               }
                          *             }
                          *           ]
                          *         }
@@ -20847,15 +20974,16 @@ export interface operations {
                          */
                         definition: {
                             /**
-                             * @description The descriptor format: 1.
-                             * @default 1
-                             * @enum {number}
+                             * @description The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.
+                             * @default 2
                              */
-                            format: 1;
+                            format: 1 | 2;
                             sections: {
                                 key: string;
                                 title?: string;
                                 description?: string;
+                                /** @description Shown only when this holds (format 2): its fields too. */
+                                visibleWhen?: components["schemas"]["FormCondition"];
                                 fields: {
                                     /** @description The answer's key: unique in the form, and once published its type never changes. */
                                     key: string;
@@ -20894,6 +21022,10 @@ export interface operations {
                                         minItems?: number;
                                         maxItems?: number;
                                     };
+                                    /** @description Shown only when this holds (format 2); a hidden field has no answer. */
+                                    visibleWhen?: components["schemas"]["FormCondition"];
+                                    /** @description Required, when shown, whenever this holds (format 2). */
+                                    requiredWhen?: components["schemas"]["FormCondition"];
                                     translations?: {
                                         [key: string]: {
                                             label?: string;
@@ -21097,7 +21229,7 @@ export interface operations {
                         version: number;
                         /**
                          * @example {
-                         *       "format": 1,
+                         *       "format": 2,
                          *       "sections": [
                          *         {
                          *           "key": "contact",
@@ -21123,6 +21255,21 @@ export interface operations {
                          *                   "label": "Something else"
                          *                 }
                          *               ]
+                         *             },
+                         *             {
+                         *               "key": "details",
+                         *               "type": "textarea",
+                         *               "label": "What is it about?",
+                         *               "visibleWhen": {
+                         *                 "field": "topic",
+                         *                 "op": "eq",
+                         *                 "value": "other"
+                         *               },
+                         *               "requiredWhen": {
+                         *                 "field": "topic",
+                         *                 "op": "eq",
+                         *                 "value": "other"
+                         *               }
                          *             }
                          *           ]
                          *         }
@@ -21131,15 +21278,16 @@ export interface operations {
                          */
                         definition: {
                             /**
-                             * @description The descriptor format: 1.
-                             * @default 1
-                             * @enum {number}
+                             * @description The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.
+                             * @default 2
                              */
-                            format: 1;
+                            format: 1 | 2;
                             sections: {
                                 key: string;
                                 title?: string;
                                 description?: string;
+                                /** @description Shown only when this holds (format 2): its fields too. */
+                                visibleWhen?: components["schemas"]["FormCondition"];
                                 fields: {
                                     /** @description The answer's key: unique in the form, and once published its type never changes. */
                                     key: string;
@@ -21178,6 +21326,10 @@ export interface operations {
                                         minItems?: number;
                                         maxItems?: number;
                                     };
+                                    /** @description Shown only when this holds (format 2); a hidden field has no answer. */
+                                    visibleWhen?: components["schemas"]["FormCondition"];
+                                    /** @description Required, when shown, whenever this holds (format 2). */
+                                    requiredWhen?: components["schemas"]["FormCondition"];
                                     translations?: {
                                         [key: string]: {
                                             label?: string;
@@ -21298,7 +21450,7 @@ export interface operations {
                         version: number;
                         /**
                          * @example {
-                         *       "format": 1,
+                         *       "format": 2,
                          *       "sections": [
                          *         {
                          *           "key": "contact",
@@ -21324,6 +21476,21 @@ export interface operations {
                          *                   "label": "Something else"
                          *                 }
                          *               ]
+                         *             },
+                         *             {
+                         *               "key": "details",
+                         *               "type": "textarea",
+                         *               "label": "What is it about?",
+                         *               "visibleWhen": {
+                         *                 "field": "topic",
+                         *                 "op": "eq",
+                         *                 "value": "other"
+                         *               },
+                         *               "requiredWhen": {
+                         *                 "field": "topic",
+                         *                 "op": "eq",
+                         *                 "value": "other"
+                         *               }
                          *             }
                          *           ]
                          *         }
@@ -21332,15 +21499,16 @@ export interface operations {
                          */
                         definition: {
                             /**
-                             * @description The descriptor format: 1.
-                             * @default 1
-                             * @enum {number}
+                             * @description The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.
+                             * @default 2
                              */
-                            format: 1;
+                            format: 1 | 2;
                             sections: {
                                 key: string;
                                 title?: string;
                                 description?: string;
+                                /** @description Shown only when this holds (format 2): its fields too. */
+                                visibleWhen?: components["schemas"]["FormCondition"];
                                 fields: {
                                     /** @description The answer's key: unique in the form, and once published its type never changes. */
                                     key: string;
@@ -21379,6 +21547,10 @@ export interface operations {
                                         minItems?: number;
                                         maxItems?: number;
                                     };
+                                    /** @description Shown only when this holds (format 2); a hidden field has no answer. */
+                                    visibleWhen?: components["schemas"]["FormCondition"];
+                                    /** @description Required, when shown, whenever this holds (format 2). */
+                                    requiredWhen?: components["schemas"]["FormCondition"];
                                     translations?: {
                                         [key: string]: {
                                             label?: string;
