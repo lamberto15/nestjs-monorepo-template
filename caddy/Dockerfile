@@ -9,6 +9,7 @@
 FROM ghcr.io/pnpm/pnpm:12.16.0 AS web
 WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches patches
 RUN CI=true pnpm fetch --store-dir /pnpm-store
 COPY package.json ./
 COPY apps/api/package.json apps/api/package.json
