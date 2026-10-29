@@ -48,6 +48,21 @@ describe('deviceOf', () => {
     expect(summary('curl/8.7.1')).toBe('curl');
     expect(summary(undefined)).toBe('unknown');
   });
+
+  it('names an app by its product token on its system, a web view by its system', () => {
+    const summary = (agent: unknown) => deviceOf(agent, '10.0.0.1').summary;
+    expect(summary('NestJSMobile/1.0.0 (iPhone 17 Pro; iOS 26.5)')).toBe(
+      'NestJSMobile on iOS',
+    );
+    expect(summary('NestJSMobile/1.0.0 (Pixel 9; Android 16)')).toBe(
+      'NestJSMobile on Android',
+    );
+    expect(
+      summary(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+      ),
+    ).toBe('iOS');
+  });
 });
 
 describe('deviceLabel', () => {

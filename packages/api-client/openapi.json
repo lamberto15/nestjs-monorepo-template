@@ -47905,7 +47905,7 @@
     },
     "/v1/auth/sessions": {
       "get": {
-        "description": "While an administrator acts as you: only that session.",
+        "description": "Browsers first, then apps (token clients still signed in). `current`: the session or app of this request. While an administrator acts as you: only that session.",
         "operationId": "SessionsController_list_v1",
         "parameters": [],
         "responses": {
@@ -47922,7 +47922,16 @@
                         "type": "object",
                         "properties": {
                           "id": {
-                            "type": "string"
+                            "type": "string",
+                            "description": "A browser session's id, or an app's (its token family's `sid`)."
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "browser",
+                              "app"
+                            ],
+                            "description": "`browser`: a cookie session; `app`: a token client (POST /auth/token and the other token sign-ins)."
                           },
                           "createdAt": {
                             "type": "string",
@@ -47932,15 +47941,17 @@
                           "lastActiveAt": {
                             "type": "string",
                             "format": "date-time",
-                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "description": "The last request (a browser's), or the last refresh (an app's)."
                           },
                           "userAgent": {
                             "nullable": true,
+                            "description": "A browser's recorded user agent; null for an app.",
                             "type": "string"
                           },
                           "device": {
                             "nullable": true,
-                            "description": "A readable summary of the user agent (\"Chrome on macOS\"); null when none was recorded.",
+                            "description": "A readable summary of the user agent (\"Chrome on macOS\", \"NestJSMobile on iOS\"); null when none was recorded.",
                             "type": "string"
                           },
                           "method": {
@@ -47978,6 +47989,7 @@
                         },
                         "required": [
                           "id",
+                          "kind",
                           "createdAt",
                           "lastActiveAt",
                           "userAgent",
@@ -48009,7 +48021,7 @@
             "user-session": []
           }
         ],
-        "summary": "Your browser sessions",
+        "summary": "Where you are signed in: your browser sessions and apps",
         "tags": [
           "account"
         ]
@@ -48017,6 +48029,7 @@
     },
     "/v1/auth/sessions/{id}": {
       "delete": {
+        "description": "An app (its token family) is signed out at once: its refresh token stops working, its realtime connections end; an access token it holds lives until it expires (15 minutes).",
         "operationId": "SessionsController_revoke_v1",
         "parameters": [
           {
@@ -48044,7 +48057,7 @@
             "user-session": []
           }
         ],
-        "summary": "Sign one of your sessions out",
+        "summary": "Sign one of your sessions or apps out",
         "tags": [
           "account"
         ]

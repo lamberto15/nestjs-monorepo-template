@@ -4626,8 +4626,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Your browser sessions
-         * @description While an administrator acts as you: only that session.
+         * Where you are signed in: your browser sessions and apps
+         * @description Browsers first, then apps (token clients still signed in). `current`: the session or app of this request. While an administrator acts as you: only that session.
          */
         get: operations["SessionsController_list_v1"];
         put?: never;
@@ -4648,7 +4648,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Sign one of your sessions out */
+        /**
+         * Sign one of your sessions or apps out
+         * @description An app (its token family) is signed out at once: its refresh token stops working, its realtime connections end; an access token it holds lives until it expires (15 minutes).
+         */
         delete: operations["SessionsController_revoke_v1"];
         options?: never;
         head?: never;
@@ -29935,13 +29938,23 @@ export interface operations {
                 content: {
                     "application/json": {
                         items: {
+                            /** @description A browser session's id, or an app's (its token family's `sid`). */
                             id: string;
+                            /**
+                             * @description `browser`: a cookie session; `app`: a token client (POST /auth/token and the other token sign-ins).
+                             * @enum {string}
+                             */
+                            kind: "browser" | "app";
                             /** Format: date-time */
                             createdAt: string;
-                            /** Format: date-time */
+                            /**
+                             * Format: date-time
+                             * @description The last request (a browser's), or the last refresh (an app's).
+                             */
                             lastActiveAt: string;
+                            /** @description A browser's recorded user agent; null for an app. */
                             userAgent: string | null;
-                            /** @description A readable summary of the user agent ("Chrome on macOS"); null when none was recorded. */
+                            /** @description A readable summary of the user agent ("Chrome on macOS", "NestJSMobile on iOS"); null when none was recorded. */
                             device: string | null;
                             /**
                              * @description How it was signed in (`impersonation`: an administrator acting as you); null: before this was recorded.

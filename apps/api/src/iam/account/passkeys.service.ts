@@ -47,6 +47,7 @@ import { REDIS } from '../../core/redis/redis.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { methodMetadata, tokenClaims } from '../auth/authentication-method.js';
+import { deviceLabel } from './devices.js';
 import { SsoPolicyService } from '../sso/sso-policy.service.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { UsersRepository } from '../auth/users.repository.js';
@@ -662,7 +663,9 @@ export class PasskeysService {
     }
     const tokens = await this.tokens.issue(user.id, {
       method: 'passkey',
-      claims: tokenClaims(['pop'], new Date(), tenant),
+      claims: tokenClaims(['pop'], new Date(), tenant, {
+        device: deviceLabel(context.userAgent),
+      }),
       secondFactor,
     });
     await this.securityAlerts.signedIn(user, {

@@ -16,7 +16,20 @@ import {
   type TotpRecord,
 } from '@nestjs/authentication';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { and, desc, eq, gt, isNull, lt, lte, or, sql } from 'drizzle-orm';
+import {
+  and,
+  desc,
+  eq,
+  gt,
+  isNull,
+  lt,
+  lte,
+  min,
+  notExists,
+  or,
+  sql,
+} from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import {
   database,
   type DrizzleTransactions,
@@ -248,6 +261,70 @@ export class DrizzleAuthenticationStore
    * expire, and requests don't ask. A realtime handshake does (Realtime),
    * since a socket outlives the access token that opened it.
    */
+  /**
+   * The user's token families still signed in (the sessions list): each
+   * one's unspent token, neither revoked (no token of the family is) nor
+   * expired, with when the family began (its first token) and its claims.
+   */
+  async liveTokenFamilies(userId: string, now = new Date()) {
+    const first = this.db
+      .select({
+        familyId: refreshTokens.familyId,
+        startedAt: min(refreshTokens.createdAt).as('started_at'),
+      })
+      .from(refreshTokens)
+      .where(eq(refreshTokens.userId, userId))
+      .groupBy(refreshTokens.familyId)
+      .as('first');
+    const revoked = alias(refreshTokens, 'revoked_tokens');
+    return this.db
+      .select({
+        startedAt: first.startedAt,
+        lastRefreshAt: refreshTokens.createdAt,
+        claims: refreshTokens.claims,
+      })
+      .from(refreshTokens)
+      .innerJoin(first, eq(first.familyId, refreshTokens.familyId))
+      .where(
+        and(
+          eq(refreshTokens.userId, userId),
+          isNull(refreshTokens.usedAt),
+          gt(refreshTokens.expiresAt, now),
+          gt(refreshTokens.familyExpiresAt, now),
+          notExists(
+            this.db
+              .select({ id: revoked.id })
+              .from(revoked)
+              .where(
+                and(
+                  eq(revoked.familyId, refreshTokens.familyId),
+                  eq(revoked.revoked, true),
+                ),
+              ),
+          ),
+        ),
+      )
+      .orderBy(desc(refreshTokens.createdAt));
+  }
+
+  /**
+   * Signs out the user's token family whose tokens carry `sid` (a row of
+   * the sessions list); false when they have none (another user's, or
+   * unknown). Its sockets end with it.
+   */
+  async revokeTokenSession(userId: string, sid: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ familyId: refreshTokens.familyId })
+      .from(refreshTokens)
+      .where(and(eq(refreshTokens.userId, userId), eq(tokenSessionId, sid)))
+      .limit(1);
+    if (!row) {
+      return false;
+    }
+    await this.revokeRefreshTokenFamily(row.familyId);
+    return true;
+  }
+
   async isTokenSessionRevoked(userId: string, sid: string): Promise<boolean> {
     const revoked = await this.db
       .select({ id: refreshTokens.id })

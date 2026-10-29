@@ -17,7 +17,7 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
 | Forgot / reset password | `POST /v1/auth/password/forgot`, `POST /v1/auth/password/reset` |
 | Change password | `POST /v1/auth/password/change` (others signed out; [step-up](#step-up-recent-authentication)) |
 | Verify email | `POST /v1/auth/email/verify`, resend: `POST /v1/auth/email/verification` (signed in), `POST /v1/auth/email/verification/resend { email }` (no session) |
-| Sessions (each with how it was signed in, and its device) | `GET /v1/auth/sessions`, `DELETE /v1/auth/sessions/{id}`, `POST /v1/auth/sign-out-everywhere` |
+| Sessions and apps (each with how it was signed in, and its device: "Chrome on macOS", "NestJSMobile on iOS") | `GET /v1/auth/sessions` (browsers, `kind: browser`, then token clients still signed in, `kind: app`, `id` their family's `sid`), `DELETE /v1/auth/sessions/{id}` (either), `POST /v1/auth/sign-out-everywhere` |
 | Re-authenticate for a sensitive action | `GET /v1/auth/reauthenticate` (how, until when), `POST /v1/auth/reauthenticate`: see [Step-up](#step-up-recent-authentication) |
 | Two-factor (TOTP) | `GET /v1/auth/mfa` (status), `POST /v1/auth/mfa/enroll`, `/confirm` (recovery codes), `/verify` (sign-in), `/recovery-codes`, `DELETE /v1/auth/mfa` |
 | Magic link | `POST /v1/auth/magic-link`, `POST /v1/auth/magic-link/verify` |
