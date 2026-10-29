@@ -14,6 +14,7 @@ import {
 import { Throttle, minutes } from '@nestjs/throttler';
 import { z } from 'zod';
 import { AllowInMaintenance } from '../../core/http/maintenance.js';
+import { TenantSwitchService } from '../access/tenant-switch.service.js';
 import { SessionLifetime } from '../auth/session-lifetime.js';
 import { Captcha } from '../captcha/captcha.guard.js';
 import { CaptchaService } from '../captcha/captcha.service.js';
@@ -33,10 +34,20 @@ const issueSchema = z.object({
     .uuid()
     .optional()
     .describe(
-      'The tenant the tokens act in (one of GET /auth/tenants); left out: the last one chosen. To act in another, sign in again with it.',
+      'The tenant the tokens act in (one of GET /auth/tenants); left out: the last one chosen. To act in another, refresh with it.',
     ),
 });
-const refreshSchema = z.object({ refreshToken: z.string().min(1).max(512) });
+const refreshToken = z.string().min(1).max(512);
+const refreshSchema = z.object({
+  refreshToken,
+  tenantId: z
+    .uuid()
+    .optional()
+    .describe(
+      'Another of your tenants (GET /auth/tenants): the new pair, and the ones after it, act there. Not a member: 401, the refresh token unspent.',
+    ),
+});
+const revokeSchema = z.object({ refreshToken });
 const tokensSchema = z.object({
   accessToken: z.string().describe('A JWT: `Authorization: Bearer …`.'),
   refreshToken: z.string().describe('Single use: POST /auth/token/refresh.'),
@@ -67,6 +78,7 @@ export class TokensController {
     private readonly account: AccountService,
     private readonly captcha: CaptchaService,
     private readonly lifetime: SessionLifetime,
+    private readonly switcher: TenantSwitchService,
   ) {}
 
   @Throttle({ default: { limit: 5, ttl: minutes(15) } })
@@ -109,23 +121,30 @@ export class TokensController {
     }
   }
 
-  // An unknown, expired or reused refresh token gets a 401.
+  // An unknown, expired or reused refresh token gets a 401. With `tenantId`,
+  // the tenant switch of POST /auth/tenant, audited the same way.
   @Throttle({ default: { limit: 60, ttl: minutes(1) } })
   @Post('refresh')
   @HttpCode(200)
   @ApiOperation({
     summary: 'Renew the access token (rotates the refresh token)',
+    description:
+      'With `tenantId`, the new pair acts in that tenant, as POST /auth/tenant does for a session: realtime connections reconnect, and a step-up is asked again there.',
   })
   @ApiOkResponse({ standardSchema: tokensSchema })
   @ApiUnauthorizedResponse({
-    description: 'Unknown, expired or reused refresh token.',
+    description:
+      'Unknown, expired or reused refresh token; or `tenantId` not one of yours.',
   })
   async refresh(
     @Body({ schema: refreshSchema }) body: z.infer<typeof refreshSchema>,
+    @Ip() ip: string,
   ) {
     // A family past its tenant's session limits is refused (401) and revoked.
     await this.lifetime.assertRefreshable(body.refreshToken);
-    return this.tokens.refresh(body.refreshToken);
+    return body.tenantId
+      ? this.switcher.switchTokens(body.refreshToken, body.tenantId, ip)
+      : this.tokens.refresh(body.refreshToken);
   }
 
   @Post('revoke')
@@ -133,7 +152,7 @@ export class TokensController {
   @ApiOperation({ summary: "Sign this app out (its refresh token's family)" })
   @ApiNoContentResponse()
   async revoke(
-    @Body({ schema: refreshSchema }) body: z.infer<typeof refreshSchema>,
+    @Body({ schema: revokeSchema }) body: z.infer<typeof revokeSchema>,
   ) {
     // RFC 7009: the answer is the same for unknown tokens.
     await this.tokens.revoke(body.refreshToken);

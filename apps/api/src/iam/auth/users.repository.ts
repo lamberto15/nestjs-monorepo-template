@@ -5,7 +5,16 @@ import {
   type DrizzleTransactions,
 } from '../../core/database/transactions.js';
 import { createHash } from 'node:crypto';
-import { and, asc, eq, gt, isNotNull, type SQL, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  eq,
+  gt,
+  isNotNull,
+  isNull,
+  type SQL,
+  sql,
+} from 'drizzle-orm';
 import {
   afterCursor,
   countMatching,
@@ -331,10 +340,7 @@ export class UsersRepository {
         eq(sessions.userId, userId),
         sql`${sessions.metadata}->>'tenantId' = ${tenantId}`,
       ),
-      [
-        eq(refreshTokens.userId, userId),
-        sql`${refreshTokens.claims}->>'tid' = ${tenantId}`,
-      ],
+      [eq(refreshTokens.userId, userId), ...liveIn(tenantId)],
     );
     await this.afterCredentialsEnded(ended);
   }
@@ -411,7 +417,7 @@ export class UsersRepository {
     const ended = await this.endCredentials(
       db,
       sql`${sessions.metadata}->>'tenantId' = ${tenantId}`,
-      [sql`${refreshTokens.claims}->>'tid' = ${tenantId}`],
+      liveIn(tenantId),
     );
     await this.afterCredentialsEnded(ended);
   }
@@ -720,6 +726,16 @@ const toPrincipal = (row: Row): UserPrincipal => ({
 });
 
 /** Users who are members of `tenantId` (the `memberships` join's condition and the filter). */
+/**
+ * The token families acting in `tenantId` now: their unspent token's `tid`.
+ * A family switched to another tenant (POST /auth/token/refresh with
+ * `tenantId`) keeps spent tokens with the old one, which must not revoke it.
+ */
+const liveIn = (tenantId: string) => [
+  isNull(refreshTokens.usedAt),
+  sql`${refreshTokens.claims}->>'tid' = ${tenantId}`,
+];
+
 const memberJoin = (tenantId: string) =>
   and(eq(memberships.userId, users.id), eq(memberships.tenantId, tenantId));
 

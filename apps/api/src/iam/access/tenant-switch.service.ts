@@ -1,6 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { type SessionRecord, SessionService } from '@nestjs/authentication';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import {
+  type SessionRecord,
+  SessionService,
+  TokenService,
+} from '@nestjs/authentication';
+import { t } from '@nestjs/i18n';
 import { TransactionHost } from '@nestjs-cls/transactional';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   type DrizzleTransactions,
   inTransaction,
@@ -9,7 +19,9 @@ import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { tenantScope } from '../../core/tenancy/tenant-scope.js';
 import { notWhileImpersonating } from '../account/account.schemas.js';
 import { AuditService } from '../audit/audit.service.js';
+import { DrizzleAuthenticationStore } from '../auth/drizzle-authentication.store.js';
 import type { UserPrincipal } from '../auth/principal.js';
+import { SessionLifecycleRegistry } from '../auth/session-lifecycle.registry.js';
 import { UsersRepository } from '../auth/users.repository.js';
 
 /**
@@ -24,6 +36,9 @@ export class TenantSwitchService {
     private readonly sessions: SessionService,
     private readonly tenancy: Tenancy,
     private readonly audit: AuditService,
+    private readonly tokens: TokenService,
+    private readonly store: DrizzleAuthenticationStore,
+    private readonly sessionLifecycle: SessionLifecycleRegistry,
   ) {}
 
   /**
@@ -66,6 +81,64 @@ export class TenantSwitchService {
         message: 'You are not a member of this tenant.',
       });
     }
+    await this.choose(user, tenantId, ip);
+    // A new session id for the new tenant, as for any change of privilege.
+    // Without `authenticatedAt`: a step-up proven in one tenant doesn't
+    // authorize sensitive actions in another (#738); the new tenant asks
+    // again. The sign-in method and its factors stay.
+    const { authenticatedAt: _stepUp, ...metadata } = (session.metadata ??
+      {}) as Record<string, unknown>;
+    return this.sessions.rotate(session, {
+      metadata: { ...metadata, tenantId },
+    });
+  }
+
+  /**
+   * A token client's switch (POST /auth/token/refresh with `tenantId`):
+   * the refresh, whose pair acts in `tenantId` (`tid`), and the family with
+   * it from then on. Not a member (or the account gone): the token
+   * sign-in's 401, the refresh token unspent. Then as `switch()`: the choice
+   * and its audit entry first, a new `sid` (the session's new id) and no
+   * `auth_time` (the step-up, asked again in the new tenant; the method
+   * and factors, `amr`, stay); the old `sid`'s sockets reconnect. A token
+   * unknown or spent goes to the plain refresh, which refuses it (and
+   * revokes the family it was stolen from).
+   */
+  async switchTokens(refreshToken: string, tenantId: string, ip?: string) {
+    const record = await this.store.getRefreshToken(
+      createHash('sha256').update(refreshToken).digest('base64url'),
+    );
+    if (!record || record.usedAt) {
+      return this.tokens.refresh(refreshToken);
+    }
+    const user = await this.accounts.inTenant(record.userId, tenantId);
+    if (!user) {
+      throw new UnauthorizedException(t('auth.invalidCredentials'));
+    }
+    const from = record.claims?.tid;
+    await this.choose(
+      { ...user, tenantId: typeof from === 'string' ? from : null },
+      tenantId,
+      ip,
+    );
+    const oldSid = record.claims?.sid;
+    const pair = await this.tokens.refresh(refreshToken, {
+      claims: ({ auth_time: _stepUp, ...claims }) => ({
+        ...claims,
+        tid: tenantId,
+        sid: randomUUID(),
+      }),
+    });
+    if (typeof oldSid === 'string') {
+      // Not revoked (its access tokens live until they expire): its
+      // sockets, in the old tenant's rooms, end and reconnect.
+      await this.sessionLifecycle.afterTokenRevocation(oldSid);
+    }
+    return pair;
+  }
+
+  /** The next sign-in starts in `tenantId`, audited there (`from`: the user's tenant). */
+  private async choose(user: UserPrincipal, tenantId: string, ip?: string) {
     await this.tenancy.run(tenantScope(tenantId), () =>
       inTransaction(this.txHost, async (tx) => {
         await this.accounts.selectTenant(user.id, tenantId, tx);
@@ -82,14 +155,5 @@ export class TenantSwitchService {
         );
       }),
     );
-    // A new session id for the new tenant, as for any change of privilege.
-    // Without `authenticatedAt`: a step-up proven in one tenant doesn't
-    // authorize sensitive actions in another (#738); the new tenant asks
-    // again. The sign-in method and its factors stay.
-    const { authenticatedAt: _stepUp, ...metadata } = (session.metadata ??
-      {}) as Record<string, unknown>;
-    return this.sessions.rotate(session, {
-      metadata: { ...metadata, tenantId },
-    });
   }
 }

@@ -4878,7 +4878,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Renew the access token (rotates the refresh token) */
+        /**
+         * Renew the access token (rotates the refresh token)
+         * @description With `tenantId`, the new pair acts in that tenant, as POST /auth/tenant does for a session: realtime connections reconnect, and a step-up is asked again there.
+         */
         post: operations["TokensController_refresh_v1"];
         delete?: never;
         options?: never;
@@ -30279,7 +30282,7 @@ export interface operations {
                     recoveryCode?: string;
                     /**
                      * Format: uuid
-                     * @description The tenant the tokens act in (one of GET /auth/tenants); left out: the last one chosen. To act in another, sign in again with it.
+                     * @description The tenant the tokens act in (one of GET /auth/tenants); left out: the last one chosen. To act in another, refresh with it.
                      */
                     tenantId?: string;
                 };
@@ -30328,6 +30331,11 @@ export interface operations {
             content: {
                 "application/json": {
                     refreshToken: string;
+                    /**
+                     * Format: uuid
+                     * @description Another of your tenants (GET /auth/tenants): the new pair, and the ones after it, act there. Not a member: 401, the refresh token unspent.
+                     */
+                    tenantId?: string;
                 };
             };
         };
@@ -30347,7 +30355,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Unknown, expired or reused refresh token. */
+            /** @description Unknown, expired or reused refresh token; or `tenantId` not one of yours. */
             401: {
                 headers: {
                     [name: string]: unknown;

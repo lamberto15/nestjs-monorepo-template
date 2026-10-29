@@ -459,6 +459,54 @@ describe('tenancy (e2e)', () => {
       .expect(400);
   });
 
+  it('switches a token client’s tenant on refresh, and keeps it there', async () => {
+    const both = await memberOfBoth();
+    const http = () => node.http();
+    const signedIn = (
+      await http()
+        .post('/v1/auth/token')
+        .send({ email: both.email, password: both.password })
+        .expect(200)
+    ).body as { accessToken: string; refreshToken: string };
+    const tenantOf = async (accessToken: string) =>
+      (
+        await http()
+          .get('/v1/auth/me')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(200)
+      ).body.tenant.id as string;
+    expect(await tenantOf(signedIn.accessToken)).toBe(node.tenantId);
+
+    // Not a member: 401, and the refresh token is still unspent.
+    const outsider = await node.otherTenant();
+    await http()
+      .post('/v1/auth/token/refresh')
+      .send({ refreshToken: signedIn.refreshToken, tenantId: outsider.id })
+      .expect(401);
+
+    const switched = (
+      await http()
+        .post('/v1/auth/token/refresh')
+        .send({ refreshToken: signedIn.refreshToken, tenantId: other.id })
+        .expect(200)
+    ).body as { accessToken: string; refreshToken: string };
+    expect(await tenantOf(switched.accessToken)).toBe(other.id);
+
+    // Leaving the first tenant leaves the family, now in the other, alone.
+    await node
+      .admin()
+      .patch(`/v1/access/users/${both.id}`)
+      .send({ active: false })
+      .expect(204);
+    const next = (
+      await http()
+        .post('/v1/auth/token/refresh')
+        .send({ refreshToken: switched.refreshToken })
+        .expect(200)
+    ).body as { accessToken: string };
+    expect(await tenantOf(next.accessToken)).toBe(other.id);
+  });
+
   it('never replays one tenant’s idempotent response in another', async () => {
     const both = await memberOfBoth();
     const browser = await node.signIn(both.email, both.password);

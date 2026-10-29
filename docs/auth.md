@@ -23,7 +23,7 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
 | Magic link | `POST /v1/auth/magic-link`, `POST /v1/auth/magic-link/verify` |
 | Passkeys | `GET /v1/auth/passkeys`, `POST /v1/auth/passkeys/registration/options` → `POST /v1/auth/passkeys`, `PATCH`/`DELETE /v1/auth/passkeys/{id}`; sign in: `POST /v1/auth/passkeys/sign-in/options` → `/sign-in` (a browser) or `/token` (an app); see [Passkeys](#passkeys) |
 | Google, Microsoft, GitHub | `GET /v1/auth/oidc/{provider}/login` → `/callback`; linked: `GET /v1/auth/identities`, unlink: `DELETE /v1/auth/identities/{provider}` |
-| Mobile apps | `POST /v1/auth/token` (`tenantId`: the tenant the tokens act in), `/token/refresh`, `/token/revoke` |
+| Mobile apps | `POST /v1/auth/token` (`tenantId`: the tenant the tokens act in), `/token/refresh` (`tenantId`: move to another of your tenants), `/token/revoke` |
 | A tenant's own identity provider (SAML, OpenID Connect) | `POST /v1/auth/sso/discover { email }` → `loginUrl`, `GET /v1/auth/sso/{tenantId}/{connectionId}/login`; set up with `/v1/sso/…`, SCIM at `/v1/scim`: see [Enterprise SSO](#enterprise-sso) |
 | Your tenants, and acting in another | `GET /v1/auth/tenants`, `POST /v1/auth/tenant { tenantId }` (re-issues the session): [tenancy](tenancy.md) |
 

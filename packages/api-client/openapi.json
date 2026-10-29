@@ -48645,7 +48645,7 @@
                     "maxLength": 64
                   },
                   "tenantId": {
-                    "description": "The tenant the tokens act in (one of GET /auth/tenants); left out: the last one chosen. To act in another, sign in again with it.",
+                    "description": "The tenant the tokens act in (one of GET /auth/tenants); left out: the last one chosen. To act in another, refresh with it.",
                     "type": "string",
                     "format": "uuid",
                     "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
@@ -48707,6 +48707,7 @@
     },
     "/v1/auth/token/refresh": {
       "post": {
+        "description": "With `tenantId`, the new pair acts in that tenant, as POST /auth/tenant does for a session: realtime connections reconnect, and a step-up is asked again there.",
         "operationId": "TokensController_refresh_v1",
         "parameters": [],
         "requestBody": {
@@ -48720,6 +48721,12 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 512
+                  },
+                  "tenantId": {
+                    "description": "Another of your tenants (GET /auth/tenants): the new pair, and the ones after it, act there. Not a member: 401, the refresh token unspent.",
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                   }
                 },
                 "required": [
@@ -48763,7 +48770,7 @@
             }
           },
           "401": {
-            "description": "Unknown, expired or reused refresh token."
+            "description": "Unknown, expired or reused refresh token; or `tenantId` not one of yours."
           }
         },
         "summary": "Renew the access token (rotates the refresh token)",

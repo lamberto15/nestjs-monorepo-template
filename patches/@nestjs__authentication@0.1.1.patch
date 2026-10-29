@@ -1,3 +1,58 @@
+diff --git a/dist/jwt/token.service.d.ts b/dist/jwt/token.service.d.ts
+index 67a484f2c7d8df2f215d174f3a3ee00ce423296c..df0c9e387f80b66dd86f020a0d65df830d6eabcc 100644
+--- a/dist/jwt/token.service.d.ts
++++ b/dist/jwt/token.service.d.ts
+@@ -63,8 +63,15 @@ export declare class TokenService {
+      * the family's claims. Throws {@link RefreshTokenError} (`invalid`,
+      * `expired`, `reused`), which a route answers with 401. Throws without
+      * `accessToken`, and with `refreshToken: false`.
++     *
++     * Patched (lamberto15/nestjs-monorepo-template#954): `claims` maps the
++     * family's claims to the successor's, which the family keeps from then
++     * on; `amr` stays the family's.
+      */
+-    refresh(refreshToken: string): Promise<TokenPair>;
++    refresh(refreshToken: string, options?: {
++        claims?: (current: Record<string, unknown>) => Record<string, unknown>;
++    }): Promise<TokenPair>;
++    private successorClaims;
+     /** Two parties hold the token: the family is revoked, and the theft reported. */
+     private reused;
+     /**
+diff --git a/dist/jwt/token.service.js b/dist/jwt/token.service.js
+index 2da5c4937b1cba3378ad9f1204bd721c36da606c..21e507f593278fd38493ee368b3d1ac46d3268a9 100644
+--- a/dist/jwt/token.service.js
++++ b/dist/jwt/token.service.js
+@@ -112,7 +112,7 @@ let TokenService = TokenService_1 = class TokenService {
+      * `expired`, `reused`), which a route answers with 401. Throws without
+      * `accessToken`, and with `refreshToken: false`.
+      */
+-    async refresh(refreshToken) {
++    async refresh(refreshToken, { claims } = {}) {
+         const signer = this.requireSigner();
+         this.requireRefreshTokens('refresh');
+         if (typeof refreshToken !== 'string' || !TOKEN_PATTERN.test(refreshToken)) {
+@@ -136,12 +136,19 @@ let TokenService = TokenService_1 = class TokenService {
+         // The successor is saved before this token is spent: a store that fails in between leaves it
+         // unspent, so the client's retry is a retry, not a theft that signs the user out. If another
+         // request spent it first, revoking the family revokes this successor too.
+-        const next = await this.create(record.userId, record.familyId, record.familyExpiresAt, record.claims);
++        // Patched (lamberto15/nestjs-monorepo-template#954): `claims` rewrites the family's claims from this
++        // successor on (another tenant). `amr` stays the family's: only issue() knows what was verified.
++        const successorClaims = claims ? this.successorClaims(record.claims, claims) : record.claims;
++        const next = await this.create(record.userId, record.familyId, record.familyExpiresAt, successorClaims);
+         if (!(await store.markRefreshTokenUsed(record.id, now))) {
+             throw await this.reused(record);
+         }
+         return this.pair(signer, next.token, next.record);
+     }
++    successorClaims(current, claims) {
++        const { amr: _amr, ...next } = claims({ ...current });
++        return current?.amr ? { ...next, amr: current.amr } : next;
++    }
+     /** Two parties hold the token: the family is revoked, and the theft reported. */
+     async reused(record) {
+         await this.storage.refreshTokens.revokeRefreshTokenFamily(record.familyId);
 diff --git a/dist/testing/index.js b/dist/testing/index.js
 index d505578d5b1671fcf8765ca346474a1a19d58d00..5e8e7c87e13e89adab100fb9f70c0827bf4c10e6 100644
 --- a/dist/testing/index.js

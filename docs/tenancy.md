@@ -211,7 +211,11 @@ Built in the platform code, never at call sites (`tenantKey()`):
   the user's tenants; `POST /v1/auth/tenant { tenantId }` re-issues the session
   in another (a new cookie; realtime connections reconnect). Token clients ask
   for a tenant when they sign in (`POST /v1/auth/token { tenantId }`); the
-  tenant is the token family's `tid` claim.
+  tenant is the token family's `tid` claim. `POST /v1/auth/token/refresh
+  { refreshToken, tenantId }` moves the family to another (audited as the
+  session's switch; a new `sid`, so its sockets reconnect, and a step-up is
+  asked again there). Ending a membership revokes only the families acting
+  in that tenant now (their unspent token's `tid`).
 - **Invitations: the default way to add people** (sign-up, SSO and SCIM are
   the optional others: [identity](identity.md)). `POST /v1/access/users
   { email?, name?, roleIds, roleExpiresAt?, unitIds?, send? }` (202) stores an
