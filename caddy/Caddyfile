@@ -3,9 +3,19 @@
 	# No autosave.json in the caddy_config volume: the configuration (the
 	# Cloudflare token's placeholder with it) is this file, read at each start.
 	persist_config off
+	# Tenants' custom domains (CUSTOM_DOMAINS, docs/branding.md, "Custom
+	# domains"): the site at the end gets a hostname's certificate when it is
+	# first reached (HTTP-01 or TLS-ALPN-01), only once the API says the
+	# hostname is a verified domain of an active tenant; else the handshake
+	# fails and nothing is issued. Caddy appends ?domain=<hostname>.
+	on_demand_tls {
+		ask http://api:3000/v1/internal/domains/allowed
+	}
 }
 
-{$APP_DOMAIN} {
+# What every site serves: the API's paths and the web app. Imported by the
+# app's own domain and by the tenants' custom domains below.
+(app) {
 	# Prometheus scrapes /metrics inside the Compose network (api:3000): never from outside.
 	# Path matchers ignore case (/METRICS too) and /metrics* covers /metrics/ as well.
 	# A handle of its own: the web app's catch-all below would answer it otherwise.
@@ -13,10 +23,10 @@
 		respond 404
 	}
 
-	tls {
-		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
-		# check TXT propagation via public DNS, not the private network resolver
-		resolvers 1.1.1.1 1.0.0.1
+	# The edge's own questions to the API (the custom domains' TLS ask): asked
+	# on the private network (api:3000), never from outside.
+	handle /v1/internal/* {
+		respond 404
 	}
 
 	# RFC 9116 security.txt: a static file, written at each start by
@@ -166,4 +176,31 @@
 			file_server
 		}
 	}
+}
+
+{$APP_DOMAIN} {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+		# check TXT propagation via public DNS, not the private network resolver
+		resolvers 1.1.1.1 1.0.0.1
+	}
+	import app
+}
+
+# Tenants' custom domains: any other hostname, its certificate on demand
+# (the global on_demand_tls above). Each request asks the API again first, so
+# a domain removed or suspended stops at once, though its certificate is
+# still cached: the API answers 200 for a verified domain, else 404, which is
+# returned as it is. CUSTOM_DOMAINS=off: every answer is 404, nothing is issued.
+https:// {
+	tls {
+		on_demand
+	}
+	forward_auth api:3000 {
+		uri /v1/internal/domains/allowed?domain={host}
+		# A deploy recreates the replicas: hold the request as @api does.
+		lb_try_duration 30s
+		lb_try_interval 250ms
+	}
+	import app
 }

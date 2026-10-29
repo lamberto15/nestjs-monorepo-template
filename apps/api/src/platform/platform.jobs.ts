@@ -269,6 +269,15 @@ export const ATTACHMENT_TEXT_JOB = defineSystemJob({
   permissions: [],
 });
 
+/** BrandingDomainsProcessor and the nightly check: the DNS TXT record of each custom domain. */
+export const CUSTOM_DOMAINS_JOB = defineSystemJob({
+  key: 'custom-domains',
+  label: 'Custom domain checks',
+  description:
+    "Looks up the DNS TXT record of a tenant's custom domains when asked and every night, and stops routing a domain whose record is gone.",
+  permissions: [],
+});
+
 export const PLATFORM_SYSTEM_JOBS = [
   ACCOUNT_DELETION_JOB,
   USAGE_ROLLUP_JOB,
@@ -297,4 +306,5 @@ export const PLATFORM_SYSTEM_JOBS = [
   MESSAGING_JOB,
   MESSAGING_INBOUND_JOB,
   MESSAGING_RETENTION_JOB,
+  CUSTOM_DOMAINS_JOB,
 ];

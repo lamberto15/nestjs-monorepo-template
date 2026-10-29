@@ -381,6 +381,52 @@ even with no secret moved: their environment, secrets, command or image
 change. That is a few seconds without the database, Redis and HTTPS, so
 deploy in a quiet moment.
 
+### Custom domains (on-demand TLS)
+
+With `CUSTOM_DOMAINS=on` ([branding](branding.md#custom-domains)), a tenant
+adds a hostname of its own (`tenant.example.com` here: a placeholder; real
+hostnames never go in the repository), points it at the deployment with a
+CNAME to `APP_DOMAIN`, and proves it with a TXT record. Caddy serves it from
+the Caddyfile's last site, `https://`, every hostname `APP_DOMAIN` isn't:
+
+- **Certificates on demand.** The first TLS handshake for a hostname asks
+  the API (the global `on_demand_tls`, `ask
+  http://api:3000/v1/internal/domains/allowed?domain=<hostname>`): 200 for a
+  verified domain of an active tenant, else 404 and the handshake fails, so
+  nobody can make Caddy request certificates for names of their choosing.
+  The certificate comes by HTTP-01 or TLS-ALPN-01 (the tenant's zone is not
+  in your Cloudflare account): ports 80 and 443 must reach Caddy. Caddy keeps
+  them in its `caddy_data` volume with the app's own, and renews them,
+  asking the API again; the ACME CA's rate limits apply per hostname.
+- **Checked per request.** The site's `forward_auth` asks the API the same
+  question before every request, so a domain removed or suspended (its TXT
+  record gone, the nightly check) stops serving at once, though its
+  certificate is still cached: Caddy answers the API's 404 as it is.
+- **Rate limited.** The API counts the question per address (600 a minute,
+  then 429, which fails the handshake or the request): the TLS asks against
+  Caddy's address, the per-request checks against the visitor's. Unknown
+  hostnames are remembered for 30 s, so a flood of made-up names (TLS
+  handshakes with random SNI) reads the database at most that often per
+  name, and never more than the limit allows.
+- **The question stays inside.** `/v1/internal/*` answers 404 on every site
+  from outside; Caddy reaches the API on the Compose network. The answer only
+  says whether a hostname is a verified custom domain, which its TXT record
+  and its pages already say.
+- **Off** (the default): the API answers 404 to every hostname; no
+  certificate is ever issued for anything but `APP_DOMAIN`.
+
+The Helm chart has no on-demand edge: its Ingress serves the hostnames the
+operators list in `customDomains.hosts` (`customDomains.enabled: true` sets
+`CUSTOM_DOMAINS=on`), with one certificate, `customDomains.tlsSecretName`,
+from a cert-manager issuer that can solve those zones (HTTP-01; a
+`dnsZones`-scoped DNS-01 solver stays for the app's own domain). List a
+hostname once `GET /v1/branding/domains` says it is verified. A domain
+removed or suspended stops at once in the API (no tenant, no brand, no
+session pinned to it); take it out of `customDomains.hosts` as well, or the
+web app's shell stays on it, unbranded. On k3s behind the Cloudflare Tunnel
+(docs/deploy-k3s.md), a tenant's hostname reaches the tunnel only as a
+Cloudflare for SaaS custom hostname, which this repository doesn't set up.
+
 ### Gotenberg (PDF documents)
 
 The workers render [documents](documents.md) with

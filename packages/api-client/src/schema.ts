@@ -1806,6 +1806,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/branding/domains": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The tenant's custom domains and their verification
+         * @description `enabled`: whether this deployment serves custom domains (CUSTOM_DOMAINS); off, adding and verifying answer 404 `custom_domains_off`.
+         */
+        get: operations["BrandingDomainsController_list_v1"];
+        put?: never;
+        /**
+         * Add a custom domain: publish its `record`, then verify
+         * @description A public hostname (no IP, port or path; not the app's own domain or one under it; an internationalized name is stored in punycode). Point it at the app (a CNAME) and publish the TXT `record`. Audited (`branding.domain-added`). 409 `branding_locked` while the operators lock the branding.
+         */
+        post: operations["BrandingDomainsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/domains/{id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Look the TXT record up (on the queue): `verified` once found
+         * @description The domain routes to the tenant while its record resolves: checked again every night, a record gone stops it. 409 `branding_locked` while locked.
+         */
+        post: operations["BrandingDomainsController_verify_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/domains/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a custom domain: it stops routing at once
+         * @description No brand, no session and no new certificate on that host from then on. Audited (`branding.domain-removed`). Allowed while the branding is locked.
+         */
+        delete: operations["BrandingDomainsController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/host": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The brand of the host you reached the app on
+         * @description No sign-in needed. On a tenant's verified custom domain, its colours, sender name and logos; on any other host (the app's own, an unknown one, a domain removed), every field null. Never names the tenant otherwise. Not cached: a removed domain stops at once.
+         */
+        get: operations["HostBrandingController_host_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/subscriptions": {
         parameters: {
             query?: never;
@@ -15775,6 +15859,231 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    BrandingDomainsController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Whether this deployment serves custom domains (CUSTOM_DOMAINS). */
+                        enabled: boolean;
+                        domains: {
+                            /** Format: uuid */
+                            id: string;
+                            /** @description Lower case, ASCII (punycode). */
+                            hostname: string;
+                            /** @description Its TXT record was found at the last check: the host routes to the tenant. */
+                            verified: boolean;
+                            /** Format: date-time */
+                            verifiedAt: string | null;
+                            /** Format: date-time */
+                            lastCheckedAt: string | null;
+                            lastError: string | null;
+                            /** @description The DNS record that proves the domain is the tenant’s; keep it published. */
+                            record: {
+                                /** @enum {string} */
+                                type: "TXT";
+                                name: string;
+                                value: string;
+                            };
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    BrandingDomainsController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description A hostname such as app.example.com: no scheme, port or path; an internationalized name is stored in punycode. */
+                    hostname: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @description Lower case, ASCII (punycode). */
+                        hostname: string;
+                        /** @description Its TXT record was found at the last check: the host routes to the tenant. */
+                        verified: boolean;
+                        /** Format: date-time */
+                        verifiedAt: string | null;
+                        /** Format: date-time */
+                        lastCheckedAt: string | null;
+                        lastError: string | null;
+                        /** @description The DNS record that proves the domain is the tenant’s; keep it published. */
+                        record: {
+                            /** @enum {string} */
+                            type: "TXT";
+                            name: string;
+                            value: string;
+                        };
+                        /** Format: date-time */
+                        createdAt: string;
+                    };
+                };
+            };
+            /** @description `invalid_hostname`. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `custom_domains_off`. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `domain_exists`, `branding_locked`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingDomainsController_verify_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        accepted: true;
+                    };
+                };
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `branding_locked`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingDomainsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HostBrandingController_host_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description `#rrggbb`, or null: the default theme. */
+                        primaryColor: string | null;
+                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
+                        darkPrimaryColor: string | null;
+                        /** @description The name mail is sent under, or null: the deployment’s. */
+                        mailFromName: string | null;
+                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
+                        logoUrl: string | null;
+                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
+                        darkLogoUrl: string | null;
+                    };
+                };
             };
         };
     };

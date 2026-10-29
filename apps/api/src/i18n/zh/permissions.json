@@ -19,6 +19,7 @@
       "manageTenants": "创建租户（部署的运营者：仅在运营者租户中）",
       "impersonate": "以其他用户身份操作（支持），绝不以管理员身份",
       "manageSso": "设置租户的单点登录：SAML 和 OpenID Connect 连接、已验证的电子邮件域",
+      "manageDomains": "添加、验证和移除租户的自定义域名：提供应用服务的租户自有主机名（platform/branding）",
       "provisionScim": "通过 SCIM 2.0 预配用户和组（API 客户端：身份提供方的 SCIM 令牌）"
     }
   },
@@ -255,6 +256,10 @@
     "messaging-retention": {
       "label": "消息数据保留",
       "description": "每晚移除超过 DEVICES_RETENTION_DAYS 未出现的设备，以及过往日期的防盗打计数器。"
+    },
+    "custom-domains": {
+      "label": "自定义域名检查",
+      "description": "按需并每晚查询租户自定义域名的 DNS TXT 记录，记录消失的域名将停止路由。"
     },
     "demo-seed": {
       "label": "演示数据",

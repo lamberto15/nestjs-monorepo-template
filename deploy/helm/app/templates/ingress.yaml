@@ -34,14 +34,27 @@ spec:
   {{- with $.Values.ingress.className }}
   ingressClassName: {{ . }}
   {{- end }}
-  {{- if $.Values.ingress.tlsSecretName }}
+  {{- /* The app's domain, then the tenants' verified custom domains (customDomains). */}}
+  {{- $custom := ternary $.Values.customDomains.hosts (list) $.Values.customDomains.enabled }}
+  {{- $hosts := prepend $custom (required "set domain" $.Values.domain) }}
+  {{- if or $.Values.ingress.tlsSecretName (and $custom $.Values.customDomains.tlsSecretName) }}
   tls:
+    {{- if $.Values.ingress.tlsSecretName }}
     - hosts:
-        - {{ required "set domain" $.Values.domain | quote }}
+        - {{ $.Values.domain | quote }}
       secretName: {{ $.Values.ingress.tlsSecretName }}
+    {{- end }}
+    {{- if and $custom $.Values.customDomains.tlsSecretName }}
+    - hosts:
+        {{- range $custom }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ $.Values.customDomains.tlsSecretName }}
+    {{- end }}
   {{- end }}
   rules:
-    - host: {{ required "set domain" $.Values.domain | quote }}
+    {{- range $host := $hosts }}
+    - host: {{ $host | quote }}
       http:
         paths:
           {{- range $.Values.ingress.apiPaths }}
@@ -64,5 +77,6 @@ spec:
                 port:
                   number: 80
           {{- end }}
+    {{- end }}
 {{- end }}
 {{- end }}

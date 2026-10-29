@@ -54,6 +54,7 @@ app.kubernetes.io/component: {{ .component }}
 {{- $ctx := .ctx -}}
 {{- $env := mergeOverwrite (dict) $ctx.Values.env .extra -}}
 {{- $_ := set $env "APP_URL" (printf "%s://%s" $ctx.Values.scheme (required "set domain (the public host)" $ctx.Values.domain)) -}}
+{{- if $ctx.Values.customDomains.enabled }}{{ $_ := set $env "CUSTOM_DOMAINS" "on" }}{{ end -}}
 {{- if $ctx.Values.redisUrl }}{{ $_ := set $env "REDIS_URL" $ctx.Values.redisUrl }}{{ end -}}
 {{- if $ctx.Values.gotenberg.enabled }}{{ $_ := set $env "GOTENBERG_URL" (printf "http://%s-gotenberg:3000" (include "app.fullname" $ctx)) }}{{ end -}}
 {{- range $k, $v := $env }}

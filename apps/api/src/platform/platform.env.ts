@@ -37,6 +37,12 @@ export const platformEnv = z.object({
   WEBHOOKS_ENCRYPTION_KEYS: secret(optional()),
   /** Lets webhook endpoints be http://127.0.0.1 (development, tests). */
   WEBHOOKS_ALLOW_LOOPBACK: flag('off'),
+  /**
+   * Tenants may add custom domains of their own (docs/branding.md, "Custom
+   * domains"): the edge must serve them (Caddy's on-demand TLS, its `ask`
+   * answered by the API). Off: the routes answer 404 and every host is the app's.
+   */
+  CUSTOM_DOMAINS: flag('off'),
   /** Background workers: off in tests, which drive them with runOnce(). */
   OUTBOX_RELAY: flag('on'),
   WEBHOOKS_WORKER: flag('on'),
