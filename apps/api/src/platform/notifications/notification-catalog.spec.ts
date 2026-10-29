@@ -1,4 +1,8 @@
+import type { I18nService } from '@nestjs/i18n';
 import { z } from 'zod';
+import type { PlatformOptions } from '../platform.options.js';
+import { NotificationCatalog } from './notification-catalog.js';
+import type { NotificationChannelRegistry } from './notification-channel.registry.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import {
   effectiveSettings,
@@ -134,5 +138,52 @@ describe('preferencesSchema', () => {
     expect(
       forUser.safeParse({ 'approval.cancelled': { email: 'daily' } }).success,
     ).toBe(true);
+  });
+});
+
+describe('NotificationCatalog bulk summaries (#618)', () => {
+  const i18n = {
+    defaultLocale: 'en',
+    exists: (key: string) => !key.includes('missing'),
+    translate: (key: string, { args }: { args?: Record<string, unknown> }) =>
+      `${key} ${String(args?.count)} ${String(args?.titles ?? args?.title)}`,
+  } as unknown as I18nService;
+  const registry = {
+    get: () => email,
+    all: () => channels,
+  } as unknown as NotificationChannelRegistry;
+  const catalog = (declaration: Record<string, unknown>) =>
+    new NotificationCatalog(
+      { notifications: [declaration] } as unknown as PlatformOptions,
+      registry,
+      i18n,
+    );
+
+  it("renders a summary with the type's bulk texts, the record count and the first titles", () => {
+    const bulky = catalog({ type: 'note.published', bulk: 'digest' });
+    expect(
+      bulky.render('note.published', { bulk: true, titles: ['A', 'B'] }, 21),
+    ).toEqual({
+      title: 'notifications.note.published.bulk.title 21 A, B',
+      body: 'notifications.note.published.bulk.body 21 A, B',
+    });
+    // One note's notification: the usual texts.
+    expect(
+      bulky.render('note.published', { noteId: 'n', title: 'A' }, 1).title,
+    ).toBe('notifications.note.published.title 1 A');
+  });
+
+  it('refuses to start without the bulk texts in the English catalog', () => {
+    expect(() =>
+      catalog({
+        type: 'missing.type',
+        bulk: 'digest',
+      }).onApplicationBootstrap(),
+    ).toThrow(/notifications\.missing\.type\.label/);
+    const declared = catalog({ type: 'note.published', bulk: 'digest' });
+    i18n.exists = (key: string) => !key.endsWith('.bulk.body');
+    expect(() => declared.onApplicationBootstrap()).toThrow(
+      /notifications\.note\.published\.bulk\.body/,
+    );
   });
 });
