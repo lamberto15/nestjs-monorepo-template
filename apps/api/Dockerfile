@@ -16,7 +16,9 @@ FROM base AS build
 # can be pruned while the layer stays cached, and the offline install below
 # would then find an empty store (ERR_PNPM_NO_OFFLINE_TARBALL, #480).
 # pnpm-workspace.yaml: which dependencies may run install scripts (allowBuilds)
+# patches/: the pnpm patches pnpm-workspace.yaml's patchedDependencies names.
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches patches
 # CI=true here and in the install: lefthook's postinstall leaves git hooks
 # alone (the image has neither .git nor git).
 RUN CI=true pnpm fetch --store-dir /pnpm-store

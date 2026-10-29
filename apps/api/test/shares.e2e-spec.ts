@@ -74,7 +74,10 @@ describe('shares: read-only links to a record (e2e)', () => {
     expect(
       entries.map((entry) => entry.action).sort((a, b) => a.localeCompare(b)),
     ).toEqual(['share.created', 'share.opened', 'share.revoked']);
-    expect(JSON.stringify(entries)).not.toContain(token.split('_')[2]);
+    // The secret is everything after the id: it may hold `_` itself.
+    expect(JSON.stringify(entries)).not.toContain(
+      token.split('_').slice(2).join('_'),
+    );
   });
 
   it('refuses fields, expiries and sharers it should, and ends with its record or its maker', async () => {

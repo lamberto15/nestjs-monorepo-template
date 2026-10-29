@@ -1452,6 +1452,86 @@ describe('the panels on a record', () => {
     expect(asked[0]?.get('limit')).toBe('10');
   });
 
+  it('lists the likely duplicates and merges one, taking the values ticked', async () => {
+    usePanelsApi({ capabilities: { merge: true } });
+    const merged: unknown[] = [];
+    server.use(
+      http.get(`/v1/test-items/${ID}/duplicates`, () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: 'd1',
+              matched: [['title']],
+              record: { id: 'd1', title: 'Acme' },
+            },
+          ],
+        }),
+      ),
+      http.post(`/v1/test-items/${ID}/merge/preview`, () =>
+        HttpResponse.json({
+          survivor: { title: 'Acme', body: 'Old' },
+          duplicate: { title: 'Acme', body: 'New' },
+          fields: [
+            {
+              name: 'title',
+              survivor: 'Acme',
+              duplicate: 'Acme',
+              differs: false,
+              keep: 'survivor',
+            },
+            {
+              name: 'body',
+              survivor: 'Old',
+              duplicate: 'New',
+              differs: true,
+              keep: 'survivor',
+            },
+          ],
+          result: { title: 'Acme', body: 'Old' },
+          moves: {
+            tags: 1,
+            comments: 2,
+            attachments: 0,
+            watchers: 1,
+            references: [{ subject: 'TestItem', field: 'parentId', count: 3 }],
+          },
+        }),
+      ),
+      http.post(`/v1/test-items/${ID}/merge`, async ({ request }) => {
+        merged.push(await request.json());
+        return HttpResponse.json({ id: ID, title: 'Acme', body: 'New' });
+      }),
+    );
+    await mountPanels(ALL);
+    await open('Duplicates');
+    expect(await screen.findByText('Acme')).toBeVisible();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Merge into this record' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      await within(dialog).findByText(
+        'Moves here: 1 tags, 2 comments, 0 attachments, 3 references.',
+      ),
+    ).toBeVisible();
+    // Only the fields that differ are offered.
+    await userEvent.click(
+      within(dialog).getByRole('checkbox', {
+        name: 'body: “New” instead of “Old”',
+      }),
+    );
+    expect(within(dialog).queryByText(/^title:/)).toBeNull();
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Merge' }),
+    );
+    expect(
+      await findToast('Merged: the duplicate is in the recycle bin.'),
+    ).toBeVisible();
+    expect(merged).toEqual([
+      { duplicateId: 'd1', fields: { body: 'duplicate' } },
+    ]);
+  });
+
   it('shows nothing to a user who may not read the record', async () => {
     const calls = usePanelsApi();
     await mountPanels([]);

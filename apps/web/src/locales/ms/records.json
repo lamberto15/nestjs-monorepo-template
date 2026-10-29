@@ -111,5 +111,20 @@
     "searching": "Mencari…",
     "none": "Tiada padanan yang anda boleh baca.",
     "failed": "Rekod tidak dapat dicari."
+  },
+  "duplicates": {
+    "title": "Pendua",
+    "empty": "Tiada kemungkinan pendua.",
+    "error": "Pendua tidak dapat dimuatkan.",
+    "matched": "(sama: {{fields}})",
+    "merge": "Gabungkan ke dalam rekod ini",
+    "description": "“{{name}}” digabungkan ke dalam rekod ini dan masuk ke tong kitar semula. Tag, ulasan, lampiran dan rekod yang merujuknya berpindah ke sini.",
+    "same": "Kedua-dua rekod mempunyai nilai yang sama: nilai rekod ini dikekalkan.",
+    "choose": "Ambil nilai pendua untuk",
+    "take": "{{field}}: “{{value}}” dan bukan “{{current}}”",
+    "moves": "Berpindah ke sini: {{tags}} tag, {{comments}} ulasan, {{attachments}} lampiran, {{references}} rujukan.",
+    "confirm": "Gabungkan",
+    "merged": "Digabungkan: pendua berada dalam tong kitar semula.",
+    "warning": "Ini mungkin sudah wujud:"
   }
 }

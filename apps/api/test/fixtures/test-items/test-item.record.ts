@@ -3,6 +3,7 @@ import {
   defineRecord,
   recordTableOf,
 } from '../../../src/platform/records/record.js';
+import { computed } from '../../../src/platform/records/record-computed.js';
 import { recordSetting } from '../../../src/platform/records/record-settings.js';
 
 /**
@@ -53,6 +54,13 @@ export const TEST_ITEM = defineRecord({
       .optional()
       .onDelete('keep'),
   },
+  // Computed on read (platform/records/record-computed.ts): `summary` reads
+  // `body`, which a field-level permission can hide, so it hides with it.
+  computed: {
+    titleLength: computed.int('length(title)'),
+    summary: computed.string("concat(title, ': ', coalesce(body, ''))"),
+    published: computed.bool('publishedAt != null'),
+  },
   capabilities: [
     'tags',
     'comments',
@@ -67,5 +75,6 @@ export const TEST_ITEM = defineRecord({
     'events',
     'numbered',
     'share',
+    'merge',
   ],
 });

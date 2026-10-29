@@ -17,18 +17,10 @@ export const NOTE_EVENTS = defineDomainEvents([
     webhook: true,
     notification: {
       channels: { email: 'immediate', webhook: true },
+      // An import group's publication, past BULK_THRESHOLD notes: one
+      // summary per person, mailed in a digest (#618, docs/notifications.md).
+      bulk: 'digest',
       data: z.object({ noteId: z.uuid(), title: z.string() }),
-    },
-  },
-  {
-    // A bulk publication (an import group's, past BULK_PUBLICATION notes):
-    // one notification per person instead of one per note, counted up, in
-    // the daily mail by default (#618). `notes`: how many of theirs.
-    type: 'note.publishedMany',
-    notification: {
-      channels: { email: 'daily', webhook: true },
-      collapse: true,
-      data: z.object({ notes: z.number().int().positive(), title: z.string() }),
     },
   },
   {

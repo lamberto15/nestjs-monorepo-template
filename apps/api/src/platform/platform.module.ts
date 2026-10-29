@@ -60,6 +60,7 @@ import { WebhookEndpointsController } from './webhooks/webhook-endpoints.control
 import { WebhookEventTypesController } from './webhooks/webhook-event-types.controller.js';
 import { ClientWebhooksController } from './webhooks/client-webhooks.controller.js';
 import { WebhookManagementService } from './webhooks/webhook-management.service.js';
+import { RecordWebhooks } from './webhooks/record-webhooks.service.js';
 import { IncomingEventHandlers } from './webhooks/incoming-event-handlers.js';
 import { IncomingSendersController } from './webhooks/incoming-senders.controller.js';
 import { IncomingEventTypesController } from './webhooks/incoming-event-types.controller.js';
@@ -246,6 +247,16 @@ import { ImportMappingsController } from './data-transfer/import-mappings.contro
 import { ImportMappingsService } from './data-transfer/import-mappings.service.js';
 import { FavoritesController } from './favorites/favorites.controller.js';
 import { FavoritesService } from './favorites/favorites.service.js';
+import { InboxController } from './inbox/inbox.controller.js';
+import { InboxRegistry } from './inbox/inbox.registry.js';
+import { InboxService } from './inbox/inbox.service.js';
+import { ApprovalInboxSource } from './approvals/approval.inbox.js';
+import { MentionInboxSource } from './comments/mention.inbox.js';
+import { PresenceController } from './presence/presence.controller.js';
+import { PresenceService } from './presence/presence.service.js';
+import { RecentsController } from './recents/recents.controller.js';
+import { RecentsRetentionJob } from './recents/recents-retention.job.js';
+import { RecentsService } from './recents/recents.service.js';
 import { SharedController } from './shares/shared.controller.js';
 import { ShareCodeMail } from './shares/share.mails.js';
 import { SharesRegistry } from './shares/shares.registry.js';
@@ -535,6 +546,9 @@ export class PlatformModule {
         TemplatesController,
         ChoicesController,
         FavoritesController,
+        RecentsController,
+        PresenceController,
+        InboxController,
         // Runtime forms (docs/forms.md): off per tenant until `forms.enabled`.
         FormsController,
         FormSubmissionsController,
@@ -628,6 +642,8 @@ export class PlatformModule {
         },
         // Both doors to a client's webhooks: its own routes and an administrator's.
         WebhookManagementService,
+        // Who receives a record's webhook (its owner, the tenant-scope clients that may read it).
+        RecordWebhooks,
         // A tenant's incoming webhook senders; features register the events they handle.
         IncomingSendersService,
         IncomingEventHandlers,
@@ -829,6 +845,16 @@ export class PlatformModule {
         ChoicesBuiltins,
         // Favorites: a person's pinned records, pages and saved views, in their order.
         FavoritesService,
+        // Recently opened records: a person's bounded, expiring history.
+        RecentsService,
+        // Record presence: who is viewing or editing a record, ephemeral and advisory.
+        PresenceService,
+        // The work inbox: sources (approvals, mentions) register, one list merges them.
+        InboxRegistry,
+        InboxService,
+        ApprovalInboxSource,
+        MentionInboxSource,
+        RecentsRetentionJob,
         // Runtime forms: definitions, published versions, submissions.
         FormPolicy,
         FormsService,
@@ -967,6 +993,7 @@ export class PlatformModule {
         BrandingService,
         MailEventIntakeRegistry,
         IncomingEventHandlers,
+        RecordWebhooks,
       ],
     };
   }

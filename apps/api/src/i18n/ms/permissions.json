@@ -177,6 +177,10 @@
       "label": "Penyimpanan pemberitahuan",
       "description": "Memadam pemberitahuan yang telah dibaca selepas NOTIFICATIONS_RETENTION_DAYS dan mana-mana selepas NOTIFICATIONS_MAX_AGE_DAYS, setiap malam."
     },
+    "recents-retention": {
+      "label": "Pengekalan rekod yang baru dibuka",
+      "description": "Memadam rekod yang baru dibuka yang lebih lama daripada 30 hari, setiap malam."
+    },
     "notification-digests": {
       "label": "Ringkasan pemberitahuan",
       "description": "Menghantar ringkasan pemberitahuan yang tiba masanya melalui mel, setiap jam."

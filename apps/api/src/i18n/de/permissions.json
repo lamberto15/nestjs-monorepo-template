@@ -177,6 +177,10 @@
       "label": "Aufbewahrung der Benachrichtigungen",
       "description": "Löscht jede Nacht gelesene Benachrichtigungen nach NOTIFICATIONS_RETENTION_DAYS und alle nach NOTIFICATIONS_MAX_AGE_DAYS."
     },
+    "recents-retention": {
+      "label": "Aufbewahrung der zuletzt geöffneten Datensätze",
+      "description": "Löscht jede Nacht zuletzt geöffnete Datensätze, die älter als 30 Tage sind."
+    },
     "notification-digests": {
       "label": "Benachrichtigungszusammenfassungen",
       "description": "Versendet stündlich die fälligen Zusammenfassungen von Benachrichtigungen."

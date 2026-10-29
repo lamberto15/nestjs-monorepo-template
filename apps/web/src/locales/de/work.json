@@ -1,0 +1,31 @@
+{
+  "nav": {
+    "title": "Meine Aufgaben"
+  },
+  "page": {
+    "title": "Meine Aufgaben",
+    "description": "Was in diesem Arbeitsbereich auf Sie wartet.",
+    "empty": "Es wartet nichts auf Sie.",
+    "more": "Mehr anzeigen"
+  },
+  "kind": {
+    "approval.decide": "Zu genehmigen",
+    "approval.revise": "Änderungen angefordert",
+    "mention": "Erwähnung"
+  },
+  "item": {
+    "approval": "Angefragt von {{requester}}",
+    "mention": "{{by}} hat Sie erwähnt",
+    "due": "fällig {{date}}",
+    "dismiss": "Ausblenden"
+  },
+  "recents": {
+    "group": "Zuletzt geöffnet",
+    "clear": "Verlauf löschen"
+  },
+  "presence": {
+    "viewing": "{{name}} sieht sich das an",
+    "editing": "{{name}} bearbeitet",
+    "warning": "Jemand bearbeitet diesen Datensatz. Ihr Speichern wird weiterhin gegen die neueste Version geprüft."
+  }
+}

@@ -6,14 +6,13 @@
       "body": {
         "one": "\"{title}\" is now published.",
         "other": "{count} of your notes were published; the latest is \"{title}\"."
-      }
-    },
-    "publishedMany": {
-      "label": "Notes published in bulk",
-      "title": "Notes published",
-      "body": {
-        "one": "{notes} notes were published, \"{title}\" among them.",
-        "other": "{count} batches of notes were published; the latest had {notes}, \"{title}\" among them."
+      },
+      "bulk": {
+        "title": "Notes published",
+        "body": {
+          "one": "A note was published: {titles}.",
+          "other": "{count} notes were published, among them {titles}."
+        }
       }
     },
     "deleted": {

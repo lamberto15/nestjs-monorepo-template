@@ -82,6 +82,29 @@ export const handlers = [
   http.get('/v1/settings', () => HttpResponse.json({ items: [] })),
   // The sidebar's favorites, asked on every signed-in page: none, unless a test says so.
   http.get('/v1/favorites', () => HttpResponse.json({ items: [] })),
+  // The work surfaces (docs/work-surfaces.md), asked on every signed-in page
+  // and record: an empty inbox and history, nobody else on the record.
+  http.get('/v1/inbox', () =>
+    HttpResponse.json({ items: [], nextCursor: null }),
+  ),
+  http.get('/v1/recents', () => HttpResponse.json({ items: [] })),
+  http.post('/v1/recents', async ({ request }) =>
+    HttpResponse.json({
+      id: '0199a3f2-0000-7000-8000-00000000f001',
+      ...((await request.json()) as object),
+      viewedAt: new Date().toISOString(),
+    }),
+  ),
+  http.get('/v1/presence/:subject/:recordId', () =>
+    HttpResponse.json({ items: [] }),
+  ),
+  http.put('/v1/presence/:subject/:recordId', () =>
+    HttpResponse.json({ items: [] }),
+  ),
+  http.delete(
+    '/v1/presence/:subject/:recordId',
+    () => new HttpResponse(null, { status: 204 }),
+  ),
   // The sidebar's approvals badge asks for its count on every signed-in page.
   http.get('/v1/approvals', () =>
     HttpResponse.json({ items: [], nextCursor: null, total: 0 }),
@@ -90,8 +113,10 @@ export const handlers = [
   http.get('/v1/branding', () =>
     HttpResponse.json({
       primaryColor: null,
+      darkPrimaryColor: null,
       mailFromName: null,
       logoUrl: null,
+      darkLogoUrl: null,
       locked: false,
       canEdit: false,
     }),

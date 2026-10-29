@@ -30,7 +30,10 @@ type Suffix =
   | '/watch'
   | '/revisions'
   | '/revisions/{number}/restore'
-  | '/revisions/{a}/diff/{b}';
+  | '/revisions/{a}/diff/{b}'
+  | '/duplicates'
+  | '/merge'
+  | '/merge/preview';
 
 /** Every feature's route ending in the suffix (`/v1/<plural>/{id}/comments`). */
 type At<S extends Suffix> = Extract<keyof paths, `/v1/${string}/{id}${S}`>;
@@ -55,6 +58,8 @@ export type Attachment = Answer<'/attachments'>['items'][number];
 type PresignedUpload = components['schemas']['PresignedUpload'];
 export type Revision = Answer<'/revisions'>['items'][number];
 export type RevisionDiff = Answer<'/revisions/{a}/diff/{b}'>;
+export type Duplicate = components['schemas']['Duplicate'];
+export type MergePreview = components['schemas']['MergePreview'];
 
 type Init = {
   params: {
@@ -105,6 +110,8 @@ export const panelKeys = {
   revisions: (base: string, id: string) =>
     ['panels', base, id, 'revisions'] as const,
   document: (id: string) => ['panels', 'document', id] as const,
+  duplicates: (base: string, id: string) =>
+    ['panels', base, id, 'duplicates'] as const,
   related: (base: string, id: string, path: string, field: string) =>
     ['panels', base, id, 'related', path, field] as const,
   diff: (base: string, id: string, a: number, b: number) =>
@@ -224,6 +231,57 @@ export const searchRecords = (path: string, term: string) => {
     }>,
   );
 };
+
+/** A record's likely duplicates (docs/merging.md): those the user may read. */
+export const listDuplicates = (base: string, id: string) =>
+  unwrap(
+    call<components['schemas']['DuplicateList']>('GET', base, '/duplicates', {
+      params: { path: { id } },
+    }),
+  );
+
+/**
+ * The records a create or edit would duplicate (`POST <list>/duplicates`),
+ * before it is saved: `listPath` is `/v1/<plural>`, `excludeId` the record
+ * being edited.
+ */
+export const findDuplicates = (
+  listPath: string,
+  body: { values: Record<string, unknown>; excludeId?: string },
+) =>
+  unwrap(
+    client.POST(`${listPath}/duplicates`, {
+      params: { path: {} },
+      body,
+    }) as Promise<{
+      data?: components['schemas']['DuplicateList'];
+      response: Response;
+    }>,
+  );
+
+/** Whose value each field keeps: the duplicate's where `duplicate`. */
+export type MergeBody = {
+  duplicateId: string;
+  fields: Record<string, 'survivor' | 'duplicate'>;
+};
+
+/** What merging `duplicateId` into the record would do; changes nothing. */
+export const previewMerge = (base: string, id: string, body: MergeBody) =>
+  unwrap(
+    call<MergePreview>('POST', base, '/merge/preview', {
+      params: { path: { id } },
+      body,
+    }),
+  );
+
+/** Merges `duplicateId` into the record: the duplicate goes to the recycle bin. */
+export const mergeRecord = (base: string, id: string, body: MergeBody) =>
+  unwrap(
+    call<Record<string, unknown>>('POST', base, '/merge', {
+      params: { path: { id } },
+      body,
+    }),
+  );
 
 /** `GET /v1/attachments/{id}/download` redirects to a signed link: a plain link follows it. */
 export const downloadUrl = (attachmentId: string) =>
