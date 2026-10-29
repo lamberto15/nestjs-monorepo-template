@@ -35,12 +35,10 @@ describe('money columns', () => {
   it('reads minor units as JS bigints and rates as strings (the drivers’ values mapped as the rows are)', () => {
     // Runtime checks on the column config: vitest doesn't type-check specs.
     const columns = getTableColumns(invoices);
-    expect(columns.totalMinor.dataType).toBe('bigint');
+    expect(columns.totalMinor.dataType).toBe('bigint int64');
     expect(columns.totalMinor.columnType).toBe('PgBigInt64');
-    expect(columns.totalMinor.mapFromDriverValue('9223372036854775807')).toBe(
-      9223372036854775807n,
-    );
-    expect(columns.unitDiscountMinor.dataType).toBe('bigint');
+    // v1: bigint parsing moved from column.mapFromDriverValue to the driver's codecs (covered by test/money.e2e-spec.ts).
+    expect(columns.unitDiscountMinor.dataType).toBe('bigint int64');
     expect(columns.totalCurrency.dataType).toBe('string');
     expect(columns.totalEurRate.dataType).toBe('string');
     expect(columns.totalEurRate.notNull).toBe(false);
