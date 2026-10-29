@@ -5,6 +5,7 @@
   "tabs": {
     "queues": "Baris gilir",
     "outbox": "Peti keluar",
+    "backlog": "Tunggakan",
     "events": "Peristiwa langsung",
     "diagnostics": "Diagnostik"
   },
@@ -28,7 +29,15 @@
     "job": "Kerja",
     "attempts": "Percubaan",
     "reason": "Sebab",
-    "failedAt": "Gagal pada"
+    "failedAt": "Gagal pada",
+    "pause": "Jeda",
+    "resume": "Sambung",
+    "pauseLabel": "Jeda {{name}}",
+    "resumeLabel": "Sambung {{name}}",
+    "pauseTitle": "Jeda baris gilir {{name}}?",
+    "resumeTitle": "Sambung baris gilir {{name}}?",
+    "pauseDescription": "Tiada pekerja mengambil kerjanya sehingga ia disambung. Tiada yang hilang; kerja yang sedang berjalan akan selesai. Outbox terus menambah kerja: lihat Tunggakan.",
+    "resumeDescription": "Pekerja mengambil kerjanya semula."
   },
   "outbox": {
     "stats": {
@@ -106,5 +115,48 @@
       "unconfigured": "Tidak dikonfigurasi",
       "unavailable": "Tidak tersedia"
     }
+  },
+  "backlog": {
+    "intro": "Kira dan pulihkan tunggakan outbox dan mel bagi satu penyewa, atau semua penyewa apabila anda memilihnya. Pemberitahuan wajib, mel penting dan kerja yang sedang berjalan tidak pernah dibuang. Setiap perubahan diaudit.",
+    "tenant": "ID penyewa",
+    "type": "Jenis pemberitahuan",
+    "template": "Kelas mel",
+    "count": "Kira",
+    "scopeHint": "Kira dahulu: tindakan digunakan pada skop yang dikira. Biarkan penapis kosong untuk merangkumi semua.",
+    "outbox": "Outbox: {{pending}} belum selesai, {{dead}} surat mati, {{leased}} sedang dihantar",
+    "mail": "Baris gilir mel",
+    "kind": "Jenis",
+    "number": "Bilangan",
+    "state": "Keadaan",
+    "essential": "Penting (dikekalkan)",
+    "kept": "Dikekalkan",
+    "capped": "Lebih banyak kerja daripada yang dikira: angka ini ialah had bawah.",
+    "kinds": {
+      "pending": "Belum selesai",
+      "deadLetters": "Surat mati"
+    },
+    "discard": {
+      "outbox": "Buang tunggakan outbox",
+      "mail": "Buang mel dalam baris gilir"
+    },
+    "discardTitle": {
+      "outbox": "Buang tunggakan outbox yang dikira?",
+      "mail": "Buang mel yang dikira?"
+    },
+    "discardDescription": "Dipadam selamanya. Pemberitahuan yang dibuang kekal dalam senarai setiap orang, ditanda telah dihantar, tanpa push, mel atau webhook.",
+    "retry": {
+      "outbox": "Cuba semula surat mati",
+      "mail": "Cuba semula mel yang gagal"
+    },
+    "retryTitle": {
+      "outbox": "Cuba semula surat mati yang dikira?",
+      "mail": "Cuba semula mel gagal yang dikira?"
+    },
+    "retryDescription": "Ia dijalankan semula. Mod mel dan bajet harian masih terpakai.",
+    "done": {
+      "discard": "Dibuang: {{total}}.",
+      "retry": "Dicuba semula: {{total}}."
+    },
+    "global": "Semua penyewa"
   }
 }

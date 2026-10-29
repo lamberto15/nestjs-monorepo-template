@@ -38,6 +38,11 @@ import {
   type DiagnosticCheck,
   OpsDiagnostics,
 } from '../platform/ops/ops-diagnostics.service.js';
+import {
+  type BacklogScope,
+  OpsBacklog,
+} from '../platform/ops/ops-backlog.service.js';
+import { OpsQueues } from '../platform/ops/ops-queues.service.js';
 import { SettingsService } from '../platform/settings/settings.service.js';
 import {
   platformSettingValues,
@@ -45,6 +50,16 @@ import {
 } from '../platform/settings/settings.tables.js';
 import type { Operator } from './operator.js';
 import { OPS_JOB } from './ops.jobs.js';
+
+/** The options of the `backlog:*` commands. */
+export interface BacklogOptions {
+  tenant?: string;
+  global?: boolean;
+  topic?: string;
+  type?: string;
+  template?: string;
+  before?: string;
+}
 
 /** A refusal for the person at the terminal: printed as it is, exit code 1. */
 export class OpsError extends Error {}
@@ -643,6 +658,166 @@ export class OpsService {
         return settled;
       },
     };
+  }
+
+  // Backlog recovery (docs/notifications.md, "Stopping a mail storm")
+
+  /**
+   * The scope of a `backlog:*` command: exactly one of `--tenant` and
+   * `--global`, so another tenant's backlog is never touched by accident.
+   */
+  async backlogScope(where: BacklogOptions): Promise<BacklogScope> {
+    if (Boolean(where.tenant) === Boolean(where.global)) {
+      throw new OpsError(
+        'Name whose backlog: --tenant <id|slug> or --global (every tenant), exactly one.',
+      );
+    }
+    const before = where.before ? new Date(where.before) : undefined;
+    if (before && Number.isNaN(before.getTime())) {
+      throw new OpsError(
+        `"${where.before}" is not a date (2026-10-01T00:00:00Z).`,
+      );
+    }
+    return {
+      ...(where.tenant
+        ? { tenantId: (await this.tenant(where.tenant)).id }
+        : { global: true }),
+      topic: where.topic,
+      type: where.type,
+      template: where.template,
+      before,
+    };
+  }
+
+  /** The dry run: what the scope holds, counted. Changes nothing. */
+  async backlogPreview(where: BacklogOptions) {
+    return this.opsBacklog().preview(await this.backlogScope(where));
+  }
+
+  /**
+   * Discards or retries the backlog in scope: the plan shows the counts;
+   * applying runs the service's bounded calls until nothing is left, then
+   * audits the total as `ops.backlog-discarded` / `ops.backlog-retried`.
+   */
+  async backlogAction(
+    action: 'discard' | 'retry',
+    target: string,
+    where: BacklogOptions,
+  ): Promise<Plan<{ count: number }>> {
+    if (target !== 'outbox' && target !== 'mail') {
+      throw new OpsError(`Say which backlog: outbox or mail, not "${target}".`);
+    }
+    const scope = await this.backlogScope(where);
+    const preview = await this.opsBacklog().preview(scope);
+    const whose = scope.global ? 'every tenant' : `tenant ${scope.tenantId}`;
+    const counted =
+      target === 'mail'
+        ? preview.mail.groups
+            .filter((group) =>
+              action === 'retry'
+                ? group.state === 'failed'
+                : group.state !== 'active',
+            )
+            .reduce(
+              (sum, group) =>
+                sum +
+                group.count -
+                (action === 'discard' ? group.essential : 0),
+              0,
+            )
+        : action === 'retry'
+          ? preview.outbox.deadLetters.total
+          : [
+              ...preview.outbox.pending.groups,
+              ...preview.outbox.deadLetters.groups,
+            ]
+              .filter((group) => !group.mandatory)
+              .reduce((sum, group) => sum + group.count, 0);
+    return {
+      summary: [
+        action === 'discard'
+          ? `Discard about ${counted} ${target === 'mail' ? 'mail job(s)' : 'outbox message(s) and dead letter(s)'} of ${whose}: deleted for good${target === 'outbox' ? ', their notifications marked delivered (still listed, no push, mail or webhook)' : ''}.`
+          : `Retry about ${counted} failed ${target === 'mail' ? 'mail job(s)' : 'outbox dead letter(s)'} of ${whose}.`,
+        'Mandatory notification types, essential mail and running work are never discarded.',
+      ],
+      apply: async (operator) => {
+        const backlog = this.opsBacklog();
+        let total = 0;
+        for (;;) {
+          const { count, more } =
+            action === 'discard'
+              ? await backlog.discard(target, scope)
+              : await backlog.retry(target, scope);
+          total += count;
+          if (!more || count === 0) break;
+        }
+        await this.system.run(
+          OPS_JOB,
+          (system, tx) =>
+            this.audit.record(
+              system,
+              {
+                action:
+                  action === 'discard'
+                    ? 'ops.backlog-discarded'
+                    : 'ops.backlog-retried',
+                targetType: target,
+                details: {
+                  scope: { ...scope, before: scope.before?.toISOString() },
+                  count: total,
+                  ...by(operator),
+                },
+              },
+              tx,
+            ),
+          { tenantId: null },
+        );
+        return { count: total };
+      },
+    };
+  }
+
+  /** Pauses or resumes one queue for every process (BullMQ, in Redis), audited. */
+  async queueSwitch(
+    name: string,
+    paused: boolean,
+  ): Promise<Plan<{ name: string; paused: boolean }>> {
+    const queues = this.moduleRef.get(OpsQueues, { strict: false });
+    try {
+      queues.queue(name);
+    } catch {
+      throw new OpsError(`No queue named "${name}".`);
+    }
+    return {
+      summary: [
+        paused
+          ? `Pause the "${name}" queue: no worker takes its jobs until it is resumed (running ones finish).`
+          : `Resume the "${name}" queue.`,
+      ],
+      apply: async (operator) => {
+        await (paused ? queues.pause(name) : queues.resume(name));
+        await this.system.run(
+          OPS_JOB,
+          (system, tx) =>
+            this.audit.record(
+              system,
+              {
+                action: paused ? 'queue.paused' : 'queue.resumed',
+                targetType: 'queue',
+                targetId: name,
+                details: by(operator),
+              },
+              tx,
+            ),
+          { tenantId: null },
+        );
+        return { name, paused };
+      },
+    };
+  }
+
+  private opsBacklog() {
+    return this.moduleRef.get(OpsBacklog, { strict: false });
   }
 
   // Lookups

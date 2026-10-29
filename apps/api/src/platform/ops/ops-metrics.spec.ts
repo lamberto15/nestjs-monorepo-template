@@ -40,6 +40,18 @@ describe('OpsMetrics process roles', () => {
           expect.any(Function),
         );
         expect(collect).toHaveBeenCalledWith(
+          'queue_oldest_waiting_seconds',
+          expect.any(String),
+          expect.any(Function),
+          ['queue'],
+        );
+        expect(collect).toHaveBeenCalledWith(
+          'outbox_undelivered_by_topic',
+          expect.any(String),
+          expect.any(Function),
+          ['topic'],
+        );
+        expect(collect).toHaveBeenCalledWith(
           'outbox_lag_seconds',
           expect.any(String),
           expect.any(Function),

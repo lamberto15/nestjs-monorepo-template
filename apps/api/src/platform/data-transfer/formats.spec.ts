@@ -1,4 +1,7 @@
 import ExcelJS from 'exceljs';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import type { TransferFormat } from './data-transfer.types.js';
 import {
@@ -7,6 +10,8 @@ import {
   isoInZone,
   localDateTime,
   readRecords,
+  streamable,
+  zipEntries,
 } from './formats.js';
 import { MappingError } from './import-mapping.js';
 
@@ -327,5 +332,85 @@ describe('readRecords with a column mapping', () => {
     await expect(
       read('csv', 'title,Name\nA,B\n', { mapping: { Name: 'title' } }),
     ).rejects.toThrow(MappingError);
+  });
+});
+
+describe('streaming spreadsheet imports (#618)', () => {
+  const entries = (...names: string[]) =>
+    names.map((name, offset) => ({ name, offset }));
+
+  it('streams a single sheet unless its styles would come after a sheet read at once', () => {
+    // exceljs's own writeBuffer(): the sheet before the shared strings (spooled, then read).
+    expect(
+      streamable(
+        entries(
+          'xl/_rels/workbook.xml.rels',
+          'xl/worksheets/sheet1.xml',
+          'xl/sharedStrings.xml',
+          'xl/styles.xml',
+          'xl/workbook.xml',
+        ),
+      ),
+    ).toBe(true);
+    // Strings and relationships first, styles last: dates would read as serial numbers.
+    expect(
+      streamable(
+        entries(
+          'xl/_rels/workbook.xml.rels',
+          'xl/sharedStrings.xml',
+          'xl/worksheets/sheet1.xml',
+          'xl/styles.xml',
+        ),
+      ),
+    ).toBe(false);
+    expect(
+      streamable(
+        entries(
+          'xl/_rels/workbook.xml.rels',
+          'xl/styles.xml',
+          'xl/sharedStrings.xml',
+          'xl/worksheets/sheet1.xml',
+        ),
+      ),
+    ).toBe(true);
+    // Several sheets: read whole (the workbook's first sheet).
+    expect(
+      streamable(
+        entries('xl/worksheets/sheet2.xml', 'xl/worksheets/sheet1.xml'),
+      ),
+    ).toBe(false);
+  });
+
+  it('lists the entries of a workbook from its directory, and refuses what is not a zip', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'formats-spec-'));
+    try {
+      const workbook = new ExcelJS.Workbook();
+      workbook.addWorksheet('Sheet1').addRow(['title']);
+      const path = join(dir, 'a.xlsx');
+      await writeFile(path, Buffer.from(await workbook.xlsx.writeBuffer()));
+      const names = (await zipEntries(path)).map((entry) => entry.name);
+      expect(names).toEqual(
+        expect.arrayContaining(['xl/worksheets/sheet1.xml', 'xl/styles.xml']),
+      );
+      const bad = join(dir, 'b.xlsx');
+      await writeFile(bad, 'PK not really a zip');
+      await expect(zipEntries(bad)).rejects.toThrow('not a valid .xlsx');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("reads a workbook of several sheets whole: the first sheet's rows", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const first = workbook.addWorksheet('First');
+    first.addRow(['title']);
+    first.addRow(['One']);
+    workbook.addWorksheet('Second').addRow(['other']);
+    const file = Buffer.from(await workbook.xlsx.writeBuffer());
+    const records = [];
+    for await (const { record } of readRecords('xlsx', Readable.from(file))) {
+      records.push(record);
+    }
+    expect(records).toEqual([{ title: 'One' }]);
   });
 });

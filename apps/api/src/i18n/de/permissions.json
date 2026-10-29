@@ -228,6 +228,10 @@
       "label": "Aufbewahrung des Outbox",
       "description": "Löscht jede Nacht Dead Letters der Outbox, die älter als OUTBOX_DEAD_LETTER_RETENTION_DAYS sind, und Inbox-Einträge der Verbraucher, die älter als OUTBOX_INBOX_RETENTION_DAYS sind."
     },
+    "ops-backlog": {
+      "label": "Wiederherstellung von Rückständen",
+      "description": "Verwirft oder wiederholt den von einem Operator gewählten Teil des Rückstands in Outbox und Mail-Warteschlange, Mandant für Mandant, und markiert die verworfenen Benachrichtigungen als zugestellt."
+    },
     "platform-analytics": {
       "label": "Plattformanalyse",
       "description": "Zählt jede Nacht Mandanten, Benutzer, Mitgliedschaften und API-Nutzung über alle Mandanten, unterdrückt kleine Gruppen und speichert nur die Aggregate, die die Reporting-Rolle liest."

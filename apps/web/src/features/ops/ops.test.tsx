@@ -89,6 +89,9 @@ function api(
     requeued: [] as unknown[],
     purged: [] as unknown[],
     letters: [letter('d1', 'orders.created'), letter('d2', 'mail.send')],
+    paused: [] as string[],
+    previews: [] as unknown[],
+    discards: [] as unknown[],
   };
   server.use(
     http.get('/v1/auth/me', () =>
@@ -116,6 +119,56 @@ function api(
     http.post('/v1/ops/queues/:name/retry-failed', ({ params }) => {
       state.retried.push(String(params.name));
       return HttpResponse.json({ retried: 2 });
+    }),
+    http.post('/v1/ops/queues/:name/pause', ({ params }) => {
+      state.paused.push(String(params.name));
+      return HttpResponse.json({ name: String(params.name), paused: true });
+    }),
+    http.post('/v1/ops/backlog/preview', async ({ request }) => {
+      state.previews.push(await request.json());
+      return HttpResponse.json({
+        outbox: {
+          pending: {
+            total: 3,
+            groups: [
+              {
+                topic: 'notifications.deliver',
+                type: 'note.published',
+                count: 2,
+                mandatory: false,
+              },
+              {
+                topic: 'notifications.deliver',
+                type: 'security.passwordChanged',
+                count: 1,
+                mandatory: true,
+              },
+            ],
+          },
+          deadLetters: { total: 0, groups: [] },
+          leased: 0,
+        },
+        mail: {
+          groups: [
+            {
+              state: 'waiting',
+              template: 'NotificationMail',
+              count: 5,
+              essential: 1,
+            },
+          ],
+          capped: false,
+        },
+      });
+    }),
+    http.post('/v1/ops/backlog/discard', async ({ request }) => {
+      state.discards.push(await request.json());
+      // The API stops at its limit and says more: the page calls again.
+      return HttpResponse.json(
+        state.discards.length === 1
+          ? { count: 10000, more: true }
+          : { count: 2, more: false },
+      );
     }),
     http.get('/v1/ops/outbox', () => {
       state.asked += 1;
@@ -188,11 +241,80 @@ describe('queues', () => {
     expect(await findToast('2 jobs put back in the queue.')).toBeVisible();
   });
 
+  it('pauses a queue after asking', async () => {
+    const state = api();
+    await renderApp('/ops');
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Pause mail' }),
+    );
+    const dialog = await screen.findByRole('alertdialog');
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Pause' }),
+    );
+    await waitFor(() => expect(state.paused).toEqual(['mail']));
+  });
+
   it('offers no retry without Ops.manage', async () => {
     api({ manage: false });
     await renderApp('/ops');
     await screen.findByText('mail');
     expect(screen.queryByRole('button', { name: 'Retry failed' })).toBeNull();
+  });
+});
+
+describe('backlog', () => {
+  it("counts one tenant's backlog, then discards it after asking, calling again while more", async () => {
+    const state = api();
+    await renderApp('/ops');
+    await openTab('Backlog');
+    const count = await screen.findByRole('button', { name: 'Count' });
+    expect(count).toBeDisabled();
+    await userEvent.type(screen.getByLabelText('Tenant ID'), 't-1');
+    await userEvent.type(
+      screen.getByLabelText('Notification type'),
+      'note.published',
+    );
+    await userEvent.click(count);
+    expect(
+      await screen.findByText(
+        'Outbox: 3 pending, 0 dead letters, 0 being delivered',
+      ),
+    ).toBeVisible();
+    expect(state.previews).toEqual([
+      { tenantId: 't-1', type: 'note.published' },
+    ]);
+    // The mandatory type is marked as kept.
+    expect(screen.getByText('Kept')).toBeVisible();
+    expect(screen.getByText('NotificationMail')).toBeVisible();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Discard outbox backlog' }),
+    );
+    const dialog = await screen.findByRole('alertdialog');
+    expect(state.discards).toEqual([]);
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Discard outbox backlog' }),
+    );
+    expect(await findToast('Discarded: 10002.')).toBeVisible();
+    expect(state.discards).toEqual([
+      { target: 'outbox', scope: { tenantId: 't-1', type: 'note.published' } },
+      { target: 'outbox', scope: { tenantId: 't-1', type: 'note.published' } },
+    ]);
+  });
+
+  it('asks for every tenant explicitly, and offers no action without Ops.manage', async () => {
+    const state = api({ manage: false });
+    await renderApp('/ops');
+    await openTab('Backlog');
+    await userEvent.click(
+      await screen.findByRole('checkbox', { name: 'Every tenant' }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Count' }));
+    await screen.findByText('Mail queue');
+    expect(state.previews).toEqual([{ global: true }]);
+    expect(
+      screen.queryByRole('button', { name: 'Discard queued mail' }),
+    ).toBeNull();
   });
 });
 

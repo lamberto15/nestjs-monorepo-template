@@ -5,6 +5,7 @@
   "tabs": {
     "queues": "队列",
     "outbox": "发件箱",
+    "backlog": "积压",
     "events": "实时事件",
     "diagnostics": "诊断"
   },
@@ -28,7 +29,15 @@
     "job": "任务",
     "attempts": "尝试次数",
     "reason": "原因",
-    "failedAt": "失败时间"
+    "failedAt": "失败时间",
+    "pause": "暂停",
+    "resume": "恢复",
+    "pauseLabel": "暂停 {{name}}",
+    "resumeLabel": "恢复 {{name}}",
+    "pauseTitle": "暂停队列 {{name}}？",
+    "resumeTitle": "恢复队列 {{name}}？",
+    "pauseDescription": "在恢复之前，没有工作进程会领取它的任务。不会丢失任何内容；正在运行的任务会完成。发件箱会继续添加任务：见“积压”。",
+    "resumeDescription": "工作进程将再次领取它的任务。"
   },
   "outbox": {
     "stats": {
@@ -106,5 +115,48 @@
       "unconfigured": "未配置",
       "unavailable": "不可用"
     }
+  },
+  "backlog": {
+    "intro": "统计并恢复某个租户的发件箱和邮件积压；只有在您明确选择时才针对所有租户。强制通知、重要邮件和正在运行的工作永远不会被丢弃。每次更改都会记入审计。",
+    "tenant": "租户 ID",
+    "type": "通知类型",
+    "template": "邮件类",
+    "count": "统计",
+    "scopeHint": "先统计：操作只作用于已统计的范围。筛选条件留空即包含全部。",
+    "outbox": "发件箱：{{pending}} 条待处理，{{dead}} 条死信，{{leased}} 条正在投递",
+    "mail": "邮件队列",
+    "kind": "种类",
+    "number": "数量",
+    "state": "状态",
+    "essential": "重要（保留）",
+    "kept": "保留",
+    "capped": "任务多于统计数：这些数字是下限。",
+    "kinds": {
+      "pending": "待处理",
+      "deadLetters": "死信"
+    },
+    "discard": {
+      "outbox": "丢弃发件箱积压",
+      "mail": "丢弃排队的邮件"
+    },
+    "discardTitle": {
+      "outbox": "丢弃已统计的发件箱积压？",
+      "mail": "丢弃已统计的邮件？"
+    },
+    "discardDescription": "将被永久删除。被丢弃的通知仍保留在每个人的列表中，标记为已送达，不会推送、发邮件或触发 Webhook。",
+    "retry": {
+      "outbox": "重试死信",
+      "mail": "重试失败的邮件"
+    },
+    "retryTitle": {
+      "outbox": "重试已统计的死信？",
+      "mail": "重试已统计的失败邮件？"
+    },
+    "retryDescription": "它们将再次运行。邮件模式和每日预算仍然适用。",
+    "done": {
+      "discard": "已丢弃：{{total}}。",
+      "retry": "已重试：{{total}}。"
+    },
+    "global": "所有租户"
   }
 }
