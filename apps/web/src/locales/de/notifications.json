@@ -90,8 +90,13 @@
   },
   "devices": {
     "title": "Geräte",
-    "description": "Handys und Browser, die Push-Benachrichtigungen erhalten. Die App registriert sie.",
+    "description": "Handys und Browser, die Push-Benachrichtigungen erhalten. Die mobile App registriert Handys; diesen Browser schalten Sie hier ein.",
     "none": "Keine Geräte registriert.",
+    "enable": "In diesem Browser aktivieren",
+    "disable": "In diesem Browser deaktivieren",
+    "enabled": "Push-Benachrichtigungen sind für diesen Browser aktiviert.",
+    "disabled": "Push-Benachrichtigungen sind für diesen Browser deaktiviert.",
+    "denied": "Der Browser hat Benachrichtigungen blockiert. Erlauben Sie sie in den Website-Einstellungen und versuchen Sie es erneut.",
     "lastSeen": "Zuletzt gesehen {{date}}",
     "platforms": {
       "web": "Web",

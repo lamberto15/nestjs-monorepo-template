@@ -88,8 +88,13 @@
   },
   "devices": {
     "title": "Peranti",
-    "description": "Telefon dan pelayar yang menerima pemberitahuan tolak. Aplikasi mendaftarkannya.",
+    "description": "Telefon dan pelayar yang menerima pemberitahuan tolak. Aplikasi mudah alih mendaftarkan telefon; hidupkan pelayar ini di sini.",
     "none": "Tiada peranti didaftarkan.",
+    "enable": "Dayakan pada pelayar ini",
+    "disable": "Nyahdayakan pada pelayar ini",
+    "enabled": "Pemberitahuan tolak dihidupkan untuk pelayar ini.",
+    "disabled": "Pemberitahuan tolak dimatikan untuk pelayar ini.",
+    "denied": "Pelayar menyekat pemberitahuan. Benarkannya dalam tetapan laman, kemudian cuba lagi.",
     "lastSeen": "Terakhir dilihat {{date}}",
     "platforms": {
       "web": "Web",

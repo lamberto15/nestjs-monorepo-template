@@ -90,8 +90,13 @@
   },
   "devices": {
     "title": "Devices",
-    "description": "Phones and browsers that receive push notifications. The app registers them.",
+    "description": "Phones and browsers that receive push notifications. The mobile app registers phones; turn this browser on here.",
     "none": "No devices registered.",
+    "enable": "Enable on this browser",
+    "disable": "Disable on this browser",
+    "enabled": "Push notifications are on for this browser.",
+    "disabled": "Push notifications are off for this browser.",
+    "denied": "The browser blocked notifications. Allow them in its site settings, then try again.",
     "lastSeen": "Last seen {{date}}",
     "platforms": {
       "web": "Web",
