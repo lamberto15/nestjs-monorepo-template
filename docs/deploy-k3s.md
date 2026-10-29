@@ -166,11 +166,20 @@ checks. Add the following deployment-specific values as variables to the
 protected `production` environment. The workflow uses these values at deploy
 time rather than checking your domain into this repository:
 
-| Variable     | Example value             |
-| ------------ | ------------------------- |
-| `APP_DOMAIN` | `app.example.com`         |
-| `APP_URL`    | `https://app.example.com` |
-| `MAIL_FROM`  | `no-reply@example.com`    |
+| Variable                    | Example value                         |
+| --------------------------- | ------------------------------------- |
+| `APP_DOMAIN`                | `app.example.com`                     |
+| `APP_URL`                   | `https://app.example.com`             |
+| `MAIL_FROM`                 | `no-reply@example.com`                |
+| `PUSH_PROVIDER`             | `web-push` (optional; unset: no push) |
+| `WEB_PUSH_VAPID_PUBLIC_KEY` | the VAPID public key                  |
+| `WEB_PUSH_SUBJECT`          | `mailto:ops@example.com`              |
+
+For Web Push, make the key pair once (`npx web-push generate-vapid-keys`, or
+`pnpm setup`), put the private key in `app-secrets` as
+`web_push_vapid_private_key` (the deploy checks it is there), and set the three
+variables above. Every deploy passes them: the release is rebuilt from these
+values, so a setting made by hand with `helm upgrade` is gone after the next one.
 
 Set `K3S_DEPLOY_ENABLED` to `true` only after the database, certificate, route,
 and deploy identity have passed their checks. Backups are optional for
