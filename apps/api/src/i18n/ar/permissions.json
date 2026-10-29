@@ -165,6 +165,10 @@
       "label": "معالجة صور المرفقات",
       "description": "ينشئ صورًا مصغرة ومعاينات للصور المرفوعة ويزيل البيانات الوصفية (EXIF وGPS) من النسخ الأصلية."
     },
+    "attachment-text": {
+      "label": "استخراج نص المرفقات",
+      "description": "يستخرج نص المستندات المرفوعة (ATTACHMENT_TEXT_SEARCH) حتى يجدها البحث."
+    },
     "revisions-retention": {
       "label": "الاحتفاظ بالمراجعات",
       "description": "يحذف كل ليلة مراجعات السجلات الأقدم من REVISIONS_RETENTION_DAYS (وليس أحدث مراجعة للسجل أبدًا)."
