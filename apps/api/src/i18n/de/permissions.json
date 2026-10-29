@@ -58,6 +58,13 @@
       "manage": "Eine Adresse zur Sperrliste hinzufügen oder entfernen"
     }
   },
+  "data-quality": {
+    "label": "Datenqualität",
+    "actions": {
+      "read": "Die Datenqualitäts-Befunde zu den Datensätzen und Feldern sehen, die Sie lesen dürfen",
+      "manage": "Eine Datenqualitätsprüfung starten, Befunde verwerfen und neu prüfen"
+    }
+  },
   "form": {
     "label": "Formulare",
     "names": {
@@ -252,6 +259,17 @@
     "ops": {
       "label": "Betreiber-CLI",
       "description": "Notfallbefehle auf einem Server (pnpm ops): ein Einmalpasswort, Zwei-Faktor entfernen, ein Konto entsperren, eine Einstellung löschen, einen Administrator anlegen."
+    },
+    "automations": {
+      "label": "Automatisierungsregeln",
+      "description": "Führt die Automatisierungsregeln des Mandanten bei Änderungen an Datensätzen aus (ihre Aktionen als Eigentümer der Regel) und deaktiviert eine Regel, deren Eigentümer gegangen ist, die zu oft läuft oder ständig fehlschlägt."
+    }
+  },
+  "automation-rule": {
+    "label": "Automatisierungsregeln",
+    "actions": {
+      "read": "Automatisierungsregeln und ihre Läufe sehen",
+      "manage": "Automatisierungsregeln erstellen, simulieren, aktivieren und deaktivieren (sie laufen mit Ihren Berechtigungen)"
     }
   }
 }

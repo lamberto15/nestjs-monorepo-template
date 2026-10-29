@@ -3,8 +3,8 @@ import type { Capability } from '../../platform/records/record.js';
 
 /**
  * Notes' record-level routes, as the platform builds them (record-routes.ts):
- * /v1/notes/{id}/tags, comments, attachments, revisions, pdf, watch, shares, and
- * /v1/notes/bulk. notes.module.ts lists the controllers.
+ * /v1/notes/{id}/tags, comments, attachments, revisions, pdf, watch, shares,
+ * duplicates, merge, and /v1/notes/bulk, /v1/notes/duplicates. notes.module.ts lists the controllers.
  */
 export const NOTE_ROUTES: RecordRouteSpec = {
   subject: 'Note',
@@ -33,6 +33,8 @@ export const NOTE_CAPABILITIES: readonly Capability[] = [
   'events',
   'numbered',
   'share',
+  'automation',
+  'merge',
 ];
 
 /** What notes' bulk operation offers (NoteBulk, note.bulk.ts). */

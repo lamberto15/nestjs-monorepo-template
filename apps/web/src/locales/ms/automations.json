@@ -1,0 +1,100 @@
+{
+  "nav": "Automasi",
+  "title": "Peraturan automasi",
+  "description": "Apabila rekod dicipta atau diubah dan memenuhi syarat, tindakan dijalankan: tetapkan medan, tambah teg, maklumkan orang, atau hantar webhook. Peraturan berjalan sebagai orang yang mengaktifkannya, dengan kebenaran mereka.",
+  "new": "Peraturan baharu",
+  "none": "Belum ada peraturan automasi.",
+  "more": "Tunjuk lagi",
+  "never": "Belum pernah berjalan",
+  "version": "v{{version}}",
+  "runs": "Larian",
+  "runsOf": "Larian {{name}}",
+  "editButton": "Sunting",
+  "edit": "Sunting {{name}}",
+  "activate": "Aktifkan",
+  "disable": "Nyahdayakan",
+  "deleteButton": "Padam",
+  "delete": "Padam {{name}}",
+  "saved": "Peraturan disimpan sebagai draf.",
+  "newTitle": "Peraturan automasi baharu",
+  "editTitle": "Sunting peraturan automasi",
+  "runsTitle": "Larian {{name}}",
+  "runsDescription": "Larian terkini, yang terbaharu dahulu: apa yang dilakukan, atau sebab ia gagal.",
+  "noRuns": "Belum ada larian.",
+  "done": {
+    "activate": "{{name}} aktif.",
+    "disable": "{{name}} dinyahdayakan.",
+    "delete": "{{name}} telah dipadam."
+  },
+  "columns": {
+    "name": "Nama",
+    "subject": "Bila",
+    "status": "Status",
+    "lastRun": "Larian terakhir",
+    "actions": "Tindakan"
+  },
+  "status": {
+    "draft": "Draf",
+    "active": "Aktif",
+    "disabled": "Dinyahdayakan"
+  },
+  "reason": {
+    "manual": "secara manual",
+    "owner_inactive": "pemiliknya telah keluar",
+    "run_limit": "berjalan terlalu kerap",
+    "failing": "terus gagal",
+    "subject_gone": "rekodnya sudah tiada"
+  },
+  "run": {
+    "succeeded": "Berjaya",
+    "failed": "Gagal"
+  },
+  "trigger": {
+    "created": "dicipta",
+    "updated": "diubah"
+  },
+  "action": {
+    "setField": "Tetapkan medan",
+    "addTag": "Tambah teg",
+    "notify": "Maklumkan",
+    "webhook": "Webhook"
+  },
+  "refusal": {
+    "forbidden": "tidak dibenarkan oleh kebenaran",
+    "field_forbidden": "medan ini tidak boleh diubah",
+    "unknown_tag": "teg tidak wujud",
+    "no_recipient": "tiada sesiapa untuk dimaklumkan yang boleh melihat rekod",
+    "client_cannot_read": "klien tidak boleh membaca rekod"
+  },
+  "builder": {
+    "description": "Simulasikan untuk melihat apa yang akan dilakukannya sekarang, tanpa melakukannya. Ia disimpan sebagai draf: aktifkan dari senarai.",
+    "name": "Nama",
+    "subject": "Rekod",
+    "trigger": "Apabila rekod",
+    "field": "Hanya apabila medan ini berubah",
+    "anyField": "Mana-mana medan",
+    "conditions": "Syarat",
+    "conditionsHint": "Penapis senarai, seperti dalam alamatnya: penapis seperti title.contains dan nilainya.",
+    "filter": "Penapis",
+    "value": "Nilai",
+    "addCondition": "Tambah syarat",
+    "removeCondition": "Buang syarat",
+    "actions": "Tindakan",
+    "actionType": "Tindakan",
+    "setField": "Medan",
+    "tag": "Teg",
+    "userIds": "ID pengguna, dipisahkan koma",
+    "clientId": "ID klien API",
+    "addAction": "Tambah tindakan",
+    "removeAction": "Buang tindakan",
+    "cancel": "Batal",
+    "simulate": "Simulasi",
+    "save": "Simpan draf"
+  },
+  "simulation": {
+    "title": "Simulasi",
+    "summary": "{{matched}} rekod sepadan antara {{limit}} terkini yang boleh anda lihat. Tiada apa diubah.",
+    "truncated": "Mungkin lebih banyak yang sepadan.",
+    "noTrigger": "Perubahan medan tidak diulang: rekod diperiksa seperti keadaannya sekarang."
+  }
+}

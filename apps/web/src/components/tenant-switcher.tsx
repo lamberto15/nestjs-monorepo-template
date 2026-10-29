@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
-import { useBranding } from '@/lib/branding';
+import { useBranding, useIsDark } from '@/lib/branding';
 import { useFeatures, useMe } from '@/lib/features';
 import { createSession, tenantsQuery } from '@/lib/session';
 
@@ -62,7 +62,10 @@ export function TenantSwitcher() {
   const choosing = features?.tenancy === 'multi' && !me?.user.impersonator;
   const tenants = useQuery({ ...tenantsQuery, enabled: choosing });
   const switchTenant = useSwitchTenant();
-  const logoUrl = useBranding()?.logoUrl;
+  const branding = useBranding();
+  const dark = useIsDark();
+  // The dark-mode logo in the dark theme, when the tenant has one.
+  const logoUrl = (dark && branding?.darkLogoUrl) || branding?.logoUrl;
 
   const current = me?.tenant;
   const items = tenants.data?.items ?? [];

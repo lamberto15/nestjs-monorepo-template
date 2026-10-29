@@ -1,5 +1,12 @@
 import { OutboxRelay } from '@nestjs/outbox';
 import type request from 'supertest';
+import { NotePublisher } from '../../../src/features/notes/note-publisher.service.js';
+import type { Principal } from '../../../src/iam/auth/principal.js';
+import { NotesService } from '../../../src/features/notes/notes.service.js';
+import { PeopleService } from '../../../src/platform/people/people.service.js';
+import { BULK_THRESHOLD } from '../../../src/platform/notifications/notification-catalog.js';
+import { NotificationDigestJob } from '../../../src/platform/notifications/notification-digest.job.js';
+import { recordSubscriptions } from '../../../src/platform/subscriptions/subscriptions.tables.js';
 import { bootApp, type TestApp } from '../../support.js';
 import { writeNote } from './notes-support.js';
 
@@ -150,5 +157,136 @@ describe('notifications of notes (e2e)', () => {
       body: '"Mine" was deleted by Administrator.',
     });
     await node.waitForMail({ to: email, subject: /Note deleted/ });
+  });
+
+  /** Creates `count` drafts of `ownerId`'s as an import group does, and lets its workflow publish them at once. */
+  async function publishGroup(ownerId: string, count: number) {
+    const created = await node.inTenant(async () => {
+      const owner = await node.app
+        .get(PeopleService)
+        .principal(`user:${ownerId}`);
+      return node.app.get(NotesService).createMany(
+        owner!,
+        Array.from({ length: count }, (_, index) => ({
+          title: `Bulk ${index}`,
+          body: '',
+        })),
+      );
+    });
+    await node.worker.drain();
+    node.clock.advance('10s');
+    await node.worker.drain();
+    await deliver();
+    return created;
+  }
+
+  /** A user's notifications of published notes. */
+  const published = async (agent: request.Agent) =>
+    (await agent.get('/v1/notifications?type=note.published').expect(200)).body
+      .items as { title: string; body: string; count: number; link: string }[];
+
+  it('sums a bulk publication up: one notification and one digest mail per watcher, of what they may read (#618)', async () => {
+    const owner = await node.user(['editor']);
+    const viewer = await node.user(['viewer']);
+    const outsider = await node.user(['editor']);
+    const [ownerEmail, viewerEmail, outsiderEmail] = await Promise.all(
+      [owner, viewer, outsider].map((user) => emailOf(user.agent)),
+    );
+    const count = BULK_THRESHOLD + 1;
+    const created = await node.inTenant(async () => {
+      const principal = await node.app
+        .get(PeopleService)
+        .principal(`user:${owner.id}`);
+      return node.app.get(NotesService).createMany(
+        principal!,
+        Array.from({ length: count }, (_, index) => ({
+          title: `Bulk ${index}`,
+          body: '',
+        })),
+      );
+    });
+    // The viewer may read every note and watches them; the outsider (an
+    // editor: their own notes only) still has subscriptions from before.
+    for (const note of created) {
+      await viewer.agent.post(`/v1/notes/${note.id}/watch`).expect(200);
+    }
+    await node.db.insert(recordSubscriptions).values(
+      created.map((note) => ({
+        tenantId: node.tenantId,
+        subject: 'Note',
+        recordId: note.id,
+        subscriber: `user:${outsider.id}`,
+      })),
+    );
+    await node.worker.drain();
+    node.clock.advance('10s');
+    await node.worker.drain();
+    await deliver();
+
+    for (const user of [owner, viewer]) {
+      expect(await published(user.agent)).toEqual([
+        expect.objectContaining({
+          title: 'Notes published',
+          // The first three titles, in the order the publication returned them.
+          body: expect.stringMatching(
+            new RegExp(
+              `^${count} notes were published, among them Bulk \\d+, Bulk \\d+, Bulk \\d+\\.$`,
+            ),
+          ),
+          count,
+          link: '/notes?status=published&sort=publishedAt.desc',
+        }),
+      ]);
+    }
+    expect(await published(outsider.agent)).toEqual([]);
+    // Not mailed at once, though `note.published` mails at once by default:
+    // in the next hourly digest, one mail each.
+    expect(noticesTo(ownerEmail)).toEqual([]);
+    expect(await node.app.get(NotificationDigestJob).run()).toEqual({
+      mails: 2,
+      items: 2,
+    });
+    for (const email of [ownerEmail, viewerEmail]) {
+      const mail = await node.waitForMail({
+        to: email,
+        subject: /1 new notification in/,
+      });
+      expect(mail.html).toContain(`${count} notes were published`);
+    }
+    expect(noticesTo(ownerEmail)).toHaveLength(1);
+    expect(noticesTo(outsiderEmail)).toEqual([]);
+
+    // The step retried after its commit publishes nothing more: no second summary.
+    expect(
+      await node.inTenant(() =>
+        node.app.get(NotePublisher).publishMany(
+          created.map((note) => note.id),
+          { kind: 'system', id: 'note-publication' } as Principal,
+        ),
+      ),
+    ).toBe(0);
+    await deliver();
+    expect(await published(owner.agent)).toHaveLength(1);
+  });
+
+  it('keeps one notification per note up to the threshold, and respects an opt-out above it', async () => {
+    const owner = await node.user(['editor']);
+    const email = await emailOf(owner.agent);
+    await publishGroup(owner.id, 2);
+    expect(await published(owner.agent)).toHaveLength(2);
+    await node.waitForMail({ to: email, subject: /Note published/ });
+
+    await owner.agent
+      .put('/v1/notifications/preferences')
+      .send({ 'note.published': { email: false } })
+      .expect(200);
+    await publishGroup(owner.id, BULK_THRESHOLD + 1);
+    const items = await published(owner.agent);
+    expect(items).toHaveLength(3);
+    expect(items[0]!.count).toBe(BULK_THRESHOLD + 1);
+    expect(await node.app.get(NotificationDigestJob).run()).toEqual({
+      mails: 0,
+      items: 0,
+    });
   });
 });

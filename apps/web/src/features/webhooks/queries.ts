@@ -47,6 +47,32 @@ export const endpointsQuery = (clientId: string) =>
       unwrap(api.GET(endpoints, { params: { path: { clientId } } })),
   });
 
+const scopePath = '/v1/access/clients/{clientId}/webhook-scope';
+export type WebhookScope = GetResponse<typeof scopePath>['scope'];
+
+/** Which records' events the client's endpoints receive: `own` or `tenant`. */
+export const scopeQuery = (clientId: string) =>
+  queryOptions({
+    queryKey: [...webhooksKey(clientId), 'scope'],
+    queryFn: () =>
+      unwrap(api.GET(scopePath, { params: { path: { clientId } } })),
+  });
+
+export function useSetScope(clientId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (scope: WebhookScope) =>
+      unwrap(
+        api.PUT(scopePath, {
+          params: { path: { clientId } },
+          body: { scope },
+        }),
+      ),
+    onSuccess: (data) =>
+      queryClient.setQueryData(scopeQuery(clientId).queryKey, data),
+  });
+}
+
 /** One endpoint, never its secret (404: none such). */
 export const endpointQuery = (clientId: string, id: string) =>
   queryOptions({

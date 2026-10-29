@@ -33,6 +33,7 @@ import { SettingsService } from '../settings/settings.service.js';
 import { tenantFileKey } from '../storage/storage.config.js';
 import type { Branding, UpdateBranding } from './branding.schemas.js';
 import {
+  BRANDING_DARK_PRIMARY_COLOR,
   BRANDING_LOCKED,
   BRANDING_MAIL_FROM_NAME,
   BRANDING_PRIMARY_COLOR,
@@ -44,6 +45,9 @@ import {
 export const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const;
 /** SVG is left out on purpose: it runs scripts when opened. */
 export const LOGO_MAX_BYTES = 512 * 1024;
+
+/** The two logos of a tenant: the one everywhere, and an optional one for the web app's dark theme. */
+export type LogoVariant = 'light' | 'dark';
 
 interface LogoInfo {
   contentType: string;
@@ -102,6 +106,7 @@ export class BrandingService implements MailBranding {
     // The settings API is a way in too: the lock holds there as on /v1/branding.
     for (const declaration of [
       BRANDING_PRIMARY_COLOR,
+      BRANDING_DARK_PRIMARY_COLOR,
       BRANDING_MAIL_FROM_NAME,
     ]) {
       settings.guardWrite(declaration, async (write) =>
@@ -118,10 +123,15 @@ export class BrandingService implements MailBranding {
   }
 
   /** The disk key of a tenant's logo. */
-  static logoKey(tenantId: string, version = 'current') {
+  static logoKey(
+    tenantId: string,
+    version = 'current',
+    variant: LogoVariant = 'light',
+  ) {
+    const name = variant === 'dark' ? 'logo-dark' : 'logo';
     return tenantFileKey(
       tenantId,
-      `branding/${version === 'current' ? 'logo' : `logo-${version}`}`,
+      `branding/${version === 'current' ? name : `${name}-${version}`}`,
     );
   }
 
@@ -135,22 +145,29 @@ export class BrandingService implements MailBranding {
       // (the settings read the same: defaults).
       return {
         primaryColor: null,
+        darkPrimaryColor: null,
         mailFromName: null,
         logoUrl: null,
+        darkLogoUrl: null,
         locked: false,
         canEdit: false,
       };
     }
-    const [primaryColor, mailFromName, locked, logo] = await Promise.all([
-      this.settings.get(BRANDING_PRIMARY_COLOR),
-      this.settings.get(BRANDING_MAIL_FROM_NAME),
-      this.settings.enabled(BRANDING_LOCKED, principal),
-      this.logo(tenantId),
-    ]);
+    const [primaryColor, darkColor, mailFromName, locked, logo, darkLogo] =
+      await Promise.all([
+        this.settings.get(BRANDING_PRIMARY_COLOR),
+        this.settings.get(BRANDING_DARK_PRIMARY_COLOR),
+        this.settings.get(BRANDING_MAIL_FROM_NAME),
+        this.settings.enabled(BRANDING_LOCKED, principal),
+        this.logo(tenantId, 'light'),
+        this.logo(tenantId, 'dark'),
+      ]);
     return {
       primaryColor: safeColor(primaryColor),
+      darkPrimaryColor: safeColor(darkColor),
       mailFromName: safeName(mailFromName),
       logoUrl: logo ? this.logoPath(tenantId) : null,
+      darkLogoUrl: darkLogo ? this.logoPath(tenantId, 'dark') : null,
       locked,
       canEdit: !locked && (await this.settings.canEdit(principal)),
     };
@@ -183,6 +200,7 @@ export class BrandingService implements MailBranding {
     await this.assertEditable(actor);
     for (const [declaration, value] of [
       [BRANDING_PRIMARY_COLOR, changes.primaryColor],
+      [BRANDING_DARK_PRIMARY_COLOR, changes.darkPrimaryColor],
       [BRANDING_MAIL_FROM_NAME, changes.mailFromName],
     ] as const) {
       if (value === undefined) {
@@ -217,43 +235,48 @@ export class BrandingService implements MailBranding {
     actor: Principal,
     file: { contentType: string; size: number; key: string },
     ip?: string,
+    variant: LogoVariant = 'light',
   ): Promise<Branding> {
     const tenantId = this.tenantId();
     await database(this.txHost)
       .update(tenants)
-      .set({ logoKey: file.key })
+      .set(
+        variant === 'dark' ? { darkLogoKey: file.key } : { logoKey: file.key },
+      )
       .where(eq(tenants.id, tenantId));
-    this.logos.delete(tenantId);
+    this.logos.delete(this.cacheKey(tenantId, variant));
     await this.audit.record(actor, {
       action: 'branding.logo-changed',
       targetType: 'tenant',
       targetId: tenantId,
-      details: { contentType: file.contentType, size: file.size },
+      details: { contentType: file.contentType, size: file.size, variant },
       ip,
     });
     return this.view(actor);
   }
 
-  async removeLogo(actor: Principal, ip?: string): Promise<void> {
+  async removeLogo(
+    actor: Principal,
+    ip?: string,
+    variant: LogoVariant = 'light',
+  ): Promise<void> {
     await this.assertEditable(actor);
     const tenantId = this.tenantId();
-    if (!(await this.logo(tenantId, true))) {
+    if (!(await this.logo(tenantId, variant, true))) {
       throw new NotFoundException('There is no logo.');
     }
-    const [tenant] = await database(this.txHost)
-      .select({ logoKey: tenants.logoKey })
-      .from(tenants)
-      .where(eq(tenants.id, tenantId));
-    if (tenant?.logoKey) await this.disk.delete(tenant.logoKey);
+    const key = await this.currentLogoKey(tenantId, variant);
+    await this.disk.delete(key);
     await database(this.txHost)
       .update(tenants)
-      .set({ logoKey: null })
+      .set(variant === 'dark' ? { darkLogoKey: null } : { logoKey: null })
       .where(eq(tenants.id, tenantId));
-    this.logos.delete(tenantId);
+    this.logos.delete(this.cacheKey(tenantId, variant));
     await this.audit.record(actor, {
       action: 'branding.logo-removed',
       targetType: 'tenant',
       targetId: tenantId,
+      details: { variant },
       ip,
     });
   }
@@ -266,21 +289,26 @@ export class BrandingService implements MailBranding {
    * deactivated tenant's logo is not served. The type is the one the
    * bytes say, from the allowlist, never the stored metadata.
    */
-  async logoFile(requestedId: string): Promise<{
+  async logoFile(
+    requestedId: string,
+    variant: LogoVariant = 'light',
+  ): Promise<{
     contentType: string;
     size: number;
     body: Readable;
   } | null> {
     const [tenant] = await database(this.txHost)
-      .select({ id: tenants.id, logoKey: tenants.logoKey })
+      .select({ id: tenants.id })
       .from(tenants)
       .where(and(eq(tenants.id, requestedId), eq(tenants.active, true)));
-    const logo = tenant ? await this.logo(tenant.id) : null;
+    const logo = tenant ? await this.logo(tenant.id, variant) : null;
     if (!tenant || !logo) {
       return null;
     }
     try {
-      const file = await this.disk.get(tenant.logoKey!);
+      const file = await this.disk.get(
+        await this.currentLogoKey(tenant.id, variant),
+      );
       return {
         contentType: logo.contentType,
         size: file.size,
@@ -289,7 +317,7 @@ export class BrandingService implements MailBranding {
     } catch (error) {
       // Removed through another instance, which cleared its own cache only.
       if (error instanceof StorageFileNotFoundError) {
-        this.logos.delete(tenant.id);
+        this.logos.delete(this.cacheKey(tenant.id, variant));
         return null;
       }
       throw error;
@@ -305,7 +333,7 @@ export class BrandingService implements MailBranding {
     const [color, name, logo] = await Promise.all([
       this.settings.get(BRANDING_PRIMARY_COLOR),
       this.settings.get(BRANDING_MAIL_FROM_NAME),
-      this.logo(tenantId),
+      this.logo(tenantId, 'light'),
     ]);
     return {
       name: safeName(name),
@@ -330,13 +358,13 @@ export class BrandingService implements MailBranding {
     const [color, name, logo] = await Promise.all([
       this.settings.get(BRANDING_PRIMARY_COLOR),
       this.settings.get(BRANDING_MAIL_FROM_NAME),
-      this.logo(tenantId),
+      this.logo(tenantId, 'light'),
     ]);
     let data: string | null = null;
     if (logo) {
       try {
         const bytes = await this.disk.getBuffer(
-          await this.currentLogoKey(tenantId),
+          await this.currentLogoKey(tenantId, 'light'),
         );
         // The type the bytes say (again: the file may have changed since it
         // was cached), from the allowlist, never the stored metadata.
@@ -350,7 +378,7 @@ export class BrandingService implements MailBranding {
         if (!(error instanceof StorageFileNotFoundError)) {
           throw error;
         }
-        this.logos.delete(tenantId);
+        this.logos.delete(this.cacheKey(tenantId, 'light'));
       }
     }
     return {
@@ -360,8 +388,12 @@ export class BrandingService implements MailBranding {
     };
   }
 
-  private logoPath(tenantId: string) {
-    return `/v1/branding/${tenantId}/logo`;
+  private logoPath(tenantId: string, variant: LogoVariant = 'light') {
+    return `/v1/branding/${tenantId}/logo${variant === 'dark' ? '/dark' : ''}`;
+  }
+
+  private cacheKey(tenantId: string, variant: LogoVariant) {
+    return `${tenantId}:${variant}`;
   }
 
   /** The current tenant, or a TenantScopeMissingError (403 `tenant_required`). */
@@ -371,19 +403,20 @@ export class BrandingService implements MailBranding {
 
   private async logo(
     tenantId: string,
+    variant: LogoVariant,
     fresh = false,
   ): Promise<LogoInfo | null> {
-    const cached = this.logos.get(tenantId);
+    const cached = this.logos.get(this.cacheKey(tenantId, variant));
     if (!fresh && cached && Date.now() - cached.at < LOGO_CACHE_MS) {
       return cached.info;
     }
-    const key = await this.currentLogoKey(tenantId);
+    const key = await this.currentLogoKey(tenantId, variant);
     let info: LogoInfo | null = null;
     try {
       if (await this.disk.exists(key)) {
         // Adopt a logo from before keys became versioned so backups can see
         // its exact object key in the tenant snapshot.
-        if (key === BrandingService.logoKey(tenantId)) {
+        if (variant === 'light' && key === BrandingService.logoKey(tenantId)) {
           await database(this.txHost)
             .update(tenants)
             .set({ logoKey: key })
@@ -411,15 +444,18 @@ export class BrandingService implements MailBranding {
         throw error;
       }
     }
-    this.logos.set(tenantId, { at: Date.now(), info });
+    this.logos.set(this.cacheKey(tenantId, variant), { at: Date.now(), info });
     return info;
   }
 
-  private async currentLogoKey(tenantId: string) {
+  private async currentLogoKey(tenantId: string, variant: LogoVariant) {
     const [tenant] = await database(this.txHost)
-      .select({ logoKey: tenants.logoKey })
+      .select({ logoKey: tenants.logoKey, darkLogoKey: tenants.darkLogoKey })
       .from(tenants)
       .where(eq(tenants.id, tenantId));
-    return tenant?.logoKey ?? BrandingService.logoKey(tenantId);
+    return (
+      (variant === 'dark' ? tenant?.darkLogoKey : tenant?.logoKey) ??
+      BrandingService.logoKey(tenantId, 'current', variant)
+    );
   }
 }

@@ -6,14 +6,13 @@
       "body": {
         "one": "„{title}“ ist jetzt veröffentlicht.",
         "other": "{count} Ihrer Notizen wurden veröffentlicht; die neueste ist „{title}“."
-      }
-    },
-    "publishedMany": {
-      "label": "Notizen in großer Zahl veröffentlicht",
-      "title": "Notizen veröffentlicht",
-      "body": {
-        "one": "{notes} Notizen wurden veröffentlicht, darunter „{title}“.",
-        "other": "{count} Stapel von Notizen wurden veröffentlicht; der letzte mit {notes}, darunter „{title}“."
+      },
+      "bulk": {
+        "title": "Notizen veröffentlicht",
+        "body": {
+          "one": "Eine Notiz wurde veröffentlicht: {titles}.",
+          "other": "{count} Notizen wurden veröffentlicht, darunter {titles}."
+        }
       }
     },
     "deleted": {
@@ -167,6 +166,13 @@
       "label": "Testbenachrichtigung",
       "title": "Testbenachrichtigung",
       "body": "Dies ist eine Testbenachrichtigung, gesendet um {at}. Sie ging über alle Kanäle, die Sie eingeschaltet haben."
+    }
+  },
+  "automation": {
+    "notified": {
+      "label": "Automatisierungsregel",
+      "title": "Automatisierung: {rule}",
+      "body": "„{title}“ erfüllt die Regel „{rule}“."
     }
   }
 }

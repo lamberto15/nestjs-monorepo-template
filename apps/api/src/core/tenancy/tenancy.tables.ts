@@ -35,6 +35,8 @@ export const tenants = pgTable('tenants', {
   name: text('name').notNull(),
   /** Immutable local-storage object key for the current branding logo. */
   logoKey: text('logo_key'),
+  /** Immutable local-storage object key for the dark-mode logo, if any. */
+  darkLogoKey: text('dark_logo_key'),
   /**
    * Off: nobody acts in it (its sessions and tokens stop, ended by the
    * deactivation; its API keys stop), its jobs are skipped.

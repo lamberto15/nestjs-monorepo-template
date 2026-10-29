@@ -1,0 +1,100 @@
+{
+  "nav": "自动化",
+  "title": "自动化规则",
+  "description": "当记录被创建或修改且符合条件时，执行操作：设置字段、添加标签、通知人员或发送 Webhook。规则以激活它的人员身份运行，使用其权限。",
+  "new": "新建规则",
+  "none": "暂无自动化规则。",
+  "more": "显示更多",
+  "never": "从未运行",
+  "version": "v{{version}}",
+  "runs": "运行记录",
+  "runsOf": "{{name}} 的运行记录",
+  "editButton": "编辑",
+  "edit": "编辑 {{name}}",
+  "activate": "启用",
+  "disable": "停用",
+  "deleteButton": "删除",
+  "delete": "删除 {{name}}",
+  "saved": "规则已保存为草稿。",
+  "newTitle": "新建自动化规则",
+  "editTitle": "编辑自动化规则",
+  "runsTitle": "{{name}} 的运行记录",
+  "runsDescription": "最近的运行记录，最新的在前：每次做了什么，或失败原因。",
+  "noRuns": "暂无运行记录。",
+  "done": {
+    "activate": "{{name}} 已启用。",
+    "disable": "{{name}} 已停用。",
+    "delete": "{{name}} 已删除。"
+  },
+  "columns": {
+    "name": "名称",
+    "subject": "触发",
+    "status": "状态",
+    "lastRun": "上次运行",
+    "actions": "操作"
+  },
+  "status": {
+    "draft": "草稿",
+    "active": "已启用",
+    "disabled": "已停用"
+  },
+  "reason": {
+    "manual": "手动",
+    "owner_inactive": "所有者已离开",
+    "run_limit": "运行过于频繁",
+    "failing": "持续失败",
+    "subject_gone": "其记录已不存在"
+  },
+  "run": {
+    "succeeded": "成功",
+    "failed": "失败"
+  },
+  "trigger": {
+    "created": "创建",
+    "updated": "修改"
+  },
+  "action": {
+    "setField": "设置字段",
+    "addTag": "添加标签",
+    "notify": "通知",
+    "webhook": "Webhook"
+  },
+  "refusal": {
+    "forbidden": "权限不允许",
+    "field_forbidden": "不能修改此字段",
+    "unknown_tag": "标签不存在",
+    "no_recipient": "没有可查看该记录的通知对象",
+    "client_cannot_read": "该客户端无权读取此记录"
+  },
+  "builder": {
+    "description": "模拟以查看它现在会做什么，而不实际执行。它将保存为草稿：请在列表中启用。",
+    "name": "名称",
+    "subject": "记录",
+    "trigger": "当记录被",
+    "field": "仅当此字段变化时",
+    "anyField": "任意字段",
+    "conditions": "条件",
+    "conditionsHint": "列表的筛选条件，与其地址中相同：例如 title.contains 及其值。",
+    "filter": "筛选",
+    "value": "值",
+    "addCondition": "添加条件",
+    "removeCondition": "移除条件",
+    "actions": "操作",
+    "actionType": "操作",
+    "setField": "字段",
+    "tag": "标签",
+    "userIds": "用户 ID，以逗号分隔",
+    "clientId": "API 客户端 ID",
+    "addAction": "添加操作",
+    "removeAction": "移除操作",
+    "cancel": "取消",
+    "simulate": "模拟",
+    "save": "保存草稿"
+  },
+  "simulation": {
+    "title": "模拟",
+    "summary": "在您可见的最近 {{limit}} 条记录中有 {{matched}} 条匹配。未做任何更改。",
+    "truncated": "可能还有更多匹配。",
+    "noTrigger": "不会重放字段变化：按记录当前状态检查。"
+  }
+}

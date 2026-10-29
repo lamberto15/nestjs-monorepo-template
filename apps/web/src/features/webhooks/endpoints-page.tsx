@@ -28,6 +28,7 @@ import {
   type EndpointValues,
 } from './endpoint-form-dialog';
 import { endpointsQuery, useCreateEndpoint } from './queries';
+import { ScopeSwitch } from './scope-switch';
 import { SecretDialog } from './secret-dialog';
 import { EndpointBadge } from './status';
 
@@ -80,6 +81,7 @@ export function EndpointsPage(props: { clientId: string }) {
               </Button>
             }
           />
+          <ScopeSwitch clientId={props.clientId} />
           {list.isPending ? (
             <Spinner />
           ) : list.isError ? (
