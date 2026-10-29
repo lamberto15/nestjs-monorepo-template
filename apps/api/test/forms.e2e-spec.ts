@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type request from 'supertest';
+import { ChoicesRegistry } from '../src/platform/choices/choices.registry.js';
 import { bootApp, type TestApp } from './support.js';
 
 const paths = (body: { errors?: { path: string }[] }) =>
@@ -468,6 +469,186 @@ describe('forms (e2e)', () => {
       .get(`/v1/forms/${id}/versions/1`)
       .expect(200);
     expect(oldVersion.body.definition.format).toBe(2);
+  });
+
+  it('takes choices from a registered source, checks each answer by it, and refuses others', async () => {
+    const admin = node.admin();
+    await enable(admin);
+    // A provider of trusted code that filters by who asks (as a field-level
+    // permission would): `secret` is the administrator's alone.
+    node.app.get(ChoicesRegistry).provider({
+      key: 'e2e-colors',
+      label: 'Colors',
+      params: {},
+      mayUse: async (principal) => principal.kind === 'user',
+      options: async ({ principal, q, limit }) =>
+        [
+          'blue',
+          'red',
+          ...(principal.kind === 'user' && principal.email.startsWith('admin')
+            ? ['secret']
+            : []),
+        ]
+          .filter((value) => !q || value.includes(q))
+          .slice(0, limit)
+          .map((value) => ({ value, label: value.toUpperCase() })),
+      has: async ({ principal, value }) =>
+        ['blue', 'red'].includes(value) ||
+        (value === 'secret' &&
+          principal.kind === 'user' &&
+          principal.email.startsWith('admin')),
+    });
+    node.app.get(ChoicesRegistry).provider({
+      key: 'e2e-slow',
+      label: 'Slow',
+      params: {},
+      mayUse: async () => true,
+      options: () => new Promise(() => {}),
+      has: () => new Promise(() => {}),
+    });
+    const units = await admin
+      .post('/v1/access/organizational-units')
+      .send({ type: 'team', name: `unit-${randomUUID().slice(0, 6)}` })
+      .expect(201);
+
+    const sources = await admin.get('/v1/forms/option-sources').expect(200);
+    expect(sources.body.items.map((item: { key: string }) => item.key)).toEqual(
+      expect.arrayContaining(['organizational-units', 'e2e-colors']),
+    );
+    // A source with parameters isn't offered.
+    expect(
+      sources.body.items.map((item: { key: string }) => item.key),
+    ).not.toContain('unit-members');
+
+    const created = await admin
+      .post('/v1/forms')
+      .send({
+        slug: `sources-${randomUUID().slice(0, 8)}`,
+        name: 'Sources',
+      })
+      .expect(201);
+    const id = created.body.id as string;
+    const choice = (key: string, provider: string, type = 'select') => ({
+      key,
+      type,
+      label: key,
+      optionsSource: { provider },
+    });
+    // Unregistered, or taking parameters: refused at save.
+    const refused = await admin
+      .put(`/v1/forms/${id}/draft`)
+      .send({
+        revision: created.body.revision,
+        definition: {
+          sections: [
+            {
+              key: 'main',
+              fields: [choice('a', 'https-evil'), choice('b', 'unit-members')],
+            },
+          ],
+        },
+      })
+      .expect(400);
+    expect(paths(refused.body)).toEqual([
+      'definition.sections.0.fields.0.optionsSource.provider',
+      'definition.sections.0.fields.1.optionsSource.provider',
+    ]);
+    const saved = await admin
+      .put(`/v1/forms/${id}/draft`)
+      .send({
+        revision: created.body.revision,
+        definition: {
+          sections: [
+            {
+              key: 'main',
+              fields: [
+                { ...choice('unit', 'organizational-units'), required: true },
+                choice('colors', 'e2e-colors', 'multiSelect'),
+                choice('slow', 'e2e-slow'),
+              ],
+            },
+          ],
+        },
+      })
+      .expect(200);
+    const version = await admin
+      .post(`/v1/forms/${id}/publish`)
+      .send({ revision: saved.body.revision })
+      .expect(201);
+    expect(version.body.definition.format).toBe(4);
+
+    const filler = await node.user([await role(admin, 'read', 'submit')]);
+    // The choices through the form, filtered to the filler, bounded.
+    const colors = await filler.agent
+      .get(`/v1/forms/${id}/options/colors?limit=1`)
+      .expect(200);
+    expect(colors.body).toEqual({
+      field: 'colors',
+      items: [{ value: 'blue', label: 'BLUE' }],
+      hasMore: true,
+    });
+    const narrowed = await filler.agent
+      .get(`/v1/forms/${id}/options/colors?q=re`)
+      .expect(200);
+    expect(narrowed.body.items).toEqual([{ value: 'red', label: 'RED' }]);
+    const unitsSeen = await filler.agent
+      .get(`/v1/forms/${id}/options/unit`)
+      .expect(200);
+    expect(unitsSeen.body.items).toContainEqual({
+      value: units.body.id,
+      label: units.body.name,
+    });
+    // Only a field's own source, never one by name; a limit over 50 is refused.
+    await filler.agent.get(`/v1/forms/${id}/options/nope`).expect(404);
+    await filler.agent
+      .get(`/v1/forms/${id}/options/colors?limit=51`)
+      .expect(400);
+    // A slow source: a 503, not a hang.
+    const slow = await filler.agent
+      .get(`/v1/forms/${id}/options/slow`)
+      .expect(503);
+    expect(slow.body.code).toBe('form_source_unavailable');
+
+    // Values checked by the source, never a label; another's choice refused.
+    const wrong = await submit(filler.agent, id, {
+      versionId: version.body.id,
+      answers: { unit: randomUUID(), colors: ['BLUE', 'secret'] },
+    }).expect(400);
+    expect(paths(wrong.body)).toEqual([
+      'answers.unit',
+      'answers.colors.0',
+      'answers.colors.1',
+    ]);
+    const sent = await submit(filler.agent, id, {
+      versionId: version.body.id,
+      answers: { unit: units.body.id, colors: ['red'] },
+    }).expect(201);
+    expect(sent.body.answers).toEqual({ unit: units.body.id, colors: ['red'] });
+
+    // Another tenant's unit is no choice here (row-level security).
+    const other = await node.otherTenant();
+    const theirs = await other.admin
+      .post('/v1/access/organizational-units')
+      .send({ type: 'team', name: 'theirs' })
+      .expect(201);
+    const foreign = await submit(filler.agent, id, {
+      versionId: version.body.id,
+      answers: { unit: theirs.body.id },
+    }).expect(400);
+    expect(paths(foreign.body)).toEqual(['answers.unit']);
+
+    // A client may submit forms, not use a source made for users: 403.
+    const [submitter] = [await role(admin, 'read', 'submit')];
+    const client = await admin
+      .post('/v1/access/clients')
+      .send({ name: `forms-${randomUUID().slice(0, 8)}`, roleIds: [submitter] })
+      .expect(201);
+    const denied = await node
+      .http()
+      .get(`/v1/forms/${id}/options/unit`)
+      .set('Authorization', `Bearer ${client.body.key}`)
+      .expect(403);
+    expect(denied.body.code).toBe('form_source_forbidden');
   });
 
   it('shows a submitter their own submissions, everyone’s only to those who read responses', async () => {

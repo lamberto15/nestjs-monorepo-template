@@ -24631,7 +24631,7 @@
                     "type": "object",
                     "properties": {
                       "format": {
-                        "default": 3,
+                        "default": 4,
                         "description": "The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.",
                         "anyOf": [
                           {
@@ -24650,6 +24650,12 @@
                             "type": "number",
                             "enum": [
                               3
+                            ]
+                          },
+                          {
+                            "type": "number",
+                            "enum": [
+                              4
                             ]
                           }
                         ]
@@ -24768,6 +24774,21 @@
                                       ],
                                       "additionalProperties": false
                                     }
+                                  },
+                                  "optionsSource": {
+                                    "description": "In place of `options` (format 4): the choices come from the provider, filtered to what the person filling in may see, and each answer is checked against it on the server. Read them at GET /v1/forms/{id}/options/{key}.",
+                                    "type": "object",
+                                    "properties": {
+                                      "provider": {
+                                        "type": "string",
+                                        "pattern": "^[a-z][a-z0-9-]{0,63}$",
+                                        "description": "A provider registered by trusted server code (GET /v1/forms/option-sources), never a URL or a query."
+                                      }
+                                    },
+                                    "required": [
+                                      "provider"
+                                    ],
+                                    "additionalProperties": false
                                   },
                                   "validation": {
                                     "type": "object",
@@ -25230,6 +25251,76 @@
         ]
       }
     },
+    "/v1/forms/option-sources": {
+      "get": {
+        "description": "The providers trusted server code registered (docs/choices.md) that take no parameters and that you may use: a field names one as `optionsSource.provider` in place of `options` (format 4).",
+        "operationId": "FormsController_optionSources_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "example": "organizational-units",
+                            "description": "A field's `optionsSource.provider`."
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "label"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": "Also while the `forms.enabled` flag is off for you."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Option sources a choice field may name",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
     "/v1/forms/{id}": {
       "get": {
         "operationId": "FormsController_get_v1",
@@ -25570,7 +25661,7 @@
                       "type": "object",
                       "properties": {
                         "format": {
-                          "default": 3,
+                          "default": 4,
                           "description": "The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.",
                           "anyOf": [
                             {
@@ -25589,6 +25680,12 @@
                               "type": "number",
                               "enum": [
                                 3
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "enum": [
+                                4
                               ]
                             }
                           ]
@@ -25707,6 +25804,21 @@
                                         ],
                                         "additionalProperties": false
                                       }
+                                    },
+                                    "optionsSource": {
+                                      "description": "In place of `options` (format 4): the choices come from the provider, filtered to what the person filling in may see, and each answer is checked against it on the server. Read them at GET /v1/forms/{id}/options/{key}.",
+                                      "type": "object",
+                                      "properties": {
+                                        "provider": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+                                          "description": "A provider registered by trusted server code (GET /v1/forms/option-sources), never a URL or a query."
+                                        }
+                                      },
+                                      "required": [
+                                        "provider"
+                                      ],
+                                      "additionalProperties": false
                                     },
                                     "validation": {
                                       "type": "object",
@@ -26121,7 +26233,7 @@
                     "type": "object",
                     "properties": {
                       "format": {
-                        "default": 3,
+                        "default": 4,
                         "description": "The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.",
                         "anyOf": [
                           {
@@ -26140,6 +26252,12 @@
                             "type": "number",
                             "enum": [
                               3
+                            ]
+                          },
+                          {
+                            "type": "number",
+                            "enum": [
+                              4
                             ]
                           }
                         ]
@@ -26258,6 +26376,21 @@
                                       ],
                                       "additionalProperties": false
                                     }
+                                  },
+                                  "optionsSource": {
+                                    "description": "In place of `options` (format 4): the choices come from the provider, filtered to what the person filling in may see, and each answer is checked against it on the server. Read them at GET /v1/forms/{id}/options/{key}.",
+                                    "type": "object",
+                                    "properties": {
+                                      "provider": {
+                                        "type": "string",
+                                        "pattern": "^[a-z][a-z0-9-]{0,63}$",
+                                        "description": "A provider registered by trusted server code (GET /v1/forms/option-sources), never a URL or a query."
+                                      }
+                                    },
+                                    "required": [
+                                      "provider"
+                                    ],
+                                    "additionalProperties": false
                                   },
                                   "validation": {
                                     "type": "object",
@@ -26636,7 +26769,7 @@
                       "type": "object",
                       "properties": {
                         "format": {
-                          "default": 3,
+                          "default": 4,
                           "description": "The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.",
                           "anyOf": [
                             {
@@ -26655,6 +26788,12 @@
                               "type": "number",
                               "enum": [
                                 3
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "enum": [
+                                4
                               ]
                             }
                           ]
@@ -26773,6 +26912,21 @@
                                         ],
                                         "additionalProperties": false
                                       }
+                                    },
+                                    "optionsSource": {
+                                      "description": "In place of `options` (format 4): the choices come from the provider, filtered to what the person filling in may see, and each answer is checked against it on the server. Read them at GET /v1/forms/{id}/options/{key}.",
+                                      "type": "object",
+                                      "properties": {
+                                        "provider": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+                                          "description": "A provider registered by trusted server code (GET /v1/forms/option-sources), never a URL or a query."
+                                        }
+                                      },
+                                      "required": [
+                                        "provider"
+                                      ],
+                                      "additionalProperties": false
                                     },
                                     "validation": {
                                       "type": "object",
@@ -27227,7 +27381,7 @@
                       "type": "object",
                       "properties": {
                         "format": {
-                          "default": 3,
+                          "default": 4,
                           "description": "The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.",
                           "anyOf": [
                             {
@@ -27246,6 +27400,12 @@
                               "type": "number",
                               "enum": [
                                 3
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "enum": [
+                                4
                               ]
                             }
                           ]
@@ -27364,6 +27524,21 @@
                                         ],
                                         "additionalProperties": false
                                       }
+                                    },
+                                    "optionsSource": {
+                                      "description": "In place of `options` (format 4): the choices come from the provider, filtered to what the person filling in may see, and each answer is checked against it on the server. Read them at GET /v1/forms/{id}/options/{key}.",
+                                      "type": "object",
+                                      "properties": {
+                                        "provider": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+                                          "description": "A provider registered by trusted server code (GET /v1/forms/option-sources), never a URL or a query."
+                                        }
+                                      },
+                                      "required": [
+                                        "provider"
+                                      ],
+                                      "additionalProperties": false
                                     },
                                     "validation": {
                                       "type": "object",
@@ -28042,7 +28217,7 @@
                       "type": "object",
                       "properties": {
                         "format": {
-                          "default": 3,
+                          "default": 4,
                           "description": "The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.",
                           "anyOf": [
                             {
@@ -28061,6 +28236,12 @@
                               "type": "number",
                               "enum": [
                                 3
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "enum": [
+                                4
                               ]
                             }
                           ]
@@ -28179,6 +28360,21 @@
                                         ],
                                         "additionalProperties": false
                                       }
+                                    },
+                                    "optionsSource": {
+                                      "description": "In place of `options` (format 4): the choices come from the provider, filtered to what the person filling in may see, and each answer is checked against it on the server. Read them at GET /v1/forms/{id}/options/{key}.",
+                                      "type": "object",
+                                      "properties": {
+                                        "provider": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+                                          "description": "A provider registered by trusted server code (GET /v1/forms/option-sources), never a URL or a query."
+                                        }
+                                      },
+                                      "required": [
+                                        "provider"
+                                      ],
+                                      "additionalProperties": false
                                     },
                                     "validation": {
                                       "type": "object",
@@ -28574,6 +28770,125 @@
         ]
       }
     },
+    "/v1/forms/{id}/options/{key}": {
+      "get": {
+        "description": "Of the field `key` of the published version, by its provider: what you may see, behind row-level security. `limit` (20 by default, at most 50), `q` to narrow; `hasMore` when more match. 403 form_source_forbidden when you may not use the source; 503 form_source_unavailable when it fails or is slow (5 s).",
+        "operationId": "FormsController_sourceOptions_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "field": {
+                      "type": "string"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "value": {
+                            "type": "string",
+                            "description": "What the answer holds and the server checks."
+                          },
+                          "label": {
+                            "type": "string",
+                            "description": "For display only: never sent back or trusted."
+                          }
+                        },
+                        "required": [
+                          "value",
+                          "label"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "hasMore": {
+                      "type": "boolean",
+                      "description": "More match: narrow with `q` (an answer holds at most `limit`)."
+                    }
+                  },
+                  "required": [
+                    "field",
+                    "items",
+                    "hasMore"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": "No such form, or no field with an option source."
+          },
+          "503": {
+            "description": "The source failed or was slow (form_source_unavailable)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "A published field's choices from its option source",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
     "/v1/forms/{id}/versions": {
       "get": {
         "operationId": "FormsController_versions_v1",
@@ -28721,7 +29036,7 @@
                       "type": "object",
                       "properties": {
                         "format": {
-                          "default": 3,
+                          "default": 4,
                           "description": "The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.",
                           "anyOf": [
                             {
@@ -28740,6 +29055,12 @@
                               "type": "number",
                               "enum": [
                                 3
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "enum": [
+                                4
                               ]
                             }
                           ]
@@ -28858,6 +29179,21 @@
                                         ],
                                         "additionalProperties": false
                                       }
+                                    },
+                                    "optionsSource": {
+                                      "description": "In place of `options` (format 4): the choices come from the provider, filtered to what the person filling in may see, and each answer is checked against it on the server. Read them at GET /v1/forms/{id}/options/{key}.",
+                                      "type": "object",
+                                      "properties": {
+                                        "provider": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+                                          "description": "A provider registered by trusted server code (GET /v1/forms/option-sources), never a URL or a query."
+                                        }
+                                      },
+                                      "required": [
+                                        "provider"
+                                      ],
+                                      "additionalProperties": false
                                     },
                                     "validation": {
                                       "type": "object",
