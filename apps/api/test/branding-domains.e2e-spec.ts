@@ -1,6 +1,6 @@
 import { inflateRawSync } from 'node:zlib';
 import { ConfigService } from '@nestjs/config';
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import type { Redis } from 'ioredis';
 import type request from 'supertest';
 import { vi } from 'vitest';
@@ -263,7 +263,7 @@ describe('custom domains (e2e)', () => {
   it('limits the edge’s question per address: 600 a minute, then 429', async () => {
     // An address of its own (trusted X-Forwarded-For, as the edge's
     // per-request check sends it), so the suite's other asks aren't counted.
-    const address = `10.59.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`;
+    const address = `10.59.${randomInt(250)}.${randomInt(250)}`;
     const ask = () => asked(host()).set('X-Forwarded-For', address);
     for (let batch = 0; batch < 12; batch++) {
       const codes = await Promise.all(
@@ -274,7 +274,9 @@ describe('custom domains (e2e)', () => {
     const limited = await ask().expect(429);
     expect(limited.body).toMatchObject({ code: 'rate_limited' });
     // Another address is not limited.
-    await asked(host()).set('X-Forwarded-For', '10.58.0.1').expect(404);
+    await asked(host())
+      .set('X-Forwarded-For', `10.58.${randomInt(250)}.${randomInt(250)}`)
+      .expect(404);
   });
 
   it('routes a hostname to the first tenant that proves it, not to another that lists it', async () => {
