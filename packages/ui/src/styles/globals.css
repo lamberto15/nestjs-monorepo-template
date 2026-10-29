@@ -131,6 +131,17 @@
     }
 }
 
+/* iOS Safari zooms the whole page when a focused field's text is under 16px
+   and does not zoom back out. Unlayered so it wins over the utility sizes
+   (`text-sm`, `md:text-sm`) on any field, on touch screens only. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 /* Edge shadows on a horizontally scrolling box: one shows on each side that
    has more to scroll to (symmetric, so it needs no RTL variant). The
    `local` fades cover the `scroll` shadows once the edge is reached. */
