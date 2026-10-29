@@ -191,5 +191,10 @@
       "descriptionTooLong": "Paling banyak {{max}} aksara.",
       "create": "Cipta penghantar"
     }
+  },
+  "scope": {
+    "label": "Hantar juga peristiwa tentang rekod lain penyewa",
+    "description": "Rekod yang dicipta oleh pengguna dan klien lain, hanya yang boleh dibaca oleh klien ini, tanpa medan yang tidak boleh dibacanya. Mati: hanya rekod milik klien ini.",
+    "saved": "Skop peristiwa disimpan."
   }
 }

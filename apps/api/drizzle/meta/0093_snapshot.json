@@ -1,5 +1,9 @@
 {
+<<<<<<< HEAD
   "id": "a859a1ef-cc65-4f27-9f39-5f9cb5875f88",
+=======
+  "id": "2c3e2866-ea34-4b20-be42-76fce6b6175e",
+>>>>>>> feat/549-form-option-sources
   "prevId": "40add506-8821-46a4-81af-ec17e26295db",
   "version": "7",
   "dialect": "postgresql",
@@ -10593,6 +10597,7 @@
       },
       "isRLSEnabled": true
     },
+<<<<<<< HEAD
     "public.form_public_links": {
       "name": "form_public_links",
       "schema": "",
@@ -10780,6 +10785,8 @@
       "checkConstraints": {},
       "isRLSEnabled": true
     },
+=======
+>>>>>>> feat/549-form-option-sources
     "public.form_submissions": {
       "name": "form_submissions",
       "schema": "",
@@ -14167,6 +14174,150 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+<<<<<<< HEAD
+=======
+    "public.webhook_client_scopes": {
+      "name": "webhook_client_scopes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "client_id": {
+          "name": "client_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "webhook_client_scopes_client_idx": {
+          "name": "webhook_client_scopes_client_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "client_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "webhook_client_scopes_tenant_id_tenants_id_fk": {
+          "name": "webhook_client_scopes_tenant_id_tenants_id_fk",
+          "tableFrom": "webhook_client_scopes",
+          "tableTo": "tenants",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "webhook_client_scopes_client_fk": {
+          "name": "webhook_client_scopes_client_fk",
+          "tableFrom": "webhook_client_scopes",
+          "tableTo": "api_clients",
+          "columnsFrom": [
+            "tenant_id",
+            "client_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "webhook_client_scopes_tenant_select": {
+          "name": "webhook_client_scopes_tenant_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "public"
+          ],
+          "using": "(\"webhook_client_scopes\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        },
+        "webhook_client_scopes_tenant_insert": {
+          "name": "webhook_client_scopes_tenant_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "public"
+          ],
+          "withCheck": "(\"webhook_client_scopes\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        },
+        "webhook_client_scopes_tenant_update": {
+          "name": "webhook_client_scopes_tenant_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "public"
+          ],
+          "using": "(\"webhook_client_scopes\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+          "withCheck": "(\"webhook_client_scopes\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        },
+        "webhook_client_scopes_tenant_delete": {
+          "name": "webhook_client_scopes_tenant_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": [
+            "public"
+          ],
+          "using": "(\"webhook_client_scopes\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+>>>>>>> feat/549-form-option-sources
     "public.webhook_delivery_requests": {
       "name": "webhook_delivery_requests",
       "schema": "",

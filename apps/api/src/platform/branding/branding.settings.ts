@@ -26,6 +26,15 @@ export const BRANDING_PRIMARY_COLOR = setting({
   default: null as string | null,
 });
 
+/** The accent in the dark theme of the web app (mail and documents stay light): absent, the brand colour holds. */
+export const BRANDING_DARK_PRIMARY_COLOR = setting({
+  key: 'branding.darkPrimaryColor',
+  label: 'Brand colour, dark mode',
+  description: 'A colour as #rrggbb: the web app’s accent in the dark theme.',
+  schema: z.string().regex(HEX_COLOR, 'Use a colour as #rrggbb.').nullable(),
+  default: null as string | null,
+});
+
 export const BRANDING_MAIL_FROM_NAME = setting({
   key: 'branding.mailFromName',
   label: 'Mail sender name',
@@ -42,7 +51,7 @@ export const BRANDING_MAIL_FROM_NAME = setting({
 
 /**
  * The operators' lock: while it is on, the tenant's administrators can't
- * change the three values above or the logo (409 `branding_locked`); what
+ * change the values above or the logos (409 `branding_locked`); what
  * is stored stays in force. No scope of its own: operators set it for
  * every tenant (`PUT /v1/settings/branding.locked/platform`), or for some
  * (a platform rule on `tenantSlug`). To set the values instead of
@@ -59,6 +68,7 @@ export const BRANDING_LOCKED = flag({
 
 export const BRANDING_SETTINGS = defineSettings([
   BRANDING_PRIMARY_COLOR,
+  BRANDING_DARK_PRIMARY_COLOR,
   BRANDING_MAIL_FROM_NAME,
   BRANDING_LOCKED,
 ]);

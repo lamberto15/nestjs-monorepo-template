@@ -37,6 +37,9 @@ export const TEST_ITEM = defineRecord({
     autoArchive: recordSetting.flag(),
     sortBy: recordSetting.enum(['title', 'createdAt'], 'createdAt'),
   },
+  // The data-quality checks (platform/data-quality) are tested on them: an
+  // empty text or code is a suggestion, a title another item has too a duplicate candidate.
+  quality: { recommended: ['body', 'code'], duplicates: ['title'] },
   fields: {
     title: field.string().searchable(),
     body: field.text().optional().searchable(),
@@ -69,5 +72,7 @@ export const TEST_ITEM = defineRecord({
     'events',
     'numbered',
     'share',
+    'automation',
+    'merge',
   ],
 });

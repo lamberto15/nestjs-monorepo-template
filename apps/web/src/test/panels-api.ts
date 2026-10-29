@@ -30,6 +30,8 @@ export type PanelCapabilities = {
   pdf?: boolean;
   /** Watching the record (`…/{id}/watch`); off unless a test asks. */
   watch?: boolean;
+  /** Duplicates and merging (`…/{id}/duplicates`, `…/{id}/merge`); off unless a test asks. */
+  merge?: boolean;
 };
 
 export const EVERY_PANEL: PanelCapabilities = {
@@ -75,6 +77,7 @@ export function panelsDescription(
       custom: false,
       events: false,
       numbered: false,
+      merge: all.merge ?? false,
       approvals: false,
     },
     attachmentLimits: all.attachments ? attachmentLimits : null,

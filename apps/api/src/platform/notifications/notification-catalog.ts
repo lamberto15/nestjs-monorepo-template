@@ -15,6 +15,26 @@ import {
 import type { NotificationTypeDeclaration } from './notification.types.js';
 
 /**
+ * Past this many notifications of a `bulk: 'digest'` type in one
+ * `notifyMany()`, each recipient gets one summary instead (#618).
+ */
+export const BULK_THRESHOLD = 20;
+
+/** The titles a bulk summary names (`data.titles`): the first ones. */
+export const BULK_TITLES = 3;
+
+/** The `data` of a bulk summary (`bulk: 'digest'`): what its texts name. */
+export interface BulkSummaryData {
+  bulk: true;
+  titles: string[];
+}
+
+/** Whether a stored notification's data is a bulk summary's. */
+export const isBulkSummary = (
+  data: Record<string, unknown>,
+): data is Record<string, unknown> & BulkSummaryData => data.bulk === true;
+
+/**
  * The notification types the features declared (`PlatformModule.forRoot({
  * notifications })`), their texts, and what each recipient's preferences
  * make of them. Checked once the channels have registered: a declaration
@@ -59,7 +79,9 @@ export class NotificationCatalog implements OnApplicationBootstrap {
           );
         }
       }
-      for (const part of ['label', 'title', 'body']) {
+      const parts = ['label', 'title', 'body'];
+      if (declaration.bulk) parts.push('bulk.title', 'bulk.body');
+      for (const part of parts) {
         const key = `notifications.${declaration.type}.${part}`;
         if (!this.i18n.exists(key, this.i18n.defaultLocale)) {
           throw new Error(
@@ -132,13 +154,21 @@ export class NotificationCatalog implements OnApplicationBootstrap {
             args: { ip: data.ip },
           })
         : '';
-    const args = { ...data, count, from };
+    // A bulk summary: its own texts, `count` the records, `titles` the first ones.
+    const bulk = isBulkSummary(data) && !!this.byType.get(type)!.bulk;
+    const key = `notifications.${type}${bulk ? '.bulk' : ''}`;
+    const args = {
+      ...data,
+      count,
+      from,
+      ...(bulk && { titles: (data.titles as string[]).join(', ') }),
+    };
     return {
-      title: this.i18n.translate(`notifications.${type}.title`, {
+      title: this.i18n.translate(`${key}.title`, {
         locale,
         args,
       }),
-      body: this.i18n.translate(`notifications.${type}.body`, {
+      body: this.i18n.translate(`${key}.body`, {
         locale,
         args,
       }),

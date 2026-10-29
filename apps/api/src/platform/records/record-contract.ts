@@ -6,7 +6,6 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { AuthorizationService } from '@nestjs/authorization';
-import { Webhooks } from '@nestjs/webhooks';
 import { and, eq } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
@@ -15,6 +14,7 @@ import { AccessService } from '../../iam/access/access.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import type { List, ListQuery } from '../../core/http/list-query.js';
 import { ApprovalsService } from '../approvals/approvals.service.js';
+import { AutomationsService } from '../automations/automations.service.js';
 import { applyingEffect } from './record-approvals.js';
 import { CustomFieldsService } from '../custom-fields/custom-fields.service.js';
 import { DocumentsService } from '../documents/documents.service.js';
@@ -22,6 +22,7 @@ import { RevisionsService } from '../revisions/revisions.service.js';
 import { NamingSeriesService } from '../sequences/naming-series.service.js';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service.js';
 import { TagsService } from '../tags/tags.service.js';
+import { RecordWebhooks } from '../webhooks/record-webhooks.service.js';
 import {
   numberFormat,
   numberingFields,
@@ -47,6 +48,32 @@ import { relationsFrom, relationsTo } from './record-relations.js';
 import type { RecordSchemas } from './record.schemas.js';
 
 export { RECORD_DECLARATION } from './record-declaration.token.js';
+
+/**
+ * Records as the API represents them, before tags and each reader's
+ * redaction: without the tenant (the request's own, docs/tenancy.md) and
+ * with only the values of the custom fields active now (a deactivated
+ * one's stay stored). Reads and webhooks share it, so a webhook never
+ * carries what a read of the record would not. Reads then add the
+ * computed fields (hidden per reader, hideComputed()); webhooks don't
+ * carry them.
+ */
+async function representations(
+  declaration: RecordDeclaration,
+  customFields: CustomFieldsService,
+  rows: Record<string, unknown>[],
+): Promise<Record<string, unknown>[]> {
+  const views = rows.map((row) => {
+    const { tenantId: _tenantId, ...view } = recordView(
+      declaration,
+      row,
+    ) as Record<string, unknown>;
+    return view;
+  });
+  return takes(declaration, 'custom')
+    ? customFields.visible(declaration.subject, views)
+    : views;
+}
 /** A feature module's record table (record-parts.ts provides it, for RecordStore). */
 export const RECORD_TABLE = Symbol('RECORD_TABLE');
 /** A feature module's record contract: its service, policy, table, list and schemas. */
@@ -136,10 +163,11 @@ export class RecordLifecycle {
     private readonly subscriptions: SubscriptionsService,
     private readonly revisions: RevisionsService,
     private readonly namingSeries: NamingSeriesService,
-    private readonly webhooks: Webhooks<Transaction>,
+    private readonly recordWebhooks: RecordWebhooks,
     private readonly access: AccessService,
     private readonly customFields: CustomFieldsService,
     private readonly approvals: ApprovalsService,
+    private readonly automations: AutomationsService,
   ) {
     if (takes(declaration, 'numbered')) {
       // Its number formats: the declared one, or the tenant's naming series.
@@ -222,37 +250,30 @@ export class RecordLifecycle {
   /**
    * An `events` webhook (`<item>.created`…), through the outbox in the
    * write's transaction: it goes out if and only if the write commits.
-   * The data is the record as the API shows it, less the fields its
-   * receiver may not read. Endpoints belong to API clients, so it goes to
-   * the client that owns the record (a user's records send none), as the
-   * example feature's do. Without an endpoint subscribed it is a no-op.
+   * The data is the record as the API shows it, less the fields each
+   * receiver may not read. It goes to the client that owns the record, and
+   * to the clients of its tenant subscribed with the `tenant` scope that may
+   * read it (RecordWebhooks, docs/webhooks-and-realtime.md "Subscriber
+   * scope"). Without an endpoint subscribed it is a no-op.
    */
   private async emit(tx: Transaction, event: RecordEvent, row: RecordRow) {
-    if (
-      !takes(this.declaration, 'events') ||
-      !row.ownerId.startsWith('client:')
-    ) {
+    if (!takes(this.declaration, 'events')) {
       return;
     }
-    const client = row.ownerId.slice('client:'.length);
-    const receiver = {
-      kind: 'client',
-      id: client,
-      name: client,
-      tenantId: row.tenantId as string,
-    } as const;
-    const data = await this.access.redact(
-      receiver,
-      'read',
-      this.declaration.subject,
-      recordView(this.declaration, row),
-    );
-    await this.webhooks.dispatch(tx, {
-      type: `${recordKey(this.declaration)}.${event}`,
-      tenant: client,
-      // Never an encrypted column's value, even as ciphertext.
-      data: withoutEncrypted(data),
-    });
+    await this.recordWebhooks.dispatch(tx, [
+      {
+        type: `${recordKey(this.declaration)}.${event}`,
+        subject: this.declaration.subject,
+        row: row as RecordRow & { tenantId: string },
+        // What a read shows (each receiver's redaction follows), and never
+        // an encrypted column's value, even as ciphertext.
+        data: withoutEncrypted(
+          (
+            await representations(this.declaration, this.customFields, [row])
+          )[0]!,
+        ),
+      },
+    ]);
   }
 
   async created(
@@ -273,6 +294,24 @@ export class RecordLifecycle {
       });
     }
     await this.emit(tx, 'created', row);
+    await this.automate(tx, 'created', row);
+  }
+
+  /** With `automation`: the tenant's rules this change triggers run once it commits. */
+  private async automate(
+    tx: Transaction,
+    event: 'created' | 'updated',
+    after: RecordRow,
+    before?: RecordRow,
+  ) {
+    if (takes(this.declaration, 'automation')) {
+      await this.automations.changed(tx, {
+        subject: this.declaration.subject,
+        event,
+        before,
+        after,
+      });
+    }
   }
 
   /**
@@ -399,6 +438,7 @@ export class RecordLifecycle {
       });
     }
     await this.emit(tx, 'updated', after);
+    await this.automate(tx, 'updated', after, before);
   }
 
   /** `row` as it is once deleted (in the recycle bin, or as it was when deleted for good). */
@@ -560,14 +600,11 @@ export class RecordPresenter {
 
   /** Records, as the caller may see them (one tag query for them all). */
   async many(user: Principal, rows: Record<string, unknown>[]) {
-    // The tenant is the request's own (docs/tenancy.md): not in a record's representation.
-    let views: Record<string, unknown>[] = rows.map((row) => {
-      const { tenantId: _tenantId, ...view } = recordView(
-        this.declaration,
-        row,
-      ) as Record<string, unknown>;
-      return view;
-    });
+    let views = await representations(
+      this.declaration,
+      this.customFields,
+      rows,
+    );
     if (takes(this.declaration, 'tags')) {
       const tags = await this.tags.tagsOf(
         this.declaration.subject,
@@ -577,10 +614,6 @@ export class RecordPresenter {
         ...view,
         tags: tags.get(view.id as string) ?? [],
       }));
-    }
-    if (takes(this.declaration, 'custom')) {
-      // Only the values of the fields active now (a deactivated one's stay stored).
-      views = await this.customFields.visible(this.declaration.subject, views);
     }
     views = withComputed(this.declaration, views);
     const shown = await this.access.redactAll(

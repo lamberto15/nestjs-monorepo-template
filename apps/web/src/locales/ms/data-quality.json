@@ -1,0 +1,42 @@
+{
+  "nav": "Kualiti data",
+  "title": "Kualiti data",
+  "description": "Rekod yang tiada nilai disyorkan, merujuk rekod dalam tong kitar semula, atau kelihatan seperti pendua. Ralat adalah salah; cadangan mungkin betul seperti adanya. Tiada apa di sini mengubah rekod: betulkan di tempatnya, atau tolak dapatan.",
+  "none": "Tiada jenis rekod mengisytiharkan semakan kualiti data yang anda boleh lihat.",
+  "subject": "Rekod",
+  "errors": "Ralat",
+  "suggestions": "Cadangan",
+  "dismissed": "Ditolak",
+  "freshness": "Imbasan terakhir",
+  "neverScanned": "Belum ada imbasan: mulakan satu untuk mencari masalah.",
+  "scanning": "Mengimbas: {{scanned}} daripada {{total}} rekod disemak.",
+  "scanFailed": "Imbasan yang bermula {{at}} gagal. Mulakan yang lain.",
+  "lastScan": "Selesai {{at}}: {{n}} dapatan terbuka.",
+  "progress": "Kemajuan imbasan",
+  "scan": "Imbas sekarang",
+  "scanStarted": "Imbasan dimulakan.",
+  "findingsOf": "Dapatan: {{subject}}",
+  "showDismissed": "Tunjukkan yang ditolak",
+  "noneOpen": "Tiada dapatan terbuka.",
+  "noneDismissed": "Tiada dapatan ditolak.",
+  "severity": "Keterukan",
+  "problem": "Masalah",
+  "record": "Rekod",
+  "actions": "Tindakan",
+  "severityLabel": {
+    "error": "Ralat",
+    "suggestion": "Cadangan"
+  },
+  "check": {
+    "missing": "{{field}} kosong",
+    "reference": "{{field}} merujuk rekod dalam tong kitar semula ({{other}})",
+    "duplicate": "{{field}} sama dengan rekod lain ({{other}})"
+  },
+  "recheck": "Semak semula",
+  "recheckLabel": "Semak semula: {{problem}}",
+  "dismiss": "Tolak",
+  "dismissLabel": "Tolak: {{problem}}",
+  "resolved": "Selesai: masalah sudah tiada.",
+  "stillThere": "Masih ada.",
+  "dismissedToast": "Dapatan ditolak."
+}

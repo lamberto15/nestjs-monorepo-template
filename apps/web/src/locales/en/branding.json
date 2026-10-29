@@ -11,6 +11,12 @@
     "set": "Choose a colour",
     "remove": "Use the default colour"
   },
+  "darkColor": {
+    "label": "Brand colour, dark mode",
+    "hint": "The accent in the web app's dark theme. Without one, the brand colour is used.",
+    "set": "Choose a dark colour",
+    "remove": "Use the brand colour"
+  },
   "mailName": {
     "label": "Mail sender name",
     "hint": "The name mail is sent under and signed with. The address stays the deployment's."
@@ -25,6 +31,20 @@
     "saved": "Logo saved.",
     "remove": "Remove the logo",
     "removed": "Logo removed.",
+    "rejected": "{{name}}: {{reason}}",
+    "tooLarge": "The file is over {{max}} KB.",
+    "typeRefused": "Use a PNG, JPEG or WebP image."
+  },
+  "darkLogo": {
+    "label": "Logo, dark mode",
+    "hint": "A PNG, JPEG or WebP image for the web app's dark theme. Without one, the logo is used.",
+    "alt": "The current dark-mode logo",
+    "drop": "Drop the dark-mode logo here",
+    "limit": "PNG, JPEG or WebP, up to 512 KB",
+    "choose": "Choose a file",
+    "saved": "Dark-mode logo saved.",
+    "remove": "Remove the dark-mode logo",
+    "removed": "Dark-mode logo removed.",
     "rejected": "{{name}}: {{reason}}",
     "tooLarge": "The file is over {{max}} KB.",
     "typeRefused": "Use a PNG, JPEG or WebP image."
