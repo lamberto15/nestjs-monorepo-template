@@ -31,3 +31,5 @@ allowBuilds:
   # addon for the platform (verified against the hashes pinned in the
   # package), or builds it with node-gyp when none matches.
   re2: true
+patchedDependencies:
+  '@nestjs/authentication@0.1.1': patches/@nestjs__authentication@0.1.1.patch
