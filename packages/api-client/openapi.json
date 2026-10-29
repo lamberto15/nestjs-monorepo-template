@@ -12389,7 +12389,7 @@
         ]
       },
       "put": {
-        "description": "The body replaces your settings: a type or channel left out goes back to its default. A mandatory type cannot be switched off. Audited.",
+        "description": "The body replaces your settings: a type or channel left out goes back to its default. On a mandatory type, a channel that is on by default cannot be switched off (one off by default may stay off: what GET answers, PUT takes back). Audited.",
         "operationId": "NotificationsController_updatePreferences_v1",
         "parameters": [],
         "requestBody": {
@@ -12508,7 +12508,7 @@
             }
           },
           "400": {
-            "description": "An unknown type or channel, a value the channel does not take, or a mandatory type switched off (validation_failed, each error naming `<type>.<channel>`)."
+            "description": "An unknown type or channel, a value the channel does not take, or, on a mandatory type, a channel that is on by default switched off (validation_failed, each error naming `<type>.<channel>`)."
           },
           "401": {
             "description": "No valid API key or session."

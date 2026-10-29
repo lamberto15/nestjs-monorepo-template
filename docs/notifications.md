@@ -42,12 +42,23 @@ removes the webhook endpoint API and the delivery worker; the outbox relay stays
    `security.passkeyAdded`, `security.passkeyRemoved`, `security.apiKeyRotated`,
    `security.breakGlassStarted`;
    [auth.md](auth.md), "Security notifications"), passed before the features'.
+
 2. Its **texts** live in `apps/api/src/i18n/<locale>/notifications.json`, under the
    type's segments, for every locale (`catalogs.spec.ts` checks them):
 
    ```json
-   { "note": { "published": { "label": "Note published", "title": "Note published",
-     "body": { "one": "\"{title}\" is now published.", "other": "{count} of your notes were published; …" } } } }
+   {
+     "note": {
+       "published": {
+         "label": "Note published",
+         "title": "Note published",
+         "body": {
+           "one": "\"{title}\" is now published.",
+           "other": "{count} of your notes were published; …"
+         }
+       }
+     }
+   }
    ```
 
    `label` names the type to people (the preferences UI); `title` and
@@ -56,6 +67,7 @@ removes the webhook endpoint API and the delivery worker; the outbox relay stays
    segment of a type is named `label`. A `bulk` type also has
    `bulk.title` and `bulk.body` (`{count}` records, `{titles}` the first
    few), checked at start.
+
 3. The service **sends**, inside the change's transaction, so the
    notification exists if and only if the change committed:
 
@@ -70,6 +82,7 @@ removes the webhook endpoint API and the delivery worker; the outbox relay stays
    notification with the same key replaces the older one, counted up,
    unread again, newest (a new id: the old one is gone). `link`: a path of
    the web app, made absolute with `WEB_URL` in mail.
+
 4. A **worker delivers** it (`notification-delivery.handler.ts`, an outbox
    handler), in the tenant the outbox message names (the payload's
    `tenantId`, [tenancy](tenancy.md)): the recipient as they are now
@@ -96,32 +109,33 @@ read, removing and the preferences answer 403 (the preferences are not even
 shown). A collapsed notification replaces the older one of its key in the
 same tenant only (or among the account's own).
 
-| Route | Does |
-| --- | --- |
-| `GET /v1/notifications` | newest first, texts in the request's language; `?read=false`, `?type=`, `?key=`, `?createdAt.gte=`, `?sort=`, cursor pages |
-| `GET /v1/notifications/unread-count` | `{ unread, unreadCapped }` (capped at 1,000) |
-| `POST /v1/notifications/{id}/read` | marks one read (again: no change) |
-| `POST /v1/notifications/read-all { before? }` | marks all read, or those created before `before` (what the client has shown) |
-| `DELETE /v1/notifications/{id}` | removes one |
-| `GET /v1/notifications/types` | the types: label, `mandatory`, the defaults of the channels the caller may set |
-| `GET /v1/notifications/preferences` | the caller's effective settings per type |
-| `GET /v1/notifications/unsubscribe/{token}` | public, read-only; what a mail's unsubscribe link would stop (below): `{ kind: 'type', label }` or `{ kind: 'digest', modes }`; 400 for an invalid link |
-| `POST /v1/notifications/unsubscribe/{token}` | public; the one-click unsubscribe of a mail's `List-Unsubscribe` link (below); 204 |
-| `PUT /v1/notifications/preferences` | replaces the caller's overrides: `{ "note.published": { "email": "daily" } }`; a type or channel left out goes back to its default; a mandatory type refuses `false`; audited (`notificationPreferences.updated`) |
-| `POST /v1/notifications/test` | development and tests only: sends the caller a `system.test` notification, answers `{ id }` |
+| Route                                         | Does                                                                                                                                                                                                                                                                                                  |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /v1/notifications`                       | newest first, texts in the request's language; `?read=false`, `?type=`, `?key=`, `?createdAt.gte=`, `?sort=`, cursor pages                                                                                                                                                                            |
+| `GET /v1/notifications/unread-count`          | `{ unread, unreadCapped }` (capped at 1,000)                                                                                                                                                                                                                                                          |
+| `POST /v1/notifications/{id}/read`            | marks one read (again: no change)                                                                                                                                                                                                                                                                     |
+| `POST /v1/notifications/read-all { before? }` | marks all read, or those created before `before` (what the client has shown)                                                                                                                                                                                                                          |
+| `DELETE /v1/notifications/{id}`               | removes one                                                                                                                                                                                                                                                                                           |
+| `GET /v1/notifications/types`                 | the types: label, `mandatory`, the defaults of the channels the caller may set                                                                                                                                                                                                                        |
+| `GET /v1/notifications/preferences`           | the caller's effective settings per type                                                                                                                                                                                                                                                              |
+| `GET /v1/notifications/unsubscribe/{token}`   | public, read-only; what a mail's unsubscribe link would stop (below): `{ kind: 'type', label }` or `{ kind: 'digest', modes }`; 400 for an invalid link                                                                                                                                               |
+| `POST /v1/notifications/unsubscribe/{token}`  | public; the one-click unsubscribe of a mail's `List-Unsubscribe` link (below); 204                                                                                                                                                                                                                    |
+| `PUT /v1/notifications/preferences`           | replaces the caller's overrides: `{ "note.published": { "email": "daily" } }`; a type or channel left out goes back to its default; a mandatory type refuses `false` on a channel that is on by default (what `GET` answers, `PUT` takes back unchanged); audited (`notificationPreferences.updated`) |
+| `POST /v1/notifications/test`                 | development and tests only: sends the caller a `system.test` notification, answers `{ id }`                                                                                                                                                                                                           |
 
 - **The shapes** (typed in the OpenAPI document and so in the client): the
   settings of one type are `{ email?: false | 'immediate' | 'hourly' | 'daily',
-  webhook?: boolean }`. `GET /types` returns `{ items: [{ type, label,
-  mandatory, channels }] }`, `channels` being the type's defaults for the
+webhook?: boolean }`. `GET /types` returns `{ items: [{ type, label,
+mandatory, channels }] }`, `channels` being the type's defaults for the
   channels the caller may set (`email` for a user, `webhook` for an API client;
   in-app and realtime are always on and never listed). `GET /preferences` and
   `PUT /preferences` return `{ types: { [type]: settings } }`, the effective
   value of every declared type; `PUT` takes the overrides, `{ [type]:
-  settings }`. A value a channel doesn't take (`email: 'often'`, `webhook:
-  'yes'`) is a 400 `validation_failed` naming `<type>.<channel>`, as are an
+settings }`. A value a channel doesn't take (`email: 'often'`, `webhook:
+'yes'`) is a 400 `validation_failed` naming `<type>.<channel>`, as are an
   unknown type or channel, a channel the caller's kind can't set, and a
-  mandatory type switched off. The schemas are in `notification.schemas.ts`;
+  mandatory type's channel switched off where its default has it on (one
+  off by default may stay off). The schemas are in `notification.schemas.ts`;
   the channels' own (`emailSettingSchema`, `webhookSettingSchema`) are the ones
   they validate with, so a channel you add documents its setting there.
 - An item: `{ id, type, title, body, data, link, key, count, read, readAt, createdAt, updatedAt }`.
@@ -130,8 +144,8 @@ same tenant only (or among the account's own).
   with the item (in the recipient's language) as soon as it is delivered,
   and keeps up with changes made elsewhere (another tab, another device):
   `notification.read { id, readAt }`, `notifications.read-all { before,
-  updated }`, `notification.removed { id }`, and `notifications.unread-count
-  { unread, unreadCapped }` for the badge: after each of these, and after
+updated }`, `notification.removed { id }`, and `notifications.unread-count
+{ unread, unreadCapped }` for the badge: after each of these, and after
   deliveries at most once a second per recipient.
 - **Webhook** (API clients): the event `notification.created`, with the
   item as `data`. Subscribe at `POST /v1/webhook-endpoints`. A client that
@@ -213,9 +227,23 @@ A principal follows a record and is told when it changes
 the watchers in each change's transaction:
 
 ```ts
-await this.subscriptions.subscribe(owner, { subject: 'Note', recordId: row.id });        // on create, in its transaction
-await this.subscriptions.notifyWatchers(tx, { subject: 'Note', recordId, type: 'note.changed', data, key: `note.changed:${id}`, link, except: by });
-const to = [row.ownerId, ...(await this.subscriptions.watchers({ subject: 'Note', recordId }))];   // when notifying by hand
+await this.subscriptions.subscribe(owner, {
+  subject: 'Note',
+  recordId: row.id,
+}); // on create, in its transaction
+await this.subscriptions.notifyWatchers(tx, {
+  subject: 'Note',
+  recordId,
+  type: 'note.changed',
+  data,
+  key: `note.changed:${id}`,
+  link,
+  except: by,
+});
+const to = [
+  row.ownerId,
+  ...(await this.subscriptions.watchers({ subject: 'Note', recordId })),
+]; // when notifying by hand
 ```
 
 `except` leaves out the one who made the change; a `key` collapses
@@ -253,16 +281,16 @@ per device). `MessagingProcessor` sends, on a worker, as `system:messaging`, in
 the notification's tenant. A transient provider failure is retried by the queue
 (backoff); a permanent one fails the job.
 
-| Route | Does |
-| --- | --- |
-| `PUT /v1/devices { platform, name, token }` | registers a device, or refreshes it (call it when the app opens: the last-seen time moves); a token another person had moves to the caller |
-| `GET /v1/devices`, `DELETE /v1/devices/{id}` | the caller's devices; removing deletes the token |
-| `GET /v1/devices/web-push` | `{ publicKey }`: the VAPID public key a browser subscribes with, `null` while `web-push` is not in `PUSH_PROVIDER` (any signed-in caller: the key is not a secret) |
-| `GET /v1/messaging/phone` | the number masked, `verified`, `optedOut` |
-| `PUT /v1/messaging/phone { phone }` | sets the number (E.164; only `SMS_ALLOWED_PREFIXES` countries, else 400 `phone_country_not_allowed`), texts a six-digit code; a different number starts unverified |
-| `POST /v1/messaging/phone/verify { code }` | confirms it (ten minutes, void after five wrong guesses) |
-| `DELETE /v1/messaging/phone` | removes it |
-| `POST /v1/webhooks/sms/twilio` | public; the provider's inbound messages (below) |
+| Route                                        | Does                                                                                                                                                               |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PUT /v1/devices { platform, name, token }`  | registers a device, or refreshes it (call it when the app opens: the last-seen time moves); a token another person had moves to the caller                         |
+| `GET /v1/devices`, `DELETE /v1/devices/{id}` | the caller's devices; removing deletes the token                                                                                                                   |
+| `GET /v1/devices/web-push`                   | `{ publicKey }`: the VAPID public key a browser subscribes with, `null` while `web-push` is not in `PUSH_PROVIDER` (any signed-in caller: the key is not a secret) |
+| `GET /v1/messaging/phone`                    | the number masked, `verified`, `optedOut`                                                                                                                          |
+| `PUT /v1/messaging/phone { phone }`          | sets the number (E.164; only `SMS_ALLOWED_PREFIXES` countries, else 400 `phone_country_not_allowed`), texts a six-digit code; a different number starts unverified |
+| `POST /v1/messaging/phone/verify { code }`   | confirms it (ten minutes, void after five wrong guesses)                                                                                                           |
+| `DELETE /v1/messaging/phone`                 | removes it                                                                                                                                                         |
+| `POST /v1/webhooks/sms/twilio`               | public; the provider's inbound messages (below)                                                                                                                    |
 
 These are a person's own: an API client gets 403, and so does an administrator
 acting as the person. Registrations and number changes are audited
@@ -338,7 +366,7 @@ included), so they hold whatever queued it:
   `monitoring/prometheus/alerts.yml`, with their tests ([deployment.md](deployment.md), "Alerting");
 - the **kill switch** is the flag `messaging.sms` (on by default). The operators
   switch it off for every tenant with `PUT /v1/settings/messaging.sms/platform
-  { "value": false, "enforced": true }`; a tenant's administrator can switch off
+{ "value": false, "enforced": true }`; a tenant's administrator can switch off
   their own tenant. A job meeting it is skipped (`switched_off`), not retried.
 
 The daily caps count messages; the monthly cap counts money, by the price table you configure.
