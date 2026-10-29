@@ -238,6 +238,11 @@ export const REALTIME_EVENTS = {
       action: z.enum(['added', 'edited', 'removed']),
     }),
   ),
+  'record.presence': event(
+    'RealtimeRecordPresenceEvent',
+    'Someone started or stopped viewing or editing a record you are viewing (or one you are editing, for your other tabs): ids only, fetch `GET /v1/presence/{subject}/{recordId}`. Sent only to people who are present and may read the record; advisory, never a lock.',
+    z.object(subjectRecord),
+  ),
   'record.attachments.changed': event(
     'RealtimeRecordAttachmentsChangedEvent',
     "A file on a record you watch was uploaded, removed, issued (a PDF), scanned clean (it can be downloaded now; MALWARE_SCANNER) or processed (an image's thumbnail and preview are made, or it could not be; IMAGE_PROCESSING): ids only.",

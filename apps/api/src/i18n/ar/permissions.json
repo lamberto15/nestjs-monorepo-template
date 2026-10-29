@@ -177,6 +177,10 @@
       "label": "الاحتفاظ بالإشعارات",
       "description": "يحذف كل ليلة الإشعارات المقروءة بعد NOTIFICATIONS_RETENTION_DAYS وأي إشعار بعد NOTIFICATIONS_MAX_AGE_DAYS."
     },
+    "recents-retention": {
+      "label": "الاحتفاظ بالسجلات المفتوحة مؤخرًا",
+      "description": "يحذف كل ليلة السجلات المفتوحة مؤخرًا الأقدم من 30 يومًا."
+    },
     "notification-digests": {
       "label": "ملخصات الإشعارات",
       "description": "يرسل كل ساعة ملخصات الإشعارات المستحقة بالبريد."
