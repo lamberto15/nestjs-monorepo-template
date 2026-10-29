@@ -338,6 +338,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/access/clients/{clientId}/webhook-scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Which records' events the client's endpoints receive */
+        get: operations["ClientWebhooksController_scope_v1"];
+        /**
+         * Set which records' events the client's endpoints receive
+         * @description `tenant` also sends events about the tenant's records owned by users and other clients, each only when the client may read that record, redacted to the fields it may read; `own` (the default) only the client's own. Wants a recent sign-in: it widens what leaves the tenant.
+         */
+        put: operations["ClientWebhooksController_setScope_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/webhook-senders": {
         parameters: {
             query?: never;
@@ -8960,6 +8981,120 @@ export interface operations {
                 content?: never;
             };
             /** @description Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description feature_off: API_CLIENTS=off in this deployment.
+             *
+             *     No such client in your tenant, endpoint or delivery.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ClientWebhooksController_scope_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clientId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description own (the default): only the records the client owns. tenant: also its tenant's records owned by users and other clients, each only when the client may read it, without the fields it may not read.
+                         * @enum {string}
+                         */
+                        scope: "own" | "tenant";
+                    };
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description feature_off: API_CLIENTS=off in this deployment.
+             *
+             *     No such client in your tenant, endpoint or delivery.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ClientWebhooksController_setScope_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clientId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description own (the default): only the records the client owns. tenant: also its tenant's records owned by users and other clients, each only when the client may read it, without the fields it may not read.
+                     * @enum {string}
+                     */
+                    scope: "own" | "tenant";
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description own (the default): only the records the client owns. tenant: also its tenant's records owned by users and other clients, each only when the client may read it, without the fields it may not read.
+                         * @enum {string}
+                         */
+                        scope: "own" | "tenant";
+                    };
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
             403: {
                 headers: {
                     [name: string]: unknown;

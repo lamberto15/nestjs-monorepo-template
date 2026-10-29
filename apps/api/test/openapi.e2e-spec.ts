@@ -152,6 +152,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/access/clients/{clientId}/webhook-endpoints/{id}',
         '/v1/access/clients/{clientId}/webhook-endpoints/{id}/rotate-secret',
         '/v1/access/clients/{clientId}/webhook-endpoints/{id}/test',
+        '/v1/access/clients/{clientId}/webhook-scope',
         '/v1/access/clients/{id}',
         '/v1/access/clients/{id}/keys/{keyId}',
         '/v1/access/clients/{id}/rotate',

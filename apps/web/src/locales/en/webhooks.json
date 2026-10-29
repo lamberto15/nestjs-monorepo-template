@@ -193,5 +193,10 @@
       "descriptionTooLong": "At most {{max}} characters.",
       "create": "Create sender"
     }
+  },
+  "scope": {
+    "label": "Also send events about the tenant's other records",
+    "description": "Records created by users and other clients, only those this client may read, without the fields it may not read. Off: only this client's own records.",
+    "saved": "Event scope saved."
   }
 }
