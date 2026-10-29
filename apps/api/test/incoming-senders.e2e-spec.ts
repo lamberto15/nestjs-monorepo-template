@@ -368,17 +368,22 @@ describe('incoming webhook senders of a tenant (e2e)', () => {
       .admin()
       .get('/v1/webhook-incoming-event-types')
       .expect(200);
-    const types = catalog.body.items.map((i: { type: string }) => i.type);
-    expect(types).toEqual(['note.publish-requested', 'test.echo']);
-    const publish = catalog.body.items[0];
-    expect(publish.dataSchema).toMatchObject({
-      type: 'object',
-      required: ['noteId'],
-    });
-    expect(publish.example.type).toBe('note.publish-requested');
+    // Features add their own types (notes: test/features/notes): only the fixture's is certain.
+    const items = catalog.body.items as {
+      type: string;
+      dataSchema: unknown;
+      example: { type: string };
+    }[];
+    const types = items.map((i) => i.type);
+    expect(types).toContain('test.echo');
+    expect(types).toEqual(types.toSorted((a, b) => a.localeCompare(b)));
+    for (const item of items) {
+      expect(item.dataSchema).toMatchObject({ type: 'object' });
+      expect(item.example.type).toBe(item.type);
+    }
     // Not the outgoing catalog.
     const outgoing = await node.admin().get('/v1/webhook-event-types');
-    expect(JSON.stringify(outgoing.body)).not.toContain('publish-requested');
+    expect(JSON.stringify(outgoing.body)).not.toContain('test.echo');
 
     const editor = await node.user(['editor']);
     await editor.agent.get('/v1/webhook-incoming-event-types').expect(403);
