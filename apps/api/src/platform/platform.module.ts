@@ -460,8 +460,8 @@ export class PlatformModule {
           inject: [ConfigService],
           useFactory: (config: ConfigService<PlatformEnv, true>) => ({
             worker: {
-              // Workflow steps run where the role runs workers.
-              enabled: runsWorkers(),
+              // Workflow steps run where the role runs workers (WORKFLOWS_WORKER=off: not here).
+              enabled: process.env.WORKFLOWS_WORKER !== 'off' && runsWorkers(),
               // Instances this process executes at once (WORKFLOW_CONCURRENCY).
               concurrency: config.get('WORKFLOW_CONCURRENCY', { infer: true }),
               leaseDuration: '30s', // how long a crashed process keeps its instances

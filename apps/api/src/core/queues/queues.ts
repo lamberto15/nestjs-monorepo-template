@@ -46,6 +46,33 @@ export function workerConnection(
   } as ConnectionOptions;
 }
 
+const queueList = (value: string | undefined) =>
+  (value ?? '')
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean);
+
+/**
+ * Whether this process consumes `queue` (#618): WORKER_QUEUES names the only
+ * queues it takes (unset: every one), WORKER_QUEUES_EXCLUDE the ones it
+ * leaves to another worker. So the heavy queues (imports, exports, PDFs,
+ * attachment processing) can run in a worker of their own, whose memory
+ * spike or OOM kill leaves mail and the outbox running
+ * (docs/background-work.md, "Splitting the workers"). Read from
+ * process.env, as runsWorkers(): the workers are made before ConfigService
+ * is at hand.
+ */
+export function consumesQueue(
+  queue: string,
+  env: NodeJS.ProcessEnv = process.env,
+) {
+  const only = queueList(env.WORKER_QUEUES);
+  return (
+    (only.length === 0 || only.includes(queue)) &&
+    !queueList(env.WORKER_QUEUES_EXCLUDE).includes(queue)
+  );
+}
+
 /**
  * The class @nestjs/bullmq creates a `@Processor`'s worker from
  * (`BullModule.workerClass`, its documented hook): one root connection
@@ -63,6 +90,8 @@ export class QueueWorker extends Worker {
       options && {
         ...options,
         connection: workerConnection(options.connection),
+        // A queue another worker consumes is never started here.
+        autorun: options.autorun !== false && consumesQueue(name),
       },
     );
   }
@@ -205,9 +234,23 @@ export class QueueWorkers implements OnModuleInit, BeforeApplicationShutdown {
     }
     if (runsWorkers()) {
       this.registrar.register();
-      applyQueueConcurrency(this.clients().workers, (key) =>
-        this.config.get<unknown>(key),
-      );
+      const { workers } = this.clients();
+      applyQueueConcurrency(workers, (key) => this.config.get<unknown>(key));
+      // Never started (QueueWorker), and closed, so its connections don't
+      // count as a worker for the queue (OpsQueues, the ops view).
+      const skipped = workers.filter((worker) => !consumesQueue(worker.name));
+      if (skipped.length > 0) {
+        this.logger.log(
+          `Left to another worker: ${skipped.map((worker) => worker.name).join(', ')}.`,
+        );
+        for (const worker of skipped) {
+          worker.close().catch((error: unknown) => {
+            this.logger.warn(
+              `Closing ${worker.name}'s worker: ${String(error)}`,
+            );
+          });
+        }
+      }
     }
   }
 

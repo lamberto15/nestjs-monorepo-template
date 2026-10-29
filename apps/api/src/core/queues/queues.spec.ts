@@ -1,6 +1,7 @@
 import {
   applyQueueConcurrency,
   closeWhenRedisIsDown,
+  consumesQueue,
   DEFAULT_JOB_OPTIONS,
   MAIL_JOB_OPTIONS,
   queueConcurrencyVariable,
@@ -34,6 +35,22 @@ describe('applyQueueConcurrency', () => {
     expect(queueConcurrencyVariable('attachment-scan')).toBe(
       'QUEUE_CONCURRENCY_ATTACHMENT_SCAN',
     );
+  });
+});
+
+describe('consumesQueue', () => {
+  it('takes every queue when neither list is set', () => {
+    expect(consumesQueue('mail', {})).toBe(true);
+  });
+
+  it('splits the queues between a light and a heavy worker', () => {
+    const heavy = 'data-transfers, documents';
+    const light = { WORKER_QUEUES_EXCLUDE: heavy };
+    expect(consumesQueue('mail', light)).toBe(true);
+    expect(consumesQueue('documents', light)).toBe(false);
+    const only = { WORKER_QUEUES: heavy };
+    expect(consumesQueue('data-transfers', only)).toBe(true);
+    expect(consumesQueue('mail', only)).toBe(false);
   });
 });
 

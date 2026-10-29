@@ -354,9 +354,11 @@ services:
   worker:
     <<: *app
     command: ['node', 'dist/worker']
-    environment:
+    environment: &worker-env
       <<: *app-env
       APP_ROLE: worker
+      # The queues left to worker-heavy (below), when its profile is on.
+      WORKER_QUEUES_EXCLUDE: ${HEAVY_QUEUES:-}
       # The maintenance role (BYPASSRLS: docs/tenancy.md, "The bypass"):
       # migrate makes it, the worker's sweeps across tenants connect as it;
       # api never gets it. Built from POSTGRES_MAINTENANCE_PASSWORD, or the
@@ -383,11 +385,12 @@ services:
       QUEUE_CONCURRENCY_RETENTION: ${QUEUE_CONCURRENCY_RETENTION:-1}
       QUEUE_CONCURRENCY_REENCRYPTION: ${QUEUE_CONCURRENCY_REENCRYPTION:-1}
       QUEUE_CONCURRENCY_ATTACHMENT_IMAGES: ${QUEUE_CONCURRENCY_ATTACHMENT_IMAGES:-1}
+      QUEUE_CONCURRENCY_ATTACHMENT_TEXT: ${QUEUE_CONCURRENCY_ATTACHMENT_TEXT:-1}
       OUTBOX_RELAY_BATCH_SIZE: ${OUTBOX_RELAY_BATCH_SIZE:-100}
       OUTBOX_RELAY_CONCURRENCY: ${OUTBOX_RELAY_CONCURRENCY:-10}
       WORKFLOW_CONCURRENCY: ${WORKFLOW_CONCURRENCY:-10}
     # x-app's, and the maintenance role's URL: the worker's alone.
-    secrets:
+    secrets: &worker-secrets
       - database_url
       - database_monitor_url
       - redis_password
@@ -428,6 +431,47 @@ services:
     volumes:
       - app_storage:/app/.data/storage
     # `documents`: Gotenberg's network, which only the workers join.
+    networks:
+      - default
+      - documents
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  # The heavy queues' own worker (docs/background-work.md, "Splitting the
+  # workers"): COMPOSE_PROFILES=heavy-worker and HEAVY_QUEUES. An import, an
+  # export or a PDF that runs out of memory takes down this container, not
+  # mail, the outbox relay, webhooks, workflows or cron, which stay on `worker`.
+  worker-heavy:
+    <<: *app
+    profiles: [heavy-worker]
+    command: ['node', 'dist/worker']
+    environment:
+      <<: *worker-env
+      WORKER_QUEUES: ${HEAVY_QUEUES:-data-transfers,documents,attachment-images,attachment-text}
+      WORKER_QUEUES_EXCLUDE: ''
+      OUTBOX_RELAY: 'off'
+      WEBHOOKS_WORKER: 'off'
+      WORKFLOWS_WORKER: 'off'
+      SCHEDULER: 'off'
+      DATABASE_POOL_MAX: ${HEAVY_WORKER_DATABASE_POOL_MAX:-8}
+      NODE_OPTIONS: --max-old-space-size=${HEAVY_WORKER_HEAP_MB:-1024}
+    secrets: *worker-secrets
+    deploy:
+      replicas: ${HEAVY_WORKER_REPLICAS:-1}
+      resources:
+        limits:
+          cpus: '${HEAVY_WORKER_CPUS:-1}'
+          memory: ${HEAVY_WORKER_MEMORY:-1536M}
+    stop_grace_period: 60s
+    healthcheck:
+      interval: 10s
+      start_period: 30s
+      start_interval: 2s
+    volumes:
+      - app_storage:/app/.data/storage
     networks:
       - default
       - documents
