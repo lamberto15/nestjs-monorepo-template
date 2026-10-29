@@ -140,5 +140,20 @@
     "retry": "Cuba lagi",
     "more": "Ada lagi padanan: kecilkan carian anda.",
     "preview": "Pilihan daripada sumber, disenaraikan semasa borang diisi."
+  },
+  "public": {
+    "title": "Borang",
+    "invalid": "Pautan ini tidak berfungsi: ia mungkin telah tamat tempoh, dibatalkan atau menerima semua jawapannya.",
+    "links": "Pautan awam",
+    "hint": "Sesiapa yang memegang pautan mengisi versi yang diterbitkan tanpa akaun, sehingga ia tamat tempoh, dibatalkan atau menerima jawapan paling banyak.",
+    "until": "Berfungsi hingga (30 hari jika kosong)",
+    "most": "Jawapan paling banyak (1000 jika kosong)",
+    "create": "Buat pautan",
+    "url": "Pautan baharu",
+    "once": "Salin sekarang: ia ditunjukkan sekali sahaja.",
+    "working": "Berfungsi",
+    "closed": "Ditutup",
+    "summary": "Hingga {{until}} · {{submissions}} daripada {{most}} jawapan",
+    "revoke": "Batalkan"
   }
 }

@@ -140,5 +140,20 @@
     "retry": "Try again",
     "more": "More match: narrow your search.",
     "preview": "Choices from a source, listed when the form is filled in."
+  },
+  "public": {
+    "title": "Form",
+    "invalid": "This link doesn't work: it may have expired, been revoked or taken all its answers.",
+    "links": "Public links",
+    "hint": "Anyone holding a link fills in the published version without an account, until it expires, is revoked or has taken its most answers.",
+    "until": "Works until (30 days if empty)",
+    "most": "Most answers (1000 if empty)",
+    "create": "Make a link",
+    "url": "The new link",
+    "once": "Copy it now: it is shown only once.",
+    "working": "Working",
+    "closed": "Closed",
+    "summary": "Until {{until}} · {{submissions}} of {{most}} answers",
+    "revoke": "Revoke"
   }
 }

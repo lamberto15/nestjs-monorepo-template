@@ -217,9 +217,63 @@ GET  /v1/forms/{id}/submissions/{sid}
   submitter, never the answers. Answers are not encrypted at rest: don't
   collect secrets or sensitive data in a form ([encryption](encryption.md)).
 
+## Public forms
+
+An editor can open a form to people **without an account**, explicitly,
+one link at a time. The code is
+`apps/api/src/platform/forms/form-public-links.service.ts`.
+
+```text
+POST /v1/forms/{id}/public-links                   { expiresAt?, maxSubmissions? }: the token, shown once
+GET  /v1/forms/{id}/public-links                   its links (never their tokens)
+POST /v1/forms/{id}/public-links/{linkId}/revoke
+POST /v1/public/forms/open                         { token }: no sign-in
+POST /v1/public/forms/submit                       { token, versionId, answers }: no sign-in
+```
+
+- **Explicit and revocable**: only a member with `Form.edit` makes a link
+  (an API client gets 403), at most 5 working at once per form. It works
+  until `expiresAt` (30 days by default, 365 at most), its revocation, or
+  its `maxSubmissions` (its quota: 1000 by default), whichever comes first;
+  an archived or unpublished form, or `forms.enabled` off, closes it too
+  (it opens again with the form). Making and revoking are audited
+  (`form.link-created`, `form.link-revoked`).
+- **Unguessable, no enumeration**: the token is `frm_<tenant id>_<32 random
+bytes>`, kept only as a SHA-256 hash and shown once; the web page reads it
+  from the URL's fragment (`<WEB_URL>/public-form#<token>`) and sends it in
+  a POST body, so it is in no URL a server or proxy logs. Every refusal (a
+  forged or used-up link, one of another tenant, expired, revoked, a closed
+  form) is the same 404 `form_link_not_found`, so a link says nothing of
+  which tenants or forms exist. What it opens is the published version's
+  name, description and definition: no form id, slug or tenant.
+- **Nobody's rights**: the sender is no principal. A submission is stored
+  as `public:<link id>`, audited `form.submitted` by `anonymous` (never the
+  answers), and answers only `{ id, version, createdAt }`. The link reads
+  nothing else: no other form, no submissions, no version history (each a
+  401 without a sign-in).
+- **Checked as any submission**: the same validation, conditions and
+  limits (64 KiB of answers); the quota is taken in the submission's own
+  transaction, so a link never takes more than `maxSubmissions`, whatever
+  the race.
+- **Spam controls**: `open` 30 requests a minute and `submit` 10 in 10
+  minutes per address (the throttler); with bot protection on, `submit` asks for a
+  Turnstile token, action `public-form` ([auth](auth.md), "Bot protection"),
+  counted on every request.
+- **No option sources, no files**: a version with a sourced field is never
+  served publicly (a link isn't made for it, 400 `form_link_sources`; one
+  made before such a version is published answers 404), since a provider's
+  choices are for people it knows. Forms have no file field, so a public
+  form takes no attachment (and none to scan); one would need the
+  attachments' scanning first ([attachments](attachments.md)).
+- **The web app**: the builder's **Public links** makes a link (until a
+  day, at most so many answers), shows its URL the once, lists each link's
+  state and answers, and revokes it. `/public-form#<token>` is the page
+  people fill in, signed out, with the wizard and the challenge when there
+  is one; a link that doesn't work says so and nothing more.
+
 ## Tenancy
 
-`forms`, `form_versions` and `form_submissions` carry `tenant_id` under
+`forms`, `form_versions`, `form_submissions` and `form_public_links` carry `tenant_id` under
 row-level security, with keys within the tenant ([tenancy](tenancy.md)):
 another tenant's form or submission is a 404, even by id.
 
@@ -266,7 +320,3 @@ another tenant's form or submission is a 404, even by id.
 - **Submissions** (`/forms/{id}/submissions`): everyone's with
   `Form.readResponses`, one's own otherwise, each with its version and
   answers.
-
-## Not yet
-
-Public, anonymous forms are #583.

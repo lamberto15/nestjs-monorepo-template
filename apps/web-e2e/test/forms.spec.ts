@@ -190,3 +190,56 @@ test('a field takes its choices from an option source, and its value is checked 
     page.getByText('Thank you: your answers were sent.'),
   ).toBeVisible();
 });
+
+test('a public link opens the form to someone signed out, and stops once revoked', async ({
+  page,
+  browser,
+}) => {
+  const created = await page.request.post('/v1/forms', {
+    data: {
+      slug: `e2e-public-${Date.now()}`,
+      name: 'E2E public',
+      definition: {
+        sections: [
+          {
+            key: 'main',
+            fields: [
+              { key: 'full_name', type: 'text', label: 'Name', required: true },
+            ],
+          },
+        ],
+      },
+    },
+  });
+  expect(created.ok(), await created.text()).toBe(true);
+  const form = (await created.json()) as { id: string; revision: number };
+  const published = await page.request.post(`/v1/forms/${form.id}/publish`, {
+    data: { revision: form.revision },
+  });
+  expect(published.ok(), await published.text()).toBe(true);
+
+  // The editor makes the link in the builder.
+  await page.goto(`/forms/${form.id}`);
+  const links = page.getByRole('region', { name: 'Public links' });
+  await links.getByRole('button', { name: 'Make a link' }).click();
+  const url = await links.getByLabel('The new link').inputValue();
+  const token = url.slice(url.indexOf('#') + 1);
+
+  // A context of its own: no session, no cookie (it doesn't take the project's baseURL).
+  const origin = new URL(page.url()).origin;
+  const stranger = await browser.newContext();
+  const outside = await stranger.newPage();
+  await outside.goto(`${origin}/public-form#${token}`);
+  await outside.getByLabel('Name *').fill('Eve');
+  await outside.getByRole('button', { name: 'Send' }).click();
+  await expect(
+    outside.getByText('Thank you: your answers were sent.'),
+  ).toBeVisible();
+
+  await links.getByRole('button', { name: 'Revoke' }).click();
+  await expect(links.getByText('Closed')).toBeVisible();
+  await outside.goto(`${origin}/`);
+  await outside.goto(`${origin}/public-form#${token}`);
+  await expect(outside.getByText(/This link doesn't work/)).toBeVisible();
+  await stranger.close();
+});

@@ -177,6 +177,45 @@ export function useSubmit(formId: string) {
   });
 }
 
+/** A form's public links (docs/forms.md, "Public forms"), for its editors. */
+export const publicLinksQuery = (id: string) =>
+  queryOptions({
+    queryKey: [...formsKey, id, 'public-links'],
+    queryFn: () =>
+      unwrap(
+        api.GET('/v1/forms/{id}/public-links', { params: { path: { id } } }),
+      ),
+  });
+
+/** A new public link: its URL comes back this once. */
+export function useCreatePublicLink(id: string) {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: (body: { expiresAt?: string; maxSubmissions?: number }) =>
+      unwrap(
+        api.POST('/v1/forms/{id}/public-links', {
+          params: { path: { id } },
+          body,
+        }),
+      ),
+    onSuccess: refresh,
+    meta: { errorToast: false },
+  });
+}
+
+export function useRevokePublicLink(id: string) {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: (linkId: string) =>
+      unwrap(
+        api.POST('/v1/forms/{id}/public-links/{linkId}/revoke', {
+          params: { path: { id, linkId } },
+        }),
+      ),
+    onSuccess: refresh,
+  });
+}
+
 /** A problem's field errors (`errors[]`: dotted paths), by path. */
 export function errorsByPath(error: unknown): Record<string, string> {
   const errors = (error as { errors?: { path: string; message: string }[] })

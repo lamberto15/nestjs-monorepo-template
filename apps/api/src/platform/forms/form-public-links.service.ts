@@ -39,8 +39,7 @@ export const MAX_PUBLIC_LINKS = 5;
 /** The longest a link may work, and how long it works when no end is given. */
 export const PUBLIC_LINK_MAX_DAYS = 365;
 export const PUBLIC_LINK_DEFAULT_DAYS = 30;
-/** The most submissions a link takes, at most, and when none is given. */
-export const PUBLIC_LINK_MAX_SUBMISSIONS = 100_000;
+/** The submissions a link takes when no `maxSubmissions` is given (at most 100 000: form.schemas.ts). */
 export const PUBLIC_LINK_DEFAULT_SUBMISSIONS = 1_000;
 
 const DAY = 24 * 60 * 60 * 1000;
