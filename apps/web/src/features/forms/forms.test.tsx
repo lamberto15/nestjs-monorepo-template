@@ -260,6 +260,132 @@ describe('forms', () => {
     });
   });
 
+  it('fills a wizard page by page, skips a hidden page, and bounds a repeatable group', async () => {
+    const calls = useFormsApi();
+    const fields = definition.sections[0]!.fields;
+    server.use(
+      http.get(`/v1/forms/${FORM_ID}/published`, () =>
+        HttpResponse.json({
+          formId: FORM_ID,
+          slug: 'intake',
+          name: 'Intake',
+          description: null,
+          versionId: VERSION_ID,
+          version: 1,
+          definition: {
+            format: 3,
+            sections: [
+              { key: 'contact', fields: [fields[0], fields[1]] },
+              {
+                key: 'more',
+                startsPage: true,
+                visibleWhen: { field: 'topic', op: 'eq', value: 'other' },
+                fields: [
+                  { key: 'details', type: 'textarea', label: 'Details' },
+                ],
+              },
+              {
+                key: 'team',
+                startsPage: true,
+                fields: [
+                  {
+                    key: 'people',
+                    type: 'group',
+                    label: 'Person',
+                    validation: { minItems: 1, maxItems: 2 },
+                    fields: [
+                      {
+                        key: 'who',
+                        type: 'text',
+                        label: 'Who',
+                        required: true,
+                      },
+                      { key: 'age', type: 'integer', label: 'Age' },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          publishedAt: at,
+        }),
+      ),
+    );
+    await renderApp(`/forms/${FORM_ID}/fill`);
+    const user = userEvent.setup();
+    // The "more" page is hidden (topic isn't other): two steps.
+    expect(await screen.findByText('Step 1 of 2')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
+
+    // Next checks this page first, and puts the focus on its error.
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(await screen.findByText('This answer is required.')).toBeVisible();
+    await waitFor(() => expect(screen.getByLabelText('Name *')).toHaveFocus());
+    await user.type(screen.getByLabelText('Name *'), 'Ada');
+    await user.keyboard('{Enter}');
+    const step = await screen.findByText('Step 2 of 2');
+    await waitFor(() => expect(step).toHaveFocus());
+
+    // One item to start with (minItems), at most two.
+    const remove = screen.getByRole('button', { name: 'Remove Person 1' });
+    expect(remove).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    expect(await screen.findByText('This answer is required.')).toBeVisible();
+    await user.type(screen.getByLabelText('Who *'), 'Bo');
+    await user.click(screen.getByRole('button', { name: 'Add Person' }));
+    expect(screen.getByRole('button', { name: 'Add Person' })).toBeDisabled();
+    const second = screen.getByRole('group', { name: 'Person 2' });
+    await user.type(within(second).getByLabelText('Who *'), 'Cy');
+    await user.type(within(second).getByLabelText('Age'), '4');
+
+    // Back keeps the answers.
+    await user.click(screen.getByRole('button', { name: 'Previous' }));
+    expect(await screen.findByLabelText('Name *')).toHaveValue('Ada');
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await user.click(await screen.findByRole('button', { name: 'Send' }));
+    expect(
+      await screen.findByText('Thank you: your answers were sent.'),
+    ).toBeVisible();
+    expect(calls.submitted.at(-1)!.answers).toEqual({
+      full_name: 'Ada',
+      people: [{ who: 'Bo' }, { who: 'Cy', age: 4 }],
+    });
+  });
+
+  it('builds pages and a repeatable group', async () => {
+    const calls = useFormsApi();
+    await renderApp(`/forms/${FORM_ID}`);
+    const user = userEvent.setup();
+    const preview = await screen.findByRole('region', { name: 'Preview' });
+    await user.click(
+      screen.getByRole('checkbox', { name: 'Starts a new page' }),
+    );
+    await user.click(
+      screen.getByRole('combobox', { name: "New field's type" }),
+    );
+    await user.click(
+      await screen.findByRole('option', { name: 'Repeatable group' }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Add a field' }));
+    await user.type(screen.getByLabelText('Most items'), '3');
+    expect(
+      within(preview).getByRole('button', { name: 'Add Repeatable group' }),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: 'Save draft' }));
+    await findToast('Draft saved.');
+    const saved = calls.drafts[0]!.definition;
+    expect(saved).toMatchObject({ format: 3 });
+    expect(saved.sections[0]).toMatchObject({ startsPage: true });
+    expect(saved.sections[0]!.fields.at(-1)).toEqual({
+      key: 'field_4',
+      type: 'group',
+      label: 'Repeatable group',
+      validation: { maxItems: 3 },
+      fields: [{ key: 'item_1', type: 'text', label: 'Short text' }],
+    });
+  });
+
   it('edits a condition visually, and the preview follows it', async () => {
     const calls = useFormsApi();
     await renderApp(`/forms/${FORM_ID}`);
@@ -289,7 +415,7 @@ describe('forms', () => {
 
     await user.click(screen.getByRole('button', { name: 'Save draft' }));
     await findToast('Draft saved.');
-    expect(calls.drafts[0]!.definition).toMatchObject({ format: 2 });
+    expect(calls.drafts[0]!.definition).toMatchObject({ format: 3 });
     expect(calls.drafts[0]!.definition.sections[0]!.fields[2]).toMatchObject({
       key: 'seats',
       visibleWhen: { field: 'topic', op: 'ne', value: 'billing' },
