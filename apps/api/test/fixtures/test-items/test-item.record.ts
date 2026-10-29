@@ -3,6 +3,7 @@ import {
   defineRecord,
   recordTableOf,
 } from '../../../src/platform/records/record.js';
+import { computed } from '../../../src/platform/records/record-computed.js';
 import { recordSetting } from '../../../src/platform/records/record-settings.js';
 
 /**
@@ -46,6 +47,13 @@ export const TEST_ITEM = defineRecord({
     // (record-relations.ts) are tested on it. A reference to its own records
     // names their table through the declaration (its tables file imports this one).
     parentId: field.ref((): Referenced => recordTableOf(TEST_ITEM)).optional(),
+  },
+  // Computed on read (platform/records/record-computed.ts): `summary` reads
+  // `body`, which a field-level permission can hide, so it hides with it.
+  computed: {
+    titleLength: computed.int('length(title)'),
+    summary: computed.string("concat(title, ': ', coalesce(body, ''))"),
+    published: computed.bool('publishedAt != null'),
   },
   capabilities: [
     'tags',

@@ -25,6 +25,11 @@ export interface AttachmentTarget {
     fields: readonly string[],
   ): Promise<boolean>;
   /**
+   * Where the record is in the web app (`/notes/<id>`): where a file found
+   * by the search inside attachments leads. Without it the hit has no link.
+   */
+  link?(recordId: string): string;
+  /**
    * The record's table and its id column: the nightly sweep removes the
    * attachments whose record has no row there (deleted for good; one in a
    * recycle bin still has its row), file and row.

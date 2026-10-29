@@ -638,6 +638,20 @@
       "when": 1793228013875,
       "tag": "0090_omniscient_lifeguard",
       "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1793231801929,
+      "tag": "0091_brief_blindfold",
+      "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1793233078844,
+      "tag": "0092_whole_starjammers",
+      "breakpoints": true
     }
   ]
 }
