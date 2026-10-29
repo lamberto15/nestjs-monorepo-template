@@ -123,8 +123,10 @@ IDs as labels. Alloy parses the JSON `level` field into a low-cardinality Loki l
 filter errors and warnings without parsing request IDs or other per-request fields.
 
 The provisioned **Application Overview** dashboard is under **Dashboards**. It shows API request rate,
-5xx ratio and p95 latency; worker queue backlog and outbox lag; database pool waits; and recent API/worker
-error logs. Use **Last 1 hour** for a quick operational overview. The standard kube-prometheus-stack
+5xx ratio and p95 latency; worker queue backlog and outbox lag; database pool waits; Redis's memory
+against its limit and `REDIS_MAXMEMORY` (a fixed line: this cluster runs no redis_exporter, so keep it in
+step with `data.yaml`); API and worker pod memory against their limits; pod restarts and OOM-killed
+containers (kube-state-metrics, cAdvisor); and recent API/worker error logs. Use **Last 1 hour** for a quick operational overview. The standard kube-prometheus-stack
 dashboards remain available for node and Kubernetes resource health.
 
 ## Rollback and PVC recovery

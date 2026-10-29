@@ -270,6 +270,13 @@ export const coreEnv = z.object({
    * underscores), declared in its own group; QueueWorkers applies them.
    */
   QUEUE_CONCURRENCY_MAIL: z.coerce.number().int().min(1).default(5),
+  /**
+   * The queues this worker consumes, comma-separated (unset: every one), and
+   * those it leaves to another worker: a worker of its own for the heavy
+   * queues (consumesQueue, core/queues/queues.ts).
+   */
+  WORKER_QUEUES: list(),
+  WORKER_QUEUES_EXCLUDE: list(),
 });
 
 export type CoreEnv = z.output<typeof coreEnv>;

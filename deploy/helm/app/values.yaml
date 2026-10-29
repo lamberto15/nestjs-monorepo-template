@@ -117,6 +117,41 @@ worker:
   tolerations: []
   affinity: {}
 
+# The heavy queues in a Deployment of their own (docs/background-work.md,
+# "Splitting the workers"): `worker` then leaves `queues` out, and
+# `worker-heavy` runs only them, with no outbox relay, webhooks, workflows or
+# cron. A large import, export, PDF or image that exhausts its memory restarts
+# this pod, not mail and the outbox. Its budget: the heap (NODE_OPTIONS) plus
+# ~512Mi off the heap (sharp's libvips, the XLSX zip, sockets, buffers)
+# within the limit, one job per queue at a time.
+heavyWorker:
+  enabled: false
+  replicas: 1
+  queues: data-transfers,documents,attachment-images,attachment-text
+  extraEnv:
+    APP_ROLE: worker
+    DATABASE_POOL_MAX: "8"
+    NODE_OPTIONS: --max-old-space-size=1024
+    PASSWORD_HASH_CONCURRENCY: "1"
+    OUTBOX_RELAY: "off"
+    WEBHOOKS_WORKER: "off"
+    WORKFLOWS_WORKER: "off"
+    SCHEDULER: "off"
+    QUEUE_CONCURRENCY_DATA_TRANSFERS: "1"
+    QUEUE_CONCURRENCY_DOCUMENTS: "1"
+    QUEUE_CONCURRENCY_ATTACHMENT_IMAGES: "1"
+    QUEUE_CONCURRENCY_ATTACHMENT_TEXT: "1"
+  resources:
+    requests: { cpu: 250m, memory: 1Gi, ephemeral-storage: 256Mi }
+    limits: { cpu: "1", memory: 1536Mi, ephemeral-storage: 2Gi }
+  terminationGracePeriodSeconds: 60
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
 # Runs `node dist/migrate` before every install and upgrade (a Helm hook), so
 # a failed migration stops the release before any new pod starts.
 migrate:

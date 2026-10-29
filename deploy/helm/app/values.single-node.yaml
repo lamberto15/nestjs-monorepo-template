@@ -64,6 +64,11 @@ worker:
     QUEUE_CONCURRENCY_DOCUMENTS: "1"
     OUTBOX_RELAY_CONCURRENCY: "4"
     WORKFLOW_CONCURRENCY: "4"
+# Imports, exports, PDFs and attachment processing in a pod of their own
+# (#618): its memory spike or OOM kill leaves mail and the outbox running.
+# The worker above then holds only the light queues.
+heavyWorker:
+  enabled: true
 
 ingress:
   className: traefik
