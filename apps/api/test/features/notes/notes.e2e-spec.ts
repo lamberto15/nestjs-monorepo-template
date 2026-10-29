@@ -755,6 +755,22 @@ describe('the example feature: notes (e2e)', () => {
       }
     });
 
+    it('lists its incoming event type in the incoming catalog, not the outgoing one', async () => {
+      const catalog = await node
+        .admin()
+        .get('/v1/webhook-incoming-event-types')
+        .expect(200);
+      const publish = (
+        catalog.body.items as { type: string; dataSchema: unknown }[]
+      ).find((i) => i.type === 'note.publish-requested');
+      expect(publish?.dataSchema).toMatchObject({
+        type: 'object',
+        required: ['noteId'],
+      });
+      const outgoing = await node.admin().get('/v1/webhook-event-types');
+      expect(JSON.stringify(outgoing.body)).not.toContain('publish-requested');
+    });
+
     it('accepts a verified incoming webhook once, and refuses a bad signature', async () => {
       const client = await node.client();
       const note = (await writeNote(node, client.auth).expect(201)).body;
