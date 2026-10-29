@@ -11,6 +11,12 @@
     "set": "Farbe wählen",
     "remove": "Standardfarbe verwenden"
   },
+  "darkColor": {
+    "label": "Markenfarbe, Dunkelmodus",
+    "hint": "Der Akzent im dunklen Design der Web-App. Ohne Angabe gilt die Markenfarbe.",
+    "set": "Dunkle Farbe wählen",
+    "remove": "Markenfarbe verwenden"
+  },
   "mailName": {
     "label": "Absendername für E-Mails",
     "hint": "Der Name, unter dem E-Mails gesendet und signiert werden. Die Adresse bleibt die der Installation."
@@ -25,6 +31,20 @@
     "saved": "Logo gespeichert.",
     "remove": "Logo entfernen",
     "removed": "Logo entfernt.",
+    "rejected": "{{name}}: {{reason}}",
+    "tooLarge": "Die Datei ist größer als {{max}} KB.",
+    "typeRefused": "Verwenden Sie ein PNG-, JPEG- oder WebP-Bild."
+  },
+  "darkLogo": {
+    "label": "Logo, Dunkelmodus",
+    "hint": "Ein Bild als PNG, JPEG oder WebP für das dunkle Design der Web-App. Ohne Angabe gilt das Logo.",
+    "alt": "Das aktuelle Dunkelmodus-Logo",
+    "drop": "Dunkelmodus-Logo hier ablegen",
+    "limit": "PNG, JPEG oder WebP, bis 512 KB",
+    "choose": "Datei wählen",
+    "saved": "Dunkelmodus-Logo gespeichert.",
+    "remove": "Dunkelmodus-Logo entfernen",
+    "removed": "Dunkelmodus-Logo entfernt.",
     "rejected": "{{name}}: {{reason}}",
     "tooLarge": "Die Datei ist größer als {{max}} KB.",
     "typeRefused": "Verwenden Sie ein PNG-, JPEG- oder WebP-Bild."

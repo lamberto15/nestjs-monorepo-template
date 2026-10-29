@@ -40,8 +40,10 @@ describe('tenant branding (e2e)', () => {
     const tenant = await node.otherTenant();
     expect((await tenant.admin.get('/v1/branding').expect(200)).body).toEqual({
       primaryColor: null,
+      darkPrimaryColor: null,
       mailFromName: null,
       logoUrl: null,
+      darkLogoUrl: null,
       locked: false,
       canEdit: true,
     });
@@ -151,8 +153,10 @@ describe('tenant branding (e2e)', () => {
     ).toBeNull();
     expect((await lonely.get('/v1/branding').expect(200)).body).toEqual({
       primaryColor: null,
+      darkPrimaryColor: null,
       mailFromName: null,
       logoUrl: null,
+      darkLogoUrl: null,
       locked: false,
       canEdit: false,
     });
@@ -223,6 +227,49 @@ describe('tenant branding (e2e)', () => {
           expect([400, 415]).toContain(res.status);
         });
       await node.http().get(`/v1/branding/${tenant.id}/logo`).expect(404);
+    });
+
+    it('keeps a dark-mode logo and colour apart, with the same checks', async () => {
+      const tenant = await node.otherTenant();
+      await tenant.admin
+        .put('/v1/branding')
+        .send({ darkPrimaryColor: '#abcdef' })
+        .expect(200);
+      await tenant.admin
+        .put('/v1/branding')
+        .send({ darkPrimaryColor: 'red' })
+        .expect(400);
+      const set = await tenant.admin
+        .post('/v1/branding/logo/dark')
+        .attach('file', PNG, { filename: 'd.png', contentType: 'image/png' })
+        .expect(201);
+      expect(set.body).toMatchObject({
+        darkPrimaryColor: '#abcdef',
+        darkLogoUrl: `/v1/branding/${tenant.id}/logo/dark`,
+        logoUrl: null,
+      });
+      const file = await node
+        .http()
+        .get(`/v1/branding/${tenant.id}/logo/dark`)
+        .buffer(true)
+        .parse(binary)
+        .expect(200);
+      expect(file.headers['content-type']).toBe('image/png');
+      expect(file.headers['x-content-type-options']).toBe('nosniff');
+      expect(file.body).toEqual(PNG);
+      // The logo is its own: none yet.
+      await node.http().get(`/v1/branding/${tenant.id}/logo`).expect(404);
+
+      await tenant.admin
+        .post('/v1/branding/logo/dark')
+        .attach('file', SVG, {
+          filename: 'd.svg',
+          contentType: 'image/svg+xml',
+        })
+        .expect(415);
+      await tenant.admin.delete('/v1/branding/logo/dark').expect(204);
+      await node.http().get(`/v1/branding/${tenant.id}/logo/dark`).expect(404);
+      await tenant.admin.delete('/v1/branding/logo/dark').expect(404);
     });
 
     it('refuses a file over 512 KB and keeps the logo it has', async () => {
@@ -380,6 +427,19 @@ describe('tenant branding (e2e)', () => {
           .expect(409)
           .expect(refused);
         await tenant.admin.delete('/v1/branding/logo').expect(409);
+        await tenant.admin
+          .post('/v1/branding/logo/dark')
+          .attach('file', JPEG, {
+            filename: 'd.jpg',
+            contentType: 'image/jpeg',
+          })
+          .expect(409)
+          .expect(refused);
+        await tenant.admin.delete('/v1/branding/logo/dark').expect(409);
+        await tenant.admin
+          .put('/v1/branding')
+          .send({ darkPrimaryColor: '#000000' })
+          .expect(409);
         // What was stored stays in force, and the logo is still served.
         await node.http().get(`/v1/branding/${tenant.id}/logo`).expect(200);
         // Other tenants are free.

@@ -8,8 +8,10 @@ is `/branding` in the web app (`apps/web/src/features/branding`).
 | What | Where it lives | Shown in |
 | --- | --- | --- |
 | `branding.primaryColor`: `#rrggbb` | a tenant setting ([settings](settings.md)) | the web theme, mail (the card's top edge), documents (the page's top rule and name) |
+| `branding.darkPrimaryColor`: `#rrggbb`, optional | a tenant setting | the web theme in dark mode only (absent: `primaryColor`) |
 | `branding.mailFromName` | a tenant setting | the sender's display name of every mail, and its signature; documents show it under the logo |
 | the logo: PNG, JPEG or WebP, 512 KB | the private disk, `tenants/<id>/branding/logo` ([attachments](attachments.md) for the disk) | the menu's tenant switcher, mail, documents |
+| the dark-mode logo: same types and size, optional | the private disk, `tenants/<id>/branding/logo-dark-<uuid>` | the menu's tenant switcher in dark mode only (absent: the logo) |
 | `branding.locked` | a flag the operators set | refuses changes, below |
 
 The colour and the name are ordinary settings, so they are audited as
@@ -22,11 +24,14 @@ tenant's file.
 ## Routes
 
 ```
-GET    /v1/branding                    { primaryColor, mailFromName, logoUrl, locked, canEdit }   any signed-in caller
-PUT    /v1/branding                    { primaryColor?, mailFromName? }   null removes, absent stays   Access.manageSettings
+GET    /v1/branding                    { primaryColor, darkPrimaryColor, mailFromName, logoUrl, darkLogoUrl, locked, canEdit }   any signed-in caller
+PUT    /v1/branding                    { primaryColor?, darkPrimaryColor?, mailFromName? }   null removes, absent stays   Access.manageSettings
 POST   /v1/branding/logo               multipart, field `file`   201, the branding   Access.manageSettings
 DELETE /v1/branding/logo               204   Access.manageSettings
+POST   /v1/branding/logo/dark          the dark-mode logo, as the logo   Access.manageSettings
+DELETE /v1/branding/logo/dark          204   Access.manageSettings
 GET    /v1/branding/{tenantId}/logo    the image, cached 5 minutes   no sign-in
+GET    /v1/branding/{tenantId}/logo/dark   the dark-mode image, as the logo   no sign-in
 ```
 
 `logoUrl` is the path of the last route. It is public on purpose: a mail client
@@ -61,6 +66,10 @@ default-src 'none'; sandbox` and `Cross-Origin-Resource-Policy: cross-origin`.
   never replaces the logo that is there. The bytes are checked again every time
   the logo is read (served, put in a mail, embedded in a PDF): a file on the key
   that is not one of the three is not a logo (404, none in the mail).
+- **The dark-mode logo and colour** take the very same checks (the same
+  signature detection, allowlist, size, lock and public-route headers; the
+  same `#rrggbb` schema). Mail and documents never use them: a mail client has
+  no theme, and a PDF is light.
 - **Stored values are checked again where they are used** (`safeColor`,
   `safeName`): a colour or a name that the schemas would refuse (an enforced
   platform value, a row written by hand) is dropped, never escaped into a style
@@ -90,7 +99,10 @@ the logo and the name.
 tenant switch, so the theme follows): `BrandTheme` sets `--primary`,
 `--primary-foreground`, `--sidebar-primary`, `--sidebar-primary-foreground` and
 `--ring` on `<html>`, over both the light and the dark theme, and takes them
-off again when there is no colour. The tenant switcher shows the logo.
+off again when there is no colour. In the dark theme (chosen, or the system's
+when it follows it) the colour is `darkPrimaryColor` when the tenant has one,
+else `primaryColor`; the tenant switcher likewise shows `darkLogoUrl` when
+there is one, else the logo.
 
 ## The operators' lock
 
@@ -114,7 +126,8 @@ every tenant's value.
 
 - The logo does not count toward the tenant's `quotas.maxStorageBytes` (it is at
   most 512 KB and one per tenant; the quota counts attachments).
-- No per-user or per-team branding, no dark-mode logo, no custom fonts or
-  favicon, and no branding on the sign-in page before a tenant is known.
+- No per-user or per-team branding, no custom fonts or favicon, no dark-mode
+  variant in mail or documents, and no branding on the sign-in page before a
+  tenant is known (custom domains are tracked in #593).
 - Mail sent by an operator for another tenant (a tenant's first invitation)
   carries the operator tenant's brand: the brand is that of the tenant in scope.
