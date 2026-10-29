@@ -170,6 +170,20 @@ search (`GET /v1/search`) matches only the fields the caller may read on
 every record they may read (`unmatchableFields()` left out), with a vector made per
 request.
 
+**Cost of a field-limited search (#890).** The stored `search` vector and
+its GIN index cover all of a record's searchable fields. A caller who can't
+read one of them gets a vector built for each request from the fields they
+may read (`vectorOf()`, core/database/search.ts): no index serves it, so
+`to_tsvector(…) @@ …` runs on every row their permission filter admits,
+for the page and for `rankedMatches`' capped count. It is correct and
+leaks nothing. It is a sequential scan, bounded by the rows they may read.
+On a large tenant (around a million records) a field-limited `q=` is slow,
+while everyone else's `q=` stays indexed. Where that matters, give the
+limited role a narrower list (its own filter) or a dedicated stored vector
+of the fields it may read, with its own GIN index (a column like
+`search_title`, declared in the table and generated with `pnpm
+db:generate`) and its own `searchFields`.
+
 A sorted list's `nextCursor` holds the last row's sort values, so it is
 sealed (AES-256-GCM, `CURSOR_KEYS`, bound to the sort): a client never
 reads a value through it, whatever its permissions
@@ -257,7 +271,7 @@ The built-in `Access` permissions (`ACCESS_PERMISSIONS`,
 | `Access.manageRoles`, `manageUsers`, `manageClients`, `manageOrganizationalUnits` | roles; invitations, memberships, roles and units of users; API clients and their keys; the organizational units and their members ("Organization structure") |
 | `Access.readAudit` | the audit log and the sign-in log |
 | `Access.impersonate` | acting as another user (support), never as an administrator |
-| `Access.manageCustomFields`, `manageSettings`, `manageTags`, `manageNamingSeries`, `manageViews` | custom field definitions; settings and feature flags; tags; naming series and their counters; saved views shared with the tenant |
+| `Access.manageCustomFields`, `manageSettings`, `manageTags`, `manageNamingSeries`, `manageViews`, `manageTemplates` | custom field definitions; settings and feature flags; tags; naming series and their counters; saved views and record templates shared with the tenant |
 | `Access.manageRetention`, `manageLegalHolds`                                                     | retention rules; legal holds ([retention](retention.md))                                                                         |
 | `Access.manageSso`                                                                               | the tenant's SAML and OpenID Connect connections and verified domains ([auth](auth.md), "Enterprise SSO")                        |
 | `Access.provisionScim`                                                                           | SCIM 2.0 provisioning: API clients only, the identity provider's token ([auth](auth.md), "Enterprise SSO")                       |

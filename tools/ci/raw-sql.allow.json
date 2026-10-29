@@ -91,6 +91,10 @@
     "count": 1,
     "why": "keep: sql.raw of declared column names in the generated search column"
   },
+  "apps/api/src/platform/recurrence/record-schedules.service.ts": {
+    "count": 1,
+    "why": "keep: advisory lock"
+  },
   "apps/api/src/platform/reports/reports.service.ts": {
     "count": 1,
     "why": "keep: advisory lock"
@@ -104,6 +108,10 @@
     "why": "keep: advisory lock"
   },
   "apps/api/src/platform/tags/tags.service.ts": {
+    "count": 1,
+    "why": "keep: advisory lock"
+  },
+  "apps/api/src/platform/templates/templates.service.ts": {
     "count": 1,
     "why": "keep: advisory lock"
   },

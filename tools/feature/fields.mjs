@@ -141,13 +141,18 @@ const CALLS = {
 /**
  * A field as its declaration in `<item>.record.ts` (platform/fields):
  * `field.money().optional()`. String and text fields search with `search`.
+ * A reference to the feature's own records (`parentId:ref(tasks)?`) names
+ * their table through the declaration `self`: the tables file imports the
+ * record file, so the record file can't import it back.
  */
-export function builderOf(f, { searchable = false } = {}) {
+export function builderOf(f, { searchable = false, self } = {}) {
   const call =
     f.type === 'enum'
       ? `field.enum([${f.values.map((value) => `'${value}'`).join(', ')}])`
       : f.type === 'ref'
-        ? `field.ref(() => ${camelOf(f.ref)})`
+        ? self && f.ref === self.plural
+          ? `field.ref((): Referenced => recordTableOf(${self.SINGULAR}))`
+          : `field.ref(() => ${camelOf(f.ref)})`
         : CALLS[f.type];
   return [
     call,

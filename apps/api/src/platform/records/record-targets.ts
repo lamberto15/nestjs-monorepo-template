@@ -49,6 +49,7 @@ import {
   RevisionsRegistry,
 } from '../revisions/revisions.registry.js';
 import { SearchRegistry, type SearchHit } from '../search/search.registry.js';
+import { type ShareTarget, SharesRegistry } from '../shares/shares.registry.js';
 import { SubscriptionsRegistry } from '../subscriptions/subscriptions.registry.js';
 import { TagsRegistry } from '../tags/tags.registry.js';
 import { TagsService } from '../tags/tags.service.js';
@@ -214,6 +215,61 @@ export class RecordAttachments {
       recordView(this.c.declaration, row),
     );
     return fields.every((field) => field in shown);
+  }
+}
+
+/**
+ * Who may read a record and share it (its subject's `share` action) makes
+ * read-only links to it (platform/shares); a link shows the declared
+ * fields but references (no other record is reached through a link), as
+ * its maker may read them.
+ */
+@Injectable()
+export class RecordShares implements ShareTarget {
+  readonly subject: string;
+  readonly fields: readonly string[];
+  readonly files: boolean;
+  constructor(
+    @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
+    private readonly access: AccessService,
+    registry: SharesRegistry,
+  ) {
+    this.subject = c.declaration.subject;
+    this.fields = Object.entries(c.declaration.fields)
+      .filter(([, f]) => f.kind !== 'ref')
+      .map(([name]) => name);
+    this.files = takes(c.declaration, 'attachments');
+    registry.register(this);
+  }
+  async assertCanShare(principal: Principal, id: string) {
+    const row = await this.c.service.findOne(id, undefined, {
+      visibleTo: principal,
+    });
+    if (!(await this.c.policy.read(principal, row))) {
+      throw new NotFoundException(`${this.subject} ${id} not found.`);
+    }
+    if (!(await this.access.can(principal, 'share', this.subject, row))) {
+      throw new ForbiddenException(`You may not share ${this.subject} ${id}.`);
+    }
+  }
+  async shared(principal: Principal, id: string, fields: readonly string[]) {
+    const row = await find(this.c, id);
+    if (
+      !row ||
+      !(await this.c.policy.read(principal, row)) ||
+      !(await this.access.can(principal, 'share', this.subject, row))
+    ) {
+      return null;
+    }
+    const shown = await this.access.redact(
+      principal,
+      'read',
+      this.subject,
+      recordView(this.c.declaration, row),
+    );
+    return Object.fromEntries(
+      fields.filter((name) => name in shown).map((name) => [name, shown[name]]),
+    );
   }
 }
 

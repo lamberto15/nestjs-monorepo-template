@@ -78,6 +78,8 @@ export function panelsDescription(
       approvals: false,
     },
     attachmentLimits: all.attachments ? attachmentLimits : null,
+    // No records refer to it: a test of the related tab serves its own.
+    related: [],
   };
 }
 
