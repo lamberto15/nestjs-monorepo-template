@@ -1908,6 +1908,11 @@ jobs:
       APP_DOMAIN: ${{ vars.APP_DOMAIN }}
       APP_URL: ${{ vars.APP_URL }}
       MAIL_FROM: ${{ vars.MAIL_FROM }}
+      # Web Push (docs/deploy-k3s.md): off while PUSH_PROVIDER is unset; the
+      # private key is the Secret's web_push_vapid_private_key.
+      PUSH_PROVIDER: ${{ vars.PUSH_PROVIDER }}
+      WEB_PUSH_VAPID_PUBLIC_KEY: ${{ vars.WEB_PUSH_VAPID_PUBLIC_KEY }}
+      WEB_PUSH_SUBJECT: ${{ vars.WEB_PUSH_SUBJECT }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -1990,6 +1995,11 @@ jobs:
           done
           kubectl -n nestjs-monorepo get secret app-secrets -o json |
             jq -e '.data as $data | ["database_url", "database_owner_url", "database_maintenance_url", "jwt_secret", "mfa_encryption_keys", "data_encryption_keys", "blind_index_keys", "redis_password", "mail_api_key", "metrics_token"] | all(. as $key | $data[$key] != null)' > /dev/null
+          if [[ ",$PUSH_PROVIDER," == *",web-push,"* ]]; then
+            kubectl -n nestjs-monorepo get secret app-secrets -o json |
+              jq -e '.data.web_push_vapid_private_key != null' > /dev/null ||
+              { echo "::error::PUSH_PROVIDER has web-push: add web_push_vapid_private_key to app-secrets"; exit 1; }
+          fi
           kubectl -n nestjs-monorepo rollout status statefulset/postgres --timeout=2m
           kubectl -n nestjs-monorepo rollout status statefulset/redis --timeout=2m
       - name: Upgrade to the CI-verified release
@@ -1998,6 +2008,15 @@ jobs:
           WEB_DIGEST: ${{ needs.release-manifest.outputs.caddy }}
           GOTENBERG_DIGEST: ${{ needs.release-manifest.outputs.gotenberg }}
         run: |
+          # The release is rebuilt from these values (no --reuse-values), so
+          # push is passed on every deploy, or not at all.
+          push=()
+          if [ -n "$PUSH_PROVIDER" ]; then
+            push=(--set-string env.PUSH_PROVIDER="$PUSH_PROVIDER"
+              --set-string env.WEB_PUSH_VAPID_PUBLIC_KEY="$WEB_PUSH_VAPID_PUBLIC_KEY"
+              --set-string env.WEB_PUSH_SUBJECT="$WEB_PUSH_SUBJECT"
+              --set-string secretFiles.common.WEB_PUSH_VAPID_PRIVATE_KEY_FILE=web_push_vapid_private_key)
+          fi
           helm upgrade --install app deploy/helm/app \
             --namespace nestjs-monorepo \
             --rollback-on-failure --wait=legacy --wait-for-jobs --timeout 12m \
@@ -2009,7 +2028,8 @@ jobs:
             --set-string domain="$APP_DOMAIN" \
             --set-string env.WEB_URL="$APP_URL" \
             --set-string env.CORS_ORIGINS="$APP_URL" \
-            --set-string env.MAIL_FROM="$MAIL_FROM"
+            --set-string env.MAIL_FROM="$MAIL_FROM" \
+            "${push[@]}"
       - name: Verify API rollout
         run: kubectl -n nestjs-monorepo rollout status deployment/app-api --timeout=3m
       - name: Verify web rollout
