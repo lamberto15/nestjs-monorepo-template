@@ -134,6 +134,9 @@ jobs:
           done
           yq -e '.metadata.name == "app-api" and .spec.selector.matchLabels."app.kubernetes.io/component" == "api" and .spec.jobLabel == "app.kubernetes.io/component" and .spec.namespaceSelector.matchNames[0] == "nestjs-monorepo"' deploy/k3s/monitoring/targets/api-servicemonitor.yaml
           yq -e '.metadata.name == "app-worker" and .spec.selector.matchLabels."app.kubernetes.io/component" == "worker" and .spec.jobLabel == "app.kubernetes.io/component" and .spec.namespaceSelector.matchNames[0] == "nestjs-monorepo"' deploy/k3s/monitoring/targets/worker-servicemonitor.yaml
+          yq -e '.metadata.name == "app-worker-heavy" and .spec.selector.matchLabels."app.kubernetes.io/component" == "worker-heavy" and .spec.jobLabel == "app.kubernetes.io/component" and .spec.namespaceSelector.matchNames[0] == "nestjs-monorepo"' deploy/k3s/monitoring/targets/worker-heavy-servicemonitor.yaml
+          # worker-heavy holds the documents queue: Gotenberg must admit it too.
+          yq -e 'select(.kind == "NetworkPolicy" and .metadata.name == "app-gotenberg") | [.spec.ingress[0].from[].podSelector.matchLabels."app.kubernetes.io/component"] | contains(["worker", "worker-heavy"])' "$RUNNER_TEMP/app-single-node.yaml"
           yq -e 'select(.kind == "Service" and .metadata.name == "app-worker") | .spec.type == "ClusterIP"' "$RUNNER_TEMP/app-single-node.yaml"
           yq -e 'select(.kind == "Service" and .metadata.name == "app-worker") | .spec.ports[0].port == 3000' "$RUNNER_TEMP/app-single-node.yaml"
           test "$(yq 'select(.kind == "Service" and .metadata.name == "app-worker") | .spec.ports | length' "$RUNNER_TEMP/app-single-node.yaml")" = 1
