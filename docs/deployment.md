@@ -488,6 +488,18 @@ at 5 sign-ins/s (the load test); every sign-in queued on it failed. So:
   while converting gets the job back once (BullMQ's stalled-job check);
   killed on it again, the image ends `failed`, as uploaded, so one image
   can't take the worker down over and over.
+- **The heavy worker** ([background work](background-work.md#splitting-the-workers)):
+  imports, exports, PDFs and attachment processing in `worker-heavy`, one job
+  per queue, so their peaks never meet mail's or the outbox's:
+
+  ```text
+  worker-heavy: 1536 MiB ≥ 1024 (HEAVY_WORKER_HEAP_MB) + 512 outside the heap
+  ```
+
+  The 512 MiB covers an image's libvips buffers (~264 MiB at the defaults
+  above), a workbook read whole and the sockets. The streamed imports keep
+  under 1 MB per job (`formats.memory.spec.ts`); the Kubernetes request is
+  1 GiB, the limit 1536 MiB (`heavyWorker.resources`).
   sharp brings libvips prebuilt (the `@img/sharp-*` package for the platform
   and libc, an optional dependency with no install script): the glibc image
   (`apps/api/Dockerfile`) needs no extra package and no `allowBuilds` entry.
@@ -1481,6 +1493,11 @@ docker compose up -d
   Prometheus (`ssh -L 3001:127.0.0.1:3001 <host>`), sign in as `admin` with
   `GRAFANA_ADMIN_PASSWORD`, open Explore. The Loki data source is
   provisioned (`monitoring/grafana/provisioning/datasources/loki.yml`).
+  The **Capacity** dashboard (`dashboards/capacity.json`) shows Redis's
+  memory against maxmemory (redis_exporter), API and worker restarts
+  (`process_start_time_seconds`) and host OOM kills; on K3s, the
+  Application Overview has the same with Kubernetes' metrics
+  (`deploy/k3s/monitoring/README.md`).
 - **Limits:** `LOKI_CPUS`/`LOKI_MEMORY` (0.5, 512 MB), `ALLOY_*` (0.25, 256
   MB), `GRAFANA_*` (0.5, 256 MB).
 
