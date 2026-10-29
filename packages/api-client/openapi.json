@@ -17816,6 +17816,10 @@
                           "type": "boolean",
                           "description": "Read-only links to a record (`…/{id}/shares`), opened without a sign-in (POST /v1/shared/open)."
                         },
+                        "merge": {
+                          "type": "boolean",
+                          "description": "Duplicates found by its declared rules (`…/duplicates`) and merged into one record (`…/{id}/merge`)."
+                        },
                         "approvals": {
                           "type": "boolean",
                           "description": "An action on the records may need approval (GET /v1/approvals)."
@@ -17835,6 +17839,7 @@
                         "events",
                         "numbered",
                         "share",
+                        "merge",
                         "approvals"
                       ],
                       "additionalProperties": false,
@@ -59653,6 +59658,440 @@
           "notes"
         ]
       }
+    },
+    "/v1/notes/duplicates": {
+      "post": {
+        "description": "Before creating or changing a note: the notes you may read that its values would duplicate, by the feature's rules (each rule's fields all equal; text without case or surrounding spaces), newest first, at most 20. A match by a field you may not read on a record is no match.",
+        "operationId": "NoteMergeController_find_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "values": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 10000
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            null
+                          ]
+                        }
+                      ]
+                    },
+                    "description": "The record's values by field (a create or PATCH body's)."
+                  },
+                  "excludeId": {
+                    "description": "The record being changed: never its own duplicate.",
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "values"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DuplicateList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such note that you may read."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Find notes like these values",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/v1/notes/{id}/duplicates": {
+      "get": {
+        "description": "The other notes you may read matching it by the feature's rules, by its values you may read.",
+        "operationId": "NoteMergeController_duplicates_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DuplicateList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such note that you may read."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The likely duplicates of a note",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/v1/notes/{id}/merge/preview": {
+      "post": {
+        "description": "What the merge would do, checked as it checks: the fields you may choose (read on both, change on the survivor), each with both values and whose is kept, the survivor as it would be, and what moves to it. Changes nothing.",
+        "operationId": "NoteMergeController_preview_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "duplicateId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "The record merged into this one: it goes to the recycle bin once merged."
+                  },
+                  "fields": {
+                    "default": {},
+                    "description": "Whose value each field keeps: `duplicate` takes the duplicate's; any field left out keeps the survivor's.",
+                    "example": {
+                      "title": "duplicate"
+                    },
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string",
+                      "enum": [
+                        "survivor",
+                        "duplicate"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "duplicateId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MergePreview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not change the survivor, delete the duplicate, choose a field (field_forbidden) or change a record referring to the duplicate (merge_references_forbidden)."
+          },
+          "404": {
+            "description": "No such note that you may read."
+          },
+          "409": {
+            "description": "The duplicate is under a legal hold (legal_hold)."
+          },
+          "422": {
+            "description": "The same record twice (merge_same_record), or the survivor would refer to itself (merge_self_reference)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Preview merging a duplicate into a note",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/v1/notes/{id}/merge": {
+      "post": {
+        "description": "In one transaction, or not at all: the survivor takes the values `fields` chooses from the duplicate (audited `note.updated`, a revision), gains its tags, comments, attachments and watchers, the records referring to it point at the survivor, and the duplicate goes to the recycle bin (restorable: POST /v1/notes/{id}/restore). Audited `.merged` with what moved. The checks are the preview's. Answers the survivor.",
+        "operationId": "NoteMergeController_merge_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "duplicateId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "The record merged into this one: it goes to the recycle bin once merged."
+                  },
+                  "fields": {
+                    "default": {},
+                    "description": "Whose value each field keeps: `duplicate` takes the duplicate's; any field left out keeps the survivor's.",
+                    "example": {
+                      "title": "duplicate"
+                    },
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string",
+                      "enum": [
+                        "survivor",
+                        "duplicate"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "duplicateId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "number": {
+                      "nullable": true,
+                      "description": "The number people quote: NOTE-<year>-<n>, given on create.",
+                      "type": "string"
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "description": "Who wrote it: `user:<id>` or `client:<id>`."
+                    },
+                    "unitId": {
+                      "nullable": true,
+                      "description": "The author's organizational unit, when they were in exactly one.",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "body": {
+                      "description": "Left out when your permissions don't include the note's text.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "published"
+                      ]
+                    },
+                    "custom": {
+                      "description": "Custom field values by key; left out when your permissions don't include them.",
+                      "type": "object",
+                      "additionalProperties": {}
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "deletedAt": {
+                      "nullable": true,
+                      "description": "Set while the note is in the recycle bin (`?deleted=true`).",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "deletedBy": {
+                      "nullable": true,
+                      "description": "Who deleted it: `user:<id>` or `client:<id>`.",
+                      "type": "string"
+                    },
+                    "publishedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "tags": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TagRef"
+                      },
+                      "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
+                    },
+                    "can": {
+                      "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
+                      "type": "object",
+                      "properties": {
+                        "update": {
+                          "type": "boolean",
+                          "description": "PATCH would be allowed."
+                        },
+                        "delete": {
+                          "type": "boolean",
+                          "description": "DELETE would be allowed."
+                        },
+                        "restore": {
+                          "type": "boolean",
+                          "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                        },
+                        "issue": {
+                          "type": "boolean",
+                          "description": "POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503)."
+                        }
+                      },
+                      "required": [
+                        "update",
+                        "delete",
+                        "restore",
+                        "issue"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "watching": {
+                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares.",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "ownerId",
+                    "unitId",
+                    "title",
+                    "status",
+                    "createdAt",
+                    "updatedAt",
+                    "deletedAt",
+                    "deletedBy",
+                    "publishedAt",
+                    "tags"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "As the preview: the survivor, the duplicate, a field or a referring record."
+          },
+          "404": {
+            "description": "No such note that you may read."
+          },
+          "409": {
+            "description": "A legal hold, an approval pending on either record, or a unique value another record holds."
+          },
+          "422": {
+            "description": "As the preview."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Merge a duplicate into a note",
+        "tags": [
+          "notes"
+        ]
+      }
     }
   },
   "info": {
@@ -62978,6 +63417,176 @@
           "createdAt",
           "token",
           "url"
+        ],
+        "additionalProperties": false
+      },
+      "DuplicateList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Duplicate"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "Duplicate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "matched": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "The rules it matched, each the fields whose values are the same (text without case or surrounding spaces).",
+            "example": [
+              [
+                "title"
+              ]
+            ]
+          },
+          "record": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "The record as you may read it (fields hidden from you left out)."
+          }
+        },
+        "required": [
+          "id",
+          "matched",
+          "record"
+        ],
+        "additionalProperties": false
+      },
+      "MergePreview": {
+        "type": "object",
+        "properties": {
+          "survivor": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "The record as you may read it (fields hidden from you left out)."
+          },
+          "duplicate": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "The record as you may read it (fields hidden from you left out)."
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "survivor": {},
+                "duplicate": {},
+                "differs": {
+                  "type": "boolean"
+                },
+                "keep": {
+                  "type": "string",
+                  "enum": [
+                    "survivor",
+                    "duplicate"
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "survivor",
+                "duplicate",
+                "differs",
+                "keep"
+              ],
+              "additionalProperties": false
+            },
+            "description": "The fields you may read on both records and change on the survivor: the ones you may choose."
+          },
+          "result": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "The survivor once merged."
+          },
+          "moves": {
+            "type": "object",
+            "properties": {
+              "tags": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "comments": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "attachments": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "watchers": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "references": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "subject": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "subject",
+                    "field",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "tags",
+              "comments",
+              "attachments",
+              "watchers",
+              "references"
+            ],
+            "additionalProperties": false,
+            "description": "What moves from the duplicate to the survivor: its tags, comments, attachments and watchers, and the records whose references point at it. The duplicate's revisions stay with it."
+          }
+        },
+        "required": [
+          "survivor",
+          "duplicate",
+          "fields",
+          "result",
+          "moves"
         ],
         "additionalProperties": false
       },

@@ -6133,6 +6133,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notes/duplicates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Find notes like these values
+         * @description Before creating or changing a note: the notes you may read that its values would duplicate, by the feature's rules (each rule's fields all equal; text without case or surrounding spaces), newest first, at most 20. A match by a field you may not read on a record is no match.
+         */
+        post: operations["NoteMergeController_find_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/duplicates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The likely duplicates of a note
+         * @description The other notes you may read matching it by the feature's rules, by its values you may read.
+         */
+        get: operations["NoteMergeController_duplicates_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/merge/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview merging a duplicate into a note
+         * @description What the merge would do, checked as it checks: the fields you may choose (read on both, change on the survivor), each with both values and whose is kept, the survivor as it would be, and what moves to it. Changes nothing.
+         */
+        post: operations["NoteMergeController_preview_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge a duplicate into a note
+         * @description In one transaction, or not at all: the survivor takes the values `fields` chooses from the duplicate (audited `note.updated`, a revision), gains its tags, comments, attachments and watchers, the records referring to it point at the survivor, and the duplicate goes to the recycle bin (restorable: POST /v1/notes/{id}/restore). Audited `.merged` with what moved. The checks are the preview's. Answers the survivor.
+         */
+        post: operations["NoteMergeController_merge_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -7235,6 +7315,61 @@ export interface components {
             token: string;
             /** @description The web app's page that opens it: `<WEB_URL>/shared#<token>`. */
             url: string;
+        };
+        DuplicateList: {
+            items: components["schemas"]["Duplicate"][];
+        };
+        Duplicate: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description The rules it matched, each the fields whose values are the same (text without case or surrounding spaces).
+             * @example [
+             *       [
+             *         "title"
+             *       ]
+             *     ]
+             */
+            matched: string[][];
+            /** @description The record as you may read it (fields hidden from you left out). */
+            record: {
+                [key: string]: unknown;
+            };
+        };
+        MergePreview: {
+            /** @description The record as you may read it (fields hidden from you left out). */
+            survivor: {
+                [key: string]: unknown;
+            };
+            /** @description The record as you may read it (fields hidden from you left out). */
+            duplicate: {
+                [key: string]: unknown;
+            };
+            /** @description The fields you may read on both records and change on the survivor: the ones you may choose. */
+            fields: {
+                name: string;
+                survivor: unknown;
+                duplicate: unknown;
+                differs: boolean;
+                /** @enum {string} */
+                keep: "survivor" | "duplicate";
+            }[];
+            /** @description The survivor once merged. */
+            result: {
+                [key: string]: unknown;
+            };
+            /** @description What moves from the duplicate to the survivor: its tags, comments, attachments and watchers, and the records whose references point at it. The duplicate's revisions stay with it. */
+            moves: {
+                tags: number;
+                comments: number;
+                attachments: number;
+                watchers: number;
+                references: {
+                    subject: string;
+                    field: string;
+                    count: number;
+                }[];
+            };
         };
         RealtimeNotificationEvent: {
             /** Format: uuid */
@@ -15031,6 +15166,8 @@ export interface operations {
                             numbered: boolean;
                             /** @description Read-only links to a record (`…/{id}/shares`), opened without a sign-in (POST /v1/shared/open). */
                             share: boolean;
+                            /** @description Duplicates found by its declared rules (`…/duplicates`) and merged into one record (`…/{id}/merge`). */
+                            merge: boolean;
                             /** @description An action on the records may need approval (GET /v1/approvals). */
                             approvals: boolean;
                         };
@@ -35292,6 +35429,288 @@ export interface operations {
             };
             /** @description No such note (or link). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteMergeController_find_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The record's values by field (a create or PATCH body's). */
+                    values: {
+                        [key: string]: string | number | boolean | (null);
+                    };
+                    /**
+                     * Format: uuid
+                     * @description The record being changed: never its own duplicate.
+                     */
+                    excludeId?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note that you may read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteMergeController_duplicates_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note that you may read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteMergeController_preview_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description The record merged into this one: it goes to the recycle bin once merged.
+                     */
+                    duplicateId: string;
+                    /**
+                     * @description Whose value each field keeps: `duplicate` takes the duplicate's; any field left out keeps the survivor's.
+                     * @default {}
+                     * @example {
+                     *       "title": "duplicate"
+                     *     }
+                     */
+                    fields?: {
+                        [key: string]: "survivor" | "duplicate";
+                    };
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergePreview"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change the survivor, delete the duplicate, choose a field (field_forbidden) or change a record referring to the duplicate (merge_references_forbidden). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note that you may read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The duplicate is under a legal hold (legal_hold). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The same record twice (merge_same_record), or the survivor would refer to itself (merge_self_reference). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteMergeController_merge_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description The record merged into this one: it goes to the recycle bin once merged.
+                     */
+                    duplicateId: string;
+                    /**
+                     * @description Whose value each field keeps: `duplicate` takes the duplicate's; any field left out keeps the survivor's.
+                     * @default {}
+                     * @example {
+                     *       "title": "duplicate"
+                     *     }
+                     */
+                    fields?: {
+                        [key: string]: "survivor" | "duplicate";
+                    };
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        /** @description The number people quote: NOTE-<year>-<n>, given on create. */
+                        number: string | null;
+                        /** @description Who wrote it: `user:<id>` or `client:<id>`. */
+                        ownerId: string;
+                        /**
+                         * Format: uuid
+                         * @description The author's organizational unit, when they were in exactly one.
+                         */
+                        unitId: string | null;
+                        title: string;
+                        /** @description Left out when your permissions don't include the note's text. */
+                        body?: string;
+                        /** @enum {string} */
+                        status: "draft" | "published";
+                        /** @description Custom field values by key; left out when your permissions don't include them. */
+                        custom?: {
+                            [key: string]: unknown;
+                        };
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        /**
+                         * Format: date-time
+                         * @description Set while the note is in the recycle bin (`?deleted=true`).
+                         */
+                        deletedAt: string | null;
+                        /** @description Who deleted it: `user:<id>` or `client:<id>`. */
+                        deletedBy: string | null;
+                        /** Format: date-time */
+                        publishedAt: string | null;
+                        /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
+                        tags: components["schemas"]["TagRef"][];
+                        /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
+                        can?: {
+                            /** @description PATCH would be allowed. */
+                            update: boolean;
+                            /** @description DELETE would be allowed. */
+                            delete: boolean;
+                            /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
+                            restore: boolean;
+                            /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
+                            issue: boolean;
+                        };
+                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares. */
+                        watching?: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description As the preview: the survivor, the duplicate, a field or a referring record. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note that you may read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A legal hold, an approval pending on either record, or a unique value another record holds. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description As the preview. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

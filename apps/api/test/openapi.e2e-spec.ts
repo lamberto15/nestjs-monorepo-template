@@ -37,6 +37,9 @@ const PANEL_COMPONENTS = [
   'Share',
   'ShareList',
   'CreatedShare',
+  'Duplicate',
+  'DuplicateList',
+  'MergePreview',
 ];
 
 describe('OpenAPI document (e2e)', () => {
@@ -550,6 +553,10 @@ describe("OpenAPI document: the record panels' components (e2e)", () => {
     );
     expect(response(`${base}/documents`, 'get')).toEqual(
       ref('RecordDocumentPage'),
+    );
+    expect(response(`${base}/duplicates`, 'get')).toEqual(ref('DuplicateList'));
+    expect(response(`${base}/merge/preview`, 'post')).toEqual(
+      ref('MergePreview'),
     );
     expect(response('/v1/tags', 'get')).toEqual(ref('TagPage'));
     // The pages hold the item components, not copies of them.

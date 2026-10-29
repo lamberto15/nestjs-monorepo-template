@@ -116,7 +116,7 @@ Everything is in `docs/`; a name below is its file (`tags` is
   (prefill a create), `choices` (dependent dropdowns), `favorites`,
   `work-surfaces` (inbox, recent records, presence), `custom-fields`,
   `computed-fields` (and the expression language),
-  `forms` (runtime forms and submissions), `bulk-operations`, `sequences` (numbers, naming series), `data-transfer`
+  `forms` (runtime forms and submissions), `bulk-operations`, `merging` (duplicates, merge), `sequences` (numbers, naming series), `data-transfer`
   (exports, imports), `import-limits`, `reports`.
 - **Configuration:** `configuration` (environment variables), `settings`
   (and feature flags), `branding`, `i18n-and-time`, `money`, `usage`

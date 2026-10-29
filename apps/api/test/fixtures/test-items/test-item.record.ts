@@ -69,5 +69,6 @@ export const TEST_ITEM = defineRecord({
     'events',
     'numbered',
     'share',
+    'merge',
   ],
 });
