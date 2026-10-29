@@ -34,6 +34,8 @@ removes the webhook endpoint API and the delivery worker; the outbox relay stays
    a channel left out is off). In-app and realtime are always on.
    `mandatory`: the recipient may change a frequency, never switch a channel
    off. `collapse`: one notification per recipient for this type, counted up.
+   `bulk: 'digest'`: a bulk change sums up instead of one notification per
+   record ("Bulk changes" below).
    `data` is checked when sending; its keys are the texts' placeholders.
    IAM declares its own mandatory types, `IAM_NOTIFICATIONS` (`security.newSignIn`,
    `security.passwordChanged`, `security.passwordBreached`, `security.mfaChanged`,
@@ -51,7 +53,9 @@ removes the webhook endpoint API and the delivery worker; the outbox relay stays
    `label` names the type to people (the preferences UI); `title` and
    `body` are rendered from `data`, with `count` (collapsed) picking the
    plural form. A type the English catalog lacks doesn't compile; no
-   segment of a type is named `label`.
+   segment of a type is named `label`. A `bulk` type also has
+   `bulk.title` and `bulk.body` (`{count}` records, `{titles}` the first
+   few), checked at start.
 3. The service **sends**, inside the change's transaction, so the
    notification exists if and only if the change committed:
 
@@ -402,12 +406,51 @@ effects that must commit with the delivery (an outbox message, a flag);
 preferences and `GET /notifications/types` take the new channel up by
 themselves; declarations set its default under `channels.chat`.
 
+## Bulk changes
+
+A bulk change must not mean one notification and one mail per record per
+watcher: 100,000 imported notes once queued 78,000 mails (#618). The
+policy is the catalog's, not each person's:
+
+- A type declared with `bulk: 'digest'` (`note.published`) that a
+  producer sends more than `BULK_THRESHOLD` (20) of in one
+  `notifyMany(tx, inputs, { link, readable })` gives each recipient **one**
+  summary instead: "N notes were published, among them A, B, C" (the
+  first `BULK_TITLES` titles, from each input's `data.title`), linking to
+  `link` (for notes, the published notes, the latest first). 20 or fewer:
+  one per record, as before.
+- **Readability:** `readable(recipient, inputs)` returns the inputs about
+  records the recipient may read now (notes: their read filter,
+  `access.sqlFilter`); only those are counted and named, and someone who
+  may read none of them gets nothing. A recipient no longer active in the
+  tenant gets nothing either.
+- **Mail:** a summary is never mailed at once, whatever the person's
+  preference for the type: `immediate` becomes their next hourly digest;
+  `hourly` and `daily` stay; off (`email: false`) stays off, and
+  `mail.delivery` and the budgets still apply. An import's groups (200
+  rows each) collapse into the one unread summary, the counts added up
+  (`count` is the records', its first titles kept), so a 100,000-note
+  import is one in-app notification and one digest mail per person per
+  hour at most. A summary read since starts again from zero.
+- **Exactly once:** the summary and its outbox message are written in the
+  producer's transaction (`publishMany()`'s); a workflow step retried
+  after the commit finds no drafts left and notifies nobody. Its delivery
+  is the usual one.
+- The `note.published` **webhook** (the domain event for API clients)
+  still fires per note; the `notification.created` webhook of a summary
+  carries `data: { bulk: true, titles }`.
+
+Another bulk producer opts in by declaring `bulk: 'digest'` on its type,
+adding the `bulk` texts in every locale, and sending through
+`notifyMany()` with its `readable` check.
+
 ## Stopping a mail storm
 
 A bulk change notifies everyone who watches the records, and an `immediate`
 type is a mail each: 100,000 notes published at once once queued 78,000
 mails, filled Redis (OOM) and used a provider's daily quota many times over
-(#618). Two limits apply before a mail is queued (`MailDeliveryGate`, in
+(#618). Bulk changes now send one summary per person ("Bulk changes",
+above); two limits apply before any mail is queued (`MailDeliveryGate`, in
 `MailQueue.send()`); a mail they keep back is neither rendered nor queued,
 is logged, and counts in `mail_withheld_total{reason}` (`policy`,
 `budget` or `tenant_budget`). Before that, `mail_budget_used_ratio` gauges
@@ -511,12 +554,6 @@ one person, across their tenants.
   are deleted nightly; `NOTIFICATIONS_MAX_AGE_DAYS` (365): any. Both jobs
   run on one instance (`@OnOneInstance`); the retention is one sweep by age
   of every tenant's rows under the worker's row-level security bypass.
-- **Bulk publications** (#618): an import group publishing more than
-  `BULK_PUBLICATION` (20) notes at once sends each person one
-  `note.publishedMany` ("N notes were published", collapsed and counted
-  up, by email `daily` by default) instead of one `note.published` per
-  note, whatever their preference for `note.published`; 20 or fewer, one
-  per note as before. The `note.published` webhook still fires per note.
 - **Digests** are one mail per person whatever the tenants: the hourly job
   reads every tenant's due rows under the bypass, lists only the account's
   own and those of tenants the person is still an active member of (the

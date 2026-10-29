@@ -1,0 +1,17 @@
+diff --git a/dist/testing/index.js b/dist/testing/index.js
+index d505578d5b1671fcf8765ca346474a1a19d58d00..5e8e7c87e13e89adab100fb9f70c0827bf4c10e6 100644
+--- a/dist/testing/index.js
++++ b/dist/testing/index.js
+@@ -117,7 +117,11 @@ export function authenticationStoreContract(create, options = {}) {
+             const { token } = await ahead.create(uid());
+             clock += 61_000; // idle for 61 s on `ahead`, 59 s on `behind`
+             const [seenIdle, touched] = await Promise.all([ahead.validate(token), behind.validate(token)]);
+-            same(seenIdle, null, 'the request that saw the session idle is refused');
++            // Patched (lamberto15/nestjs-monorepo-template#902): over a real database the two validations
++            // run on separate connections, so `behind`'s touch may commit before `ahead` reads. `ahead` then
++            // never saw the session idle and returning it is right. Either order: the touch lands and the
++            // session survives; `ahead` refuses it only when it read it before the touch.
++            assert.ok(seenIdle === null || seenIdle.userId === touched?.userId, 'a request that saw the session idle is refused; one that read it after the touch keeps it');
+             assert.ok(touched, 'the other instance, within the idle timeout, touches the session');
+             clock += 1_000;
+             assert.ok(await ahead.validate(token), 'the touched session is still there');

@@ -53,6 +53,15 @@ export const NOTIFICATION_RETENTION_JOB = defineSystemJob({
   permissions: [],
 });
 
+/** RecentsRetentionJob: old recently opened records. */
+export const RECENTS_RETENTION_JOB = defineSystemJob({
+  key: 'recents-retention',
+  label: 'Recent records retention',
+  description:
+    'Deletes recently opened records older than 30 days, every night.',
+  permissions: [],
+});
+
 /** NotificationDigestJob: the digests that are due. */
 export const NOTIFICATION_DIGEST_JOB = defineSystemJob({
   key: 'notification-digests',
@@ -238,14 +247,25 @@ export const OPS_BACKLOG_JOB = defineSystemJob({
   permissions: [],
 });
 
+/** AttachmentTextService: the text of an uploaded file, for the search inside attachments, on a worker. */
+export const ATTACHMENT_TEXT_JOB = defineSystemJob({
+  key: 'attachment-text',
+  label: 'Attachment text extraction',
+  description:
+    'Extracts the text of uploaded documents (ATTACHMENT_TEXT_SEARCH) so that the search finds them.',
+  permissions: [],
+});
+
 export const PLATFORM_SYSTEM_JOBS = [
   ACCOUNT_DELETION_JOB,
   USAGE_ROLLUP_JOB,
   ATTACHMENT_SWEEP_JOB,
   ATTACHMENT_SCAN_JOB,
   ATTACHMENT_IMAGES_JOB,
+  ATTACHMENT_TEXT_JOB,
   REVISION_RETENTION_JOB,
   NOTIFICATION_RETENTION_JOB,
+  RECENTS_RETENTION_JOB,
   NOTIFICATION_DIGEST_JOB,
   NOTIFICATION_DELIVERY_JOB,
   REPORT_RUNNER_JOB,

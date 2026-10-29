@@ -2,7 +2,9 @@ import { BullModule } from '@nestjs/bullmq';
 import { AI } from '../ai/ai.service.js';
 import { ATTACHMENT_IMAGES } from '../attachments/attachment-images.queue.js';
 import { ATTACHMENT_SCAN } from '../attachments/attachment-scan.queue.js';
+import { ATTACHMENT_TEXT } from '../attachments/attachment-text.queue.js';
 import { BULK } from '../bulk/bulk.service.js';
+import { DATA_QUALITY } from '../data-quality/data-quality.service.js';
 import { DATA_TRANSFERS } from '../data-transfer/data-transfer.service.js';
 import { MAIL_EVENTS } from '../deliverability/mail-event.types.js';
 import { DOCUMENTS } from '../documents/documents.service.js';
@@ -22,11 +24,13 @@ export const PLATFORM_QUEUES: readonly string[] = [
   DOCUMENTS,
   ATTACHMENT_SCAN,
   ATTACHMENT_IMAGES,
+  ATTACHMENT_TEXT,
   AI,
   MAIL_EVENTS,
   REENCRYPTION,
   RETENTION,
   MESSAGING,
+  DATA_QUALITY,
 ];
 
 /** The platform's queues and the features' own (PlatformModule.forRoot({ queues })). */

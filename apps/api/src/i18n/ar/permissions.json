@@ -58,6 +58,13 @@
       "manage": "إضافة عنوان إلى قائمة الحظر أو إزالته منها"
     }
   },
+  "data-quality": {
+    "label": "جودة البيانات",
+    "actions": {
+      "read": "رؤية نتائج جودة البيانات للسجلات والحقول التي يمكنك قراءتها",
+      "manage": "بدء فحص جودة البيانات، وتجاهل النتائج وإعادة فحصها"
+    }
+  },
   "form": {
     "label": "النماذج",
     "names": {
@@ -165,6 +172,10 @@
       "label": "معالجة صور المرفقات",
       "description": "ينشئ صورًا مصغرة ومعاينات للصور المرفوعة ويزيل البيانات الوصفية (EXIF وGPS) من النسخ الأصلية."
     },
+    "attachment-text": {
+      "label": "استخراج نص المرفقات",
+      "description": "يستخرج نص المستندات المرفوعة (ATTACHMENT_TEXT_SEARCH) حتى يجدها البحث."
+    },
     "revisions-retention": {
       "label": "الاحتفاظ بالمراجعات",
       "description": "يحذف كل ليلة مراجعات السجلات الأقدم من REVISIONS_RETENTION_DAYS (وليس أحدث مراجعة للسجل أبدًا)."
@@ -172,6 +183,10 @@
     "notification-retention": {
       "label": "الاحتفاظ بالإشعارات",
       "description": "يحذف كل ليلة الإشعارات المقروءة بعد NOTIFICATIONS_RETENTION_DAYS وأي إشعار بعد NOTIFICATIONS_MAX_AGE_DAYS."
+    },
+    "recents-retention": {
+      "label": "الاحتفاظ بالسجلات المفتوحة مؤخرًا",
+      "description": "يحذف كل ليلة السجلات المفتوحة مؤخرًا الأقدم من 30 يومًا."
     },
     "notification-digests": {
       "label": "ملخصات الإشعارات",

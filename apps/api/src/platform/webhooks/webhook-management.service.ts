@@ -13,6 +13,7 @@ import type { Database, Transaction } from '../../core/database/drizzle.js';
 import {
   database,
   type DrizzleTransactions,
+  inTransaction,
 } from '../../core/database/transactions.js';
 import type { ListQuery } from '../../core/http/list-query.js';
 import {
@@ -41,7 +42,11 @@ import {
   storeEndpoints,
 } from './webhook-store.view.js';
 import { eventTypeGroups, TEST_EVENT_TYPE } from './webhooks.config.js';
-import { webhookDeliveryRequests } from './webhooks.tables.js';
+import {
+  webhookClientScopes,
+  webhookDeliveryRequests,
+  type WebhookScope,
+} from './webhooks.tables.js';
 
 /** The delivery's times, which the package keeps in epoch milliseconds. */
 const DELIVERY_TIMES = [
@@ -301,6 +306,45 @@ export class WebhookManagementService {
       deliveryId: delivery.id,
     });
     return deliveryView(delivery);
+  }
+
+  // Subscriber scope
+
+  /** Which records' events the client's endpoints receive (`own` without a row). */
+  async getScope(owner: WebhookOwner): Promise<{ scope: WebhookScope }> {
+    const [row] = await this.db
+      .select({ scope: webhookClientScopes.scope })
+      .from(webhookClientScopes)
+      .where(eq(webhookClientScopes.clientId, owner.clientId));
+    return { scope: row?.scope ?? 'own' };
+  }
+
+  /**
+   * Sets the client's subscriber scope, audited in the same transaction.
+   * Only on an administrator's route (ClientWebhooksController): a client
+   * can't widen what it is sent. `tenant` still sends a record only when the client may read it.
+   */
+  async setScope(owner: WebhookOwner, scope: WebhookScope) {
+    await inTransaction(this.txHost, async (tx) => {
+      if (scope === 'own') {
+        await tx
+          .delete(webhookClientScopes)
+          .where(eq(webhookClientScopes.clientId, owner.clientId));
+      } else {
+        await tx
+          .insert(webhookClientScopes)
+          .values({ clientId: owner.clientId, scope })
+          .onConflictDoUpdate({
+            target: [
+              webhookClientScopes.tenantId,
+              webhookClientScopes.clientId,
+            ],
+            set: { scope, updatedAt: new Date() },
+          });
+      }
+      await this.audited(owner, 'webhook-scope.updated', { scope });
+    });
+    return { scope };
   }
 
   // Deliveries

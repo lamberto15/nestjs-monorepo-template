@@ -58,6 +58,13 @@
       "manage": "Tambah alamat ke senarai sekatan, atau alih keluar satu"
     }
   },
+  "data-quality": {
+    "label": "Kualiti data",
+    "actions": {
+      "read": "Lihat dapatan kualiti data pada rekod dan medan yang anda boleh baca",
+      "manage": "Mulakan imbasan kualiti data, tolak dan semak semula dapatan"
+    }
+  },
   "form": {
     "label": "Borang",
     "names": {
@@ -165,6 +172,10 @@
       "label": "Pemprosesan imej lampiran",
       "description": "Menjana imej kecil dan pratonton imej yang dimuat naik serta membuang metadata (EXIF, GPS) imej asal."
     },
+    "attachment-text": {
+      "label": "Pengekstrakan teks lampiran",
+      "description": "Mengekstrak teks dokumen yang dimuat naik (ATTACHMENT_TEXT_SEARCH) supaya carian dapat menemuinya."
+    },
     "revisions-retention": {
       "label": "Penyimpanan semakan",
       "description": "Memadam semakan rekod yang lebih lama daripada REVISIONS_RETENTION_DAYS (tidak sekali-kali yang terkini bagi sesuatu rekod), setiap malam."
@@ -172,6 +183,10 @@
     "notification-retention": {
       "label": "Penyimpanan pemberitahuan",
       "description": "Memadam pemberitahuan yang telah dibaca selepas NOTIFICATIONS_RETENTION_DAYS dan mana-mana selepas NOTIFICATIONS_MAX_AGE_DAYS, setiap malam."
+    },
+    "recents-retention": {
+      "label": "Pengekalan rekod yang baru dibuka",
+      "description": "Memadam rekod yang baru dibuka yang lebih lama daripada 30 hari, setiap malam."
     },
     "notification-digests": {
       "label": "Ringkasan pemberitahuan",

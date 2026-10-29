@@ -34,6 +34,10 @@ import { bulkRoutes } from '../../platform/bulk/bulk.routes.js';
 import { watchRoutes } from '../../platform/subscriptions/subscription.routes.js';
 import { shareRoutes } from '../../platform/shares/share.routes.js';
 import { NoteShares } from './note-shares.js';
+import { NoteQuality } from './note-quality.js';
+import { mergeRoutes } from '../../platform/merge/merge.routes.js';
+import { MERGES } from '../../platform/merge/record-merge.js';
+import { NoteMerge } from './note-merge.js';
 import { noteBulkSchema, noteSchema } from './note.schemas.js';
 import { NotePublishApproval } from './note-approvals.js';
 import { NoteAi } from './note-ai.js';
@@ -73,6 +77,7 @@ import { NOTE_LIST, NOTE_VIEWS } from './note.list.js';
     }),
     watchRoutes(NOTE_ROUTES, { docs: NOTE_WATCH_DOCS }),
     shareRoutes(NOTE_ROUTES),
+    mergeRoutes(NOTE_ROUTES, { response: noteSchema }),
   ],
   providers: [
     NotesDemo,
@@ -89,6 +94,9 @@ import { NOTE_LIST, NOTE_VIEWS } from './note.list.js';
     NoteAccess,
     NoteSubscriptions,
     NoteShares,
+    NoteQuality,
+    NoteMerge,
+    { provide: MERGES, useExisting: NoteMerge },
     NoteTags,
     NoteRevisions,
     NotePublishApproval,

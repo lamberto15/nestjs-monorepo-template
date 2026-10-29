@@ -3310,6 +3310,156 @@
         ]
       }
     },
+    "/v1/access/clients/{clientId}/webhook-scope": {
+      "get": {
+        "operationId": "ClientWebhooksController_scope_v1",
+        "parameters": [
+          {
+            "name": "clientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "scope": {
+                      "type": "string",
+                      "enum": [
+                        "own",
+                        "tenant"
+                      ],
+                      "description": "own (the default): only the records the client owns. tenant: also its tenant's records owned by users and other clients, each only when the client may read it, without the fields it may not read."
+                    }
+                  },
+                  "required": [
+                    "scope"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (an API key is none)."
+          },
+          "403": {
+            "description": "Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required)."
+          },
+          "404": {
+            "description": "feature_off: API_CLIENTS=off in this deployment.\n\nNo such client in your tenant, endpoint or delivery."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Which records' events the client's endpoints receive",
+        "tags": [
+          "webhooks",
+          "access"
+        ]
+      },
+      "put": {
+        "description": "`tenant` also sends events about the tenant's records owned by users and other clients, each only when the client may read that record, redacted to the fields it may read; `own` (the default) only the client's own. Wants a recent sign-in: it widens what leaves the tenant.",
+        "operationId": "ClientWebhooksController_setScope_v1",
+        "parameters": [
+          {
+            "name": "clientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "own",
+                      "tenant"
+                    ],
+                    "description": "own (the default): only the records the client owns. tenant: also its tenant's records owned by users and other clients, each only when the client may read it, without the fields it may not read."
+                  }
+                },
+                "required": [
+                  "scope"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "scope": {
+                      "type": "string",
+                      "enum": [
+                        "own",
+                        "tenant"
+                      ],
+                      "description": "own (the default): only the records the client owns. tenant: also its tenant's records owned by users and other clients, each only when the client may read it, without the fields it may not read."
+                    }
+                  },
+                  "required": [
+                    "scope"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (an API key is none)."
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "404": {
+            "description": "feature_off: API_CLIENTS=off in this deployment.\n\nNo such client in your tenant, endpoint or delivery."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Set which records' events the client's endpoints receive",
+        "tags": [
+          "webhooks",
+          "access"
+        ]
+      }
+    },
     "/v1/webhook-senders": {
       "get": {
         "operationId": "IncomingSendersController_list_v1",
@@ -17198,6 +17348,11 @@
                       "description": "`#rrggbb`, or null: the default theme.",
                       "type": "string"
                     },
+                    "darkPrimaryColor": {
+                      "nullable": true,
+                      "description": "`#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds.",
+                      "type": "string"
+                    },
                     "mailFromName": {
                       "nullable": true,
                       "description": "The name mail is sent under, or null: the deployment’s.",
@@ -17206,6 +17361,11 @@
                     "logoUrl": {
                       "nullable": true,
                       "description": "The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null.",
+                      "type": "string"
+                    },
+                    "darkLogoUrl": {
+                      "nullable": true,
+                      "description": "The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds.",
                       "type": "string"
                     },
                     "locked": {
@@ -17219,8 +17379,10 @@
                   },
                   "required": [
                     "primaryColor",
+                    "darkPrimaryColor",
                     "mailFromName",
                     "logoUrl",
+                    "darkLogoUrl",
                     "locked",
                     "canEdit"
                   ],
@@ -17265,6 +17427,11 @@
                     "type": "string",
                     "pattern": "^#[0-9a-fA-F]{6}$"
                   },
+                  "darkPrimaryColor": {
+                    "nullable": true,
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
                   "mailFromName": {
                     "nullable": true,
                     "type": "string",
@@ -17292,6 +17459,11 @@
                       "description": "`#rrggbb`, or null: the default theme.",
                       "type": "string"
                     },
+                    "darkPrimaryColor": {
+                      "nullable": true,
+                      "description": "`#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds.",
+                      "type": "string"
+                    },
                     "mailFromName": {
                       "nullable": true,
                       "description": "The name mail is sent under, or null: the deployment’s.",
@@ -17300,6 +17472,11 @@
                     "logoUrl": {
                       "nullable": true,
                       "description": "The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null.",
+                      "type": "string"
+                    },
+                    "darkLogoUrl": {
+                      "nullable": true,
+                      "description": "The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds.",
                       "type": "string"
                     },
                     "locked": {
@@ -17313,8 +17490,10 @@
                   },
                   "required": [
                     "primaryColor",
+                    "darkPrimaryColor",
                     "mailFromName",
                     "logoUrl",
+                    "darkLogoUrl",
                     "locked",
                     "canEdit"
                   ],
@@ -17382,6 +17561,11 @@
                       "description": "`#rrggbb`, or null: the default theme.",
                       "type": "string"
                     },
+                    "darkPrimaryColor": {
+                      "nullable": true,
+                      "description": "`#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds.",
+                      "type": "string"
+                    },
                     "mailFromName": {
                       "nullable": true,
                       "description": "The name mail is sent under, or null: the deployment’s.",
@@ -17390,6 +17574,11 @@
                     "logoUrl": {
                       "nullable": true,
                       "description": "The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null.",
+                      "type": "string"
+                    },
+                    "darkLogoUrl": {
+                      "nullable": true,
+                      "description": "The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds.",
                       "type": "string"
                     },
                     "locked": {
@@ -17403,8 +17592,10 @@
                   },
                   "required": [
                     "primaryColor",
+                    "darkPrimaryColor",
                     "mailFromName",
                     "logoUrl",
+                    "darkLogoUrl",
                     "locked",
                     "canEdit"
                   ],
@@ -17477,6 +17668,148 @@
         ]
       }
     },
+    "/v1/branding/logo/dark": {
+      "post": {
+        "description": "Who manages settings. Like the logo (the same types, size and checks), shown by the web app in its dark theme. Replaces the dark-mode logo. Audited (`branding.logo-changed`, `variant: dark`). 409 `branding_locked` while locked.",
+        "operationId": "BrandingController_uploadDark_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Required. A PNG, JPEG or WebP image of at most 512 KB, recognized by its bytes."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "primaryColor": {
+                      "nullable": true,
+                      "description": "`#rrggbb`, or null: the default theme.",
+                      "type": "string"
+                    },
+                    "darkPrimaryColor": {
+                      "nullable": true,
+                      "description": "`#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds.",
+                      "type": "string"
+                    },
+                    "mailFromName": {
+                      "nullable": true,
+                      "description": "The name mail is sent under, or null: the deployment’s.",
+                      "type": "string"
+                    },
+                    "logoUrl": {
+                      "nullable": true,
+                      "description": "The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null.",
+                      "type": "string"
+                    },
+                    "darkLogoUrl": {
+                      "nullable": true,
+                      "description": "The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds.",
+                      "type": "string"
+                    },
+                    "locked": {
+                      "type": "boolean",
+                      "description": "The operators locked it: `PUT` and the logo routes answer 409."
+                    },
+                    "canEdit": {
+                      "type": "boolean",
+                      "description": "The caller may change it (and it is not locked)."
+                    }
+                  },
+                  "required": [
+                    "primaryColor",
+                    "darkPrimaryColor",
+                    "mailFromName",
+                    "logoUrl",
+                    "darkLogoUrl",
+                    "locked",
+                    "canEdit"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "409": {
+            "description": "Locked by the operators (branding_locked)."
+          },
+          "413": {
+            "description": "Larger than 512 KB (payload_too_large)."
+          },
+          "415": {
+            "description": "Not a PNG, JPEG or WebP (unsupported_media_type)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Set the dark-mode logo of your tenant",
+        "tags": [
+          "branding"
+        ]
+      },
+      "delete": {
+        "description": "Who manages settings. The file goes too; the logo is shown in the dark theme again. Audited (`branding.logo-removed`). 409 `branding_locked` while locked.",
+        "operationId": "BrandingController_removeDark_v1",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "There is no dark-mode logo."
+          },
+          "409": {
+            "description": "Locked by the operators (branding_locked)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Remove the dark-mode logo of your tenant",
+        "tags": [
+          "branding"
+        ]
+      }
+    },
     "/v1/branding/{tenantId}/logo": {
       "get": {
         "description": "No sign-in needed. The image itself (PNG, JPEG or WebP, the type its bytes say), cached for five minutes, with `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox` and `Cross-Origin-Resource-Policy: cross-origin` (other sites' mail pages and apps may show it).",
@@ -17500,6 +17833,34 @@
           }
         },
         "summary": "The logo of a tenant",
+        "tags": [
+          "branding"
+        ]
+      }
+    },
+    "/v1/branding/{tenantId}/logo/dark": {
+      "get": {
+        "description": "No sign-in needed. Like the logo, with the same headers: the image the web app shows in its dark theme.",
+        "operationId": "PublicBrandingController_darkLogo_v1",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The image."
+          },
+          "404": {
+            "description": "The tenant has no dark-mode logo."
+          }
+        },
+        "summary": "The dark-mode logo of a tenant",
         "tags": [
           "branding"
         ]
@@ -18252,6 +18613,10 @@
                           "type": "boolean",
                           "description": "Read-only links to a record (`…/{id}/shares`), opened without a sign-in (POST /v1/shared/open)."
                         },
+                        "merge": {
+                          "type": "boolean",
+                          "description": "Duplicates found by its declared rules (`…/duplicates`) and merged into one record (`…/{id}/merge`)."
+                        },
                         "approvals": {
                           "type": "boolean",
                           "description": "An action on the records may need approval (GET /v1/approvals)."
@@ -18271,6 +18636,7 @@
                         "events",
                         "numbered",
                         "share",
+                        "merge",
                         "approvals"
                       ],
                       "additionalProperties": false,
@@ -24744,6 +25110,759 @@
         ]
       }
     },
+    "/v1/recents": {
+      "get": {
+        "description": "Newest first, at most 20, none older than 30 days. A record you no longer see (deleted, or your access changed) is left out.",
+        "operationId": "RecentsController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "subject": {
+                            "type": "string",
+                            "example": "Note"
+                          },
+                          "recordId": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string",
+                            "example": "Q4 plan"
+                          },
+                          "viewedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "subject",
+                          "recordId",
+                          "label",
+                          "viewedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Your recently opened records",
+        "tags": [
+          "recents"
+        ]
+      },
+      "post": {
+        "description": "Puts it first (opening it again moves it up, it is not listed twice). `label` is the title the page showed; send no field content. The 21th oldest drops out.",
+        "operationId": "RecentsController_record_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "subject": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "pattern": "^[A-Z]\\w*$"
+                  },
+                  "recordId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "subject",
+                  "recordId",
+                  "label"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string",
+                      "example": "Note"
+                    },
+                    "recordId": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string",
+                      "example": "Q4 plan"
+                    },
+                    "viewedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "subject",
+                    "recordId",
+                    "label",
+                    "viewedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed entry (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such record, or you may not see it."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Note that you opened a record",
+        "tags": [
+          "recents"
+        ]
+      },
+      "delete": {
+        "description": "Removes every recent record of yours in this tenant.",
+        "operationId": "RecentsController_clear_v1",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Clear your history",
+        "tags": [
+          "recents"
+        ]
+      }
+    },
+    "/v1/recents/{id}": {
+      "delete": {
+        "operationId": "RecentsController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "Not one of your recent records."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Remove one recent record",
+        "tags": [
+          "recents"
+        ]
+      }
+    },
+    "/v1/presence/{subject}/{recordId}": {
+      "get": {
+        "description": "The people viewing or editing it, advisory only: saving is still guarded by the record's ETag. Leaves out whoever lost access to the record.",
+        "operationId": "PresenceController_list_v1",
+        "parameters": [
+          {
+            "name": "subject",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recordId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "description": "The principal key: `user:<id>`."
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "viewing",
+                              "editing"
+                            ]
+                          },
+                          "self": {
+                            "type": "boolean",
+                            "description": "It is you (another tab of yours)."
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name",
+                          "mode",
+                          "self"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such record, or you may not see it."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Who is on a record now",
+        "tags": [
+          "presence"
+        ]
+      },
+      "put": {
+        "description": "Beat every 15 seconds while the page is open; you drop out 45 seconds after the last beat. Send the mode only, never what is being typed. Answers with the list, as GET does. Others on the record hear `record.presence` (ids only) when you arrive or change mode.",
+        "operationId": "PresenceController_beat_v1",
+        "parameters": [
+          {
+            "name": "subject",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recordId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "viewing",
+                      "editing"
+                    ]
+                  }
+                },
+                "required": [
+                  "mode"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "description": "The principal key: `user:<id>`."
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "viewing",
+                              "editing"
+                            ]
+                          },
+                          "self": {
+                            "type": "boolean",
+                            "description": "It is you (another tab of yours)."
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name",
+                          "mode",
+                          "self"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed mode (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such record, or you may not see it."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Say you are viewing or editing a record",
+        "tags": [
+          "presence"
+        ]
+      },
+      "delete": {
+        "operationId": "PresenceController_leave_v1",
+        "parameters": [
+          {
+            "name": "subject",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recordId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such record, or you may not see it."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Say you left a record",
+        "tags": [
+          "presence"
+        ]
+      }
+    },
+    "/v1/inbox": {
+      "get": {
+        "description": "What waits on you in the current tenant, newest first, cursor pages: approval requests to decide (`approval.decide`, yours or of someone you stand in for) or to revise (`approval.revise`, changes requested on your request), and unread mentions (`mention`). Each item is read from its source now, so it is gone once the work is done, and only what you may see is listed. `?source=` narrows to one source.",
+        "operationId": "InboxController_list_v1",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          },
+          {
+            "name": "source",
+            "required": false,
+            "in": "query",
+            "description": "Only this source: `approval`, `mention`.",
+            "schema": {
+              "description": "Only this source: `approval`, `mention`.",
+              "type": "string",
+              "maxLength": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "description": "`<source>:<id>`: the item, for dismissing it.",
+                            "example": "approval:0190a0a0-0000-7000-8000-000000000000"
+                          },
+                          "source": {
+                            "type": "string",
+                            "example": "approval"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "description": "What the work is: `approval.decide`, `approval.revise`, `mention`.",
+                            "example": "approval.decide"
+                          },
+                          "at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "description": "When it came to you; the list is newest first."
+                          },
+                          "dueAt": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "link": {
+                            "nullable": true,
+                            "description": "Where to do it, a path of the web app.",
+                            "type": "string"
+                          },
+                          "subject": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "recordId": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "data": {
+                            "type": "object",
+                            "additionalProperties": {},
+                            "description": "What the client words the item with: a title, who asked."
+                          },
+                          "canDismiss": {
+                            "type": "boolean",
+                            "description": "false: it is done at its source (decide the request), not here."
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "source",
+                          "kind",
+                          "at",
+                          "dueAt",
+                          "link",
+                          "subject",
+                          "recordId",
+                          "data",
+                          "canDismiss"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "nullable": true,
+                      "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
+                      "type": "string"
+                    },
+                    "page": {
+                      "description": "With `page`: this page.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "nextPage": {
+                      "description": "With `page`: the next page; null: no more.",
+                      "nullable": true,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageCount": {
+                      "description": "With `page` and `count=true`: ceil(total / limit).",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "total": {
+                      "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "totalCapped": {
+                      "description": "true: there are more than `total` (show \"10,000+\").",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A bad cursor (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such source."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Your work inbox",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/inbox/dismiss": {
+      "post": {
+        "description": "Only for items with `canDismiss` (a mention is marked read). An approval is done by deciding it.",
+        "operationId": "InboxController_dismiss_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "key"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "The item is done at its source."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "Not an item of yours."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Dismiss an item",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
     "/v1/forms": {
       "get": {
         "description": "Editors (and those who read responses) see every form; whoever may read or submit, the published, active ones. `?status=`, `?slug=`, `?name.contains=`; cursor pages.",
@@ -29071,6 +30190,317 @@
         "summary": "A shared record's file",
         "tags": [
           "shares"
+        ]
+      }
+    },
+    "/v1/data-quality": {
+      "get": {
+        "description": "Counts only the findings you may see: on records you may read, on fields shown to you. `lastScan` says how fresh they are, and how far a running scan got.",
+        "operationId": "DataQualityController_summary_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataQualitySummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Open findings per subject, and the last scan",
+        "tags": [
+          "data-quality"
+        ]
+      }
+    },
+    "/v1/data-quality/scans": {
+      "post": {
+        "description": "Runs on the queue in batches; follow it at GET /v1/data-quality (`lastScan`). It adds the findings that hold and deletes those that no longer do; dismissed ones stay dismissed. Audited `data-quality.scan-started`.",
+        "operationId": "DataQualityController_scan_v1",
+        "parameters": [],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataQualityScan"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "409": {
+            "description": "A scan is already running (scan_running)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Scan every record again",
+        "tags": [
+          "data-quality"
+        ]
+      }
+    },
+    "/v1/data-quality/subjects/{subject}/findings": {
+      "get": {
+        "description": "Open ones unless `dismissed=true`; newest first. Only those on records you may read and fields shown to you.",
+        "operationId": "DataQualityController_findings_v1",
+        "parameters": [
+          {
+            "name": "subject",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "`nextCursor` of the previous page (the same `sort`).",
+            "schema": {
+              "description": "`nextCursor` of the previous page (the same `sort`).",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            }
+          },
+          {
+            "name": "severity",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "error",
+                "suggestion"
+              ]
+            }
+          },
+          {
+            "name": "check",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "missing",
+                "reference",
+                "duplicate"
+              ]
+            }
+          },
+          {
+            "name": "dismissed",
+            "required": false,
+            "in": "query",
+            "description": "true: the dismissed ones instead of the open ones.",
+            "schema": {
+              "description": "true: the dismissed ones instead of the open ones.",
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "lang",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 35
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataQualityFindingPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": "No checks for this subject (subject_not_found)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "A page of one subject’s findings",
+        "tags": [
+          "data-quality"
+        ]
+      }
+    },
+    "/v1/data-quality/findings/{id}/dismiss": {
+      "post": {
+        "description": "It stays dismissed while it holds; one that stops holding and comes back is new. Audited `data-quality.finding-dismissed`.",
+        "operationId": "DataQualityController_dismiss_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataQualityFinding"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": "No finding with this id that you may see."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Dismiss a finding: right as it is",
+        "tags": [
+          "data-quality"
+        ]
+      }
+    },
+    "/v1/data-quality/findings/{id}/recheck": {
+      "post": {
+        "description": "Its record’s findings are brought up to date; `resolved` when this one no longer holds.",
+        "operationId": "DataQualityController_recheck_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataQualityRecheck"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": "No finding with this id that you may see."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Check a finding’s record again now",
+        "tags": [
+          "data-quality"
         ]
       }
     },
@@ -59336,6 +60766,440 @@
           "notes"
         ]
       }
+    },
+    "/v1/notes/duplicates": {
+      "post": {
+        "description": "Before creating or changing a note: the notes you may read that its values would duplicate, by the feature's rules (each rule's fields all equal; text without case or surrounding spaces), newest first, at most 20. A match by a field you may not read on a record is no match.",
+        "operationId": "NoteMergeController_find_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "values": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 10000
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            null
+                          ]
+                        }
+                      ]
+                    },
+                    "description": "The record's values by field (a create or PATCH body's)."
+                  },
+                  "excludeId": {
+                    "description": "The record being changed: never its own duplicate.",
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "values"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DuplicateList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such note that you may read."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Find notes like these values",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/v1/notes/{id}/duplicates": {
+      "get": {
+        "description": "The other notes you may read matching it by the feature's rules, by its values you may read.",
+        "operationId": "NoteMergeController_duplicates_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DuplicateList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "No such note that you may read."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The likely duplicates of a note",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/v1/notes/{id}/merge/preview": {
+      "post": {
+        "description": "What the merge would do, checked as it checks: the fields you may choose (read on both, change on the survivor), each with both values and whose is kept, the survivor as it would be, and what moves to it. Changes nothing.",
+        "operationId": "NoteMergeController_preview_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "duplicateId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "The record merged into this one: it goes to the recycle bin once merged."
+                  },
+                  "fields": {
+                    "default": {},
+                    "description": "Whose value each field keeps: `duplicate` takes the duplicate's; any field left out keeps the survivor's.",
+                    "example": {
+                      "title": "duplicate"
+                    },
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string",
+                      "enum": [
+                        "survivor",
+                        "duplicate"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "duplicateId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MergePreview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not change the survivor, delete the duplicate, choose a field (field_forbidden) or change a record referring to the duplicate (merge_references_forbidden)."
+          },
+          "404": {
+            "description": "No such note that you may read."
+          },
+          "409": {
+            "description": "The duplicate is under a legal hold (legal_hold)."
+          },
+          "422": {
+            "description": "The same record twice (merge_same_record), or the survivor would refer to itself (merge_self_reference)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Preview merging a duplicate into a note",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/v1/notes/{id}/merge": {
+      "post": {
+        "description": "In one transaction, or not at all: the survivor takes the values `fields` chooses from the duplicate (audited `note.updated`, a revision), gains its tags, comments, attachments and watchers, the records referring to it point at the survivor, and the duplicate goes to the recycle bin (restorable: POST /v1/notes/{id}/restore). Audited `.merged` with what moved. The checks are the preview's. Answers the survivor.",
+        "operationId": "NoteMergeController_merge_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "duplicateId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "The record merged into this one: it goes to the recycle bin once merged."
+                  },
+                  "fields": {
+                    "default": {},
+                    "description": "Whose value each field keeps: `duplicate` takes the duplicate's; any field left out keeps the survivor's.",
+                    "example": {
+                      "title": "duplicate"
+                    },
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string",
+                      "enum": [
+                        "survivor",
+                        "duplicate"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "duplicateId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "number": {
+                      "nullable": true,
+                      "description": "The number people quote: NOTE-<year>-<n>, given on create.",
+                      "type": "string"
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "description": "Who wrote it: `user:<id>` or `client:<id>`."
+                    },
+                    "unitId": {
+                      "nullable": true,
+                      "description": "The author's organizational unit, when they were in exactly one.",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "body": {
+                      "description": "Left out when your permissions don't include the note's text.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "published"
+                      ]
+                    },
+                    "custom": {
+                      "description": "Custom field values by key; left out when your permissions don't include them.",
+                      "type": "object",
+                      "additionalProperties": {}
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "deletedAt": {
+                      "nullable": true,
+                      "description": "Set while the note is in the recycle bin (`?deleted=true`).",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "deletedBy": {
+                      "nullable": true,
+                      "description": "Who deleted it: `user:<id>` or `client:<id>`.",
+                      "type": "string"
+                    },
+                    "publishedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "tags": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TagRef"
+                      },
+                      "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
+                    },
+                    "can": {
+                      "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
+                      "type": "object",
+                      "properties": {
+                        "update": {
+                          "type": "boolean",
+                          "description": "PATCH would be allowed."
+                        },
+                        "delete": {
+                          "type": "boolean",
+                          "description": "DELETE would be allowed."
+                        },
+                        "restore": {
+                          "type": "boolean",
+                          "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                        },
+                        "issue": {
+                          "type": "boolean",
+                          "description": "POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503)."
+                        }
+                      },
+                      "required": [
+                        "update",
+                        "delete",
+                        "restore",
+                        "issue"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "watching": {
+                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares.",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "ownerId",
+                    "unitId",
+                    "title",
+                    "status",
+                    "createdAt",
+                    "updatedAt",
+                    "deletedAt",
+                    "deletedBy",
+                    "publishedAt",
+                    "tags"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "As the preview: the survivor, the duplicate, a field or a referring record."
+          },
+          "404": {
+            "description": "No such note that you may read."
+          },
+          "409": {
+            "description": "A legal hold, an approval pending on either record, or a unique value another record holds."
+          },
+          "422": {
+            "description": "As the preview."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Merge a duplicate into a note",
+        "tags": [
+          "notes"
+        ]
+      }
     }
   },
   "info": {
@@ -61318,6 +63182,270 @@
         ],
         "additionalProperties": false
       },
+      "DataQualitySummary": {
+        "type": "object",
+        "properties": {
+          "lastScan": {
+            "nullable": true,
+            "description": "The newest scan (running or not): how fresh the findings are.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DataQualityScan"
+              }
+            ]
+          },
+          "subjects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "subject": {
+                  "type": "string",
+                  "example": "Note"
+                },
+                "errors": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "suggestions": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "dismissed": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "subject",
+                "errors",
+                "suggestions",
+                "dismissed"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "lastScan",
+          "subjects"
+        ],
+        "additionalProperties": false
+      },
+      "DataQualityScan": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed"
+            ]
+          },
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "The records to check when it started."
+          },
+          "scanned": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "The records checked so far."
+          },
+          "findings": {
+            "nullable": true,
+            "description": "Open findings once it completed; null before.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "startedBy": {
+            "type": "string",
+            "example": "user:0198…"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "finishedAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "total",
+          "scanned",
+          "findings",
+          "startedBy",
+          "createdAt",
+          "finishedAt"
+        ],
+        "additionalProperties": false
+      },
+      "DataQualityFindingPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataQualityFinding"
+            }
+          },
+          "nextCursor": {
+            "nullable": true,
+            "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
+            "type": "string"
+          },
+          "page": {
+            "description": "With `page`: this page.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "nextPage": {
+            "description": "With `page`: the next page; null: no more.",
+            "nullable": true,
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pageCount": {
+            "description": "With `page` and `count=true`: ceil(total / limit).",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "totalCapped": {
+            "description": "true: there are more than `total` (show \"10,000+\").",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "DataQualityFinding": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "subject": {
+            "type": "string",
+            "example": "Note"
+          },
+          "recordId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "check": {
+            "type": "string",
+            "enum": [
+              "missing",
+              "reference",
+              "duplicate"
+            ],
+            "description": "`missing`: a recommended field is empty; `reference`: it refers to a record in the recycle bin; `duplicate`: another record has the same value."
+          },
+          "field": {
+            "type": "string",
+            "example": "body"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "error",
+              "suggestion"
+            ]
+          },
+          "detail": {
+            "nullable": true,
+            "description": "`referencedId` (reference), `duplicateOf`: the other record (duplicate).",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "dismissedAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "dismissedBy": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "recordId",
+          "check",
+          "field",
+          "severity",
+          "detail",
+          "checkedAt",
+          "dismissedAt",
+          "dismissedBy"
+        ],
+        "additionalProperties": false
+      },
+      "DataQualityRecheck": {
+        "type": "object",
+        "properties": {
+          "resolved": {
+            "type": "boolean",
+            "description": "true: the problem is gone."
+          },
+          "finding": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DataQualityFinding"
+              }
+            ]
+          }
+        },
+        "required": [
+          "resolved",
+          "finding"
+        ],
+        "additionalProperties": false
+      },
       "ImportMapping": {
         "type": "object",
         "properties": {
@@ -62664,6 +64792,176 @@
         ],
         "additionalProperties": false
       },
+      "DuplicateList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Duplicate"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "Duplicate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "matched": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "The rules it matched, each the fields whose values are the same (text without case or surrounding spaces).",
+            "example": [
+              [
+                "title"
+              ]
+            ]
+          },
+          "record": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "The record as you may read it (fields hidden from you left out)."
+          }
+        },
+        "required": [
+          "id",
+          "matched",
+          "record"
+        ],
+        "additionalProperties": false
+      },
+      "MergePreview": {
+        "type": "object",
+        "properties": {
+          "survivor": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "The record as you may read it (fields hidden from you left out)."
+          },
+          "duplicate": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "The record as you may read it (fields hidden from you left out)."
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "survivor": {},
+                "duplicate": {},
+                "differs": {
+                  "type": "boolean"
+                },
+                "keep": {
+                  "type": "string",
+                  "enum": [
+                    "survivor",
+                    "duplicate"
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "survivor",
+                "duplicate",
+                "differs",
+                "keep"
+              ],
+              "additionalProperties": false
+            },
+            "description": "The fields you may read on both records and change on the survivor: the ones you may choose."
+          },
+          "result": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "The survivor once merged."
+          },
+          "moves": {
+            "type": "object",
+            "properties": {
+              "tags": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "comments": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "attachments": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "watchers": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "references": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "subject": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "subject",
+                    "field",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "tags",
+              "comments",
+              "attachments",
+              "watchers",
+              "references"
+            ],
+            "additionalProperties": false,
+            "description": "What moves from the duplicate to the survivor: its tags, comments, attachments and watchers, and the records whose references point at it. The duplicate's revisions stay with it."
+          }
+        },
+        "required": [
+          "survivor",
+          "duplicate",
+          "fields",
+          "result",
+          "moves"
+        ],
+        "additionalProperties": false
+      },
       "RealtimeNotificationEvent": {
         "type": "object",
         "properties": {
@@ -63254,6 +65552,22 @@
         ],
         "additionalProperties": false
       },
+      "RealtimeRecordPresenceEvent": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string"
+          },
+          "recordId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject",
+          "recordId"
+        ],
+        "additionalProperties": false
+      },
       "RealtimeRecordAttachmentsChangedEvent": {
         "type": "object",
         "properties": {
@@ -63405,6 +65719,12 @@
       "description": "A comment on a record you watch (or one you wrote, for your other tabs) was added, edited or removed: ids only, fetch the thread.",
       "payload": {
         "$ref": "#/components/schemas/RealtimeRecordCommentedEvent"
+      }
+    },
+    "record.presence": {
+      "description": "Someone started or stopped viewing or editing a record you are viewing (or one you are editing, for your other tabs): ids only, fetch `GET /v1/presence/{subject}/{recordId}`. Sent only to people who are present and may read the record; advisory, never a lock.",
+      "payload": {
+        "$ref": "#/components/schemas/RealtimeRecordPresenceEvent"
       }
     },
     "record.attachments.changed": {

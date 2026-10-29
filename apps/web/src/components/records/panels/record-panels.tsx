@@ -15,6 +15,7 @@ import { panelKeys } from './api';
 import { AttachmentsPanel } from './attachments-panel';
 import { CommentsPanel } from './comments-panel';
 import { DocumentsPanel } from './documents-panel';
+import { DuplicatesPanel } from './duplicates-panel';
 import { RelatedPanel } from './related-panel';
 import { RevisionsPanel } from './revisions-panel';
 import { TagsPanel } from './tags-panel';
@@ -41,6 +42,9 @@ import { TagsPanel } from './tags-panel';
  * The related tab lists the records that refer to this one (`related` of
  * `GET /v1/lists/{subject}`: their `ref` fields), each relation's newest,
  * as their own list shows them to the user.
+ *
+ * The duplicates tab (the subject's `merge` capability: docs/merging.md)
+ * lists the records the API finds alike, and merges one into this record.
  *
  * The documents tab (a PDF of the record: docs/documents.md) needs the
  * subject's `pdf` capability and the `documents` feature.
@@ -116,12 +120,18 @@ export function RecordPanels(props: {
     // PDFs: the subject has them and the deployment has Gotenberg.
     capabilities.pdf && documentsOn && 'documents',
     related.length > 0 && 'related',
+    // Absent from an older API's answer.
+    capabilities.merge && 'duplicates',
   ].filter(
     (
       tab,
     ): tab is
-      'comments' | 'attachments' | 'revisions' | 'documents' | 'related' =>
-      !!tab,
+      | 'comments'
+      | 'attachments'
+      | 'revisions'
+      | 'documents'
+      | 'related'
+      | 'duplicates' => !!tab,
   );
 
   if (!capabilities.tags && tabs.length === 0) {
@@ -198,6 +208,16 @@ export function RecordPanels(props: {
                   related={relation}
                 />
               ))}
+            </TabsContent>
+          )}
+          {capabilities.merge && (
+            <TabsContent value="duplicates" className="pt-4">
+              <DuplicatesPanel
+                base={props.path}
+                id={props.id}
+                listPath={listPath}
+                canMerge={canUpdate}
+              />
             </TabsContent>
           )}
         </Tabs>

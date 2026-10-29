@@ -24,6 +24,7 @@ import { Route as AppAccountRouteRouteImport } from './routes/_app/account/route
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppBrandingRouteImport } from './routes/_app/branding'
 import { Route as AppCustomFieldsRouteImport } from './routes/_app/custom-fields'
+import { Route as AppDataQualityRouteImport } from './routes/_app/data-quality'
 import { Route as AppExchangeRatesRouteImport } from './routes/_app/exchange-rates'
 import { Route as AppLegalHoldsRouteImport } from './routes/_app/legal-holds'
 import { Route as AppMailSuppressionsRouteImport } from './routes/_app/mail-suppressions'
@@ -35,6 +36,7 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppSignInsRouteImport } from './routes/_app/sign-ins'
 import { Route as AppSsoRouteImport } from './routes/_app/sso'
 import { Route as AppTagsRouteImport } from './routes/_app/tags'
+import { Route as AppWorkRouteImport } from './routes/_app/work'
 import { Route as AppAccessUsersRouteImport } from './routes/_app/access/users'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
 import { Route as AppAccountNotificationsRouteImport } from './routes/_app/account/notifications'
@@ -50,6 +52,7 @@ import { Route as AppApprovalPoliciesIndexRouteImport } from './routes/_app/appr
 import { Route as AppApprovalPoliciesKeyRouteImport } from './routes/_app/approval-policies/$key'
 import { Route as AppApprovalsIndexRouteImport } from './routes/_app/approvals/index'
 import { Route as AppApprovalsIdRouteImport } from './routes/_app/approvals/$id'
+import { Route as AppFormsIndexRouteImport } from './routes/_app/forms/index'
 import { Route as AppNotesIndexRouteImport } from './routes/_app/notes/index'
 import { Route as AppNotesNewRouteImport } from './routes/_app/notes/new'
 import { Route as AppOpsIndexRouteImport } from './routes/_app/ops/index'
@@ -65,6 +68,9 @@ import { Route as AppAccessOrganizationUnitIdRouteImport } from './routes/_app/a
 import { Route as AppAccessRolesIndexRouteImport } from './routes/_app/access/roles/index'
 import { Route as AppAccessRolesRoleIdRouteImport } from './routes/_app/access/roles/$roleId'
 import { Route as AppAccessRolesNewRouteImport } from './routes/_app/access/roles/new'
+import { Route as AppFormsFormIdIndexRouteImport } from './routes/_app/forms/$formId/index'
+import { Route as AppFormsFormIdFillRouteImport } from './routes/_app/forms/$formId/fill'
+import { Route as AppFormsFormIdSubmissionsRouteImport } from './routes/_app/forms/$formId/submissions'
 import { Route as AppNotesIdIndexRouteImport } from './routes/_app/notes/$id/index'
 import { Route as AppNotesIdEditRouteImport } from './routes/_app/notes/$id/edit'
 import { Route as AppWebhooksClientIdIndexRouteImport } from './routes/_app/webhooks/$clientId/index'
@@ -144,6 +150,11 @@ const AppCustomFieldsRoute = AppCustomFieldsRouteImport.update({
   path: '/custom-fields',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDataQualityRoute = AppDataQualityRouteImport.update({
+  id: '/data-quality',
+  path: '/data-quality',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppExchangeRatesRoute = AppExchangeRatesRouteImport.update({
   id: '/exchange-rates',
   path: '/exchange-rates',
@@ -197,6 +208,11 @@ const AppSsoRoute = AppSsoRouteImport.update({
 const AppTagsRoute = AppTagsRouteImport.update({
   id: '/tags',
   path: '/tags',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppWorkRoute = AppWorkRouteImport.update({
+  id: '/work',
+  path: '/work',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAccessUsersRoute = AppAccessUsersRouteImport.update({
@@ -273,6 +289,11 @@ const AppApprovalsIndexRoute = AppApprovalsIndexRouteImport.update({
 const AppApprovalsIdRoute = AppApprovalsIdRouteImport.update({
   id: '/approvals/$id',
   path: '/approvals/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFormsIndexRoute = AppFormsIndexRouteImport.update({
+  id: '/forms/',
+  path: '/forms/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNotesIndexRoute = AppNotesIndexRouteImport.update({
@@ -352,6 +373,22 @@ const AppAccessRolesNewRoute = AppAccessRolesNewRouteImport.update({
   path: '/access/roles/new',
   getParentRoute: () => AppRoute,
 } as any)
+const AppFormsFormIdIndexRoute = AppFormsFormIdIndexRouteImport.update({
+  id: '/forms/$formId/',
+  path: '/forms/$formId/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFormsFormIdFillRoute = AppFormsFormIdFillRouteImport.update({
+  id: '/forms/$formId/fill',
+  path: '/forms/$formId/fill',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFormsFormIdSubmissionsRoute =
+  AppFormsFormIdSubmissionsRouteImport.update({
+    id: '/forms/$formId/submissions',
+    path: '/forms/$formId/submissions',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppNotesIdIndexRoute = AppNotesIdIndexRouteImport.update({
   id: '/notes/$id/',
   path: '/notes/$id/',
@@ -389,6 +426,7 @@ export interface FileRoutesByFullPath {
   '/audit': typeof AppAuditRoute
   '/branding': typeof AppBrandingRoute
   '/custom-fields': typeof AppCustomFieldsRoute
+  '/data-quality': typeof AppDataQualityRoute
   '/exchange-rates': typeof AppExchangeRatesRoute
   '/legal-holds': typeof AppLegalHoldsRoute
   '/mail-suppressions': typeof AppMailSuppressionsRoute
@@ -400,6 +438,7 @@ export interface FileRoutesByFullPath {
   '/sign-ins': typeof AppSignInsRoute
   '/sso': typeof AppSsoRoute
   '/tags': typeof AppTagsRoute
+  '/work': typeof AppWorkRoute
   '/access/users': typeof AppAccessUsersRoute
   '/account/notifications': typeof AppAccountNotificationsRoute
   '/account/preferences': typeof AppAccountPreferencesRoute
@@ -419,6 +458,7 @@ export interface FileRoutesByFullPath {
   '/api-clients/': typeof AppApiClientsIndexRoute
   '/approval-policies/': typeof AppApprovalPoliciesIndexRoute
   '/approvals/': typeof AppApprovalsIndexRoute
+  '/forms/': typeof AppFormsIndexRoute
   '/notes/': typeof AppNotesIndexRoute
   '/ops/': typeof AppOpsIndexRoute
   '/reports/': typeof AppReportsIndexRoute
@@ -428,10 +468,13 @@ export interface FileRoutesByFullPath {
   '/access/organization/$unitId': typeof AppAccessOrganizationUnitIdRoute
   '/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
   '/access/roles/new': typeof AppAccessRolesNewRoute
+  '/forms/$formId/fill': typeof AppFormsFormIdFillRoute
+  '/forms/$formId/submissions': typeof AppFormsFormIdSubmissionsRoute
   '/notes/$id/edit': typeof AppNotesIdEditRoute
   '/webhooks/$clientId/$id': typeof AppWebhooksClientIdIdRoute
   '/access/organization/': typeof AppAccessOrganizationIndexRoute
   '/access/roles/': typeof AppAccessRolesIndexRoute
+  '/forms/$formId/': typeof AppFormsFormIdIndexRoute
   '/notes/$id/': typeof AppNotesIdIndexRoute
   '/webhooks/$clientId/': typeof AppWebhooksClientIdIndexRoute
 }
@@ -448,6 +491,7 @@ export interface FileRoutesByTo {
   '/audit': typeof AppAuditRoute
   '/branding': typeof AppBrandingRoute
   '/custom-fields': typeof AppCustomFieldsRoute
+  '/data-quality': typeof AppDataQualityRoute
   '/exchange-rates': typeof AppExchangeRatesRoute
   '/legal-holds': typeof AppLegalHoldsRoute
   '/mail-suppressions': typeof AppMailSuppressionsRoute
@@ -459,6 +503,7 @@ export interface FileRoutesByTo {
   '/sign-ins': typeof AppSignInsRoute
   '/sso': typeof AppSsoRoute
   '/tags': typeof AppTagsRoute
+  '/work': typeof AppWorkRoute
   '/': typeof AppIndexRoute
   '/access/users': typeof AppAccessUsersRoute
   '/account/notifications': typeof AppAccountNotificationsRoute
@@ -479,6 +524,7 @@ export interface FileRoutesByTo {
   '/api-clients': typeof AppApiClientsIndexRoute
   '/approval-policies': typeof AppApprovalPoliciesIndexRoute
   '/approvals': typeof AppApprovalsIndexRoute
+  '/forms': typeof AppFormsIndexRoute
   '/notes': typeof AppNotesIndexRoute
   '/ops': typeof AppOpsIndexRoute
   '/reports': typeof AppReportsIndexRoute
@@ -488,10 +534,13 @@ export interface FileRoutesByTo {
   '/access/organization/$unitId': typeof AppAccessOrganizationUnitIdRoute
   '/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
   '/access/roles/new': typeof AppAccessRolesNewRoute
+  '/forms/$formId/fill': typeof AppFormsFormIdFillRoute
+  '/forms/$formId/submissions': typeof AppFormsFormIdSubmissionsRoute
   '/notes/$id/edit': typeof AppNotesIdEditRoute
   '/webhooks/$clientId/$id': typeof AppWebhooksClientIdIdRoute
   '/access/organization': typeof AppAccessOrganizationIndexRoute
   '/access/roles': typeof AppAccessRolesIndexRoute
+  '/forms/$formId': typeof AppFormsFormIdIndexRoute
   '/notes/$id': typeof AppNotesIdIndexRoute
   '/webhooks/$clientId': typeof AppWebhooksClientIdIndexRoute
 }
@@ -511,6 +560,7 @@ export interface FileRoutesById {
   '/_app/audit': typeof AppAuditRoute
   '/_app/branding': typeof AppBrandingRoute
   '/_app/custom-fields': typeof AppCustomFieldsRoute
+  '/_app/data-quality': typeof AppDataQualityRoute
   '/_app/exchange-rates': typeof AppExchangeRatesRoute
   '/_app/legal-holds': typeof AppLegalHoldsRoute
   '/_app/mail-suppressions': typeof AppMailSuppressionsRoute
@@ -522,6 +572,7 @@ export interface FileRoutesById {
   '/_app/sign-ins': typeof AppSignInsRoute
   '/_app/sso': typeof AppSsoRoute
   '/_app/tags': typeof AppTagsRoute
+  '/_app/work': typeof AppWorkRoute
   '/_app/': typeof AppIndexRoute
   '/_app/access/users': typeof AppAccessUsersRoute
   '/_app/account/notifications': typeof AppAccountNotificationsRoute
@@ -542,6 +593,7 @@ export interface FileRoutesById {
   '/_app/api-clients/': typeof AppApiClientsIndexRoute
   '/_app/approval-policies/': typeof AppApprovalPoliciesIndexRoute
   '/_app/approvals/': typeof AppApprovalsIndexRoute
+  '/_app/forms/': typeof AppFormsIndexRoute
   '/_app/notes/': typeof AppNotesIndexRoute
   '/_app/ops/': typeof AppOpsIndexRoute
   '/_app/reports/': typeof AppReportsIndexRoute
@@ -551,10 +603,13 @@ export interface FileRoutesById {
   '/_app/access/organization/$unitId': typeof AppAccessOrganizationUnitIdRoute
   '/_app/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
   '/_app/access/roles/new': typeof AppAccessRolesNewRoute
+  '/_app/forms/$formId/fill': typeof AppFormsFormIdFillRoute
+  '/_app/forms/$formId/submissions': typeof AppFormsFormIdSubmissionsRoute
   '/_app/notes/$id/edit': typeof AppNotesIdEditRoute
   '/_app/webhooks/$clientId/$id': typeof AppWebhooksClientIdIdRoute
   '/_app/access/organization/': typeof AppAccessOrganizationIndexRoute
   '/_app/access/roles/': typeof AppAccessRolesIndexRoute
+  '/_app/forms/$formId/': typeof AppFormsFormIdIndexRoute
   '/_app/notes/$id/': typeof AppNotesIdIndexRoute
   '/_app/webhooks/$clientId/': typeof AppWebhooksClientIdIndexRoute
 }
@@ -575,6 +630,7 @@ export interface FileRouteTypes {
     | '/audit'
     | '/branding'
     | '/custom-fields'
+    | '/data-quality'
     | '/exchange-rates'
     | '/legal-holds'
     | '/mail-suppressions'
@@ -586,6 +642,7 @@ export interface FileRouteTypes {
     | '/sign-ins'
     | '/sso'
     | '/tags'
+    | '/work'
     | '/access/users'
     | '/account/notifications'
     | '/account/preferences'
@@ -605,6 +662,7 @@ export interface FileRouteTypes {
     | '/api-clients/'
     | '/approval-policies/'
     | '/approvals/'
+    | '/forms/'
     | '/notes/'
     | '/ops/'
     | '/reports/'
@@ -614,10 +672,13 @@ export interface FileRouteTypes {
     | '/access/organization/$unitId'
     | '/access/roles/$roleId'
     | '/access/roles/new'
+    | '/forms/$formId/fill'
+    | '/forms/$formId/submissions'
     | '/notes/$id/edit'
     | '/webhooks/$clientId/$id'
     | '/access/organization/'
     | '/access/roles/'
+    | '/forms/$formId/'
     | '/notes/$id/'
     | '/webhooks/$clientId/'
   fileRoutesByTo: FileRoutesByTo
@@ -634,6 +695,7 @@ export interface FileRouteTypes {
     | '/audit'
     | '/branding'
     | '/custom-fields'
+    | '/data-quality'
     | '/exchange-rates'
     | '/legal-holds'
     | '/mail-suppressions'
@@ -645,6 +707,7 @@ export interface FileRouteTypes {
     | '/sign-ins'
     | '/sso'
     | '/tags'
+    | '/work'
     | '/'
     | '/access/users'
     | '/account/notifications'
@@ -665,6 +728,7 @@ export interface FileRouteTypes {
     | '/api-clients'
     | '/approval-policies'
     | '/approvals'
+    | '/forms'
     | '/notes'
     | '/ops'
     | '/reports'
@@ -674,10 +738,13 @@ export interface FileRouteTypes {
     | '/access/organization/$unitId'
     | '/access/roles/$roleId'
     | '/access/roles/new'
+    | '/forms/$formId/fill'
+    | '/forms/$formId/submissions'
     | '/notes/$id/edit'
     | '/webhooks/$clientId/$id'
     | '/access/organization'
     | '/access/roles'
+    | '/forms/$formId'
     | '/notes/$id'
     | '/webhooks/$clientId'
   id:
@@ -696,6 +763,7 @@ export interface FileRouteTypes {
     | '/_app/audit'
     | '/_app/branding'
     | '/_app/custom-fields'
+    | '/_app/data-quality'
     | '/_app/exchange-rates'
     | '/_app/legal-holds'
     | '/_app/mail-suppressions'
@@ -707,6 +775,7 @@ export interface FileRouteTypes {
     | '/_app/sign-ins'
     | '/_app/sso'
     | '/_app/tags'
+    | '/_app/work'
     | '/_app/'
     | '/_app/access/users'
     | '/_app/account/notifications'
@@ -727,6 +796,7 @@ export interface FileRouteTypes {
     | '/_app/api-clients/'
     | '/_app/approval-policies/'
     | '/_app/approvals/'
+    | '/_app/forms/'
     | '/_app/notes/'
     | '/_app/ops/'
     | '/_app/reports/'
@@ -736,10 +806,13 @@ export interface FileRouteTypes {
     | '/_app/access/organization/$unitId'
     | '/_app/access/roles/$roleId'
     | '/_app/access/roles/new'
+    | '/_app/forms/$formId/fill'
+    | '/_app/forms/$formId/submissions'
     | '/_app/notes/$id/edit'
     | '/_app/webhooks/$clientId/$id'
     | '/_app/access/organization/'
     | '/_app/access/roles/'
+    | '/_app/forms/$formId/'
     | '/_app/notes/$id/'
     | '/_app/webhooks/$clientId/'
   fileRoutesById: FileRoutesById
@@ -864,6 +937,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCustomFieldsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/data-quality': {
+      id: '/_app/data-quality'
+      path: '/data-quality'
+      fullPath: '/data-quality'
+      preLoaderRoute: typeof AppDataQualityRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/exchange-rates': {
       id: '/_app/exchange-rates'
       path: '/exchange-rates'
@@ -939,6 +1019,13 @@ declare module '@tanstack/react-router' {
       path: '/tags'
       fullPath: '/tags'
       preLoaderRoute: typeof AppTagsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/work': {
+      id: '/_app/work'
+      path: '/work'
+      fullPath: '/work'
+      preLoaderRoute: typeof AppWorkRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/access/users': {
@@ -1046,6 +1133,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppApprovalsIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/forms/': {
+      id: '/_app/forms/'
+      path: '/forms'
+      fullPath: '/forms/'
+      preLoaderRoute: typeof AppFormsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/notes/': {
       id: '/_app/notes/'
       path: '/notes'
@@ -1151,6 +1245,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccessRolesNewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/forms/$formId/': {
+      id: '/_app/forms/$formId/'
+      path: '/forms/$formId'
+      fullPath: '/forms/$formId/'
+      preLoaderRoute: typeof AppFormsFormIdIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/forms/$formId/fill': {
+      id: '/_app/forms/$formId/fill'
+      path: '/forms/$formId/fill'
+      fullPath: '/forms/$formId/fill'
+      preLoaderRoute: typeof AppFormsFormIdFillRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/forms/$formId/submissions': {
+      id: '/_app/forms/$formId/submissions'
+      path: '/forms/$formId/submissions'
+      fullPath: '/forms/$formId/submissions'
+      preLoaderRoute: typeof AppFormsFormIdSubmissionsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/notes/$id/': {
       id: '/_app/notes/$id/'
       path: '/notes/$id'
@@ -1211,6 +1326,7 @@ interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
   AppBrandingRoute: typeof AppBrandingRoute
   AppCustomFieldsRoute: typeof AppCustomFieldsRoute
+  AppDataQualityRoute: typeof AppDataQualityRoute
   AppExchangeRatesRoute: typeof AppExchangeRatesRoute
   AppLegalHoldsRoute: typeof AppLegalHoldsRoute
   AppMailSuppressionsRoute: typeof AppMailSuppressionsRoute
@@ -1222,6 +1338,7 @@ interface AppRouteChildren {
   AppSignInsRoute: typeof AppSignInsRoute
   AppSsoRoute: typeof AppSsoRoute
   AppTagsRoute: typeof AppTagsRoute
+  AppWorkRoute: typeof AppWorkRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAccessUsersRoute: typeof AppAccessUsersRoute
   AppApiClientsIdRoute: typeof AppApiClientsIdRoute
@@ -1235,6 +1352,7 @@ interface AppRouteChildren {
   AppApiClientsIndexRoute: typeof AppApiClientsIndexRoute
   AppApprovalPoliciesIndexRoute: typeof AppApprovalPoliciesIndexRoute
   AppApprovalsIndexRoute: typeof AppApprovalsIndexRoute
+  AppFormsIndexRoute: typeof AppFormsIndexRoute
   AppNotesIndexRoute: typeof AppNotesIndexRoute
   AppOpsIndexRoute: typeof AppOpsIndexRoute
   AppReportsIndexRoute: typeof AppReportsIndexRoute
@@ -1244,10 +1362,13 @@ interface AppRouteChildren {
   AppAccessOrganizationUnitIdRoute: typeof AppAccessOrganizationUnitIdRoute
   AppAccessRolesRoleIdRoute: typeof AppAccessRolesRoleIdRoute
   AppAccessRolesNewRoute: typeof AppAccessRolesNewRoute
+  AppFormsFormIdFillRoute: typeof AppFormsFormIdFillRoute
+  AppFormsFormIdSubmissionsRoute: typeof AppFormsFormIdSubmissionsRoute
   AppNotesIdEditRoute: typeof AppNotesIdEditRoute
   AppWebhooksClientIdIdRoute: typeof AppWebhooksClientIdIdRoute
   AppAccessOrganizationIndexRoute: typeof AppAccessOrganizationIndexRoute
   AppAccessRolesIndexRoute: typeof AppAccessRolesIndexRoute
+  AppFormsFormIdIndexRoute: typeof AppFormsFormIdIndexRoute
   AppNotesIdIndexRoute: typeof AppNotesIdIndexRoute
   AppWebhooksClientIdIndexRoute: typeof AppWebhooksClientIdIndexRoute
 }
@@ -1257,6 +1378,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
   AppBrandingRoute: AppBrandingRoute,
   AppCustomFieldsRoute: AppCustomFieldsRoute,
+  AppDataQualityRoute: AppDataQualityRoute,
   AppExchangeRatesRoute: AppExchangeRatesRoute,
   AppLegalHoldsRoute: AppLegalHoldsRoute,
   AppMailSuppressionsRoute: AppMailSuppressionsRoute,
@@ -1268,6 +1390,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSignInsRoute: AppSignInsRoute,
   AppSsoRoute: AppSsoRoute,
   AppTagsRoute: AppTagsRoute,
+  AppWorkRoute: AppWorkRoute,
   AppIndexRoute: AppIndexRoute,
   AppAccessUsersRoute: AppAccessUsersRoute,
   AppApiClientsIdRoute: AppApiClientsIdRoute,
@@ -1281,6 +1404,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppApiClientsIndexRoute: AppApiClientsIndexRoute,
   AppApprovalPoliciesIndexRoute: AppApprovalPoliciesIndexRoute,
   AppApprovalsIndexRoute: AppApprovalsIndexRoute,
+  AppFormsIndexRoute: AppFormsIndexRoute,
   AppNotesIndexRoute: AppNotesIndexRoute,
   AppOpsIndexRoute: AppOpsIndexRoute,
   AppReportsIndexRoute: AppReportsIndexRoute,
@@ -1290,10 +1414,13 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccessOrganizationUnitIdRoute: AppAccessOrganizationUnitIdRoute,
   AppAccessRolesRoleIdRoute: AppAccessRolesRoleIdRoute,
   AppAccessRolesNewRoute: AppAccessRolesNewRoute,
+  AppFormsFormIdFillRoute: AppFormsFormIdFillRoute,
+  AppFormsFormIdSubmissionsRoute: AppFormsFormIdSubmissionsRoute,
   AppNotesIdEditRoute: AppNotesIdEditRoute,
   AppWebhooksClientIdIdRoute: AppWebhooksClientIdIdRoute,
   AppAccessOrganizationIndexRoute: AppAccessOrganizationIndexRoute,
   AppAccessRolesIndexRoute: AppAccessRolesIndexRoute,
+  AppFormsFormIdIndexRoute: AppFormsFormIdIndexRoute,
   AppNotesIdIndexRoute: AppNotesIdIndexRoute,
   AppWebhooksClientIdIndexRoute: AppWebhooksClientIdIndexRoute,
 }

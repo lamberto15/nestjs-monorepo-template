@@ -58,6 +58,13 @@
       "manage": "Eine Adresse zur Sperrliste hinzufügen oder entfernen"
     }
   },
+  "data-quality": {
+    "label": "Datenqualität",
+    "actions": {
+      "read": "Die Datenqualitäts-Befunde zu den Datensätzen und Feldern sehen, die Sie lesen dürfen",
+      "manage": "Eine Datenqualitätsprüfung starten, Befunde verwerfen und neu prüfen"
+    }
+  },
   "form": {
     "label": "Formulare",
     "names": {
@@ -165,6 +172,10 @@
       "label": "Bildverarbeitung von Anhängen",
       "description": "Erstellt Vorschaubilder und Vorschauen hochgeladener Bilder und entfernt die Metadaten (EXIF, GPS) der Originale."
     },
+    "attachment-text": {
+      "label": "Textextraktion aus Anhängen",
+      "description": "Extrahiert den Text hochgeladener Dokumente (ATTACHMENT_TEXT_SEARCH), damit die Suche sie findet."
+    },
     "revisions-retention": {
       "label": "Aufbewahrung der Revisionen",
       "description": "Löscht jede Nacht Revisionen von Datensätzen, die älter als REVISIONS_RETENTION_DAYS sind (nie die neueste eines Datensatzes)."
@@ -172,6 +183,10 @@
     "notification-retention": {
       "label": "Aufbewahrung der Benachrichtigungen",
       "description": "Löscht jede Nacht gelesene Benachrichtigungen nach NOTIFICATIONS_RETENTION_DAYS und alle nach NOTIFICATIONS_MAX_AGE_DAYS."
+    },
+    "recents-retention": {
+      "label": "Aufbewahrung der zuletzt geöffneten Datensätze",
+      "description": "Löscht jede Nacht zuletzt geöffnete Datensätze, die älter als 30 Tage sind."
     },
     "notification-digests": {
       "label": "Benachrichtigungszusammenfassungen",
