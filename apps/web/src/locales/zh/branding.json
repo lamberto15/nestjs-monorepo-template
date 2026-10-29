@@ -11,6 +11,12 @@
     "set": "选择颜色",
     "remove": "使用默认颜色"
   },
+  "darkColor": {
+    "label": "品牌颜色（深色模式）",
+    "hint": "网页应用深色主题中的强调色。未设置时使用品牌颜色。",
+    "set": "选择深色模式颜色",
+    "remove": "使用品牌颜色"
+  },
   "mailName": {
     "label": "邮件发件人名称",
     "hint": "邮件发送和署名所用的名称。发件地址仍为部署的地址。"
@@ -25,6 +31,20 @@
     "saved": "徽标已保存。",
     "remove": "移除徽标",
     "removed": "徽标已移除。",
+    "rejected": "{{name}}：{{reason}}",
+    "tooLarge": "文件超过 {{max}} KB。",
+    "typeRefused": "请使用 PNG、JPEG 或 WebP 图片。"
+  },
+  "darkLogo": {
+    "label": "徽标（深色模式）",
+    "hint": "用于网页应用深色主题的 PNG、JPEG 或 WebP 图片。未设置时使用徽标。",
+    "alt": "当前深色模式徽标",
+    "drop": "将深色模式徽标拖放到此处",
+    "limit": "PNG、JPEG 或 WebP，最大 512 KB",
+    "choose": "选择文件",
+    "saved": "深色模式徽标已保存。",
+    "remove": "移除深色模式徽标",
+    "removed": "深色模式徽标已移除。",
     "rejected": "{{name}}：{{reason}}",
     "tooLarge": "文件超过 {{max}} KB。",
     "typeRefused": "请使用 PNG、JPEG 或 WebP 图片。"

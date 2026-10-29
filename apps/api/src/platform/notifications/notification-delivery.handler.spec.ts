@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { TransactionHost } from '@nestjs-cls/transactional';
 import type { ConfigService } from '@nestjs/config';
 import type { I18nService } from '@nestjs/i18n';
@@ -33,6 +34,10 @@ describe('NotificationDeliveryHandler', () => {
       type: 't',
       recipient: 'user:u1',
     },
+    {
+      declaration = { urgent: true },
+      email = undefined,
+    }: { declaration?: Record<string, unknown>; email?: unknown } = {},
   ) {
     const events: string[] = [];
     let open = false;
@@ -65,6 +70,10 @@ describe('NotificationDeliveryHandler', () => {
     const channel = {
       name: 'email',
       supports: () => true,
+      // A settable email channel when the test sets the preference.
+      ...(email !== undefined && {
+        settings: { schema: z.unknown(), off: false },
+      }),
       beforeTransaction: vi.fn(async () => {
         events.push(open ? 'before-INSIDE' : 'before');
       }),
@@ -78,8 +87,8 @@ describe('NotificationDeliveryHandler', () => {
     const handler = new NotificationDeliveryHandler(
       txHost,
       {
-        declaration: () => ({ urgent: true }),
-        effective: () => ({}),
+        declaration: () => declaration,
+        effective: () => (email === undefined ? {} : { email }),
         render: () => ({ title: 'T', body: 'B' }),
       } as unknown as NotificationCatalog,
       { all: () => [channel] } as unknown as NotificationChannelRegistry,
@@ -174,5 +183,34 @@ describe('NotificationDeliveryHandler', () => {
     });
     await handler.deliver(payload, ctx);
     expect(channel.beforeTransaction).not.toHaveBeenCalled();
+  });
+
+  it('mails a bulk summary in the next digest, never at once, and keeps off off (#618)', async () => {
+    const summary = {
+      id: 'n1',
+      type: 'note.published',
+      recipient: 'user:u1',
+      data: { bulk: true, titles: ['A'] },
+    };
+    const declaration = { bulk: 'digest', urgent: true };
+    const setting = async (email: unknown) => {
+      const { handler, channel, ctx } = setup(summary, { declaration, email });
+      await handler.deliver(payload, ctx);
+      return (channel.inTransaction.mock.calls as unknown[][])[0]?.[0] as
+        { setting: unknown } | undefined;
+    };
+    expect((await setting('immediate'))?.setting).toBe('hourly');
+    expect((await setting('daily'))?.setting).toBe('daily');
+    expect(await setting(false)).toBeUndefined();
+    // Not a summary: the preference as it is.
+    const { handler, channel, ctx } = setup(
+      { ...summary, data: { noteId: 'x', title: 'A' } },
+      { declaration, email: 'immediate' },
+    );
+    await handler.deliver(payload, ctx);
+    expect(channel.inTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ setting: 'immediate' }),
+      expect.anything(),
+    );
   });
 });

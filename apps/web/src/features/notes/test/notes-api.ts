@@ -57,8 +57,8 @@ const description = {
   recycleBin: true,
   defaultSort: '-createdAt',
   limits: { defaultLimit: 50, maxLimit: 100 },
-  // Notes take every panel, and watching (note.record.ts).
-  ...panelsDescription({ watch: true }),
+  // Notes take every panel, watching and merging (note.routes.ts).
+  ...panelsDescription({ watch: true, merge: true }),
 };
 
 type NoteCan = { update: boolean; delete: boolean; restore: boolean };
@@ -79,6 +79,8 @@ export function useNotesApi(options: {
   richText?: boolean;
   /** The Note naming series the create form can pick from (none by default). */
   namingSeries?: unknown[];
+  /** What POST /v1/notes/duplicates finds (none by default): a form's warning. */
+  duplicates?: unknown[];
 }) {
   const notes = new Map(options.notes.map((note) => [note.id, { ...note }]));
   const held = new Set(options.can);
@@ -122,6 +124,8 @@ export function useNotesApi(options: {
     reads: [] as string[],
     /** The query string of each `GET /v1/notes/{id}`. */
     readQueries: [] as string[],
+    /** The bodies of `POST /v1/notes/duplicates`. */
+    duplicateChecks: [] as unknown[],
   };
   /** Another user's write: the note changes, its ETag and `updatedAt` with it. */
   const changeElsewhere = (id: string, changes: Partial<TestNote>) => {
@@ -145,6 +149,11 @@ export function useNotesApi(options: {
     ...subscriptions.handlers,
     // The detail page mounts the record panels: empty ones unless a test sets them.
     ...panelHandlers({ record: NOTE_RECORD }).handlers,
+    // The form's duplicate check (docs/merging.md): what a test sets, else none.
+    http.post('/v1/notes/duplicates', async ({ request }) => {
+      calls.duplicateChecks.push(await request.json());
+      return HttpResponse.json({ items: options.duplicates ?? [] });
+    }),
     // The pages read the notes.richText flag to choose the body's control.
     http.get('/v1/settings', () =>
       HttpResponse.json({

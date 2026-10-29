@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  BRANDING_DARK_PRIMARY_COLOR,
   BRANDING_MAIL_FROM_NAME,
   BRANDING_PRIMARY_COLOR,
 } from './branding.settings.js';
@@ -9,6 +10,12 @@ export const brandingSchema = z.object({
     .string()
     .nullable()
     .describe('`#rrggbb`, or null: the default theme.'),
+  darkPrimaryColor: z
+    .string()
+    .nullable()
+    .describe(
+      '`#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds.',
+    ),
   mailFromName: z
     .string()
     .nullable()
@@ -18,6 +25,12 @@ export const brandingSchema = z.object({
     .nullable()
     .describe(
       'The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null.',
+    ),
+  darkLogoUrl: z
+    .string()
+    .nullable()
+    .describe(
+      'The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds.',
     ),
   locked: z
     .boolean()
@@ -32,6 +45,7 @@ export type Branding = z.infer<typeof brandingSchema>;
 export const updateBrandingSchema = z
   .object({
     primaryColor: BRANDING_PRIMARY_COLOR.schema.optional(),
+    darkPrimaryColor: BRANDING_DARK_PRIMARY_COLOR.schema.optional(),
     mailFromName: BRANDING_MAIL_FROM_NAME.schema.optional(),
   })
   .strict()

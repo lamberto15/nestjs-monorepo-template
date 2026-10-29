@@ -31,6 +31,7 @@ import { AttachmentsRegistry } from '../attachments/attachments.registry.js';
 import { BulkRegistry } from '../bulk/bulk.registry.js';
 import type { BulkSelection } from '../bulk/bulk.types.js';
 import { CommentsRegistry } from '../comments/comments.registry.js';
+import { DataQualityRegistry } from '../data-quality/data-quality.registry.js';
 import { DataTransferRegistry } from '../data-transfer/data-transfer.registry.js';
 import { columnsOf } from '../data-transfer/import-columns.js';
 import type {
@@ -50,6 +51,11 @@ import {
 } from '../revisions/revisions.registry.js';
 import { SearchRegistry, type SearchHit } from '../search/search.registry.js';
 import { type ShareTarget, SharesRegistry } from '../shares/shares.registry.js';
+import {
+  type AutomationRecord,
+  type AutomationTarget,
+  AutomationsRegistry,
+} from '../automations/automations.registry.js';
 import { SubscriptionsRegistry } from '../subscriptions/subscriptions.registry.js';
 import { TagsRegistry } from '../tags/tags.registry.js';
 import { TagsService } from '../tags/tags.service.js';
@@ -62,6 +68,7 @@ import {
   takes,
 } from './record.js';
 export { recordKey } from './record.js';
+import { relationsFrom } from './record-relations.js';
 import {
   RECORD_CONTRACT,
   type RecordContract,
@@ -104,6 +111,50 @@ async function find(c: RecordContract, id: string, visibleTo?: Principal) {
   } catch (error) {
     if (error instanceof NotFoundException) return null;
     throw error;
+  }
+}
+
+/**
+ * The data-quality checks of a record with `quality` (platform/data-quality):
+ * its recommended and duplicate fields as declared, and every `ref` field
+ * (record-relations.ts).
+ */
+@Injectable()
+export class RecordDataQuality {
+  constructor(
+    @Inject(RECORD_CONTRACT) c: RecordContract,
+    registry: DataQualityRegistry,
+  ) {
+    const { declaration, table } = c;
+    const columns = (names: readonly string[] = []) =>
+      Object.fromEntries(names.map((name) => [name, table[name]!]));
+    registry.register({
+      subject: declaration.subject,
+      table: table as unknown as PgTable,
+      id: table.id!,
+      deletedAt: table.deletedAt,
+      recommended: columns(declaration.quality?.recommended),
+      duplicates: columns(declaration.quality?.duplicates),
+      references: Object.fromEntries(
+        relationsFrom(declaration).map((relation) => [
+          relation.field,
+          {
+            column: relation.column,
+            to: () => {
+              const to = relation.targetTable() as unknown as Record<
+                string,
+                AnyPgColumn
+              >;
+              return {
+                table: to as unknown as PgTable,
+                id: to.id!,
+                deletedAt: to.deletedAt,
+              };
+            },
+          },
+        ]),
+      ),
+    });
   }
 }
 
@@ -273,6 +324,66 @@ export class RecordShares implements ShareTarget {
     return Object.fromEntries(
       fields.filter((name) => name in shown).map((name) => [name, shown[name]]),
     );
+  }
+}
+
+/** The field kinds a rule's `setField` may set: plain values, never a reference, money or JSON. */
+const SETTABLE_KINDS = new Set([
+  'string',
+  'text',
+  'int',
+  'decimal',
+  'bool',
+  'enum',
+]);
+
+/**
+ * Rules may act on its records (platform/automations): RecordLifecycle
+ * reports each create and update; a `setField` changes a record as its
+ * PATCH route would, as the rule's owner.
+ */
+@Injectable()
+export class RecordAutomation implements AutomationTarget {
+  readonly subject: string;
+  readonly path: string;
+  readonly table: PgTable;
+  readonly columns: AutomationTarget['columns'];
+  readonly list: AutomationTarget['list'];
+  readonly fields: readonly string[];
+  readonly settable: AutomationTarget['settable'];
+  readonly tags: boolean;
+  constructor(
+    @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
+    registry: AutomationsRegistry,
+  ) {
+    const declaration = c.declaration;
+    this.subject = declaration.subject;
+    this.path = declaration.path;
+    this.table = c.table as unknown as PgTable;
+    this.columns = { id: c.table.id!, updatedAt: c.table.updatedAt! };
+    this.list = c.list;
+    this.fields = Object.keys(declaration.fields);
+    const update = c.schemas.update.shape as Record<string, z.ZodType>;
+    this.settable = Object.fromEntries(
+      Object.entries(declaration.fields)
+        .filter(([name, f]) => SETTABLE_KINDS.has(f.kind) && update[name])
+        .map(([name]) => [name, update[name]!]),
+    );
+    this.tags = takes(declaration, 'tags');
+    registry.register(this);
+  }
+  title(row: AutomationRecord) {
+    return titleOf(this.c.declaration, row);
+  }
+  view(row: AutomationRecord) {
+    return recordView(this.c.declaration, row) as Record<string, unknown>;
+  }
+  async update(
+    principal: Principal,
+    row: AutomationRecord,
+    dto: Record<string, unknown>,
+  ) {
+    await this.c.service.update(principal, row, dto);
   }
 }
 

@@ -37,6 +37,9 @@ const PANEL_COMPONENTS = [
   'Share',
   'ShareList',
   'CreatedShare',
+  'Duplicate',
+  'DuplicateList',
+  'MergePreview',
 ];
 
 describe('OpenAPI document (e2e)', () => {
@@ -149,6 +152,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/access/clients/{clientId}/webhook-endpoints/{id}',
         '/v1/access/clients/{clientId}/webhook-endpoints/{id}/rotate-secret',
         '/v1/access/clients/{clientId}/webhook-endpoints/{id}/test',
+        '/v1/access/clients/{clientId}/webhook-scope',
         '/v1/access/clients/{id}',
         '/v1/access/clients/{id}/keys/{keyId}',
         '/v1/access/clients/{id}/rotate',
@@ -254,9 +258,18 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/auth/token',
         '/v1/auth/token/refresh',
         '/v1/auth/token/revoke',
+        '/v1/automation-rules',
+        '/v1/automation-rules/simulate',
+        '/v1/automation-rules/subjects',
+        '/v1/automation-rules/{id}',
+        '/v1/automation-rules/{id}/activate',
+        '/v1/automation-rules/{id}/disable',
+        '/v1/automation-rules/{id}/runs',
         '/v1/branding',
         '/v1/branding/logo',
+        '/v1/branding/logo/dark',
         '/v1/branding/{tenantId}/logo',
+        '/v1/branding/{tenantId}/logo/dark',
         '/v1/bulk',
         '/v1/bulk/{id}',
         '/v1/calendars',
@@ -275,6 +288,11 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/custom-fields/subjects',
         '/v1/custom-fields/{id}',
         '/v1/data',
+        '/v1/data-quality',
+        '/v1/data-quality/findings/{id}/dismiss',
+        '/v1/data-quality/findings/{id}/recheck',
+        '/v1/data-quality/scans',
+        '/v1/data-quality/subjects/{subject}/findings',
         '/v1/data/exports',
         '/v1/data/imports',
         '/v1/data/imports/{name}/mappings',
@@ -551,6 +569,10 @@ describe("OpenAPI document: the record panels' components (e2e)", () => {
     );
     expect(response(`${base}/documents`, 'get')).toEqual(
       ref('RecordDocumentPage'),
+    );
+    expect(response(`${base}/duplicates`, 'get')).toEqual(ref('DuplicateList'));
+    expect(response(`${base}/merge/preview`, 'post')).toEqual(
+      ref('MergePreview'),
     );
     expect(response('/v1/tags', 'get')).toEqual(ref('TagPage'));
     // The pages hold the item components, not copies of them.

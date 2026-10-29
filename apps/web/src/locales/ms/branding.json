@@ -11,6 +11,12 @@
     "set": "Pilih warna",
     "remove": "Guna warna lalai"
   },
+  "darkColor": {
+    "label": "Warna jenama, mod gelap",
+    "hint": "Warna penekanan dalam tema gelap aplikasi web. Tanpanya, warna jenama digunakan.",
+    "set": "Pilih warna gelap",
+    "remove": "Guna warna jenama"
+  },
   "mailName": {
     "label": "Nama penghantar mel",
     "hint": "Nama yang digunakan untuk menghantar dan menandatangani mel. Alamat kekal milik pemasangan."
@@ -25,6 +31,20 @@
     "saved": "Logo disimpan.",
     "remove": "Buang logo",
     "removed": "Logo dibuang.",
+    "rejected": "{{name}}: {{reason}}",
+    "tooLarge": "Fail melebihi {{max}} KB.",
+    "typeRefused": "Gunakan imej PNG, JPEG atau WebP."
+  },
+  "darkLogo": {
+    "label": "Logo, mod gelap",
+    "hint": "Imej PNG, JPEG atau WebP untuk tema gelap aplikasi web. Tanpanya, logo digunakan.",
+    "alt": "Logo mod gelap semasa",
+    "drop": "Letakkan logo mod gelap di sini",
+    "limit": "PNG, JPEG atau WebP, sehingga 512 KB",
+    "choose": "Pilih fail",
+    "saved": "Logo mod gelap disimpan.",
+    "remove": "Buang logo mod gelap",
+    "removed": "Logo mod gelap dibuang.",
     "rejected": "{{name}}: {{reason}}",
     "tooLarge": "Fail melebihi {{max}} KB.",
     "typeRefused": "Gunakan imej PNG, JPEG atau WebP."

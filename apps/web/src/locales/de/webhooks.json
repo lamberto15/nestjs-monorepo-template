@@ -193,5 +193,10 @@
       "descriptionTooLong": "Höchstens {{max}} Zeichen.",
       "create": "Absender erstellen"
     }
+  },
+  "scope": {
+    "label": "Auch Ereignisse zu den anderen Datensätzen des Mandanten senden",
+    "description": "Datensätze von Benutzern und anderen Clients, nur die, die dieser Client lesen darf, ohne die Felder, die er nicht lesen darf. Aus: nur die eigenen Datensätze dieses Clients.",
+    "saved": "Ereignisumfang gespeichert."
   }
 }
