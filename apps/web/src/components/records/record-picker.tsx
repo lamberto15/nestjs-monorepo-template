@@ -1,16 +1,7 @@
-import {
-  Combobox,
-  ComboboxAnchor,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxTrigger,
-} from '@nestjs-monorepo-template/ui/components/combobox';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
+import { SearchCombobox } from '@/components/search-combobox';
 import { searchRecords } from './panels/api';
 
 /** A record as a picker names it: its title field, its number, else its id. */
@@ -51,9 +42,7 @@ export function RecordPicker(props: {
   disabled?: boolean;
 }) {
   const { t } = useTranslation('records');
-  const [input, setInput] = useState(props.initialLabel ?? '');
   const [term, setTerm] = useState('');
-  const search = useDebouncedCallback((next: string) => setTerm(next), 250);
   const found = useQuery({
     queryKey: ['record-picker', props.path, term.trim()],
     queryFn: () => searchRecords(props.path, term),
@@ -63,7 +52,7 @@ export function RecordPicker(props: {
     meta: { errorToast: false },
   });
   const items = (found.data?.items ?? []).map((item) => ({
-    id: item.id as string,
+    value: item.id as string,
     name: recordName(item, props.title),
   }));
   const empty = found.isError
@@ -73,42 +62,19 @@ export function RecordPicker(props: {
       : t('picker.none');
 
   return (
-    <Combobox
+    <SearchCombobox
+      id={props.id}
+      label={props.label}
       value={props.value}
-      onValueChange={(value) => {
-        const item = items.find((candidate) => candidate.id === value);
-        if (item) {
-          setInput(item.name);
-        }
-        props.onChange(value);
-      }}
-      inputValue={input}
-      onInputValueChange={(next) => {
-        setInput(next);
-        search(next);
-      }}
-      manualFiltering
-      openOnFocus
+      onChange={props.onChange}
+      onSearch={setTerm}
+      items={items}
+      empty={empty}
+      initialLabel={props.initialLabel}
+      placeholder={props.placeholder ?? t('picker.placeholder')}
+      invalid={props.invalid}
+      describedBy={props.describedBy}
       disabled={props.disabled}
-    >
-      <ComboboxAnchor>
-        <ComboboxInput
-          id={props.id}
-          aria-label={props.label}
-          aria-invalid={props.invalid}
-          aria-describedby={props.describedBy}
-          placeholder={props.placeholder ?? t('picker.placeholder')}
-        />
-        <ComboboxTrigger />
-      </ComboboxAnchor>
-      <ComboboxContent>
-        <ComboboxEmpty keepVisible={items.length === 0}>{empty}</ComboboxEmpty>
-        {items.map((item) => (
-          <ComboboxItem key={item.id} value={item.id} label={item.name}>
-            {item.name}
-          </ComboboxItem>
-        ))}
-      </ComboboxContent>
-    </Combobox>
+    />
   );
 }
