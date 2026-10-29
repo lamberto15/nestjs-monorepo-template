@@ -49,7 +49,13 @@ export const TEST_ITEM = defineRecord({
     // A test item's parent, another test item: the platform's relationships
     // (record-relations.ts) are tested on it. A reference to its own records
     // names their table through the declaration (its tables file imports this one).
+    // Deleting a parent its live children refer to is refused (the default, `restrict`).
     parentId: field.ref((): Referenced => recordTableOf(TEST_ITEM)).optional(),
+    // A link that stays while its test item is in the recycle bin (`keep`).
+    linkedId: field
+      .ref((): Referenced => recordTableOf(TEST_ITEM))
+      .optional()
+      .onDelete('keep'),
   },
   // Computed on read (platform/records/record-computed.ts): `summary` reads
   // `body`, which a field-level permission can hide, so it hides with it.

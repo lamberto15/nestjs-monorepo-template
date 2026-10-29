@@ -8,6 +8,7 @@
       "body": "Body",
       "publishedAt": "Published at",
       "parentId": "Parent",
+      "linkedId": "Linked",
       "code": "Code"
     }
   }

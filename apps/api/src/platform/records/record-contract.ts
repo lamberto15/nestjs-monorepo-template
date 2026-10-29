@@ -6,7 +6,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { AuthorizationService } from '@nestjs/authorization';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { withoutEncrypted } from '../../core/encryption/encrypted-columns.js';
@@ -388,19 +388,26 @@ export class RecordLifecycle {
   }
 
   /**
-   * A record a required reference still points at can't go (409
-   * `record_referenced`): neither for good (the key would refuse it) nor to
-   * the recycle bin (its purge would). Referring records in the recycle bin
-   * count too, until purged. Optional references empty when the record is
-   * deleted for good (the key's `set null`) and stay while it is in the bin.
+   * A record a `restrict` reference points at can't go (409
+   * `record_referenced`), to the recycle bin or for good, while live records
+   * refer to it. A required one counts those in the recycle bin too, until
+   * purged: the key would refuse the purge. An optional one empties when the
+   * record is deleted for good (the key's `set null`) and stays while it is
+   * in the bin: always with `keep`, which never refuses.
    */
   private async assertNotReferred(tx: Transaction, row: RecordRow) {
     for (const relation of relationsTo(this.declaration.subject)) {
-      if (!relation.required) continue;
+      if (relation.onDelete === 'keep') continue;
+      const binned = relation.table.deletedAt;
       const [referring] = await tx
         .select({ id: relation.table.id! })
         .from(relation.table)
-        .where(eq(relation.column, row.id))
+        .where(
+          and(
+            eq(relation.column, row.id),
+            relation.required || !binned ? undefined : isNull(binned),
+          ),
+        )
         .limit(1);
       if (referring) {
         throw new ConflictException({
@@ -448,7 +455,38 @@ export class RecordLifecycle {
 
   /** `row` as it is once restored from the recycle bin. */
   async restored(tx: Transaction, { row }: { row: RecordRow }) {
+    await this.assertReferencesLive(tx, row);
     await this.emit(tx, 'restored', row);
+  }
+
+  /**
+   * A record restored while a `restrict` reference of its points at one in
+   * the recycle bin would be the live referrer that rule forbids (409
+   * `reference_deleted`): that one is restored first. A `keep` reference
+   * comes back as it is; one whose record was purged is empty (`set null`).
+   */
+  private async assertReferencesLive(tx: Transaction, row: RecordRow) {
+    for (const relation of relationsFrom(this.declaration)) {
+      const id = row[relation.field] as string | null | undefined;
+      const target = relation.targetTable() as ReturnType<
+        typeof relation.targetTable
+      > & { deletedAt?: AnyPgColumn };
+      if (id == null || relation.onDelete === 'keep' || !target.deletedAt) {
+        continue;
+      }
+      const [binned] = await tx
+        .select({ id: target.id })
+        .from(target)
+        .where(and(eq(target.id, id), isNotNull(target.deletedAt)))
+        .limit(1);
+      if (binned) {
+        throw new ConflictException({
+          code: 'reference_deleted',
+          message: `${relation.field}: the ${relation.target() ?? 'record'} it refers to is in the recycle bin: restore it first.`,
+          field: relation.field,
+        });
+      }
+    }
   }
 }
 

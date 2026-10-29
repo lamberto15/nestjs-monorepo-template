@@ -15,6 +15,13 @@
       "when": 1793203905202,
       "tag": "0001_test_item_parent",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793232572437,
+      "tag": "0002_test_item_linked",
+      "breakpoints": true
     }
   ]
 }
