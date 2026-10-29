@@ -539,6 +539,7 @@ export class PlatformModule {
         FormsController,
         FormSubmissionsController,
         FormPublicLinksController,
+        // Filling in a public form without a sign-in (POST /v1/public/forms/open, /submit).
         PublicFormsController,
         // Opening a record's read-only link, without a sign-in (POST /v1/shared/open).
         SharedController,

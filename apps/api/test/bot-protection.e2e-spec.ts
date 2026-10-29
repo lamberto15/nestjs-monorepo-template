@@ -210,6 +210,56 @@ describe('bot protection, always (e2e)', () => {
     }
   });
 
+  it('guards the sending of a public form, with its own action', async () => {
+    const admin = node.admin();
+    await admin
+      .put('/v1/settings/forms.enabled')
+      .send({ value: true })
+      .expect(200);
+    const form = await admin
+      .post('/v1/forms')
+      .send({
+        slug: `bot-${ip().replaceAll('.', '-')}`,
+        name: 'Bot',
+        definition: {
+          sections: [
+            {
+              key: 'main',
+              fields: [{ key: 'name', type: 'text', label: 'Name' }],
+            },
+          ],
+        },
+      })
+      .expect(201);
+    const version = await admin
+      .post(`/v1/forms/${form.body.id}/publish`)
+      .send({ revision: form.body.revision })
+      .expect(201);
+    const link = await admin
+      .post(`/v1/forms/${form.body.id}/public-links`)
+      .send({})
+      .expect(201);
+    const body = {
+      token: link.body.token,
+      versionId: version.body.id,
+      answers: { name: 'Eve' },
+    };
+    const refused = await node
+      .http()
+      .post('/v1/public/forms/submit')
+      .set('X-Forwarded-For', ip())
+      .send(body);
+    expectProblem(refused, 403, 'captcha_required');
+    expect(refused.body.action).toBe('public-form');
+    await node
+      .http()
+      .post('/v1/public/forms/submit')
+      .set('X-Forwarded-For', ip())
+      .set('X-Captcha-Token', siteverify.token('public-form'))
+      .send(body)
+      .expect(201);
+  });
+
   it("guards the token sign-in of native apps like the browser's (a web view renders the widget)", async () => {
     const credentials = {
       email: process.env.ADMIN_EMAIL!,

@@ -3011,6 +3011,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/forms/{id}/public-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A form's public links, newest first */
+        get: operations["FormPublicLinksController_list_v1"];
+        put?: never;
+        /**
+         * Publish a form to anyone holding a link
+         * @description A new link (at most 5 working at once), its token and URL shown this once. Anyone holding it fills in the published version without an account, until `expiresAt` (30 days by default, 365 at most), its revocation or its `maxSubmissions` (1000 by default). Members only: an API client gets 403. Audited (`form.link-created`).
+         */
+        post: operations["FormPublicLinksController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/forms/{id}/public-links/{linkId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke a public link
+         * @description It stops working at once, for good. Audited (`form.link-revoked`).
+         */
+        post: operations["FormPublicLinksController_revoke_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/forms/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open a public form
+         * @description No sign-in. The published version its link opens: its name, description and definition, nothing of its tenant.
+         */
+        post: operations["PublicFormsController_open_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/forms/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a public form
+         * @description No sign-in: the answers to the version the link opened, checked as any submission is (400 with each problem at `answers.<key>`; 409 form_version_outdated when another was published since). Takes one of the link’s `maxSubmissions`. 10 per address in 10 minutes.
+         */
+        post: operations["PublicFormsController_submit_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/shared/open": {
         parameters: {
             query?: never;
@@ -21066,6 +21147,480 @@ export interface operations {
                 };
                 content?: never;
             };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormPublicLinksController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            /** Format: uuid */
+                            formId: string;
+                            createdBy: string;
+                            /** Format: date-time */
+                            expiresAt: string;
+                            /** Format: date-time */
+                            revokedAt: string | null;
+                            maxSubmissions: number;
+                            submissions: number;
+                            /** Format: date-time */
+                            lastSubmittedAt: string | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormPublicLinksController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: date-time
+                     * @description When it stops working: within 365 days; 30 days when left out.
+                     */
+                    expiresAt?: string;
+                    /** @description The most submissions it takes (its quota): 1000 when left out. */
+                    maxSubmissions?: number;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** Format: uuid */
+                        formId: string;
+                        createdBy: string;
+                        /** Format: date-time */
+                        expiresAt: string;
+                        /** Format: date-time */
+                        revokedAt: string | null;
+                        maxSubmissions: number;
+                        submissions: number;
+                        /** Format: date-time */
+                        lastSubmittedAt: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** @description Shown once: only its hash is kept. */
+                        token: string;
+                        /** @description The web app's page that opens it: `<WEB_URL>/public-form#<token>`. */
+                        url: string;
+                    };
+                };
+            };
+            /** @description A bad `expiresAt`, 5 working links already, or a published version with an option source (form_link_sources). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FormPublicLinksController_revoke_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                linkId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** Format: uuid */
+                        formId: string;
+                        createdBy: string;
+                        /** Format: date-time */
+                        expiresAt: string;
+                        /** Format: date-time */
+                        revokedAt: string | null;
+                        maxSubmissions: number;
+                        submissions: number;
+                        /** Format: date-time */
+                        lastSubmittedAt: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No working link of this form. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PublicFormsController_open_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The link's token. */
+                    token: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        name: string;
+                        description: string | null;
+                        /**
+                         * Format: uuid
+                         * @description Send it back with the answers.
+                         */
+                        versionId: string;
+                        version: number;
+                        /**
+                         * @example {
+                         *       "format": 3,
+                         *       "sections": [
+                         *         {
+                         *           "key": "contact",
+                         *           "title": "Contact",
+                         *           "fields": [
+                         *             {
+                         *               "key": "full_name",
+                         *               "type": "text",
+                         *               "label": "Name",
+                         *               "required": true
+                         *             },
+                         *             {
+                         *               "key": "topic",
+                         *               "type": "select",
+                         *               "label": "Topic",
+                         *               "options": [
+                         *                 {
+                         *                   "value": "billing",
+                         *                   "label": "Billing"
+                         *                 },
+                         *                 {
+                         *                   "value": "other",
+                         *                   "label": "Something else"
+                         *                 }
+                         *               ]
+                         *             },
+                         *             {
+                         *               "key": "details",
+                         *               "type": "textarea",
+                         *               "label": "What is it about?",
+                         *               "visibleWhen": {
+                         *                 "field": "topic",
+                         *                 "op": "eq",
+                         *                 "value": "other"
+                         *               },
+                         *               "requiredWhen": {
+                         *                 "field": "topic",
+                         *                 "op": "eq",
+                         *                 "value": "other"
+                         *               }
+                         *             }
+                         *           ]
+                         *         }
+                         *       ]
+                         *     }
+                         */
+                        definition: {
+                            /**
+                             * @description The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.
+                             * @default 4
+                             */
+                            format: 1 | 2 | 3 | 4;
+                            sections: {
+                                key: string;
+                                title?: string;
+                                description?: string;
+                                /** @description Shown only when this holds (format 2): its fields too. */
+                                visibleWhen?: components["schemas"]["FormCondition"];
+                                /** @description Starts a new page (format 3): the form is then a wizard, one page at a time. */
+                                startsPage?: boolean;
+                                fields: {
+                                    /** @description The answer's key: unique in the form, and once published its type never changes. */
+                                    key: string;
+                                    /** @enum {string} */
+                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio" | "group";
+                                    label: string;
+                                    help?: string;
+                                    placeholder?: string;
+                                    /** @description A checkbox that is required must be checked (a consent). */
+                                    required?: boolean;
+                                    /** @description Used when the answer is left out: of the field's type. */
+                                    default?: unknown;
+                                    /** @description The choices of select, multiSelect and radio. */
+                                    options?: {
+                                        /** @description Stored in the answer. */
+                                        value: string;
+                                        label: string;
+                                        translations?: {
+                                            [key: string]: {
+                                                label?: string;
+                                            };
+                                        };
+                                    }[];
+                                    /** @description In place of `options` (format 4): the choices come from the provider, filtered to what the person filling in may see, and each answer is checked against it on the server. Read them at GET /v1/forms/{id}/options/{key}. */
+                                    optionsSource?: {
+                                        /** @description A provider registered by trusted server code (GET /v1/forms/option-sources), never a URL or a query. */
+                                        provider: string;
+                                    };
+                                    validation?: {
+                                        minLength?: number;
+                                        maxLength?: number;
+                                        /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
+                                        pattern?: string;
+                                        min?: number;
+                                        max?: number;
+                                        decimals?: number;
+                                        /** Format: date */
+                                        minDate?: string;
+                                        /** Format: date */
+                                        maxDate?: string;
+                                        minItems?: number;
+                                        maxItems?: number;
+                                    };
+                                    /** @description Shown only when this holds (format 2); a hidden field has no answer. */
+                                    visibleWhen?: components["schemas"]["FormCondition"];
+                                    /** @description Required, when shown, whenever this holds (format 2). */
+                                    requiredWhen?: components["schemas"]["FormCondition"];
+                                    translations?: {
+                                        [key: string]: {
+                                            label?: string;
+                                            help?: string;
+                                            placeholder?: string;
+                                        };
+                                    };
+                                    /** @description A group's fields (format 3): each item answers them, as an object by key. */
+                                    fields?: {
+                                        /** @description The answer's key: unique in the form, and once published its type never changes. */
+                                        key: string;
+                                        /** @enum {string} */
+                                        type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                        label: string;
+                                        help?: string;
+                                        placeholder?: string;
+                                        /** @description A checkbox that is required must be checked (a consent). */
+                                        required?: boolean;
+                                        /** @description Used when the answer is left out: of the field's type. */
+                                        default?: unknown;
+                                        /** @description The choices of select, multiSelect and radio. */
+                                        options?: {
+                                            /** @description Stored in the answer. */
+                                            value: string;
+                                            label: string;
+                                            translations?: {
+                                                [key: string]: {
+                                                    label?: string;
+                                                };
+                                            };
+                                        }[];
+                                        validation?: {
+                                            minLength?: number;
+                                            maxLength?: number;
+                                            /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
+                                            pattern?: string;
+                                            min?: number;
+                                            max?: number;
+                                            decimals?: number;
+                                            /** Format: date */
+                                            minDate?: string;
+                                            /** Format: date */
+                                            maxDate?: string;
+                                            minItems?: number;
+                                            maxItems?: number;
+                                        };
+                                        translations?: {
+                                            [key: string]: {
+                                                label?: string;
+                                                help?: string;
+                                                placeholder?: string;
+                                            };
+                                        };
+                                    }[];
+                                }[];
+                                translations?: {
+                                    [key: string]: {
+                                        title?: string;
+                                        description?: string;
+                                    };
+                                };
+                            }[];
+                        };
+                    };
+                };
+            };
+            /** @description The link is invalid, expired, revoked or used up, or its form is not open (`form_link_not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PublicFormsController_submit_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The challenge token (Cloudflare Turnstile, widget action `public-form`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one. */
+                "X-Captcha-Token"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The link's token. */
+                    token: string;
+                    /** Format: uuid */
+                    versionId: string;
+                    answers: {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        version: number;
+                        /** Format: date-time */
+                        createdAt: string;
+                    };
+                };
+            };
+            /** @description The answers break the form’s rules. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The link does not work (`form_link_not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;
