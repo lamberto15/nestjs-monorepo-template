@@ -20759,7 +20759,7 @@ export interface operations {
                     /**
                      * @description The first draft; default: no sections.
                      * @example {
-                     *       "format": 2,
+                     *       "format": 3,
                      *       "sections": [
                      *         {
                      *           "key": "contact",
@@ -20808,21 +20808,23 @@ export interface operations {
                      */
                     definition?: {
                         /**
-                         * @description The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.
-                         * @default 2
+                         * @description The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.
+                         * @default 3
                          */
-                        format?: 1 | 2;
+                        format?: 1 | 2 | 3;
                         sections: {
                             key: string;
                             title?: string;
                             description?: string;
                             /** @description Shown only when this holds (format 2): its fields too. */
                             visibleWhen?: components["schemas"]["FormCondition"];
+                            /** @description Starts a new page (format 3): the form is then a wizard, one page at a time. */
+                            startsPage?: boolean;
                             fields: {
                                 /** @description The answer's key: unique in the form, and once published its type never changes. */
                                 key: string;
                                 /** @enum {string} */
-                                type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio" | "group";
                                 label: string;
                                 help?: string;
                                 placeholder?: string;
@@ -20867,6 +20869,53 @@ export interface operations {
                                         placeholder?: string;
                                     };
                                 };
+                                /** @description A group's fields (format 3): each item answers them, as an object by key. */
+                                fields?: {
+                                    /** @description The answer's key: unique in the form, and once published its type never changes. */
+                                    key: string;
+                                    /** @enum {string} */
+                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                    label: string;
+                                    help?: string;
+                                    placeholder?: string;
+                                    /** @description A checkbox that is required must be checked (a consent). */
+                                    required?: boolean;
+                                    /** @description Used when the answer is left out: of the field's type. */
+                                    default?: unknown;
+                                    /** @description The choices of select, multiSelect and radio. */
+                                    options?: {
+                                        /** @description Stored in the answer. */
+                                        value: string;
+                                        label: string;
+                                        translations?: {
+                                            [key: string]: {
+                                                label?: string;
+                                            };
+                                        };
+                                    }[];
+                                    validation?: {
+                                        minLength?: number;
+                                        maxLength?: number;
+                                        /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
+                                        pattern?: string;
+                                        min?: number;
+                                        max?: number;
+                                        decimals?: number;
+                                        /** Format: date */
+                                        minDate?: string;
+                                        /** Format: date */
+                                        maxDate?: string;
+                                        minItems?: number;
+                                        maxItems?: number;
+                                    };
+                                    translations?: {
+                                        [key: string]: {
+                                            label?: string;
+                                            help?: string;
+                                            placeholder?: string;
+                                        };
+                                    };
+                                }[];
                             }[];
                             translations?: {
                                 [key: string]: {
@@ -21143,7 +21192,7 @@ export interface operations {
                         revision: number;
                         /**
                          * @example {
-                         *       "format": 2,
+                         *       "format": 3,
                          *       "sections": [
                          *         {
                          *           "key": "contact",
@@ -21192,21 +21241,23 @@ export interface operations {
                          */
                         definition: {
                             /**
-                             * @description The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.
-                             * @default 2
+                             * @description The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.
+                             * @default 3
                              */
-                            format: 1 | 2;
+                            format: 1 | 2 | 3;
                             sections: {
                                 key: string;
                                 title?: string;
                                 description?: string;
                                 /** @description Shown only when this holds (format 2): its fields too. */
                                 visibleWhen?: components["schemas"]["FormCondition"];
+                                /** @description Starts a new page (format 3): the form is then a wizard, one page at a time. */
+                                startsPage?: boolean;
                                 fields: {
                                     /** @description The answer's key: unique in the form, and once published its type never changes. */
                                     key: string;
                                     /** @enum {string} */
-                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio" | "group";
                                     label: string;
                                     help?: string;
                                     placeholder?: string;
@@ -21251,6 +21302,53 @@ export interface operations {
                                             placeholder?: string;
                                         };
                                     };
+                                    /** @description A group's fields (format 3): each item answers them, as an object by key. */
+                                    fields?: {
+                                        /** @description The answer's key: unique in the form, and once published its type never changes. */
+                                        key: string;
+                                        /** @enum {string} */
+                                        type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                        label: string;
+                                        help?: string;
+                                        placeholder?: string;
+                                        /** @description A checkbox that is required must be checked (a consent). */
+                                        required?: boolean;
+                                        /** @description Used when the answer is left out: of the field's type. */
+                                        default?: unknown;
+                                        /** @description The choices of select, multiSelect and radio. */
+                                        options?: {
+                                            /** @description Stored in the answer. */
+                                            value: string;
+                                            label: string;
+                                            translations?: {
+                                                [key: string]: {
+                                                    label?: string;
+                                                };
+                                            };
+                                        }[];
+                                        validation?: {
+                                            minLength?: number;
+                                            maxLength?: number;
+                                            /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
+                                            pattern?: string;
+                                            min?: number;
+                                            max?: number;
+                                            decimals?: number;
+                                            /** Format: date */
+                                            minDate?: string;
+                                            /** Format: date */
+                                            maxDate?: string;
+                                            minItems?: number;
+                                            maxItems?: number;
+                                        };
+                                        translations?: {
+                                            [key: string]: {
+                                                label?: string;
+                                                help?: string;
+                                                placeholder?: string;
+                                            };
+                                        };
+                                    }[];
                                 }[];
                                 translations?: {
                                     [key: string]: {
@@ -21301,7 +21399,7 @@ export interface operations {
                     revision: number;
                     /**
                      * @example {
-                     *       "format": 2,
+                     *       "format": 3,
                      *       "sections": [
                      *         {
                      *           "key": "contact",
@@ -21350,21 +21448,23 @@ export interface operations {
                      */
                     definition: {
                         /**
-                         * @description The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.
-                         * @default 2
+                         * @description The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.
+                         * @default 3
                          */
-                        format?: 1 | 2;
+                        format?: 1 | 2 | 3;
                         sections: {
                             key: string;
                             title?: string;
                             description?: string;
                             /** @description Shown only when this holds (format 2): its fields too. */
                             visibleWhen?: components["schemas"]["FormCondition"];
+                            /** @description Starts a new page (format 3): the form is then a wizard, one page at a time. */
+                            startsPage?: boolean;
                             fields: {
                                 /** @description The answer's key: unique in the form, and once published its type never changes. */
                                 key: string;
                                 /** @enum {string} */
-                                type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio" | "group";
                                 label: string;
                                 help?: string;
                                 placeholder?: string;
@@ -21409,6 +21509,53 @@ export interface operations {
                                         placeholder?: string;
                                     };
                                 };
+                                /** @description A group's fields (format 3): each item answers them, as an object by key. */
+                                fields?: {
+                                    /** @description The answer's key: unique in the form, and once published its type never changes. */
+                                    key: string;
+                                    /** @enum {string} */
+                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                    label: string;
+                                    help?: string;
+                                    placeholder?: string;
+                                    /** @description A checkbox that is required must be checked (a consent). */
+                                    required?: boolean;
+                                    /** @description Used when the answer is left out: of the field's type. */
+                                    default?: unknown;
+                                    /** @description The choices of select, multiSelect and radio. */
+                                    options?: {
+                                        /** @description Stored in the answer. */
+                                        value: string;
+                                        label: string;
+                                        translations?: {
+                                            [key: string]: {
+                                                label?: string;
+                                            };
+                                        };
+                                    }[];
+                                    validation?: {
+                                        minLength?: number;
+                                        maxLength?: number;
+                                        /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
+                                        pattern?: string;
+                                        min?: number;
+                                        max?: number;
+                                        decimals?: number;
+                                        /** Format: date */
+                                        minDate?: string;
+                                        /** Format: date */
+                                        maxDate?: string;
+                                        minItems?: number;
+                                        maxItems?: number;
+                                    };
+                                    translations?: {
+                                        [key: string]: {
+                                            label?: string;
+                                            help?: string;
+                                            placeholder?: string;
+                                        };
+                                    };
+                                }[];
                             }[];
                             translations?: {
                                 [key: string]: {
@@ -21433,7 +21580,7 @@ export interface operations {
                         revision: number;
                         /**
                          * @example {
-                         *       "format": 2,
+                         *       "format": 3,
                          *       "sections": [
                          *         {
                          *           "key": "contact",
@@ -21482,21 +21629,23 @@ export interface operations {
                          */
                         definition: {
                             /**
-                             * @description The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.
-                             * @default 2
+                             * @description The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.
+                             * @default 3
                              */
-                            format: 1 | 2;
+                            format: 1 | 2 | 3;
                             sections: {
                                 key: string;
                                 title?: string;
                                 description?: string;
                                 /** @description Shown only when this holds (format 2): its fields too. */
                                 visibleWhen?: components["schemas"]["FormCondition"];
+                                /** @description Starts a new page (format 3): the form is then a wizard, one page at a time. */
+                                startsPage?: boolean;
                                 fields: {
                                     /** @description The answer's key: unique in the form, and once published its type never changes. */
                                     key: string;
                                     /** @enum {string} */
-                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio" | "group";
                                     label: string;
                                     help?: string;
                                     placeholder?: string;
@@ -21541,6 +21690,53 @@ export interface operations {
                                             placeholder?: string;
                                         };
                                     };
+                                    /** @description A group's fields (format 3): each item answers them, as an object by key. */
+                                    fields?: {
+                                        /** @description The answer's key: unique in the form, and once published its type never changes. */
+                                        key: string;
+                                        /** @enum {string} */
+                                        type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                        label: string;
+                                        help?: string;
+                                        placeholder?: string;
+                                        /** @description A checkbox that is required must be checked (a consent). */
+                                        required?: boolean;
+                                        /** @description Used when the answer is left out: of the field's type. */
+                                        default?: unknown;
+                                        /** @description The choices of select, multiSelect and radio. */
+                                        options?: {
+                                            /** @description Stored in the answer. */
+                                            value: string;
+                                            label: string;
+                                            translations?: {
+                                                [key: string]: {
+                                                    label?: string;
+                                                };
+                                            };
+                                        }[];
+                                        validation?: {
+                                            minLength?: number;
+                                            maxLength?: number;
+                                            /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
+                                            pattern?: string;
+                                            min?: number;
+                                            max?: number;
+                                            decimals?: number;
+                                            /** Format: date */
+                                            minDate?: string;
+                                            /** Format: date */
+                                            maxDate?: string;
+                                            minItems?: number;
+                                            maxItems?: number;
+                                        };
+                                        translations?: {
+                                            [key: string]: {
+                                                label?: string;
+                                                help?: string;
+                                                placeholder?: string;
+                                            };
+                                        };
+                                    }[];
                                 }[];
                                 translations?: {
                                     [key: string]: {
@@ -21620,7 +21816,7 @@ export interface operations {
                         version: number;
                         /**
                          * @example {
-                         *       "format": 2,
+                         *       "format": 3,
                          *       "sections": [
                          *         {
                          *           "key": "contact",
@@ -21669,21 +21865,23 @@ export interface operations {
                          */
                         definition: {
                             /**
-                             * @description The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.
-                             * @default 2
+                             * @description The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.
+                             * @default 3
                              */
-                            format: 1 | 2;
+                            format: 1 | 2 | 3;
                             sections: {
                                 key: string;
                                 title?: string;
                                 description?: string;
                                 /** @description Shown only when this holds (format 2): its fields too. */
                                 visibleWhen?: components["schemas"]["FormCondition"];
+                                /** @description Starts a new page (format 3): the form is then a wizard, one page at a time. */
+                                startsPage?: boolean;
                                 fields: {
                                     /** @description The answer's key: unique in the form, and once published its type never changes. */
                                     key: string;
                                     /** @enum {string} */
-                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio" | "group";
                                     label: string;
                                     help?: string;
                                     placeholder?: string;
@@ -21728,6 +21926,53 @@ export interface operations {
                                             placeholder?: string;
                                         };
                                     };
+                                    /** @description A group's fields (format 3): each item answers them, as an object by key. */
+                                    fields?: {
+                                        /** @description The answer's key: unique in the form, and once published its type never changes. */
+                                        key: string;
+                                        /** @enum {string} */
+                                        type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                        label: string;
+                                        help?: string;
+                                        placeholder?: string;
+                                        /** @description A checkbox that is required must be checked (a consent). */
+                                        required?: boolean;
+                                        /** @description Used when the answer is left out: of the field's type. */
+                                        default?: unknown;
+                                        /** @description The choices of select, multiSelect and radio. */
+                                        options?: {
+                                            /** @description Stored in the answer. */
+                                            value: string;
+                                            label: string;
+                                            translations?: {
+                                                [key: string]: {
+                                                    label?: string;
+                                                };
+                                            };
+                                        }[];
+                                        validation?: {
+                                            minLength?: number;
+                                            maxLength?: number;
+                                            /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
+                                            pattern?: string;
+                                            min?: number;
+                                            max?: number;
+                                            decimals?: number;
+                                            /** Format: date */
+                                            minDate?: string;
+                                            /** Format: date */
+                                            maxDate?: string;
+                                            minItems?: number;
+                                            maxItems?: number;
+                                        };
+                                        translations?: {
+                                            [key: string]: {
+                                                label?: string;
+                                                help?: string;
+                                                placeholder?: string;
+                                            };
+                                        };
+                                    }[];
                                 }[];
                                 translations?: {
                                     [key: string]: {
@@ -21924,7 +22169,7 @@ export interface operations {
                         version: number;
                         /**
                          * @example {
-                         *       "format": 2,
+                         *       "format": 3,
                          *       "sections": [
                          *         {
                          *           "key": "contact",
@@ -21973,21 +22218,23 @@ export interface operations {
                          */
                         definition: {
                             /**
-                             * @description The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.
-                             * @default 2
+                             * @description The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.
+                             * @default 3
                              */
-                            format: 1 | 2;
+                            format: 1 | 2 | 3;
                             sections: {
                                 key: string;
                                 title?: string;
                                 description?: string;
                                 /** @description Shown only when this holds (format 2): its fields too. */
                                 visibleWhen?: components["schemas"]["FormCondition"];
+                                /** @description Starts a new page (format 3): the form is then a wizard, one page at a time. */
+                                startsPage?: boolean;
                                 fields: {
                                     /** @description The answer's key: unique in the form, and once published its type never changes. */
                                     key: string;
                                     /** @enum {string} */
-                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio" | "group";
                                     label: string;
                                     help?: string;
                                     placeholder?: string;
@@ -22032,6 +22279,53 @@ export interface operations {
                                             placeholder?: string;
                                         };
                                     };
+                                    /** @description A group's fields (format 3): each item answers them, as an object by key. */
+                                    fields?: {
+                                        /** @description The answer's key: unique in the form, and once published its type never changes. */
+                                        key: string;
+                                        /** @enum {string} */
+                                        type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                        label: string;
+                                        help?: string;
+                                        placeholder?: string;
+                                        /** @description A checkbox that is required must be checked (a consent). */
+                                        required?: boolean;
+                                        /** @description Used when the answer is left out: of the field's type. */
+                                        default?: unknown;
+                                        /** @description The choices of select, multiSelect and radio. */
+                                        options?: {
+                                            /** @description Stored in the answer. */
+                                            value: string;
+                                            label: string;
+                                            translations?: {
+                                                [key: string]: {
+                                                    label?: string;
+                                                };
+                                            };
+                                        }[];
+                                        validation?: {
+                                            minLength?: number;
+                                            maxLength?: number;
+                                            /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
+                                            pattern?: string;
+                                            min?: number;
+                                            max?: number;
+                                            decimals?: number;
+                                            /** Format: date */
+                                            minDate?: string;
+                                            /** Format: date */
+                                            maxDate?: string;
+                                            minItems?: number;
+                                            maxItems?: number;
+                                        };
+                                        translations?: {
+                                            [key: string]: {
+                                                label?: string;
+                                                help?: string;
+                                                placeholder?: string;
+                                            };
+                                        };
+                                    }[];
                                 }[];
                                 translations?: {
                                     [key: string]: {
@@ -22145,7 +22439,7 @@ export interface operations {
                         version: number;
                         /**
                          * @example {
-                         *       "format": 2,
+                         *       "format": 3,
                          *       "sections": [
                          *         {
                          *           "key": "contact",
@@ -22194,21 +22488,23 @@ export interface operations {
                          */
                         definition: {
                             /**
-                             * @description The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.
-                             * @default 2
+                             * @description The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.
+                             * @default 3
                              */
-                            format: 1 | 2;
+                            format: 1 | 2 | 3;
                             sections: {
                                 key: string;
                                 title?: string;
                                 description?: string;
                                 /** @description Shown only when this holds (format 2): its fields too. */
                                 visibleWhen?: components["schemas"]["FormCondition"];
+                                /** @description Starts a new page (format 3): the form is then a wizard, one page at a time. */
+                                startsPage?: boolean;
                                 fields: {
                                     /** @description The answer's key: unique in the form, and once published its type never changes. */
                                     key: string;
                                     /** @enum {string} */
-                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                    type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio" | "group";
                                     label: string;
                                     help?: string;
                                     placeholder?: string;
@@ -22253,6 +22549,53 @@ export interface operations {
                                             placeholder?: string;
                                         };
                                     };
+                                    /** @description A group's fields (format 3): each item answers them, as an object by key. */
+                                    fields?: {
+                                        /** @description The answer's key: unique in the form, and once published its type never changes. */
+                                        key: string;
+                                        /** @enum {string} */
+                                        type: "text" | "textarea" | "email" | "url" | "integer" | "decimal" | "date" | "checkbox" | "select" | "multiSelect" | "radio";
+                                        label: string;
+                                        help?: string;
+                                        placeholder?: string;
+                                        /** @description A checkbox that is required must be checked (a consent). */
+                                        required?: boolean;
+                                        /** @description Used when the answer is left out: of the field's type. */
+                                        default?: unknown;
+                                        /** @description The choices of select, multiSelect and radio. */
+                                        options?: {
+                                            /** @description Stored in the answer. */
+                                            value: string;
+                                            label: string;
+                                            translations?: {
+                                                [key: string]: {
+                                                    label?: string;
+                                                };
+                                            };
+                                        }[];
+                                        validation?: {
+                                            minLength?: number;
+                                            maxLength?: number;
+                                            /** @description A regular expression the whole answer must match, in RE2 syntax: no lookaround, no backreferences. */
+                                            pattern?: string;
+                                            min?: number;
+                                            max?: number;
+                                            decimals?: number;
+                                            /** Format: date */
+                                            minDate?: string;
+                                            /** Format: date */
+                                            maxDate?: string;
+                                            minItems?: number;
+                                            maxItems?: number;
+                                        };
+                                        translations?: {
+                                            [key: string]: {
+                                                label?: string;
+                                                help?: string;
+                                                placeholder?: string;
+                                            };
+                                        };
+                                    }[];
                                 }[];
                                 translations?: {
                                     [key: string]: {

@@ -23,6 +23,7 @@ export const OPERATORS_BY_TYPE: Record<string, readonly ConditionOperator[]> = {
   select: ['eq', 'ne', 'in', 'isEmpty'],
   radio: ['eq', 'ne', 'in', 'isEmpty'],
   multiSelect: ['contains', 'isEmpty'],
+  group: ['isEmpty'],
 };
 
 const isEmptyValue = (value: unknown) =>

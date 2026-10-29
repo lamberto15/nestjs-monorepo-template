@@ -53,7 +53,12 @@
     "options": "Optionen",
     "optionsHint": "Eine pro Zeile: Wert = Beschriftung (oder nur der Wert).",
     "required": "Pflichtfeld",
-    "removeField": "{{label}} entfernen"
+    "removeField": "{{label}} entfernen",
+    "startsPage": "Beginnt eine neue Seite",
+    "minItems": "Mindestanzahl Einträge",
+    "maxItems": "Höchstanzahl Einträge",
+    "groupFields": "Felder jedes Eintrags {{label}}",
+    "addGroupField": "Feld zur Gruppe hinzufügen"
   },
   "types": {
     "text": "Kurzer Text",
@@ -66,7 +71,8 @@
     "checkbox": "Kontrollkästchen",
     "select": "Auswahlliste",
     "radio": "Einfachauswahl",
-    "multiSelect": "Mehrfachauswahl"
+    "multiSelect": "Mehrfachauswahl",
+    "group": "Wiederholbare Gruppe"
   },
   "fillTitle": "Formular ausfüllen",
   "notPublished": "Dieses Formular ist nicht veröffentlicht.",
@@ -111,5 +117,18 @@
       "contains": "enthält",
       "isEmpty": "leer"
     }
+  },
+  "group": {
+    "item": "{{label}} {{n}}",
+    "remove": "{{label}} {{n}} entfernen",
+    "add": "{{label}} hinzufügen",
+    "minItems": "Mindestens Einträge: {{count}}.",
+    "maxItems": "Höchstens Einträge: {{count}}."
+  },
+  "wizard": {
+    "progress": "Fortschritt",
+    "step": "Schritt {{n}} von {{total}}",
+    "next": "Weiter",
+    "previous": "Zurück"
   }
 }

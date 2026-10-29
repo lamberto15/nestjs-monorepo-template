@@ -323,7 +323,7 @@ describe('forms (e2e)', () => {
       .post(`/v1/forms/${id}/publish`)
       .send({ revision: saved.body.revision })
       .expect(201);
-    expect(v2.body.definition.format).toBe(2);
+    expect(v2.body.definition.format).toBe(3);
 
     const missing = await submit(filler.agent, id, {
       versionId: v2.body.id,
@@ -351,6 +351,123 @@ describe('forms (e2e)', () => {
       .get(`/v1/forms/${id}/versions/1`)
       .expect(200);
     expect(oldVersion.body.definition.format).toBe(1);
+  });
+
+  it('checks a repeatable group item by item on the server, its pages and bounds at save', async () => {
+    const admin = node.admin();
+    await enable(admin);
+    // Version 1: format 2; its submission stays readable once pages come.
+    const created = await admin
+      .post('/v1/forms')
+      .send({
+        slug: `steps-${randomUUID().slice(0, 8)}`,
+        name: 'Steps',
+        definition: { ...definition, format: 2 },
+      })
+      .expect(201);
+    const id = created.body.id as string;
+    const v1 = await admin
+      .post(`/v1/forms/${id}/publish`)
+      .send({ revision: created.body.revision })
+      .expect(201);
+    const filler = await node.user([await role(admin, 'read', 'submit')]);
+    const first = await submit(filler.agent, id, {
+      versionId: v1.body.id,
+      answers: { full_name: 'Ada', seats: 2 },
+    }).expect(201);
+
+    const people = {
+      key: 'people',
+      type: 'group',
+      label: 'People',
+      validation: { minItems: 1, maxItems: 2 },
+      fields: [
+        { key: 'who', type: 'text', label: 'Who', required: true },
+        { key: 'age', type: 'integer', label: 'Age', validation: { max: 120 } },
+      ],
+    };
+    const draft = (body: object) =>
+      admin.put(`/v1/forms/${id}/draft`).send(body);
+    const current = await admin.get(`/v1/forms/${id}/draft`).expect(200);
+    // A group in a group, and a bound over the hard cap: refused at their paths.
+    const team = (field: object) => ({
+      revision: current.body.revision,
+      definition: {
+        sections: [
+          definition.sections[0],
+          { key: 'team', startsPage: true, fields: [field] },
+        ],
+      },
+    });
+    const nested = await draft(
+      team({ ...people, fields: [{ ...people, key: 'inner' }] }),
+    ).expect(400);
+    expect(paths(nested.body)).toContain(
+      'definition.sections.1.fields.0.fields.0.type',
+    );
+    const capped = await draft(
+      team({ ...people, validation: { maxItems: 51 } }),
+    ).expect(400);
+    expect(paths(capped.body)).toEqual([
+      'definition.sections.1.fields.0.validation.maxItems',
+    ]);
+    const saved = await draft({
+      revision: current.body.revision,
+      definition: {
+        sections: [
+          definition.sections[0],
+          { key: 'team', startsPage: true, fields: [people] },
+        ],
+      },
+    }).expect(200);
+    const v2 = await admin
+      .post(`/v1/forms/${id}/publish`)
+      .send({ revision: saved.body.revision })
+      .expect(201);
+    expect(v2.body.definition.format).toBe(3);
+    expect(v2.body.definition.sections[1].startsPage).toBe(true);
+
+    // Each item at its index, an unknown key in an item too.
+    const wrong = await submit(filler.agent, id, {
+      versionId: v2.body.id,
+      answers: {
+        full_name: 'Ada',
+        people: [{ who: ' ' }, { who: 'Bo', age: 200, extra: 1 }],
+      },
+    }).expect(400);
+    expect(paths(wrong.body)).toEqual([
+      'answers.people.0.who',
+      'answers.people.1.extra',
+      'answers.people.1.age',
+    ]);
+    const tooMany = await submit(filler.agent, id, {
+      versionId: v2.body.id,
+      answers: {
+        full_name: 'Ada',
+        people: [{ who: 'a' }, { who: 'b' }, { who: 'c' }],
+      },
+    }).expect(400);
+    expect(paths(tooMany.body)).toEqual(['answers.people']);
+    const sent = await submit(filler.agent, id, {
+      versionId: v2.body.id,
+      answers: { full_name: 'Ada', people: [{ who: 'Bo', age: '4' }] },
+    }).expect(201);
+    expect(sent.body.answers).toEqual({
+      full_name: 'Ada',
+      people: [{ who: 'Bo', age: 4 }],
+    });
+
+    const old = await filler.agent
+      .get(`/v1/forms/${id}/submissions/${first.body.id}`)
+      .expect(200);
+    expect(old.body).toMatchObject({
+      version: 1,
+      answers: { full_name: 'Ada', seats: 2 },
+    });
+    const oldVersion = await filler.agent
+      .get(`/v1/forms/${id}/versions/1`)
+      .expect(200);
+    expect(oldVersion.body.definition.format).toBe(2);
   });
 
   it('shows a submitter their own submissions, everyone’s only to those who read responses', async () => {

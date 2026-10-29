@@ -6,8 +6,10 @@ import {
 import {
   ANSWER_TEXT_LIMITS,
   fieldsOf,
+  FORM_LIMITS,
   type FormDefinition,
   type FormField,
+  type GroupField,
   type SchemaIssue,
 } from './form-schema.js';
 import { walkForm } from './form-rules.js';
@@ -172,6 +174,100 @@ export const defaultIssue = (field: FormField, value: unknown) => {
   return checked.ok ? null : checked.message;
 };
 
+/** One field's answer (normalized), or undefined with its issue at `path`. */
+function answerOf(
+  field: FormField | GroupField,
+  value: unknown,
+  required: boolean,
+  path: string,
+  issues: SchemaIssue[],
+): unknown {
+  if (isEmpty(value) && field.default === undefined) {
+    if (required) issues.push({ path, message: 'This field is required.' });
+    return undefined;
+  }
+  // A default is checked as an answer (a required checkbox's `false` is refused).
+  const checked = checkValue(
+    { ...field, required } as FormField,
+    isEmpty(value) ? field.default : value,
+  );
+  if (checked.ok) return checked.value;
+  issues.push({
+    path: checked.index === undefined ? path : `${path}.${checked.index}`,
+    message: checked.message,
+  });
+  return undefined;
+}
+
+/**
+ * A repeatable group's answer: a list of items, each an object of its
+ * fields' answers, checked at `answers.<group>.<index>.<key>`. None (an
+ * empty list) is refused only when required; otherwise between `minItems`
+ * and `maxItems`, never more than FORM_LIMITS.groupItems. An unknown key in
+ * an item is refused.
+ */
+function groupAnswer(
+  field: FormField,
+  value: unknown,
+  required: boolean,
+  path: string,
+  issues: SchemaIssue[],
+): unknown {
+  const rules = field.validation ?? {};
+  const items = value ?? [];
+  if (!Array.isArray(items)) {
+    issues.push({ path, message: 'Must be a list of items.' });
+    return undefined;
+  }
+  // Empty is no answer, as a multiSelect's: refused only when required.
+  if (items.length === 0) {
+    if (required) issues.push({ path, message: 'This field is required.' });
+    return undefined;
+  }
+  const min = rules.minItems ?? 0;
+  const max = Math.min(rules.maxItems ?? Infinity, FORM_LIMITS.groupItems);
+  if (items.length < min) {
+    issues.push({ path, message: `At least ${min} items.` });
+    return undefined;
+  }
+  if (items.length > max) {
+    issues.push({ path, message: `At most ${max} items.` });
+    return undefined;
+  }
+  const fields = field.fields ?? [];
+  const known = new Set(fields.map((sub) => sub.key));
+  const before = issues.length;
+  const answers = items.map((item: unknown, index) => {
+    const at = `${path}.${index}`;
+    if (typeof item !== 'object' || item === null || Array.isArray(item)) {
+      issues.push({ path: at, message: 'An object of answers by key.' });
+      return {};
+    }
+    const given = item as Record<string, unknown>;
+    for (const key of Object.keys(given)) {
+      if (!known.has(key)) {
+        issues.push({
+          path: `${at}.${key.slice(0, 64)}`,
+          message: 'Not a field of this group.',
+        });
+      }
+    }
+    const answer: Record<string, unknown> = {};
+    for (const sub of fields) {
+      const checked = answerOf(
+        sub,
+        Object.hasOwn(given, sub.key) ? given[sub.key] : undefined,
+        sub.required === true,
+        `${at}.${sub.key}`,
+        issues,
+      );
+      if (checked !== undefined) answer[sub.key] = checked;
+    }
+    return answer;
+  });
+  return issues.length === before ? answers : undefined;
+}
+
 /**
  * The answers of a submission checked against a version's definition:
  * the normalized answers, or the issues at `answers.<key>` (and
@@ -205,29 +301,9 @@ export function checkAnswers(
     const value = Object.hasOwn(given, field.key)
       ? given[field.key]
       : undefined;
-    if (isEmpty(value) && field.default === undefined) {
-      if (required) {
-        issues.push({
-          path: `answers.${field.key}`,
-          message: 'This field is required.',
-        });
-      }
-      return undefined;
-    }
-    // A default is checked as an answer (a required checkbox's `false` is refused).
-    const checked = checkValue(
-      { ...field, required },
-      isEmpty(value) ? field.default : value,
-    );
-    if (checked.ok) return checked.value;
-    issues.push({
-      path:
-        checked.index === undefined
-          ? `answers.${field.key}`
-          : `answers.${field.key}.${checked.index}`,
-      message: checked.message,
-    });
-    return undefined;
+    return field.type === 'group'
+      ? groupAnswer(field, value, required, `answers.${field.key}`, issues)
+      : answerOf(field, value, required, `answers.${field.key}`, issues);
   });
   if (issues.length > 0) return { ok: false, issues };
   const bytes = Buffer.byteLength(JSON.stringify(answers));

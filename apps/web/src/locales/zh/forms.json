@@ -53,7 +53,12 @@
     "options": "选项",
     "optionsHint": "每行一个：值 = 标签（或只写值）。",
     "required": "必填",
-    "removeField": "删除 {{label}}"
+    "removeField": "删除 {{label}}",
+    "startsPage": "开始新的一页",
+    "minItems": "最少条目数",
+    "maxItems": "最多条目数",
+    "groupFields": "每个{{label}}条目的字段",
+    "addGroupField": "向组中添加字段"
   },
   "types": {
     "text": "短文本",
@@ -66,7 +71,8 @@
     "checkbox": "复选框",
     "select": "下拉列表",
     "radio": "单选",
-    "multiSelect": "多选"
+    "multiSelect": "多选",
+    "group": "可重复组"
   },
   "fillTitle": "填写表单",
   "notPublished": "此表单尚未发布。",
@@ -111,5 +117,18 @@
       "contains": "包含",
       "isEmpty": "为空"
     }
+  },
+  "group": {
+    "item": "{{label}} {{n}}",
+    "remove": "移除{{label}} {{n}}",
+    "add": "添加{{label}}",
+    "minItems": "最少条目：{{count}}。",
+    "maxItems": "最多条目：{{count}}。"
+  },
+  "wizard": {
+    "progress": "进度",
+    "step": "第 {{n}} 步，共 {{total}} 步",
+    "next": "下一步",
+    "previous": "上一步"
   }
 }

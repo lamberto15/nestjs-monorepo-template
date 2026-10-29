@@ -1,6 +1,9 @@
 import { checkAnswers, checkValue, defaultIssue } from './form-answers.js';
 import {
   definitionIssues,
+  formDefinitionSchema,
+  keyTypesOf,
+  pagesOf,
   type FormDefinition,
   type FormField,
 } from './form-schema.js';
@@ -228,5 +231,113 @@ describe('conditions', () => {
     expect(issues.map((issue) => issue.message)).toEqual([
       'At most 4 groups inside each other.',
     ]);
+  });
+});
+
+describe('pages and repeatable groups', () => {
+  const people = field({
+    key: 'people',
+    type: 'group',
+    required: true,
+    validation: { maxItems: 2 },
+    fields: [
+      { key: 'name', type: 'text', label: 'Name', required: true },
+      { key: 'age', type: 'integer', label: 'Age', validation: { min: 0 } },
+    ],
+  });
+  const definition: FormDefinition = {
+    format: 3,
+    sections: [
+      { key: 'one', fields: [field({ key: 'title', type: 'text' })] },
+      { key: 'two', startsPage: true, fields: [people] },
+    ],
+  };
+
+  it('checks each item at its indexed path, and the number of items', () => {
+    expect(
+      checkAnswers(definition, {
+        people: [{ name: 'Ada', age: '36' }, { name: 'Bob' }],
+      }),
+    ).toEqual({
+      ok: true,
+      answers: { people: [{ name: 'Ada', age: 36 }, { name: 'Bob' }] },
+    });
+    const refused = checkAnswers(definition, {
+      people: [{ age: -1, extra: 1 }, { name: 'Bob' }],
+    });
+    expect(!refused.ok && refused.issues.map((issue) => issue.path)).toEqual([
+      'answers.people.0.extra',
+      'answers.people.0.name',
+      'answers.people.0.age',
+    ]);
+    const many = checkAnswers(definition, {
+      people: [{ name: 'a' }, { name: 'b' }, { name: 'c' }],
+    });
+    expect(!many.ok && many.issues).toEqual([
+      { path: 'answers.people', message: 'At most 2 items.' },
+    ]);
+    const none = checkAnswers(definition, { people: [] });
+    expect(!none.ok && none.issues.map((issue) => issue.path)).toEqual([
+      'answers.people',
+    ]);
+  });
+
+  it('keeps groups one level deep and under the hard cap, and pages and groups to format 3', () => {
+    const nested = {
+      format: 3,
+      sections: [
+        {
+          key: 'main',
+          fields: [
+            {
+              ...people,
+              validation: { maxItems: 500 },
+              fields: [
+                { key: 'name', type: 'text', label: 'N' },
+                { key: 'name', type: 'text', label: 'N' },
+              ],
+            },
+          ],
+        },
+      ],
+    } as FormDefinition;
+    expect(definitionIssues(nested).map((issue) => issue.path)).toEqual([
+      'sections.0.fields.0.validation.maxItems',
+      'sections.0.fields.0.fields.1.key',
+    ]);
+    expect(
+      formDefinitionSchema.safeParse({
+        sections: [
+          {
+            key: 'main',
+            fields: [
+              {
+                ...people,
+                fields: [{ key: 'inner', type: 'group', label: 'Inner' }],
+              },
+            ],
+          },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      definitionIssues({ ...definition, format: 2 }).map((issue) => issue.path),
+    ).toEqual(['sections.1.startsPage', 'sections.1.fields.0.type']);
+    expect(definitionIssues(definition)).toEqual([]);
+    expect(pagesOf(definition.sections).map((page) => page.length)).toEqual([
+      1, 1,
+    ]);
+  });
+
+  it('fixes the type of a group’s field once published', () => {
+    expect(keyTypesOf(definition)).toMatchObject({
+      people: 'group',
+      'people.age': 'integer',
+    });
+    expect(
+      definitionIssues(definition, { 'people.age': 'text' }).map(
+        (issue) => issue.path,
+      ),
+    ).toEqual(['sections.1.fields.0.fields.1.type']);
   });
 });

@@ -15,18 +15,20 @@ import {
  * field has a stable `key` (its answer's key), unique in the whole form.
  *
  * Formats: 1 is fields and sections; 2 adds conditions (`visibleWhen` on
- * a section or a field, `requiredWhen` on a field, form-rules.ts). A stored
- * format-1 definition stays valid and means what it meant; a condition in
- * one is refused. Extension points (later issues), all additive: `pages`
- * and a `group` field type (repeatable, one level), `optionsSource` (a
- * server-registered provider) in place of `options`. Every object is
- * strict: an unknown property is refused, not stored.
+ * a section or a field, `requiredWhen` on a field, form-rules.ts); 3 adds
+ * pages (a section that `startsPage`: a wizard) and the repeatable `group`
+ * field (its own `fields`, one level, `minItems` / `maxItems` under a hard
+ * cap). A stored definition stays valid and means what it meant; what a
+ * later format adds is refused in an earlier one. Extension point (a later
+ * issue), additive: `optionsSource` (a server-registered provider) in place
+ * of `options`. Every object is strict: an unknown property is refused,
+ * not stored.
  */
 
 /** The descriptor formats read, oldest first; new definitions are the last. */
-export const FORM_SCHEMA_FORMATS = [1, 2] as const;
+export const FORM_SCHEMA_FORMATS = [1, 2, 3] as const;
 /** The format a new definition takes. */
-export const FORM_SCHEMA_FORMAT = 2;
+export const FORM_SCHEMA_FORMAT = 3;
 
 /** The field types a form may have. `radio` is a single choice drawn as radio buttons. */
 export const FORM_FIELD_TYPES = [
@@ -41,8 +43,13 @@ export const FORM_FIELD_TYPES = [
   'select',
   'multiSelect',
   'radio',
+  'group',
 ] as const;
 export type FormFieldType = (typeof FORM_FIELD_TYPES)[number];
+/** The types a group's own fields may have: anything but a group (one level). */
+const GROUP_FIELD_TYPES = FORM_FIELD_TYPES.filter(
+  (type): type is Exclude<FormFieldType, 'group'> => type !== 'group',
+);
 
 /** The types whose answer is one of `options` (or several, multiSelect). */
 export const CHOICE_TYPES: readonly FormFieldType[] = [
@@ -60,6 +67,10 @@ export const FORM_LIMITS = {
   /** The schema as JSON, in bytes. */
   bytes: 64 * 1024,
   translations: 10,
+  /** The fields of one group (counted in `fields` too). */
+  groupFields: 20,
+  /** A group's items, at most, whatever its `maxItems`. */
+  groupItems: 50,
 };
 
 /** The longest answer of each text type, whatever the field's own `maxLength`. */
@@ -226,9 +237,10 @@ const VALIDATION_KEYS: Record<FormFieldType, (keyof FormFieldValidation)[]> = {
   select: [],
   radio: [],
   multiSelect: ['minItems', 'maxItems'],
+  group: ['minItems', 'maxItems'],
 };
 
-export const formFieldSchema = z
+const fieldShape = z
   .object({
     key: key.describe(
       "The answer's key: unique in the form, and once published its type never changes.",
@@ -266,6 +278,25 @@ export const formFieldSchema = z
     }),
   })
   .strict();
+
+/** A field of a group: no group in it (one level), no conditions of its own. */
+export const groupFieldSchema = fieldShape
+  .omit({ visibleWhen: true, requiredWhen: true })
+  .extend({ type: z.enum(GROUP_FIELD_TYPES) })
+  .strict();
+export type GroupField = z.infer<typeof groupFieldSchema>;
+
+export const formFieldSchema = fieldShape
+  .extend({
+    fields: z
+      .array(groupFieldSchema)
+      .max(FORM_LIMITS.groupFields)
+      .optional()
+      .describe(
+        "A group's fields (format 3): each item answers them, as an object by key.",
+      ),
+  })
+  .strict();
 export type FormField = z.infer<typeof formFieldSchema>;
 
 export const formSectionSchema = z
@@ -276,6 +307,12 @@ export const formSectionSchema = z
     visibleWhen: formConditionSchema
       .optional()
       .describe('Shown only when this holds (format 2): its fields too.'),
+    startsPage: z
+      .boolean()
+      .optional()
+      .describe(
+        'Starts a new page (format 3): the form is then a wizard, one page at a time.',
+      ),
     fields: z.array(formFieldSchema).max(FORM_LIMITS.fields),
     translations: translations({
       title: plainText(200),
@@ -291,14 +328,14 @@ export const formDefinitionSchema = z
       .union(FORM_SCHEMA_FORMATS.map((format) => z.literal(format)))
       .default(FORM_SCHEMA_FORMAT)
       .describe(
-        'The descriptor format: 1 (fields), 2 (and conditions). Left out: the latest.',
+        'The descriptor format: 1 (fields), 2 (and conditions), 3 (and pages and repeatable groups). Left out: the latest.',
       ),
     sections: z.array(formSectionSchema).max(FORM_LIMITS.sections),
   })
   .strict()
   .meta({
     example: {
-      format: 2,
+      format: 3,
       sections: [
         {
           key: 'contact',
@@ -338,11 +375,32 @@ export const EMPTY_DEFINITION: FormDefinition = {
 export const fieldsOf = (definition: FormDefinition) =>
   definition.sections.flatMap((section) => section.fields);
 
-/** The type of every field by key: what a published version fixes (`keyTypes`). */
+/**
+ * The type of every field by key, a group's own as `<group>.<key>`: what a
+ * published version fixes (`keyTypes`).
+ */
 export const keyTypesOf = (definition: FormDefinition) =>
   Object.fromEntries(
-    fieldsOf(definition).map((field) => [field.key, field.type]),
+    fieldsOf(definition).flatMap((field) => [
+      [field.key, field.type],
+      ...(field.fields ?? []).map((sub) => [
+        `${field.key}.${sub.key}`,
+        sub.type,
+      ]),
+    ]),
   ) as Record<string, FormFieldType>;
+
+/** The pages of a definition: runs of sections, a new one at each `startsPage`. */
+export function pagesOf<S extends { startsPage?: boolean }>(
+  sections: readonly S[],
+): S[][] {
+  const pages: S[][] = [];
+  for (const section of sections) {
+    if (pages.length === 0 || section.startsPage) pages.push([]);
+    pages.at(-1)!.push(section);
+  }
+  return pages;
+}
 
 export interface SchemaIssue {
   /** Dotted, from the definition: `sections.0.fields.2.options.1.value`. */
@@ -370,7 +428,10 @@ export function definitionIssues(
       message: `The form is ${bytes} bytes as JSON: at most ${FORM_LIMITS.bytes}.`,
     });
   }
-  const total = fieldsOf(definition).length;
+  const total = fieldsOf(definition).reduce(
+    (sum, field) => sum + 1 + (field.fields?.length ?? 0),
+    0,
+  );
   if (total > FORM_LIMITS.fields) {
     issues.push({
       path: 'sections',
@@ -402,6 +463,12 @@ export function definitionIssues(
     }
     sectionKeys.add(section.key);
     rule(section.visibleWhen, `${at}.visibleWhen`);
+    if (section.startsPage !== undefined && definition.format < 3) {
+      issues.push({
+        path: `${at}.startsPage`,
+        message: 'Pages take format 3.',
+      });
+    }
     for (const [f, field] of section.fields.entries()) {
       const path = `${at}.fields.${f}`;
       rule(field.visibleWhen, `${path}.visibleWhen`);
@@ -427,19 +494,111 @@ export function definitionIssues(
         });
       }
       issues.push(...fieldIssues(field, path, valueIssues));
+      if (field.type === 'group') {
+        issues.push(
+          ...groupIssues(field, path, definition.format, keyTypes, valueIssues),
+        );
+      } else if (field.fields !== undefined) {
+        issues.push({
+          path: `${path}.fields`,
+          message: `A ${field.type} field has no fields of its own.`,
+        });
+      }
       if (!earlier.has(field.key)) earlier.set(field.key, field);
     }
   }
   return issues;
 }
 
-function fieldIssues(
+/** A group's own problems: its format, its fields, and its item bounds. */
+function groupIssues(
   field: FormField,
+  path: string,
+  format: number,
+  keyTypes: Record<string, string>,
+  valueIssues: (field: FormField, value: unknown) => string | null,
+): SchemaIssue[] {
+  if (format < 3) {
+    return [{ path: `${path}.type`, message: 'Groups take format 3.' }];
+  }
+  const issues: SchemaIssue[] = [];
+  const fields = field.fields ?? [];
+  if (fields.length === 0) {
+    issues.push({ path: `${path}.fields`, message: 'A group needs fields.' });
+  }
+  if (field.default !== undefined) {
+    issues.push({
+      path: `${path}.default`,
+      message: 'A group takes no default.',
+    });
+  }
+  const rules = field.validation ?? {};
+  if ((rules.maxItems ?? 0) > FORM_LIMITS.groupItems) {
+    issues.push({
+      path: `${path}.validation.maxItems`,
+      message: `At most ${FORM_LIMITS.groupItems} items in a group.`,
+    });
+  }
+  if ((rules.minItems ?? 0) > FORM_LIMITS.groupItems) {
+    issues.push({
+      path: `${path}.validation.minItems`,
+      message: `At most ${FORM_LIMITS.groupItems} items in a group.`,
+    });
+  }
+  const keys = new Set<string>();
+  for (const [index, sub] of fields.entries()) {
+    const at = `${path}.fields.${index}`;
+    if (keys.has(sub.key)) {
+      issues.push({
+        path: `${at}.key`,
+        message: "Keys must differ in a group's fields.",
+      });
+    }
+    keys.add(sub.key);
+    const fixed = keyTypes[`${field.key}.${sub.key}`];
+    if (fixed && fixed !== sub.type) {
+      issues.push({
+        path: `${at}.type`,
+        message: `A published version has "${field.key}.${sub.key}" as ${fixed}: its type can't change. Use a new key.`,
+      });
+    }
+    issues.push(...fieldIssues(sub, at, valueIssues));
+  }
+  return issues;
+}
+
+function fieldIssues(
+  field: FormField | GroupField,
   path: string,
   valueIssues: (field: FormField, value: unknown) => string | null,
 ): SchemaIssue[] {
   const issues: SchemaIssue[] = [];
   const options = field.options ?? [];
+  if (field.type === 'group') {
+    // Its options: none; its default: groupIssues.
+    if (field.options !== undefined) {
+      issues.push({
+        path: `${path}.options`,
+        message: 'A group takes no options.',
+      });
+    }
+    const rules = field.validation ?? {};
+    for (const name of Object.keys(rules) as (keyof FormFieldValidation)[]) {
+      if (rules[name] !== undefined && !VALIDATION_KEYS.group.includes(name)) {
+        issues.push({
+          path: `${path}.validation.${name}`,
+          message: `A group field takes no ${name}.`,
+        });
+      }
+    }
+    if ((rules.minItems ?? 0) > (rules.maxItems ?? Infinity)) {
+      issues.push({
+        path: `${path}.validation.minItems`,
+        message: 'minItems is above maxItems.',
+      });
+    }
+    return issues;
+  }
   if (CHOICE_TYPES.includes(field.type)) {
     if (options.length === 0) {
       issues.push({

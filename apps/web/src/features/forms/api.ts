@@ -17,6 +17,8 @@ export type FormDefinition = GetResponse<'/v1/forms/{id}/draft'>['definition'];
 export type FormSection = FormDefinition['sections'][number];
 export type FormField = FormSection['fields'][number];
 export type FieldType = FormField['type'];
+/** A field of a repeatable group: no group in it, no conditions. */
+export type GroupField = NonNullable<FormField['fields']>[number];
 type CreateForm = NonNullable<
   paths['/v1/forms']['post']['requestBody']
 >['content']['application/json'];
@@ -34,6 +36,7 @@ export const FIELD_TYPES: readonly FieldType[] = [
   'select',
   'radio',
   'multiSelect',
+  'group',
 ];
 /** The types whose answer is one of `options` (or several, multiSelect). */
 export const CHOICE_TYPES: readonly FieldType[] = [
