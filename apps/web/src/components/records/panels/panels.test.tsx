@@ -1425,6 +1425,7 @@ describe('the panels on a record', () => {
               field: 'parentId',
               title: 'title',
               required: false,
+              onDelete: 'restrict',
             },
           ],
         }),

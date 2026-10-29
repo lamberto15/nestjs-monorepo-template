@@ -59,7 +59,7 @@ describe('data quality: checks, scans, dismissal and recheck (e2e)', () => {
       title: 'Child',
       body: 'C',
       code: 'C1',
-      parentId: parent,
+      linkedId: parent,
     });
     await node.admin().delete(`/v1/test-items/${parent}`).expect(204);
 
@@ -78,7 +78,7 @@ describe('data quality: checks, scans, dismissal and recheck (e2e)', () => {
     const found = await findings(node.admin());
     expect(found.map(key).sort((a, b) => a.localeCompare(b))).toEqual(
       [
-        `${child}:reference:parentId`,
+        `${child}:reference:linkedId`,
         `${complete}:duplicate:title`,
         `${sparse}:duplicate:title`,
         `${sparse}:missing:body`,
@@ -95,9 +95,9 @@ describe('data quality: checks, scans, dismissal and recheck (e2e)', () => {
       severity: 'suggestion',
       detail: { duplicateOf: sparse },
     });
-    // No repair: the reference is still there.
+    // No repair: the reference (a `keep` one, which outlives the delete) is still there.
     const read = await node.admin().get(`/v1/test-items/${child}`).expect(200);
-    expect(read.body.parentId).toBe(parent);
+    expect(read.body.linkedId).toBe(parent);
 
     // Another tenant sees none of it.
     const tenant = await node.otherTenant();

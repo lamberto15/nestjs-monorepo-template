@@ -175,6 +175,21 @@ ingress:
     - { path: /files/, pathType: Prefix }
     - { path: /.well-known/, pathType: Prefix }
 
+# Tenants' custom domains (docs/branding.md, "Custom domains"). enabled sets
+# CUSTOM_DOMAINS=on: tenants may add and verify hostnames of their own. The
+# Ingress serves those listed in `hosts` like `domain`: list a hostname once
+# GET /v1/branding/domains says it is verified (placeholders only here; real
+# hostnames go in the deployment's own values). `tlsSecretName`: one
+# certificate for all of them, from an issuer that can solve their zones
+# (HTTP-01: they are not yours). Removing a domain stops the API's routing
+# at once; take its host out of `hosts` too, or the web app's shell, with no
+# tenant and no brand, stays on it.
+customDomains:
+  enabled: false
+  hosts: []
+  # - tenant.example.com
+  tlsSecretName: ""
+
 # PDF documents (docs/documents.md): Gotenberg, reachable only by the worker.
 gotenberg:
   enabled: true

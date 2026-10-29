@@ -579,6 +579,103 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ops/queues/{name}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pause a queue (every worker stops taking its jobs)
+         * @description BullMQ pause, kept in Redis: nothing is lost, and running jobs finish. Leaving maintenance mode resumes every queue. The outbox keeps queuing jobs into it: see /v1/ops/backlog. Audited.
+         */
+        post: operations["OpsController_pauseQueue_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/queues/{name}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume a paused queue. Audited. */
+        post: operations["OpsController_resumeQueue_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/backlog/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Count the outbox and mail backlog of one tenant (or, explicitly, every tenant)
+         * @description Changes nothing. The outbox (pending messages by topic and notification type, dead letters, those being delivered) and the mail queue (jobs by state and mail class). Exactly one of tenantId and global: true. topic and type narrow the outbox, template the mail queue, before (ISO 8601) keeps to older work. Mail queued before jobs named their tenant counts under global only.
+         */
+        post: operations["OpsController_previewBacklog_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/backlog/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discard the outbox or mail backlog in a scope
+         * @description outbox: deletes pending notifications.deliver (and other) messages not being delivered, and dead letters, in batches; a discarded notification stays in the list, marked delivered, with no push, mail or webhook. mail: removes waiting, delayed and failed jobs. Never a mandatory notification type, essential mail or running work. Up to limit (10,000) per call: call again while more. Preview first. Audited.
+         */
+        post: operations["OpsController_discardBacklog_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/backlog/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry the outbox dead letters or failed mail in a scope
+         * @description outbox: requeues the dead letters with a fresh retry budget; mail: retries the failed jobs. The mail mode and the daily budgets still apply. Up to limit (10,000) per call: call again while more. Audited.
+         */
+        post: operations["OpsController_retryBacklog_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ops/dead-letters/requeue": {
         parameters: {
             query?: never;
@@ -1701,6 +1798,90 @@ export interface paths {
          * @description No sign-in needed. Like the logo, with the same headers: the image the web app shows in its dark theme.
          */
         get: operations["PublicBrandingController_darkLogo_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/domains": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The tenant's custom domains and their verification
+         * @description `enabled`: whether this deployment serves custom domains (CUSTOM_DOMAINS); off, adding and verifying answer 404 `custom_domains_off`.
+         */
+        get: operations["BrandingDomainsController_list_v1"];
+        put?: never;
+        /**
+         * Add a custom domain: publish its `record`, then verify
+         * @description A public hostname (no IP, port or path; not the app's own domain or one under it; an internationalized name is stored in punycode). Point it at the app (a CNAME) and publish the TXT `record`. Audited (`branding.domain-added`). 409 `branding_locked` while the operators lock the branding.
+         */
+        post: operations["BrandingDomainsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/domains/{id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Look the TXT record up (on the queue): `verified` once found
+         * @description The domain routes to the tenant while its record resolves: checked again every night, a record gone stops it. 409 `branding_locked` while locked.
+         */
+        post: operations["BrandingDomainsController_verify_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/domains/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a custom domain: it stops routing at once
+         * @description No brand, no session and no new certificate on that host from then on. Audited (`branding.domain-removed`). Allowed while the branding is locked.
+         */
+        delete: operations["BrandingDomainsController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/host": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The brand of the host you reached the app on
+         * @description No sign-in needed. On a tenant's verified custom domain, its colours, sender name and logos; on any other host (the app's own, an unknown one, a domain removed), every field null. Never names the tenant otherwise. Not cached: a removed domain stops at once.
+         */
+        get: operations["HostBrandingController_host_v1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10917,6 +11098,290 @@ export interface operations {
             };
         };
     };
+    OpsController_pauseQueue_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        name: string;
+                        paused: boolean;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_resumeQueue_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        name: string;
+                        paused: boolean;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_previewBacklog_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    tenantId?: string;
+                    /** @enum {boolean} */
+                    global?: true;
+                    topic?: string;
+                    type?: string;
+                    template?: string;
+                    /** Format: date-time */
+                    before?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        outbox: {
+                            pending: {
+                                total: number;
+                                groups: {
+                                    topic: string;
+                                    type: string | null;
+                                    count: number;
+                                    mandatory: boolean;
+                                }[];
+                            };
+                            deadLetters: {
+                                total: number;
+                                groups: {
+                                    topic: string;
+                                    type: string | null;
+                                    count: number;
+                                    mandatory: boolean;
+                                }[];
+                            };
+                            leased: number;
+                        };
+                        mail: {
+                            groups: {
+                                state: string;
+                                template: string;
+                                count: number;
+                                essential: number;
+                            }[];
+                            capped: boolean;
+                        };
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_discardBacklog_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    scope: {
+                        /** Format: uuid */
+                        tenantId?: string;
+                        /** @enum {boolean} */
+                        global?: true;
+                        topic?: string;
+                        type?: string;
+                        template?: string;
+                        /** Format: date-time */
+                        before?: string;
+                    };
+                    /** @enum {string} */
+                    target: "outbox" | "mail";
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        count: number;
+                        more: boolean;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_retryBacklog_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    scope: {
+                        /** Format: uuid */
+                        tenantId?: string;
+                        /** @enum {boolean} */
+                        global?: true;
+                        topic?: string;
+                        type?: string;
+                        template?: string;
+                        /** Format: date-time */
+                        before?: string;
+                    };
+                    /** @enum {string} */
+                    target: "outbox" | "mail";
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        count: number;
+                        more: boolean;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     OpsController_requeue_v1: {
         parameters: {
             query?: never;
@@ -15550,6 +16015,231 @@ export interface operations {
             };
         };
     };
+    BrandingDomainsController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Whether this deployment serves custom domains (CUSTOM_DOMAINS). */
+                        enabled: boolean;
+                        domains: {
+                            /** Format: uuid */
+                            id: string;
+                            /** @description Lower case, ASCII (punycode). */
+                            hostname: string;
+                            /** @description Its TXT record was found at the last check: the host routes to the tenant. */
+                            verified: boolean;
+                            /** Format: date-time */
+                            verifiedAt: string | null;
+                            /** Format: date-time */
+                            lastCheckedAt: string | null;
+                            lastError: string | null;
+                            /** @description The DNS record that proves the domain is the tenant’s; keep it published. */
+                            record: {
+                                /** @enum {string} */
+                                type: "TXT";
+                                name: string;
+                                value: string;
+                            };
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    BrandingDomainsController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description A hostname such as app.example.com: no scheme, port or path; an internationalized name is stored in punycode. */
+                    hostname: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @description Lower case, ASCII (punycode). */
+                        hostname: string;
+                        /** @description Its TXT record was found at the last check: the host routes to the tenant. */
+                        verified: boolean;
+                        /** Format: date-time */
+                        verifiedAt: string | null;
+                        /** Format: date-time */
+                        lastCheckedAt: string | null;
+                        lastError: string | null;
+                        /** @description The DNS record that proves the domain is the tenant’s; keep it published. */
+                        record: {
+                            /** @enum {string} */
+                            type: "TXT";
+                            name: string;
+                            value: string;
+                        };
+                        /** Format: date-time */
+                        createdAt: string;
+                    };
+                };
+            };
+            /** @description `invalid_hostname`. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `custom_domains_off`. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `domain_exists`, `branding_locked`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingDomainsController_verify_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        accepted: true;
+                    };
+                };
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `branding_locked`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingDomainsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HostBrandingController_host_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description `#rrggbb`, or null: the default theme. */
+                        primaryColor: string | null;
+                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
+                        darkPrimaryColor: string | null;
+                        /** @description The name mail is sent under, or null: the deployment’s. */
+                        mailFromName: string | null;
+                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
+                        logoUrl: string | null;
+                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
+                        darkLogoUrl: string | null;
+                    };
+                };
+            };
+        };
+    };
     SubscriptionsController_list_v1: {
         parameters: {
             query?: {
@@ -15866,8 +16556,13 @@ export interface operations {
                              * @example title
                              */
                             title: string | null;
-                            /** @description Required: a record they refer to cannot be deleted (409 `record_referenced`). Optional: the field empties when it is deleted for good. */
+                            /** @description Required: the field is never empty, and a record they refer to stays until they go (409 `record_referenced`, those in the recycle bin included). Optional: the field empties when its record is deleted for good. */
                             required: boolean;
+                            /**
+                             * @description Deleting a record they refer to: `restrict` refuses it while live ones do (409 `record_referenced`); `keep` moves it to the recycle bin with their field kept, so a restore brings the relation back.
+                             * @enum {string}
+                             */
+                            onDelete: "restrict" | "keep";
                         }[];
                         /** @description The views besides the table that this subject declares and this caller can use: a field they may not filter by leaves its view out. Null when none. Fetch their records with the list route, bounded by `filter` on the fields named here. */
                         views: {

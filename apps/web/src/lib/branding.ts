@@ -13,6 +13,17 @@ export const brandingQuery = queryOptions({
   staleTime: 5 * 60_000,
 });
 
+/**
+ * The brand of the host the app is on, before sign-in: a tenant's verified
+ * custom domain's (docs/branding.md, "Custom domains"); every field null on
+ * the app's own host.
+ */
+export const hostBrandQuery = queryOptions({
+  queryKey: ['branding', 'host'],
+  queryFn: () => unwrap(api.GET('/v1/branding/host')),
+  staleTime: 5 * 60_000,
+});
+
 /** Only what the API checked: `#rrggbb`. Anything else is not put in a style. */
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
@@ -98,4 +109,28 @@ export function BrandTheme() {
     return () => applyBrandColor(null);
   }, [color]);
   return null;
+}
+
+/**
+ * The pages before signing in, on a tenant's custom domain: its colour on
+ * the theme while mounted, and its logo and name to show (null: the app's
+ * own). A failed read leaves the app's look, with no toast.
+ */
+export function useHostBrand() {
+  const brand = useQuery({
+    ...hostBrandQuery,
+    retry: false,
+    meta: { errorToast: false },
+  }).data;
+  const dark = useIsDark();
+  const color =
+    (dark ? brand?.darkPrimaryColor : null) ?? brand?.primaryColor ?? null;
+  useEffect(() => {
+    applyBrandColor(color);
+    return () => applyBrandColor(null);
+  }, [color]);
+  return {
+    logoUrl: (dark ? brand?.darkLogoUrl : null) ?? brand?.logoUrl ?? null,
+    name: brand?.mailFromName ?? null,
+  };
 }

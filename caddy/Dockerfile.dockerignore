@@ -7,6 +7,9 @@
 !pnpm-workspace.yaml
 !patches
 !apps/api/package.json
+# The forms' contract test (apps/web/src/features/forms/rules.test.ts) type-checks
+# the web app's mirror against the API's evaluator, a file without imports.
+!apps/api/src/platform/forms/form-rules.ts
 !apps/web
 !packages/api-client
 !packages/ui

@@ -207,6 +207,31 @@ export const listRelated = (path: string, field: string, id: string) =>
     }>,
   );
 
+/** The most records a record picker offers at once: type more to narrow them. */
+export const PICKER_LIMIT = 20;
+/** The longest `q` a list takes (a longer one is a 400). */
+const MAX_TERM = 200;
+
+/**
+ * The records of a list a reference may name, for a picker: those matching
+ * `term` by its search (`q`, the `search` capability), else the newest,
+ * PICKER_LIMIT of them. The list shows only those the user may read.
+ */
+export const searchRecords = (path: string, term: string) => {
+  const q = term.trim().slice(0, MAX_TERM);
+  return unwrap(
+    client.GET(`/v1/${path}`, {
+      params: {
+        path: {},
+        query: { limit: PICKER_LIMIT, ...(q && { q }) },
+      },
+    }) as Promise<{
+      data?: { items: Record<string, unknown>[] };
+      response: Response;
+    }>,
+  );
+};
+
 /** A record's likely duplicates (docs/merging.md): those the user may read. */
 export const listDuplicates = (base: string, id: string) =>
   unwrap(

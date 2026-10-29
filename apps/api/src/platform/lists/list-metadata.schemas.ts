@@ -138,7 +138,12 @@ export const listRelatedSchema = z.object({
   required: z
     .boolean()
     .describe(
-      'Required: a record they refer to cannot be deleted (409 `record_referenced`). Optional: the field empties when it is deleted for good.',
+      'Required: the field is never empty, and a record they refer to stays until they go (409 `record_referenced`, those in the recycle bin included). Optional: the field empties when its record is deleted for good.',
+    ),
+  onDelete: z
+    .enum(['restrict', 'keep'])
+    .describe(
+      'Deleting a record they refer to: `restrict` refuses it while live ones do (409 `record_referenced`); `keep` moves it to the recycle bin with their field kept, so a restore brings the relation back.',
     ),
 });
 /**

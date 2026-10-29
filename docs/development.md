@@ -550,6 +550,23 @@ command on it.
   (the numbers are another stack's), so a scaling comparison is read by eye
   or with `--report-only`. The CI run stays at 2 (the anchor's).
 
+**The notification-storm soak** (#618, not in the baseline, not in CI's
+default runs): `loadtest/run.sh up`, then `loadtest/run.sh soak`, then
+`loadtest/run.sh down`. k6 (`loadtest/soak.js`, one virtual user) sets the
+deployment's daily mail budget to `SOAK_MAIL_LIMIT` (100, a provider's free
+quota), imports `SOAK_NOTES` (100,000) notes as one JSON file, which the
+worker writes and publishes in groups (the bulk path of the incident), then
+watches `GET /v1/ops/outbox` and `/v1/ops/queues` every 10 s until the
+outbox has drained or `SOAK_MINUTES` (30) passed. Its thresholds fail the
+run when `/health` or the ops routes stop answering, the mail queue holds
+more than `SOAK_MAX_MAIL` (500) jobs at once, anything is dead-lettered, or
+the outbox has not drained; `run.sh` samples Redis' `used_memory` and the
+api, worker and Redis containers' memory every 5 s
+(`soak-memory.log`) and fails past `SOAK_REDIS_MAX_MB` (512). The summary
+(peaks, import time, drained) is `soak.json` in `LOADTEST_OUT`. The seeded
+administrator is the only watcher (a load test can't prove the addresses of
+accounts of its own), so it measures the fan-out per note, not per watcher.
+
 **Why sign-in runs at 2/s only:** a password check (scrypt, N = 2^17) takes
 about 0.4 s of a CPU and 128 MiB outside the heap, and libuv runs four at
 once per process. At 5/s, more than two replicas of one CPU can hash, the
