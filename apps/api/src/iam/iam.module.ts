@@ -191,6 +191,8 @@ export class IamModule {
       TenantLifecycleRegistry,
       // Work without a user runs as the system principal (seeds, cron jobs, workflows).
       SystemContext,
+      // Bot protection (@Captcha()) on a platform route: a public form's sending.
+      CaptchaService,
       // Tenants (docs/tenancy.md): the operators' routes and the tests make them.
       TenantsService,
       SingleTenant,

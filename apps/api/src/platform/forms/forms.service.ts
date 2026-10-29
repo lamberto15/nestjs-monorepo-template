@@ -583,7 +583,7 @@ export class FormsService {
   }
 
   /** The form, for an editor: a 403 without `edit`, a 404 when it isn't there. */
-  private async editable(principal: RequestPrincipal, id: string) {
+  async editable(principal: RequestPrincipal, id: string) {
     if (!(await this.policy.edit(principal))) {
       throw new ForbiddenException();
     }

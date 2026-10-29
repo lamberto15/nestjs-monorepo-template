@@ -176,3 +176,79 @@ export const formOptionsSchema = z.object({
     .boolean()
     .describe('More match: narrow with `q` (an answer holds at most `limit`).'),
 });
+
+/** `POST /forms/{id}/public-links`. */
+export const createPublicLinkSchema = z
+  .object({
+    expiresAt: z.iso
+      .datetime({ offset: true })
+      .optional()
+      .describe(
+        'When it stops working: within 365 days; 30 days when left out.',
+      ),
+    maxSubmissions: z
+      .int()
+      .min(1)
+      .max(100_000)
+      .optional()
+      .describe(
+        'The most submissions it takes (its quota): 1000 when left out.',
+      ),
+  })
+  .strict();
+export type CreatePublicLinkDto = z.infer<typeof createPublicLinkSchema>;
+
+/** A form's public link, as its editors see it (never its token, after it was made). */
+export const formPublicLinkSchema = z.object({
+  id: z.uuid(),
+  formId: z.uuid(),
+  createdBy: z.string(),
+  expiresAt: z.iso.datetime(),
+  revokedAt: z.iso.datetime().nullable(),
+  maxSubmissions: z.int(),
+  submissions: z.int(),
+  lastSubmittedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+});
+
+/** The new link: its token and URL, shown this once. */
+export const createdPublicLinkSchema = formPublicLinkSchema.extend({
+  token: z.string().describe('Shown once: only its hash is kept.'),
+  url: z
+    .string()
+    .describe(
+      "The web app's page that opens it: `<WEB_URL>/public-form#<token>`.",
+    ),
+});
+
+const token = z.string().min(1).max(200).describe("The link's token.");
+
+/** `POST /public/forms/open`: the token in the body, never in a URL. */
+export const openPublicFormSchema = z.object({ token }).strict();
+export type OpenPublicFormDto = z.infer<typeof openPublicFormSchema>;
+
+/** What a public link opens: the published version, nothing of its tenant. */
+export const publicFormSchema = z.object({
+  name: z.string(),
+  description: z.string().nullable(),
+  versionId: z.uuid().describe('Send it back with the answers.'),
+  version: z.int(),
+  definition: formDefinitionSchema,
+});
+
+/** `POST /public/forms/submit`. */
+export const publicSubmitSchema = z
+  .object({
+    token,
+    versionId: z.uuid(),
+    answers: z.record(z.string(), z.unknown()),
+  })
+  .strict();
+export type PublicSubmitDto = z.infer<typeof publicSubmitSchema>;
+
+/** A public submission, as its sender sees it: no answers of anyone, its own included. */
+export const publicSubmissionSchema = z.object({
+  id: z.uuid(),
+  version: z.int(),
+  createdAt: z.iso.datetime(),
+});

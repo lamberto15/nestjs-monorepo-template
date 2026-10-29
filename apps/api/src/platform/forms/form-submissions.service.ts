@@ -35,7 +35,7 @@ import { checkAnswers } from './form-answers.js';
 import { FormOptionSourcesService } from './form-option-sources.service.js';
 import { FORM_SUBMISSION_LIST } from './form.list.js';
 import type { SubmitFormDto } from './form.schemas.js';
-import { formSubmissions, formVersions } from './forms.tables.js';
+import { type FormRow, formSubmissions, formVersions } from './forms.tables.js';
 import { FormsService, invalid } from './forms.service.js';
 
 /** A submission row with its version's number. */
@@ -122,6 +122,31 @@ export class FormSubmissionsService implements PersonalDataSource {
       edit: false,
       readResponses: false,
     });
+    return this.answer({
+      principal,
+      submittedBy: principalKey(principal),
+      form,
+      dto,
+      ip,
+    });
+  }
+
+  /**
+   * The answers to the published version they name, checked, then stored
+   * with their audit entry; `during` runs in the same transaction (a
+   * public link takes its quota there). Without a principal (a public
+   * link: `public:<link id>`), the audit's actor is `anonymous`.
+   */
+  async answer(input: {
+    principal: RequestPrincipal | null;
+    submittedBy: string;
+    form: FormRow;
+    dto: SubmitFormDto;
+    ip?: string;
+    during?: (tx: Transaction) => Promise<void>;
+  }) {
+    const { principal, form, dto, ip } = input;
+    const formId = form.id;
     const current = await this.forms.currentVersion(form);
     if (dto.versionId !== current.id) {
       const [named] = await this.db
@@ -149,21 +174,25 @@ export class FormSubmissionsService implements PersonalDataSource {
     if (!checked.ok) {
       throw invalid(checked.issues);
     }
-    const sourced = await this.sources.answerIssues(
-      principal,
-      current.definition,
-      checked.answers,
-    );
+    // A public link serves no form with a source (form-public-links.service.ts).
+    const sourced = principal
+      ? await this.sources.answerIssues(
+          principal,
+          current.definition,
+          checked.answers,
+        )
+      : [];
     if (sourced.length) {
       throw invalid(sourced);
     }
     const row = await inTransaction(this.txHost, async (tx) => {
+      await input.during?.(tx);
       const [created] = await tx
         .insert(formSubmissions)
         .values({
           formId,
           versionId: current.id,
-          submittedBy: principalKey(principal),
+          submittedBy: input.submittedBy,
           answers: checked.answers,
         })
         .returning();

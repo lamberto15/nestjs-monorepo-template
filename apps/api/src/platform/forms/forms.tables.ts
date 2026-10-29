@@ -127,3 +127,47 @@ export const formSubmissions = pgTable(
 ).enableRLS();
 
 export type FormSubmissionRow = typeof formSubmissions.$inferSelect;
+
+/**
+ * A form's public links (docs/forms.md, "Public forms"): an editor makes
+ * one explicitly; anyone holding it fills in the published version without
+ * an account, until it expires, is revoked or has taken `maxSubmissions`.
+ * Only the token's hash is kept (the link is shown once). A tenant table:
+ * the token names its tenant, so it is looked up in that tenant's scope.
+ */
+export const formPublicLinks = pgTable(
+  'form_public_links',
+  {
+    id: uuidPk(),
+    tenantId: tenantColumn(),
+    formId: uuid('form_id').notNull(),
+    /** The SHA-256 of the link's token, base64url. */
+    tokenHash: text('token_hash').notNull(),
+    /** `user:<id>` of the editor who made it. */
+    createdBy: text('created_by').notNull(),
+    expiresAt: at('expires_at').notNull(),
+    revokedAt: at('revoked_at'),
+    revokedBy: text('revoked_by'),
+    /** The most submissions it takes (its quota), and how many it took. */
+    maxSubmissions: integer('max_submissions').notNull(),
+    submissions: integer('submissions').notNull().default(0),
+    lastSubmittedAt: at('last_submitted_at'),
+    ...timestamps(),
+  },
+  (table) => [
+    ...tenantTable('form_public_links', table),
+    unique('form_public_links_tenant_token_key').on(
+      table.tenantId,
+      table.tokenHash,
+    ),
+    index('form_public_links_form_idx').on(table.formId),
+    tenantReference(
+      'form_public_links_form_fk',
+      [table.tenantId, table.formId],
+      [forms.tenantId, forms.id],
+      'cascade',
+    ),
+  ],
+).enableRLS();
+
+export type FormPublicLinkRow = typeof formPublicLinks.$inferSelect;
