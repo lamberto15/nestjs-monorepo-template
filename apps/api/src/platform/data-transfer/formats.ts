@@ -590,14 +590,19 @@ async function* xlsxRecords(
           entries: 'ignore',
         },
       );
-      for await (const sheet of reader) {
-        yield* sheetRecords(
-          sheet as AsyncIterable<ExcelJS.Row>,
-          dateColumns,
-          mapping,
-        );
-        // The first sheet only, as a loaded workbook's worksheets[0].
-        return;
+      // The first sheet only, as a loaded workbook's worksheets[0].
+      const sheets = reader[Symbol.asyncIterator]();
+      try {
+        const first = await sheets.next();
+        if (!first.done) {
+          yield* sheetRecords(
+            first.value as AsyncIterable<ExcelJS.Row>,
+            dateColumns,
+            mapping,
+          );
+        }
+      } finally {
+        await sheets.return?.(undefined);
       }
       return;
     }

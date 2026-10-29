@@ -20,7 +20,7 @@ import { fail, sleep } from 'k6';
 import http from 'k6/http';
 import { Counter, Rate, Trend } from 'k6/metrics';
 
-const BASE_URL = __ENV.BASE_URL || 'http://caddy';
+const BASE_URL = __ENV.BASE_URL || 'http://caddy'; // NOSONAR S5332: the Compose network's own edge, as scenarios.js; TLS ends there
 const ADMIN_EMAIL = __ENV.ADMIN_EMAIL;
 const ADMIN_PASSWORD = __ENV.ADMIN_PASSWORD;
 const NOTES = Number(__ENV.SOAK_NOTES || 100_000);
@@ -94,15 +94,23 @@ const summary = {
 
 export default function () {
   if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
-    stop('ADMIN_EMAIL and ADMIN_PASSWORD are required (loadtest/run.sh sets them)');
+    stop(
+      'ADMIN_EMAIL and ADMIN_PASSWORD are required (loadtest/run.sh sets them)',
+    );
   }
   // Only a load-test stack (its rate limits raised, as scenarios.js checks).
   const methods = http.get(`${BASE_URL}/v1/auth/methods`);
-  const limit = Number(methods.headers['X-Ratelimit-Limit'] ?? methods.headers['X-RateLimit-Limit']);
+  const limit = Number(
+    methods.headers['X-Ratelimit-Limit'] ??
+      methods.headers['X-RateLimit-Limit'],
+  );
   if (!(limit > 600)) stop(`${BASE_URL} isn't a load-test stack: nothing done`);
 
   const token = ok(
-    call('POST', '/v1/auth/token', { email: ADMIN_EMAIL, password: ADMIN_PASSWORD }),
+    call('POST', '/v1/auth/token', {
+      email: ADMIN_EMAIL,
+      password: ADMIN_PASSWORD,
+    }),
     'administrator sign-in',
     [200, 201],
   ).json('accessToken');
@@ -110,13 +118,21 @@ export default function () {
 
   // A provider's free quota, for the whole deployment (docs/notifications.md).
   ok(
-    call('PUT', '/v1/settings/mail.dailyLimit/platform', { value: MAIL_LIMIT }, admin),
+    call(
+      'PUT',
+      '/v1/settings/mail.dailyLimit/platform',
+      { value: MAIL_LIMIT },
+      admin,
+    ),
     'mail.dailyLimit',
   );
 
   const rows = [];
   for (let i = 0; i < NOTES; i++) {
-    rows.push({ title: `Soak ${i}`, body: `A note of the notification soak, number ${i}.` });
+    rows.push({
+      title: `Soak ${i}`,
+      body: `A note of the notification soak, number ${i}.`,
+    });
   }
   const started = Date.now();
   const imported = ok(
@@ -134,15 +150,22 @@ export default function () {
   const id = imported.json('id');
   for (;;) {
     sleep(5);
-    const res = ok(call('GET', `/v1/data/transfers/${id}`, undefined, admin), 'transfer');
+    const res = ok(
+      call('GET', `/v1/data/transfers/${id}`, undefined, admin),
+      'transfer',
+    );
     const status = res.json('status');
     if (status === 'completed') {
-      summary.import = { seconds: (Date.now() - started) / 1000, result: res.json('result') };
+      summary.import = {
+        seconds: (Date.now() - started) / 1000,
+        result: res.json('result'),
+      };
       importSeconds.add(summary.import.seconds);
       break;
     }
     if (status === 'failed') stop(`import failed: ${res.body}`);
-    if (Date.now() - started > MINUTES * 60_000) stop('import not completed in time');
+    if (Date.now() - started > MINUTES * 60_000)
+      stop('import not completed in time');
   }
 
   // The fan-out: outbox and queues until the outbox has drained.
@@ -163,7 +186,9 @@ export default function () {
     }
     const stats = outbox.json('stats');
     const mail = queues.json('items').find((q) => q.name === 'mail');
-    const queued = mail ? mail.counts.waiting + mail.counts.delayed + mail.counts.active : 0;
+    const queued = mail
+      ? mail.counts.waiting + mail.counts.delayed + mail.counts.active
+      : 0;
     mailQueued.add(queued);
     outboxPending.add(stats.pending);
     deadLetters.add(stats.deadLetters);
@@ -182,12 +207,17 @@ export default function () {
 
   drained.add(summary.drained);
   const problems = [];
-  if (summary.healthFailures > 0) problems.push(`the API failed ${summary.healthFailures} check(s)`);
+  if (summary.healthFailures > 0)
+    problems.push(`the API failed ${summary.healthFailures} check(s)`);
   if (summary.peaks.mailQueued > MAX_MAIL) {
-    problems.push(`the mail queue held ${summary.peaks.mailQueued} jobs (more than ${MAX_MAIL})`);
+    problems.push(
+      `the mail queue held ${summary.peaks.mailQueued} jobs (more than ${MAX_MAIL})`,
+    );
   }
-  if (summary.peaks.deadLetters > 0) problems.push(`${summary.peaks.deadLetters} outbox dead letter(s)`);
-  if (!summary.drained) problems.push(`the outbox did not drain in ${MINUTES} minutes`);
+  if (summary.peaks.deadLetters > 0)
+    problems.push(`${summary.peaks.deadLetters} outbox dead letter(s)`);
+  if (!summary.drained)
+    problems.push(`the outbox did not drain in ${MINUTES} minutes`);
   summary.problems = problems;
   if (problems.length > 0) fail(problems.join('; '));
 }
