@@ -35,7 +35,8 @@ const decode = (value: string): Value =>
 /** The channels a user may set for a type (`webhook` is for API clients). */
 function settable(type: NotificationType) {
   return Object.keys(type.channels).filter(
-    (channel) => channel === 'email' || channel === 'webhook',
+    (channel) =>
+      channel === 'email' || channel === 'webhook' || channel === 'push',
   );
 }
 

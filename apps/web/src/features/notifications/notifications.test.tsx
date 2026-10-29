@@ -90,7 +90,7 @@ function api(options: { realtime?: boolean; impersonating?: boolean } = {}) {
             type: 'note.published',
             label: 'Note published',
             mandatory: false,
-            channels: { email: 'immediate' },
+            channels: { email: 'immediate', push: false },
           },
           {
             type: 'security.newSignIn',
@@ -371,6 +371,22 @@ describe('preferences', () => {
     expect(await screen.findByRole('option', { name: 'Off' })).toHaveAttribute(
       'aria-disabled',
       'true',
+    );
+  });
+
+  it('turns push on for a type', async () => {
+    const state = api();
+    const user = userEvent.setup();
+    await renderApp('/account/notifications');
+    await user.click(
+      await screen.findByRole('combobox', { name: 'Note published: Push' }),
+    );
+    await user.click(await screen.findByRole('option', { name: 'On' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(state.preferencesBody).toEqual({
+        'note.published': { push: true },
+      }),
     );
   });
 });

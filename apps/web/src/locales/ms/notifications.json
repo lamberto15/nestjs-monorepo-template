@@ -42,7 +42,8 @@
     "channels": {
       "inApp": "Dalam aplikasi",
       "email": "E-mel",
-      "webhook": "Webhook"
+      "webhook": "Webhook",
+      "push": "Push"
     },
     "values": {
       "email": {
@@ -52,6 +53,10 @@
         "daily": "Ringkasan harian"
       },
       "webhook": {
+        "false": "Mati",
+        "true": "Hidup"
+      },
+      "push": {
         "false": "Mati",
         "true": "Hidup"
       }

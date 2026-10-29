@@ -52,7 +52,8 @@
     "channels": {
       "inApp": "في التطبيق",
       "email": "البريد الإلكتروني",
-      "webhook": "Webhook"
+      "webhook": "Webhook",
+      "push": "إشعارات فورية"
     },
     "values": {
       "email": {
@@ -62,6 +63,10 @@
         "daily": "ملخص يومي"
       },
       "webhook": {
+        "false": "متوقف",
+        "true": "مفعّل"
+      },
+      "push": {
         "false": "متوقف",
         "true": "مفعّل"
       }

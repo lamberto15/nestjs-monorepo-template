@@ -42,7 +42,8 @@
     "channels": {
       "inApp": "应用内",
       "email": "电子邮件",
-      "webhook": "Webhook"
+      "webhook": "Webhook",
+      "push": "推送"
     },
     "values": {
       "email": {
@@ -52,6 +53,10 @@
         "daily": "每日摘要"
       },
       "webhook": {
+        "false": "关闭",
+        "true": "开启"
+      },
+      "push": {
         "false": "关闭",
         "true": "开启"
       }
