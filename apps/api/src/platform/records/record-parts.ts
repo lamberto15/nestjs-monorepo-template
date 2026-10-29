@@ -5,6 +5,8 @@ import { bulkRoutes } from '../bulk/bulk.routes.js';
 import { commentRoutes } from '../comments/comment.routes.js';
 import { documentRoutes } from '../documents/document.routes.js';
 import { revisionRoutes } from '../revisions/revision.routes.js';
+import { mergeRoutes } from '../merge/merge.routes.js';
+import { MERGES, RecordMerge } from '../merge/record-merge.js';
 import { shareRoutes } from '../shares/share.routes.js';
 import { watchRoutes } from '../subscriptions/subscription.routes.js';
 import { listSource } from '../lists/lists.registry.js';
@@ -61,6 +63,7 @@ const TARGETS: Partial<Record<Capability, Type>> = {
   transfer: RecordTransfer,
   share: RecordShares,
   automation: RecordAutomation,
+  merge: RecordMerge,
 };
 
 /**
@@ -129,6 +132,9 @@ export function recordParts(
       : []),
     ...(has('watch') ? [watchRoutes(declaration)] : []),
     ...(has('share') ? [shareRoutes(declaration)] : []),
+    ...(has('merge')
+      ? [mergeRoutes(declaration, { response: options.schemas.response })]
+      : []),
     // The approvable actions' routes (declaration.approvals): POST /<path>/{id}/<action>.
     ...recordApprovalRoutes(declaration, {
       policy: options.policy,
@@ -160,6 +166,8 @@ export function recordParts(
     RecordStore,
     RecordLifecycle,
     RecordPresenter,
+    // The merge routes' (merge): its generic merges.
+    ...(has('merge') ? [{ provide: MERGES, useExisting: RecordMerge }] : []),
     // GET /v1/access/users/{id}/explanation finds its records.
     RecordAccessFinder,
     // GET /v1/lists/{subject}: its list described, and its capabilities.

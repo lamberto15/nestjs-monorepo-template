@@ -5,13 +5,12 @@
       "title": "笔记已发布",
       "body": {
         "other": "您有 {count} 条笔记已发布，最新的是“{title}”。"
-      }
-    },
-    "publishedMany": {
-      "label": "批量发布的笔记",
-      "title": "笔记已发布",
-      "body": {
-        "other": "已发布 {count} 批笔记；最近一批有 {notes} 篇，其中包括“{title}”。"
+      },
+      "bulk": {
+        "title": "笔记已发布",
+        "body": {
+          "other": "已发布 {count} 篇笔记，其中包括 {titles}。"
+        }
       }
     },
     "deleted": {

@@ -16,6 +16,9 @@ overrides:
   'multer@^2.0.0': 2.5.0
   'node-gyp@13.1.0>undici': 8.12.2
   'exceljs>uuid': 14.0.3
+  # GHSA-3f7j-7jwc-fxfj (high, fixed in 5.33.16), through
+  # @opentelemetry/instrumentation-host-metrics and the CLI's dependency.
+  'systeminformation@<5.33.16': 5.33.18
 allowBuilds:
   '@scarf/scarf': false
   # OpenTelemetry's OTLP transformer: the postinstall only prints a notice.
@@ -31,3 +34,7 @@ allowBuilds:
   # addon for the platform (verified against the hashes pinned in the
   # package), or builds it with node-gyp when none matches.
   re2: true
+patchedDependencies:
+  '@nestjs/authentication@0.1.1': patches/@nestjs__authentication@0.1.1.patch
+minimumReleaseAgeExclude:
+  - systeminformation@5.33.18

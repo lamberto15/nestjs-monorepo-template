@@ -790,7 +790,7 @@ CI runs the bundle budget and the Storybook build in `check`
   `scripts/check-lazy-locales.mjs` fails if any `locale-*` file is among the
   scripts of the first page load (`dist/index.html`), which the budgets alone
   cannot see. The limits sit about 10% above the measured sizes
-  (entry 64.6 kB, styles 19.6 kB, all scripts but the languages 0.97 MB, the four language chunks 147 kB at the time); over a limit, the
+  (entry 64.6 kB, styles 19.6 kB, all scripts but the languages 0.97 MB, the four language chunks 147 kB at the time, 162 kB when merging (#576) needed the language limit raised); over a limit, the
   `check` job fails the pull request, and its summary lists every size
   against its limit (the bundle analysis is the `web-bundle-analysis`
   artifact). Raise a limit in the same pull request that justifies it, never to

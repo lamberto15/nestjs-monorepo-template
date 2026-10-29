@@ -92,6 +92,10 @@ export const INVOICE = defineRecord({
   `idempotency` only when chosen. The notes example is hand-written and
   keeps granting its clients.
 
+- **Computed fields (`computed` in the declaration):** values derived from
+  the fields on read, never stored: `total: computed.money('quantity * unitPrice')`
+  ([computed fields](computed-fields.md)). No column, so no migration and
+  nothing for sync to do.
 - **Capabilities (`--with a,b,…`, or `capabilities` in the declaration):** each
   is a platform module, wired by `recordParts` with a generic target;
   `recordParts(…, { override: { revisions: MyRevisions } })` replaces one
@@ -112,12 +116,13 @@ export const INVOICE = defineRecord({
   | `events`      | webhooks `<item>.created`, `.updated`, `.deleted` (and `.restored` with a recycle bin), declared as event types and sent in the write's transaction through the outbox                                                                                                           |
   | `numbered`    | a gapless `number` per tenant (`INV-2026-00042`), set on create: in responses, filterable and sortable (`?number=`, `?sort=number`), in the PDF and exports; read-only; administrators' naming series replace the declared format ([sequences](sequences.md), "Naming series")   |
   | `automation`  | tenant [automation rules](automations.md) may act on its records when one is created or changed (set a field, add a tag, notify, a webhook); no routes of its own                                                                                                                |
+  | `merge`       | likely duplicates by the declaration's `duplicates` rules (`POST /<x>/duplicates`, `GET /<x>/{id}/duplicates`) and a previewed merge (`POST /<x>/{id}/merge`, `/merge/preview`); needs `softDelete` ([duplicates and merging](merging.md))                                       |
 
   `events`: the data of each webhook is the record as the API shows it
   (less the fields its receiver may not read), sent to the API client that
-  owns the record (endpoints belong to clients, so a user's records send
-  none: [webhooks](webhooks-and-realtime.md)); it needs no endpoint to
-  exist. `numbered`: the format is the declaration's `number: { prefix: 'INV',
+  owns the record and to the `tenant`-scope clients of its tenant that may
+  read it (a user's records reach only those: [webhooks](webhooks-and-realtime.md),
+  "Subscriber scope"); it needs no endpoint to exist. `numbered`: the format is the declaration's `number: { prefix: 'INV',
 perYear: true, width: 5 }` (default: the subject's initials, per year, 5
   digits; one counter per tenant, [sequences](sequences.md)); the column is
   nullable, so the capability can be added to a table with rows (those

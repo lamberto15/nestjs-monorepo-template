@@ -5,6 +5,7 @@ import {
   customValuesSchema,
 } from '../custom-fields/custom-field.schemas.js';
 import { fieldSchemas } from '../fields/fields.js';
+import { computedSchemas } from './record-computed.js';
 import { namingSeriesIdSchema } from '../sequences/naming-series.schemas.js';
 import { tagRefSchema } from '../tags/tag.schemas.js';
 import { numberFormat, type RecordDeclaration, takes } from './record.js';
@@ -21,7 +22,7 @@ const numberExample = (declaration: RecordDeclaration) => {
 /**
  * A record's API schemas, from its declaration (record.ts): `create` (POST's
  * body), `update` (PATCH's), `response` (a record as the API shows it: id,
- * owner, unit, the fields, tags, dates, the recycle bin's, `can` with
+ * owner, unit, the fields, the computed fields, tags, dates, the recycle bin's, `can` with
  * `?include=can`; never its tenant, the request's own), `bulk` (POST
  * /<x>/bulk's body, when it takes bulk).
  */
@@ -64,6 +65,7 @@ export function recordSchemas<const D extends RecordDeclaration>(
         ),
     }),
     ...fields.response,
+    ...computedSchemas(declaration.computed),
     ...(takes(declaration, 'tags') && {
       tags: z
         .array(tagRefSchema)

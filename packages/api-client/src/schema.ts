@@ -338,6 +338,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/access/clients/{clientId}/webhook-scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Which records' events the client's endpoints receive */
+        get: operations["ClientWebhooksController_scope_v1"];
+        /**
+         * Set which records' events the client's endpoints receive
+         * @description `tenant` also sends events about the tenant's records owned by users and other clients, each only when the client may read that record, redacted to the fields it may read; `own` (the default) only the client's own. Wants a recent sign-in: it widens what leaves the tenant.
+         */
+        put: operations["ClientWebhooksController_setScope_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/webhook-senders": {
         parameters: {
             query?: never;
@@ -1624,6 +1645,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/branding/logo/dark": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set the dark-mode logo of your tenant
+         * @description Who manages settings. Like the logo (the same types, size and checks), shown by the web app in its dark theme. Replaces the dark-mode logo. Audited (`branding.logo-changed`, `variant: dark`). 409 `branding_locked` while locked.
+         */
+        post: operations["BrandingController_uploadDark_v1"];
+        /**
+         * Remove the dark-mode logo of your tenant
+         * @description Who manages settings. The file goes too; the logo is shown in the dark theme again. Audited (`branding.logo-removed`). 409 `branding_locked` while locked.
+         */
+        delete: operations["BrandingController_removeDark_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/branding/{tenantId}/logo": {
         parameters: {
             query?: never;
@@ -1636,6 +1681,26 @@ export interface paths {
          * @description No sign-in needed. The image itself (PNG, JPEG or WebP, the type its bytes say), cached for five minutes, with `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox` and `Cross-Origin-Resource-Policy: cross-origin` (other sites' mail pages and apps may show it).
          */
         get: operations["PublicBrandingController_logo_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/{tenantId}/logo/dark": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The dark-mode logo of a tenant
+         * @description No sign-in needed. Like the logo, with the same headers: the image the web app shows in its dark theme.
+         */
+        get: operations["PublicBrandingController_darkLogo_v1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2740,6 +2805,116 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/recents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your recently opened records
+         * @description Newest first, at most 20, none older than 30 days. A record you no longer see (deleted, or your access changed) is left out.
+         */
+        get: operations["RecentsController_list_v1"];
+        put?: never;
+        /**
+         * Note that you opened a record
+         * @description Puts it first (opening it again moves it up, it is not listed twice). `label` is the title the page showed; send no field content. The 21th oldest drops out.
+         */
+        post: operations["RecentsController_record_v1"];
+        /**
+         * Clear your history
+         * @description Removes every recent record of yours in this tenant.
+         */
+        delete: operations["RecentsController_clear_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/recents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove one recent record */
+        delete: operations["RecentsController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/presence/{subject}/{recordId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Who is on a record now
+         * @description The people viewing or editing it, advisory only: saving is still guarded by the record's ETag. Leaves out whoever lost access to the record.
+         */
+        get: operations["PresenceController_list_v1"];
+        /**
+         * Say you are viewing or editing a record
+         * @description Beat every 15 seconds while the page is open; you drop out 45 seconds after the last beat. Send the mode only, never what is being typed. Answers with the list, as GET does. Others on the record hear `record.presence` (ids only) when you arrive or change mode.
+         */
+        put: operations["PresenceController_beat_v1"];
+        post?: never;
+        /** Say you left a record */
+        delete: operations["PresenceController_leave_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your work inbox
+         * @description What waits on you in the current tenant, newest first, cursor pages: approval requests to decide (`approval.decide`, yours or of someone you stand in for) or to revise (`approval.revise`, changes requested on your request), and unread mentions (`mention`). Each item is read from its source now, so it is gone once the work is done, and only what you may see is listed. `?source=` narrows to one source.
+         */
+        get: operations["InboxController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inbox/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss an item
+         * @description Only for items with `canDismiss` (a mention is marked read). An approval is done by deciding it.
+         */
+        post: operations["InboxController_dismiss_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/forms": {
         parameters: {
             query?: never;
@@ -3025,155 +3200,6 @@ export interface paths {
          * @description A signed link to one of the files the link lists, valid for 5 minutes, handed out only while the link works. Audited `share.opened` with the file.
          */
         post: operations["SharedController_file_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/automation-rules": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The automation rules
-         * @description `?status=active`, `?subject=Note`, `?name.contains=`; newest first; cursor pages.
-         */
-        get: operations["AutomationsController_list_v1"];
-        put?: never;
-        /**
-         * Create a rule
-         * @description A draft: it runs once activated. At most 5 actions. Audited (`automation-rule.created`).
-         */
-        post: operations["AutomationsController_create_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/automation-rules/subjects": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * What rules may be about
-         * @description The subjects that take automation rules, the fields a trigger may watch and an action may set, and whether they take tags.
-         */
-        get: operations["AutomationsController_subjects_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/automation-rules/simulate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Simulate a rule
-         * @description What a draft rule would do, without doing it: its conditions matched against the most recently changed records you may read (or `recordIds`), at most `limit` (50), each action checked under your permissions. No write, no notification, no webhook. `truncated`: more may match. A `field` trigger is not simulated (`triggerSimulated: false`): records are checked as they are now.
-         */
-        post: operations["AutomationsController_simulate_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/automation-rules/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** One automation rule */
-        get: operations["AutomationsController_get_v1"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete a rule
-         * @description With its runs. Audited (`automation-rule.deleted`).
-         */
-        delete: operations["AutomationsController_remove_v1"];
-        options?: never;
-        head?: never;
-        /**
-         * Change a rule
-         * @description Only what is sent changes. A change of its trigger, conditions or actions is a new `version`, and an active rule becomes a draft until activated again. Audited (`automation-rule.updated`).
-         */
-        patch: operations["AutomationsController_update_v1"];
-        trace?: never;
-    };
-    "/v1/automation-rules/{id}/activate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Activate a rule
-         * @description It runs from now on, as you, with your permissions as they are at each run (checked again now). At most 20 active rules. Audited (`automation-rule.activated`).
-         */
-        post: operations["AutomationsController_activate_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/automation-rules/{id}/disable": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Disable a rule
-         * @description It stops at once: runs already queued do nothing. Audited (`automation-rule.disabled`, reason `manual`).
-         */
-        post: operations["AutomationsController_disable_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/automation-rules/{id}/runs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * A rule's runs
-         * @description What each run did, or why it failed (`status=failed`, `error`); newest first; cursor pages.
-         */
-        get: operations["AutomationsController_runs_v1"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6151,6 +6177,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notes/duplicates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Find notes like these values
+         * @description Before creating or changing a note: the notes you may read that its values would duplicate, by the feature's rules (each rule's fields all equal; text without case or surrounding spaces), newest first, at most 20. A match by a field you may not read on a record is no match.
+         */
+        post: operations["NoteMergeController_find_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/duplicates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The likely duplicates of a note
+         * @description The other notes you may read matching it by the feature's rules, by its values you may read.
+         */
+        get: operations["NoteMergeController_duplicates_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/merge/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview merging a duplicate into a note
+         * @description What the merge would do, checked as it checks: the fields you may choose (read on both, change on the survivor), each with both values and whose is kept, the survivor as it would be, and what moves to it. Changes nothing.
+         */
+        post: operations["NoteMergeController_preview_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge a duplicate into a note
+         * @description In one transaction, or not at all: the survivor takes the values `fields` chooses from the duplicate (audited `note.updated`, a revision), gains its tags, comments, attachments and watchers, the records referring to it point at the survivor, and the duplicate goes to the recycle bin (restorable: POST /v1/notes/{id}/restore). Audited `.merged` with what moved. The checks are the preview's. Answers the survivor.
+         */
+        post: operations["NoteMergeController_merge_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -7254,6 +7360,61 @@ export interface components {
             /** @description The web app's page that opens it: `<WEB_URL>/shared#<token>`. */
             url: string;
         };
+        DuplicateList: {
+            items: components["schemas"]["Duplicate"][];
+        };
+        Duplicate: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description The rules it matched, each the fields whose values are the same (text without case or surrounding spaces).
+             * @example [
+             *       [
+             *         "title"
+             *       ]
+             *     ]
+             */
+            matched: string[][];
+            /** @description The record as you may read it (fields hidden from you left out). */
+            record: {
+                [key: string]: unknown;
+            };
+        };
+        MergePreview: {
+            /** @description The record as you may read it (fields hidden from you left out). */
+            survivor: {
+                [key: string]: unknown;
+            };
+            /** @description The record as you may read it (fields hidden from you left out). */
+            duplicate: {
+                [key: string]: unknown;
+            };
+            /** @description The fields you may read on both records and change on the survivor: the ones you may choose. */
+            fields: {
+                name: string;
+                survivor: unknown;
+                duplicate: unknown;
+                differs: boolean;
+                /** @enum {string} */
+                keep: "survivor" | "duplicate";
+            }[];
+            /** @description The survivor once merged. */
+            result: {
+                [key: string]: unknown;
+            };
+            /** @description What moves from the duplicate to the survivor: its tags, comments, attachments and watchers, and the records whose references point at it. The duplicate's revisions stay with it. */
+            moves: {
+                tags: number;
+                comments: number;
+                attachments: number;
+                watchers: number;
+                references: {
+                    subject: string;
+                    field: string;
+                    count: number;
+                }[];
+            };
+        };
         RealtimeNotificationEvent: {
             /** Format: uuid */
             id: string;
@@ -7397,6 +7558,10 @@ export interface components {
             commentId: string;
             /** @enum {string} */
             action: "added" | "edited" | "removed";
+        };
+        RealtimeRecordPresenceEvent: {
+            subject: string;
+            recordId: string;
         };
         RealtimeRecordAttachmentsChangedEvent: {
             subject: string;
@@ -8860,6 +9025,120 @@ export interface operations {
                 content?: never;
             };
             /** @description Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description feature_off: API_CLIENTS=off in this deployment.
+             *
+             *     No such client in your tenant, endpoint or delivery.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ClientWebhooksController_scope_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clientId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description own (the default): only the records the client owns. tenant: also its tenant's records owned by users and other clients, each only when the client may read it, without the fields it may not read.
+                         * @enum {string}
+                         */
+                        scope: "own" | "tenant";
+                    };
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description feature_off: API_CLIENTS=off in this deployment.
+             *
+             *     No such client in your tenant, endpoint or delivery.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ClientWebhooksController_setScope_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clientId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description own (the default): only the records the client owns. tenant: also its tenant's records owned by users and other clients, each only when the client may read it, without the fields it may not read.
+                     * @enum {string}
+                     */
+                    scope: "own" | "tenant";
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description own (the default): only the records the client owns. tenant: also its tenant's records owned by users and other clients, each only when the client may read it, without the fields it may not read.
+                         * @enum {string}
+                         */
+                        scope: "own" | "tenant";
+                    };
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -14440,10 +14719,14 @@ export interface operations {
                     "application/json": {
                         /** @description `#rrggbb`, or null: the default theme. */
                         primaryColor: string | null;
+                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
+                        darkPrimaryColor: string | null;
                         /** @description The name mail is sent under, or null: the deployment’s. */
                         mailFromName: string | null;
                         /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
                         logoUrl: string | null;
+                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
+                        darkLogoUrl: string | null;
                         /** @description The operators locked it: `PUT` and the logo routes answer 409. */
                         locked: boolean;
                         /** @description The caller may change it (and it is not locked). */
@@ -14471,6 +14754,7 @@ export interface operations {
             content: {
                 "application/json": {
                     primaryColor?: string | null;
+                    darkPrimaryColor?: string | null;
                     mailFromName?: string | null;
                 };
             };
@@ -14484,10 +14768,14 @@ export interface operations {
                     "application/json": {
                         /** @description `#rrggbb`, or null: the default theme. */
                         primaryColor: string | null;
+                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
+                        darkPrimaryColor: string | null;
                         /** @description The name mail is sent under, or null: the deployment’s. */
                         mailFromName: string | null;
                         /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
                         logoUrl: string | null;
+                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
+                        darkLogoUrl: string | null;
                         /** @description The operators locked it: `PUT` and the logo routes answer 409. */
                         locked: boolean;
                         /** @description The caller may change it (and it is not locked). */
@@ -14538,10 +14826,14 @@ export interface operations {
                     "application/json": {
                         /** @description `#rrggbb`, or null: the default theme. */
                         primaryColor: string | null;
+                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
+                        darkPrimaryColor: string | null;
                         /** @description The name mail is sent under, or null: the deployment’s. */
                         mailFromName: string | null;
                         /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
                         logoUrl: string | null;
+                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
+                        darkLogoUrl: string | null;
                         /** @description The operators locked it: `PUT` and the logo routes answer 409. */
                         locked: boolean;
                         /** @description The caller may change it (and it is not locked). */
@@ -14617,6 +14909,116 @@ export interface operations {
             };
         };
     };
+    BrandingController_uploadDark_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description Required. A PNG, JPEG or WebP image of at most 512 KB, recognized by its bytes.
+                     */
+                    file?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description `#rrggbb`, or null: the default theme. */
+                        primaryColor: string | null;
+                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
+                        darkPrimaryColor: string | null;
+                        /** @description The name mail is sent under, or null: the deployment’s. */
+                        mailFromName: string | null;
+                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
+                        logoUrl: string | null;
+                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
+                        darkLogoUrl: string | null;
+                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
+                        locked: boolean;
+                        /** @description The caller may change it (and it is not locked). */
+                        canEdit: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked by the operators (branding_locked). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Larger than 512 KB (payload_too_large). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a PNG, JPEG or WebP (unsupported_media_type). */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingController_removeDark_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description There is no dark-mode logo. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked by the operators (branding_locked). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     PublicBrandingController_logo_v1: {
         parameters: {
             query?: never;
@@ -14636,6 +15038,33 @@ export interface operations {
                 content?: never;
             };
             /** @description The tenant has no logo. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PublicBrandingController_darkLogo_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The tenant has no dark-mode logo. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -14931,8 +15360,8 @@ export interface operations {
                             numbered: boolean;
                             /** @description Read-only links to a record (`…/{id}/shares`), opened without a sign-in (POST /v1/shared/open). */
                             share: boolean;
-                            /** @description Automation rules may act on its records when they are created or changed (GET /v1/automation-rules). */
-                            automation: boolean;
+                            /** @description Duplicates found by its declared rules (`…/duplicates`) and merged into one record (`…/{id}/merge`). */
+                            merge: boolean;
                             /** @description An action on the records may need approval (GET /v1/approvals). */
                             approvals: boolean;
                         };
@@ -18709,6 +19138,431 @@ export interface operations {
             };
         };
     };
+    RecentsController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            id: string;
+                            /** @example Note */
+                            subject: string;
+                            recordId: string;
+                            /** @example Q4 plan */
+                            label: string;
+                            /** Format: date-time */
+                            viewedAt: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecentsController_record_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    subject: string;
+                    /** Format: uuid */
+                    recordId: string;
+                    label: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        /** @example Note */
+                        subject: string;
+                        recordId: string;
+                        /** @example Q4 plan */
+                        label: string;
+                        /** Format: date-time */
+                        viewedAt: string;
+                    };
+                };
+            };
+            /** @description A malformed entry (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such record, or you may not see it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecentsController_clear_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecentsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not one of your recent records. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PresenceController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subject: string;
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** @description The principal key: `user:<id>`. */
+                            key: string;
+                            name: string;
+                            /** @enum {string} */
+                            mode: "viewing" | "editing";
+                            /** @description It is you (another tab of yours). */
+                            self: boolean;
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such record, or you may not see it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PresenceController_beat_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subject: string;
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    mode: "viewing" | "editing";
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** @description The principal key: `user:<id>`. */
+                            key: string;
+                            name: string;
+                            /** @enum {string} */
+                            mode: "viewing" | "editing";
+                            /** @description It is you (another tab of yours). */
+                            self: boolean;
+                        }[];
+                    };
+                };
+            };
+            /** @description A malformed mode (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such record, or you may not see it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PresenceController_leave_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subject: string;
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such record, or you may not see it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InboxController_list_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+                /** @description Only this source: `approval`, `mention`. */
+                source?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /**
+                             * @description `<source>:<id>`: the item, for dismissing it.
+                             * @example approval:0190a0a0-0000-7000-8000-000000000000
+                             */
+                            key: string;
+                            /** @example approval */
+                            source: string;
+                            /**
+                             * @description What the work is: `approval.decide`, `approval.revise`, `mention`.
+                             * @example approval.decide
+                             */
+                            kind: string;
+                            /**
+                             * Format: date-time
+                             * @description When it came to you; the list is newest first.
+                             */
+                            at: string;
+                            /** Format: date-time */
+                            dueAt: string | null;
+                            /** @description Where to do it, a path of the web app. */
+                            link: string | null;
+                            subject: string | null;
+                            recordId: string | null;
+                            /** @description What the client words the item with: a title, who asked. */
+                            data: {
+                                [key: string]: unknown;
+                            };
+                            /** @description false: it is done at its source (decide the request), not here. */
+                            canDismiss: boolean;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
+            };
+            /** @description A bad cursor (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such source. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InboxController_dismiss_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    key: string;
+                };
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The item is done at its source. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not an item of yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     FormsController_list_v1: {
         parameters: {
             query?: {
@@ -20651,1093 +21505,6 @@ export interface operations {
                 content?: never;
             };
             /** @description The link does not work, or does not share this file. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AutomationsController_list_v1: {
-        parameters: {
-            query?: {
-                limit?: number;
-                /** @description `nextCursor` of the previous page (the same `sort`). */
-                cursor?: string;
-                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
-                page?: number;
-                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
-                count?: "true" | "false";
-                lang?: string;
-                /** @description Filter: subject = */
-                subject?: string;
-                /** @description Filter: subject in */
-                "subject.in"?: string;
-                /** @description Filter: status = */
-                status?: string;
-                /** @description Filter: status in */
-                "status.in"?: string;
-                /** @description Filter: name = */
-                name?: string;
-                /** @description Filter: name contains */
-                "name.contains"?: string;
-                /** @description Filter: updatedAt gt */
-                "updatedAt.gt"?: string;
-                /** @description Filter: updatedAt gte */
-                "updatedAt.gte"?: string;
-                /** @description Filter: updatedAt lt */
-                "updatedAt.lt"?: string;
-                /** @description Filter: updatedAt lte */
-                "updatedAt.lte"?: string;
-                /** @description Filter: updatedAt between */
-                "updatedAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"subject","op":"eq","value":…},{…}]}. Fields and operators: subject (eq, in); status (eq, in); name (eq, contains); updatedAt (gt, gte, lt, lte, between). */
-                filter?: string;
-                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, updatedAt. */
-                sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: name,subject. Fields: id, name, subject, trigger, field, filters, actions, status, version, owner, activatedAt, disabledReason, failures, lastRunAt, lastStatus, createdAt, updatedAt. */
-                fields?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: {
-                            id: string;
-                            name: string;
-                            subject: string;
-                            /** @enum {string} */
-                            trigger: "created" | "updated";
-                            field: string | null;
-                            filters: {
-                                [key: string]: string;
-                            };
-                            actions: ({
-                                /** @enum {string} */
-                                type: "setField";
-                                field: string;
-                                /** @description The field's new value, as its PATCH route takes it. */
-                                value: string | number | boolean | (null);
-                            } | {
-                                /** @enum {string} */
-                                type: "addTag";
-                                /**
-                                 * Format: uuid
-                                 * @description A tag of the subject (GET /v1/tags).
-                                 */
-                                tagId: string;
-                            } | {
-                                /** @enum {string} */
-                                type: "notify";
-                                /** @description Members told (in-app, by their preferences); only those who may read the record. */
-                                userIds: string[];
-                            } | {
-                                /** @enum {string} */
-                                type: "webhook";
-                                /**
-                                 * Format: uuid
-                                 * @description An API client of the tenant: its endpoints subscribed to `automation.matched` get the record, as that client may read it (only when it may).
-                                 */
-                                clientId: string;
-                            })[];
-                            /**
-                             * @description Only an active rule runs; a change of what it does makes it a draft again.
-                             * @enum {string}
-                             */
-                            status: "draft" | "active" | "disabled";
-                            /** @description Counts the changes of its trigger, conditions and actions. */
-                            version: number;
-                            /** @description `user:<id>` of who activated it: it runs with their permissions. */
-                            owner: string | null;
-                            /** Format: date-time */
-                            activatedAt: string | null;
-                            /** @description `manual`, `owner_inactive`, `run_limit`, `failing`, `subject_gone`. */
-                            disabledReason: string | null;
-                            /** @description Failed runs in a row. */
-                            failures: number;
-                            /** Format: date-time */
-                            lastRunAt: string | null;
-                            /** @enum {string|null} */
-                            lastStatus: "succeeded" | "failed" | null;
-                            /** Format: date-time */
-                            createdAt: string;
-                            /** Format: date-time */
-                            updatedAt: string;
-                        }[];
-                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
-                        nextCursor: string | null;
-                        /** @description With `page`: this page. */
-                        page?: number;
-                        /** @description With `page`: the next page; null: no more. */
-                        nextPage?: number | null;
-                        /** @description With `page` and `count=true`: ceil(total / limit). */
-                        pageCount?: number;
-                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
-                        total?: number;
-                        /** @description true: there are more than `total` (show "10,000+"). */
-                        totalCapped?: boolean;
-                    };
-                };
-            };
-            /** @description No valid session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions, or its conditions use a field your permissions hide (field_forbidden). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AutomationsController_create_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @example Tag urgent notes */
-                    name: string;
-                    /**
-                     * @description A subject that takes automations (GET /v1/automation-rules/subjects).
-                     * @example Note
-                     */
-                    subject: string;
-                    /**
-                     * @description A record of the subject created, or changed.
-                     * @enum {string}
-                     */
-                    trigger: "created" | "updated";
-                    /**
-                     * @description With `updated`: only when this field changed.
-                     * @default null
-                     */
-                    field?: string | null;
-                    /**
-                     * @description Conditions: the subject's list filters, as on its list route ({ "title.contains": "urgent" }, `filter` for and/or groups).
-                     * @default {}
-                     */
-                    filters?: {
-                        [key: string]: string;
-                    };
-                    actions: ({
-                        /** @enum {string} */
-                        type: "setField";
-                        field: string;
-                        /** @description The field's new value, as its PATCH route takes it. */
-                        value: string | number | boolean | (null);
-                    } | {
-                        /** @enum {string} */
-                        type: "addTag";
-                        /**
-                         * Format: uuid
-                         * @description A tag of the subject (GET /v1/tags).
-                         */
-                        tagId: string;
-                    } | {
-                        /** @enum {string} */
-                        type: "notify";
-                        /** @description Members told (in-app, by their preferences); only those who may read the record. */
-                        userIds: string[];
-                    } | {
-                        /** @enum {string} */
-                        type: "webhook";
-                        /**
-                         * Format: uuid
-                         * @description An API client of the tenant: its endpoints subscribed to `automation.matched` get the record, as that client may read it (only when it may).
-                         */
-                        clientId: string;
-                    })[];
-                };
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        id: string;
-                        name: string;
-                        subject: string;
-                        /** @enum {string} */
-                        trigger: "created" | "updated";
-                        field: string | null;
-                        filters: {
-                            [key: string]: string;
-                        };
-                        actions: ({
-                            /** @enum {string} */
-                            type: "setField";
-                            field: string;
-                            /** @description The field's new value, as its PATCH route takes it. */
-                            value: string | number | boolean | (null);
-                        } | {
-                            /** @enum {string} */
-                            type: "addTag";
-                            /**
-                             * Format: uuid
-                             * @description A tag of the subject (GET /v1/tags).
-                             */
-                            tagId: string;
-                        } | {
-                            /** @enum {string} */
-                            type: "notify";
-                            /** @description Members told (in-app, by their preferences); only those who may read the record. */
-                            userIds: string[];
-                        } | {
-                            /** @enum {string} */
-                            type: "webhook";
-                            /**
-                             * Format: uuid
-                             * @description An API client of the tenant: its endpoints subscribed to `automation.matched` get the record, as that client may read it (only when it may).
-                             */
-                            clientId: string;
-                        })[];
-                        /**
-                         * @description Only an active rule runs; a change of what it does makes it a draft again.
-                         * @enum {string}
-                         */
-                        status: "draft" | "active" | "disabled";
-                        /** @description Counts the changes of its trigger, conditions and actions. */
-                        version: number;
-                        /** @description `user:<id>` of who activated it: it runs with their permissions. */
-                        owner: string | null;
-                        /** Format: date-time */
-                        activatedAt: string | null;
-                        /** @description `manual`, `owner_inactive`, `run_limit`, `failing`, `subject_gone`. */
-                        disabledReason: string | null;
-                        /** @description Failed runs in a row. */
-                        failures: number;
-                        /** Format: date-time */
-                        lastRunAt: string | null;
-                        /** @enum {string|null} */
-                        lastStatus: "succeeded" | "failed" | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
-                };
-            };
-            /** @description A subject that takes no rules, a field it lacks, conditions its list refuses (`filters.<key>`), an action it cannot do or a value its field refuses (`actions.<n>`) (validation_failed). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions, or its conditions use a field your permissions hide (field_forbidden). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AutomationsController_subjects_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: {
-                            /** @example Note */
-                            subject: string;
-                            /** @example notes */
-                            path: string;
-                            /** @description Fields an `updated` trigger may watch. */
-                            fields: string[];
-                            /** @description Fields a `setField` action may set. */
-                            settable: string[];
-                            /** @description Whether its records take tags (`addTag`). */
-                            tags: boolean;
-                        }[];
-                    };
-                };
-            };
-            /** @description No valid session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions, or its conditions use a field your permissions hide (field_forbidden). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AutomationsController_simulate_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /**
-                     * @description A subject that takes automations (GET /v1/automation-rules/subjects).
-                     * @example Note
-                     */
-                    subject: string;
-                    /**
-                     * @description A record of the subject created, or changed.
-                     * @enum {string}
-                     */
-                    trigger: "created" | "updated";
-                    /**
-                     * @description With `updated`: only when this field changed.
-                     * @default null
-                     */
-                    field?: string | null;
-                    /**
-                     * @description Conditions: the subject's list filters, as on its list route ({ "title.contains": "urgent" }, `filter` for and/or groups).
-                     * @default {}
-                     */
-                    filters?: {
-                        [key: string]: string;
-                    };
-                    actions: ({
-                        /** @enum {string} */
-                        type: "setField";
-                        field: string;
-                        /** @description The field's new value, as its PATCH route takes it. */
-                        value: string | number | boolean | (null);
-                    } | {
-                        /** @enum {string} */
-                        type: "addTag";
-                        /**
-                         * Format: uuid
-                         * @description A tag of the subject (GET /v1/tags).
-                         */
-                        tagId: string;
-                    } | {
-                        /** @enum {string} */
-                        type: "notify";
-                        /** @description Members told (in-app, by their preferences); only those who may read the record. */
-                        userIds: string[];
-                    } | {
-                        /** @enum {string} */
-                        type: "webhook";
-                        /**
-                         * Format: uuid
-                         * @description An API client of the tenant: its endpoints subscribed to `automation.matched` get the record, as that client may read it (only when it may).
-                         */
-                        clientId: string;
-                    })[];
-                    /** @description These records; default: the most recently changed ones. */
-                    recordIds?: string[];
-                    /**
-                     * @description Records looked at, at most (50).
-                     * @default 20
-                     */
-                    limit?: number;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        subject: string;
-                        /** @description The sample limit this simulation used. */
-                        limit: number;
-                        /** @description Records that match the conditions, in the sample. */
-                        matched: number;
-                        /** @description The limit was reached: more records may match than shown. */
-                        truncated: boolean;
-                        /** @description False with a `field` trigger: records are checked as they are now, as if that field had just changed. */
-                        triggerSimulated: boolean;
-                        matches: {
-                            recordId: string;
-                            /** @description Its title, when your permissions show it. */
-                            title: string | null;
-                            actions: {
-                                /** @enum {string} */
-                                type: "setField" | "addTag" | "notify" | "webhook";
-                                allowed: boolean;
-                                /** @description Why not: `forbidden`, `field_forbidden`, `unknown_tag`, `no_recipient`, `client_cannot_read`. */
-                                reason: string | null;
-                                /** @description What it does: `title = "…"`, the tag, how many are told, the client. */
-                                detail: string;
-                            }[];
-                        }[];
-                    };
-                };
-            };
-            /** @description A subject that takes no rules, a field it lacks, conditions its list refuses (`filters.<key>`), an action it cannot do or a value its field refuses (`actions.<n>`) (validation_failed). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions, or its conditions use a field your permissions hide (field_forbidden). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AutomationsController_get_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        id: string;
-                        name: string;
-                        subject: string;
-                        /** @enum {string} */
-                        trigger: "created" | "updated";
-                        field: string | null;
-                        filters: {
-                            [key: string]: string;
-                        };
-                        actions: ({
-                            /** @enum {string} */
-                            type: "setField";
-                            field: string;
-                            /** @description The field's new value, as its PATCH route takes it. */
-                            value: string | number | boolean | (null);
-                        } | {
-                            /** @enum {string} */
-                            type: "addTag";
-                            /**
-                             * Format: uuid
-                             * @description A tag of the subject (GET /v1/tags).
-                             */
-                            tagId: string;
-                        } | {
-                            /** @enum {string} */
-                            type: "notify";
-                            /** @description Members told (in-app, by their preferences); only those who may read the record. */
-                            userIds: string[];
-                        } | {
-                            /** @enum {string} */
-                            type: "webhook";
-                            /**
-                             * Format: uuid
-                             * @description An API client of the tenant: its endpoints subscribed to `automation.matched` get the record, as that client may read it (only when it may).
-                             */
-                            clientId: string;
-                        })[];
-                        /**
-                         * @description Only an active rule runs; a change of what it does makes it a draft again.
-                         * @enum {string}
-                         */
-                        status: "draft" | "active" | "disabled";
-                        /** @description Counts the changes of its trigger, conditions and actions. */
-                        version: number;
-                        /** @description `user:<id>` of who activated it: it runs with their permissions. */
-                        owner: string | null;
-                        /** Format: date-time */
-                        activatedAt: string | null;
-                        /** @description `manual`, `owner_inactive`, `run_limit`, `failing`, `subject_gone`. */
-                        disabledReason: string | null;
-                        /** @description Failed runs in a row. */
-                        failures: number;
-                        /** Format: date-time */
-                        lastRunAt: string | null;
-                        /** @enum {string|null} */
-                        lastStatus: "succeeded" | "failed" | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
-                };
-            };
-            /** @description No valid session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions, or its conditions use a field your permissions hide (field_forbidden). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AutomationsController_remove_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions, or its conditions use a field your permissions hide (field_forbidden). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AutomationsController_update_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @example Tag urgent notes */
-                    name?: string;
-                    /**
-                     * @description A record of the subject created, or changed.
-                     * @enum {string}
-                     */
-                    trigger?: "created" | "updated";
-                    field?: string | null;
-                    filters?: {
-                        [key: string]: string;
-                    };
-                    actions?: ({
-                        /** @enum {string} */
-                        type: "setField";
-                        field: string;
-                        /** @description The field's new value, as its PATCH route takes it. */
-                        value: string | number | boolean | (null);
-                    } | {
-                        /** @enum {string} */
-                        type: "addTag";
-                        /**
-                         * Format: uuid
-                         * @description A tag of the subject (GET /v1/tags).
-                         */
-                        tagId: string;
-                    } | {
-                        /** @enum {string} */
-                        type: "notify";
-                        /** @description Members told (in-app, by their preferences); only those who may read the record. */
-                        userIds: string[];
-                    } | {
-                        /** @enum {string} */
-                        type: "webhook";
-                        /**
-                         * Format: uuid
-                         * @description An API client of the tenant: its endpoints subscribed to `automation.matched` get the record, as that client may read it (only when it may).
-                         */
-                        clientId: string;
-                    })[];
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        id: string;
-                        name: string;
-                        subject: string;
-                        /** @enum {string} */
-                        trigger: "created" | "updated";
-                        field: string | null;
-                        filters: {
-                            [key: string]: string;
-                        };
-                        actions: ({
-                            /** @enum {string} */
-                            type: "setField";
-                            field: string;
-                            /** @description The field's new value, as its PATCH route takes it. */
-                            value: string | number | boolean | (null);
-                        } | {
-                            /** @enum {string} */
-                            type: "addTag";
-                            /**
-                             * Format: uuid
-                             * @description A tag of the subject (GET /v1/tags).
-                             */
-                            tagId: string;
-                        } | {
-                            /** @enum {string} */
-                            type: "notify";
-                            /** @description Members told (in-app, by their preferences); only those who may read the record. */
-                            userIds: string[];
-                        } | {
-                            /** @enum {string} */
-                            type: "webhook";
-                            /**
-                             * Format: uuid
-                             * @description An API client of the tenant: its endpoints subscribed to `automation.matched` get the record, as that client may read it (only when it may).
-                             */
-                            clientId: string;
-                        })[];
-                        /**
-                         * @description Only an active rule runs; a change of what it does makes it a draft again.
-                         * @enum {string}
-                         */
-                        status: "draft" | "active" | "disabled";
-                        /** @description Counts the changes of its trigger, conditions and actions. */
-                        version: number;
-                        /** @description `user:<id>` of who activated it: it runs with their permissions. */
-                        owner: string | null;
-                        /** Format: date-time */
-                        activatedAt: string | null;
-                        /** @description `manual`, `owner_inactive`, `run_limit`, `failing`, `subject_gone`. */
-                        disabledReason: string | null;
-                        /** @description Failed runs in a row. */
-                        failures: number;
-                        /** Format: date-time */
-                        lastRunAt: string | null;
-                        /** @enum {string|null} */
-                        lastStatus: "succeeded" | "failed" | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
-                };
-            };
-            /** @description A subject that takes no rules, a field it lacks, conditions its list refuses (`filters.<key>`), an action it cannot do or a value its field refuses (`actions.<n>`) (validation_failed). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions, or its conditions use a field your permissions hide (field_forbidden). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AutomationsController_activate_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        id: string;
-                        name: string;
-                        subject: string;
-                        /** @enum {string} */
-                        trigger: "created" | "updated";
-                        field: string | null;
-                        filters: {
-                            [key: string]: string;
-                        };
-                        actions: ({
-                            /** @enum {string} */
-                            type: "setField";
-                            field: string;
-                            /** @description The field's new value, as its PATCH route takes it. */
-                            value: string | number | boolean | (null);
-                        } | {
-                            /** @enum {string} */
-                            type: "addTag";
-                            /**
-                             * Format: uuid
-                             * @description A tag of the subject (GET /v1/tags).
-                             */
-                            tagId: string;
-                        } | {
-                            /** @enum {string} */
-                            type: "notify";
-                            /** @description Members told (in-app, by their preferences); only those who may read the record. */
-                            userIds: string[];
-                        } | {
-                            /** @enum {string} */
-                            type: "webhook";
-                            /**
-                             * Format: uuid
-                             * @description An API client of the tenant: its endpoints subscribed to `automation.matched` get the record, as that client may read it (only when it may).
-                             */
-                            clientId: string;
-                        })[];
-                        /**
-                         * @description Only an active rule runs; a change of what it does makes it a draft again.
-                         * @enum {string}
-                         */
-                        status: "draft" | "active" | "disabled";
-                        /** @description Counts the changes of its trigger, conditions and actions. */
-                        version: number;
-                        /** @description `user:<id>` of who activated it: it runs with their permissions. */
-                        owner: string | null;
-                        /** Format: date-time */
-                        activatedAt: string | null;
-                        /** @description `manual`, `owner_inactive`, `run_limit`, `failing`, `subject_gone`. */
-                        disabledReason: string | null;
-                        /** @description Failed runs in a row. */
-                        failures: number;
-                        /** Format: date-time */
-                        lastRunAt: string | null;
-                        /** @enum {string|null} */
-                        lastStatus: "succeeded" | "failed" | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
-                };
-            };
-            /** @description A subject that takes no rules, a field it lacks, conditions its list refuses (`filters.<key>`), an action it cannot do or a value its field refuses (`actions.<n>`) (validation_failed). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions, or its conditions use a field your permissions hide (field_forbidden). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Active already (automation_active). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AutomationsController_disable_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        id: string;
-                        name: string;
-                        subject: string;
-                        /** @enum {string} */
-                        trigger: "created" | "updated";
-                        field: string | null;
-                        filters: {
-                            [key: string]: string;
-                        };
-                        actions: ({
-                            /** @enum {string} */
-                            type: "setField";
-                            field: string;
-                            /** @description The field's new value, as its PATCH route takes it. */
-                            value: string | number | boolean | (null);
-                        } | {
-                            /** @enum {string} */
-                            type: "addTag";
-                            /**
-                             * Format: uuid
-                             * @description A tag of the subject (GET /v1/tags).
-                             */
-                            tagId: string;
-                        } | {
-                            /** @enum {string} */
-                            type: "notify";
-                            /** @description Members told (in-app, by their preferences); only those who may read the record. */
-                            userIds: string[];
-                        } | {
-                            /** @enum {string} */
-                            type: "webhook";
-                            /**
-                             * Format: uuid
-                             * @description An API client of the tenant: its endpoints subscribed to `automation.matched` get the record, as that client may read it (only when it may).
-                             */
-                            clientId: string;
-                        })[];
-                        /**
-                         * @description Only an active rule runs; a change of what it does makes it a draft again.
-                         * @enum {string}
-                         */
-                        status: "draft" | "active" | "disabled";
-                        /** @description Counts the changes of its trigger, conditions and actions. */
-                        version: number;
-                        /** @description `user:<id>` of who activated it: it runs with their permissions. */
-                        owner: string | null;
-                        /** Format: date-time */
-                        activatedAt: string | null;
-                        /** @description `manual`, `owner_inactive`, `run_limit`, `failing`, `subject_gone`. */
-                        disabledReason: string | null;
-                        /** @description Failed runs in a row. */
-                        failures: number;
-                        /** Format: date-time */
-                        lastRunAt: string | null;
-                        /** @enum {string|null} */
-                        lastStatus: "succeeded" | "failed" | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
-                };
-            };
-            /** @description No valid session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions, or its conditions use a field your permissions hide (field_forbidden). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AutomationsController_runs_v1: {
-        parameters: {
-            query?: {
-                limit?: number;
-                /** @description `nextCursor` of the previous page (the same `sort`). */
-                cursor?: string;
-                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
-                page?: number;
-                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
-                count?: "true" | "false";
-                lang?: string;
-                /** @description Filter: status = */
-                status?: string;
-                /** @description Filter: recordId = */
-                recordId?: string;
-                /** @description Filter: createdAt gt */
-                "createdAt.gt"?: string;
-                /** @description Filter: createdAt gte */
-                "createdAt.gte"?: string;
-                /** @description Filter: createdAt lt */
-                "createdAt.lt"?: string;
-                /** @description Filter: createdAt lte */
-                "createdAt.lte"?: string;
-                /** @description Filter: createdAt between */
-                "createdAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"status","op":"eq","value":…},{…}]}. Fields and operators: status (eq); recordId (eq); createdAt (gt, gte, lt, lte, between). */
-                filter?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: ruleVersion,recordId. Fields: id, ruleVersion, recordId, status, actions, error, createdAt. */
-                fields?: string;
-            };
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: {
-                            id: string;
-                            ruleVersion: number;
-                            recordId: string;
-                            /** @enum {string} */
-                            status: "succeeded" | "failed";
-                            actions: {
-                                /** @enum {string} */
-                                type: "setField" | "addTag" | "notify" | "webhook";
-                                allowed: boolean;
-                                /** @description Why not: `forbidden`, `field_forbidden`, `unknown_tag`, `no_recipient`, `client_cannot_read`. */
-                                reason: string | null;
-                                /** @description What it does: `title = "…"`, the tag, how many are told, the client. */
-                                detail: string;
-                            }[];
-                            error: string | null;
-                            /** Format: date-time */
-                            createdAt: string;
-                        }[];
-                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
-                        nextCursor: string | null;
-                        /** @description With `page`: this page. */
-                        page?: number;
-                        /** @description With `page`: the next page; null: no more. */
-                        nextPage?: number | null;
-                        /** @description With `page` and `count=true`: ceil(total / limit). */
-                        pageCount?: number;
-                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
-                        total?: number;
-                        /** @description true: there are more than `total` (show "10,000+"). */
-                        totalCapped?: boolean;
-                    };
-                };
-            };
-            /** @description No valid session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions, or its conditions use a field your permissions hide (field_forbidden). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -35856,6 +35623,288 @@ export interface operations {
             };
             /** @description No such note (or link). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteMergeController_find_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The record's values by field (a create or PATCH body's). */
+                    values: {
+                        [key: string]: string | number | boolean | (null);
+                    };
+                    /**
+                     * Format: uuid
+                     * @description The record being changed: never its own duplicate.
+                     */
+                    excludeId?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note that you may read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteMergeController_duplicates_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note that you may read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteMergeController_preview_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description The record merged into this one: it goes to the recycle bin once merged.
+                     */
+                    duplicateId: string;
+                    /**
+                     * @description Whose value each field keeps: `duplicate` takes the duplicate's; any field left out keeps the survivor's.
+                     * @default {}
+                     * @example {
+                     *       "title": "duplicate"
+                     *     }
+                     */
+                    fields?: {
+                        [key: string]: "survivor" | "duplicate";
+                    };
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergePreview"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change the survivor, delete the duplicate, choose a field (field_forbidden) or change a record referring to the duplicate (merge_references_forbidden). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note that you may read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The duplicate is under a legal hold (legal_hold). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The same record twice (merge_same_record), or the survivor would refer to itself (merge_self_reference). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteMergeController_merge_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description The record merged into this one: it goes to the recycle bin once merged.
+                     */
+                    duplicateId: string;
+                    /**
+                     * @description Whose value each field keeps: `duplicate` takes the duplicate's; any field left out keeps the survivor's.
+                     * @default {}
+                     * @example {
+                     *       "title": "duplicate"
+                     *     }
+                     */
+                    fields?: {
+                        [key: string]: "survivor" | "duplicate";
+                    };
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        /** @description The number people quote: NOTE-<year>-<n>, given on create. */
+                        number: string | null;
+                        /** @description Who wrote it: `user:<id>` or `client:<id>`. */
+                        ownerId: string;
+                        /**
+                         * Format: uuid
+                         * @description The author's organizational unit, when they were in exactly one.
+                         */
+                        unitId: string | null;
+                        title: string;
+                        /** @description Left out when your permissions don't include the note's text. */
+                        body?: string;
+                        /** @enum {string} */
+                        status: "draft" | "published";
+                        /** @description Custom field values by key; left out when your permissions don't include them. */
+                        custom?: {
+                            [key: string]: unknown;
+                        };
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        /**
+                         * Format: date-time
+                         * @description Set while the note is in the recycle bin (`?deleted=true`).
+                         */
+                        deletedAt: string | null;
+                        /** @description Who deleted it: `user:<id>` or `client:<id>`. */
+                        deletedBy: string | null;
+                        /** Format: date-time */
+                        publishedAt: string | null;
+                        /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
+                        tags: components["schemas"]["TagRef"][];
+                        /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
+                        can?: {
+                            /** @description PATCH would be allowed. */
+                            update: boolean;
+                            /** @description DELETE would be allowed. */
+                            delete: boolean;
+                            /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
+                            restore: boolean;
+                            /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
+                            issue: boolean;
+                        };
+                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares. */
+                        watching?: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description As the preview: the survivor, the duplicate, a field or a referring record. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such note that you may read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A legal hold, an approval pending on either record, or a unique value another record holds. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description As the preview. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

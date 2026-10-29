@@ -1,6 +1,7 @@
 import { useQuery, queryOptions } from '@tanstack/react-query';
 import { unwrap, type GetResponse } from '@nestjs-monorepo-template/api-client';
-import { useEffect } from 'react';
+import { useTheme } from '@nestjs-monorepo-template/ui/components/theme-provider';
+import { useEffect, useSyncExternalStore } from 'react';
 import { api } from '@/lib/api';
 
 export type Branding = GetResponse<'/v1/branding'>;
@@ -67,9 +68,31 @@ export function useBranding() {
   }).data;
 }
 
-/** Themes the app with the tenant's colour while mounted; renders nothing. */
+const DARK_QUERY = '(prefers-color-scheme: dark)';
+
+/** Whether the app shows its dark theme: the chosen one, or the system's when it follows it. */
+export function useIsDark() {
+  const { theme } = useTheme();
+  const system = useSyncExternalStore(
+    (notify) => {
+      const media = window.matchMedia(DARK_QUERY);
+      media.addEventListener('change', notify);
+      return () => media.removeEventListener('change', notify);
+    },
+    () => window.matchMedia(DARK_QUERY).matches,
+    () => false,
+  );
+  return theme === 'dark' || (theme === 'system' && system);
+}
+
+/** Themes the app with the tenant's colour (the dark one in the dark theme, when it has one) while mounted; renders nothing. */
 export function BrandTheme() {
-  const color = useBranding()?.primaryColor ?? null;
+  const branding = useBranding();
+  const dark = useIsDark();
+  const color =
+    (dark ? branding?.darkPrimaryColor : null) ??
+    branding?.primaryColor ??
+    null;
   useEffect(() => {
     applyBrandColor(color);
     return () => applyBrandColor(null);

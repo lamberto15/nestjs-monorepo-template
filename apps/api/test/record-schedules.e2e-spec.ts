@@ -24,8 +24,8 @@ describe('recurring record schedules (e2e)', () => {
   });
 
   const daily = {
-    name: 'Daily note',
-    importer: 'notes',
+    name: 'Daily item',
+    importer: 'test-items',
     template: { title: 'Stand-up' },
     rrule: 'FREQ=DAILY',
     startDate: '2020-01-01',
@@ -42,17 +42,17 @@ describe('recurring record schedules (e2e)', () => {
     ).body.items as { details: Record<string, unknown> }[];
 
   // A title is matched by `contains` only: the exact ones are kept here.
-  const notesNamed = async (title: string) =>
+  const itemsNamed = async (title: string) =>
     (
       (
         await node
           .admin()
           .get(
-            `/v1/notes?title.contains=${encodeURIComponent(title)}&limit=100`,
+            `/v1/test-items?title.contains=${encodeURIComponent(title)}&limit=100`,
           )
           .expect(200)
       ).body.items as { id: string; title: string }[]
-    ).filter((note) => note.title === title);
+    ).filter((item) => item.title === title);
 
   /** Makes the schedule's next occurrence due `ago` ms before the returned `now`. */
   async function due(id: string, ago = 0) {
@@ -159,7 +159,7 @@ describe('recurring record schedules (e2e)', () => {
     expect(await runner.run(new Date(nextRunAt.getTime() - 1000))).toBe(0);
     expect(await runner.run(now)).toBe(1);
     expect(await runner.run(now)).toBe(0);
-    expect(await notesNamed('Once')).toHaveLength(1);
+    expect(await itemsNamed('Once')).toHaveLength(1);
     const after = await state(id);
     expect(after).toMatchObject({ occurrences: 1, lastStatus: 'created' });
     expect(after.nextRunAt!.getTime() - nextRunAt.getTime()).toBe(24 * HOUR);
@@ -170,7 +170,7 @@ describe('recurring record schedules (e2e)', () => {
       .set({ nextRunAt })
       .where(eq(recordSchedules.id, id));
     await runner.run(now);
-    expect(await notesNamed('Once')).toHaveLength(1);
+    expect(await itemsNamed('Once')).toHaveLength(1);
     expect((await state(id)).nextRunAt!.getTime() - nextRunAt.getTime()).toBe(
       24 * HOUR,
     );
@@ -190,7 +190,7 @@ describe('recurring record schedules (e2e)', () => {
       .expect(201);
     const { now } = await due(body.id, 3 * 24 * HOUR + HOUR);
     expect(await node.app.get(RecordScheduleRunnerJob).run(now)).toBe(4);
-    expect(await notesNamed('Missed')).toHaveLength(4);
+    expect(await itemsNamed('Missed')).toHaveLength(4);
     expect((await state(body.id)).occurrences).toBe(4);
   });
 
@@ -228,7 +228,7 @@ describe('recurring record schedules (e2e)', () => {
       .expect(200);
     expect(paused.body).toMatchObject({ status: 'paused', nextRunAt: null });
     expect(await node.app.get(RecordScheduleRunnerJob).run(now)).toBe(0);
-    expect(await notesNamed('Paused')).toHaveLength(0);
+    expect(await itemsNamed('Paused')).toHaveLength(0);
 
     const resumed = await ada.agent
       .post(`/v1/record-schedules/${id}/resume`)
@@ -237,7 +237,7 @@ describe('recurring record schedules (e2e)', () => {
     expect(new Date(resumed.body.nextRunAt).getTime()).toBeGreaterThan(
       Date.now(),
     );
-    expect(await notesNamed('Paused')).toHaveLength(0);
+    expect(await itemsNamed('Paused')).toHaveLength(0);
 
     const ended = await ada.agent
       .post(`/v1/record-schedules/${id}/end`)
@@ -257,7 +257,7 @@ describe('recurring record schedules (e2e)', () => {
       .send({ ...daily, template: { title: 'Failing' } })
       .expect(201);
     const id = body.id as string;
-    const importer = node.app.get(DataTransferRegistry).importer('notes')!;
+    const importer = node.app.get(DataTransferRegistry).importer('test-items')!;
     const write = vi
       .spyOn(importer, 'write')
       .mockRejectedValue(new Error('boom'));
@@ -280,14 +280,14 @@ describe('recurring record schedules (e2e)', () => {
     expect(skipped.nextRunAt!.getTime() - nextRunAt.getTime()).toBe(24 * HOUR);
     expect(write).toHaveBeenCalledTimes(3);
     expect(await audit('recordSchedule.skipped', id)).toHaveLength(1);
-    expect(await notesNamed('Failing')).toHaveLength(0);
+    expect(await itemsNamed('Failing')).toHaveLength(0);
 
     // The importer works again: the next occurrence is made.
     write.mockRestore();
     expect(
       await runner.run(new Date(skipped.nextRunAt!.getTime() + 1000)),
     ).toBe(1);
-    expect(await notesNamed('Failing')).toHaveLength(1);
+    expect(await itemsNamed('Failing')).toHaveLength(1);
   });
 
   it("checks the owner's access again: an owner who lost it, or is gone, ends the schedule", async () => {
@@ -313,7 +313,7 @@ describe('recurring record schedules (e2e)', () => {
         reason: 'import_not_allowed',
       },
     );
-    expect(await notesNamed('Revoked')).toHaveLength(0);
+    expect(await itemsNamed('Revoked')).toHaveLength(0);
 
     const client = await node.client();
     const made = await node

@@ -30,6 +30,8 @@
         "src/{worker,migrate,seed-demo,openapi-dump,cli}.ts",
         "src/demo/run-demo-seed.ts",
         "drizzle*.config.ts",
+        // Started as a worker_threads thread by text-extractor.ts (a URL, not an import).
+        "src/platform/attachments/text-extraction.worker.ts",
       ],
       // Started by test/global-setup.ts; CI and the devcontainer install it.
       "ignoreBinaries": ["redis-server"],

@@ -49,6 +49,7 @@ import {
   renditionKeys,
 } from '../images/renditions.js';
 import { AttachmentImagesQueue } from './attachment-images.queue.js';
+import { AttachmentTextQueue } from './attachment-text.queue.js';
 import { AttachmentScanQueue } from './attachment-scan.queue.js';
 import { ATTACHMENT_LIST } from './attachment.list.js';
 import type { AttachmentView } from './attachment.schemas.js';
@@ -133,6 +134,7 @@ export class AttachmentsService implements PersonalDataSource {
     private readonly activity: RecordActivity,
     private readonly scans: AttachmentScanQueue,
     private readonly images: AttachmentImagesQueue,
+    private readonly texts: AttachmentTextQueue,
     personalData: PersonalDataRegistry,
     private readonly quotas: TenantQuotas,
     private readonly holds: LegalHoldsService,
@@ -468,7 +470,9 @@ export class AttachmentsService implements PersonalDataSource {
    * After the commit of an attachment's change: `record.attachments.changed`
    * to the record's watchers and `by`'s other tabs who may read it
    * (RecordActivity). Not awaited: the answer doesn't wait for the
-   * permission checks, and a failure is logged.
+   * permission checks, and a failure is logged. A file stored or scanned
+   * clean gets its text extracted for the search (ATTACHMENT_TEXT_SEARCH;
+   * the job skips what has nothing to extract).
    */
   changed(
     by: Principal,
@@ -478,6 +482,9 @@ export class AttachmentsService implements PersonalDataSource {
   ) {
     const target = this.registry.get(record.subject);
     if (!target) return;
+    if (action === 'added' || action === 'scanned') {
+      void this.texts.enqueue(attachmentId, action);
+    }
     const ref = { subject: record.subject, recordId: record.recordId };
     void this.activity.push(
       ref,

@@ -105,5 +105,20 @@
     "empty": "暂无。",
     "error": "无法加载相关记录。",
     "more": "最新的 {{shown}} 条，共 {{total}} 条。"
+  },
+  "duplicates": {
+    "title": "重复记录",
+    "empty": "没有可能的重复记录。",
+    "error": "无法加载重复记录。",
+    "matched": "（相同：{{fields}}）",
+    "merge": "合并到此记录",
+    "description": "“{{name}}”将合并到此记录并移入回收站。它的标签、评论、附件以及引用它的记录将移到这里。",
+    "same": "两条记录的值相同：保留此记录的值。",
+    "choose": "采用重复记录的值：",
+    "take": "{{field}}：“{{value}}”而不是“{{current}}”",
+    "moves": "移到这里：{{tags}} 个标签、{{comments}} 条评论、{{attachments}} 个附件、{{references}} 个引用。",
+    "confirm": "合并",
+    "merged": "已合并：重复记录已移入回收站。",
+    "warning": "这可能已经存在："
   }
 }

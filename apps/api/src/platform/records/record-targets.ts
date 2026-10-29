@@ -197,6 +197,9 @@ export class RecordAttachments {
     this.records = { table: c.table as unknown as PgTable, id: c.table.id! };
     registry.register(this);
   }
+  link(id: string) {
+    return `/${this.c.declaration.path}/${id}`;
+  }
   async canRead(principal: Principal, id: string) {
     const row = await find(this.c, id, principal);
     return row !== null && this.c.policy.read(principal, row);

@@ -671,6 +671,48 @@ describe('the example feature: notes (e2e)', () => {
     });
   });
 
+  describe('duplicates and merging (NoteMerge)', () => {
+    it('finds notes with the same title and merges one, with its comments', async () => {
+      const editor = (await node.user(['editor'])).agent;
+      const survivor = (
+        await writeNote(node, editor, { title: 'Weekly sync', body: 'Old' })
+      ).body as { id: string };
+      const duplicate = (
+        await writeNote(node, editor, { title: ' weekly SYNC', body: 'New' })
+      ).body as { id: string };
+      await editor
+        .post(`/v1/notes/${duplicate.id}/comments`)
+        .send({ body: 'Agenda attached' })
+        .expect(201);
+
+      const found = await editor
+        .post('/v1/notes/duplicates')
+        .send({ values: { title: 'Weekly Sync' } })
+        .expect(200);
+      expect(found.body.items.map((d: { id: string }) => d.id)).toEqual([
+        duplicate.id,
+        survivor.id,
+      ]);
+
+      const merged = await editor
+        .post(`/v1/notes/${survivor.id}/merge`)
+        .send({ duplicateId: duplicate.id, fields: { body: 'duplicate' } })
+        .expect(200);
+      expect(noteSchema.strict().safeParse(merged.body).success).toBe(true);
+      expect(merged.body).toMatchObject({ title: 'Weekly sync', body: 'New' });
+      await editor.get(`/v1/notes/${duplicate.id}`).expect(404);
+      const moved = await editor
+        .get(`/v1/notes/${survivor.id}/comments`)
+        .expect(200);
+      expect(moved.body.items).toHaveLength(1);
+      const [entry] = await node.auditEntries({ action: 'note.merged' });
+      expect(entry).toMatchObject({
+        targetId: survivor.id,
+        details: { duplicateId: duplicate.id, fields: ['body'] },
+      });
+    });
+  });
+
   describe('the durable workflow', () => {
     it('publishes a draft when its delay is over', async () => {
       const client = await node.client();
@@ -753,6 +795,132 @@ describe('the example feature: notes (e2e)', () => {
       } finally {
         await receiver.close();
       }
+    });
+
+    it('sends a tenant-scope client the notes of users and other clients it may read, redacted, and no one else', async () => {
+      const admin = node.admin();
+      const roles = (await admin.get('/v1/access/roles').expect(200)).body
+        .items as { id: string; key: string | null }[];
+      const viewer = roles.find((role) => role.key === 'viewer')!.id;
+      const clientWith = async (roleIds: string[]) => {
+        const created = await admin
+          .post('/v1/access/clients')
+          .send({ name: `client-${randomUUID().slice(0, 8)}`, roleIds })
+          .expect(201);
+        return {
+          id: created.body.id as string,
+          auth: `Bearer ${created.body.key}`,
+        };
+      };
+      const receivers = await Promise.all(
+        Array.from({ length: 5 }, () => webhookReceiver()),
+      );
+      const [ownR, tenantR, unscopedR, unreadR, otherR] = receivers;
+      try {
+        // own (the default) with every note readable; tenant with Note.read;
+        // own with Note.read; tenant without read on others' notes.
+        const own = await node.client();
+        const reader = await clientWith([viewer]);
+        const unscoped = await clientWith([viewer]);
+        const unread = await node.client();
+        const subscribe = (auth: string, url: string) =>
+          node
+            .http()
+            .post('/v1/webhook-endpoints')
+            .set('Authorization', auth)
+            .send({ url, eventTypes: ['note.created'] })
+            .expect(201);
+        await subscribe(own.auth, ownR!.url);
+        await subscribe(reader.auth, tenantR!.url);
+        await subscribe(unscoped.auth, unscopedR!.url);
+        await subscribe(unread.auth, unreadR!.url);
+        for (const client of [reader, unread]) {
+          await admin
+            .put(`/v1/access/clients/${client.id}/webhook-scope`)
+            .send({ scope: 'tenant' })
+            .expect(200, { scope: 'tenant' });
+        }
+        expect(
+          (
+            await admin
+              .get(`/v1/access/clients/${unscoped.id}/webhook-scope`)
+              .expect(200)
+          ).body,
+        ).toEqual({ scope: 'own' });
+        // A client can't set its own scope: the route is an administrator's.
+        await node
+          .http()
+          .put(`/v1/access/clients/${unread.id}/webhook-scope`)
+          .set('Authorization', unread.auth)
+          .send({ scope: 'tenant' })
+          .expect(401);
+
+        // Another tenant: a tenant-scope client that may read every note there.
+        const other = await node.otherTenant();
+        const otherRoles = (
+          await other.admin.get('/v1/access/roles').expect(200)
+        ).body.items as { id: string; key: string | null }[];
+        const otherClient = await other.admin
+          .post('/v1/access/clients')
+          .send({
+            name: 'other-reader',
+            roleIds: [otherRoles.find((role) => role.key === 'viewer')!.id],
+          })
+          .expect(201);
+        await node
+          .http()
+          .post('/v1/webhook-endpoints')
+          .set('Authorization', `Bearer ${otherClient.body.key}`)
+          .send({ url: otherR!.url, eventTypes: ['*'] })
+          .expect(201);
+        await other.admin
+          .put(`/v1/access/clients/${otherClient.body.id}/webhook-scope`)
+          .send({ scope: 'tenant' })
+          .expect(200);
+
+        const byUser = (
+          await writeNote(node, admin, { title: 'By a user', body: 'Secret' })
+        ).body;
+        const byOwn = (
+          await writeNote(node, own.auth, { title: 'By a client', body: 'x' })
+        ).body;
+        await node.deliverWebhooks();
+
+        const got = (receiver: (typeof receivers)[number]) =>
+          receiver!.received.map((hook) => hook.body.data);
+        // The owning client still gets its own note; nothing of the user's.
+        expect(got(ownR)).toEqual([{ noteId: byOwn.id, title: 'By a client' }]);
+        // The tenant-scope reader gets both, with no field it may not read
+        // (the note's text is never in a note webhook).
+        expect(got(tenantR)).toHaveLength(2);
+        expect(got(tenantR)).toEqual(
+          expect.arrayContaining([
+            { noteId: byUser.id, title: 'By a user' },
+            { noteId: byOwn.id, title: 'By a client' },
+          ]),
+        );
+        expect(got(unscopedR)).toEqual([]);
+        expect(got(unreadR)).toEqual([]);
+        expect(got(otherR)).toEqual([]);
+      } finally {
+        await Promise.all(receivers.map((receiver) => receiver.close()));
+      }
+    });
+
+    it('lists its incoming event type in the incoming catalog, not the outgoing one', async () => {
+      const catalog = await node
+        .admin()
+        .get('/v1/webhook-incoming-event-types')
+        .expect(200);
+      const publish = (
+        catalog.body.items as { type: string; dataSchema: unknown }[]
+      ).find((i) => i.type === 'note.publish-requested');
+      expect(publish?.dataSchema).toMatchObject({
+        type: 'object',
+        required: ['noteId'],
+      });
+      const outgoing = await node.admin().get('/v1/webhook-event-types');
+      expect(JSON.stringify(outgoing.body)).not.toContain('publish-requested');
     });
 
     it('accepts a verified incoming webhook once, and refuses a bad signature', async () => {

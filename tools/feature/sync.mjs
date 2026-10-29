@@ -370,6 +370,14 @@ export function recordPaths(record) {
     ...(has('share')
       ? [`${base}/{id}/shares`, `${base}/{id}/shares/{shareId}`]
       : []),
+    ...(has('merge')
+      ? [
+          `${base}/duplicates`,
+          `${base}/{id}/duplicates`,
+          `${base}/{id}/merge`,
+          `${base}/{id}/merge/preview`,
+        ]
+      : []),
     ...record.approvals.map((action) => `${base}/{id}/${actionPath(action)}`),
   ];
 }
